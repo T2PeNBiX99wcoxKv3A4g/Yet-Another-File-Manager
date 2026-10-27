@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Versioning;
 using JetBrains.Annotations;
 using Serilog;
@@ -87,7 +88,7 @@ internal static class Program
 
             using var tray = CreateTray(manager.IconPath);
 
-            manager.MainWindowCreated += () =>
+            manager.MainWindowCreated += [SuppressMessage("ReSharper", "AccessToDisposedClosure")]() =>
             {
                 // The message loop is about to start, so windows can now be created safely.
                 singleInstance.StartServer(paths => DispatchPaths(manager, paths));
