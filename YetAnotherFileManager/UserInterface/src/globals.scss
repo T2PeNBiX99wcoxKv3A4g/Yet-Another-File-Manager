@@ -1,0 +1,118 @@
+// Design tokens. CSS custom properties rather than SCSS variables because the components are
+// styled-components and cannot read SCSS.
+//
+// Inter and JetBrains Mono are bundled (SIL OFL, latin subsets only — see main.tsx). Everything
+// after them is a system fallback, and only fonts that ship with the OS belong there: a CJK face is
+// 66-80 MB per language, so those are never bundled.
+//
+// `--font-cjk` is kept separate because it has to be spliced in *before* the generic family:
+// Chromium picks the CJK fallback from the element's language, and a generic family would swallow
+// anything listed after it.
+html {
+  --font-cjk: sans-serif;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Arial;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, "SFMono-Regular", Menlo,
+  var(--font-cjk);
+
+  font-family: var(--font-sans), var(--font-cjk);
+
+  --bg-primary: #0b0f19;
+  --bg-secondary: #111827;
+  --bg-card: rgba(17, 24, 39, 0.75);
+  --bg-card-hover: rgba(31, 41, 55, 0.85);
+  --bg-input: rgba(15, 23, 42, 0.75);
+
+  --text-primary: #f9fafb;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-color-hover: rgba(99, 102, 241, 0.4);
+  --border-color-focus: #3b82f6;
+
+  --accent-primary: #3b82f6;
+  --accent-secondary: #6366f1;
+  --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%);
+  --accent-glow: 0 0 24px rgba(99, 102, 241, 0.35);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+html:lang(zh-TW) {
+  --font-cjk: "Noto Sans TC", "Microsoft JhengHei UI", "PingFang TC";
+}
+
+html:lang(zh-CN) {
+  --font-cjk: "Noto Sans SC", "Microsoft YaHei UI", "PingFang SC";
+}
+
+html:lang(ja) {
+  --font-cjk: "Noto Sans JP", "Yu Gothic UI", "Hiragino Kaku Gothic ProN";
+}
+
+// Reset & base layout
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+// WebKitGTK paints its own themed background on buttons, which shows through the app's translucent
+// surfaces and washes the label out (very visible on Linux). Dropping the native appearance keeps
+// the theme out of the way.
+button {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+// No font-family here on purpose: body inherits it from html, so the :lang() rules above keep
+// working. Declaring it again would shadow them.
+html,
+body {
+  width: 100%;
+  height: 100%;
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+// Motion: the interface animates page entries, buttons and inputs. Anyone who asked the OS to
+// reduce motion gets the same UI with the durations collapsed instead of a separate code path.
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+// Scrollbar styling for the dark theme
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.28);
+  }
+}
