@@ -1,4 +1,5 @@
 using System.Runtime.Versioning;
+using JetBrains.Annotations;
 using Serilog;
 using YetAnotherFileManager.Extensions;
 using YetAnotherFileManager.Interop;
@@ -16,6 +17,7 @@ internal static class Program
     ///     A directory we own, used as the host's content root. The static server creates a <c>wwwroot</c>
     ///     web root under it when missing, which without this would land next to the executable.
     /// </summary>
+    [PublicAPI]
     private static string DataDirectory
     {
         get
