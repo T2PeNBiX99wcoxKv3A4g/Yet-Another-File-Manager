@@ -1,7 +1,6 @@
 using System.Text.Json;
 using JetBrains.Annotations;
 using Photino.NET;
-using YetAnotherFileManager.Models;
 
 namespace YetAnotherFileManager.Messaging;
 

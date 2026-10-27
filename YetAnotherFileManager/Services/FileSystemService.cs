@@ -73,7 +73,7 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
     private static List<DriveEntry> GetDrives() =>
     [
         .. DriveInfo.GetDrives()
-            .Where(drive => Try.Run(() => drive.IsReady).GetOrNull() == true)
+            .Where(drive => Try.Run(() => drive.IsReady).GetOrNull())
             .Select(drive => Try.Run(() => new DriveEntry(
                 drive.Name,
                 drive.VolumeLabel,
