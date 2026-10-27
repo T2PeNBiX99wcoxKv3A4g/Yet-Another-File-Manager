@@ -32,6 +32,7 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(DriveEntry))]
 [JsonSerializable(typeof(List<DriveEntry>))]
 [JsonSerializable(typeof(FsDrivesPayload))]
+[JsonSerializable(typeof(NavigatePayload))]
 internal sealed partial class AppJsonContext : JsonSerializerContext;
 
 /// <summary>Bridges loosely-typed payloads to the source-generated serializer.</summary>

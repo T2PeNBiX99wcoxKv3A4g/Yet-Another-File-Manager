@@ -25,6 +25,8 @@ dotnet run
 | `Messaging/`     | JSON request/response bridge between React and C#           |
 | `Models/`        | Payload models shared across the bridge                     |
 | `Services/`      | Window manager, app info, file system access, static server |
+| `Interop/`       | Native tray icon (Win32 / libayatana-appindicator)          |
+| `Platform/`      | Linux GTK helpers and diagnostics                           |
 | `Utils/`         | `Result`, `Try` and `Singleton` helpers                     |
 | `Extensions/`    | Small extension methods used by the services                |
 | `Resources/`     | Embedded assets (the UI build lands in `Resources/wwwroot`) |

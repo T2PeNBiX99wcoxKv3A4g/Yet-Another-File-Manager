@@ -5,6 +5,7 @@ import {getAppInfo, type AppInfo} from "./api/system";
 import {FileList} from "./components/FileList";
 import {ArrowUpIcon, RefreshIcon, SearchIcon} from "./components/Icons";
 import {Sidebar} from "./components/Sidebar";
+import {Native} from "./Native";
 import {baseName} from "./utils/format";
 
 export default function App() {
@@ -35,6 +36,21 @@ export default function App() {
         void listPlaces().then(setPlaces, () => setPlaces([]));
         void listDrives().then(setDrives, () => setDrives([]));
         void getAppInfo().then(setAppInfo, () => setAppInfo(null));
+    }, [navigate]);
+
+    // The host pushes a path for command-line arguments and for a second launch (single instance).
+    // It waits for `app.ready` first, because sending to a web view that is still loading crashes it.
+    useEffect(() => {
+        if (!Native.available) return;
+
+        const unsubscribe = Native.on((message) => {
+            const event = message as { type?: string; data?: { path?: string } };
+            if (event.type === "app.navigate" && typeof event.data?.path === "string")
+                void navigate(event.data.path);
+        });
+
+        Native.send({type: "app.ready"});
+        return unsubscribe;
     }, [navigate]);
 
     const crumbs = listing ? breadcrumbs(listing.path) : [];

@@ -71,3 +71,15 @@ The front-end talks to C# through Photino's `window.external` bridge (`src/Nativ
 JSON objects with a `type` and optional `id`; handlers in C# are plain services that subscribe to
 `NativeBridge.MessageReceived` and reply with a named payload. The available message types are
 `app.info`, `fs.list`, `fs.places` and `fs.drives`.
+
+## Tray, single instance and command line
+
+- Closing the window hides it to the tray instead of exiting. The tray menu has **Open** and
+  **Exit**; a left click opens the window.
+- Only one instance runs. A second launch forwards its arguments over a named pipe and exits.
+- Arguments are paths, like Explorer: `YetAnotherFileManager.exe "C:\Users\me\Downloads"` opens the
+  folder. A file argument opens its containing folder (selection is not implemented yet). If the
+  window is hidden, forwarding a path restores it.
+- On Linux the tray needs `libayatana-appindicator3`; without it the app stays in the taskbar and
+  closing the window exits.
+

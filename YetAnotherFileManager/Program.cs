@@ -1,6 +1,10 @@
-using JetBrains.Annotations;
+using System.Runtime.Versioning;
 using Serilog;
+using YetAnotherFileManager.Extensions;
+using YetAnotherFileManager.Interop;
+using YetAnotherFileManager.Platform;
 using YetAnotherFileManager.Services;
+using YetAnotherFileManager.Utils;
 
 namespace YetAnotherFileManager;
 //NOTE: To hide the console window, go to the project properties and change the Output Type to Windows Application.
@@ -12,7 +16,6 @@ internal static class Program
     ///     A directory we own, used as the host's content root. The static server creates a <c>wwwroot</c>
     ///     web root under it when missing, which without this would land next to the executable.
     /// </summary>
-    [PublicAPI]
     private static string DataDirectory
     {
         get
@@ -34,10 +37,30 @@ internal static class Program
         // Photino message loop / WebView2 require an STA thread.
         Logging.Initialize();
 
+        if (OperatingSystem.IsLinux())
+        {
+            LinuxDiagnostics.Write();
+
+            // The Wayland app id must match the desktop entry's file name, or the compositor will not
+            // associate our windows with our icon.
+            LinuxGtk.SetProgramName(Constants.Name);
+        }
+
         try
         {
             foreach (var arg in args)
                 Log.Information("arg: {Arg}", arg);
+
+            var startupPaths = ResolvePaths(args);
+
+            // Only one instance may run; later launches hand their paths to it and exit.
+            using var singleInstance = SingleInstance.Instance;
+            if (!singleInstance.IsFirstInstance)
+            {
+                // Blocking here is fine: this process only forwards its args and exits.
+                singleInstance.ForwardAsync(args).GetAwaiter().GetResult();
+                return;
+            }
 
 #if !DEBUG
             // Kestrel binds to an OS-assigned port, so several Photino apps can run side by side
@@ -47,7 +70,7 @@ internal static class Program
             var appUrl = staticServer.AppUrl;
 #else
             // A Debug build always talks to the Vite dev server, which is where hot reload lives.
-            const string appUrl = "http://127.0.0.1:3000";
+            const string appUrl = "http://127.0.0.1:3100";
 #endif
 
             Log.Information("Serving React app at {AppUrl}", appUrl);
@@ -58,7 +81,25 @@ internal static class Program
 
             var manager = WindowManager.Instance;
             manager.AppUrl = appUrl;
+            manager.IconPath = AppIcon.EnsureExtracted();
+
+            using var tray = CreateTray(manager.IconPath);
+
+            manager.MainWindowCreated += () =>
+            {
+                // The message loop is about to start, so windows can now be created safely.
+                singleInstance.StartServer(paths => DispatchPaths(manager, paths));
+            };
+
             manager.CreateMainWindow();
+
+            // The window is already visible at startup; these only decide what it shows. Paths that
+            // arrive now are queued until the interface reports that it is listening.
+            foreach (var path in startupPaths)
+                manager.ShowPath(path);
+
+            StartTray(tray);
+
             manager.Run();
 
             Log.Information("Exiting");
@@ -67,5 +108,94 @@ internal static class Program
         {
             Logging.Shutdown();
         }
+    }
+
+    /// <summary>Shows every path a second launch forwarded, the way Explorer reuses its window.</summary>
+    private static void DispatchPaths(WindowManager manager, IReadOnlyList<string> args)
+    {
+        foreach (var path in ResolvePaths(args))
+            manager.ShowPath(path);
+    }
+
+    /// <summary>
+    ///     Explorer-style command line: every non-flag argument is a file or folder to show. A file
+    ///     opens its containing folder until the interface can select it.
+    /// </summary>
+    private static List<string> ResolvePaths(IEnumerable<string> args)
+    {
+        var paths = new List<string>();
+
+        foreach (var arg in args)
+        {
+            if (arg.Length == 0 || arg.StartsWith('-'))
+                continue;
+
+            var full = Try.Run(() => Path.GetFullPath(arg)).GetOrNull();
+            if (full is null || paths.Contains(full, StringComparer.OrdinalIgnoreCase))
+                continue;
+
+            if (Directory.Exists(full))
+                paths.Add(full);
+            else if (File.Exists(full) && Path.GetDirectoryName(full) is { } directory)
+                paths.Add(directory);
+            else
+                Log.Warning("Ignoring {Arg}: no such file or folder", arg);
+        }
+
+        return paths;
+    }
+
+    /// <summary>Starts the tray icon and records whether it exists, so closing the window only hides it when
+    /// there is really something to restore it from.</summary>
+    private static void StartTray(ITrayIcon tray)
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            WindowManager.Instance.CloseToTray = tray.Start();
+            return;
+        }
+
+        StartLinuxTrayWhenReady(tray);
+    }
+
+    /// <summary>
+    ///     On GTK the tray can only be built on the UI thread and only once the toolkit has a display
+    ///     connection, which appears when the message loop starts. libayatana-appindicator aborts the
+    ///     process if it is asked any earlier, so it waits for the toolkit to report ready.
+    /// </summary>
+    [SupportedOSPlatform("linux")]
+    private static void StartLinuxTrayWhenReady(ITrayIcon tray) =>
+        _ = Task.Run(async () =>
+        {
+            for (var attempt = 0; attempt < 100 && !LinuxTrayIcon.IsToolkitReady; attempt++)
+                await Task.Delay(100);
+
+            WindowManager.Instance.RunOnMainWindow(() => { WindowManager.Instance.CloseToTray = tray.Start(); });
+        });
+
+    /// <summary>The tray icon, or a no-op stand-in on platforms that have none.</summary>
+    private static ITrayIcon CreateTray(string? iconPath)
+    {
+        var manager = WindowManager.Instance;
+
+        if (OperatingSystem.IsWindows())
+            return new WindowsTrayIcon(
+                Constants.WindowTitle,
+                iconPath,
+                "Open",
+                "Exit",
+                manager.ShowMainWindow,
+                manager.Exit);
+
+        if (OperatingSystem.IsLinux() && LinuxDiagnostics.AppIndicatorLibrary is not null)
+            return new LinuxTrayIcon(
+                Constants.WindowTitle,
+                iconPath,
+                "Open",
+                "Exit",
+                manager.ShowMainWindow,
+                manager.Exit);
+
+        return new NullTrayIcon();
     }
 }
