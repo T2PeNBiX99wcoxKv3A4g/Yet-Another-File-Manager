@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
@@ -6,36 +7,54 @@ using YetAnotherFileManager.Models;
 namespace YetAnotherFileManager.Services;
 
 /// <summary>
-///     Reads the recycle bin the way the shell stores it: under <c>$Recycle.Bin\&lt;SID&gt;</c> every
-///     deleted item has an <c>$I…</c> record (original name, size, deletion time) beside the
-///     <c>$R…</c> content. Reading those is enough to list the bin without COM.
+///     Lists deleted items. Windows keeps them under <c>$Recycle.Bin\&lt;SID&gt;</c> as an <c>$I…</c>
+///     record beside the <c>$R…</c> content; everything else follows the freedesktop.org trash
+///     specification, where <c>info/*.trashinfo</c> describes the file stored in <c>files/</c>.
 /// </summary>
 internal static class RecycleBin
 {
     private const int MaxPathChars = 32 * 1024;
+    private const string TrashInfoSuffix = ".trashinfo";
+
+    /// <summary>
+    ///     Denied folders are normal here — the bin of another user, or of a volume with stricter
+    ///     permissions — and must simply read as empty instead of failing the whole listing.
+    /// </summary>
+    private static readonly EnumerationOptions Readable = new()
+    {
+        IgnoreInaccessible = true,
+        RecurseSubdirectories = false,
+        AttributesToSkip = FileAttributes.None
+    };
 
     public static IReadOnlyList<RecycleEntry> List() =>
-    [
-        .. DriveInfo.GetDrives()
+        (OperatingSystem.IsWindows() ? ListWindows() : ListUnix())
+        .OrderByDescending(entry => entry.Deleted)
+        .ToList();
+
+    // ---- Windows ----
+
+    private static IEnumerable<RecycleEntry> ListWindows() =>
+        DriveInfo.GetDrives()
             .Where(drive => Try.Run(() => drive.IsReady).GetOrNull())
-            .SelectMany(drive => ListDrive(drive.Name))
-            .OrderByDescending(entry => entry.Deleted)
-    ];
+            .SelectMany(drive => ListWindowsDrive(drive.Name));
 
-    private static IEnumerable<RecycleEntry> ListDrive(string root)
-    {
-        var bin = Path.Combine(root, "$Recycle.Bin");
-        if (!Directory.Exists(bin))
-            yield break;
+    private static IReadOnlyList<RecycleEntry> ListWindowsDrive(string root) =>
+        Try.Run(() =>
+        {
+            var bin = new DirectoryInfo(Path.Combine(root, "$Recycle.Bin"));
+            if (!bin.Exists)
+                return [];
 
-        // Other users' folders are usually unreadable without elevation; skipping them is fine.
-        foreach (var folder in Try.Run(() => Directory.GetDirectories(bin)).GetOrElse(_ => []))
-        foreach (var info in Try.Run(() => Directory.GetFiles(folder, "$I*")).GetOrElse(_ => []))
-            if (Try.Run(() => Read(info)).GetOrNull() is { } entry)
-                yield return entry;
-    }
+            // Every user gets a SID folder; the ones we may not read are skipped by the options.
+            return bin.EnumerateDirectories("*", Readable)
+                .SelectMany(folder => folder.EnumerateFiles("$I*", Readable))
+                .Select(info => Try.Run(() => ReadWindowsRecord(info.FullName)).GetOrNull())
+                .OfType<RecycleEntry>()
+                .ToList();
+        }).GetOrElse(_ => []);
 
-    private static RecycleEntry? Read(string infoPath)
+    private static RecycleEntry? ReadWindowsRecord(string infoPath)
     {
         using var reader = new BinaryReader(File.OpenRead(infoPath));
 
@@ -49,13 +68,14 @@ internal static class RecycleBin
 
         var content = Path.Combine(Path.GetDirectoryName(infoPath)!,
             "$R" + Path.GetFileName(infoPath)[2..]);
+        var isDirectory = Directory.Exists(content);
 
         return new RecycleEntry(
             Path.GetFileName(original.TrimEnd('\\', '/')),
             original,
-            size,
+            isDirectory ? 0 : size,
             new DateTimeOffset(DateTime.FromFileTimeUtc(deleted)).ToUnixTimeMilliseconds(),
-            Directory.Exists(content));
+            isDirectory);
     }
 
     /// <summary>Version 2 stores the length in characters (including the terminator) before the path.</summary>
@@ -71,4 +91,94 @@ internal static class RecycleBin
     /// <summary>The original layout reserved a fixed 260-character buffer for the path.</summary>
     private static string ReadLegacyPath(BinaryReader reader) =>
         Encoding.Unicode.GetString(reader.ReadBytes(520)).TrimEnd('\0');
+
+    // ---- freedesktop.org trash ----
+
+    private static IEnumerable<RecycleEntry> ListUnix() =>
+        TrashRoots().Distinct(StringComparer.Ordinal).SelectMany(ListTrashRoot);
+
+    /// <summary>
+    ///     The home trash, plus the per-volume trash of every mounted filesystem. Volumes use
+    ///     <c>.Trash-&lt;uid&gt;</c>, or a shared <c>.Trash</c> with a folder per user.
+    /// </summary>
+    private static IEnumerable<string> TrashRoots()
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var dataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
+
+        yield return Path.Combine(
+            string.IsNullOrWhiteSpace(dataHome) ? Path.Combine(home, ".local", "share") : dataHome,
+            "Trash");
+
+        if (!OperatingSystem.IsLinux())
+            yield break;
+
+        foreach (var drive in DriveInfo.GetDrives())
+        {
+            var mount = drive.RootDirectory.FullName;
+
+            foreach (var folder in Try.Run(() => Directory.GetDirectories(mount, ".Trash-*", Readable))
+                         .GetOrElse(_ => []))
+                yield return folder;
+
+            var shared = Path.Combine(mount, ".Trash");
+            foreach (var folder in Try.Run(() => Directory.GetDirectories(shared, "*", Readable))
+                         .GetOrElse(_ => []))
+                yield return folder;
+        }
+    }
+
+    private static IReadOnlyList<RecycleEntry> ListTrashRoot(string root) =>
+        Try.Run(() =>
+        {
+            var info = new DirectoryInfo(Path.Combine(root, "info"));
+            if (!info.Exists)
+                return [];
+
+            var files = Path.Combine(root, "files");
+
+            return info.EnumerateFiles("*" + TrashInfoSuffix, Readable)
+                .Select(file => Try.Run(() => ReadTrashInfo(file, files)).GetOrNull())
+                .OfType<RecycleEntry>()
+                .ToList();
+        }).GetOrElse(_ => []);
+
+    private static RecycleEntry? ReadTrashInfo(FileInfo info, string filesRoot)
+    {
+        string? original = null;
+        long deleted = 0;
+
+        foreach (var line in File.ReadLines(info.FullName))
+        {
+            var separator = line.IndexOf('=');
+            if (separator <= 0)
+                continue;
+
+            var key = line[..separator].Trim();
+            var value = line[(separator + 1)..].Trim();
+
+            if (key.Equals("Path", StringComparison.OrdinalIgnoreCase))
+                original = Uri.UnescapeDataString(value);
+            else if (key.Equals("DeletionDate", StringComparison.OrdinalIgnoreCase)
+                     && DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal,
+                         out var moment))
+                deleted = new DateTimeOffset(moment).ToUnixTimeMilliseconds();
+        }
+
+        if (string.IsNullOrWhiteSpace(original))
+            return null;
+
+        // The stored name is the info file's name without the suffix, which is not always the
+        // original file name: a second "report.txt" is stored as "report.txt.2".
+        var stored = Path.Combine(filesRoot, info.Name[..^TrashInfoSuffix.Length]);
+        var isDirectory = Directory.Exists(stored);
+        var size = isDirectory ? 0 : Try.Run(() => new FileInfo(stored).Length).GetOrElse(_ => 0);
+
+        return new RecycleEntry(
+            Path.GetFileName(original.TrimEnd('/')),
+            original,
+            size,
+            deleted,
+            isDirectory);
+    }
 }
