@@ -10,19 +10,20 @@ export function RecycleView() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [confirming, setConfirming] = useState(false);
+    const [showOrphans, setShowOrphans] = useState(false);
 
     const reload = useCallback(async () => {
         setLoading(true);
         setError(null);
 
         try {
-            setEntries(await listRecycle());
+            setEntries(await listRecycle(showOrphans));
         } catch (cause) {
             setError(cause instanceof Error ? cause.message : String(cause));
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [showOrphans]);
 
     useEffect(() => {
         void reload();
@@ -35,7 +36,7 @@ export function RecycleView() {
 
     const empty = async () => {
         setConfirming(false);
-        await emptyRecycleBin();
+        await emptyRecycleBin(showOrphans);
         await reload();
     };
 
@@ -54,6 +55,15 @@ export function RecycleView() {
                 </Heading>
 
                 <Actions>
+                    <OrphanButton
+                        $on={showOrphans}
+                        onClick={() => setShowOrphans((current) => !current)}
+                        title="Show metadata records whose content is already gone"
+                        type="button"
+                    >
+                        Orphans
+                    </OrphanButton>
+
                     {confirming ? (
                         <>
                             <ConfirmButton $danger onClick={() => void empty()} type="button">
@@ -94,29 +104,32 @@ export function RecycleView() {
                     </Head>
                     <Body>
                         {entries.map((entry) => (
-                            <Row key={entry.id} title={entry.originalPath}>
+                            <Row key={entry.id} $orphan={entry.isOrphan} title={entry.originalPath}>
                                 <NameCell>
                                     <EntryIcon entry={entry}/>
                                     <span>{entry.name}</span>
+                                    {entry.isOrphan && <Tag>metadata only</Tag>}
                                 </NameCell>
                                 <Origin>{entry.originalPath}</Origin>
                                 <Deleted>{formatDate(entry.deleted)}</Deleted>
                                 <Size>{entry.isDirectory ? "—" : formatBytes(entry.size)}</Size>
                                 <RowActions>
-                                    <RowButton
-                                        onClick={() => void restore(entry.id)}
-                                        title="Restore to its original folder"
-                                        type="button"
-                                    >
-                                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                                            <path d="M4 10a8 8 0 1 1 2.3 5.7"/>
-                                            <path d="M4 4v6h6"/>
-                                        </svg>
-                                    </RowButton>
+                                    {!entry.isOrphan && (
+                                        <RowButton
+                                            onClick={() => void restore(entry.id)}
+                                            title="Restore to its original folder"
+                                            type="button"
+                                        >
+                                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                <path d="M4 10a8 8 0 1 1 2.3 5.7"/>
+                                                <path d="M4 4v6h6"/>
+                                            </svg>
+                                        </RowButton>
+                                    )}
                                     <RowButton
                                         $danger
                                         onClick={() => void remove(entry.id)}
-                                        title="Delete permanently"
+                                        title={entry.isOrphan ? "Remove the leftover record" : "Delete permanently"}
                                         type="button"
                                     >
                                         <TrashIcon size={13}/>
@@ -184,6 +197,34 @@ const Actions = styled.div`
     display: flex;
     align-items: center;
     gap: 6px;
+`;
+
+const OrphanButton = styled.button<{ $on: boolean }>`
+    padding: 5px 10px;
+    border: 1px solid ${({$on}) => $on ? "var(--border-color-hover)" : "var(--border-color)"};
+    border-radius: var(--radius-sm);
+    background: ${({$on}) => $on ? "rgba(99, 102, 241, 0.16)" : "var(--bg-input)"};
+    color: ${({$on}) => $on ? "var(--text-primary)" : "var(--text-secondary)"};
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+
+    &:hover {
+        border-color: var(--border-color-hover);
+        background: var(--bg-card-hover);
+        color: var(--text-primary);
+    }
+`;
+
+const Tag = styled.span`
+    flex-shrink: 0;
+    padding: 1px 6px;
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: #fcd34d;
+    white-space: nowrap;
 `;
 
 const EmptyButton = styled.button`
@@ -266,7 +307,7 @@ const Body = styled.div`
     padding: 8px 10px 22px;
 `;
 
-const Row = styled.div`
+const Row = styled.div<{ $orphan: boolean }>`
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 170px 100px 56px;
     gap: 16px;
@@ -276,11 +317,13 @@ const Row = styled.div`
     border-radius: var(--radius-sm);
     font-size: 13px;
     color: var(--text-secondary);
+    opacity: ${({$orphan}) => $orphan ? 0.72 : 1};
 
     &:hover {
         border-color: var(--border-color);
         background: var(--bg-card-hover);
         color: var(--text-primary);
+        opacity: 1;
     }
 
     &:hover button {

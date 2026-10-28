@@ -8,12 +8,16 @@ export interface FileEntry {
     modified: number;
     isHidden: boolean;
     isSystem: boolean;
+    /** An icon recorded in the folder's own index: "icon:&lt;name&gt;" or "file:&lt;path&gt;". */
+    iconSource: string | null;
 }
 
 export interface DirectoryListing {
     path: string;
     parent: string | null;
     entries: FileEntry[];
+    /** Folder sizes measured earlier and cached in the folder's index, by entry name. */
+    folderSizes: Record<string, number>;
 }
 
 export interface Place {
@@ -37,6 +41,8 @@ export interface RecycleEntry {
     size: number;
     deleted: number;
     isDirectory: boolean;
+    /** Only the metadata record is left; the content is gone. */
+    isOrphan: boolean;
 }
 
 export interface FileVisibility {
@@ -62,8 +68,8 @@ export async function listDrives(): Promise<Drive[]> {
 }
 
 /** What is currently in the recycle bin, newest first. */
-export async function listRecycle(): Promise<RecycleEntry[]> {
-    const data = await Native.request<{ entries: RecycleEntry[] }>("fs.recycle");
+export async function listRecycle(includeOrphans = false): Promise<RecycleEntry[]> {
+    const data = await Native.request<{ entries: RecycleEntry[] }>("fs.recycle", {includeOrphans});
     return data.entries;
 }
 
@@ -73,9 +79,9 @@ export async function restoreRecycleEntry(id: string): Promise<boolean> {
     return data.ok;
 }
 
-/** Permanently removes everything the recycle bin lists. */
-export async function emptyRecycleBin(): Promise<void> {
-    await Native.request("fs.recycle.empty");
+/** Permanently removes every listed entry, including leftover metadata when it is shown. */
+export async function emptyRecycleBin(includeOrphans = false): Promise<void> {
+    await Native.request("fs.recycle.empty", {includeOrphans});
 }
 
 /** Permanently removes one entry. */

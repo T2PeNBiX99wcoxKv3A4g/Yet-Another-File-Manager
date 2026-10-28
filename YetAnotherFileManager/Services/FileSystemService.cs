@@ -12,6 +12,11 @@ namespace YetAnotherFileManager.Services;
 /// </summary>
 internal sealed class FileSystemService : Singleton<FileSystemService>
 {
+    /// <summary>How long a measured folder size is trusted before it is measured again.</summary>
+    private static readonly long SizeFreshness = (long)TimeSpan.FromMinutes(10).TotalMilliseconds;
+
+    private static long Now => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
     public FileSystemService() => NativeBridge.MessageReceived += HandleMessageAsync;
 
     private static Task<NativeResponse?> HandleMessageAsync(NativeContext context) =>
@@ -24,7 +29,7 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
                 new FsDrivesPayload(GetDrives()))),
 
             "fs.recycle" => Task.FromResult<NativeResponse?>(context.Reply("fs.recycle.result",
-                new FsRecyclePayload(RecycleBin.List()))),
+                new FsRecyclePayload(RecycleBin.List(context.Payload<RecycleListRequest>()?.IncludeOrphans ?? false)))),
 
             "fs.visibility" => Task.FromResult<NativeResponse?>(context.Reply("fs.visibility.result",
                 new FsVisibilityPayload(FileVisibility.ShowHidden, FileVisibility.ShowSystem))),
@@ -32,11 +37,17 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
             "fs.icon" => Task.FromResult<NativeResponse?>(context.Reply("fs.icon.result",
                 new IconPayload(Icon(context.Payload<IconRequest>())))),
 
+            "fs.iconFile" => Task.FromResult<NativeResponse?>(context.Reply("fs.iconFile.result",
+                new IconPayload(IconFile(context.Payload<PathPayload>()?.Path)))),
+
+            "fs.icon.set" => Task.FromResult<NativeResponse?>(context.Reply("fs.icon.set.result",
+                new OkPayload(SetIconOverride(context.Payload<IconOverrideRequest>())))),
+
             "fs.recycle.restore" => Task.FromResult<NativeResponse?>(context.Reply("fs.recycle.restore.result",
                 new OkPayload(RestoreRecycleEntry(context.Payload<RecycleRequest>()?.Id ?? "")))),
 
             "fs.recycle.empty" => Task.FromResult<NativeResponse?>(context.Reply("fs.recycle.empty.result",
-                new OkPayload(EmptyRecycleBin()))),
+                new OkPayload(EmptyRecycleBin(context.Payload<RecycleListRequest>()?.IncludeOrphans ?? false)))),
 
             "fs.recycle.delete" => Task.FromResult<NativeResponse?>(context.Reply("fs.recycle.delete.result",
                 new OkPayload(DeleteRecycleEntry(context.Payload<RecycleRequest>()?.Id ?? "")))),
@@ -55,25 +66,88 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
             _ => Task.FromResult<NativeResponse?>(null)
         };
 
-    /// <summary>The shell icon for a path, or null when system icons are off or unavailable.</summary>
+    /// <summary>The icon the shell would show, or null when the settings and the shell have none.</summary>
     private static string? Icon(IconRequest? request)
     {
         if (request is not { Path.Length: > 0 } || !OperatingSystem.IsWindows())
             return null;
 
         var settings = SettingsService.Instance.Current;
-        if (!settings.SystemIcons)
+
+        // A folder's own icon (desktop.ini) is a system setting of that folder, so it stays visible
+        // even when the generic system icons are turned off.
+        if (request.Directory && settings.UseCustomFolderIcons && HasCustomFolderIcon(request.Path))
+            return ShellIcon.DataUrl(request.Path, true, false);
+
+        if (!settings.UseSystemIcons)
             return null;
 
-        // Folders are looked up by path so a desktop.ini icon wins, unless that is turned off.
-        var useFileAttributes = !request.Directory || !settings.CustomFolderIcons;
+        var useFileAttributes = !request.Directory;
 
         return ShellIcon.DataUrl(request.Path, request.Directory, useFileAttributes);
     }
 
-    private static bool EmptyRecycleBin()
+    /// <summary>An icon file chosen by the user, as a data URL.</summary>
+    private static string? IconFile(string? path)
     {
-        RecycleBin.Empty();
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            return null;
+
+        var extension = Path.GetExtension(path).ToLowerInvariant();
+        var media = extension switch
+        {
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            ".svg" => "image/svg+xml",
+            ".ico" => "image/x-icon",
+            _ => null
+        };
+
+        if (media is null)
+            return null;
+
+        return Try.Run(() => $"data:{media};base64,{Convert.ToBase64String(File.ReadAllBytes(path))}")
+            .GetOrNull();
+    }
+
+    /// <summary>Records (or clears) the icon of one entry in its folder's index.</summary>
+    private static bool SetIconOverride(IconOverrideRequest? request)
+    {
+        if (request is not { Directory.Length: > 0, Name.Length: > 0 })
+            return false;
+
+        if (!Directory.Exists(request.Directory))
+            return false;
+
+        return DirectoryIndex.SetIcon(request.Directory, request.Name, request.Source);
+    }
+
+    /// <summary>Whether a folder defines its own icon, which Explorer reads from desktop.ini.</summary>
+    private static bool HasCustomFolderIcon(string directory)
+    {
+        var desktopIni = Path.Combine(directory, "desktop.ini");
+
+        return Try.Run(() =>
+        {
+            if (!File.Exists(desktopIni))
+                return false;
+
+            foreach (var line in File.ReadLines(desktopIni))
+            {
+                if (line.StartsWith("IconResource", StringComparison.OrdinalIgnoreCase)
+                    || line.StartsWith("IconFile", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
+        }).GetOrElse(_ => false);
+    }
+
+    private static bool EmptyRecycleBin(bool includeOrphans)
+    {
+        RecycleBin.Empty(includeOrphans);
         return true;
     }
 
@@ -102,15 +176,42 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
         var showHidden = FileVisibility.ShowHidden;
         var showSystem = FileVisibility.ShowSystem;
 
+        // The index lives beside the files; reading it must never be able to fail a listing.
+        var settings = SettingsService.Instance.Current;
+        if (settings.ShouldWriteDirectoryIndex)
+            DirectoryIndex.Ensure(directory.FullName);
+
+        var icons = DirectoryIndex.Icons(directory.FullName);
+        var sizes = DirectoryIndex.Sizes(directory.FullName, Now - SizeFreshness);
+
         var entries = directory.EnumerateFileSystemInfos()
+            .Where(info => !DirectoryIndex.IsIndexFile(info.Name))
             .Where(info => IsVisible(info, showHidden, showSystem))
-            .Select(ToEntry)
+            .Select(info => ToEntry(info, icons.GetValueOrDefault(info.Name)))
             .OfType<FileEntry>()
             .OrderByDescending(entry => entry.IsDirectory)
             .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        return new(directory.FullName, directory.Parent?.FullName, entries);
+        RequestSizes(directory.FullName, entries, sizes);
+
+        return new(directory.FullName, directory.Parent?.FullName, entries, sizes);
+    }
+
+    /// <summary>Queues the folders of the listing that have no fresh measurement.</summary>
+    private static void RequestSizes(string directory, List<FileEntry> entries,
+        IReadOnlyDictionary<string, long> known)
+    {
+        if (!SettingsService.Instance.Current.ShouldWriteDirectoryIndex)
+            return;
+
+        var missing = entries
+            .Where(entry => entry.IsDirectory && !known.ContainsKey(entry.Name))
+            .Select(entry => entry.Name)
+            .ToList();
+
+        if (missing.Count > 0)
+            FolderSizeService.Instance.Request(directory, missing);
     }
 
     private static bool IsVisible(FileSystemInfo info, bool showHidden, bool showSystem)
@@ -169,7 +270,7 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
             : value;
     }
 
-    private static FileEntry? ToEntry(FileSystemInfo info) =>
+    private static FileEntry? ToEntry(FileSystemInfo info, string? iconSource) =>
         Try.Run(() => new FileEntry(
             info.Name,
             info.FullName,
@@ -177,5 +278,6 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
             info is FileInfo file ? file.Length : 0,
             new DateTimeOffset(info.LastWriteTimeUtc).ToUnixTimeMilliseconds(),
             info.Attributes.HasFlag(FileAttributes.Hidden),
-            info.Attributes.HasFlag(FileAttributes.System))).GetOrNull();
+            info.Attributes.HasFlag(FileAttributes.System),
+            iconSource)).GetOrNull();
 }

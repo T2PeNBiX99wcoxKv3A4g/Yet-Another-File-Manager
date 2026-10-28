@@ -170,3 +170,136 @@ export function AppIcon({size = 18}: IconProps) {
         </svg>
     );
 }
+
+export function TextIcon({size = 18}: IconProps) {
+    return (
+        <svg {...base(size)}>
+            <path d="M6 3h9l4 4v14H6z"/>
+            <path d="M15 3v4h4"/>
+            <path d="M9 12h7M9 15h7M9 18h4"/>
+        </svg>
+    );
+}
+
+export function CodeIcon({size = 18}: IconProps) {
+    return (
+        <svg {...base(size)}>
+            <path d="m8 8-4 4 4 4"/>
+            <path d="m16 8 4 4-4 4"/>
+            <path d="m13 5-2 14"/>
+        </svg>
+    );
+}
+
+export function ImageIcon({size = 18}: IconProps) {
+    return (
+        <svg {...base(size)}>
+            <rect height="16" rx="2.5" width="18" x="3" y="4"/>
+            <circle cx="8.5" cy="9.5" r="1.4"/>
+            <path d="m4 17 5-5 4 4 3-3 4 4"/>
+        </svg>
+    );
+}
+
+export function VideoIcon({size = 18}: IconProps) {
+    return (
+        <svg {...base(size)}>
+            <rect height="14" rx="2.5" width="14" x="3" y="5"/>
+            <path d="m17 10 4-2.5v9L17 14z"/>
+        </svg>
+    );
+}
+
+export function AudioIcon({size = 18}: IconProps) {
+    return (
+        <svg {...base(size)}>
+            <path d="M9 17V6l10-2v10"/>
+            <circle cx="6.5" cy="17.5" r="2.5"/>
+            <circle cx="16.5" cy="15.5" r="2.5"/>
+        </svg>
+    );
+}
+
+export function ArchiveIcon({size = 18}: IconProps) {
+    return (
+        <svg {...base(size)}>
+            <rect height="16" rx="2.5" width="16" x="4" y="4"/>
+            <path d="M12 4v3M12 10v2M12 15v2"/>
+        </svg>
+    );
+}
+
+export function PdfIcon({size = 18}: IconProps) {
+    return (
+        <svg {...base(size)}>
+            <path d="M6 3h9l4 4v14H6z"/>
+            <path d="M15 3v4h4"/>
+            <path d="M9 17v-5h1.5a1.5 1.5 0 0 1 0 3H9"/>
+        </svg>
+    );
+}
+
+export function ExecutableIcon({size = 18}: IconProps) {
+    return (
+        <svg {...base(size)}>
+            <rect height="16" rx="3" width="16" x="4" y="4"/>
+            <path d="m9 9 3 3-3 3M14 15h3"/>
+        </svg>
+    );
+}
+
+export function FontIcon({size = 18}: IconProps) {
+    return (
+        <svg {...base(size)}>
+            <path d="M6 20 12 4l6 16"/>
+            <path d="M8.5 14h7"/>
+        </svg>
+    );
+}
+
+export function DatabaseIcon({size = 18}: IconProps) {
+    return (
+        <svg {...base(size)}>
+            <ellipse cx="12" cy="6.5" rx="7" ry="2.8"/>
+            <path d="M5 6.5v5c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8v-5"/>
+            <path d="M5 11.5v5c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8v-5"/>
+        </svg>
+    );
+}
+
+export function ConfigIcon({size = 18}: IconProps) {
+    return (
+        <svg {...base(size)}>
+            <path d="M6 3h8l4 4v14H6z"/>
+            <path d="M9 12h6M9 15h6"/>
+        </svg>
+    );
+}
+
+export function SpreadsheetIcon({size = 18}: IconProps) {
+    return (
+        <svg {...base(size)}>
+            <rect height="16" rx="2.5" width="16" x="4" y="4"/>
+            <path d="M4 9h16M4 15h16M10 4v16"/>
+        </svg>
+    );
+}
+
+export function PresentationIcon({size = 18}: IconProps) {
+    return (
+        <svg {...base(size)}>
+            <rect height="11" rx="2" width="16" x="4" y="4"/>
+            <path d="M12 15v4M8.5 21l3.5-3 3.5 3"/>
+        </svg>
+    );
+}
+
+export function DocumentIcon({size = 18}: IconProps) {
+    return (
+        <svg {...base(size)}>
+            <path d="M6 3h9l4 4v14H6z"/>
+            <path d="M15 3v4h4"/>
+            <path d="M9 12h6M9 15h6M9 18h3"/>
+        </svg>
+    );
+}

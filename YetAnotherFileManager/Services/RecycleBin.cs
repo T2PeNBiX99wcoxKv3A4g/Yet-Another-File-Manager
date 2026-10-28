@@ -30,8 +30,8 @@ internal static class RecycleBin
         AttributesToSkip = FileAttributes.None
     };
 
-    public static IReadOnlyList<RecycleEntry> List() =>
-        (OperatingSystem.IsWindows() ? ListWindows() : ListUnix())
+    public static IReadOnlyList<RecycleEntry> List(bool includeOrphans = false) =>
+        (OperatingSystem.IsWindows() ? ListWindows(includeOrphans) : ListUnix(includeOrphans))
         .OrderByDescending(entry => entry.Deleted)
         .ToList();
 
@@ -43,10 +43,10 @@ internal static class RecycleBin
         OperatingSystem.IsWindows() ? RestoreWindows(id) : RestoreUnix(id);
 
     /// <summary>Permanently removes every entry the listing would show.</summary>
-    public static void Empty() =>
+    public static void Empty(bool includeOrphans = false) =>
         Try.Run(() =>
         {
-            foreach (var entry in List())
+            foreach (var entry in List(includeOrphans))
                 Delete(entry.Id);
         }).OnFailure(ex => Log.Warning(ex, "Could not empty the recycle bin"));
 
@@ -66,17 +66,17 @@ internal static class RecycleBin
     private static string? CurrentSid =>
         Try.Run(() => WindowsIdentity.GetCurrent().User?.Value).GetOrNull();
 
-    private static IEnumerable<RecycleEntry> ListWindows()
+    private static IEnumerable<RecycleEntry> ListWindows(bool includeOrphans)
     {
         if (CurrentSid is not { Length: > 0 } sid)
             return [];
 
         return DriveInfo.GetDrives()
             .Where(drive => Try.Run(() => drive.IsReady).GetOrNull())
-            .SelectMany(drive => ListWindowsDrive(drive.Name, sid));
+            .SelectMany(drive => ListWindowsDrive(drive.Name, sid, includeOrphans));
     }
 
-    private static IReadOnlyList<RecycleEntry> ListWindowsDrive(string root, string sid) =>
+    private static IReadOnlyList<RecycleEntry> ListWindowsDrive(string root, string sid, bool includeOrphans) =>
         Try.Run(() =>
         {
             var bin = new DirectoryInfo(Path.Combine(root, "$Recycle.Bin", sid));
@@ -84,12 +84,12 @@ internal static class RecycleBin
                 return [];
 
             return bin.EnumerateFiles("$I*", Readable)
-                .Select(info => Try.Run(() => ReadWindowsRecord(info.FullName)).GetOrNull())
+                .Select(info => Try.Run(() => ReadWindowsRecord(info.FullName, includeOrphans)).GetOrNull())
                 .OfType<RecycleEntry>()
                 .ToList();
         }).GetOrElse(_ => []);
 
-    private static RecycleEntry? ReadWindowsRecord(string infoPath)
+    private static RecycleEntry? ReadWindowsRecord(string infoPath, bool includeOrphans)
     {
         using var reader = new BinaryReader(File.OpenRead(infoPath));
 
@@ -104,19 +104,21 @@ internal static class RecycleBin
         var content = ContentPath(infoPath);
         var isDirectory = Directory.Exists(content);
         var isFile = !isDirectory && File.Exists(content);
+        var isOrphan = !isDirectory && !isFile;
 
         // A record without its $R content is a leftover (a partial delete, or another tool that
-        // removed one half). Explorer hides those, and so do we: there is nothing to restore.
-        if (!isDirectory && !isFile)
+        // removed one half). Explorer hides those; the interface can ask for them to clean up.
+        if (isOrphan && !includeOrphans)
             return null;
 
         return new RecycleEntry(
             infoPath,
             Path.GetFileName(original.TrimEnd('\\', '/')),
             original,
-            isFile ? new FileInfo(content).Length : 0,
+            isFile ? new FileInfo(content).Length : size,
             new DateTimeOffset(DateTime.FromFileTimeUtc(deleted)).ToUnixTimeMilliseconds(),
-            isDirectory);
+            isDirectory,
+            isOrphan);
     }
 
     private static bool RestoreWindows(string infoPath)
@@ -185,8 +187,8 @@ internal static class RecycleBin
 
     // ---- freedesktop.org trash ----
 
-    private static IEnumerable<RecycleEntry> ListUnix() =>
-        TrashRoots().Distinct(StringComparer.Ordinal).SelectMany(ListTrashRoot);
+    private static IEnumerable<RecycleEntry> ListUnix(bool includeOrphans) =>
+        TrashRoots().Distinct(StringComparer.Ordinal).SelectMany(root => ListTrashRoot(root, includeOrphans));
 
     /// <summary>
     ///     The home trash, plus the per-volume trash of every mounted filesystem. Volumes use
@@ -219,7 +221,7 @@ internal static class RecycleBin
         }
     }
 
-    private static IReadOnlyList<RecycleEntry> ListTrashRoot(string root) =>
+    private static IReadOnlyList<RecycleEntry> ListTrashRoot(string root, bool includeOrphans) =>
         Try.Run(() =>
         {
             var info = new DirectoryInfo(Path.Combine(root, "info"));
@@ -229,12 +231,12 @@ internal static class RecycleBin
             var files = Path.Combine(root, "files");
 
             return info.EnumerateFiles("*" + TrashInfoSuffix, Readable)
-                .Select(file => Try.Run(() => ReadTrashInfo(file, files)).GetOrNull())
+                .Select(file => Try.Run(() => ReadTrashInfo(file, files, includeOrphans)).GetOrNull())
                 .OfType<RecycleEntry>()
                 .ToList();
         }).GetOrElse(_ => []);
 
-    private static RecycleEntry? ReadTrashInfo(FileInfo info, string filesRoot)
+    private static RecycleEntry? ReadTrashInfo(FileInfo info, string filesRoot, bool includeOrphans)
     {
         var original = ReadTrashInfoPath(info.FullName);
         if (string.IsNullOrWhiteSpace(original))
@@ -243,8 +245,9 @@ internal static class RecycleBin
         var stored = StoredPath(info, filesRoot);
         var isDirectory = Directory.Exists(stored);
         var isFile = !isDirectory && File.Exists(stored);
+        var isOrphan = !isDirectory && !isFile;
 
-        if (!isDirectory && !isFile)
+        if (isOrphan && !includeOrphans)
             return null;
 
         return new RecycleEntry(
@@ -253,7 +256,8 @@ internal static class RecycleBin
             original,
             isFile ? new FileInfo(stored).Length : 0,
             ReadTrashInfoDate(info.FullName),
-            isDirectory);
+            isDirectory,
+            isOrphan);
     }
 
     private static bool RestoreUnix(string infoPath)

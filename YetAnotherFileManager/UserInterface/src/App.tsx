@@ -187,6 +187,22 @@ export default function App() {
         return unsubscribe;
     }, [load, openFiles]);
 
+    // Folder sizes are measured in the background; each result lands in whichever tab shows that folder.
+    useEffect(() => {
+        if (!Native.available) return;
+
+        return Native.on((evt) => {
+            const event = evt as { type?: string; data?: { path?: string; sizes?: Record<string, number> } };
+            if (event.type !== "fs.sizes" || typeof event.data?.path !== "string" || !event.data.sizes) return;
+
+            const {path, sizes} = event.data;
+
+            setTabs((current) => current.map((tab) => tab.listing?.path === path
+                ? {...tab, listing: {...tab.listing, folderSizes: {...tab.listing.folderSizes, ...sizes}}}
+                : tab));
+        });
+    }, []);
+
     const canBack = active.kind === "files" && active.index > 0;
     const canForward = active.kind === "files" && active.index < active.history.length - 1;
 

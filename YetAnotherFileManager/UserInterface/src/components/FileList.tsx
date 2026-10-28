@@ -1,8 +1,9 @@
 import styled from "styled-components";
-import type {DirectoryListing} from "../api/files";
-import {useIcon} from "../api/icons";
+import type {DirectoryListing, FileEntry} from "../api/files";
+import {useIcon, useIconFile} from "../api/icons";
 import {formatBytes, formatDate} from "../utils/format";
-import {FileIcon, FolderIcon} from "./Icons";
+import {FolderIcon} from "./Icons";
+import {BuiltinIcon, iconForName} from "../icons/fileTypes";
 
 interface FileListProps {
     listing: DirectoryListing | null;
@@ -44,10 +45,10 @@ export function FileList({listing, loading, error, filter, onOpen}: FileListProp
                         title={entry.fullPath}
                     >
                         <Name>
-                            <EntryIcon isDirectory={entry.isDirectory} path={entry.fullPath}/>
+                            <EntryIcon entry={entry}/>
                             <span>{entry.name}</span>
                         </Name>
-                        <Size>{entry.isDirectory ? "—" : formatBytes(entry.size)}</Size>
+                        <Size>{sizeOf(entry, listing.folderSizes)}</Size>
                         <Modified>{formatDate(entry.modified)}</Modified>
                     </Row>
                 ))}
@@ -62,15 +63,36 @@ export function FileList({listing, loading, error, filter, onOpen}: FileListProp
     );
 }
 
-/** The shell's icon when the host can provide it, the built-in glyph otherwise. */
-function EntryIcon({path, isDirectory}: { path: string; isDirectory: boolean }) {
-    const icon = useIcon(path, isDirectory);
+/** Folder sizes come from the folder's own index and appear once they have been measured. */
+function sizeOf(entry: FileEntry, folderSizes: Record<string, number>): string {
+    if (!entry.isDirectory)
+        return formatBytes(entry.size);
+
+    const measured = folderSizes[entry.name];
+
+    return measured === undefined ? "—" : formatBytes(measured);
+}
+
+/**
+ * Icon precedence: an icon recorded in the folder's index, then the shell (or the folder's own
+ * desktop.ini when that is enabled), then the built-in icon for the file type.
+ */
+function EntryIcon({entry}: { entry: FileEntry }) {
+    const shellIcon = useIcon(entry.fullPath, entry.isDirectory);
+    const customFile = entry.iconSource?.startsWith("file:") ? entry.iconSource.slice(5) : null;
+    const customImage = useIconFile(customFile);
 
     return (
         <IconSlot>
-            {icon
-                ? <img alt="" height={18} src={icon} width={18}/>
-                : isDirectory ? <FolderIcon/> : <FileIcon/>}
+            {entry.iconSource?.startsWith("icon:")
+                ? <BuiltinIcon name={entry.iconSource.slice(5)} size={18}/>
+                : customImage
+                    ? <img alt="" height={18} src={customImage} width={18}/>
+                    : shellIcon
+                        ? <img alt="" height={18} src={shellIcon} width={18}/>
+                        : entry.isDirectory
+                            ? <FolderIcon/>
+                            : <BuiltinIcon name={iconForName(entry.name)}/>}
         </IconSlot>
     );
 }
@@ -81,6 +103,10 @@ const IconSlot = styled.span`
     width: 18px;
     height: 18px;
     flex-shrink: 0;
+
+    svg {
+        color: var(--text-muted);
+    }
 
     img {
         display: block;
@@ -141,11 +167,6 @@ const Name = styled.div`
     align-items: center;
     gap: 10px;
     min-width: 0;
-
-    svg {
-        flex-shrink: 0;
-        color: var(--text-muted);
-    }
 
     span {
         overflow: hidden;

@@ -96,15 +96,43 @@ internal sealed class WindowManager : Singleton<WindowManager>
                         LinuxWindow.BeginResize(window.Title, direction);
                 });
                 break;
+
+            case "app.pickIcon":
+                return Pick(context, () =>
+                    _mainWindow?.ShowOpenFile("Choose an icon", "", false,
+                        [
+                            ("Images", ["*.png", "*.ico", "*.svg", "*.jpg", "*.jpeg", "*.webp"]),
+                            ("All files", ["*.*"])
+                        ])
+                        ?.FirstOrDefault());
+
+            case "app.pickFolder":
+                return Pick(context, () => _mainWindow?.ShowOpenFolder("Choose a folder", "", false)
+                    ?.FirstOrDefault());
         }
 
         return Task.FromResult<NativeResponse?>(null);
     }
 
+    /// <summary>Runs a native dialog on the UI thread and answers with the chosen path.</summary>
+    private Task<NativeResponse?> Pick(NativeContext context, Func<string?> pick)
+    {
+        var completion = new TaskCompletionSource<NativeResponse?>();
+
+        RunOnMainWindow(() =>
+            completion.SetResult(context.Reply("app.pick.result",
+                new PathPayload(Try.Run(pick).GetOrNull()))));
+
+        return completion.Task;
+    }
+
+    /// <summary>Sends an event to the interface. Failures are only logged: a view may be gone.</summary>
+    public void Notify(string type, object? data) =>
+        Try.Run(() => _mainWindow?.SendWebMessage(NativeProtocol.SerializeEvent(type, data)))
+            .OnFailure(ex => Log.Warning(ex, "Failed to send {Type}", type));
+
     private void NotifyWindowState(bool maximized) =>
-        Try.Run(() => _mainWindow?.SendWebMessage(
-                NativeProtocol.SerializeEvent("window.state", new WindowStatePayload(maximized))))
-            .OnFailure(ex => Log.Warning(ex, "Failed to send the window state"));
+        Notify("window.state", new WindowStatePayload(maximized));
 
     private void ToggleMaximize()
     {
