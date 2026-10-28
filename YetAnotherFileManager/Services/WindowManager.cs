@@ -1,6 +1,7 @@
 using Photino.NET;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Interop;
+using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Platform;
 using PhotinoNetUtils.Utils;
 using YetAnotherFileManager.Interop;
@@ -129,7 +130,7 @@ internal sealed class WindowManager : Singleton<WindowManager>
 
     /// <summary>Sends an event to the interface. Failures are only logged: a view may be gone.</summary>
     public void Notify(string type, object? data) =>
-        Try.Run(() => _mainWindow?.SendWebMessage(NativeProtocol.SerializeEvent(type, data)))
+        Try.Run(() => _mainWindow?.SendWebMessage(NativeBridge.SerializeEvent(type, data)))
             .OnFailure(ex => Log.Warning(ex, "Failed to send {Type}", type));
 
     private void NotifyWindowState(bool maximized) =>
@@ -279,7 +280,7 @@ internal sealed class WindowManager : Singleton<WindowManager>
 
     private void SendNavigation(string path, bool startup)
     {
-        var json = NativeProtocol.SerializeEvent("app.navigate", new NavigatePayload(path, startup));
+        var json = NativeBridge.SerializeEvent("app.navigate", new NavigatePayload(path, startup));
 
         // Sending to a web view that is still loading aborts the process; the page asks for its
         // listing itself when it mounts, so nothing is lost by waiting.

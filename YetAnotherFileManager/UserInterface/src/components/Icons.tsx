@@ -108,7 +108,7 @@ export function ArrowRightIcon({size = 16}: IconProps) {
 export function ChevronRightIcon({size = 12}: IconProps) {
     return (
         <svg aria-hidden="true" fill="currentColor" height={size} viewBox="0 0 24 24" width={size}>
-            <path d="M8.7 4.3a1 1 0 0 1 1.4-.1l7 7a1 1 0 0 1 0 1.5l-7 7a1 1 0 0 1-1.4-1.4l6.2-6.3-6.2-6.3a1 1 0 0 1 0-1.4z"/>
+            <path d="M9.2 4.6 19.8 12 9.2 19.4z"/>
         </svg>
     );
 }

@@ -3,10 +3,12 @@ using System.Runtime.Versioning;
 using PhotinoNetUtils;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Interop;
+using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Platform;
 using PhotinoNetUtils.Services;
 using PhotinoNetUtils.Utils;
 using Serilog;
+using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Services;
 #if !DEBUG
 using PhotinoNetUtils.Hosting;
@@ -27,6 +29,9 @@ internal static class Program
         // Main must stay synchronous: [STAThread] is ignored for an async entry point, and the
         // Photino message loop / WebView2 require an STA thread.
         Logging.Initialize(Constants.Name, "app");
+
+        // The bridge serializes with the app's source-generated context; nothing is reflected.
+        NativeBridge.Initialize(AppJsonContext.Default);
 
         if (OperatingSystem.IsLinux())
         {

@@ -63,7 +63,7 @@ export function PathBar({path, onNavigate}: PathBarProps) {
         <Trail onClick={start} title="Click to type a path">
             {crumbs.map((crumb, index) => (
                 <Crumb key={crumb.path} $last={index === crumbs.length - 1}>
-                    {index > 0 && <Chevron><ChevronRightIcon size={11}/></Chevron>}
+                    {index > 0 && <Chevron><ChevronRightIcon size={9}/></Chevron>}
                     <CrumbButton
                         onClick={(event) => {
                             event.stopPropagation();
@@ -129,7 +129,7 @@ const Crumb = styled.span<{ $last: boolean }>`
 const Chevron = styled.span`
     display: grid;
     place-items: center;
-    margin: 0 5px;
+    margin: 0 6px;
     color: var(--text-muted);
     opacity: 0.9;
 
