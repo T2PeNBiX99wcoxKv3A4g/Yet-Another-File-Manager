@@ -92,7 +92,7 @@ internal static class NativeProtocol
 
     public static string SerializeEvent(string type, object? data = null) =>
         JsonSerializer.Serialize(
-            new NativeEvent
+            new()
             {
                 Type = type,
                 Data = NativeJson.ToElement(data)

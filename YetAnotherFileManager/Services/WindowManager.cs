@@ -1,10 +1,9 @@
-using System.Drawing;
 using Photino.NET;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Interop;
-using YetAnotherFileManager.Messaging;
 using PhotinoNetUtils.Platform;
 using PhotinoNetUtils.Utils;
+using YetAnotherFileManager.Messaging;
 
 namespace YetAnotherFileManager.Services;
 
@@ -71,7 +70,7 @@ internal sealed class WindowManager : Singleton<WindowManager>
             .SetTitle(Constants.WindowTitle)
             .SetTemporaryFilesPath(WebViewDataPath)
             .SetUseOsDefaultSize(false)
-            .SetSize(new Size(1280, 800))
+            .SetSize(new(1280, 800))
             .SetMinSize(860, 520)
             .SetContextMenuEnabled(false)
             .RegisterWebMessageReceivedHandler((sender, message) =>

@@ -1,7 +1,7 @@
 using PhotinoNetUtils.Extensions;
+using PhotinoNetUtils.Utils;
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
-using PhotinoNetUtils.Utils;
 
 namespace YetAnotherFileManager.Services;
 
@@ -44,7 +44,7 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
             .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        return new FsListPayload(directory.FullName, directory.Parent?.FullName, entries);
+        return new(directory.FullName, directory.Parent?.FullName, entries);
     }
 
     /// <summary>The shortcuts shown above the drive list.</summary>
@@ -90,7 +90,8 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
 
         // Keep the UI's "~" shortcut working without a full shell-style path expander.
         return path.Trim() is var value && value.StartsWith('~')
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), value[1..].TrimStart('/', '\\'))
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                value[1..].TrimStart('/', '\\'))
             : value;
     }
 

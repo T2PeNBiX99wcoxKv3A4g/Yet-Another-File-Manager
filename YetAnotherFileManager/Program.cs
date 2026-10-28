@@ -172,8 +172,8 @@ internal static class Program
             iconPath,
             manager.ShowMainWindow,
             [
-                new TrayMenuItem("Open", manager.ShowMainWindow),
-                new TrayMenuItem("Exit", manager.Exit, SeparatorBefore: true)
+                new("Open", manager.ShowMainWindow),
+                new("Exit", manager.Exit, true)
             ]);
     }
 }
