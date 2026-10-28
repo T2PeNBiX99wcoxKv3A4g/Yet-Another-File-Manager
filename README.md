@@ -16,6 +16,7 @@ YetAnotherFileManager/
 │   ├── Messaging/                     # JSON bridge between React and C#
 │   ├── Models/                        # payload models
 │   ├── Services/                      # app info, file system, window manager
+│   ├── libs/                          # PhotinoNETUtils.dll + front-end bridge tarball
 │   └── UserInterface/                 # Vite + React + TypeScript front-end
 │       ├── src/
 │       └── scripts/copy-build.mjs     # copies build output into Resources/wwwroot
@@ -24,13 +25,15 @@ YetAnotherFileManager/
 ```
 
 The Photino plumbing (tray, static server, single instance, logging, shared helpers) lives in the
-sibling [PhotinoNETUtils](../PhotinoNETUtils) project and is referenced by path.
+separate [PhotinoNETUtils](../PhotinoNETUtils) project. Its built DLL and front-end npm package are
+kept in `YetAnotherFileManager/libs`; refresh them with `PhotinoNETUtils/build-and-copy.ps1`.
 
 ## Requirements
 
 - .NET SDK 10
 - Node.js 20.19+ (or 22.12+)
-- The sibling `PhotinoNETUtils` project at `../PhotinoNETUtils` (the shared Photino plumbing)
+- The shared artifacts in `YetAnotherFileManager/libs` (copied from `../PhotinoNETUtils` with its
+  `build-and-copy.ps1`)
 
 ## Development
 
