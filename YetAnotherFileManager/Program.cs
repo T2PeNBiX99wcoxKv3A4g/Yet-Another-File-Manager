@@ -87,7 +87,7 @@ internal static class Program
             // The window is already visible at startup; these only decide what it shows. Paths that
             // arrive now are queued until the interface reports that it is listening.
             foreach (var path in startupPaths)
-                manager.ShowPath(path);
+                manager.ShowPath(path, startup: true);
 
             StartTray(tray);
 

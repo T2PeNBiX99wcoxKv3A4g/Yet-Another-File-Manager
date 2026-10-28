@@ -7,7 +7,8 @@ public sealed record FileEntry(
     bool IsDirectory,
     long Size,
     long Modified,
-    bool IsHidden);
+    bool IsHidden,
+    bool IsSystem);
 
 /// <summary>A shortcut to a well-known folder, shown in the sidebar.</summary>
 public sealed record PlaceEntry(string Name, string Path, string Kind);

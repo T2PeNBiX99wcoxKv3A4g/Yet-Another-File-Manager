@@ -1,5 +1,6 @@
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
+using YetAnotherFileManager.Interop;
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
 
@@ -37,7 +38,12 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
         if (!directory.Exists)
             throw new DirectoryNotFoundException($"'{target}' is not a directory.");
 
+        // Explorer's own switches, so the listing matches what the user's file manager shows.
+        var showHidden = FileVisibility.ShowHidden;
+        var showSystem = FileVisibility.ShowSystem;
+
         var entries = directory.EnumerateFileSystemInfos()
+            .Where(info => IsVisible(info, showHidden, showSystem))
             .Select(ToEntry)
             .OfType<FileEntry>()
             .OrderByDescending(entry => entry.IsDirectory)
@@ -45,6 +51,14 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
             .ToList();
 
         return new(directory.FullName, directory.Parent?.FullName, entries);
+    }
+
+    private static bool IsVisible(FileSystemInfo info, bool showHidden, bool showSystem)
+    {
+        var attributes = Try.Run(() => info.Attributes).GetOrElse(_ => FileAttributes.Normal);
+
+        return (showSystem || !attributes.HasFlag(FileAttributes.System))
+            && (showHidden || !attributes.HasFlag(FileAttributes.Hidden));
     }
 
     /// <summary>The shortcuts shown above the drive list.</summary>
@@ -102,5 +116,6 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
             info is DirectoryInfo,
             info is FileInfo file ? file.Length : 0,
             new DateTimeOffset(info.LastWriteTimeUtc).ToUnixTimeMilliseconds(),
-            info.Attributes.HasFlag(FileAttributes.Hidden))).GetOrNull();
+            info.Attributes.HasFlag(FileAttributes.Hidden),
+            info.Attributes.HasFlag(FileAttributes.System))).GetOrNull();
 }

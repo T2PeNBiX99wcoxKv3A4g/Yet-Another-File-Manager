@@ -7,6 +7,7 @@ export interface FileEntry {
     size: number;
     modified: number;
     isHidden: boolean;
+    isSystem: boolean;
 }
 
 export interface DirectoryListing {

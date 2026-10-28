@@ -26,8 +26,11 @@ internal sealed record FsPlacesPayload(IReadOnlyList<PlaceEntry> Places);
 /// <summary>Body for <c>fs.drives</c>.</summary>
 internal sealed record FsDrivesPayload(IReadOnlyList<DriveEntry> Drives);
 
-/// <summary>Body for the <c>app.navigate</c> event: the folder the window should show.</summary>
-internal sealed record NavigatePayload(string Path);
+/// <summary>
+///     Body for the <c>app.navigate</c> event: the folder the window should show, and whether it came
+///     from this launch's command line (which may take over the untouched first tab).
+/// </summary>
+internal sealed record NavigatePayload(string Path, bool Startup);
 
 /// <summary>Body for the <c>window.state</c> event.</summary>
 internal sealed record WindowStatePayload(bool Maximized);

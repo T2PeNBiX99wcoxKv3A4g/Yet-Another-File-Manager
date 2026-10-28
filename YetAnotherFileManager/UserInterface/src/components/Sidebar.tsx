@@ -10,14 +10,13 @@ interface SidebarProps {
     onNavigate: (path: string) => void;
 }
 
+/**
+ * A rail of icons that expands under the pointer. It is positioned over the content rather than
+ * beside it, so revealing the labels never reflows the file list.
+ */
 export function Sidebar({places, drives, currentPath, onNavigate}: SidebarProps) {
     return (
         <Aside>
-            <Brand>
-                <BrandMark/>
-                <BrandName>YetAnother<wbr/>FileManager</BrandName>
-            </Brand>
-
             <Section>
                 <SectionTitle>Places</SectionTitle>
                 <List>
@@ -26,6 +25,7 @@ export function Sidebar({places, drives, currentPath, onNavigate}: SidebarProps)
                             key={place.path}
                             $active={isSamePath(currentPath, place.path)}
                             onClick={() => onNavigate(place.path)}
+                            title={place.path}
                             type="button"
                         >
                             {place.kind === "home" ? <HomeIcon/> : <FolderIcon/>}
@@ -53,7 +53,6 @@ export function Sidebar({places, drives, currentPath, onNavigate}: SidebarProps)
                             </Label>
                         </Item>
                     ))}
-                    {drives.length === 0 && <Muted>No volumes reported.</Muted>}
                 </List>
             </Section>
         </Aside>
@@ -68,52 +67,55 @@ function isSamePath(left: string, right: string): boolean {
 }
 
 const Aside = styled.aside`
+    position: absolute;
+    z-index: 20;
+    top: 0;
+    bottom: 0;
+    left: 0;
     display: flex;
     flex-direction: column;
-    gap: 26px;
-    width: 240px;
-    flex-shrink: 0;
-    padding: 22px 14px;
+    gap: 18px;
+    width: 56px;
+    padding: 14px 11px;
+    overflow-x: hidden;
+    overflow-y: auto;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border-color);
-    overflow-y: auto;
-`;
+    scrollbar-width: none;
+    transition: width 150ms ease, padding 150ms ease, box-shadow 150ms ease;
 
-const Brand = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 0 8px;
-`;
+    &::-webkit-scrollbar {
+        display: none;
+    }
 
-const BrandMark = styled.span`
-    width: 22px;
-    height: 22px;
-    border-radius: 7px;
-    background: var(--accent-gradient);
-    box-shadow: var(--accent-glow);
-`;
+    &:hover {
+        width: 232px;
+        padding: 14px 12px;
+        box-shadow: 14px 0 34px rgba(0, 0, 0, 0.45);
+    }
 
-const BrandName = styled.span`
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    color: var(--text-primary);
+    &:hover span {
+        opacity: 1;
+    }
 `;
 
 const Section = styled.section`
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
+    flex-shrink: 0;
 `;
 
 const SectionTitle = styled.h2`
-    padding: 0 10px;
+    padding: 0 8px;
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--text-muted);
+    opacity: 0;
+    transition: opacity 130ms ease;
+    white-space: nowrap;
 `;
 
 const List = styled.div`
@@ -127,7 +129,7 @@ const Item = styled.button<{ $active: boolean }>`
     align-items: center;
     gap: 10px;
     width: 100%;
-    padding: 8px 10px;
+    padding: 8px 8px;
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
     background: ${({$active}) => $active ? "rgba(99, 102, 241, 0.14)" : "transparent"};
@@ -159,6 +161,8 @@ const Label = styled.span`
     display: flex;
     flex-direction: column;
     min-width: 0;
+    opacity: 0;
+    transition: opacity 130ms ease;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -167,11 +171,5 @@ const Label = styled.span`
 const Hint = styled.span`
     font-family: var(--font-mono);
     font-size: 10px;
-    color: var(--text-muted);
-`;
-
-const Muted = styled.p`
-    padding: 4px 10px;
-    font-size: 12px;
     color: var(--text-muted);
 `;

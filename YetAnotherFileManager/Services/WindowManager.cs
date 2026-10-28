@@ -29,7 +29,7 @@ internal sealed class WindowManager : Singleton<WindowManager>
     private bool _mainWindowReady;
 
     /// <summary>A path that arrived before the interface was listening for navigation.</summary>
-    private string? _pendingPath;
+    private (string Path, bool Startup)? _pendingPath;
 
     public WindowManager() => NativeBridge.MessageReceived += HandleMessageAsync;
 
@@ -72,17 +72,28 @@ internal sealed class WindowManager : Singleton<WindowManager>
             case "window.drag":
                 RunOnMainWindow(() =>
                 {
-                    if (OperatingSystem.IsWindows() && _mainWindow is { } window)
+                    if (_mainWindow is not { } window)
+                        return;
+
+                    if (OperatingSystem.IsWindows())
                         WindowDrag.Begin(window.WindowHandle);
+                    else if (OperatingSystem.IsLinux())
+                        LinuxWindow.BeginDrag(window.Title);
                 });
                 break;
 
             case "window.resize":
                 RunOnMainWindow(() =>
                 {
-                    if (OperatingSystem.IsWindows() && _mainWindow is { } window)
-                        WindowResize.Begin(window.WindowHandle,
-                            context.Payload<WindowResizeRequest>()?.Direction ?? "");
+                    if (_mainWindow is not { } window)
+                        return;
+
+                    var direction = context.Payload<WindowResizeRequest>()?.Direction ?? "";
+
+                    if (OperatingSystem.IsWindows())
+                        WindowResize.Begin(window.WindowHandle, direction);
+                    else if (OperatingSystem.IsLinux())
+                        LinuxWindow.BeginResize(window.Title, direction);
                 });
                 break;
         }
@@ -100,16 +111,23 @@ internal sealed class WindowManager : Singleton<WindowManager>
         if (_mainWindow is not { } window)
             return;
 
-        if (!OperatingSystem.IsWindows())
+        if (OperatingSystem.IsWindows())
         {
-            var maximized = window.Maximized != true;
-            window.SetMaximized(maximized);
-            NotifyWindowState(maximized);
+            if (window.WindowHandle != IntPtr.Zero)
+                NotifyWindowState(WindowZoom.Toggle(window.WindowHandle));
+
             return;
         }
 
-        if (window.WindowHandle != IntPtr.Zero)
-            NotifyWindowState(WindowZoom.Toggle(window.WindowHandle));
+        if (OperatingSystem.IsLinux())
+        {
+            NotifyWindowState(LinuxWindow.ToggleMaximize(window.Title));
+            return;
+        }
+
+        var maximized = window.Maximized != true;
+        window.SetMaximized(maximized);
+        NotifyWindowState(maximized);
     }
 
     public void CreateMainWindow()
@@ -185,7 +203,12 @@ internal sealed class WindowManager : Singleton<WindowManager>
     ///     Opens a folder, or the folder containing a file, in the running window. Paths that arrive
     ///     before the interface is listening are queued and delivered once it reports ready.
     /// </summary>
-    public void ShowPath(string path)
+    /// <param name="path">Folder to show.</param>
+    /// <param name="startup">
+    ///     True for this launch's own command line, which may take over the untouched first tab.
+    ///     A forwarded path always opens a new one.
+    /// </param>
+    public void ShowPath(string path, bool startup = false)
     {
         if (string.IsNullOrWhiteSpace(path))
             return;
@@ -196,14 +219,14 @@ internal sealed class WindowManager : Singleton<WindowManager>
         // shown anyway, and the pending path is flushed when the interface reports ready.
         if (!_mainWindowReady)
         {
-            _pendingPath = path;
+            _pendingPath = (path, startup);
             return;
         }
 
         RunOnMainWindow(() =>
         {
             Show(_mainWindow!);
-            SendNavigation(path);
+            SendNavigation(path, startup);
         });
     }
 
@@ -218,16 +241,16 @@ internal sealed class WindowManager : Singleton<WindowManager>
 
     private void FlushPendingPath()
     {
-        if (_pendingPath is not { } path)
+        if (_pendingPath is not { } pending)
             return;
 
         _pendingPath = null;
-        SendNavigation(path);
+        SendNavigation(pending.Path, pending.Startup);
     }
 
-    private void SendNavigation(string path)
+    private void SendNavigation(string path, bool startup)
     {
-        var json = NativeProtocol.SerializeEvent("app.navigate", new NavigatePayload(path));
+        var json = NativeProtocol.SerializeEvent("app.navigate", new NavigatePayload(path, startup));
 
         // Sending to a web view that is still loading aborts the process; the page asks for its
         // listing itself when it mounts, so nothing is lost by waiting.

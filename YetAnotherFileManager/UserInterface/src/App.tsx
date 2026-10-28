@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import styled from "styled-components";
 import {listDirectory, listDrives, listPlaces, type DirectoryListing, type Drive, type Place} from "./api/files";
 import {getAppInfo, type AppInfo} from "./api/system";
@@ -10,35 +10,95 @@ import {ResizeHandles} from "./components/ResizeHandles";
 import {Native} from "@photino-net-utils/bridge";
 import {baseName} from "./utils/format";
 
+interface Tab {
+    id: string;
+    path: string;
+    listing: DirectoryListing | null;
+    loading: boolean;
+    error: string | null;
+    /** Nothing has been opened in it yet, so a path arriving from the host can take it over. */
+    fresh: boolean;
+}
+
+let nextTabId = 0;
+
+function createTab(): Tab {
+    nextTabId += 1;
+
+    return {id: `tab-${nextTabId}`, path: "", listing: null, loading: true, error: null, fresh: true};
+}
+
 export default function App() {
+    const [tabs, setTabs] = useState<Tab[]>(() => [createTab()]);
+    const [activeId, setActiveId] = useState(() => tabs[0].id);
     const [places, setPlaces] = useState<Place[]>([]);
     const [drives, setDrives] = useState<Drive[]>([]);
-    const [listing, setListing] = useState<DirectoryListing | null>(null);
     const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
     const [filter, setFilter] = useState("");
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
-    const navigate = useCallback(async (path?: string) => {
-        setLoading(true);
-        setError(null);
+    const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
+
+    // Handlers that outlive a render (the native event subscription) read the latest state here.
+    const stateRef = useRef({tabs, activeId});
+    stateRef.current = {tabs, activeId};
+
+    const update = useCallback((id: string, patch: Partial<Tab>) => {
+        setTabs((current) => current.map((tab) => tab.id === id ? {...tab, ...patch} : tab));
+    }, []);
+
+    const load = useCallback(async (id: string, path?: string, keepFresh = false) => {
+        update(id, {loading: true, error: null, ...(keepFresh ? {} : {fresh: false})});
         setFilter("");
 
         try {
-            setListing(await listDirectory(path));
+            const listing = await listDirectory(path);
+            update(id, {listing, loading: false, path: listing.path});
         } catch (cause) {
-            setError(cause instanceof Error ? cause.message : String(cause));
-        } finally {
-            setLoading(false);
+            update(id, {loading: false, error: cause instanceof Error ? cause.message : String(cause)});
         }
-    }, []);
+    }, [update]);
+
+    const openTab = useCallback((path?: string) => {
+        const tab = createTab();
+
+        setTabs((current) => [...current, tab]);
+        setActiveId(tab.id);
+        void load(tab.id, path);
+    }, [load]);
+
+    const closeTab = useCallback((id: string) => {
+        const {tabs: current, activeId: currentActive} = stateRef.current;
+
+        if (current.length === 1) {
+            // A window always keeps one tab; closing the last one starts over at the home folder.
+            const replacement = createTab();
+
+            setTabs([replacement]);
+            setActiveId(replacement.id);
+            void load(replacement.id);
+            return;
+        }
+
+        const index = current.findIndex((tab) => tab.id === id);
+        const remaining = current.filter((tab) => tab.id !== id);
+
+        setTabs(remaining);
+        if (currentActive === id)
+            setActiveId(remaining[Math.min(index, remaining.length - 1)].id);
+    }, [load]);
+
+    const navigate = useCallback((path?: string) => {
+        void load(stateRef.current.activeId, path);
+    }, [load]);
 
     useEffect(() => {
-        void navigate();
+        // The first tab starts at the home folder without losing its "fresh" flag: a path the host
+        // sends at startup then takes it over instead of opening a second, empty tab.
+        void load(stateRef.current.activeId, undefined, true);
         void listPlaces().then(setPlaces, () => setPlaces([]));
         void listDrives().then(setDrives, () => setDrives([]));
         void getAppInfo().then(setAppInfo, () => setAppInfo(null));
-    }, [navigate]);
+    }, [load]);
 
     // The host pushes a path for command-line arguments and for a second launch (single instance).
     // It waits for `app.ready` first, because sending to a web view that is still loading crashes it.
@@ -46,88 +106,112 @@ export default function App() {
         if (!Native.available) return;
 
         const unsubscribe = Native.on((message) => {
-            const event = message as { type?: string; data?: { path?: string } };
-            if (event.type === "app.navigate" && typeof event.data?.path === "string")
-                void navigate(event.data.path);
+            const event = message as { type?: string; data?: { path?: unknown; startup?: unknown } };
+            if (event.type !== "app.navigate" || typeof event.data?.path !== "string") return;
+
+            const path = event.data.path;
+            const {tabs: current} = stateRef.current;
+            const isStartup = event.data.startup === true;
+
+            if (isStartup && current.length === 1 && current[0].fresh)
+                void load(current[0].id, path);
+            else
+                openTab(path);
         });
 
         Native.send({type: "app.ready"});
         return unsubscribe;
-    }, [navigate]);
+    }, [load, openTab]);
 
-    const crumbs = listing ? breadcrumbs(listing.path) : [];
+    const crumbs = active.listing ? breadcrumbs(active.listing.path) : [];
 
     return (
         <Root>
-            <TitleBar/>
+            <TitleBar
+                activeId={active.id}
+                onClose={closeTab}
+                onNewTab={() => openTab()}
+                onSelect={setActiveId}
+                tabs={tabs.map((tab) => ({
+                    id: tab.id,
+                    path: tab.listing?.path ?? tab.path,
+                    title: baseName(tab.listing?.path ?? tab.path) || "Home",
+                }))}
+            />
+
             <Body>
                 <Sidebar
-                    currentPath={listing?.path ?? ""}
+                    currentPath={active.listing?.path ?? ""}
                     drives={drives}
-                    onNavigate={(path) => void navigate(path)}
+                    onNavigate={navigate}
                     places={places}
                 />
 
                 <Main>
-                <Toolbar>
-                    <IconButton
-                        disabled={!listing?.parent}
-                        onClick={() => listing?.parent && void navigate(listing.parent)}
-                        title="Up one level"
-                        type="button"
-                    >
-                        <ArrowUpIcon/>
-                    </IconButton>
+                    <Toolbar>
+                        <IconButton
+                            disabled={!active.listing?.parent}
+                            onClick={() => active.listing?.parent && navigate(active.listing.parent)}
+                            title="Up one level"
+                            type="button"
+                        >
+                            <ArrowUpIcon/>
+                        </IconButton>
 
-                    <IconButton onClick={() => void navigate(listing?.path)} title="Refresh" type="button">
-                        <RefreshIcon/>
-                    </IconButton>
+                        <IconButton
+                            onClick={() => navigate(active.listing?.path)}
+                            title="Refresh"
+                            type="button"
+                        >
+                            <RefreshIcon/>
+                        </IconButton>
 
-                    <Crumbs>
-                        {crumbs.map((crumb, index) => (
-                            <Crumb key={crumb.path} type="button" onClick={() => void navigate(crumb.path)}>
-                                {index > 0 && <Separator>/</Separator>}
-                                {crumb.label}
-                            </Crumb>
-                        ))}
-                    </Crumbs>
+                        <Crumbs>
+                            {crumbs.map((crumb, index) => (
+                                <Crumb key={crumb.path} type="button" onClick={() => navigate(crumb.path)}>
+                                    {index > 0 && <Separator>/</Separator>}
+                                    {crumb.label}
+                                </Crumb>
+                            ))}
+                        </Crumbs>
 
-                    <Search>
-                        <SearchIcon/>
-                        <input
-                            aria-label="Filter this folder"
-                            onChange={(event) => setFilter(event.target.value)}
-                            placeholder="Filter…"
-                            spellCheck={false}
-                            type="search"
-                            value={filter}
-                        />
-                    </Search>
-                </Toolbar>
+                        <Search>
+                            <SearchIcon/>
+                            <input
+                                aria-label="Filter this folder"
+                                onChange={(event) => setFilter(event.target.value)}
+                                placeholder="Filter…"
+                                spellCheck={false}
+                                type="search"
+                                value={filter}
+                            />
+                        </Search>
+                    </Toolbar>
 
-                {listing && (
-                    <Heading>
-                        <h1>{baseName(listing.path) || listing.path}</h1>
-                        <span>{listing.path}</span>
-                    </Heading>
-                )}
+                    {active.listing && (
+                        <Heading>
+                            <h1>{baseName(active.listing.path) || active.listing.path}</h1>
+                            <span>{active.listing.path}</span>
+                        </Heading>
+                    )}
 
-                <FileList
-                    error={error}
-                    filter={filter}
-                    listing={listing}
-                    loading={loading}
-                    onOpen={(path) => void navigate(path)}
-                />
+                    <FileList
+                        error={active.error}
+                        filter={filter}
+                        listing={active.listing}
+                        loading={active.loading}
+                        onOpen={navigate}
+                    />
 
-                <StatusBar>
-                    <span>{listing ? `${listing.entries.length} items` : "—"}</span>
-                    <span>
-                        {appInfo ? `v${appInfo.version} · ${appInfo.platform}` : "browser preview"}
-                    </span>
-                </StatusBar>
+                    <StatusBar>
+                        <span>{active.listing ? `${active.listing.entries.length} items` : "—"}</span>
+                        <span>
+                            {appInfo ? `v${appInfo.version} · ${appInfo.platform}` : "browser preview"}
+                        </span>
+                    </StatusBar>
                 </Main>
             </Body>
+
             <ResizeHandles/>
         </Root>
     );
@@ -161,6 +245,7 @@ const Root = styled.div`
 `;
 
 const Body = styled.div`
+    position: relative;
     display: flex;
     flex: 1;
     min-height: 0;
@@ -175,6 +260,7 @@ const Main = styled.main`
     flex-direction: column;
     flex: 1;
     min-width: 0;
+    margin-left: 56px;
 `;
 
 const Toolbar = styled.header`
