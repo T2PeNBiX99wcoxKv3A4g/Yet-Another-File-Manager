@@ -1,14 +1,12 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Versioning;
-using JetBrains.Annotations;
-using Serilog;
 using PhotinoNetUtils;
 using PhotinoNetUtils.Extensions;
-using PhotinoNetUtils.Hosting;
 using PhotinoNetUtils.Interop;
 using PhotinoNetUtils.Platform;
 using PhotinoNetUtils.Services;
 using PhotinoNetUtils.Utils;
+using Serilog;
 using YetAnotherFileManager.Services;
 
 namespace YetAnotherFileManager;
@@ -17,22 +15,6 @@ namespace YetAnotherFileManager;
 
 internal static class Program
 {
-    /// <summary>
-    ///     A directory we own, used as the host's content root. The static server creates a <c>wwwroot</c>
-    ///     web root under it when missing, which without this would land next to the executable.
-    /// </summary>
-    [PublicAPI]
-    private static string DataDirectory
-    {
-        get
-        {
-            var path = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Constants.Name);
-            Directory.CreateDirectory(path);
-            return path;
-        }
-    }
-
     [STAThread]
     private static void Main(string[] args)
     {
@@ -72,7 +54,7 @@ internal static class Program
             // Kestrel binds to an OS-assigned port, so several Photino apps can run side by side
             // without racing for the default 8000. The content root is a folder we own, which keeps
             // the web root out of the executable's directory.
-            using var staticServer = StaticServer.Start(DataDirectory);
+            using var staticServer = StaticServer.Start(Constants.DataDirectory);
             var appUrl = $"{staticServer.BaseUrl}/index.html?v={AppInfoService.BuildToken}";
 #else
             // A Debug build always talks to the Vite dev server, which is where hot reload lives.
