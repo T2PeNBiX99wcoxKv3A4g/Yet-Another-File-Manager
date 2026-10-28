@@ -133,8 +133,10 @@ internal static class Program
         return paths;
     }
 
-    /// <summary>Starts the tray icon and records whether it exists, so closing the window only hides it when
-    /// there is really something to restore it from.</summary>
+    /// <summary>
+    ///     Starts the tray icon and records whether it exists, so closing the window only hides it when
+    ///     there is really something to restore it from.
+    /// </summary>
     private static void StartTray(ITrayIcon tray)
     {
         if (!OperatingSystem.IsLinux())
