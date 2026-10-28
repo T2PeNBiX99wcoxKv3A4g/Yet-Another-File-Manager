@@ -8,6 +8,9 @@ using PhotinoNetUtils.Services;
 using PhotinoNetUtils.Utils;
 using Serilog;
 using YetAnotherFileManager.Services;
+#if !DEBUG
+using PhotinoNetUtils.Hosting;
+#endif
 
 namespace YetAnotherFileManager;
 //NOTE: To hide the console window, go to the project properties and change the Output Type to Windows Application.
