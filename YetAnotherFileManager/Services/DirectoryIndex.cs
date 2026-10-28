@@ -24,6 +24,9 @@ internal static class DirectoryIndex
 
     private static readonly ConcurrentDictionary<string, bool> Unusable = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Directories whose index attributes were already checked in this process.</summary>
+    private static readonly ConcurrentDictionary<string, bool> Checked = new(StringComparer.OrdinalIgnoreCase);
+
     private static readonly string[] Schema =
     [
         // v1: per-entry icons and free-form metadata.
@@ -66,9 +69,9 @@ internal static class DirectoryIndex
             return icons;
         }) ?? new Dictionary<string, string>();
 
-    /// <summary>Cached sizes of the entries of a directory that were measured after <paramref name="since" />.</summary>
-    public static Dictionary<string, long> Sizes(string directory, long since) =>
-        Read(directory, "SELECT name, bytes FROM sizes WHERE computed_at >= $since", reader =>
+    /// <summary>Cached sizes of the entries of a directory, by entry name.</summary>
+    public static Dictionary<string, long> Sizes(string directory) =>
+        Read(directory, "SELECT name, bytes FROM sizes", reader =>
         {
             var sizes = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
 
@@ -76,7 +79,31 @@ internal static class DirectoryIndex
                 sizes[reader.GetString(0)] = reader.GetInt64(1);
 
             return sizes;
-        }, command => command.Parameters.AddWithValue("$since", since)) ?? new Dictionary<string, long>();
+        }) ?? new Dictionary<string, long>();
+
+    /// <summary>
+    ///     Re-applies the Windows attributes of an index that may have arrived from another system
+    ///     (a folder copied from Linux keeps the file but not the hidden/system marking).
+    /// </summary>
+    public static void EnsureHidden(string directory)
+    {
+        if (!OperatingSystem.IsWindows() || !Checked.TryAdd(directory, true))
+            return;
+
+        var path = PathFor(directory);
+
+        Try.Run(() =>
+        {
+            if (!File.Exists(path))
+                return;
+
+            var attributes = File.GetAttributes(path);
+            var wanted = attributes | FileAttributes.Hidden | FileAttributes.System;
+
+            if (wanted != attributes)
+                File.SetAttributes(path, wanted);
+        }).OnFailure(ex => Log.Debug(ex, "Could not hide {Path}", path));
+    }
 
     /// <summary>Creates the index of a directory if it is not there yet. Returns false when it cannot.</summary>
     public static bool Ensure(string directory) =>
@@ -91,6 +118,44 @@ internal static class DirectoryIndex
         {
             return reader.Read() ? reader.GetString(0) : null;
         });
+
+    /// <summary>Stores the sizes of several entries in one transaction.</summary>
+    public static bool SetSizes(string directory, IReadOnlyDictionary<string, long> sizes)
+    {
+        if (sizes.Count == 0)
+            return true;
+
+        return Try.Run(() =>
+        {
+            using var connection = Open(directory, true);
+            if (connection is null)
+                return false;
+
+            using var transaction = connection.BeginTransaction();
+            using var command = connection.CreateCommand();
+            command.CommandText = "INSERT INTO sizes (name, bytes, computed_at) VALUES ($name, $bytes, $now) " +
+                                  "ON CONFLICT(name) DO UPDATE SET bytes = excluded.bytes, " +
+                                  "computed_at = excluded.computed_at";
+
+            var name = command.Parameters.Add("$name", SqliteType.Text);
+            var bytes = command.Parameters.Add("$bytes", SqliteType.Integer);
+            command.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+
+            foreach (var (entry, size) in sizes)
+            {
+                name.Value = entry;
+                bytes.Value = size;
+                command.ExecuteNonQuery();
+            }
+
+            transaction.Commit();
+            return true;
+        }).OnFailure(ex =>
+        {
+            Unusable[directory] = true;
+            Log.Debug(ex, "Could not store the sizes of {Directory}", directory);
+        }).GetOrElse(_ => false);
+    }
 
     /// <summary>Stores an icon source for one entry; a null source removes the override.</summary>
     public static bool SetIcon(string directory, string name, string? source) =>
@@ -209,7 +274,7 @@ internal static class DirectoryIndex
         {
             connection.Dispose();
             Unusable[directory] = true;
-            Log.Warning(ex, "Could not open the index of {Directory}", directory);
+            Log.Debug(ex, "Could not open the index of {Directory}", directory);
             return null;
         }
     }

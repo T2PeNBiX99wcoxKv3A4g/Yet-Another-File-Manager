@@ -19,7 +19,15 @@ internal static class NativeBridge
     /// </summary>
     public static event NativeMessageHandler? MessageReceived;
 
-    public static async Task HandleMessageAsync(PhotinoWindow? window, string rawMessage)
+    /// <summary>
+    ///     Handles one message off the UI thread: listing a large folder, measuring a directory or
+    ///     asking the shell for an icon must never block the window. The reply is posted back with
+    ///     <see cref="PhotinoWindow.Invoke" />, which is the only part that has to run on the UI thread.
+    /// </summary>
+    public static Task HandleMessageAsync(PhotinoWindow? window, string rawMessage) =>
+        Task.Run(() => HandleCoreAsync(window, rawMessage));
+
+    private static async Task HandleCoreAsync(PhotinoWindow? window, string rawMessage)
     {
         Log.Debug("<< {Message}", rawMessage.RemoveControlChars().Truncate(600));
 
@@ -73,6 +81,11 @@ internal static class NativeBridge
     {
         var json = NativeProtocol.SerializeResponse(response);
         Log.Debug(">> {Message}", json.RemoveControlChars().Truncate(600));
-        window?.SendWebMessage(json);
+
+        if (window is null)
+            return;
+
+        Try.Run(() => window.Invoke(() => window.SendWebMessage(json)))
+            .OnFailure(ex => Log.Warning(ex, "Could not send the reply"));
     }
 }

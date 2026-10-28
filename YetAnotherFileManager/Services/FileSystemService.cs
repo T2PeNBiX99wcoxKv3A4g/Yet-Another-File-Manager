@@ -12,11 +12,6 @@ namespace YetAnotherFileManager.Services;
 /// </summary>
 internal sealed class FileSystemService : Singleton<FileSystemService>
 {
-    /// <summary>How long a measured folder size is trusted before it is measured again.</summary>
-    private static readonly long SizeFreshness = (long)TimeSpan.FromMinutes(10).TotalMilliseconds;
-
-    private static long Now => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
     public FileSystemService() => NativeBridge.MessageReceived += HandleMessageAsync;
 
     private static Task<NativeResponse?> HandleMessageAsync(NativeContext context) =>
@@ -181,8 +176,10 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
         if (settings.ShouldWriteDirectoryIndex)
             DirectoryIndex.Ensure(directory.FullName);
 
+        DirectoryIndex.EnsureHidden(directory.FullName);
+
         var icons = DirectoryIndex.Icons(directory.FullName);
-        var sizes = DirectoryIndex.Sizes(directory.FullName, Now - SizeFreshness);
+        var sizes = DirectoryIndex.Sizes(directory.FullName);
 
         var entries = directory.EnumerateFileSystemInfos()
             .Where(info => !DirectoryIndex.IsIndexFile(info.Name))
@@ -193,25 +190,24 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
             .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        RequestSizes(directory.FullName, entries, sizes);
+        RequestSizes(directory.FullName, entries);
 
         return new(directory.FullName, directory.Parent?.FullName, entries, sizes);
     }
 
     /// <summary>Queues the folders of the listing that have no fresh measurement.</summary>
-    private static void RequestSizes(string directory, List<FileEntry> entries,
-        IReadOnlyDictionary<string, long> known)
+    private static void RequestSizes(string directory, List<FileEntry> entries)
     {
         if (!SettingsService.Instance.Current.ShouldWriteDirectoryIndex)
             return;
 
-        var missing = entries
-            .Where(entry => entry.IsDirectory && !known.ContainsKey(entry.Name))
+        var children = entries
+            .Where(entry => entry.IsDirectory)
             .Select(entry => entry.Name)
             .ToList();
 
-        if (missing.Count > 0)
-            FolderSizeService.Instance.Request(directory, missing);
+        if (children.Count > 0)
+            FolderSizeService.Instance.Request(directory, children);
     }
 
     private static bool IsVisible(FileSystemInfo info, bool showHidden, bool showSystem)

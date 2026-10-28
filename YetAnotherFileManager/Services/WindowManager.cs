@@ -54,7 +54,8 @@ internal sealed class WindowManager : Singleton<WindowManager>
         {
             case "app.ready":
                 _mainWindowReady = true;
-                FlushPendingPath();
+                // Flushing sends a web message, which has to happen on the UI thread.
+                RunOnMainWindow(FlushPendingPath);
                 break;
 
             case "window.minimize":
