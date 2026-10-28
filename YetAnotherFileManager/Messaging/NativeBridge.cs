@@ -1,8 +1,8 @@
 using System.Text.Json;
 using Photino.NET;
 using Serilog;
-using YetAnotherFileManager.Extensions;
-using YetAnotherFileManager.Utils;
+using PhotinoNetUtils.Extensions;
+using PhotinoNetUtils.Utils;
 
 namespace YetAnotherFileManager.Messaging;
 

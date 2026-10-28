@@ -13,11 +13,9 @@ YetAnotherFileManager/
 ├── YetAnotherFileManager/             # .NET host
 │   ├── Program.cs                     # entry point / window bootstrap
 │   ├── Constants.cs                   # app-wide constants
-│   ├── Logging.cs                     # Serilog + console mirroring
 │   ├── Messaging/                     # JSON bridge between React and C#
 │   ├── Models/                        # payload models
 │   ├── Services/                      # app info, file system, window manager
-│   ├── Utils/                         # Result / Try / Singleton helpers
 │   └── UserInterface/                 # Vite + React + TypeScript front-end
 │       ├── src/
 │       └── scripts/copy-build.mjs     # copies build output into Resources/wwwroot
@@ -25,10 +23,14 @@ YetAnotherFileManager/
 └── AGENTS.md
 ```
 
+The Photino plumbing (tray, static server, single instance, logging, shared helpers) lives in the
+sibling [PhotinoNETUtils](../PhotinoNETUtils) project and is referenced by path.
+
 ## Requirements
 
 - .NET SDK 10
 - Node.js 20.19+ (or 22.12+)
+- The sibling `PhotinoNETUtils` project at `../PhotinoNETUtils` (the shared Photino plumbing)
 
 ## Development
 
@@ -67,7 +69,8 @@ dotnet build -c Release
 
 ## Native bridge
 
-The front-end talks to C# through Photino's `window.external` bridge (`src/Native.ts`). Messages are
+The front-end talks to C# through Photino's `window.external` bridge, imported from the shared
+`@photino-net-utils/bridge` package (`../PhotinoNETUtils/UserInterface`). Messages are
 JSON objects with a `type` and optional `id`; handlers in C# are plain services that subscribe to
 `NativeBridge.MessageReceived` and reply with a named payload. The available message types are
 `app.info`, `fs.list`, `fs.places` and `fs.drives`.

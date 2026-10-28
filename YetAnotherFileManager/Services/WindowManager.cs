@@ -1,10 +1,10 @@
 using System.Drawing;
 using Photino.NET;
-using YetAnotherFileManager.Extensions;
-using YetAnotherFileManager.Interop;
+using PhotinoNetUtils.Extensions;
+using PhotinoNetUtils.Interop;
 using YetAnotherFileManager.Messaging;
-using YetAnotherFileManager.Platform;
-using YetAnotherFileManager.Utils;
+using PhotinoNetUtils.Platform;
+using PhotinoNetUtils.Utils;
 
 namespace YetAnotherFileManager.Services;
 

@@ -1,6 +1,6 @@
 using JetBrains.Annotations;
 using YetAnotherFileManager.Messaging;
-using YetAnotherFileManager.Utils;
+using PhotinoNetUtils.Utils;
 
 namespace YetAnotherFileManager.Services;
 

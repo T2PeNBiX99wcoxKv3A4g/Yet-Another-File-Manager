@@ -2,11 +2,14 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Versioning;
 using JetBrains.Annotations;
 using Serilog;
-using YetAnotherFileManager.Extensions;
-using YetAnotherFileManager.Interop;
-using YetAnotherFileManager.Platform;
+using PhotinoNetUtils;
+using PhotinoNetUtils.Extensions;
+using PhotinoNetUtils.Hosting;
+using PhotinoNetUtils.Interop;
+using PhotinoNetUtils.Platform;
+using PhotinoNetUtils.Services;
+using PhotinoNetUtils.Utils;
 using YetAnotherFileManager.Services;
-using YetAnotherFileManager.Utils;
 
 namespace YetAnotherFileManager;
 //NOTE: To hide the console window, go to the project properties and change the Output Type to Windows Application.
@@ -38,7 +41,7 @@ internal static class Program
 
         // Main must stay synchronous: [STAThread] is ignored for an async entry point, and the
         // Photino message loop / WebView2 require an STA thread.
-        Logging.Initialize();
+        Logging.Initialize(Constants.Name, "app");
 
         if (OperatingSystem.IsLinux())
         {
@@ -57,7 +60,7 @@ internal static class Program
             var startupPaths = ResolvePaths(args);
 
             // Only one instance may run; later launches hand their paths to it and exit.
-            using var singleInstance = SingleInstance.Instance;
+            using var singleInstance = new SingleInstance(Constants.Name);
             if (!singleInstance.IsFirstInstance)
             {
                 // Blocking here is fine: this process only forwards its args and exits.
@@ -70,7 +73,7 @@ internal static class Program
             // without racing for the default 8000. The content root is a folder we own, which keeps
             // the web root out of the executable's directory.
             using var staticServer = StaticServer.Start(DataDirectory);
-            var appUrl = staticServer.AppUrl;
+            var appUrl = $"{staticServer.BaseUrl}/index.html?v={AppInfoService.BuildToken}";
 #else
             // A Debug build always talks to the Vite dev server, which is where hot reload lives.
             const string appUrl = "http://127.0.0.1:3100";
@@ -84,7 +87,7 @@ internal static class Program
 
             var manager = WindowManager.Instance;
             manager.AppUrl = appUrl;
-            manager.IconPath = AppIcon.EnsureExtracted();
+            manager.IconPath = AppIcon.EnsureExtracted(typeof(Program).Assembly, Constants.Name);
 
             using var tray = CreateTray(manager.IconPath);
 
@@ -170,35 +173,25 @@ internal static class Program
     private static void StartLinuxTrayWhenReady(ITrayIcon tray) =>
         _ = Task.Run(async () =>
         {
-            for (var attempt = 0; attempt < 100 && !LinuxTrayIcon.IsToolkitReady; attempt++)
+            for (var attempt = 0; attempt < 100 && !TrayIconFactory.IsToolkitReady; attempt++)
                 await Task.Delay(100);
 
             WindowManager.Instance.RunOnMainWindow(() => { WindowManager.Instance.CloseToTray = tray.Start(); });
         });
 
-    /// <summary>The tray icon, or a no-op stand-in on platforms that have none.</summary>
+    /// <summary>The platform's tray icon, or a no-op stand-in when there is none.</summary>
     private static ITrayIcon CreateTray(string? iconPath)
     {
         var manager = WindowManager.Instance;
 
-        if (OperatingSystem.IsWindows())
-            return new WindowsTrayIcon(
-                Constants.WindowTitle,
-                iconPath,
-                "Open",
-                "Exit",
-                manager.ShowMainWindow,
-                manager.Exit);
-
-        if (OperatingSystem.IsLinux() && LinuxDiagnostics.AppIndicatorLibrary is not null)
-            return new LinuxTrayIcon(
-                Constants.WindowTitle,
-                iconPath,
-                "Open",
-                "Exit",
-                manager.ShowMainWindow,
-                manager.Exit);
-
-        return new NullTrayIcon();
+        return TrayIconFactory.Create(
+            Constants.Name,
+            Constants.WindowTitle,
+            iconPath,
+            manager.ShowMainWindow,
+            [
+                new TrayMenuItem("Open", manager.ShowMainWindow),
+                new TrayMenuItem("Exit", manager.Exit, SeparatorBefore: true)
+            ]);
     }
 }

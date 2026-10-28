@@ -12,7 +12,8 @@
   "dependencies": {
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "styled-components": "^6.6.0"
+    "styled-components": "^6.6.0",
+    "@photino-net-utils/bridge": "file:../../../PhotinoNETUtils/UserInterface"
   },
   "devDependencies": {
     "@fontsource/inter": "^5.3.0",

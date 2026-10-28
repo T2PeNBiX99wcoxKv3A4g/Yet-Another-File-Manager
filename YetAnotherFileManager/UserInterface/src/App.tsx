@@ -5,7 +5,7 @@ import {getAppInfo, type AppInfo} from "./api/system";
 import {FileList} from "./components/FileList";
 import {ArrowUpIcon, RefreshIcon, SearchIcon} from "./components/Icons";
 import {Sidebar} from "./components/Sidebar";
-import {Native} from "./Native";
+import {Native} from "@photino-net-utils/bridge";
 import {baseName} from "./utils/format";
 
 export default function App() {

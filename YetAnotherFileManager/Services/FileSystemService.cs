@@ -1,7 +1,7 @@
-using YetAnotherFileManager.Extensions;
+using PhotinoNetUtils.Extensions;
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
-using YetAnotherFileManager.Utils;
+using PhotinoNetUtils.Utils;
 
 namespace YetAnotherFileManager.Services;
 
