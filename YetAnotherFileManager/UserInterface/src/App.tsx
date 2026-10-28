@@ -5,6 +5,8 @@ import {getAppInfo, type AppInfo} from "./api/system";
 import {FileList} from "./components/FileList";
 import {ArrowUpIcon, RefreshIcon, SearchIcon} from "./components/Icons";
 import {Sidebar} from "./components/Sidebar";
+import {TitleBar} from "./components/TitleBar";
+import {ResizeHandles} from "./components/ResizeHandles";
 import {Native} from "@photino-net-utils/bridge";
 import {baseName} from "./utils/format";
 
@@ -56,15 +58,17 @@ export default function App() {
     const crumbs = listing ? breadcrumbs(listing.path) : [];
 
     return (
-        <Shell>
-            <Sidebar
-                currentPath={listing?.path ?? ""}
-                drives={drives}
-                onNavigate={(path) => void navigate(path)}
-                places={places}
-            />
+        <Root>
+            <TitleBar/>
+            <Body>
+                <Sidebar
+                    currentPath={listing?.path ?? ""}
+                    drives={drives}
+                    onNavigate={(path) => void navigate(path)}
+                    places={places}
+                />
 
-            <Main>
+                <Main>
                 <Toolbar>
                     <IconButton
                         disabled={!listing?.parent}
@@ -122,8 +126,10 @@ export default function App() {
                         {appInfo ? `v${appInfo.version} · ${appInfo.platform}` : "browser preview"}
                     </span>
                 </StatusBar>
-            </Main>
-        </Shell>
+                </Main>
+            </Body>
+            <ResizeHandles/>
+        </Root>
     );
 }
 
@@ -147,9 +153,17 @@ function breadcrumbs(path: string): { label: string; path: string }[] {
     return crumbs;
 }
 
-const Shell = styled.div`
+const Root = styled.div`
     display: flex;
+    flex-direction: column;
     height: 100%;
+    background: var(--bg-primary);
+`;
+
+const Body = styled.div`
+    display: flex;
+    flex: 1;
+    min-height: 0;
     background:
         radial-gradient(1200px 600px at 15% -10%, rgba(99, 102, 241, 0.12), transparent 60%),
         radial-gradient(900px 500px at 110% 20%, rgba(59, 130, 246, 0.08), transparent 55%),

@@ -28,3 +28,9 @@ internal sealed record FsDrivesPayload(IReadOnlyList<DriveEntry> Drives);
 
 /// <summary>Body for the <c>app.navigate</c> event: the folder the window should show.</summary>
 internal sealed record NavigatePayload(string Path);
+
+/// <summary>Body for the <c>window.state</c> event.</summary>
+internal sealed record WindowStatePayload(bool Maximized);
+
+/// <summary>Payload for <c>window.resize</c>: the edge being dragged.</summary>
+internal sealed record WindowResizeRequest(string Direction);

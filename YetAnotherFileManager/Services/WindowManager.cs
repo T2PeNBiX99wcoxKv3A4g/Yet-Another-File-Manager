@@ -3,6 +3,7 @@ using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Interop;
 using PhotinoNetUtils.Platform;
 using PhotinoNetUtils.Utils;
+using YetAnotherFileManager.Interop;
 using YetAnotherFileManager.Messaging;
 
 namespace YetAnotherFileManager.Services;
@@ -47,16 +48,68 @@ internal sealed class WindowManager : Singleton<WindowManager>
     /// <summary>Raised once the window's native handle exists (the message loop is about to start).</summary>
     public event Action? MainWindowCreated;
 
-    private static Task<NativeResponse?> HandleMessageAsync(NativeContext context)
+    private Task<NativeResponse?> HandleMessageAsync(NativeContext context)
     {
-        if (context.Request.Type == "app.ready")
+        switch (context.Request.Type)
         {
-            var manager = Instance;
-            manager._mainWindowReady = true;
-            manager.FlushPendingPath();
+            case "app.ready":
+                _mainWindowReady = true;
+                FlushPendingPath();
+                break;
+
+            case "window.minimize":
+                RunOnMainWindow(() => _mainWindow?.SetMinimized(true));
+                break;
+
+            case "window.toggleMaximize":
+                RunOnMainWindow(ToggleMaximize);
+                break;
+
+            case "window.close":
+                RunOnMainWindow(() => _mainWindow?.Close());
+                break;
+
+            case "window.drag":
+                RunOnMainWindow(() =>
+                {
+                    if (OperatingSystem.IsWindows() && _mainWindow is { } window)
+                        WindowDrag.Begin(window.WindowHandle);
+                });
+                break;
+
+            case "window.resize":
+                RunOnMainWindow(() =>
+                {
+                    if (OperatingSystem.IsWindows() && _mainWindow is { } window)
+                        WindowResize.Begin(window.WindowHandle,
+                            context.Payload<WindowResizeRequest>()?.Direction ?? "");
+                });
+                break;
         }
 
         return Task.FromResult<NativeResponse?>(null);
+    }
+
+    private void NotifyWindowState(bool maximized) =>
+        Try.Run(() => _mainWindow?.SendWebMessage(
+                NativeProtocol.SerializeEvent("window.state", new WindowStatePayload(maximized))))
+            .OnFailure(ex => Log.Warning(ex, "Failed to send the window state"));
+
+    private void ToggleMaximize()
+    {
+        if (_mainWindow is not { } window)
+            return;
+
+        if (!OperatingSystem.IsWindows())
+        {
+            var maximized = window.Maximized != true;
+            window.SetMaximized(maximized);
+            NotifyWindowState(maximized);
+            return;
+        }
+
+        if (window.WindowHandle != IntPtr.Zero)
+            NotifyWindowState(WindowZoom.Toggle(window.WindowHandle));
     }
 
     public void CreateMainWindow()
@@ -70,8 +123,10 @@ internal sealed class WindowManager : Singleton<WindowManager>
             .SetTitle(Constants.WindowTitle)
             .SetTemporaryFilesPath(WebViewDataPath)
             .SetUseOsDefaultSize(false)
+            .SetUseOsDefaultLocation(false)
             .SetSize(new(1280, 800))
             .SetMinSize(860, 520)
+            .Center()
             .SetContextMenuEnabled(false)
             .RegisterWebMessageReceivedHandler((sender, message) =>
                 _ = NativeBridge.HandleMessageAsync(sender as PhotinoWindow, message))
@@ -92,7 +147,19 @@ internal sealed class WindowManager : Singleton<WindowManager>
         if (IconPath is { Length: > 0 } icon)
             window.SetIconFile(icon);
 
-        window.RegisterWindowCreatedHandler((_, _) => MainWindowCreated?.Invoke());
+        // The interface draws its own title bar. On Windows the native frame stays and WindowFrame
+        // hides its non-client area, because a chromeless popup is a window no shell — or tiling
+        // window manager — will arrange. Elsewhere chromeless is still the simplest way.
+        if (!OperatingSystem.IsWindows())
+            window.SetChromeless(true);
+
+        window.RegisterWindowCreatedHandler((_, _) =>
+        {
+            if (OperatingSystem.IsWindows())
+                WindowFrame.RemoveTitleBar(window.WindowHandle);
+
+            MainWindowCreated?.Invoke();
+        });
 
         window.Load(AppUrl);
         _mainWindow = window;
