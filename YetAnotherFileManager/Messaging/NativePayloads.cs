@@ -26,6 +26,12 @@ internal sealed record FsPlacesPayload(IReadOnlyList<PlaceEntry> Places);
 /// <summary>Body for <c>fs.drives</c>.</summary>
 internal sealed record FsDrivesPayload(IReadOnlyList<DriveEntry> Drives);
 
+/// <summary>Body for <c>fs.recycle</c>.</summary>
+internal sealed record FsRecyclePayload(IReadOnlyList<RecycleEntry> Entries);
+
+/// <summary>Body for <c>fs.visibility</c>: the shell's hidden-item options.</summary>
+internal sealed record FsVisibilityPayload(bool ShowHidden, bool ShowSystem);
+
 /// <summary>
 ///     Body for the <c>app.navigate</c> event: the folder the window should show, and whether it came
 ///     from this launch's command line (which may take over the untouched first tab).

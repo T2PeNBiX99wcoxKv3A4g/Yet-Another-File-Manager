@@ -1,47 +1,75 @@
 import styled from "styled-components";
 import type {Drive, Place} from "../api/files";
-import {DriveIcon, FolderIcon, HomeIcon} from "./Icons";
+import type {TabKind} from "../tabs";
+import {DriveIcon, FolderIcon, GearIcon, HomeIcon, TrashIcon} from "./Icons";
 import {formatBytes} from "../utils/format";
 
 interface SidebarProps {
     places: Place[];
     drives: Drive[];
     currentPath: string;
+    activeKind: TabKind;
     onNavigate: (path: string) => void;
+    onOpenView: (kind: Exclude<TabKind, "files">) => void;
 }
 
 /**
  * A rail of icons that expands under the pointer. It is positioned over the content rather than
  * beside it, so revealing the labels never reflows the file list.
  */
-export function Sidebar({places, drives, currentPath, onNavigate}: SidebarProps) {
+export function Sidebar({places, drives, currentPath, activeKind, onNavigate, onOpenView}: SidebarProps) {
+    const showFiles = activeKind === "files";
+
     return (
         <Aside>
+            <Section>
+                <List>
+                    <Item
+                        $active={activeKind === "home"}
+                        onClick={() => onOpenView("home")}
+                        title="Home"
+                        type="button"
+                    >
+                        <HomeIcon/>
+                        <Label>Home</Label>
+                    </Item>
+                    <Item
+                        $active={activeKind === "recycle"}
+                        onClick={() => onOpenView("recycle")}
+                        title="Recycle Bin"
+                        type="button"
+                    >
+                        <TrashIcon/>
+                        <Label>Recycle Bin</Label>
+                    </Item>
+                </List>
+            </Section>
+
             <Section>
                 <SectionTitle>Places</SectionTitle>
                 <List>
                     {places.map((place) => (
                         <Item
                             key={place.path}
-                            $active={isSamePath(currentPath, place.path)}
+                            $active={showFiles && isSamePath(currentPath, place.path)}
                             onClick={() => onNavigate(place.path)}
                             title={place.path}
                             type="button"
                         >
-                            {place.kind === "home" ? <HomeIcon/> : <FolderIcon/>}
+                            <FolderIcon/>
                             <Label>{place.name}</Label>
                         </Item>
                     ))}
                 </List>
             </Section>
 
-            <Section>
+            <DrivesSection>
                 <SectionTitle>Drives</SectionTitle>
                 <List>
                     {drives.map((drive) => (
                         <Item
                             key={drive.name}
-                            $active={isSamePath(currentPath, drive.name)}
+                            $active={showFiles && isSamePath(currentPath, drive.name)}
                             onClick={() => onNavigate(drive.name)}
                             title={`${drive.label || drive.name} · ${formatBytes(drive.freeSpace)} free of ${formatBytes(drive.totalSize)}`}
                             type="button"
@@ -53,6 +81,20 @@ export function Sidebar({places, drives, currentPath, onNavigate}: SidebarProps)
                             </Label>
                         </Item>
                     ))}
+                </List>
+            </DrivesSection>
+
+            <Section $bottom>
+                <List>
+                    <Item
+                        $active={activeKind === "settings"}
+                        onClick={() => onOpenView("settings")}
+                        title="Settings"
+                        type="button"
+                    >
+                        <GearIcon/>
+                        <Label>Settings</Label>
+                    </Item>
                 </List>
             </Section>
         </Aside>
@@ -74,11 +116,10 @@ const Aside = styled.aside`
     left: 0;
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 14px;
     width: 56px;
-    padding: 14px 11px;
-    overflow-x: hidden;
-    overflow-y: auto;
+    padding: 12px 11px;
+    overflow: hidden;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border-color);
     scrollbar-width: none;
@@ -90,7 +131,7 @@ const Aside = styled.aside`
 
     &:hover {
         width: 232px;
-        padding: 14px 12px;
+        padding: 12px 12px;
         box-shadow: 14px 0 34px rgba(0, 0, 0, 0.45);
     }
 
@@ -99,11 +140,26 @@ const Aside = styled.aside`
     }
 `;
 
-const Section = styled.section`
+const DrivesSection = styled.section`
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+`;
+
+const Section = styled.section<{ $bottom?: boolean }>`
     display: flex;
     flex-direction: column;
     gap: 4px;
     flex-shrink: 0;
+    margin-top: ${({$bottom}) => $bottom ? "auto" : "0"};
 `;
 
 const SectionTitle = styled.h2`
@@ -129,7 +185,7 @@ const Item = styled.button<{ $active: boolean }>`
     align-items: center;
     gap: 10px;
     width: 100%;
-    padding: 8px 8px;
+    padding: 8px;
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
     background: ${({$active}) => $active ? "rgba(99, 102, 241, 0.14)" : "transparent"};

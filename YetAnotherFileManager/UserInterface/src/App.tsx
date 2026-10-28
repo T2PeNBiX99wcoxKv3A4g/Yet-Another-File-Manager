@@ -3,29 +3,60 @@ import styled from "styled-components";
 import {listDirectory, listDrives, listPlaces, type DirectoryListing, type Drive, type Place} from "./api/files";
 import {getAppInfo, type AppInfo} from "./api/system";
 import {FileList} from "./components/FileList";
-import {ArrowUpIcon, RefreshIcon, SearchIcon} from "./components/Icons";
+import {
+    ArrowLeftIcon,
+    ArrowRightIcon,
+    ArrowUpIcon,
+    RefreshIcon,
+    SearchIcon,
+} from "./components/Icons";
+import {HomeView} from "./components/HomeView";
+import {PathBar} from "./components/PathBar";
+import {RecycleView} from "./components/RecycleView";
+import {SettingsView} from "./components/SettingsView";
 import {Sidebar} from "./components/Sidebar";
 import {TitleBar} from "./components/TitleBar";
 import {ResizeHandles} from "./components/ResizeHandles";
+import {viewTitles, type TabKind} from "./tabs";
 import {Native} from "@photino-net-utils/bridge";
 import {baseName} from "./utils/format";
 
 interface Tab {
     id: string;
+    kind: TabKind;
     path: string;
     listing: DirectoryListing | null;
     loading: boolean;
     error: string | null;
+    /** Folders visited in this tab, so back and forward work per tab. */
+    history: string[];
+    index: number;
     /** Nothing has been opened in it yet, so a path arriving from the host can take it over. */
     fresh: boolean;
 }
 
+type ViewKind = Exclude<TabKind, "files">;
+
 let nextTabId = 0;
 
-function createTab(): Tab {
+function createTab(kind: TabKind = "files", path = ""): Tab {
     nextTabId += 1;
 
-    return {id: `tab-${nextTabId}`, path: "", listing: null, loading: true, error: null, fresh: true};
+    return {
+        id: `tab-${nextTabId}`,
+        kind,
+        path,
+        listing: null,
+        loading: kind === "files",
+        error: null,
+        history: [],
+        index: -1,
+        fresh: kind === "files",
+    };
+}
+
+function message(cause: unknown): string {
+    return cause instanceof Error ? cause.message : String(cause);
 }
 
 export default function App() {
@@ -42,29 +73,62 @@ export default function App() {
     const stateRef = useRef({tabs, activeId});
     stateRef.current = {tabs, activeId};
 
-    const update = useCallback((id: string, patch: Partial<Tab>) => {
-        setTabs((current) => current.map((tab) => tab.id === id ? {...tab, ...patch} : tab));
+    const patch = useCallback((id: string, update: (tab: Tab) => Partial<Tab>) => {
+        setTabs((current) => current.map((tab) => tab.id === id ? {...tab, ...update(tab)} : tab));
     }, []);
 
+    /** Opens a folder in a tab, recording it in that tab's history. */
     const load = useCallback(async (id: string, path?: string, keepFresh = false) => {
-        update(id, {loading: true, error: null, ...(keepFresh ? {} : {fresh: false})});
+        patch(id, (tab) => ({kind: "files", loading: true, error: null, fresh: keepFresh && tab.fresh}));
         setFilter("");
 
         try {
             const listing = await listDirectory(path);
-            update(id, {listing, loading: false, path: listing.path});
-        } catch (cause) {
-            update(id, {loading: false, error: cause instanceof Error ? cause.message : String(cause)});
-        }
-    }, [update]);
 
-    const openTab = useCallback((path?: string) => {
+            patch(id, (tab) => ({
+                listing,
+                path: listing.path,
+                loading: false,
+                history: [...tab.history.slice(0, tab.index + 1), listing.path],
+                index: tab.index + 1,
+            }));
+        } catch (cause) {
+            patch(id, () => ({loading: false, error: message(cause)}));
+        }
+    }, [patch]);
+
+    /** Shows a folder already in the tab's history, without adding it again. */
+    const goTo = useCallback(async (id: string, path: string, index: number) => {
+        patch(id, () => ({loading: true, error: null, index}));
+        setFilter("");
+
+        try {
+            const listing = await listDirectory(path);
+            patch(id, () => ({listing, path: listing.path, loading: false}));
+        } catch (cause) {
+            patch(id, () => ({loading: false, error: message(cause)}));
+        }
+    }, [patch]);
+
+    const openFiles = useCallback((path?: string) => {
         const tab = createTab();
 
         setTabs((current) => [...current, tab]);
         setActiveId(tab.id);
         void load(tab.id, path);
     }, [load]);
+
+    const openView = useCallback((kind: ViewKind) => {
+        const existing = stateRef.current.tabs.find((tab) => tab.kind === kind);
+        if (existing) {
+            setActiveId(existing.id);
+            return;
+        }
+
+        const tab = createTab(kind);
+        setTabs((current) => [...current, tab]);
+        setActiveId(tab.id);
+    }, []);
 
     const closeTab = useCallback((id: string) => {
         const {tabs: current, activeId: currentActive} = stateRef.current;
@@ -105,8 +169,8 @@ export default function App() {
     useEffect(() => {
         if (!Native.available) return;
 
-        const unsubscribe = Native.on((message) => {
-            const event = message as { type?: string; data?: { path?: unknown; startup?: unknown } };
+        const unsubscribe = Native.on((evt) => {
+            const event = evt as { type?: string; data?: { path?: unknown; startup?: unknown } };
             if (event.type !== "app.navigate" || typeof event.data?.path !== "string") return;
 
             const path = event.data.path;
@@ -116,125 +180,121 @@ export default function App() {
             if (isStartup && current.length === 1 && current[0].fresh)
                 void load(current[0].id, path);
             else
-                openTab(path);
+                openFiles(path);
         });
 
         Native.send({type: "app.ready"});
         return unsubscribe;
-    }, [load, openTab]);
+    }, [load, openFiles]);
 
-    const crumbs = active.listing ? breadcrumbs(active.listing.path) : [];
+    const canBack = active.kind === "files" && active.index > 0;
+    const canForward = active.kind === "files" && active.index < active.history.length - 1;
+
+    const goBack = () => {
+        if (canBack) void goTo(active.id, active.history[active.index - 1], active.index - 1);
+    };
+
+    const goForward = () => {
+        if (canForward) void goTo(active.id, active.history[active.index + 1], active.index + 1);
+    };
 
     return (
         <Root>
             <TitleBar
                 activeId={active.id}
                 onClose={closeTab}
-                onNewTab={() => openTab()}
+                onNewTab={() => openFiles()}
                 onSelect={setActiveId}
                 tabs={tabs.map((tab) => ({
                     id: tab.id,
+                    kind: tab.kind,
                     path: tab.listing?.path ?? tab.path,
-                    title: baseName(tab.listing?.path ?? tab.path) || "Home",
+                    title: tab.kind === "files"
+                        ? baseName(tab.listing?.path ?? tab.path) || "Files"
+                        : viewTitles[tab.kind],
                 }))}
             />
 
             <Body>
                 <Sidebar
-                    currentPath={active.listing?.path ?? ""}
+                    activeKind={active.kind}
+                    currentPath={active.kind === "files" ? active.listing?.path ?? "" : ""}
                     drives={drives}
                     onNavigate={navigate}
+                    onOpenView={openView}
                     places={places}
                 />
 
                 <Main>
-                    <Toolbar>
-                        <IconButton
-                            disabled={!active.listing?.parent}
-                            onClick={() => active.listing?.parent && navigate(active.listing.parent)}
-                            title="Up one level"
-                            type="button"
-                        >
-                            <ArrowUpIcon/>
-                        </IconButton>
+                    {active.kind === "files" ? (
+                        <>
+                            <Toolbar>
+                                <IconButton disabled={!canBack} onClick={goBack} title="Back" type="button">
+                                    <ArrowLeftIcon/>
+                                </IconButton>
 
-                        <IconButton
-                            onClick={() => navigate(active.listing?.path)}
-                            title="Refresh"
-                            type="button"
-                        >
-                            <RefreshIcon/>
-                        </IconButton>
+                                <IconButton disabled={!canForward} onClick={goForward} title="Forward" type="button">
+                                    <ArrowRightIcon/>
+                                </IconButton>
 
-                        <Crumbs>
-                            {crumbs.map((crumb, index) => (
-                                <Crumb key={crumb.path} type="button" onClick={() => navigate(crumb.path)}>
-                                    {index > 0 && <Separator>/</Separator>}
-                                    {crumb.label}
-                                </Crumb>
-                            ))}
-                        </Crumbs>
+                                <IconButton
+                                    disabled={!active.listing?.parent}
+                                    onClick={() => active.listing?.parent && navigate(active.listing.parent)}
+                                    title="Up one level"
+                                    type="button"
+                                >
+                                    <ArrowUpIcon/>
+                                </IconButton>
 
-                        <Search>
-                            <SearchIcon/>
-                            <input
-                                aria-label="Filter this folder"
-                                onChange={(event) => setFilter(event.target.value)}
-                                placeholder="Filter…"
-                                spellCheck={false}
-                                type="search"
-                                value={filter}
+                                <IconButton
+                                    onClick={() => void goTo(active.id, active.path, active.index)}
+                                    title="Refresh"
+                                    type="button"
+                                >
+                                    <RefreshIcon/>
+                                </IconButton>
+
+                                <PathBar onNavigate={navigate} path={active.listing?.path ?? active.path}/>
+
+                                <Search>
+                                    <SearchIcon/>
+                                    <input
+                                        aria-label="Filter this folder"
+                                        onChange={(event) => setFilter(event.target.value)}
+                                        placeholder="Filter…"
+                                        spellCheck={false}
+                                        type="search"
+                                        value={filter}
+                                    />
+                                </Search>
+                            </Toolbar>
+
+                            <FileList
+                                error={active.error}
+                                filter={filter}
+                                listing={active.listing}
+                                loading={active.loading}
+                                onOpen={navigate}
                             />
-                        </Search>
-                    </Toolbar>
 
-                    {active.listing && (
-                        <Heading>
-                            <h1>{baseName(active.listing.path) || active.listing.path}</h1>
-                            <span>{active.listing.path}</span>
-                        </Heading>
+                            <StatusBar>
+                                <span>{active.listing ? `${active.listing.entries.length} items` : "—"}</span>
+                                <span>{appInfo ? `v${appInfo.version} · ${appInfo.platform}` : "browser preview"}</span>
+                            </StatusBar>
+                        </>
+                    ) : active.kind === "home" ? (
+                        <HomeView drives={drives} onOpen={navigate} places={places}/>
+                    ) : active.kind === "settings" ? (
+                        <SettingsView appInfo={appInfo}/>
+                    ) : (
+                        <RecycleView/>
                     )}
-
-                    <FileList
-                        error={active.error}
-                        filter={filter}
-                        listing={active.listing}
-                        loading={active.loading}
-                        onOpen={navigate}
-                    />
-
-                    <StatusBar>
-                        <span>{active.listing ? `${active.listing.entries.length} items` : "—"}</span>
-                        <span>
-                            {appInfo ? `v${appInfo.version} · ${appInfo.platform}` : "browser preview"}
-                        </span>
-                    </StatusBar>
                 </Main>
             </Body>
 
             <ResizeHandles/>
         </Root>
     );
-}
-
-/** Splits a path into clickable ancestors, keeping the Windows drive root intact. */
-function breadcrumbs(path: string): { label: string; path: string }[] {
-    const separator = path.includes("\\") ? "\\" : "/";
-    const parts = path.split(/[\\/]/).filter((part) => part.length > 0);
-    const crumbs: { label: string; path: string }[] = [];
-
-    let current = separator === "\\" ? "" : "/";
-    parts.forEach((part, index) => {
-        if (separator === "\\") {
-            current = index === 0 ? `${part}\\` : `${current.replace(/\\$/, "")}\\${part}`;
-        } else {
-            current = current === "/" ? `/${part}` : `${current}/${part}`;
-        }
-
-        crumbs.push({label: part, path: current});
-    });
-
-    return crumbs;
 }
 
 const Root = styled.div`
@@ -266,8 +326,8 @@ const Main = styled.main`
 const Toolbar = styled.header`
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 14px 18px;
+    gap: 6px;
+    padding: 12px 18px;
     border-bottom: 1px solid var(--border-color);
     background: rgba(11, 15, 25, 0.55);
     backdrop-filter: blur(8px);
@@ -293,7 +353,7 @@ const IconButton = styled.button`
     }
 
     &:disabled {
-        opacity: 0.4;
+        opacity: 0.35;
         cursor: default;
     }
 
@@ -303,51 +363,11 @@ const IconButton = styled.button`
     }
 `;
 
-const Crumbs = styled.nav`
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    min-width: 0;
-    flex: 1;
-    overflow: hidden;
-    padding: 0 4px;
-`;
-
-const Crumb = styled.button`
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    min-width: 0;
-    padding: 5px 8px;
-    border: 0;
-    border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--text-secondary);
-    font: inherit;
-    font-size: 12px;
-    white-space: nowrap;
-    cursor: pointer;
-
-    &:hover {
-        background: var(--bg-card-hover);
-        color: var(--text-primary);
-    }
-
-    &:focus-visible {
-        outline: 2px solid var(--border-color-focus);
-        outline-offset: 1px;
-    }
-`;
-
-const Separator = styled.span`
-    color: var(--text-muted);
-`;
-
 const Search = styled.label`
     display: flex;
     align-items: center;
     gap: 8px;
-    width: 210px;
+    width: 190px;
     flex-shrink: 0;
     padding: 0 10px;
     border: 1px solid var(--border-color);
@@ -373,28 +393,6 @@ const Search = styled.label`
         &::placeholder {
             color: var(--text-muted);
         }
-    }
-`;
-
-const Heading = styled.div`
-    display: flex;
-    align-items: baseline;
-    gap: 14px;
-    padding: 20px 22px 6px;
-
-    h1 {
-        font-size: 17px;
-        font-weight: 600;
-        letter-spacing: -0.01em;
-    }
-
-    span {
-        overflow: hidden;
-        font-family: var(--font-mono);
-        font-size: 11px;
-        color: var(--text-muted);
-        text-overflow: ellipsis;
-        white-space: nowrap;
     }
 `;
 

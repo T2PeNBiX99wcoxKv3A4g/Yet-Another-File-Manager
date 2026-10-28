@@ -23,6 +23,12 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
             "fs.drives" => Task.FromResult<NativeResponse?>(context.Reply("fs.drives.result",
                 new FsDrivesPayload(GetDrives()))),
 
+            "fs.recycle" => Task.FromResult<NativeResponse?>(context.Reply("fs.recycle.result",
+                new FsRecyclePayload(RecycleBin.List()))),
+
+            "fs.visibility" => Task.FromResult<NativeResponse?>(context.Reply("fs.visibility.result",
+                new FsVisibilityPayload(FileVisibility.ShowHidden, FileVisibility.ShowSystem))),
+
             "fs.list" => Task.FromResult<NativeResponse?>(context.Reply("fs.list.result",
                 List(context.Payload<FsListRequest>()?.Path))),
 

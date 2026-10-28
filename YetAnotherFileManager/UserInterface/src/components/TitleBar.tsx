@@ -1,13 +1,15 @@
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import styled from "styled-components";
 import {Native} from "@photino-net-utils/bridge";
-import {FolderIcon, PlusIcon} from "./Icons";
-
-export interface TabInfo {
-    id: string;
-    title: string;
-    path: string;
-}
+import type {TabInfo} from "../tabs";
+import {
+    AppIcon,
+    FolderIcon,
+    GearIcon,
+    HomeIcon,
+    PlusIcon,
+    TrashIcon,
+} from "./Icons";
 
 interface TitleBarProps {
     tabs: TabInfo[];
@@ -19,6 +21,34 @@ interface TitleBarProps {
 
 export function TitleBar({tabs, activeId, onSelect, onClose, onNewTab}: TitleBarProps) {
     const [maximized, setMaximized] = useState(false);
+    const [overflow, setOverflow] = useState({left: false, right: false});
+    const scroller = useRef<HTMLDivElement | null>(null);
+    const activeTab = useRef<HTMLButtonElement | null>(null);
+
+    const measure = useCallback(() => {
+        const element = scroller.current;
+        if (!element) return;
+
+        const left = element.scrollLeft > 1;
+        const right = element.scrollLeft + element.clientWidth < element.scrollWidth - 1;
+        setOverflow((current) => current.left === left && current.right === right ? current : {left, right});
+    }, []);
+
+    useEffect(() => {
+        measure();
+
+        const element = scroller.current;
+        if (!element) return;
+
+        const observer = new ResizeObserver(measure);
+        observer.observe(element);
+        return () => observer.disconnect();
+    }, [measure, tabs.length]);
+
+    // Keep the tab that was just activated inside the visible strip.
+    useEffect(() => {
+        activeTab.current?.scrollIntoView({behavior: "smooth", block: "nearest", inline: "nearest"});
+    }, [activeId]);
 
     useEffect(() => {
         if (!Native.available) return;
@@ -33,33 +63,58 @@ export function TitleBar({tabs, activeId, onSelect, onClose, onNewTab}: TitleBar
 
     const send = (type: string) => Native.send({type});
     const toggleMaximize = () => send("window.toggleMaximize");
+    const scrollBy = (delta: number) => scroller.current?.scrollBy({left: delta, behavior: "smooth"});
 
     return (
         <Bar>
-            <Mark><FolderIcon size={15}/></Mark>
+            <Mark><AppIcon size={19}/></Mark>
 
             <Tabs>
-                {tabs.map((tab) => (
-                    <Tab
-                        key={tab.id}
-                        $active={tab.id === activeId}
-                        onClick={() => onSelect(tab.id)}
-                        title={tab.path}
-                        type="button"
-                    >
-                        <FolderIcon size={13}/>
-                        <TabName>{tab.title}</TabName>
-                        <TabClose
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                onClose(tab.id);
-                            }}
-                            title="Close tab"
+                {overflow.left && (
+                    <ScrollButton onClick={() => scrollBy(-180)} title="Scroll tabs left" type="button">
+                        <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M6.5 2 3.5 5l3 3"/></svg>
+                    </ScrollButton>
+                )}
+
+                <Scroller
+                    onScroll={measure}
+                    onWheel={(event) => {
+                        const element = scroller.current;
+                        if (!element || element.scrollWidth <= element.clientWidth) return;
+
+                        element.scrollBy({left: event.deltaY || event.deltaX, behavior: "smooth"});
+                    }}
+                    ref={scroller}
+                >
+                    {tabs.map((tab) => (
+                        <Tab
+                            key={tab.id}
+                            $active={tab.id === activeId}
+                            onClick={() => onSelect(tab.id)}
+                            ref={tab.id === activeId ? activeTab : undefined}
+                            title={tab.path || tab.title}
+                            type="button"
                         >
-                            <svg viewBox="0 0 10 10" aria-hidden="true"><path d="m2 2 6 6M8 2 2 8"/></svg>
-                        </TabClose>
-                    </Tab>
-                ))}
+                            <TabIcon kind={tab.kind}/>
+                            <TabName>{tab.title}</TabName>
+                            <TabClose
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    onClose(tab.id);
+                                }}
+                                title="Close tab"
+                            >
+                                <svg viewBox="0 0 10 10" aria-hidden="true"><path d="m2 2 6 6M8 2 2 8"/></svg>
+                            </TabClose>
+                        </Tab>
+                    ))}
+                </Scroller>
+
+                {overflow.right && (
+                    <ScrollButton onClick={() => scrollBy(180)} title="Scroll tabs right" type="button">
+                        <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2 6.5 5l-3 3"/></svg>
+                    </ScrollButton>
+                )}
 
                 <NewTab onClick={onNewTab} title="New tab" type="button">
                     <PlusIcon size={13}/>
@@ -92,6 +147,19 @@ export function TitleBar({tabs, activeId, onSelect, onClose, onNewTab}: TitleBar
     );
 }
 
+function TabIcon({kind}: { kind: TabInfo["kind"] }) {
+    switch (kind) {
+        case "home":
+            return <HomeIcon size={13}/>;
+        case "settings":
+            return <GearIcon size={13}/>;
+        case "recycle":
+            return <TrashIcon size={13}/>;
+        default:
+            return <FolderIcon size={13}/>;
+    }
+}
+
 const Bar = styled.header`
     display: flex;
     align-items: stretch;
@@ -111,9 +179,6 @@ const Mark = styled.span`
     height: 22px;
     margin-left: 12px;
     flex-shrink: 0;
-    border-radius: 7px;
-    color: #041016;
-    background: var(--accent-gradient);
 `;
 
 const Tabs = styled.div`
@@ -121,11 +186,19 @@ const Tabs = styled.div`
     align-items: flex-end;
     gap: 4px;
     min-width: 0;
-    flex-shrink: 1;
+    flex: 0 1 auto;
     margin-left: 10px;
     padding-top: 4px;
+`;
+
+const Scroller = styled.div`
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    min-width: 0;
     overflow-x: auto;
     overflow-y: hidden;
+    scroll-behavior: smooth;
     scrollbar-width: none;
 
     &::-webkit-scrollbar {
@@ -133,14 +206,40 @@ const Tabs = styled.div`
     }
 `;
 
+const ScrollButton = styled.button`
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 26px;
+    flex-shrink: 0;
+    margin-bottom: 2px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+
+    svg {
+        width: 10px;
+        height: 10px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.4;
+    }
+
+    &:hover {
+        background: var(--bg-card-hover);
+        color: var(--text-primary);
+    }
+`;
+
 const Tab = styled.button<{ $active: boolean }>`
     display: flex;
     align-items: center;
     gap: 7px;
-    min-width: 96px;
-    max-width: 190px;
+    width: 168px;
     height: 30px;
-    flex: 0 1 190px;
+    flex: 0 0 auto;
     padding: 0 6px 0 10px;
     border: 1px solid ${({$active}) => $active ? "var(--border-color)" : "transparent"};
     border-bottom: 0;
