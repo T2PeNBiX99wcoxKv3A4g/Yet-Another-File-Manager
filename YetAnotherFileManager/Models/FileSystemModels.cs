@@ -16,8 +16,9 @@ public sealed record PlaceEntry(string Name, string Path, string Kind);
 /// <summary>A mounted volume, shown in the sidebar.</summary>
 public sealed record DriveEntry(string Name, string Label, string? Format, long TotalSize, long FreeSpace);
 
-/// <summary>One item in the recycle bin, as its <c>$I</c> record describes it.</summary>
+/// <summary>One item in the recycle bin, as its metadata record describes it.</summary>
 public sealed record RecycleEntry(
+    string Id,
     string Name,
     string OriginalPath,
     long Size,

@@ -29,11 +29,65 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
             "fs.visibility" => Task.FromResult<NativeResponse?>(context.Reply("fs.visibility.result",
                 new FsVisibilityPayload(FileVisibility.ShowHidden, FileVisibility.ShowSystem))),
 
+            "fs.icon" => Task.FromResult<NativeResponse?>(context.Reply("fs.icon.result",
+                new IconPayload(Icon(context.Payload<IconRequest>())))),
+
+            "fs.recycle.restore" => Task.FromResult<NativeResponse?>(context.Reply("fs.recycle.restore.result",
+                new OkPayload(RestoreRecycleEntry(context.Payload<RecycleRequest>()?.Id ?? "")))),
+
+            "fs.recycle.empty" => Task.FromResult<NativeResponse?>(context.Reply("fs.recycle.empty.result",
+                new OkPayload(EmptyRecycleBin()))),
+
+            "fs.recycle.delete" => Task.FromResult<NativeResponse?>(context.Reply("fs.recycle.delete.result",
+                new OkPayload(DeleteRecycleEntry(context.Payload<RecycleRequest>()?.Id ?? "")))),
+
+            "app.settings" => Task.FromResult<NativeResponse?>(context.Reply("app.settings.result",
+                SettingsService.Instance.Current)),
+
+            "app.settings.set" => Task.FromResult<NativeResponse?>(context.Reply("app.settings.result",
+                context.Payload<AppSettings>() is { } settings
+                    ? SettingsService.Instance.Save(settings)
+                    : SettingsService.Instance.Current)),
+
             "fs.list" => Task.FromResult<NativeResponse?>(context.Reply("fs.list.result",
                 List(context.Payload<FsListRequest>()?.Path))),
 
             _ => Task.FromResult<NativeResponse?>(null)
         };
+
+    /// <summary>The shell icon for a path, or null when system icons are off or unavailable.</summary>
+    private static string? Icon(IconRequest? request)
+    {
+        if (request is not { Path.Length: > 0 } || !OperatingSystem.IsWindows())
+            return null;
+
+        var settings = SettingsService.Instance.Current;
+        if (!settings.SystemIcons)
+            return null;
+
+        // Folders are looked up by path so a desktop.ini icon wins, unless that is turned off.
+        var useFileAttributes = !request.Directory || !settings.CustomFolderIcons;
+
+        return ShellIcon.DataUrl(request.Path, request.Directory, useFileAttributes);
+    }
+
+    private static bool EmptyRecycleBin()
+    {
+        RecycleBin.Empty();
+        return true;
+    }
+
+    private static bool RestoreRecycleEntry(string id) =>
+        id.Length > 0 && RecycleBin.Restore(id);
+
+    private static bool DeleteRecycleEntry(string id)
+    {
+        if (id.Length == 0)
+            return false;
+
+        RecycleBin.Delete(id);
+        return true;
+    }
 
     /// <summary>Lists a directory. A missing path starts at the user's home directory.</summary>
     private static FsListPayload List(string? path)

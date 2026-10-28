@@ -1,13 +1,15 @@
 import {useCallback, useEffect, useState} from "react";
 import styled from "styled-components";
-import {listRecycle, type RecycleEntry} from "../api/files";
+import {deleteRecycleEntry, emptyRecycleBin, listRecycle, restoreRecycleEntry, type RecycleEntry} from "../api/files";
+import {useIcon} from "../api/icons";
 import {formatBytes, formatDate} from "../utils/format";
-import {RefreshIcon, TrashIcon} from "./Icons";
+import {CheckIcon, CrossIcon, FileIcon, FolderIcon, RefreshIcon, TrashIcon} from "./Icons";
 
 export function RecycleView() {
     const [entries, setEntries] = useState<RecycleEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [confirming, setConfirming] = useState(false);
 
     const reload = useCallback(async () => {
         setLoading(true);
@@ -26,6 +28,22 @@ export function RecycleView() {
         void reload();
     }, [reload]);
 
+    const restore = async (id: string) => {
+        await restoreRecycleEntry(id);
+        await reload();
+    };
+
+    const empty = async () => {
+        setConfirming(false);
+        await emptyRecycleBin();
+        await reload();
+    };
+
+    const remove = async (id: string) => {
+        await deleteRecycleEntry(id);
+        await reload();
+    };
+
     return (
         <Page>
             <Header>
@@ -35,9 +53,30 @@ export function RecycleView() {
                     <Count>{loading ? "…" : `${entries.length} items`}</Count>
                 </Heading>
 
-                <RefreshButton onClick={() => void reload()} title="Refresh" type="button">
-                    <RefreshIcon size={14}/>
-                </RefreshButton>
+                <Actions>
+                    {confirming ? (
+                        <>
+                            <ConfirmButton $danger onClick={() => void empty()} type="button">
+                                <CheckIcon size={12}/> Delete everything
+                            </ConfirmButton>
+                            <IconButton onClick={() => setConfirming(false)} title="Cancel" type="button">
+                                <CrossIcon size={12}/>
+                            </IconButton>
+                        </>
+                    ) : (
+                        <EmptyButton
+                            disabled={entries.length === 0}
+                            onClick={() => setConfirming(true)}
+                            type="button"
+                        >
+                            Empty
+                        </EmptyButton>
+                    )}
+
+                    <IconButton onClick={() => void reload()} title="Refresh" type="button">
+                        <RefreshIcon size={14}/>
+                    </IconButton>
+                </Actions>
             </Header>
 
             {error && <Message>{error}</Message>}
@@ -51,20 +90,57 @@ export function RecycleView() {
                         <span>Original location</span>
                         <span>Deleted</span>
                         <span>Size</span>
+                        <span/>
                     </Head>
                     <Body>
-                        {entries.map((entry, index) => (
-                            <Row key={`${entry.originalPath}-${index}`} title={entry.originalPath}>
-                                <Name>{entry.name}</Name>
+                        {entries.map((entry) => (
+                            <Row key={entry.id} title={entry.originalPath}>
+                                <NameCell>
+                                    <EntryIcon entry={entry}/>
+                                    <span>{entry.name}</span>
+                                </NameCell>
                                 <Origin>{entry.originalPath}</Origin>
                                 <Deleted>{formatDate(entry.deleted)}</Deleted>
                                 <Size>{entry.isDirectory ? "—" : formatBytes(entry.size)}</Size>
+                                <RowActions>
+                                    <RowButton
+                                        onClick={() => void restore(entry.id)}
+                                        title="Restore to its original folder"
+                                        type="button"
+                                    >
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M4 10a8 8 0 1 1 2.3 5.7"/>
+                                            <path d="M4 4v6h6"/>
+                                        </svg>
+                                    </RowButton>
+                                    <RowButton
+                                        $danger
+                                        onClick={() => void remove(entry.id)}
+                                        title="Delete permanently"
+                                        type="button"
+                                    >
+                                        <TrashIcon size={13}/>
+                                    </RowButton>
+                                </RowActions>
                             </Row>
                         ))}
                     </Body>
                 </Table>
             )}
         </Page>
+    );
+}
+
+function EntryIcon({entry}: { entry: RecycleEntry }) {
+    // The stored file no longer exists, so the shell answers from the extension.
+    const icon = useIcon(entry.originalPath, entry.isDirectory);
+
+    return (
+        <IconSlot>
+            {icon
+                ? <img alt="" height={18} src={icon} width={18}/>
+                : entry.isDirectory ? <FolderIcon/> : <FileIcon/>}
+        </IconSlot>
     );
 }
 
@@ -104,11 +180,52 @@ const Count = styled.span`
     color: var(--text-muted);
 `;
 
-const RefreshButton = styled.button`
+const Actions = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+`;
+
+const EmptyButton = styled.button`
+    padding: 5px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+        border-color: var(--border-color-hover);
+        background: var(--bg-card-hover);
+        color: var(--text-primary);
+    }
+
+    &:disabled {
+        opacity: 0.4;
+        cursor: default;
+    }
+`;
+
+const ConfirmButton = styled(EmptyButton)<{ $danger?: boolean }>`
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-color: ${({$danger}) => $danger ? "rgba(248, 113, 113, 0.5)" : "var(--border-color)"};
+    color: ${({$danger}) => $danger ? "#fca5a5" : "var(--text-secondary)"};
+
+    &:hover:not(:disabled) {
+        background: rgba(248, 113, 113, 0.14);
+        color: #fecaca;
+    }
+`;
+
+const IconButton = styled.button`
     display: grid;
     place-items: center;
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
     background: var(--bg-input);
@@ -131,7 +248,7 @@ const Table = styled.div`
 
 const Head = styled.div`
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 170px 110px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 170px 100px 56px;
     gap: 16px;
     padding: 10px 22px;
     border-bottom: 1px solid var(--border-color);
@@ -151,7 +268,7 @@ const Body = styled.div`
 
 const Row = styled.div`
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 170px 110px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 170px 100px 56px;
     gap: 16px;
     align-items: center;
     padding: 9px 12px;
@@ -165,6 +282,10 @@ const Row = styled.div`
         background: var(--bg-card-hover);
         color: var(--text-primary);
     }
+
+    &:hover button {
+        opacity: 1;
+    }
 `;
 
 const Cell = styled.span`
@@ -173,7 +294,27 @@ const Cell = styled.span`
     white-space: nowrap;
 `;
 
-const Name = styled(Cell)``;
+const NameCell = styled(Cell)`
+    display: flex;
+    align-items: center;
+    gap: 10px;
+`;
+
+const IconSlot = styled.span`
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+
+    svg {
+        color: var(--text-muted);
+    }
+
+    img {
+        display: block;
+    }
+`;
 
 const Origin = styled(Cell)`
     font-family: var(--font-mono);
@@ -191,6 +332,39 @@ const Size = styled(Cell)`
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--text-muted);
+`;
+
+const RowActions = styled.span`
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+`;
+
+const RowButton = styled.button<{ $danger?: boolean }>`
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 120ms ease, background 120ms ease;
+
+    svg {
+        width: 13px;
+        height: 13px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.7;
+    }
+
+    &:hover {
+        background: ${({$danger}) => $danger ? "rgba(248, 113, 113, 0.2)" : "rgba(148, 163, 184, 0.2)"};
+        color: ${({$danger}) => $danger ? "#fca5a5" : "var(--text-primary)"};
+    }
 `;
 
 const Message = styled.p`

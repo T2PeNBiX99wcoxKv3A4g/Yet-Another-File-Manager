@@ -31,6 +31,7 @@ export interface Drive {
 }
 
 export interface RecycleEntry {
+    id: string;
     name: string;
     originalPath: string;
     size: number;
@@ -64,6 +65,22 @@ export async function listDrives(): Promise<Drive[]> {
 export async function listRecycle(): Promise<RecycleEntry[]> {
     const data = await Native.request<{ entries: RecycleEntry[] }>("fs.recycle");
     return data.entries;
+}
+
+/** Puts one entry back where it came from. */
+export async function restoreRecycleEntry(id: string): Promise<boolean> {
+    const data = await Native.request<{ ok: boolean }>("fs.recycle.restore", {id});
+    return data.ok;
+}
+
+/** Permanently removes everything the recycle bin lists. */
+export async function emptyRecycleBin(): Promise<void> {
+    await Native.request("fs.recycle.empty");
+}
+
+/** Permanently removes one entry. */
+export async function deleteRecycleEntry(id: string): Promise<void> {
+    await Native.request("fs.recycle.delete", {id});
 }
 
 /** The shell's hidden-item options, so the interface can explain what the listing shows. */

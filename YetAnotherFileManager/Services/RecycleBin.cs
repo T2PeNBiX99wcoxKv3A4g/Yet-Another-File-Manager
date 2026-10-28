@@ -1,15 +1,18 @@
 using System.Globalization;
+using System.Security.Principal;
 using System.Text;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
+using Serilog;
 using YetAnotherFileManager.Models;
 
 namespace YetAnotherFileManager.Services;
 
 /// <summary>
-///     Lists deleted items. Windows keeps them under <c>$Recycle.Bin\&lt;SID&gt;</c> as an <c>$I…</c>
-///     record beside the <c>$R…</c> content; everything else follows the freedesktop.org trash
-///     specification, where <c>info/*.trashinfo</c> describes the file stored in <c>files/</c>.
+///     Lists and empties deleted items. Windows stores them under
+///     <c>$Recycle.Bin\&lt;SID&gt;</c> as an <c>$I…</c> record beside the <c>$R…</c> content;
+///     everything else follows the freedesktop.org trash specification, where
+///     <c>info/*.trashinfo</c> describes the file stored in <c>files/</c>.
 /// </summary>
 internal static class RecycleBin
 {
@@ -32,23 +35,55 @@ internal static class RecycleBin
         .OrderByDescending(entry => entry.Deleted)
         .ToList();
 
-    // ---- Windows ----
+    /// <summary>
+    ///     Puts one entry back at its original path. Returns false when the stored content is gone
+    ///     or the original folder no longer exists.
+    /// </summary>
+    public static bool Restore(string id) =>
+        OperatingSystem.IsWindows() ? RestoreWindows(id) : RestoreUnix(id);
 
-    private static IEnumerable<RecycleEntry> ListWindows() =>
-        DriveInfo.GetDrives()
-            .Where(drive => Try.Run(() => drive.IsReady).GetOrNull())
-            .SelectMany(drive => ListWindowsDrive(drive.Name));
-
-    private static IReadOnlyList<RecycleEntry> ListWindowsDrive(string root) =>
+    /// <summary>Permanently removes every entry the listing would show.</summary>
+    public static void Empty() =>
         Try.Run(() =>
         {
-            var bin = new DirectoryInfo(Path.Combine(root, "$Recycle.Bin"));
+            foreach (var entry in List())
+                Delete(entry.Id);
+        }).OnFailure(ex => Log.Warning(ex, "Could not empty the recycle bin"));
+
+    /// <summary>Deletes one entry's content and its metadata, permanently.</summary>
+    public static void Delete(string id) =>
+        Try.Run(() =>
+        {
+            if (OperatingSystem.IsWindows())
+                DeleteWindows(id);
+            else
+                DeleteUnix(id);
+        }).OnFailure(ex => Log.Warning(ex, "Could not delete recycle bin entry {Id}", id));
+
+    // ---- Windows ----
+
+    /// <summary>The per-user folder Windows itself shows: our SID, not every profile that ever used the volume.</summary>
+    private static string? CurrentSid =>
+        Try.Run(() => WindowsIdentity.GetCurrent().User?.Value).GetOrNull();
+
+    private static IEnumerable<RecycleEntry> ListWindows()
+    {
+        if (CurrentSid is not { Length: > 0 } sid)
+            return [];
+
+        return DriveInfo.GetDrives()
+            .Where(drive => Try.Run(() => drive.IsReady).GetOrNull())
+            .SelectMany(drive => ListWindowsDrive(drive.Name, sid));
+    }
+
+    private static IReadOnlyList<RecycleEntry> ListWindowsDrive(string root, string sid) =>
+        Try.Run(() =>
+        {
+            var bin = new DirectoryInfo(Path.Combine(root, "$Recycle.Bin", sid));
             if (!bin.Exists)
                 return [];
 
-            // Every user gets a SID folder; the ones we may not read are skipped by the options.
-            return bin.EnumerateDirectories("*", Readable)
-                .SelectMany(folder => folder.EnumerateFiles("$I*", Readable))
+            return bin.EnumerateFiles("$I*", Readable)
                 .Select(info => Try.Run(() => ReadWindowsRecord(info.FullName)).GetOrNull())
                 .OfType<RecycleEntry>()
                 .ToList();
@@ -66,17 +101,73 @@ internal static class RecycleBin
         if (string.IsNullOrWhiteSpace(original))
             return null;
 
-        var content = Path.Combine(Path.GetDirectoryName(infoPath)!,
-            "$R" + Path.GetFileName(infoPath)[2..]);
+        var content = ContentPath(infoPath);
         var isDirectory = Directory.Exists(content);
+        var isFile = !isDirectory && File.Exists(content);
+
+        // A record without its $R content is a leftover (a partial delete, or another tool that
+        // removed one half). Explorer hides those, and so do we: there is nothing to restore.
+        if (!isDirectory && !isFile)
+            return null;
 
         return new RecycleEntry(
+            infoPath,
             Path.GetFileName(original.TrimEnd('\\', '/')),
             original,
-            isDirectory ? 0 : size,
+            isFile ? new FileInfo(content).Length : 0,
             new DateTimeOffset(DateTime.FromFileTimeUtc(deleted)).ToUnixTimeMilliseconds(),
             isDirectory);
     }
+
+    private static bool RestoreWindows(string infoPath)
+    {
+        if (ReadWindowsOriginalPath(infoPath) is not { Length: > 0 } original)
+            return false;
+
+        var content = ContentPath(infoPath);
+        if (!Directory.Exists(content) && !File.Exists(content))
+            return false;
+
+        var target = UniqueTarget(original);
+        if (Path.GetDirectoryName(target) is not { } folder || !Directory.Exists(folder))
+            return false;
+
+        if (Directory.Exists(content))
+            Directory.Move(content, target);
+        else
+            File.Move(content, target);
+
+        File.Delete(infoPath);
+        return true;
+    }
+
+    private static void DeleteWindows(string infoPath)
+    {
+        var content = ContentPath(infoPath);
+
+        if (Directory.Exists(content))
+            Directory.Delete(content, true);
+        else if (File.Exists(content))
+            File.Delete(content);
+
+        File.Delete(infoPath);
+    }
+
+    /// <summary>The <c>$R…</c> file that belongs to an <c>$I…</c> record: same name, one letter apart.</summary>
+    private static string ContentPath(string infoPath) =>
+        Path.Combine(Path.GetDirectoryName(infoPath)!, "$R" + Path.GetFileName(infoPath)[2..]);
+
+    private static string? ReadWindowsOriginalPath(string infoPath) =>
+        Try.Run(() =>
+        {
+            using var reader = new BinaryReader(File.OpenRead(infoPath));
+
+            var version = reader.ReadInt64();
+            reader.ReadInt64();
+            reader.ReadInt64();
+
+            return version >= 2 ? ReadVariablePath(reader) : ReadLegacyPath(reader);
+        }).GetOrNull();
 
     /// <summary>Version 2 stores the length in characters (including the terminator) before the path.</summary>
     private static string? ReadVariablePath(BinaryReader reader)
@@ -145,40 +236,115 @@ internal static class RecycleBin
 
     private static RecycleEntry? ReadTrashInfo(FileInfo info, string filesRoot)
     {
-        string? original = null;
-        long deleted = 0;
-
-        foreach (var line in File.ReadLines(info.FullName))
-        {
-            var separator = line.IndexOf('=');
-            if (separator <= 0)
-                continue;
-
-            var key = line[..separator].Trim();
-            var value = line[(separator + 1)..].Trim();
-
-            if (key.Equals("Path", StringComparison.OrdinalIgnoreCase))
-                original = Uri.UnescapeDataString(value);
-            else if (key.Equals("DeletionDate", StringComparison.OrdinalIgnoreCase)
-                     && DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal,
-                         out var moment))
-                deleted = new DateTimeOffset(moment).ToUnixTimeMilliseconds();
-        }
-
+        var original = ReadTrashInfoPath(info.FullName);
         if (string.IsNullOrWhiteSpace(original))
             return null;
 
-        // The stored name is the info file's name without the suffix, which is not always the
-        // original file name: a second "report.txt" is stored as "report.txt.2".
-        var stored = Path.Combine(filesRoot, info.Name[..^TrashInfoSuffix.Length]);
+        var stored = StoredPath(info, filesRoot);
         var isDirectory = Directory.Exists(stored);
-        var size = isDirectory ? 0 : Try.Run(() => new FileInfo(stored).Length).GetOrElse(_ => 0);
+        var isFile = !isDirectory && File.Exists(stored);
+
+        if (!isDirectory && !isFile)
+            return null;
 
         return new RecycleEntry(
+            info.FullName,
             Path.GetFileName(original.TrimEnd('/')),
             original,
-            size,
-            deleted,
+            isFile ? new FileInfo(stored).Length : 0,
+            ReadTrashInfoDate(info.FullName),
             isDirectory);
+    }
+
+    private static bool RestoreUnix(string infoPath)
+    {
+        var original = ReadTrashInfoPath(infoPath);
+        if (string.IsNullOrWhiteSpace(original))
+            return false;
+
+        var stored = StoredPath(new FileInfo(infoPath), TrashFilesRoot(infoPath));
+        if (!Directory.Exists(stored) && !File.Exists(stored))
+            return false;
+
+        var target = UniqueTarget(original);
+        if (Path.GetDirectoryName(target) is not { } folder || !Directory.Exists(folder))
+            return false;
+
+        if (Directory.Exists(stored))
+            Directory.Move(stored, target);
+        else
+            File.Move(stored, target);
+
+        File.Delete(infoPath);
+        return true;
+    }
+
+    private static void DeleteUnix(string infoPath)
+    {
+        var stored = StoredPath(new FileInfo(infoPath), TrashFilesRoot(infoPath));
+
+        if (Directory.Exists(stored))
+            Directory.Delete(stored, true);
+        else if (File.Exists(stored))
+            File.Delete(stored);
+
+        File.Delete(infoPath);
+    }
+
+    /// <summary>
+    ///     The stored name is the info file's name without the suffix, which is not always the
+    ///     original file name: a second "report.txt" is stored as "report.txt.2".
+    /// </summary>
+    private static string StoredPath(FileInfo info, string filesRoot) =>
+        Path.Combine(filesRoot, info.Name[..^TrashInfoSuffix.Length]);
+
+    private static string TrashFilesRoot(string infoPath) =>
+        Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(infoPath))!, "files");
+
+    private static string? ReadTrashInfoPath(string infoPath) =>
+        ReadTrashInfoValues(infoPath).GetValueOrDefault("Path") is { Length: > 0 } path
+            ? Uri.UnescapeDataString(path)
+            : null;
+
+    private static long ReadTrashInfoDate(string infoPath) =>
+        ReadTrashInfoValues(infoPath).GetValueOrDefault("DeletionDate") is { Length: > 0 } value
+        && DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var moment)
+            ? new DateTimeOffset(moment).ToUnixTimeMilliseconds()
+            : 0;
+
+    private static Dictionary<string, string> ReadTrashInfoValues(string infoPath)
+    {
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var line in File.ReadLines(infoPath))
+        {
+            var separator = line.IndexOf('=');
+            if (separator <= 0 || line.StartsWith('['))
+                continue;
+
+            values[line[..separator].Trim()] = line[(separator + 1)..].Trim();
+        }
+
+        return values;
+    }
+
+    /// <summary>Restoring onto an existing name gets the usual "name (2)" suffix instead of failing.</summary>
+    private static string UniqueTarget(string original)
+    {
+        if (!File.Exists(original) && !Directory.Exists(original))
+            return original;
+
+        var folder = Path.GetDirectoryName(original) ?? string.Empty;
+        var name = Path.GetFileNameWithoutExtension(original);
+        var extension = Path.GetExtension(original);
+
+        for (var index = 2; index < 1000; index++)
+        {
+            var candidate = Path.Combine(folder, $"{name} ({index}){extension}");
+            if (!File.Exists(candidate) && !Directory.Exists(candidate))
+                return candidate;
+        }
+
+        return original;
     }
 }

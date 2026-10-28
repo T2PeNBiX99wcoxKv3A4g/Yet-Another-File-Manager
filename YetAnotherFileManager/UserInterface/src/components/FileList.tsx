@@ -1,5 +1,6 @@
 import styled from "styled-components";
 import type {DirectoryListing} from "../api/files";
+import {useIcon} from "../api/icons";
 import {formatBytes, formatDate} from "../utils/format";
 import {FileIcon, FolderIcon} from "./Icons";
 
@@ -43,7 +44,7 @@ export function FileList({listing, loading, error, filter, onOpen}: FileListProp
                         title={entry.fullPath}
                     >
                         <Name>
-                            {entry.isDirectory ? <FolderIcon/> : <FileIcon/>}
+                            <EntryIcon isDirectory={entry.isDirectory} path={entry.fullPath}/>
                             <span>{entry.name}</span>
                         </Name>
                         <Size>{entry.isDirectory ? "—" : formatBytes(entry.size)}</Size>
@@ -60,6 +61,31 @@ export function FileList({listing, loading, error, filter, onOpen}: FileListProp
         </Wrapper>
     );
 }
+
+/** The shell's icon when the host can provide it, the built-in glyph otherwise. */
+function EntryIcon({path, isDirectory}: { path: string; isDirectory: boolean }) {
+    const icon = useIcon(path, isDirectory);
+
+    return (
+        <IconSlot>
+            {icon
+                ? <img alt="" height={18} src={icon} width={18}/>
+                : isDirectory ? <FolderIcon/> : <FileIcon/>}
+        </IconSlot>
+    );
+}
+
+const IconSlot = styled.span`
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+
+    img {
+        display: block;
+    }
+`;
 
 const Wrapper = styled.div`
     display: flex;

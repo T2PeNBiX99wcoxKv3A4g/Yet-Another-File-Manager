@@ -29,6 +29,15 @@ internal sealed record FsDrivesPayload(IReadOnlyList<DriveEntry> Drives);
 /// <summary>Body for <c>fs.recycle</c>.</summary>
 internal sealed record FsRecyclePayload(IReadOnlyList<RecycleEntry> Entries);
 
+/// <summary>Payload for <c>fs.icon</c>: the path whose shell icon is wanted.</summary>
+internal sealed record IconRequest(string Path, bool Directory);
+
+/// <summary>Body for <c>fs.icon</c>: a PNG data URL, or null when the shell has no icon.</summary>
+internal sealed record IconPayload(string? DataUrl);
+
+/// <summary>Payload for the <c>fs.recycle.*</c> actions: the entry to act on.</summary>
+internal sealed record RecycleRequest(string Id);
+
 /// <summary>Body for <c>fs.visibility</c>: the shell's hidden-item options.</summary>
 internal sealed record FsVisibilityPayload(bool ShowHidden, bool ShowSystem);
 
