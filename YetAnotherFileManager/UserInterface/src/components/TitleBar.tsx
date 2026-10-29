@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import styled from "styled-components";
-import {Native} from "@photino-net-utils/bridge";
+import {useWindowControls, useWindowDrag} from "@photino-net-utils/bridge";
 import type {TabInfo} from "../tabs";
 import {
     AppIcon,
@@ -20,7 +20,8 @@ interface TitleBarProps {
 }
 
 export function TitleBar({tabs, activeId, onSelect, onClose, onNewTab}: TitleBarProps) {
-    const [maximized, setMaximized] = useState(false);
+    const controls = useWindowControls();
+    const drag = useWindowDrag();
     const [overflow, setOverflow] = useState({left: false, right: false});
     const scroller = useRef<HTMLDivElement | null>(null);
     const activeTab = useRef<HTMLButtonElement | null>(null);
@@ -50,19 +51,6 @@ export function TitleBar({tabs, activeId, onSelect, onClose, onNewTab}: TitleBar
         activeTab.current?.scrollIntoView({behavior: "smooth", block: "nearest", inline: "nearest"});
     }, [activeId]);
 
-    useEffect(() => {
-        if (!Native.available) return;
-
-        return Native.on((message) => {
-            if (message.type !== "window.state") return;
-
-            const data = message.data as { maximized?: unknown };
-            if (typeof data?.maximized === "boolean") setMaximized(data.maximized);
-        });
-    }, []);
-
-    const send = (type: string) => Native.send({type});
-    const toggleMaximize = () => send("window.toggleMaximize");
     const scrollBy = (delta: number) => scroller.current?.scrollBy({left: delta, behavior: "smooth"});
 
     return (
@@ -121,25 +109,25 @@ export function TitleBar({tabs, activeId, onSelect, onClose, onNewTab}: TitleBar
                 </NewTab>
             </Tabs>
 
-            <DragArea onDoubleClick={toggleMaximize} onMouseDown={() => send("window.drag")}/>
+            <DragArea {...drag}/>
 
             <Controls>
-                <ControlButton onClick={() => send("window.minimize")} title="Minimize" type="button">
+                <ControlButton onClick={controls.minimize} title="Minimize" type="button">
                     <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5h6"/></svg>
                 </ControlButton>
                 <ControlButton
-                    onClick={toggleMaximize}
-                    title={maximized ? "Restore" : "Maximize"}
+                    onClick={controls.toggleMaximize}
+                    title={controls.maximized ? "Restore" : "Maximize"}
                     type="button"
                 >
-                    {maximized
+                    {controls.maximized
                         ? <svg viewBox="0 0 10 10" aria-hidden="true">
                             <rect height="6" width="6" x="3" y="1"/>
                             <rect height="6" width="6" x="1" y="3"/>
                         </svg>
                         : <svg viewBox="0 0 10 10" aria-hidden="true"><rect height="6" width="6" x="2" y="2"/></svg>}
                 </ControlButton>
-                <CloseButton onClick={() => send("window.close")} title="Close" type="button">
+                <CloseButton onClick={controls.close} title="Close" type="button">
                     <svg viewBox="0 0 10 10" aria-hidden="true"><path d="m2 2 6 6M8 2 2 8"/></svg>
                 </CloseButton>
             </Controls>

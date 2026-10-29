@@ -16,9 +16,8 @@ import {RecycleView} from "./components/RecycleView";
 import {SettingsView} from "./components/SettingsView";
 import {Sidebar} from "./components/Sidebar";
 import {TitleBar} from "./components/TitleBar";
-import {ResizeHandles} from "./components/ResizeHandles";
 import {viewTitles, type TabKind} from "./tabs";
-import {Native} from "@photino-net-utils/bridge";
+import {Native, ResizeHandles} from "@photino-net-utils/bridge";
 import {baseName} from "./utils/format";
 
 interface Tab {
