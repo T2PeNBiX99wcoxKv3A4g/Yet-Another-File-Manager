@@ -10,6 +10,8 @@ export interface AppSettings {
     quickAccess: string[] | null;
     /** How many recent folders the overview shows; 0 turns the section off. */
     recentLimit: number;
+    /** Folders the gallery scans, or null for the Pictures folder. */
+    galleryRoots: string[] | null;
 }
 
 const fallback: AppSettings = {
@@ -19,6 +21,7 @@ const fallback: AppSettings = {
     extensionIcons: {},
     quickAccess: null,
     recentLimit: 10,
+    galleryRoots: null,
 };
 
 /** The interface settings, persisted by the host. */
@@ -34,6 +37,7 @@ export async function getSettings(): Promise<AppSettings> {
         extensionIcons: raw?.extensionIcons ?? {},
         quickAccess: raw?.quickAccess ?? null,
         recentLimit: raw?.recentLimit ?? 10,
+        galleryRoots: raw?.galleryRoots ?? null,
     };
 }
 
@@ -50,6 +54,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         extensionIcons: saved?.extensionIcons ?? settings.extensionIcons,
         quickAccess: saved?.quickAccess ?? settings.quickAccess,
         recentLimit: saved?.recentLimit ?? settings.recentLimit,
+        galleryRoots: saved?.galleryRoots ?? settings.galleryRoots,
     };
 }
 

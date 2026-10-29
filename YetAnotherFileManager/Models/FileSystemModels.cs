@@ -17,6 +17,9 @@ public sealed record PlaceEntry(string Name, string Path, string Kind);
 /// <summary>A mounted volume, shown in the sidebar.</summary>
 public sealed record DriveEntry(string Name, string Label, string? Format, long TotalSize, long FreeSpace);
 
+/// <summary>One picture in the gallery.</summary>
+public sealed record GalleryEntry(string Path, string Name, long Modified, long Size);
+
 /// <summary>A folder (or, later, a file) that was opened recently.</summary>
 public sealed record RecentEntry(string Path, string Name, bool IsDirectory, long At);
 

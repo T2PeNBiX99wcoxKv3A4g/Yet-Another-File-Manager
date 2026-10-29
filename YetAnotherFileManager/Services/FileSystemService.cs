@@ -36,6 +36,12 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
             "fs.visibility" => Task.FromResult<NativeResponse?>(context.Reply("fs.visibility.result",
                 new FsVisibilityPayload(FileVisibility.ShowHidden, FileVisibility.ShowSystem))),
 
+            "fs.gallery" => Task.FromResult<NativeResponse?>(context.Reply("fs.gallery.result",
+                new FsGalleryPayload(Gallery.List()))),
+
+            "fs.thumbnail" => Task.FromResult<NativeResponse?>(context.Reply("fs.thumbnail.result",
+                new IconPayload(Thumbnail(context.Payload<ThumbnailRequest>())))),
+
             "fs.recent" => Task.FromResult<NativeResponse?>(context.Reply("fs.recent.result",
                 new FsRecentPayload(RecentService.Instance.List(SettingsService.Instance.Current.RecentCount)))),
 
@@ -75,6 +81,12 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
                     ? SettingsService.Instance.Save(settings)
                     : SettingsService.Instance.Current)),
 
+            "app.memory" => Task.FromResult<NativeResponse?>(context.Reply("app.memory.result",
+                AppMemory.Report())),
+
+            "app.memory.trim" => Task.FromResult<NativeResponse?>(context.Reply("app.memory.result",
+                AppMemory.Trim())),
+
             "fs.list" => Task.FromResult<NativeResponse?>(context.Reply("fs.list.result",
                 List(context.Payload<FsListRequest>()?.Path))),
 
@@ -91,8 +103,9 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
 
         // A folder's own icon (desktop.ini) is a system setting of that folder, so it stays visible
         // even when the generic system icons are turned off.
-        if (request.Directory && settings.UseCustomFolderIcons && HasCustomFolderIcon(request.Path))
-            return ShellIcon.DataUrl(request.Path, true, false);
+        if (request.Directory && settings.UseCustomFolderIcons && HasCustomFolderIcon(request.Path)
+            && ShellIcon.DataUrl(request.Path, true, false) is { } custom)
+            return custom;
 
         if (!settings.UseSystemIcons)
             return null;
@@ -145,6 +158,30 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
 
         return DirectoryIndex.SetIcon(request.Directory, request.Name, request.Source);
     }
+
+    /// <summary>A shell thumbnail for the gallery, at the requested size.</summary>
+    private static string? Thumbnail(ThumbnailRequest? request)
+    {
+        if (request is not { Path.Length: > 0 } || !OperatingSystem.IsWindows())
+            return null;
+
+        var size = Math.Clamp(request.Size, 32, 512);
+
+        // A thumbnail means decoding the whole picture inside this process. A screenful of tiles
+        // would otherwise decode dozens of photos at once, so only a few run concurrently.
+        ThumbnailGate.Wait();
+
+        try
+        {
+            return ShellThumbnail.DataUrl(request.Path, size);
+        }
+        finally
+        {
+            ThumbnailGate.Release();
+        }
+    }
+
+    private static readonly SemaphoreSlim ThumbnailGate = new(Math.Clamp(Environment.ProcessorCount / 4, 2, 4));
 
     /// <summary>Whether a folder defines its own icon, which Explorer reads from desktop.ini.</summary>
     private static bool HasCustomFolderIcon(string directory)
@@ -294,8 +331,11 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
 
         // The index lives beside the files; reading it must never be able to fail a listing.
         var settings = SettingsService.Instance.Current;
+
+        // Creating and migrating a database, hiding it and recording a visit all touch the disk. They
+        // must never stand between the user and the listing, so they run behind it.
         if (settings.ShouldWriteDirectoryIndex)
-            DirectoryIndex.Ensure(directory.FullName);
+            _ = Task.Run(() => DirectoryIndex.Ensure(directory.FullName));
 
         DirectoryIndex.EnsureHidden(directory.FullName);
 
@@ -312,7 +352,7 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
             .ToList();
 
         RequestSizes(directory.FullName, entries);
-        RecentService.Instance.Record(directory.FullName);
+        _ = Task.Run(() => RecentService.Instance.Record(directory.FullName));
 
         return new(directory.FullName, directory.Parent?.FullName, entries, sizes);
     }

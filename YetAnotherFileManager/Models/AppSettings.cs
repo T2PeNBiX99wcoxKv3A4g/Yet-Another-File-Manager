@@ -10,9 +10,10 @@ public sealed record AppSettings(
     bool? WriteDirectoryIndex,
     Dictionary<string, string>? ExtensionIcons,
     List<string>? QuickAccess,
-    int? RecentLimit)
+    int? RecentLimit,
+    List<string>? GalleryRoots)
 {
-    public static AppSettings Default => new(true, true, true, [], null, 10);
+    public static AppSettings Default => new(true, true, true, [], null, 10, null);
 
     /// <summary>Ask the shell for the icon of each file type.</summary>
     public bool UseSystemIcons => SystemIcons ?? true;
@@ -31,4 +32,7 @@ public sealed record AppSettings(
 
     /// <summary>How many recent folders to show; 0 turns the list off.</summary>
     public int RecentCount => Math.Max(RecentLimit ?? 10, 0);
+
+    /// <summary>Folders the gallery scans, or empty for the user's Pictures folder.</summary>
+    public List<string> ScanRoots => GalleryRoots ?? [];
 }

@@ -24,6 +24,7 @@ import {OverviewView} from "./components/OverviewView";
 import {PathBar} from "./components/PathBar";
 import {RecycleView} from "./components/RecycleView";
 import {SettingsView} from "./components/SettingsView";
+import {GalleryView} from "./components/GalleryView";
 import {Sidebar} from "./components/Sidebar";
 import {TitleBar} from "./components/TitleBar";
 import {viewTitles, type TabKind} from "./tabs";
@@ -147,11 +148,10 @@ export default function App() {
 
         if (current.length === 1) {
             // A window always keeps one tab; closing the last one starts over at the home folder.
-            const replacement = createTab();
+            const replacement = createTab("home");
 
             setTabs([replacement]);
             setActiveId(replacement.id);
-            void load(replacement.id);
             return;
         }
 
@@ -179,6 +179,10 @@ export default function App() {
         void listRecent().then(setRecent, () => setRecent([]));
     }, []);
 
+    const reloadDrives = useCallback(() => {
+        void listDrives().then(setDrives, () => setDrives([]));
+    }, []);
+
     useEffect(() => {
         // The first tab is the overview; a path the host sends at startup takes it over instead of
         // opening a second, empty tab. A files tab would load its folder right away.
@@ -190,14 +194,23 @@ export default function App() {
 
         reloadPlaces();
         reloadSettings();
-        void listDrives().then(setDrives, () => setDrives([]));
+        reloadDrives();
         void getAppInfo().then(setAppInfo, () => setAppInfo(null));
-    }, [load, reloadPlaces, reloadSettings]);
+    }, [load, reloadPlaces, reloadSettings, reloadDrives]);
+
+    // Free space changes while the app runs; keep the bars honest without asking for a refresh.
+    useEffect(() => {
+        const timer = setInterval(reloadDrives, 30_000);
+        return () => clearInterval(timer);
+    }, [reloadDrives]);
 
     // The recent list changes on every folder visit; refresh it when the overview is shown again.
     useEffect(() => {
-        if (active.kind === "home") reloadRecent();
-    }, [active.kind, active.id, reloadRecent]);
+        if (active.kind !== "home") return;
+
+        reloadRecent();
+        reloadDrives();
+    }, [active.kind, active.id, reloadRecent, reloadDrives]);
 
     // The host pushes a path for command-line arguments and for a second launch (single instance).
     // It waits for `app.ready` first, because sending to a web view that is still loading crashes it.
@@ -302,7 +315,7 @@ export default function App() {
                                     title="Refresh"
                                     type="button"
                                 >
-                                    <RefreshIcon/>
+                                    <Spin $spinning={active.loading}><RefreshIcon/></Spin>
                                 </IconButton>
 
                                 <PathBar onNavigate={navigate} path={active.listing?.path ?? active.path}/>
@@ -337,7 +350,7 @@ export default function App() {
                         <OverviewView
                             drives={drives}
                             homePath={places.find((place) => place.kind === "home")?.path ?? ""}
-                            onOpen={navigate}
+                            onOpen={(path) => openFiles(path)}
                             onPlacesChanged={setPlaces}
                             onRecentCleared={reloadRecent}
                             places={places}
@@ -346,6 +359,8 @@ export default function App() {
                         />
                     ) : active.kind === "settings" ? (
                         <SettingsView appInfo={appInfo} onSettingsChanged={reloadSettings}/>
+                    ) : active.kind === "gallery" ? (
+                        <GalleryView/>
                     ) : (
                         <RecycleView/>
                     )}
@@ -425,6 +440,18 @@ const IconButton = styled.button`
     &:focus-visible {
         outline: 2px solid var(--border-color-focus);
         outline-offset: 1px;
+    }
+`;
+
+const Spin = styled.span<{ $spinning: boolean }>`
+    display: grid;
+    place-items: center;
+    animation: ${({$spinning}) => $spinning ? "yafm-spin 900ms linear infinite" : "none"};
+
+    @keyframes yafm-spin {
+        to {
+            transform: rotate(360deg);
+        }
     }
 `;
 

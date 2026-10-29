@@ -28,6 +28,13 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <!-- The gallery decodes and re-encodes pictures in this process. Garbage that the runtime
+             would normally leave lying around is a lot of memory for a file manager, so the GC is
+             told to be eager about giving it back instead of waiting for the next collection. -->
+        <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="JetBrains.Annotations" Version="2026.2.0" />
         <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
         <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="10.0.14" />

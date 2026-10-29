@@ -84,6 +84,7 @@ internal static class Program
             // Touching each singleton constructs it, which is what registers its message handlers.
             _ = AppInfoService.Instance;
             _ = FileSystemService.Instance;
+            AppMemory.Start();
 
             var manager = WindowManager.Instance;
             manager.AppUrl = appUrl;

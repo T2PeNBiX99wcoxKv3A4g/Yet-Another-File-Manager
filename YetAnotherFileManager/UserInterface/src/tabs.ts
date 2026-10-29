@@ -1,5 +1,5 @@
 /** What a tab shows: a folder, or one of the app's own pages. */
-export type TabKind = "files" | "home" | "settings" | "recycle";
+export type TabKind = "files" | "home" | "settings" | "recycle" | "gallery";
 
 export interface TabInfo {
     id: string;
@@ -13,4 +13,5 @@ export const viewTitles: Record<Exclude<TabKind, "files">, string> = {
     home: "Overview",
     settings: "Settings",
     recycle: "Recycle Bin",
+    gallery: "Gallery",
 };

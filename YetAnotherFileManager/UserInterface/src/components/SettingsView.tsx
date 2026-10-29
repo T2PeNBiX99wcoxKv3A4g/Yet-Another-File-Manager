@@ -11,9 +11,10 @@ import {
     type AppSettings,
 } from "../api/settings";
 import type {AppInfo} from "../api/system";
+import {getMemory, trimMemory, type MemoryUsage} from "../api/system";
 import {CheckIcon, CrossIcon, FolderIcon, PlusIcon} from "./Icons";
 import {BuiltinIcon, builtinIcons} from "../icons/fileTypes";
-import {baseName} from "../utils/format";
+import {baseName, formatBytes} from "../utils/format";
 
 interface SettingsViewProps {
     appInfo: AppInfo | null;
@@ -27,10 +28,20 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
     const [newExtension, setNewExtension] = useState("");
     const [newIcon, setNewIcon] = useState<string>("file");
     const [busy, setBusy] = useState(false);
+    const [memory, setMemory] = useState<MemoryUsage | null>(null);
 
     useEffect(() => {
         void getVisibility().then(setVisibility, () => setVisibility(null));
         void getSettings().then(setSettings, () => setSettings(null));
+    }, []);
+
+    // Usage changes while the page is open, so the numbers refresh themselves.
+    useEffect(() => {
+        const load = () => void getMemory().then(setMemory, () => setMemory(null));
+
+        load();
+        const timer = setInterval(load, 4000);
+        return () => clearInterval(timer);
     }, []);
 
     const update = async (patch: Partial<AppSettings>) => {
@@ -59,6 +70,20 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
     const setRecentLimit = async (limit: number) => {
         await update({recentLimit: Math.min(Math.max(limit, 0), 50)});
         onSettingsChanged();
+    };
+
+    const saveGallery = async (paths: string[]) => {
+        await update({galleryRoots: paths.length > 0 ? paths : null});
+    };
+
+    const addGalleryRoot = async () => {
+        const folder = await pickFolder();
+        const paths = settings?.galleryRoots ?? [];
+
+        if (!folder || paths.some((path) => path.toLowerCase() === folder.toLowerCase()))
+            return;
+
+        await saveGallery([...paths, folder]);
     };
 
     const addRule = async () => {
@@ -118,6 +143,49 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
             </Section>
 
             <Section>
+                <Title>Memory</Title>
+                <Rows>
+                    <Row>
+                        <RowText>
+                            <Label>Application process</Label>
+                            <Note>
+                                {memory
+                                    ? `${formatBytes(memory.private)} committed, ${formatBytes(memory.workingSet)} resident of ${formatBytes(memory.available)} in the machine. The webview runs in its own process and is not counted here.`
+                                    : "Reading the current usage…"}
+                            </Note>
+                        </RowText>
+                        <RowEnd>
+                            <Value>
+                                {memory && memory.available > 0
+                                    ? `${(memory.workingSet / memory.available * 100).toFixed(1)}%`
+                                    : "—"}
+                            </Value>
+                        </RowEnd>
+                    </Row>
+                    <Row>
+                        <RowText>
+                            <Label>Managed heap</Label>
+                            <Note>The .NET side; thumbnails and folder size walks pass through it.</Note>
+                        </RowText>
+                        <RowEnd>
+                            <Value>{memory ? formatBytes(memory.managed) : "—"}</Value>
+                        </RowEnd>
+                    </Row>
+                    <Row>
+                        <RowText>
+                            <Label>Free memory</Label>
+                            <Note>Compacts the heap and returns unused pages to the system. Always safe.</Note>
+                        </RowText>
+                        <RowEnd>
+                            <ActionButton onClick={() => void trimMemory().then(setMemory)} type="button">
+                                Trim now
+                            </ActionButton>
+                        </RowEnd>
+                    </Row>
+                </Rows>
+            </Section>
+
+            <Section>
                 <Title>Overview</Title>
                 <Rows>
                     <Row>
@@ -132,6 +200,45 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                 onChange={(event) => void setRecentLimit(Number(event.target.value))}                                type="number"
                                 value={settings?.recentLimit ?? 10}
                             />
+                        </RowEnd>
+                    </Row>
+                </Rows>
+            </Section>
+
+            <Section>
+                <Title>Gallery</Title>
+                <Rows>
+                    {(settings?.galleryRoots ?? []).map((path) => (
+                        <Row key={path}>
+                            <RowText>
+                                <Label>{baseName(path)}</Label>
+                                <Note>{path}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <IconButton
+                                    onClick={() => void saveGallery((settings?.galleryRoots ?? []).filter((item) => item !== path))}
+                                    title="Stop scanning this folder"
+                                    type="button"
+                                >
+                                    <CrossIcon size={12}/>
+                                </IconButton>
+                            </RowEnd>
+                        </Row>
+                    ))}
+
+                    <Row>
+                        <RowText>
+                            <Label>Scan folders</Label>
+                            <Note>
+                                {(settings?.galleryRoots ?? []).length === 0
+                                    ? "Nothing added yet, so the gallery reads the Pictures folder."
+                                    : "Only these folders are scanned, three levels deep."}
+                            </Note>
+                        </RowText>
+                        <RowEnd>
+                            <ActionButton onClick={() => void addGalleryRoot()} type="button">
+                                Choose folder…
+                            </ActionButton>
                         </RowEnd>
                     </Row>
                 </Rows>

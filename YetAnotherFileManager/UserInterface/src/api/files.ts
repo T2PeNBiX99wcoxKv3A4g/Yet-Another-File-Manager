@@ -49,6 +49,13 @@ export interface RecycleEntry {
     removable: boolean;
 }
 
+export interface GalleryEntry {
+    path: string;
+    name: string;
+    modified: number;
+    size: number;
+}
+
 export interface RecentEntry {
     path: string;
     name: string;
@@ -119,6 +126,14 @@ export async function purgeOrphansAsAdmin(): Promise<boolean> {
 
     const data = await Native.request<{ ok: boolean }>("fs.recycle.admin.purge");
     return data.ok;
+}
+
+/** The pictures in the scanned folders, newest first. */
+export async function listGallery(): Promise<GalleryEntry[]> {
+    if (!Native.available) return [];
+
+    const data = await Native.request<{ entries: GalleryEntry[] }>("fs.gallery");
+    return data.entries;
 }
 
 /** The folders opened most recently, newest first. */

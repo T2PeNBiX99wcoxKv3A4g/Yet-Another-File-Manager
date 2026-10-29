@@ -1,7 +1,7 @@
 import styled from "styled-components";
 import type {Drive, Place} from "../api/files";
 import type {TabKind} from "../tabs";
-import {DriveIcon, FolderIcon, GearIcon, HomeIcon, OverviewIcon, TrashIcon} from "./Icons";
+import {DriveIcon, FolderIcon, GearIcon, HomeIcon, ImageIcon, OverviewIcon, TrashIcon} from "./Icons";
 import {formatBytes, usageTone} from "../utils/format";
 
 interface SidebarProps {
@@ -41,6 +41,15 @@ export function Sidebar({places, drives, currentPath, activeKind, onNavigate, on
                     >
                         <TrashIcon/>
                         <Label>Recycle Bin</Label>
+                    </Item>
+                    <Item
+                        $active={activeKind === "gallery"}
+                        onClick={() => onOpenView("gallery")}
+                        title="Gallery"
+                        type="button"
+                    >
+                        <ImageIcon/>
+                        <Label>Gallery</Label>
                     </Item>
                 </List>
             </Section>

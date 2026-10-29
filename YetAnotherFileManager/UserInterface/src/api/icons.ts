@@ -111,3 +111,53 @@ export function useIconFile(path: string | null): string | null {
 
     return data;
 }
+
+const thumbnailCache = new Map<string, string | null>();
+
+/** Thumbnails are big strings; keep the last screenfuls rather than every picture ever scrolled past. */
+const ThumbnailCacheLimit = 200;
+
+function rememberThumbnail(path: string, data: string | null) {
+    thumbnailCache.delete(path);
+    thumbnailCache.set(path, data);
+
+    if (thumbnailCache.size <= ThumbnailCacheLimit) return;
+
+    const oldest = thumbnailCache.keys().next().value;
+    if (oldest !== undefined) thumbnailCache.delete(oldest);
+}
+
+/** A shell thumbnail for the gallery, requested only once the tile is close to the viewport. */
+export function useThumbnail(path: string | null, size = 128): string | null {
+    const revision = useIconVersion();
+    const [data, setData] = useState<string | null>(() => path ? thumbnailCache.get(path) ?? null : null);
+
+    useEffect(() => {
+        if (!path || !Native.available) {
+            setData(null);
+            return;
+        }
+
+        if (thumbnailCache.has(path)) {
+            setData(thumbnailCache.get(path) ?? null);
+            return;
+        }
+
+        let alive = true;
+
+        void Native.request<{ dataUrl: string | null }>("fs.thumbnail", {path, size})
+            .then((result) => {
+                rememberThumbnail(path, result.dataUrl);
+                if (alive) setData(result.dataUrl);
+            }, () => {
+                rememberThumbnail(path, null);
+                if (alive) setData(null);
+            });
+
+        return () => {
+            alive = false;
+        };
+    }, [path, size, revision]);
+
+    return data;
+}

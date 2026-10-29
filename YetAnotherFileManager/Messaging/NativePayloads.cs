@@ -62,11 +62,20 @@ internal sealed record AdminOrphansPayload(
     bool Cancelled,
     bool Failed);
 
+/// <summary>Body for <c>fs.gallery</c>: the pictures found in the scanned folders, newest first.</summary>
+internal sealed record FsGalleryPayload(IReadOnlyList<GalleryEntry> Entries);
+
+/// <summary>Payload for <c>fs.thumbnail</c>: which picture, and how big the thumbnail should be.</summary>
+internal sealed record ThumbnailRequest(string Path, int Size);
+
 /// <summary>Body for <c>fs.recent</c>: the folders opened most recently.</summary>
 internal sealed record FsRecentPayload(IReadOnlyList<RecentEntry> Entries);
 
 /// <summary>Payload for <c>app.places.set</c>: the folders to pin, in order.</summary>
 internal sealed record PlacesRequest(List<string> Paths);
+
+/// <summary>Body for <c>app.memory</c>: what this process is using, in bytes.</summary>
+internal sealed record MemoryPayload(long Managed, long Private, long WorkingSet, long Available);
 
 /// <summary>Body for <c>fs.visibility</c>: the shell's hidden-item options.</summary>
 internal sealed record FsVisibilityPayload(bool ShowHidden, bool ShowSystem);
