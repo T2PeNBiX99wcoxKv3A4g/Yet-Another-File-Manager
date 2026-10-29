@@ -42,11 +42,11 @@ internal static class RecycleBin
     public static bool Restore(string id) =>
         OperatingSystem.IsWindows() ? RestoreWindows(id) : RestoreUnix(id);
 
-    /// <summary>Permanently removes every entry the listing would show.</summary>
+    /// <summary>Permanently removes every entry this account may delete.</summary>
     public static void Empty(bool includeOrphans = false) =>
         Try.Run(() =>
         {
-            foreach (var entry in List(includeOrphans))
+            foreach (var entry in List(includeOrphans).Where(entry => entry.Removable))
                 Delete(entry.Id);
         }).OnFailure(ex => Log.Warning(ex, "Could not empty the recycle bin"));
 
@@ -76,20 +76,32 @@ internal static class RecycleBin
             .SelectMany(drive => ListWindowsDrive(drive.Name, sid, includeOrphans));
     }
 
+    /// <summary>
+    ///     Explorer only shows the current user's folder. The leftover view is a cleanup tool, so it
+    ///     also reads every other profile's record — those are reported as not removable, because the
+    ///     account normally cannot write there.
+    /// </summary>
     private static IReadOnlyList<RecycleEntry> ListWindowsDrive(string root, string sid, bool includeOrphans) =>
         Try.Run(() =>
         {
-            var bin = new DirectoryInfo(Path.Combine(root, "$Recycle.Bin", sid));
+            var bin = new DirectoryInfo(Path.Combine(root, "$Recycle.Bin"));
             if (!bin.Exists)
                 return [];
 
-            return bin.EnumerateFiles("$I*", Readable)
-                .Select(info => Try.Run(() => ReadWindowsRecord(info.FullName, includeOrphans)).GetOrNull())
+            var folders = includeOrphans
+                ? bin.EnumerateDirectories("*", Readable).ToList()
+                : [new DirectoryInfo(Path.Combine(bin.FullName, sid))];
+
+            return folders
+                .Where(folder => folder.Exists)
+                .SelectMany(folder => folder.EnumerateFiles("$I*", Readable)
+                    .Select(info => Try.Run(() => ReadWindowsRecord(info.FullName, includeOrphans, sid))
+                        .GetOrNull()))
                 .OfType<RecycleEntry>()
                 .ToList();
         }).GetOrElse(_ => []);
 
-    private static RecycleEntry? ReadWindowsRecord(string infoPath, bool includeOrphans)
+    private static RecycleEntry? ReadWindowsRecord(string infoPath, bool includeOrphans, string currentSid)
     {
         using var reader = new BinaryReader(File.OpenRead(infoPath));
 
@@ -102,23 +114,73 @@ internal static class RecycleBin
             return null;
 
         var content = ContentPath(infoPath);
-        var isDirectory = Directory.Exists(content);
-        var isFile = !isDirectory && File.Exists(content);
-        var isOrphan = !isDirectory && !isFile;
+        var state = Inspect(content);
+
+        // Content that cannot be inspected is not a leftover: refusing it keeps the original name of
+        // a file that may still be restorable from being thrown away.
+        if (state == ContentState.Unknown)
+            return null;
+
+        var isDirectory = state == ContentState.Directory;
+        var isOrphan = state == ContentState.Missing;
 
         // A record without its $R content is a leftover (a partial delete, or another tool that
         // removed one half). Explorer hides those; the interface can ask for them to clean up.
         if (isOrphan && !includeOrphans)
             return null;
 
+        var owner = Path.GetFileName(Path.GetDirectoryName(infoPath));
+        var removable = string.Equals(owner, currentSid, StringComparison.OrdinalIgnoreCase);
+
         return new RecycleEntry(
             infoPath,
             Path.GetFileName(original.TrimEnd('\\', '/')),
             original,
-            isFile ? new FileInfo(content).Length : size,
+            state == ContentState.File ? new FileInfo(content).Length : isOrphan ? size : 0,
             new DateTimeOffset(DateTime.FromFileTimeUtc(deleted)).ToUnixTimeMilliseconds(),
             isDirectory,
-            isOrphan);
+            isOrphan,
+            removable ? null : owner,
+            removable);
+    }
+
+    /// <summary>
+    ///     Whether the stored content is there. <see cref="ContentState.Unknown" /> means the entry
+    ///     exists but cannot be inspected (permissions, a locked volume), which must never be treated
+    ///     as "missing": that would throw away the name of a restorable file.
+    /// </summary>
+    private static ContentState Inspect(string path)
+    {
+        try
+        {
+            return File.GetAttributes(path).HasFlag(FileAttributes.Directory)
+                ? ContentState.Directory
+                : ContentState.File;
+        }
+        catch (FileNotFoundException)
+        {
+            return ContentState.Missing;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return ContentState.Missing;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return ContentState.Unknown;
+        }
+        catch (IOException)
+        {
+            return ContentState.Unknown;
+        }
+    }
+
+    private enum ContentState
+    {
+        Missing,
+        File,
+        Directory,
+        Unknown
     }
 
     private static bool RestoreWindows(string infoPath)
@@ -243,9 +305,14 @@ internal static class RecycleBin
             return null;
 
         var stored = StoredPath(info, filesRoot);
-        var isDirectory = Directory.Exists(stored);
-        var isFile = !isDirectory && File.Exists(stored);
-        var isOrphan = !isDirectory && !isFile;
+        var state = Inspect(stored);
+
+        // Same rule as on Windows: something that exists but cannot be inspected is not a leftover.
+        if (state == ContentState.Unknown)
+            return null;
+
+        var isDirectory = state == ContentState.Directory;
+        var isOrphan = state == ContentState.Missing;
 
         if (isOrphan && !includeOrphans)
             return null;
@@ -254,10 +321,12 @@ internal static class RecycleBin
             info.FullName,
             Path.GetFileName(original.TrimEnd('/')),
             original,
-            isFile ? new FileInfo(stored).Length : 0,
+            state == ContentState.File ? new FileInfo(stored).Length : 0,
             ReadTrashInfoDate(info.FullName),
             isDirectory,
-            isOrphan);
+            isOrphan,
+            null,
+            true);
     }
 
     private static bool RestoreUnix(string infoPath)

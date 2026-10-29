@@ -43,6 +43,10 @@ export interface RecycleEntry {
     isDirectory: boolean;
     /** Only the metadata record is left; the content is gone. */
     isOrphan: boolean;
+    /** Set when the record belongs to another profile than the current user. */
+    owner: string | null;
+    /** False for another profile's record, which this account normally cannot delete. */
+    removable: boolean;
 }
 
 export interface FileVisibility {

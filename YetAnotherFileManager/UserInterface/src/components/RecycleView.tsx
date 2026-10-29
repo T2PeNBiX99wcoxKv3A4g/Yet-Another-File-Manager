@@ -104,17 +104,22 @@ export function RecycleView() {
                     </Head>
                     <Body>
                         {entries.map((entry) => (
-                            <Row key={entry.id} $orphan={entry.isOrphan} title={entry.originalPath}>
+                            <Row
+                                key={entry.id}
+                                $orphan={entry.isOrphan}
+                                title={entry.owner ? `${entry.originalPath} · ${entry.owner}` : entry.originalPath}
+                            >
                                 <NameCell>
                                     <EntryIcon entry={entry}/>
                                     <span>{entry.name}</span>
                                     {entry.isOrphan && <Tag>metadata only</Tag>}
+                                    {entry.owner && <Tag $other>other profile</Tag>}
                                 </NameCell>
                                 <Origin>{entry.originalPath}</Origin>
                                 <Deleted>{formatDate(entry.deleted)}</Deleted>
                                 <Size>{entry.isDirectory ? "—" : formatBytes(entry.size)}</Size>
                                 <RowActions>
-                                    {!entry.isOrphan && (
+                                    {!entry.isOrphan && entry.removable && (
                                         <RowButton
                                             onClick={() => void restore(entry.id)}
                                             title="Restore to its original folder"
@@ -126,14 +131,16 @@ export function RecycleView() {
                                             </svg>
                                         </RowButton>
                                     )}
-                                    <RowButton
-                                        $danger
-                                        onClick={() => void remove(entry.id)}
-                                        title={entry.isOrphan ? "Remove the leftover record" : "Delete permanently"}
-                                        type="button"
-                                    >
-                                        <TrashIcon size={13}/>
-                                    </RowButton>
+                                    {entry.removable && (
+                                        <RowButton
+                                            $danger
+                                            onClick={() => void remove(entry.id)}
+                                            title={entry.isOrphan ? "Remove the leftover record" : "Delete permanently"}
+                                            type="button"
+                                        >
+                                            <TrashIcon size={13}/>
+                                        </RowButton>
+                                    )}
                                 </RowActions>
                             </Row>
                         ))}
@@ -216,14 +223,14 @@ const OrphanButton = styled.button<{ $on: boolean }>`
     }
 `;
 
-const Tag = styled.span`
+const Tag = styled.span<{ $other?: boolean }>`
     flex-shrink: 0;
     padding: 1px 6px;
-    border: 1px solid rgba(251, 191, 36, 0.35);
+    border: 1px solid ${({$other}) => $other ? "rgba(148, 163, 184, 0.35)" : "rgba(251, 191, 36, 0.35)"};
     border-radius: 999px;
     font-family: var(--font-mono);
     font-size: 9px;
-    color: #fcd34d;
+    color: ${({$other}) => $other ? "var(--text-muted)" : "#fcd34d"};
     white-space: nowrap;
 `;
 
