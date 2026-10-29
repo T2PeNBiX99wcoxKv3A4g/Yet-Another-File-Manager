@@ -108,7 +108,7 @@ export function RecycleView() {
                     <OrphanButton
                         $on={showOrphans}
                         onClick={() => setShowOrphans((current) => !current)}
-                        title="Show metadata records whose content is gone. Live accounts are never listed."
+                        title="Show metadata records whose content is already gone"
                         type="button"
                     >
                         Orphans
@@ -194,7 +194,7 @@ export function RecycleView() {
                                     <EntryIcon entry={entry}/>
                                     <span>{entry.name}</span>
                                     {entry.isOrphan && <Tag>metadata only</Tag>}
-                                    {entry.owner && <Tag $other>deleted profile</Tag>}
+                                    {entry.owner && <Tag $other>other profile</Tag>}
                                 </NameCell>
                                 <Origin>{entry.originalPath}</Origin>
                                 <Deleted>{formatDate(entry.deleted)}</Deleted>
