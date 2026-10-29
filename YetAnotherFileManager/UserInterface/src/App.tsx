@@ -29,7 +29,7 @@ import {Sidebar} from "./components/Sidebar";
 import {TitleBar} from "./components/TitleBar";
 import {viewTitles, type TabKind} from "./tabs";
 import {Native, ResizeHandles, useWindowCorners} from "@photino-net-utils/bridge";
-import {baseName} from "./utils/format";
+import {baseName, formatBytes} from "./utils/format";
 
 interface Tab {
     id: string;
@@ -67,6 +67,15 @@ function createTab(kind: TabKind = "files", path = ""): Tab {
 
 function message(cause: unknown): string {
     return cause instanceof Error ? cause.message : String(cause);
+}
+
+/** What the folder adds up to: files right away, folders once their size has been measured. */
+function statusLine(listing: DirectoryListing): string {
+    const total = listing.entries.reduce((sum, entry) => sum + (entry.isDirectory
+        ? listing.folderSizes[entry.name] ?? 0
+        : Math.max(entry.size, 0)), 0);
+
+    return `${listing.entries.length} items · ${formatBytes(total)}`;
 }
 
 export default function App() {
@@ -287,6 +296,8 @@ export default function App() {
                     onNavigate={navigate}
                     onOpenView={openView}
                     places={places}
+                    recent={recent}
+                    recentLimit={recentLimit}
                 />
 
                 <Main>
@@ -342,7 +353,7 @@ export default function App() {
                             />
 
                             <StatusBar>
-                                <span>{active.listing ? `${active.listing.entries.length} items` : "—"}</span>
+                                <span>{active.listing ? statusLine(active.listing) : "—"}</span>
                                 <span>{appInfo ? `v${appInfo.version} · ${appInfo.platform}` : "browser preview"}</span>
                             </StatusBar>
                         </>

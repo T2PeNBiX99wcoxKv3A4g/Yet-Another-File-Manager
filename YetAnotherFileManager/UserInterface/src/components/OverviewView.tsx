@@ -9,9 +9,9 @@ import {
     type Place,
     type RecentEntry,
 } from "../api/files";
-import {pickFolder} from "../api/settings";
+import {getSettings, pickFolder, saveSettings, type AppSettings} from "../api/settings";
 import {FileList} from "./FileList";
-import {CheckIcon, CrossIcon, DriveIcon, FolderIcon, HomeIcon, PencilIcon, PlusIcon} from "./Icons";
+import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, FolderIcon, HomeIcon, PencilIcon, PlusIcon} from "./Icons";
 import {formatBytes, usageTone} from "../utils/format";
 
 interface OverviewViewProps {
@@ -27,7 +27,20 @@ interface OverviewViewProps {
 
 const PreviewCount = 20;
 
-/** The overview: pinned folders, recent folders, a peek at the home folder and the volumes. */
+/** The panels in their default order; the user can rearrange and hide them. */
+const DefaultPanels = ["quick", "recent", "home", "drives"];
+
+const PanelTitles: Record<string, string> = {
+    quick: "Quick access",
+    recent: "Recent",
+    home: "Home",
+    drives: "This PC",
+};
+
+/**
+ * The overview is a page of panels: pinned folders, recent folders, a peek at the home folder and
+ * the volumes. The order, which panels are shown and how many columns they take are the user's.
+ */
 export function OverviewView({
     places,
     drives,
@@ -40,6 +53,7 @@ export function OverviewView({
 }: OverviewViewProps) {
     const [editing, setEditing] = useState(false);
     const [home, setHome] = useState<DirectoryListing | null>(null);
+    const [settings, setSettings] = useState<AppSettings | null>(null);
 
     useEffect(() => {
         if (!homePath) return;
@@ -47,7 +61,38 @@ export function OverviewView({
         listDirectory(homePath).then(setHome, () => setHome(null));
     }, [homePath]);
 
-    const save = async (paths: string[]) => {
+    useEffect(() => {
+        void getSettings().then(setSettings, () => setSettings(null));
+    }, []);
+
+    // A panel added by a later version is appended instead of being lost.
+    const order = mergeOrder(settings?.overviewPanels);
+    const hidden = settings?.overviewHidden ?? [];
+    const columns = settings?.overviewColumns ?? 1;
+
+    const save = async (patch: Partial<AppSettings>) => {
+        if (!settings) return;
+
+        const next = {...settings, ...patch};
+        setSettings(next);
+        setSettings(await saveSettings(next));
+    };
+
+    const move = (id: string, offset: number) => {
+        const index = order.indexOf(id);
+        const target = index + offset;
+
+        if (index < 0 || target < 0 || target >= order.length) return;
+
+        const next = [...order];
+        [next[index], next[target]] = [next[target], next[index]];
+        void save({overviewPanels: next});
+    };
+
+    const togglePanel = (id: string) =>
+        void save({overviewHidden: hidden.includes(id) ? hidden.filter((item) => item !== id) : [...hidden, id]});
+
+    const savePlaces = async (paths: string[]) => {
         onPlacesChanged(await setPlaces(paths));
     };
 
@@ -57,107 +102,81 @@ export function OverviewView({
         if (!folder || places.some((place) => place.path.toLowerCase() === folder.toLowerCase()))
             return;
 
-        await save([...places.map((place) => place.path), folder]);
+        await savePlaces([...places.map((place) => place.path), folder]);
     };
 
-    const preview = home && { ...home, entries: home.entries.slice(0, PreviewCount) };
+    const preview = home && {...home, entries: home.entries.slice(0, PreviewCount)};
 
-    return (
-        <Page>
-            <Section>
-                <SectionHead>
-                    <Title>Quick access</Title>
-                    <GhostButton
-                        onClick={() => setEditing((current) => !current)}
-                        title={editing ? "Done" : "Edit Quick access"}
-                        type="button"
-                    >
-                        {editing ? <CheckIcon size={13}/> : <PencilIcon size={13}/>}
-                        {editing ? "Done" : "Edit"}
-                    </GhostButton>
-                </SectionHead>
-
-                <Places>
-                    {places.map((place) => (
-                        <Card
-                            key={place.path}
-                            $editing={editing}
-                            onClick={() => !editing && onOpen(place.path)}
-                            title={place.path}
-                            type="button"
-                        >
-                            {editing && (
-                                <RemoveButton
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        void save(places.filter((item) => item.path !== place.path)
-                                            .map((item) => item.path));
-                                    }}
-                                    title="Remove from Quick access"
+    const body = (id: string) => {
+        switch (id) {
+            case "quick":
+                return (
+                    <>
+                        <Places>
+                            {places.map((place) => (
+                                <Card
+                                    key={place.path}
+                                    $editing={editing}
+                                    onClick={() => !editing && onOpen(place.path)}
+                                    title={place.path}
                                     type="button"
                                 >
-                                    <CrossIcon size={11}/>
-                                </RemoveButton>
+                                    {editing && (
+                                        <RemoveButton
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                void savePlaces(places.filter((item) => item.path !== place.path)
+                                                    .map((item) => item.path));
+                                            }}
+                                            title="Remove from Quick access"
+                                            type="button"
+                                        >
+                                            <CrossIcon size={11}/>
+                                        </RemoveButton>
+                                    )}
+
+                                    <CardIcon>
+                                        {place.kind === "home" ? <HomeIcon size={20}/> : <FolderIcon size={20}/>}
+                                    </CardIcon>
+                                    <CardText>
+                                        <strong>{place.name}</strong>
+                                        <span>{place.path}</span>
+                                    </CardText>
+                                </Card>
+                            ))}
+
+                            {editing && (
+                                <AddCard onClick={() => void addPlace()} title="Add a folder" type="button">
+                                    <PlusIcon size={18}/>
+                                    <span>Add folder</span>
+                                </AddCard>
                             )}
+                        </Places>
+                    </>
+                );
 
-                            <CardIcon>
-                                {place.kind === "home" ? <HomeIcon size={20}/> : <FolderIcon size={20}/>}
-                            </CardIcon>
-                            <CardText>
-                                <strong>{place.name}</strong>
-                                <span>{place.path}</span>
-                            </CardText>
-                        </Card>
-                    ))}
+            case "recent":
+                return recent.length > 0
+                    ? (
+                        <RecentList>
+                            {recent.slice(0, recentLimit).map((entry) => (
+                                <RecentRow
+                                    key={entry.path}
+                                    onClick={() => onOpen(entry.path)}
+                                    title={entry.path}
+                                    type="button"
+                                >
+                                    <FolderIcon size={15}/>
+                                    <strong>{entry.name}</strong>
+                                    <span>{entry.path}</span>
+                                </RecentRow>
+                            ))}
+                        </RecentList>
+                    )
+                    : <Empty>Folders you open show up here.</Empty>;
 
-                    {editing && (
-                        <AddCard onClick={() => void addPlace()} title="Add a folder" type="button">
-                            <PlusIcon size={18}/>
-                            <span>Add folder</span>
-                        </AddCard>
-                    )}
-                </Places>
-            </Section>
-
-            {recentLimit > 0 && recent.length > 0 && (
-                <Section>
-                    <SectionHead>
-                        <Title>Recent</Title>
-                        <GhostButton
-                            onClick={() => void clearRecent().then(onRecentCleared)}
-                            title="Forget the recent folders"
-                            type="button"
-                        >
-                            Clear
-                        </GhostButton>
-                    </SectionHead>
-
-                    <RecentList>
-                        {recent.slice(0, recentLimit).map((entry) => (
-                            <RecentRow
-                                key={entry.path}
-                                onClick={() => onOpen(entry.path)}
-                                title={entry.path}
-                                type="button"
-                            >
-                                {entry.isDirectory ? <FolderIcon size={15}/> : <DriveIcon size={15}/>}
-                                <strong>{entry.name}</strong>
-                                <span>{entry.path}</span>
-                            </RecentRow>
-                        ))}
-                    </RecentList>
-                </Section>
-            )}
-
-            {homePath && (
-                <Section>
-                    <SectionHead>
-                        <Title>Home</Title>
-                        <GhostButton onClick={() => onOpen(homePath)} title="Open the home folder" type="button">
-                            Open folder
-                        </GhostButton>
-                    </SectionHead>
-
+            case "home":
+                return (
                     <Preview>
                         <FileList
                             error={null}
@@ -167,58 +186,214 @@ export function OverviewView({
                             onOpen={onOpen}
                         />
                     </Preview>
-                </Section>
-            )}
+                );
 
-            <Section>
-                <Title>This PC</Title>
-                <Drives>
-                    {drives.map((drive) => {
-                        const used = drive.totalSize > 0 ? 1 - drive.freeSpace / drive.totalSize : 0;
+            case "drives":
+                return (
+                    <Drives>
+                        {drives.map((drive) => {
+                            const used = drive.totalSize > 0 ? 1 - drive.freeSpace / drive.totalSize : 0;
+
+                            return (
+                                <DriveRow key={drive.name} onClick={() => onOpen(drive.name)} type="button">
+                                    <DriveIcon size={20}/>
+                                    <DriveText>
+                                        <strong>{drive.label || drive.name}</strong>
+                                        <span>
+                                            {drive.name} · {formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}
+                                        </span>
+                                    </DriveText>
+                                    <Bar>
+                                        <Fill $used={used} $tone={usageTone(used)}/>
+                                    </Bar>
+                                </DriveRow>
+                            );
+                        })}
+                    </Drives>
+                );
+
+            default:
+                return null;
+        }
+    };
+
+    const action = (id: string) => {
+        switch (id) {
+            case "recent":
+                return recent.length > 0 && (
+                    <GhostButton
+                        onClick={() => void clearRecent().then(onRecentCleared)}
+                        title="Forget the recent folders"
+                        type="button"
+                    >
+                        Clear
+                    </GhostButton>
+                );
+
+            case "home":
+                return (
+                    <GhostButton onClick={() => onOpen(homePath)} title="Open the home folder" type="button">
+                        Open folder
+                    </GhostButton>
+                );
+
+            default:
+                return null;
+        }
+    };
+
+    return (
+        <Page>
+            <Toolbar>
+                <Segmented role="group" title="Columns">
+                    {[1, 2, 3].map((count) => (
+                        <Segment
+                            key={count}
+                            $active={columns === count}
+                            onClick={() => void save({overviewColumns: count})}
+                            title={`${count} column${count > 1 ? "s" : ""}`}
+                            type="button"
+                        >
+                            {count}
+                        </Segment>
+                    ))}
+                </Segmented>
+
+                <GhostButton
+                    onClick={() => setEditing((current) => !current)}
+                    title={editing ? "Done" : "Edit the overview"}
+                    type="button"
+                >
+                    {editing ? <CheckIcon size={13}/> : <PencilIcon size={13}/>}
+                    {editing ? "Done" : "Edit"}
+                </GhostButton>
+            </Toolbar>
+
+            <Panels $columns={columns}>
+                {order
+                    .filter((id) => editing || !hidden.includes(id))
+                    .filter((id) => editing || id !== "recent" || (recentLimit > 0 && recent.length > 0))
+                    .map((id) => {
+                        const index = order.indexOf(id);
+                        const isHidden = hidden.includes(id);
 
                         return (
-                            <DriveRow key={drive.name} onClick={() => onOpen(drive.name)} type="button">
-                                <DriveIcon size={20}/>
-                                <DriveText>
-                                    <strong>{drive.label || drive.name}</strong>
-                                    <span>
-                                        {drive.name} · {formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}
-                                    </span>
-                                </DriveText>
-                                <Bar>
-                                    <Fill $used={used} $tone={usageTone(used)}/>
-                                </Bar>
-                            </DriveRow>
+                            <Section key={id} $hidden={isHidden}>
+                                <SectionHead>
+                                    <Title>{PanelTitles[id] ?? id}</Title>
+
+                                    <HeadEnd>
+                                        {action(id)}
+
+                                        {editing && (
+                                            <>
+                                                <MoveButton
+                                                    disabled={index === 0}
+                                                    onClick={() => move(id, -1)}
+                                                    title="Move up"
+                                                    type="button"
+                                                >
+                                                    <ArrowUpIcon size={12}/>
+                                                </MoveButton>
+                                                <MoveButton
+                                                    $down
+                                                    disabled={index === order.length - 1}
+                                                    onClick={() => move(id, 1)}
+                                                    title="Move down"
+                                                    type="button"
+                                                >
+                                                    <ArrowUpIcon size={12}/>
+                                                </MoveButton>
+                                                <MoveButton
+                                                    onClick={() => togglePanel(id)}
+                                                    title={isHidden ? "Show this panel" : "Hide this panel"}
+                                                    type="button"
+                                                >
+                                                    {isHidden ? <CheckIcon size={12}/> : <CrossIcon size={12}/>}
+                                                </MoveButton>
+                                            </>
+                                        )}
+                                    </HeadEnd>
+                                </SectionHead>
+
+                                {body(id)}
+                            </Section>
                         );
                     })}
-                </Drives>
-            </Section>
+            </Panels>
         </Page>
     );
+}
+
+/** The stored order with any panel it does not know about appended. */
+function mergeOrder(stored: string[] | null | undefined): string[] {
+    const known = (stored ?? []).filter((id) => DefaultPanels.includes(id));
+    const missing = DefaultPanels.filter((id) => !known.includes(id));
+
+    return known.length > 0 ? [...known, ...missing] : DefaultPanels;
 }
 
 const Page = styled.div`
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 26px 26px 34px;
+    padding: 14px 26px 34px;
 `;
 
-const Section = styled.section`
+const Toolbar = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding-bottom: 14px;
+`;
+
+const Segmented = styled.div`
+    display: flex;
+    padding: 2px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+`;
+
+const Segment = styled.button<{ $active: boolean }>`
+    width: 24px;
+    padding: 2px 0;
+    border: 0;
+    border-radius: 4px;
+    background: ${({$active}) => $active ? "rgba(99, 102, 241, 0.22)" : "transparent"};
+    color: ${({$active}) => $active ? "var(--text-primary)" : "var(--text-muted)"};
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+`;
+
+const Panels = styled.div<{ $columns: number }>`
+    display: grid;
+    grid-template-columns: repeat(${({$columns}) => $columns}, minmax(0, 1fr));
+    gap: 24px 26px;
+    align-items: start;
+`;
+
+const Section = styled.section<{ $hidden?: boolean }>`
     display: flex;
     flex-direction: column;
-    gap: 12px;
-
-    & + & {
-        margin-top: 28px;
-    }
+    gap: 10px;
+    min-width: 0;
+    opacity: ${({$hidden}) => $hidden ? 0.45 : 1};
 `;
 
 const SectionHead = styled.div`
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
+`;
+
+const HeadEnd = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 4px;
 `;
 
 const Title = styled.h1`
@@ -248,9 +423,41 @@ const GhostButton = styled.button`
     }
 `;
 
+const MoveButton = styled.button<{ $down?: boolean }>`
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transform: ${({$down}) => $down ? "rotate(180deg)" : "none"};
+
+    &:disabled {
+        opacity: 0.35;
+        cursor: default;
+    }
+
+    &:not(:disabled):hover {
+        border-color: var(--border-color-hover);
+        color: var(--text-primary);
+    }
+`;
+
+const Empty = styled.p`
+    padding: 14px;
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+`;
+
 const Places = styled.div`
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 10px;
 `;
 
@@ -259,7 +466,7 @@ const Card = styled.button<{ $editing: boolean }>`
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 14px 16px;
+    padding: 12px 14px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     background: var(--bg-card);
@@ -283,12 +490,12 @@ const Card = styled.button<{ $editing: boolean }>`
 
 const RemoveButton = styled.button`
     position: absolute;
-    top: 6px;
-    right: 6px;
+    top: 5px;
+    right: 5px;
     display: grid;
     place-items: center;
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     border: 0;
     border-radius: 5px;
     background: rgba(148, 163, 184, 0.18);
@@ -306,7 +513,7 @@ const AddCard = styled.button`
     align-items: center;
     justify-content: center;
     gap: 8px;
-    min-height: 64px;
+    min-height: 58px;
     border: 1px dashed var(--border-color-hover);
     border-radius: var(--radius-md);
     background: transparent;
@@ -325,8 +532,8 @@ const AddCard = styled.button`
 const CardIcon = styled.span`
     display: grid;
     place-items: center;
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
     flex-shrink: 0;
     border-radius: 9px;
     background: rgba(99, 102, 241, 0.16);
@@ -366,7 +573,7 @@ const RecentRow = styled.button`
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 9px 14px;
+    padding: 8px 12px;
     border: 0;
     background: transparent;
     color: var(--text-secondary);
@@ -384,7 +591,7 @@ const RecentRow = styled.button`
     }
 
     strong {
-        font-size: 13px;
+        font-size: 12.5px;
         font-weight: 500;
         white-space: nowrap;
     }
@@ -408,7 +615,7 @@ const RecentRow = styled.button`
 const Preview = styled.div`
     display: flex;
     flex-direction: column;
-    height: 300px;
+    height: 320px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     background: var(--bg-card);
@@ -422,14 +629,14 @@ const Preview = styled.div`
 const Drives = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
 `;
 
 const DriveRow = styled.button`
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 10px 14px;
+    padding: 9px 12px;
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
     background: transparent;
@@ -474,7 +681,7 @@ const DriveText = styled.span`
 `;
 
 const Bar = styled.span`
-    width: 120px;
+    width: 110px;
     height: 5px;
     flex-shrink: 0;
     border-radius: 3px;

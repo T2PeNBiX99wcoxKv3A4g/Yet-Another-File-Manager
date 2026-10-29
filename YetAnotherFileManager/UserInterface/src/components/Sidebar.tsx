@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import type {Drive, Place} from "../api/files";
+import type {Drive, Place, RecentEntry} from "../api/files";
 import type {TabKind} from "../tabs";
 import {DriveIcon, FolderIcon, GearIcon, HomeIcon, ImageIcon, OverviewIcon, TrashIcon} from "./Icons";
 import {formatBytes, usageTone} from "../utils/format";
@@ -7,6 +7,8 @@ import {formatBytes, usageTone} from "../utils/format";
 interface SidebarProps {
     places: Place[];
     drives: Drive[];
+    recent: RecentEntry[];
+    recentLimit: number;
     currentPath: string;
     activeKind: TabKind;
     onNavigate: (path: string) => void;
@@ -15,10 +17,21 @@ interface SidebarProps {
 
 /**
  * A rail of icons that expands under the pointer. It is positioned over the content rather than
- * beside it, so revealing the labels never reflows the file list.
+ * beside it, so revealing the labels never reflows the file list. Collapsed it only costs 52px and
+ * each row keeps its icon; the labels, the drive hints and the section titles appear on hover.
  */
-export function Sidebar({places, drives, currentPath, activeKind, onNavigate, onOpenView}: SidebarProps) {
+export function Sidebar({
+    places,
+    drives,
+    recent,
+    recentLimit,
+    currentPath,
+    activeKind,
+    onNavigate,
+    onOpenView,
+}: SidebarProps) {
     const showFiles = activeKind === "files";
+    const recentShown = recentLimit > 0 && recent.length > 0;
 
     return (
         <Aside>
@@ -72,7 +85,27 @@ export function Sidebar({places, drives, currentPath, activeKind, onNavigate, on
                 </List>
             </Section>
 
-            <DrivesSection>
+            {recentShown && (
+                <ScrollSection>
+                    <SectionTitle>Recent</SectionTitle>
+                    <List>
+                        {recent.slice(0, recentLimit).map((entry) => (
+                            <Item
+                                key={entry.path}
+                                $active={showFiles && isSamePath(currentPath, entry.path)}
+                                onClick={() => onNavigate(entry.path)}
+                                title={entry.path}
+                                type="button"
+                            >
+                                <FolderIcon/>
+                                <Label>{entry.name}</Label>
+                            </Item>
+                        ))}
+                    </List>
+                </ScrollSection>
+            )}
+
+            <ScrollSection>
                 <SectionTitle>Drives</SectionTitle>
                 <List>
                     {drives.map((drive) => {
@@ -98,7 +131,7 @@ export function Sidebar({places, drives, currentPath, activeKind, onNavigate, on
                         );
                     })}
                 </List>
-            </DrivesSection>
+            </ScrollSection>
 
             <Section $bottom>
                 <List>
@@ -132,9 +165,9 @@ const Aside = styled.aside`
     left: 0;
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    width: 56px;
-    padding: 12px 11px;
+    gap: 8px;
+    width: 52px;
+    padding: 10px 9px;
     overflow: hidden;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border-color);
@@ -146,36 +179,26 @@ const Aside = styled.aside`
     }
 
     &:hover {
-        width: 232px;
-        padding: 12px 12px;
+        width: 224px;
+        padding: 10px 10px;
         box-shadow: 14px 0 34px rgba(0, 0, 0, 0.45);
+    }
+
+    /* Everything that only makes sense once the rail is open. */
+    &:not(:hover) ${() => SectionTitle} {
+        height: 0;
+        margin: 0;
+        opacity: 0;
+    }
+
+    &:not(:hover) ${() => Hint},
+    &:not(:hover) ${() => Bar} {
+        display: none;
     }
 
     &:hover span {
         opacity: 1;
     }
-`;
-
-const DrivesSection = styled.section`
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    scrollbar-width: none;
-
-    &::-webkit-scrollbar {
-        display: none;
-    }
-`;
-
-const Section = styled.section<{ $bottom?: boolean }>`
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex-shrink: 0;
-    margin-top: ${({$bottom}) => $bottom ? "auto" : "0"};
 `;
 
 const SectionTitle = styled.h2`
@@ -186,28 +209,49 @@ const SectionTitle = styled.h2`
     text-transform: uppercase;
     color: var(--text-muted);
     opacity: 0;
-    transition: opacity 130ms ease;
+    overflow: hidden;
+    transition: opacity 130ms ease, height 130ms ease, margin 130ms ease;
     white-space: nowrap;
+`;
+
+const Section = styled.section<{ $bottom?: boolean }>`
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex-shrink: 0;
+    margin-top: ${({$bottom}) => $bottom ? "auto" : "0"};
+`;
+
+/** A section that gives up its space when the list is long, so the rail never overflows. */
+const ScrollSection = styled(Section)`
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
 `;
 
 const List = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
 `;
 
 const Item = styled.button<{ $active: boolean }>`
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 9px;
     width: 100%;
-    padding: 8px;
+    padding: 6px 7px;
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
     background: ${({$active}) => $active ? "rgba(99, 102, 241, 0.14)" : "transparent"};
     color: ${({$active}) => $active ? "var(--text-primary)" : "var(--text-secondary)"};
     font: inherit;
-    font-size: 13px;
+    font-size: 12.5px;
     text-align: left;
     cursor: pointer;
     transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
@@ -232,7 +276,7 @@ const Item = styled.button<{ $active: boolean }>`
 const Label = styled.span`
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 2px;
     min-width: 0;
     opacity: 0;
     transition: opacity 130ms ease;

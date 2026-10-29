@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace YetAnotherFileManager.Models;
 
 /// <summary>
@@ -11,28 +13,53 @@ public sealed record AppSettings(
     Dictionary<string, string>? ExtensionIcons,
     List<string>? QuickAccess,
     int? RecentLimit,
-    List<string>? GalleryRoots)
+    List<string>? GalleryRoots,
+    List<string>? OverviewPanels,
+    List<string>? OverviewHidden,
+    int? OverviewColumns)
 {
-    public static AppSettings Default => new(true, true, true, [], null, 10, null);
+    public static AppSettings Default => new(true, true, true, [], null, 10, null, null, null, 1);
+
+    // The accessors below are derived, so they are kept out of settings.json entirely; only the
+    // fields above are stored, and the JSON stays readable and stable.
 
     /// <summary>Ask the shell for the icon of each file type.</summary>
+    [JsonIgnore]
     public bool UseSystemIcons => SystemIcons ?? true;
 
     /// <summary>Show the icon a folder defines for itself, even when system icons are off.</summary>
+    [JsonIgnore]
     public bool UseCustomFolderIcons => CustomFolderIcons ?? true;
 
     /// <summary>Keep a <c>.yafm-index.db</c> inside every folder that is browsed.</summary>
+    [JsonIgnore]
     public bool ShouldWriteDirectoryIndex => WriteDirectoryIndex ?? true;
 
     /// <summary>Extension (with the dot, lower case) to a built-in icon name or <c>file:&lt;path&gt;</c>.</summary>
+    [JsonIgnore]
     public Dictionary<string, string> Overrides => ExtensionIcons ?? [];
 
     /// <summary>The folders pinned to Quick access, or null to use the well-known defaults.</summary>
+    [JsonIgnore]
     public List<string>? PinnedPlaces => QuickAccess;
 
     /// <summary>How many recent folders to show; 0 turns the list off.</summary>
+    [JsonIgnore]
     public int RecentCount => Math.Max(RecentLimit ?? 10, 0);
 
     /// <summary>Folders the gallery scans, or empty for the user's Pictures folder.</summary>
+    [JsonIgnore]
     public List<string> ScanRoots => GalleryRoots ?? [];
+
+    /// <summary>The overview panels in the order the user arranged them, or null for the default.</summary>
+    [JsonIgnore]
+    public List<string>? PanelOrder => OverviewPanels;
+
+    /// <summary>The overview panels the user turned off.</summary>
+    [JsonIgnore]
+    public List<string> HiddenPanels => OverviewHidden ?? [];
+
+    /// <summary>How many columns the overview uses; 1 to 3.</summary>
+    [JsonIgnore]
+    public int PanelColumns => Math.Clamp(OverviewColumns ?? 1, 1, 3);
 }

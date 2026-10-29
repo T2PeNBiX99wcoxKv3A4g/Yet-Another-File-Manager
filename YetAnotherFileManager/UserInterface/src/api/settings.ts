@@ -12,6 +12,12 @@ export interface AppSettings {
     recentLimit: number;
     /** Folders the gallery scans, or null for the Pictures folder. */
     galleryRoots: string[] | null;
+    /** Order of the overview panels, or null for the default order. */
+    overviewPanels: string[] | null;
+    /** Overview panels the user turned off. */
+    overviewHidden: string[] | null;
+    /** How many columns the overview lays its panels out in. */
+    overviewColumns: number;
 }
 
 const fallback: AppSettings = {
@@ -22,6 +28,9 @@ const fallback: AppSettings = {
     quickAccess: null,
     recentLimit: 10,
     galleryRoots: null,
+    overviewPanels: null,
+    overviewHidden: null,
+    overviewColumns: 1,
 };
 
 /** The interface settings, persisted by the host. */
@@ -38,6 +47,9 @@ export async function getSettings(): Promise<AppSettings> {
         quickAccess: raw?.quickAccess ?? null,
         recentLimit: raw?.recentLimit ?? 10,
         galleryRoots: raw?.galleryRoots ?? null,
+        overviewPanels: raw?.overviewPanels ?? null,
+        overviewHidden: raw?.overviewHidden ?? null,
+        overviewColumns: raw?.overviewColumns ?? 1,
     };
 }
 
@@ -55,6 +67,9 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         quickAccess: saved?.quickAccess ?? settings.quickAccess,
         recentLimit: saved?.recentLimit ?? settings.recentLimit,
         galleryRoots: saved?.galleryRoots ?? settings.galleryRoots,
+        overviewPanels: saved?.overviewPanels ?? settings.overviewPanels,
+        overviewHidden: saved?.overviewHidden ?? settings.overviewHidden,
+        overviewColumns: saved?.overviewColumns ?? settings.overviewColumns,
     };
 }
 

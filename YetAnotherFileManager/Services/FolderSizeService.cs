@@ -7,10 +7,9 @@ using YetAnotherFileManager.Messaging;
 namespace YetAnotherFileManager.Services;
 
 /// <summary>
-///     Measures folder sizes in the background. The work is layered: a folder's size is its own files
-///     plus the sizes its children cached in their own indexes, and only a child that was never
-///     measured is walked. Entering a folder therefore re-sums one level instead of rescanning the
-///     whole tree, and a first visit pays the full walk only once.
+///     Measures folder sizes in the background, one level deep. A folder's size is the files it
+///     holds plus the files of its own children; anything deeper is taken from the index the child
+///     itself keeps, if it has one. Entering a folder therefore never walks the whole tree.
 /// </summary>
 /// <remarks>
 ///     Only the folder that is on screen is worth measuring, so a new listing drops everything that
@@ -19,6 +18,12 @@ namespace YetAnotherFileManager.Services;
 /// </remarks>
 internal sealed class FolderSizeService : Singleton<FolderSizeService>
 {
+    /// <summary>
+    ///     How far below the measured folder the filesystem is read. One level keeps a visit cheap
+    ///     while still telling the truth about a child folder's own files and its immediate children.
+    /// </summary>
+    private const int Levels = 1;
+
     private readonly ConcurrentQueue<(string Parent, string Child)> _queue = new();
     private readonly ConcurrentDictionary<string, bool> _queued = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _signal = new(0);
@@ -58,7 +63,7 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
 
             var path = Path.Combine(item.Parent, item.Child);
             var generation = _generation;
-            var bytes = await Task.Run(() => Measure(path, generation));
+            var bytes = await Task.Run(() => Measure(path, generation, Levels));
             _queued.TryRemove(path, out _);
 
             if (bytes < 0)
@@ -73,39 +78,42 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
     }
 
     /// <summary>
-    ///     Size of one folder: its own files plus, for each subfolder, the size cached in the folder's
-    ///     index. A subfolder without a cached size is walked once — which also fills in its own
-    ///     children — so the next measurement of this folder is a single level of reads.
+    ///     Size of one folder: its own files plus its children's sizes. A child's number comes from
+    ///     the cache the child keeps when it was measured before; otherwise it is measured here while
+    ///     <paramref name="depth" /> lasts, so the first visit stops instead of scanning everything.
     /// </summary>
-    private long Measure(string path, int generation) =>
+    private long Measure(string path, int generation, int depth) =>
         Try.Run(() =>
         {
             if (_generation != generation)
                 return -1;
 
             var directory = new DirectoryInfo(path);
-            var cached = DirectoryIndex.Sizes(path);
             var measured = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+            var cached = depth > 0 ? DirectoryIndex.Sizes(path) : [];
             long total = 0;
 
             foreach (var file in directory.EnumerateFiles("*", TopLevel))
                 total += file.Length;
 
-            foreach (var child in directory.EnumerateDirectories("*", TopLevel))
-            {
-                if (!cached.TryGetValue(child.Name, out var size))
+            if (depth > 0)
+                foreach (var child in directory.EnumerateDirectories("*", TopLevel))
                 {
-                    size = Measure(child.FullName, generation);
+                    var size = cached.GetValueOrDefault(child.Name);
 
-                    // A superseded or failed walk must not leave a half-counted total behind.
-                    if (size < 0)
-                        return -1;
+                    if (size == 0)
+                    {
+                        size = Measure(child.FullName, generation, depth - 1);
 
-                    measured[child.Name] = size;
+                        // A superseded or failed walk must not leave a half-counted total behind.
+                        if (size < 0)
+                            return -1;
+
+                        measured[child.Name] = size;
+                    }
+
+                    total += size;
                 }
-
-                total += size;
-            }
 
             // One transaction per folder instead of one connection per child.
             DirectoryIndex.SetSizes(path, measured);
