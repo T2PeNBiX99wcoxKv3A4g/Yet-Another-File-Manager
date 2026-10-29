@@ -49,6 +49,13 @@ export interface RecycleEntry {
     removable: boolean;
 }
 
+export interface RecentEntry {
+    path: string;
+    name: string;
+    isDirectory: boolean;
+    at: number;
+}
+
 export interface FileVisibility {
     showHidden: boolean;
     showSystem: boolean;
@@ -112,6 +119,25 @@ export async function purgeOrphansAsAdmin(): Promise<boolean> {
 
     const data = await Native.request<{ ok: boolean }>("fs.recycle.admin.purge");
     return data.ok;
+}
+
+/** The folders opened most recently, newest first. */
+export async function listRecent(): Promise<RecentEntry[]> {
+    if (!Native.available) return [];
+
+    const data = await Native.request<{ entries: RecentEntry[] }>("fs.recent");
+    return data.entries;
+}
+
+/** Forgets the recent list. */
+export async function clearRecent(): Promise<void> {
+    await Native.request("fs.recent.clear");
+}
+
+/** Pins the given folders to Quick access, in order, and returns the resulting list. */
+export async function setPlaces(paths: string[]): Promise<Place[]> {
+    const data = await Native.request<{ places: Place[] }>("app.places.set", {paths});
+    return data.places;
 }
 
 /** The shell's hidden-item options, so the interface can explain what the listing shows. */

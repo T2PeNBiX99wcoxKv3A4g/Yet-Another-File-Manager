@@ -62,6 +62,12 @@ internal sealed record AdminOrphansPayload(
     bool Cancelled,
     bool Failed);
 
+/// <summary>Body for <c>fs.recent</c>: the folders opened most recently.</summary>
+internal sealed record FsRecentPayload(IReadOnlyList<RecentEntry> Entries);
+
+/// <summary>Payload for <c>app.places.set</c>: the folders to pin, in order.</summary>
+internal sealed record PlacesRequest(List<string> Paths);
+
 /// <summary>Body for <c>fs.visibility</c>: the shell's hidden-item options.</summary>
 internal sealed record FsVisibilityPayload(bool ShowHidden, bool ShowSystem);
 

@@ -36,6 +36,15 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
             "fs.visibility" => Task.FromResult<NativeResponse?>(context.Reply("fs.visibility.result",
                 new FsVisibilityPayload(FileVisibility.ShowHidden, FileVisibility.ShowSystem))),
 
+            "fs.recent" => Task.FromResult<NativeResponse?>(context.Reply("fs.recent.result",
+                new FsRecentPayload(RecentService.Instance.List(SettingsService.Instance.Current.RecentCount)))),
+
+            "fs.recent.clear" => Task.FromResult<NativeResponse?>(context.Reply("fs.recent.clear.result",
+                new OkPayload(ClearRecent()))),
+
+            "app.places.set" => Task.FromResult<NativeResponse?>(context.Reply("app.places.set.result",
+                new FsPlacesPayload(SetPlaces(context.Payload<PlacesRequest>()?.Paths)))),
+
             "fs.icon" => Task.FromResult<NativeResponse?>(context.Reply("fs.icon.result",
                 new IconPayload(Icon(context.Payload<IconRequest>())))),
 
@@ -88,10 +97,17 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
         if (!settings.UseSystemIcons)
             return null;
 
-        var useFileAttributes = !request.Directory;
+        // Shortcuts and executables carry their icon in the file itself, so they must be looked up
+        // for real; asking by extension would give every .lnk the same picture.
+        var perFile = !request.Directory && PerFileIconExtensions.Contains(Path.GetExtension(request.Path));
 
-        return ShellIcon.DataUrl(request.Path, request.Directory, useFileAttributes);
+        return ShellIcon.DataUrl(request.Path, request.Directory, !request.Directory && !perFile);
     }
+
+    private static readonly HashSet<string> PerFileIconExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".lnk", ".exe", ".ico", ".url", ".msi", ".appref-ms"
+    };
 
     /// <summary>An icon file chosen by the user, as a data URL.</summary>
     private static string? IconFile(string? path)
@@ -149,6 +165,20 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
 
             return false;
         }).GetOrElse(_ => false);
+    }
+
+    private static bool ClearRecent()
+    {
+        RecentService.Instance.Clear();
+        return true;
+    }
+
+    /// <summary>Pins the given folders to Quick access, in order, and answers with the resulting list.</summary>
+    private static List<PlaceEntry> SetPlaces(List<string>? paths)
+    {
+        SettingsService.Instance.Update(settings => settings with { QuickAccess = paths });
+
+        return GetPlaces();
     }
 
     private static bool EmptyRecycleBin(bool includeOrphans)
@@ -282,6 +312,7 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
             .ToList();
 
         RequestSizes(directory.FullName, entries);
+        RecentService.Instance.Record(directory.FullName);
 
         return new(directory.FullName, directory.Parent?.FullName, entries, sizes);
     }

@@ -42,7 +42,6 @@ export function FileList({listing, loading, error, filter, onOpen}: FileListProp
                         key={entry.fullPath}
                         $hidden={entry.isHidden}
                         onDoubleClick={() => entry.isDirectory && onOpen(entry.fullPath)}
-                        title={entry.fullPath}
                     >
                         <Name>
                             <EntryIcon entry={entry}/>

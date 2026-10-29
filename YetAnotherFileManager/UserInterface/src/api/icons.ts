@@ -30,14 +30,18 @@ function useIconVersion(): number {
     return value;
 }
 
-/** Folders are cached by path (custom icons differ per folder); files by extension. */
+/** These carry their icon inside the file, so every one of them needs its own lookup. */
+const perFileIcons = new Set([".lnk", ".exe", ".ico", ".url", ".msi", ".appref-ms"]);
+
+/** Folders are cached by path (custom icons differ per folder); files usually by extension. */
 function cacheKey(path: string, isDirectory: boolean): string {
     if (isDirectory) return `d:${path}`;
 
     const dot = path.lastIndexOf(".");
     const slash = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
+    const extension = dot > slash ? path.slice(dot).toLowerCase() : "";
 
-    return dot > slash ? `f:${path.slice(dot).toLowerCase()}` : "f:";
+    return perFileIcons.has(extension) ? `f:${path}` : `f:${extension}`;
 }
 
 /** The icon the shell would show, as a data URL, or null while it loads or when unavailable. */

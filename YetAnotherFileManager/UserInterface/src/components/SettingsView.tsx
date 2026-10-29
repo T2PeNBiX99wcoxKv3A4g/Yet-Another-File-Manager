@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import styled from "styled-components";
-import {getVisibility, type FileVisibility, type Place} from "../api/files";
+import {getVisibility, type FileVisibility} from "../api/files";
 import {clearIconCache, useIconFile} from "../api/icons";
 import {
     getSettings,
@@ -17,11 +17,10 @@ import {baseName} from "../utils/format";
 
 interface SettingsViewProps {
     appInfo: AppInfo | null;
-    places: Place[];
-    onPlacesChanged: () => void;
+    onSettingsChanged: () => void;
 }
 
-export function SettingsView({appInfo, places, onPlacesChanged}: SettingsViewProps) {
+export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
     const [visibility, setVisibility] = useState<FileVisibility | null>(null);
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const [folderIcon, setFolderIcon] = useState<{ folder: string; icon: string } | null>(null);
@@ -56,23 +55,10 @@ export function SettingsView({appInfo, places, onPlacesChanged}: SettingsViewPro
         await update({extensionIcons: icons});
     };
 
-    /** Quick access is stored as an explicit list once it has been edited. */
-    const savePlaces = async (paths: string[]) => {
-        await update({quickAccess: paths});
-        onPlacesChanged();
-    };
-
-    const addPlace = async () => {
-        const folder = await pickFolder();
-
-        if (!folder || places.some((place) => place.path.toLowerCase() === folder.toLowerCase()))
-            return;
-
-        await savePlaces([...places.map((place) => place.path), folder]);
-    };
-
-    const removePlace = async (path: string) => {
-        await savePlaces(places.filter((place) => place.path !== path).map((place) => place.path));
+    /** Recent items are a display preference, so the host is told whenever the number changes. */
+    const setRecentLimit = async (limit: number) => {
+        await update({recentLimit: Math.min(Math.max(limit, 0), 50)});
+        onSettingsChanged();
     };
 
     const addRule = async () => {
@@ -132,35 +118,20 @@ export function SettingsView({appInfo, places, onPlacesChanged}: SettingsViewPro
             </Section>
 
             <Section>
-                <Title>Quick access</Title>
+                <Title>Overview</Title>
                 <Rows>
-                    {places.map((place) => (
-                        <Row key={place.path}>
-                            <RowText>
-                                <Label>{place.name}</Label>
-                                <Note>{place.path}</Note>
-                            </RowText>
-                            <RowEnd>
-                                <IconButton
-                                    onClick={() => void removePlace(place.path)}
-                                    title="Remove from Quick access"
-                                    type="button"
-                                >
-                                    <CrossIcon size={12}/>
-                                </IconButton>
-                            </RowEnd>
-                        </Row>
-                    ))}
-
                     <Row>
                         <RowText>
-                            <Label>Add a folder</Label>
-                            <Note>Shown in the sidebar and on the overview, in this order.</Note>
+                            <Label>Recent items</Label>
+                            <Note>How many recently opened folders the overview lists. 0 hides the section.</Note>
                         </RowText>
                         <RowEnd>
-                            <ActionButton onClick={() => void addPlace()} type="button">
-                                Choose folder…
-                            </ActionButton>
+                            <Input
+                                max={50}
+                                min={0}
+                                onChange={(event) => void setRecentLimit(Number(event.target.value))}                                type="number"
+                                value={settings?.recentLimit ?? 10}
+                            />
                         </RowEnd>
                     </Row>
                 </Rows>

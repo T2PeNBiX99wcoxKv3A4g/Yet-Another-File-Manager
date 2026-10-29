@@ -16,6 +16,9 @@ internal sealed class SettingsService : Singleton<SettingsService>
 
     public AppSettings Current => _current;
 
+    /// <summary>Applies a change to the current settings and stores the result.</summary>
+    public AppSettings Update(Func<AppSettings, AppSettings> change) => Save(change(Current));
+
     public AppSettings Save(AppSettings settings)
     {
         _current = settings;

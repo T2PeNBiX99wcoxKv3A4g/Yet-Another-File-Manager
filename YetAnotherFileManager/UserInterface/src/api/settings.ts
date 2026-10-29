@@ -8,6 +8,8 @@ export interface AppSettings {
     extensionIcons: Record<string, string>;
     /** Folders pinned to Quick access, or null for the well-known defaults. */
     quickAccess: string[] | null;
+    /** How many recent folders the overview shows; 0 turns the section off. */
+    recentLimit: number;
 }
 
 const fallback: AppSettings = {
@@ -16,6 +18,7 @@ const fallback: AppSettings = {
     writeDirectoryIndex: true,
     extensionIcons: {},
     quickAccess: null,
+    recentLimit: 10,
 };
 
 /** The interface settings, persisted by the host. */
@@ -30,6 +33,7 @@ export async function getSettings(): Promise<AppSettings> {
         writeDirectoryIndex: raw?.writeDirectoryIndex ?? true,
         extensionIcons: raw?.extensionIcons ?? {},
         quickAccess: raw?.quickAccess ?? null,
+        recentLimit: raw?.recentLimit ?? 10,
     };
 }
 
@@ -45,6 +49,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         writeDirectoryIndex: saved?.writeDirectoryIndex ?? settings.writeDirectoryIndex,
         extensionIcons: saved?.extensionIcons ?? settings.extensionIcons,
         quickAccess: saved?.quickAccess ?? settings.quickAccess,
+        recentLimit: saved?.recentLimit ?? settings.recentLimit,
     };
 }
 

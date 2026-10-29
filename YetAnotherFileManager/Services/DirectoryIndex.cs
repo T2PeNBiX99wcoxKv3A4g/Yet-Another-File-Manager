@@ -252,7 +252,9 @@ internal static class DirectoryIndex
         {
             DataSource = path,
             Mode = create ? SqliteOpenMode.ReadWriteCreate : SqliteOpenMode.ReadOnly,
-            Pooling = true
+            // One pool per connection string would mean one pool per directory; browsing a big tree
+            // then keeps a native connection (and its cache) alive for every folder ever opened.
+            Pooling = false
         }.ToString());
 
         try

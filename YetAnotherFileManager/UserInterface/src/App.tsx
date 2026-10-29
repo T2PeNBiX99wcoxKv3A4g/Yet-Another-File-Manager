@@ -1,6 +1,16 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import styled from "styled-components";
-import {listDirectory, listDrives, listPlaces, type DirectoryListing, type Drive, type Place} from "./api/files";
+import {
+    listDirectory,
+    listDrives,
+    listPlaces,
+    listRecent,
+    type DirectoryListing,
+    type Drive,
+    type Place,
+    type RecentEntry,
+} from "./api/files";
+import {getSettings} from "./api/settings";
 import {getAppInfo, type AppInfo} from "./api/system";
 import {FileList} from "./components/FileList";
 import {
@@ -66,6 +76,8 @@ export default function App() {
     const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
     const corners = useWindowCorners();
     const [filter, setFilter] = useState("");
+    const [recent, setRecent] = useState<RecentEntry[]>([]);
+    const [recentLimit, setRecentLimit] = useState(10);
 
     const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
 
@@ -159,6 +171,14 @@ export default function App() {
         void listPlaces().then(setPlaces, () => setPlaces([]));
     }, []);
 
+    const reloadSettings = useCallback(() => {
+        void getSettings().then((settings) => setRecentLimit(settings.recentLimit), () => setRecentLimit(10));
+    }, []);
+
+    const reloadRecent = useCallback(() => {
+        void listRecent().then(setRecent, () => setRecent([]));
+    }, []);
+
     useEffect(() => {
         // The first tab is the overview; a path the host sends at startup takes it over instead of
         // opening a second, empty tab. A files tab would load its folder right away.
@@ -169,9 +189,15 @@ export default function App() {
             void load(first.id, undefined, true);
 
         reloadPlaces();
+        reloadSettings();
         void listDrives().then(setDrives, () => setDrives([]));
         void getAppInfo().then(setAppInfo, () => setAppInfo(null));
-    }, [load, reloadPlaces]);
+    }, [load, reloadPlaces, reloadSettings]);
+
+    // The recent list changes on every folder visit; refresh it when the overview is shown again.
+    useEffect(() => {
+        if (active.kind === "home") reloadRecent();
+    }, [active.kind, active.id, reloadRecent]);
 
     // The host pushes a path for command-line arguments and for a second launch (single instance).
     // It waits for `app.ready` first, because sending to a web view that is still loading crashes it.
@@ -228,7 +254,7 @@ export default function App() {
             <TitleBar
                 activeId={active.id}
                 onClose={closeTab}
-                onNewTab={() => openFiles()}
+                onNewTab={() => openView("home")}
                 onSelect={setActiveId}
                 tabs={tabs.map((tab) => ({
                     id: tab.id,
@@ -308,9 +334,18 @@ export default function App() {
                             </StatusBar>
                         </>
                     ) : active.kind === "home" ? (
-                        <OverviewView drives={drives} onOpen={navigate} places={places}/>
+                        <OverviewView
+                            drives={drives}
+                            homePath={places.find((place) => place.kind === "home")?.path ?? ""}
+                            onOpen={navigate}
+                            onPlacesChanged={setPlaces}
+                            onRecentCleared={reloadRecent}
+                            places={places}
+                            recent={recent}
+                            recentLimit={recentLimit}
+                        />
                     ) : active.kind === "settings" ? (
-                        <SettingsView appInfo={appInfo} onPlacesChanged={reloadPlaces} places={places}/>
+                        <SettingsView appInfo={appInfo} onSettingsChanged={reloadSettings}/>
                     ) : (
                         <RecycleView/>
                     )}

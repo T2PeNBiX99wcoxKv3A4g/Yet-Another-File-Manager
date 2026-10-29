@@ -9,9 +9,10 @@ public sealed record AppSettings(
     bool? CustomFolderIcons,
     bool? WriteDirectoryIndex,
     Dictionary<string, string>? ExtensionIcons,
-    List<string>? QuickAccess)
+    List<string>? QuickAccess,
+    int? RecentLimit)
 {
-    public static AppSettings Default => new(true, true, true, [], null);
+    public static AppSettings Default => new(true, true, true, [], null, 10);
 
     /// <summary>Ask the shell for the icon of each file type.</summary>
     public bool UseSystemIcons => SystemIcons ?? true;
@@ -27,4 +28,7 @@ public sealed record AppSettings(
 
     /// <summary>The folders pinned to Quick access, or null to use the well-known defaults.</summary>
     public List<string>? PinnedPlaces => QuickAccess;
+
+    /// <summary>How many recent folders to show; 0 turns the list off.</summary>
+    public int RecentCount => Math.Max(RecentLimit ?? 10, 0);
 }

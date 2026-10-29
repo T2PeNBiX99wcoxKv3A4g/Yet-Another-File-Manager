@@ -17,6 +17,9 @@ public sealed record PlaceEntry(string Name, string Path, string Kind);
 /// <summary>A mounted volume, shown in the sidebar.</summary>
 public sealed record DriveEntry(string Name, string Label, string? Format, long TotalSize, long FreeSpace);
 
+/// <summary>A folder (or, later, a file) that was opened recently.</summary>
+public sealed record RecentEntry(string Path, string Name, bool IsDirectory, long At);
+
 /// <summary>One item in the recycle bin, as its metadata record describes it.</summary>
 /// <param name="Id">Opaque handle: the path of the metadata record that describes the entry.</param>
 /// <param name="IsOrphan">True when the content is gone and only the metadata record is left.</param>
