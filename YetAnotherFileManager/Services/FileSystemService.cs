@@ -1,5 +1,8 @@
-using PhotinoNetUtils.Messaging;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Text.Json;
 using PhotinoNetUtils.Extensions;
+using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Utils;
 using YetAnotherFileManager.Interop;
 using YetAnotherFileManager.Messaging;
@@ -13,6 +16,9 @@ namespace YetAnotherFileManager.Services;
 /// </summary>
 internal sealed class FileSystemService : Singleton<FileSystemService>
 {
+    /// <summary>ERROR_CANCELLED: the user said no to the UAC prompt.</summary>
+    private const int ErrorCancelledByUser = 1223;
+
     public FileSystemService() => NativeBridge.MessageReceived += HandleMessageAsync;
 
     private static Task<NativeResponse?> HandleMessageAsync(NativeContext context) =>
@@ -47,6 +53,10 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
 
             "fs.recycle.delete" => Task.FromResult<NativeResponse?>(context.Reply("fs.recycle.delete.result",
                 new OkPayload(DeleteRecycleEntry(context.Payload<RecycleRequest>()?.Id ?? "")))),
+
+            "fs.recycle.admin.list" => ListOrphansAsAdmin(context),
+
+            "fs.recycle.admin.purge" => PurgeOrphansAsAdmin(context),
 
             "app.settings" => Task.FromResult<NativeResponse?>(context.Reply("app.settings.result",
                 SettingsService.Instance.Current)),
@@ -158,6 +168,83 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
         RecycleBin.Delete(id);
         return true;
     }
+
+    /// <summary>
+    ///     Runs the app once with administrator rights and answers with every leftover record it can
+    ///     see — including the profiles and folders this window may not read.
+    /// </summary>
+    private static async Task<NativeResponse?> ListOrphansAsAdmin(NativeContext context)
+    {
+        var report = TempReportPath();
+        var started = await RunElevatedAsync(Constants.OrphansReportArgument, report);
+
+        if (!started)
+            return context.Reply("fs.recycle.admin.list.result", new AdminOrphansPayload([], true));
+
+        var entries = Try.Run(() => JsonSerializer.Deserialize(
+                File.ReadAllText(report), AppJsonContext.Default.ListRecycleEntry))
+            .OnFailure(ex => Instance.Log.Warning(ex, "Could not read the elevated report"))
+            .GetOrNull();
+
+        Try.Run(() => File.Delete(report));
+
+        return context.Reply("fs.recycle.admin.list.result", new AdminOrphansPayload(entries ?? [], false));
+    }
+
+    /// <summary>Runs the same elevated helper with deletion enabled.</summary>
+    private static async Task<NativeResponse?> PurgeOrphansAsAdmin(NativeContext context)
+    {
+        var report = TempReportPath();
+        var started = await RunElevatedAsync(Constants.OrphansReportArgument, report,
+            Constants.OrphansDeleteArgument);
+
+        Try.Run(() => File.Delete(report));
+
+        return context.Reply("fs.recycle.admin.purge.result", new OkPayload(started));
+    }
+
+    /// <summary>
+    ///     Starts this executable elevated for one short-lived run. Windows shows the UAC prompt;
+    ///     declining it is not an error, so the caller only learns that nothing happened.
+    /// </summary>
+    private static Task<bool> RunElevatedAsync(params string[] arguments) =>
+        Task.Run(() =>
+        {
+            if (!OperatingSystem.IsWindows())
+                return false;
+
+            if (Environment.ProcessPath is not { Length: > 0 } executable)
+                return false;
+
+            var startInfo = new ProcessStartInfo(executable)
+            {
+                UseShellExecute = true,
+                Verb = "runas"
+            };
+
+            foreach (var argument in arguments)
+                startInfo.ArgumentList.Add(argument);
+
+            try
+            {
+                using var process = Process.Start(startInfo);
+                process?.WaitForExit();
+                return process?.ExitCode == 0;
+            }
+            catch (Win32Exception ex) when (ex.NativeErrorCode == ErrorCancelledByUser)
+            {
+                Instance.Log.Information("The user declined the elevation prompt");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Instance.Log.Warning(ex, "Could not start the elevated helper");
+                return false;
+            }
+        });
+
+    private static string TempReportPath() =>
+        Path.Combine(Path.GetTempPath(), $"yafm-orphans-{Guid.NewGuid():N}.json");
 
     /// <summary>Lists a directory. A missing path starts at the user's home directory.</summary>
     private static FsListPayload List(string? path)

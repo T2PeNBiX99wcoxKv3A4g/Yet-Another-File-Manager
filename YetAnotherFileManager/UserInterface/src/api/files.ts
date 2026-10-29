@@ -93,6 +93,25 @@ export async function deleteRecycleEntry(id: string): Promise<void> {
     await Native.request("fs.recycle.delete", {id});
 }
 
+/**
+ * Asks the elevated helper for every leftover record it can see. Windows shows a UAC prompt; when it
+ * is declined the answer is marked cancelled and nothing is returned.
+ */
+export async function listOrphansAsAdmin(): Promise<{ entries: RecycleEntry[]; cancelled: boolean }> {
+    if (!Native.available) return {entries: [], cancelled: true};
+
+    const data = await Native.request<{ entries: RecycleEntry[]; cancelled: boolean }>("fs.recycle.admin.list");
+    return {entries: data.entries ?? [], cancelled: data.cancelled};
+}
+
+/** Deletes every leftover record, including the ones only an administrator can reach. */
+export async function purgeOrphansAsAdmin(): Promise<boolean> {
+    if (!Native.available) return false;
+
+    const data = await Native.request<{ ok: boolean }>("fs.recycle.admin.purge");
+    return data.ok;
+}
+
 /** The shell's hidden-item options, so the interface can explain what the listing shows. */
 export async function getVisibility(): Promise<FileVisibility> {
     return await Native.request<FileVisibility>("fs.visibility");

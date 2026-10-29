@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using System.Runtime.Versioning;
 using PhotinoNetUtils;
 using PhotinoNetUtils.Extensions;
@@ -25,6 +26,15 @@ internal static class Program
     {
         if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
             throw new PlatformNotSupportedException("YetAnotherFileManager supports Windows and Linux.");
+
+        // One-off elevated run: report (and optionally delete) the recycle-bin leftovers this
+        // account cannot reach, then exit. It happens before the single-instance check because it is
+        // a short-lived helper, not another instance of the app.
+        if (args.Contains(Constants.OrphansReportArgument))
+        {
+            RunOrphansReport(args);
+            return;
+        }
 
         // Main must stay synchronous: [STAThread] is ignored for an async entry point, and the
         // Photino message loop / WebView2 require an STA thread.
@@ -111,6 +121,34 @@ internal static class Program
     {
         foreach (var path in ResolvePaths(args))
             manager.ShowPath(path);
+    }
+
+    /// <summary>
+    ///     The body of the elevated helper run: writes the leftover recycle-bin records only an
+    ///     administrator can see to a JSON file (and deletes them when asked). Nothing else happens —
+    ///     no window, no tray.
+    /// </summary>
+    private static void RunOrphansReport(string[] args)
+    {
+        Logging.Initialize(Constants.Name, "cleanup");
+
+        try
+        {
+            var entries = RecycleBin.List(includeOrphans: true);
+            var index = Array.IndexOf(args, Constants.OrphansReportArgument);
+
+            if (index >= 0 && index + 1 < args.Length)
+                File.WriteAllText(args[index + 1],
+                    JsonSerializer.Serialize(entries.ToList(), AppJsonContext.Default.ListRecycleEntry));
+
+            if (args.Contains(Constants.OrphansDeleteArgument))
+                Log.Information("Removed {Count} leftover recycle bin records",
+                    RecycleBin.PurgeOrphanMetadata(entries));
+        }
+        finally
+        {
+            Logging.Shutdown();
+        }
     }
 
     /// <summary>

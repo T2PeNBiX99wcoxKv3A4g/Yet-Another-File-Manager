@@ -17,6 +17,16 @@ public static class Constants
     public const string WindowTitle = Name;
 
     /// <summary>
+    ///     Command line flag for the short-lived, elevated copy of the app. It writes the recycle bin
+    ///     leftovers it can see to the path that follows (and deletes them when <c>--delete</c> is
+    ///     also present), then exits without opening a window.
+    /// </summary>
+    public const string OrphansReportArgument = "--orphans-report";
+
+    /// <summary>Adds deletion to the elevated report run.</summary>
+    public const string OrphansDeleteArgument = "--delete";
+
+    /// <summary>
     ///     The shared "Core" logger. Resolved from the configured <see cref="Log.Logger" /> on every
     ///     access, so it must not be captured before <see cref="Logging.Initialize" /> has run.
     /// </summary>

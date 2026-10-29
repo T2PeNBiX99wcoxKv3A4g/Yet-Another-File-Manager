@@ -1,13 +1,23 @@
 import {useCallback, useEffect, useState} from "react";
 import styled from "styled-components";
-import {deleteRecycleEntry, emptyRecycleBin, listRecycle, restoreRecycleEntry, type RecycleEntry} from "../api/files";
+import {
+    deleteRecycleEntry,
+    emptyRecycleBin,
+    listOrphansAsAdmin,
+    listRecycle,
+    purgeOrphansAsAdmin,
+    restoreRecycleEntry,
+    type RecycleEntry,
+} from "../api/files";
 import {useIcon} from "../api/icons";
 import {formatBytes, formatDate} from "../utils/format";
 import {CheckIcon, CrossIcon, FileIcon, FolderIcon, RefreshIcon, TrashIcon} from "./Icons";
 
 export function RecycleView() {
     const [entries, setEntries] = useState<RecycleEntry[]>([]);
+    const [adminEntries, setAdminEntries] = useState<RecycleEntry[]>([]);
     const [loading, setLoading] = useState(true);
+    const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [confirming, setConfirming] = useState(false);
     const [showOrphans, setShowOrphans] = useState(false);
@@ -29,6 +39,11 @@ export function RecycleView() {
         void reload();
     }, [reload]);
 
+    // The elevated snapshot only makes sense while its mode is on.
+    useEffect(() => {
+        if (!showOrphans) setAdminEntries([]);
+    }, [showOrphans]);
+
     const restore = async (id: string) => {
         await restoreRecycleEntry(id);
         await reload();
@@ -45,13 +60,48 @@ export function RecycleView() {
         await reload();
     };
 
+    /** Asks the elevated copy for everything it can see; this window cannot read those folders. */
+    const loadAdmin = async () => {
+        setBusy(true);
+
+        try {
+            const result = await listOrphansAsAdmin();
+
+            if (!result.cancelled)
+                setAdminEntries(result.entries);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    /** Deletes every leftover record, this profile's and the others'. */
+    const purgeAll = async () => {
+        setBusy(true);
+        setConfirming(false);
+
+        try {
+            await purgeOrphansAsAdmin();
+            setAdminEntries([]);
+            await reload();
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    // The normal listing wins on duplicates: it knows what this account may actually delete.
+    const known = new Set(entries.map((entry) => entry.id));
+    const rows = [
+        ...entries,
+        ...adminEntries.filter((entry) => !known.has(entry.id)).map((entry) => ({...entry, removable: false}))
+    ].sort((left, right) => right.deleted - left.deleted);
+
     return (
         <Page>
             <Header>
                 <Heading>
                     <TrashIcon size={16}/>
                     <span>Recycle Bin</span>
-                    <Count>{loading ? "…" : `${entries.length} items`}</Count>
+                    <Count>{loading ? "…" : `${rows.length} items`}</Count>
                 </Heading>
 
                 <Actions>
@@ -64,7 +114,38 @@ export function RecycleView() {
                         Orphans
                     </OrphanButton>
 
-                    {confirming ? (
+                    {showOrphans ? (
+                        <>
+                            <EmptyButton
+                                disabled={busy}
+                                onClick={() => void loadAdmin()}
+                                title="Ask for administrator rights and list every profile's leftovers"
+                                type="button"
+                            >
+                                {busy ? "Working…" : "Show all (admin)…"}
+                            </EmptyButton>
+
+                            {confirming ? (
+                                <>
+                                    <ConfirmButton $danger disabled={busy} onClick={() => void purgeAll()} type="button">
+                                        <CheckIcon size={12}/> Delete every orphan
+                                    </ConfirmButton>
+                                    <IconButton onClick={() => setConfirming(false)} title="Cancel" type="button">
+                                        <CrossIcon size={12}/>
+                                    </IconButton>
+                                </>
+                            ) : (
+                                <EmptyButton
+                                    disabled={busy || rows.length === 0}
+                                    onClick={() => setConfirming(true)}
+                                    title="Runs an elevated copy of the app and deletes every leftover record"
+                                    type="button"
+                                >
+                                    Delete all orphans…
+                                </EmptyButton>
+                            )}
+                        </>
+                    ) : confirming ? (
                         <>
                             <ConfirmButton $danger onClick={() => void empty()} type="button">
                                 <CheckIcon size={12}/> Delete everything
@@ -75,7 +156,7 @@ export function RecycleView() {
                         </>
                     ) : (
                         <EmptyButton
-                            disabled={entries.length === 0}
+                            disabled={rows.length === 0}
                             onClick={() => setConfirming(true)}
                             type="button"
                         >
@@ -91,9 +172,9 @@ export function RecycleView() {
 
             {error && <Message>{error}</Message>}
 
-            {!error && !loading && entries.length === 0 && <Message>The recycle bin is empty.</Message>}
+            {!error && !loading && rows.length === 0 && <Message>The recycle bin is empty.</Message>}
 
-            {entries.length > 0 && (
+            {rows.length > 0 && (
                 <Table>
                     <Head>
                         <span>Name</span>
@@ -103,7 +184,7 @@ export function RecycleView() {
                         <span/>
                     </Head>
                     <Body>
-                        {entries.map((entry) => (
+                        {rows.map((entry) => (
                             <Row
                                 key={entry.id}
                                 $orphan={entry.isOrphan}

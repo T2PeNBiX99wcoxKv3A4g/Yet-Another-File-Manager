@@ -54,6 +54,10 @@ internal sealed record FsSizesPayload(string Path, Dictionary<string, long> Size
 /// <summary>Body for <c>app.pickIcon</c> and <c>app.pickFolder</c>: the chosen path, or null.</summary>
 internal sealed record PathPayload(string? Path);
 
+/// <summary>Body for <c>fs.recycle.admin.list</c>: what the elevated helper could see.</summary>
+/// <param name="Cancelled">True when the elevation prompt was declined, so nothing was read.</param>
+internal sealed record AdminOrphansPayload(IReadOnlyList<RecycleEntry> Entries, bool Cancelled);
+
 /// <summary>Body for <c>fs.visibility</c>: the shell's hidden-item options.</summary>
 internal sealed record FsVisibilityPayload(bool ShowHidden, bool ShowSystem);
 

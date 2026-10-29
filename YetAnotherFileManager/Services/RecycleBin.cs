@@ -51,14 +51,31 @@ internal static class RecycleBin
         }).OnFailure(ex => Log.Warning(ex, "Could not empty the recycle bin"));
 
     /// <summary>Deletes one entry's content and its metadata, permanently.</summary>
-    public static void Delete(string id) =>
+    public static bool Delete(string id) =>
         Try.Run(() =>
         {
             if (OperatingSystem.IsWindows())
                 DeleteWindows(id);
             else
                 DeleteUnix(id);
-        }).OnFailure(ex => Log.Warning(ex, "Could not delete recycle bin entry {Id}", id));
+
+            return true;
+        }).OnFailure(ex => Log.Warning(ex, "Could not delete recycle bin entry {Id}", id)).GetOrElse(_ => false);
+
+    /// <summary>
+    ///     Deletes every leftover record in the given listing, ignoring who owns it. Used by the
+    ///     elevated helper, which has the rights the normal window does not.
+    /// </summary>
+    public static int PurgeOrphanMetadata(IEnumerable<RecycleEntry> entries)
+    {
+        var removed = 0;
+
+        foreach (var entry in entries.Where(entry => entry.IsOrphan))
+            if (Delete(entry.Id))
+                removed++;
+
+        return removed;
+    }
 
     // ---- Windows ----
 
