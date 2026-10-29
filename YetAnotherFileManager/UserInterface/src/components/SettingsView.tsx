@@ -157,7 +157,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         <RowEnd>
                             <Value>
                                 {memory && memory.available > 0
-                                    ? `${(memory.workingSet / memory.available * 100).toFixed(1)}%`
+                                    ? `${(memory.private / memory.available * 100).toFixed(1)}%`
                                     : "—"}
                             </Value>
                         </RowEnd>
