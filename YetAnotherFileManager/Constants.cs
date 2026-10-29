@@ -26,14 +26,5 @@ public static class Constants
     ///     A directory we own, used as the host's content root. The static server creates a <c>wwwroot</c>
     ///     web root under it when missing, which without this would land next to the executable.
     /// </summary>
-    internal static string DataDirectory
-    {
-        get
-        {
-            var path = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Name);
-            Directory.CreateDirectory(path);
-            return path;
-        }
-    }
+    internal static string DataDirectory => AppPaths.DataDirectory(Name);
 }
