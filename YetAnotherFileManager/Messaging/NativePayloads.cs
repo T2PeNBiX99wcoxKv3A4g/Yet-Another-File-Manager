@@ -9,7 +9,7 @@ namespace YetAnotherFileManager.Messaging;
 internal sealed record OkPayload(bool Ok = true);
 
 /// <summary>Body for <c>app.info</c>.</summary>
-internal sealed record AppInfoPayload(string Version, string Platform);
+internal sealed record AppInfoPayload(string Version, string Platform, bool Rounded);
 
 /// <summary>Payload for <c>fs.list</c>. An empty path means the user's home directory.</summary>
 internal sealed record FsListRequest(string? Path);

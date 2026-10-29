@@ -17,7 +17,7 @@ import {SettingsView} from "./components/SettingsView";
 import {Sidebar} from "./components/Sidebar";
 import {TitleBar} from "./components/TitleBar";
 import {viewTitles, type TabKind} from "./tabs";
-import {Native, ResizeHandles} from "@photino-net-utils/bridge";
+import {Native, ResizeHandles, useWindowCorners} from "@photino-net-utils/bridge";
 import {baseName} from "./utils/format";
 
 interface Tab {
@@ -64,6 +64,7 @@ export default function App() {
     const [places, setPlaces] = useState<Place[]>([]);
     const [drives, setDrives] = useState<Drive[]>([]);
     const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
+    const corners = useWindowCorners();
     const [filter, setFilter] = useState("");
 
     const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
@@ -214,7 +215,7 @@ export default function App() {
     };
 
     return (
-        <Root>
+        <Root $rounded={corners}>
             <TitleBar
                 activeId={active.id}
                 onClose={closeTab}
@@ -312,11 +313,16 @@ export default function App() {
     );
 }
 
-const Root = styled.div`
+const Root = styled.div<{ $rounded: boolean }>`
     display: flex;
     flex-direction: column;
     height: 100%;
+    overflow: hidden;
     background: var(--bg-primary);
+
+    /* An undecorated window gets no frame from the compositor, so the corners are drawn here. */
+    border-radius: ${({$rounded}) => ($rounded ? "10px" : "0")};
+    box-shadow: ${({$rounded}) => ($rounded ? "inset 0 0 0 1px var(--border-color)" : "none")};
 `;
 
 const Body = styled.div`

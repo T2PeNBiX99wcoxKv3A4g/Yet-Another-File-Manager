@@ -86,6 +86,13 @@ body {
   height: 100%;
 }
 
+// The window is transparent behind the rounded corners the interface paints (Linux without
+// decorations), so the page must not fill that area in.
+html.window-rounded,
+html.window-rounded body {
+  background-color: transparent;
+}
+
 // Motion: the interface animates page entries, buttons and inputs. Anyone who asked the OS to
 // reduce motion gets the same UI with the durations collapsed instead of a separate code path.
 @media (prefers-reduced-motion: reduce) {
