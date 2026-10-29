@@ -97,11 +97,13 @@ export async function deleteRecycleEntry(id: string): Promise<void> {
  * Asks the elevated helper for every leftover record it can see. Windows shows a UAC prompt; when it
  * is declined the answer is marked cancelled and nothing is returned.
  */
-export async function listOrphansAsAdmin(): Promise<{ entries: RecycleEntry[]; cancelled: boolean }> {
-    if (!Native.available) return {entries: [], cancelled: true};
+export async function listOrphansAsAdmin(): Promise<{ entries: RecycleEntry[]; cancelled: boolean; failed: boolean }> {
+    if (!Native.available) return {entries: [], cancelled: true, failed: false};
 
-    const data = await Native.request<{ entries: RecycleEntry[]; cancelled: boolean }>("fs.recycle.admin.list");
-    return {entries: data.entries ?? [], cancelled: data.cancelled};
+    const data = await Native.request<{ entries: RecycleEntry[]; cancelled: boolean; failed: boolean }>(
+        "fs.recycle.admin.list");
+
+    return {entries: data.entries ?? [], cancelled: data.cancelled, failed: data.failed};
 }
 
 /** Deletes every leftover record, including the ones only an administrator can reach. */

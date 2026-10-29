@@ -16,6 +16,8 @@ import {CheckIcon, CrossIcon, FileIcon, FolderIcon, RefreshIcon, TrashIcon} from
 export function RecycleView() {
     const [entries, setEntries] = useState<RecycleEntry[]>([]);
     const [adminEntries, setAdminEntries] = useState<RecycleEntry[]>([]);
+    const [adminLoaded, setAdminLoaded] = useState(false);
+    const [adminNotice, setAdminNotice] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -41,7 +43,11 @@ export function RecycleView() {
 
     // The elevated snapshot only makes sense while its mode is on.
     useEffect(() => {
-        if (!showOrphans) setAdminEntries([]);
+        if (!showOrphans) {
+            setAdminEntries([]);
+            setAdminLoaded(false);
+            setAdminNotice(null);
+        }
     }, [showOrphans]);
 
     const restore = async (id: string) => {
@@ -63,12 +69,23 @@ export function RecycleView() {
     /** Asks the elevated copy for everything it can see; this window cannot read those folders. */
     const loadAdmin = async () => {
         setBusy(true);
+        setAdminNotice(null);
 
         try {
             const result = await listOrphansAsAdmin();
 
-            if (!result.cancelled)
-                setAdminEntries(result.entries);
+            if (result.cancelled) {
+                setAdminNotice("Elevation was declined — nothing was read.");
+                return;
+            }
+
+            if (result.failed) {
+                setAdminNotice("The elevated helper could not produce a report. Try again.");
+                return;
+            }
+
+            setAdminEntries(result.entries);
+            setAdminLoaded(true);
         } finally {
             setBusy(false);
         }
@@ -82,6 +99,8 @@ export function RecycleView() {
         try {
             await purgeOrphansAsAdmin();
             setAdminEntries([]);
+            setAdminLoaded(false);
+            setAdminNotice(null);
             await reload();
         } finally {
             setBusy(false);
@@ -117,12 +136,14 @@ export function RecycleView() {
                     {showOrphans ? (
                         <>
                             <EmptyButton
-                                disabled={busy}
+                                disabled={busy || adminLoaded}
                                 onClick={() => void loadAdmin()}
-                                title="Ask for administrator rights and list every profile's leftovers"
+                                title={adminLoaded
+                                    ? "The administrator view is already loaded"
+                                    : "Ask for administrator rights and list every profile's leftovers"}
                                 type="button"
                             >
-                                {busy ? "Working…" : "Show all (admin)…"}
+                                {busy ? "Working…" : adminLoaded ? "Admin view loaded" : "Show all (admin)…"}
                             </EmptyButton>
 
                             {confirming ? (
@@ -169,6 +190,8 @@ export function RecycleView() {
                     </IconButton>
                 </Actions>
             </Header>
+
+            {adminNotice && <Notice>{adminNotice}</Notice>}
 
             {error && <Message>{error}</Message>}
 
@@ -496,6 +519,14 @@ const RowButton = styled.button<{ $danger?: boolean }>`
         background: ${({$danger}) => $danger ? "rgba(248, 113, 113, 0.2)" : "rgba(148, 163, 184, 0.2)"};
         color: ${({$danger}) => $danger ? "#fca5a5" : "var(--text-primary)"};
     }
+`;
+
+const Notice = styled.p`
+    padding: 8px 22px;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(251, 191, 36, 0.08);
+    font-size: 11px;
+    color: #fcd34d;
 `;
 
 const Message = styled.p`

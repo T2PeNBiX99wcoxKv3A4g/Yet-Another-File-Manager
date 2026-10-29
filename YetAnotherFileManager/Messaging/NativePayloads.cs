@@ -55,8 +55,12 @@ internal sealed record FsSizesPayload(string Path, Dictionary<string, long> Size
 internal sealed record PathPayload(string? Path);
 
 /// <summary>Body for <c>fs.recycle.admin.list</c>: what the elevated helper could see.</summary>
-/// <param name="Cancelled">True when the elevation prompt was declined, so nothing was read.</param>
-internal sealed record AdminOrphansPayload(IReadOnlyList<RecycleEntry> Entries, bool Cancelled);
+/// <param name="Cancelled">True when the user declined the elevation prompt.</param>
+/// <param name="Failed">True when the helper ran but its report could not be read.</param>
+internal sealed record AdminOrphansPayload(
+    IReadOnlyList<RecycleEntry> Entries,
+    bool Cancelled,
+    bool Failed);
 
 /// <summary>Body for <c>fs.visibility</c>: the shell's hidden-item options.</summary>
 internal sealed record FsVisibilityPayload(bool ShowHidden, bool ShowSystem);

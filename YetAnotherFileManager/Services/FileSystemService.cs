@@ -179,7 +179,7 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
         var started = await RunElevatedAsync(Constants.OrphansReportArgument, report);
 
         if (!started)
-            return context.Reply("fs.recycle.admin.list.result", new AdminOrphansPayload([], true));
+            return context.Reply("fs.recycle.admin.list.result", new AdminOrphansPayload([], true, false));
 
         var entries = Try.Run(() => JsonSerializer.Deserialize(
                 File.ReadAllText(report), AppJsonContext.Default.ListRecycleEntry))
@@ -188,7 +188,10 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
 
         Try.Run(() => File.Delete(report));
 
-        return context.Reply("fs.recycle.admin.list.result", new AdminOrphansPayload(entries ?? [], false));
+        // Elevation worked but the report is unusable: say so instead of pretending the view is loaded.
+        return entries is null
+            ? context.Reply("fs.recycle.admin.list.result", new AdminOrphansPayload([], false, true))
+            : context.Reply("fs.recycle.admin.list.result", new AdminOrphansPayload(entries, false, false));
     }
 
     /// <summary>Runs the same elevated helper with deletion enabled.</summary>
