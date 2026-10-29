@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Security.Principal;
 using System.Text;
@@ -95,8 +96,9 @@ internal static class RecycleBin
 
     /// <summary>
     ///     Explorer only shows the current user's folder. The leftover view is a cleanup tool, so it
-    ///     also reads every other profile's record — those are reported as not removable, because the
-    ///     account normally cannot write there.
+    ///     also reads the folders of profiles that no longer exist — a live account's recycle bin is
+    ///     never touched, even when its records look like leftovers. Those are reported as not
+    ///     removable, because this account normally cannot write there anyway.
     /// </summary>
     private static IReadOnlyList<RecycleEntry> ListWindowsDrive(string root, string sid, bool includeOrphans) =>
         Try.Run(() =>
@@ -106,7 +108,7 @@ internal static class RecycleBin
                 return [];
 
             var folders = includeOrphans
-                ? bin.EnumerateDirectories("*", Readable).ToList()
+                ? bin.EnumerateDirectories("*", Readable).Where(folder => IsGoneProfile(folder.Name, sid)).ToList()
                 : [new DirectoryInfo(Path.Combine(bin.FullName, sid))];
 
             return folders
@@ -117,6 +119,45 @@ internal static class RecycleBin
                 .OfType<RecycleEntry>()
                 .ToList();
         }).GetOrElse(_ => []);
+
+    /// <summary>
+    ///     True for the current user, and for SIDs Windows can no longer map to an account — the
+    ///     leftovers of an old installation. A SID that still resolves belongs to a live account, so
+    ///     its recycle bin is not ours to clean.
+    /// </summary>
+    private static bool IsGoneProfile(string owner, string currentSid)
+    {
+        if (string.Equals(owner, currentSid, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return !AccountExists(owner);
+    }
+
+    /// <summary>
+    ///     Whether a SID still maps to an account. Only "not mapped" means the profile is gone; any
+    ///     other failure is treated as "still there", because skipping a real profile is harmless
+    ///     while deleting a live user's records is not.
+    /// </summary>
+    private static bool AccountExists(string sid) =>
+        AccountCheck.GetOrAdd(sid, static value =>
+        {
+            try
+            {
+                _ = new SecurityIdentifier(value).Translate(typeof(NTAccount));
+                return true;
+            }
+            catch (IdentityNotMappedException)
+            {
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Could not resolve {Sid}; treating it as a live account", value);
+                return true;
+            }
+        });
+
+    private static readonly ConcurrentDictionary<string, bool> AccountCheck = new(StringComparer.OrdinalIgnoreCase);
 
     private static RecycleEntry? ReadWindowsRecord(string infoPath, bool includeOrphans, string currentSid)
     {
