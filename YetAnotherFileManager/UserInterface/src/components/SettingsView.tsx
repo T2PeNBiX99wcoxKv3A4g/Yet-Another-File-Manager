@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import styled from "styled-components";
-import {getVisibility, type FileVisibility} from "../api/files";
+import {getVisibility, type FileVisibility, type Place} from "../api/files";
 import {clearIconCache, useIconFile} from "../api/icons";
 import {
     getSettings,
@@ -17,9 +17,11 @@ import {baseName} from "../utils/format";
 
 interface SettingsViewProps {
     appInfo: AppInfo | null;
+    places: Place[];
+    onPlacesChanged: () => void;
 }
 
-export function SettingsView({appInfo}: SettingsViewProps) {
+export function SettingsView({appInfo, places, onPlacesChanged}: SettingsViewProps) {
     const [visibility, setVisibility] = useState<FileVisibility | null>(null);
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const [folderIcon, setFolderIcon] = useState<{ folder: string; icon: string } | null>(null);
@@ -52,6 +54,25 @@ export function SettingsView({appInfo}: SettingsViewProps) {
             icons[extension] = source;
 
         await update({extensionIcons: icons});
+    };
+
+    /** Quick access is stored as an explicit list once it has been edited. */
+    const savePlaces = async (paths: string[]) => {
+        await update({quickAccess: paths});
+        onPlacesChanged();
+    };
+
+    const addPlace = async () => {
+        const folder = await pickFolder();
+
+        if (!folder || places.some((place) => place.path.toLowerCase() === folder.toLowerCase()))
+            return;
+
+        await savePlaces([...places.map((place) => place.path), folder]);
+    };
+
+    const removePlace = async (path: string) => {
+        await savePlaces(places.filter((place) => place.path !== path).map((place) => place.path));
     };
 
     const addRule = async () => {
@@ -106,6 +127,41 @@ export function SettingsView({appInfo}: SettingsViewProps) {
                     <Row>
                         <Label>Platform</Label>
                         <Value>{appInfo?.platform ?? "—"}</Value>
+                    </Row>
+                </Rows>
+            </Section>
+
+            <Section>
+                <Title>Quick access</Title>
+                <Rows>
+                    {places.map((place) => (
+                        <Row key={place.path}>
+                            <RowText>
+                                <Label>{place.name}</Label>
+                                <Note>{place.path}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <IconButton
+                                    onClick={() => void removePlace(place.path)}
+                                    title="Remove from Quick access"
+                                    type="button"
+                                >
+                                    <CrossIcon size={12}/>
+                                </IconButton>
+                            </RowEnd>
+                        </Row>
+                    ))}
+
+                    <Row>
+                        <RowText>
+                            <Label>Add a folder</Label>
+                            <Note>Shown in the sidebar and on the overview, in this order.</Note>
+                        </RowText>
+                        <RowEnd>
+                            <ActionButton onClick={() => void addPlace()} type="button">
+                                Choose folder…
+                            </ActionButton>
+                        </RowEnd>
                     </Row>
                 </Rows>
             </Section>

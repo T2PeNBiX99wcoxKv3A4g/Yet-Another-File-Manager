@@ -10,7 +10,7 @@ export interface TabInfo {
 
 /** Titles for the pages that are not a folder. */
 export const viewTitles: Record<Exclude<TabKind, "files">, string> = {
-    home: "Home",
+    home: "Overview",
     settings: "Settings",
     recycle: "Recycle Bin",
 };

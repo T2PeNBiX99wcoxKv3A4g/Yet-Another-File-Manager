@@ -8,9 +8,10 @@ public sealed record AppSettings(
     bool? SystemIcons,
     bool? CustomFolderIcons,
     bool? WriteDirectoryIndex,
-    Dictionary<string, string>? ExtensionIcons)
+    Dictionary<string, string>? ExtensionIcons,
+    List<string>? QuickAccess)
 {
-    public static AppSettings Default => new(true, true, true, []);
+    public static AppSettings Default => new(true, true, true, [], null);
 
     /// <summary>Ask the shell for the icon of each file type.</summary>
     public bool UseSystemIcons => SystemIcons ?? true;
@@ -23,4 +24,7 @@ public sealed record AppSettings(
 
     /// <summary>Extension (with the dot, lower case) to a built-in icon name or <c>file:&lt;path&gt;</c>.</summary>
     public Dictionary<string, string> Overrides => ExtensionIcons ?? [];
+
+    /// <summary>The folders pinned to Quick access, or null to use the well-known defaults.</summary>
+    public List<string>? PinnedPlaces => QuickAccess;
 }

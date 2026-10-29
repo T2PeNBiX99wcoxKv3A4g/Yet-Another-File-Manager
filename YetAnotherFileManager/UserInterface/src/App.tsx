@@ -10,7 +10,7 @@ import {
     RefreshIcon,
     SearchIcon,
 } from "./components/Icons";
-import {HomeView} from "./components/HomeView";
+import {OverviewView} from "./components/OverviewView";
 import {PathBar} from "./components/PathBar";
 import {RecycleView} from "./components/RecycleView";
 import {SettingsView} from "./components/SettingsView";
@@ -50,7 +50,7 @@ function createTab(kind: TabKind = "files", path = ""): Tab {
         error: null,
         history: [],
         index: -1,
-        fresh: kind === "files",
+        fresh: true,
     };
 }
 
@@ -59,7 +59,7 @@ function message(cause: unknown): string {
 }
 
 export default function App() {
-    const [tabs, setTabs] = useState<Tab[]>(() => [createTab()]);
+    const [tabs, setTabs] = useState<Tab[]>(() => [createTab("home")]);
     const [activeId, setActiveId] = useState(() => tabs[0].id);
     const [places, setPlaces] = useState<Place[]>([]);
     const [drives, setDrives] = useState<Drive[]>([]);
@@ -155,14 +155,23 @@ export default function App() {
         void load(stateRef.current.activeId, path);
     }, [load]);
 
-    useEffect(() => {
-        // The first tab starts at the home folder without losing its "fresh" flag: a path the host
-        // sends at startup then takes it over instead of opening a second, empty tab.
-        void load(stateRef.current.activeId, undefined, true);
+    const reloadPlaces = useCallback(() => {
         void listPlaces().then(setPlaces, () => setPlaces([]));
+    }, []);
+
+    useEffect(() => {
+        // The first tab is the overview; a path the host sends at startup takes it over instead of
+        // opening a second, empty tab. A files tab would load its folder right away.
+        const {tabs: current, activeId: currentActive} = stateRef.current;
+        const first = current.find((tab) => tab.id === currentActive);
+
+        if (first?.kind === "files")
+            void load(first.id, undefined, true);
+
+        reloadPlaces();
         void listDrives().then(setDrives, () => setDrives([]));
         void getAppInfo().then(setAppInfo, () => setAppInfo(null));
-    }, [load]);
+    }, [load, reloadPlaces]);
 
     // The host pushes a path for command-line arguments and for a second launch (single instance).
     // It waits for `app.ready` first, because sending to a web view that is still loading crashes it.
@@ -299,9 +308,9 @@ export default function App() {
                             </StatusBar>
                         </>
                     ) : active.kind === "home" ? (
-                        <HomeView drives={drives} onOpen={navigate} places={places}/>
+                        <OverviewView drives={drives} onOpen={navigate} places={places}/>
                     ) : active.kind === "settings" ? (
-                        <SettingsView appInfo={appInfo}/>
+                        <SettingsView appInfo={appInfo} onPlacesChanged={reloadPlaces} places={places}/>
                     ) : (
                         <RecycleView/>
                     )}

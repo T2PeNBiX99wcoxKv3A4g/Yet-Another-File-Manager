@@ -1,8 +1,8 @@
 import styled from "styled-components";
 import type {Drive, Place} from "../api/files";
 import type {TabKind} from "../tabs";
-import {DriveIcon, FolderIcon, GearIcon, HomeIcon, TrashIcon} from "./Icons";
-import {formatBytes} from "../utils/format";
+import {DriveIcon, FolderIcon, GearIcon, HomeIcon, OverviewIcon, TrashIcon} from "./Icons";
+import {formatBytes, usageTone} from "../utils/format";
 
 interface SidebarProps {
     places: Place[];
@@ -27,11 +27,11 @@ export function Sidebar({places, drives, currentPath, activeKind, onNavigate, on
                     <Item
                         $active={activeKind === "home"}
                         onClick={() => onOpenView("home")}
-                        title="Home"
+                        title="Overview"
                         type="button"
                     >
-                        <HomeIcon/>
-                        <Label>Home</Label>
+                        <OverviewIcon/>
+                        <Label>Overview</Label>
                     </Item>
                     <Item
                         $active={activeKind === "recycle"}
@@ -56,7 +56,7 @@ export function Sidebar({places, drives, currentPath, activeKind, onNavigate, on
                             title={place.path}
                             type="button"
                         >
-                            <FolderIcon/>
+                            {place.kind === "home" ? <HomeIcon/> : <FolderIcon/>}
                             <Label>{place.name}</Label>
                         </Item>
                     ))}
@@ -66,21 +66,28 @@ export function Sidebar({places, drives, currentPath, activeKind, onNavigate, on
             <DrivesSection>
                 <SectionTitle>Drives</SectionTitle>
                 <List>
-                    {drives.map((drive) => (
-                        <Item
-                            key={drive.name}
-                            $active={showFiles && isSamePath(currentPath, drive.name)}
-                            onClick={() => onNavigate(drive.name)}
-                            title={`${drive.label || drive.name} · ${formatBytes(drive.freeSpace)} free of ${formatBytes(drive.totalSize)}`}
-                            type="button"
-                        >
-                            <DriveIcon/>
-                            <Label>
-                                {drive.label || drive.name}
-                                <Hint>{drive.name}</Hint>
-                            </Label>
-                        </Item>
-                    ))}
+                    {drives.map((drive) => {
+                        const used = drive.totalSize > 0 ? 1 - drive.freeSpace / drive.totalSize : 0;
+
+                        return (
+                            <Item
+                                key={drive.name}
+                                $active={showFiles && isSamePath(currentPath, drive.name)}
+                                onClick={() => onNavigate(drive.name)}
+                                title={`${drive.label || drive.name} · ${formatBytes(drive.freeSpace)} free of ${formatBytes(drive.totalSize)}`}
+                                type="button"
+                            >
+                                <DriveIcon/>
+                                <Label>
+                                    {drive.label || drive.name}
+                                    <Hint>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</Hint>
+                                    <Bar>
+                                        <Fill $used={used} $tone={usageTone(used)}/>
+                                    </Bar>
+                                </Label>
+                            </Item>
+                        );
+                    })}
                 </List>
             </DrivesSection>
 
@@ -216,6 +223,7 @@ const Item = styled.button<{ $active: boolean }>`
 const Label = styled.span`
     display: flex;
     flex-direction: column;
+    gap: 3px;
     min-width: 0;
     opacity: 0;
     transition: opacity 130ms ease;
@@ -226,6 +234,24 @@ const Label = styled.span`
 
 const Hint = styled.span`
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 9px;
     color: var(--text-muted);
+`;
+
+const Bar = styled.span`
+    display: block;
+    width: 100%;
+    height: 3px;
+    margin-top: 1px;
+    border-radius: 2px;
+    background: rgba(148, 163, 184, 0.18);
+    overflow: hidden;
+`;
+
+const Fill = styled.span<{ $used: number; $tone: string }>`
+    display: block;
+    width: ${({$used}) => Math.min(Math.max($used, 0), 1) * 100}%;
+    height: 100%;
+    border-radius: 2px;
+    background: ${({$tone}) => $tone};
 `;

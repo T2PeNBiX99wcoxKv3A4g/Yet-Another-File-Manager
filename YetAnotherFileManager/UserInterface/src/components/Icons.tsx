@@ -303,3 +303,14 @@ export function DocumentIcon({size = 18}: IconProps) {
         </svg>
     );
 }
+
+export function OverviewIcon({size = 18}: IconProps) {
+    return (
+        <svg {...base(size)}>
+            <rect height="7" rx="1.6" width="7" x="3.5" y="3.5"/>
+            <rect height="7" rx="1.6" width="7" x="13.5" y="3.5"/>
+            <rect height="7" rx="1.6" width="7" x="3.5" y="13.5"/>
+            <rect height="7" rx="1.6" width="7" x="13.5" y="13.5"/>
+        </svg>
+    );
+}

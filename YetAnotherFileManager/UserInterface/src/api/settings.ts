@@ -6,6 +6,8 @@ export interface AppSettings {
     writeDirectoryIndex: boolean;
     /** Extension (with the dot, lower case) to a built-in icon name or "file:<path>". */
     extensionIcons: Record<string, string>;
+    /** Folders pinned to Quick access, or null for the well-known defaults. */
+    quickAccess: string[] | null;
 }
 
 const fallback: AppSettings = {
@@ -13,6 +15,7 @@ const fallback: AppSettings = {
     customFolderIcons: false,
     writeDirectoryIndex: true,
     extensionIcons: {},
+    quickAccess: null,
 };
 
 /** The interface settings, persisted by the host. */
@@ -26,6 +29,7 @@ export async function getSettings(): Promise<AppSettings> {
         customFolderIcons: raw?.customFolderIcons ?? true,
         writeDirectoryIndex: raw?.writeDirectoryIndex ?? true,
         extensionIcons: raw?.extensionIcons ?? {},
+        quickAccess: raw?.quickAccess ?? null,
     };
 }
 
@@ -40,6 +44,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         customFolderIcons: saved?.customFolderIcons ?? settings.customFolderIcons,
         writeDirectoryIndex: saved?.writeDirectoryIndex ?? settings.writeDirectoryIndex,
         extensionIcons: saved?.extensionIcons ?? settings.extensionIcons,
+        quickAccess: saved?.quickAccess ?? settings.quickAccess,
     };
 }
 

@@ -1,6 +1,7 @@
-/** Human-readable file size. Folders are reported as directories by the caller. */
+/** Human-readable file size. An empty file is "0 B", an unknown size is "—". */
 export function formatBytes(bytes: number): string {
-    if (bytes <= 0) return "—";
+    if (bytes < 0) return "—";
+    if (bytes === 0) return "0 B";
 
     const units = ["B", "KB", "MB", "GB", "TB"];
     const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
@@ -20,6 +21,17 @@ export function formatDate(unixMilliseconds: number): string {
         hour: "2-digit",
         minute: "2-digit",
     });
+}
+
+/**
+ * A drive gets a warning colour once it is mostly full, so the bar says something before the
+ * numbers do.
+ */
+export function usageTone(used: number): string {
+    if (used >= 0.9) return "#ef4444";
+    if (used >= 0.75) return "#f59e0b";
+
+    return "var(--accent-gradient)";
 }
 
 /** The last path component, for titles and drive labels. */

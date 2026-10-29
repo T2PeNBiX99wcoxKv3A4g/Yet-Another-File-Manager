@@ -1,16 +1,16 @@
 import styled from "styled-components";
 import type {Drive, Place} from "../api/files";
 import {DriveIcon, FolderIcon, HomeIcon} from "./Icons";
-import {formatBytes} from "../utils/format";
+import {formatBytes, usageTone} from "../utils/format";
 
-interface HomeViewProps {
+interface OverviewViewProps {
     places: Place[];
     drives: Drive[];
     onOpen: (path: string) => void;
 }
 
 /** The overview page: the same shortcuts the sidebar offers, with the volumes beside them. */
-export function HomeView({places, drives, onOpen}: HomeViewProps) {
+export function OverviewView({places, drives, onOpen}: OverviewViewProps) {
     return (
         <Page>
             <Section>
@@ -31,20 +31,24 @@ export function HomeView({places, drives, onOpen}: HomeViewProps) {
             <Section>
                 <Title>This PC</Title>
                 <Drives>
-                    {drives.map((drive) => (
-                        <DriveRow key={drive.name} onClick={() => onOpen(drive.name)} type="button">
-                            <DriveIcon size={20}/>
-                            <DriveText>
-                                <strong>{drive.label || drive.name}</strong>
-                                <span>{drive.name} · {formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</span>
-                            </DriveText>
-                            <Bar>
-                                <Fill $used={drive.totalSize > 0
-                                    ? 1 - drive.freeSpace / drive.totalSize
-                                    : 0}/>
-                            </Bar>
-                        </DriveRow>
-                    ))}
+                    {drives.map((drive) => {
+                        const used = drive.totalSize > 0 ? 1 - drive.freeSpace / drive.totalSize : 0;
+
+                        return (
+                            <DriveRow key={drive.name} onClick={() => onOpen(drive.name)} type="button">
+                                <DriveIcon size={20}/>
+                                <DriveText>
+                                    <strong>{drive.label || drive.name}</strong>
+                                    <span>
+                                        {drive.name} · {formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}
+                                    </span>
+                                </DriveText>
+                                <Bar>
+                                    <Fill $used={used} $tone={usageTone(used)}/>
+                                </Bar>
+                            </DriveRow>
+                        );
+                    })}
                 </Drives>
             </Section>
         </Page>
@@ -201,10 +205,10 @@ const Bar = styled.span`
     overflow: hidden;
 `;
 
-const Fill = styled.span<{ $used: number }>`
+const Fill = styled.span<{ $used: number; $tone: string }>`
     display: block;
     width: ${({$used}) => Math.min(Math.max($used, 0), 1) * 100}%;
     height: 100%;
     border-radius: 3px;
-    background: var(--accent-gradient);
+    background: ${({$tone}) => $tone};
 `;

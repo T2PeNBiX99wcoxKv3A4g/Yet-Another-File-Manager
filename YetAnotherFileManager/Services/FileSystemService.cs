@@ -309,27 +309,48 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
             && (showHidden || !attributes.HasFlag(FileAttributes.Hidden));
     }
 
-    /// <summary>The shortcuts shown above the drive list.</summary>
+    /// <summary>
+    ///     The shortcuts shown above the drive list: the folders the user pinned in the settings, or
+    ///     the well-known ones when nothing was pinned yet.
+    /// </summary>
     private static List<PlaceEntry> GetPlaces()
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var pinned = SettingsService.Instance.Current.PinnedPlaces;
 
-        (string Name, string Path)[] candidates =
-        [
-            ("Home", home),
-            ("Desktop", Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory)),
-            ("Documents", Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)),
-            ("Downloads", Path.Combine(home, "Downloads"))
-        ];
+        var paths = pinned is { Count: > 0 } ? pinned : DefaultPlaces(home);
 
         return
         [
-            .. candidates
-                .Where(candidate => candidate.Path.Length > 0 && Directory.Exists(candidate.Path))
-                .DistinctBy(candidate => candidate.Path, StringComparer.OrdinalIgnoreCase)
-                .Select(candidate => new PlaceEntry(candidate.Name, candidate.Path, candidate.Name.ToLowerInvariant()))
+            .. paths
+                .Where(path => path.Length > 0 && Directory.Exists(path))
+                .DistinctBy(path => path, StringComparer.OrdinalIgnoreCase)
+                .Select(path => ToPlace(path, home))
         ];
     }
+
+    private static PlaceEntry ToPlace(string path, string home)
+    {
+        var isHome = string.Equals(path.TrimEnd('\\', '/'), home.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase);
+        var name = isHome
+            ? "Home"
+            : Try.Run(() => new DirectoryInfo(path).Name).GetOrElse(_ => path);
+
+        return new PlaceEntry(name.Length > 0 ? name : path, path, isHome ? "home" : "folder");
+    }
+
+    /// <summary>The folders Windows calls the user's own, in Explorer's order.</summary>
+    private static List<string> DefaultPlaces(string home) =>
+    [
+        home,
+        Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+        Path.Combine(home, "Downloads"),
+        Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
+        Environment.GetFolderPath(Environment.SpecialFolder.MyMusic),
+        Environment.GetFolderPath(Environment.SpecialFolder.MyVideos),
+        Environment.GetEnvironmentVariable("OneDrive") ?? ""
+    ];
 
     /// <summary>The ready volumes, with their free space for the sidebar's capacity hint.</summary>
     private static List<DriveEntry> GetDrives() =>
