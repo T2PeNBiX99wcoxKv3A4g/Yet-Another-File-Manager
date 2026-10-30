@@ -86,6 +86,12 @@ internal sealed record FsChangedPayload(string Path);
 /// <summary>Payload for <c>fs.drive.rename</c>: the volume root and its new label.</summary>
 internal sealed record DriveRenameRequest(string Root, string Label);
 
+/// <summary>
+///     Body for <c>fs.drive.rename</c>: whether the label was written, whether Windows wanted
+///     administrator rights, and a message for the interface when it was not.
+/// </summary>
+internal sealed record DriveRenamePayload(bool Ok, bool NeedsAdmin, string? Error);
+
 /// <summary>Payload for <c>fs.watch</c>: every folder that is on screen right now.</summary>
 internal sealed record FsWatchRequest(List<string> Paths);
 

@@ -52,8 +52,9 @@ export function buildPanels(settings: AppSettings | null): Panel[] {
     const titles = settings?.overviewTitles ?? {};
     const views = settings?.overviewViews ?? {};
     const icons = settings?.overviewIcons ?? {};
-    // Quick access, recent folders and the drives are in the sidebar until the user says otherwise.
-    const pinned = settings?.overviewPinned ?? ["quick", "recent", "drives"];
+    // Quick access, recent folders, the user's home folder and the drives are in the sidebar until
+    // the user says otherwise.
+    const pinned = settings?.overviewPinned ?? ["quick", "recent", "home", "drives"];
 
     return ids.map((id) => {
         const kind = kindOfPanel(id);

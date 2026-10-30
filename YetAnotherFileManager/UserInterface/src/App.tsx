@@ -516,6 +516,7 @@ export default function App() {
                         <OverviewView
                             drives={drives}
                             homePath={places.find((place) => place.kind === "home")?.path ?? ""}
+                            onDrivesChanged={reloadDrives}
                             onOpen={navigate}
                             onLayoutChanged={reloadSettings}
                             onPlacesChanged={setPlaces}

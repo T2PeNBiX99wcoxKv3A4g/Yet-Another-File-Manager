@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Messaging;
@@ -14,10 +15,16 @@ namespace YetAnotherFileManager.Services;
 ///     Serves the directory information the interface needs: the sidebar's shortcuts and volumes,
 ///     and the contents of one directory at a time.
 /// </summary>
-internal sealed class FileSystemService : Singleton<FileSystemService>
+internal sealed partial class FileSystemService : Singleton<FileSystemService>
 {
+    /// <summary>ERROR_ACCESS_DENIED: the volume label needs administrator rights.</summary>
+    private const int ErrorAccessDenied = 5;
+
     /// <summary>ERROR_CANCELLED: the user said no to the UAC prompt.</summary>
     private const int ErrorCancelledByUser = 1223;
+
+    /// <summary>Characters Windows refuses in a volume label.</summary>
+    private static readonly char[] InvalidLabelChars = ['\\', '/', ':', '*', '?', '"', '<', '>', '|'];
 
     private static readonly HashSet<string> PerFileIconExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -70,7 +77,7 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
                 new OkPayload(Watch(context.Payload<FsWatchRequest>()?.Paths ?? [])))),
 
             "fs.drive.rename" => Task.FromResult<NativeResponse?>(context.Reply("fs.drive.rename.result",
-                new OkPayload(RenameDrive(context.Payload<DriveRenameRequest>())))),
+                RenameDrive(context.Payload<DriveRenameRequest>()))),
 
             "fs.open" => Task.FromResult<NativeResponse?>(context.Reply("fs.open.result",
                 new OkPayload(OpenFile(context.Payload<FsListRequest>()?.Path)))),
@@ -275,19 +282,37 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
         return GetPlaces();
     }
 
-    /// <summary>Renames a volume, the way Explorer does; it needs the rights Windows asks for.</summary>
-    private static bool RenameDrive(DriveRenameRequest? request)
+    /// <summary>
+    ///     Renames a volume, the way Explorer does. Windows wants administrator rights for a fixed
+    ///     volume, so the answer says so instead of only reporting a failure.
+    /// </summary>
+    private static DriveRenamePayload RenameDrive(DriveRenameRequest? request)
     {
-        if (request is not { Root.Length: > 0 } || string.IsNullOrWhiteSpace(request.Label))
-            return false;
+        if (request is not { Root.Length: > 0 })
+            return new(false, false, "The volume root is missing.");
 
-        return Try.Run(() => SetVolumeLabel(request.Root, request.Label.Trim()))
-            .OnFailure(ex => Serilog.Log.Warning(ex, "Could not rename {Root}", request.Root))
-            .GetOrElse(_ => false);
+        var label = request.Label?.Trim() ?? "";
+
+        if (label.Length > 32 || label.IndexOfAny(InvalidLabelChars) >= 0)
+            return new(false, false, "A volume label can be at most 32 characters and cannot contain \\ / : * ? \" < > |.");
+
+        if (!OperatingSystem.IsWindows())
+            return new(false, false, "Volume labels can only be changed on Windows.");
+
+        if (SetVolumeLabel(request.Root, label))
+            return new(true, false, null);
+
+        var error = Marshal.GetLastWin32Error();
+
+        return error == ErrorAccessDenied
+            ? new(false, true, "Windows needs administrator rights to rename this volume.")
+            : new(false, false, $"Windows refused the volume label (error {error}).");
     }
 
-    [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
-    private static extern bool SetVolumeLabel(string root, string label);
+    [LibraryImport("kernel32.dll", EntryPoint = "SetVolumeLabelW", StringMarshalling = StringMarshalling.Utf16,
+        SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetVolumeLabel(string root, string label);
 
     /// <summary>Hands a file to the shell, which opens it with whatever the user made its default.</summary>
     private static bool OpenFile(string? path)

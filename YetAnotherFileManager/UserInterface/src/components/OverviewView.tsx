@@ -5,6 +5,7 @@ import {
     listDirectory,
     listPlaces,
     openFile,
+    renameDrive,
     type DirectoryListing,
     type Drive,
     type Place,
@@ -15,7 +16,7 @@ import {Native} from "@photino-net-utils/bridge";
 import {useIcon} from "../api/icons";
 import {FileList} from "./FileList";
 import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, FileIcon, FolderIcon, ImageIcon, PencilIcon, PlusIcon, TextIcon} from "./Icons";
-import {formatBytes, usageTone} from "../utils/format";
+import {driveName, formatBytes, usageTone} from "../utils/format";
 import {wantsNewTab} from "../shortcuts";
 import {buildPanels, kindOfPanel, PanelGlyph, PanelIcons, type Panel, type PanelKind, type ViewMode} from "../panels";
 
@@ -29,6 +30,8 @@ interface OverviewViewProps {
     onPlacesChanged: (places: Place[]) => void;
     onRecentCleared: () => void;
     onLayoutChanged?: () => void;
+    /** Called after a volume label was written, so the drive lists show the new name. */
+    onDrivesChanged?: () => void;
 }
 
 const Page = styled.div`
@@ -398,6 +401,53 @@ const PlaceIconButton = styled.button<{ $inline?: boolean }>`
     }
 `;
 
+/** A drive row: the entry itself plus its rename button, which cannot live inside a button. */
+const DriveRow = styled.div`
+    position: relative;
+    display: flex;
+    min-width: 0;
+`;
+
+const DriveRowButton = styled(Row)`
+    padding-right: 36px;
+`;
+
+const DriveRenameButton = styled(PlaceIconButton)`
+    top: 50%;
+    right: 8px;
+    transform: translateY(-50%);
+`;
+
+const Notice = styled.p`
+    margin-bottom: 12px;
+    padding: 8px 10px;
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: var(--radius-sm);
+    background: rgba(251, 191, 36, 0.08);
+    font-size: 11px;
+    color: #fcd34d;
+`;
+
+const RenameTarget = styled.span`
+    padding: 0 4px;
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+`;
+
+const RenameInput = styled.input`
+    flex: 1;
+    min-width: 0;
+    padding: 4px 8px;
+    border: 1px solid var(--border-color-focus);
+    border-radius: var(--radius-sm);
+    outline: 0;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 12px;
+`;
+
 const Empty = styled.p`
     padding: 14px;
     border: 1px dashed var(--border-color);
@@ -411,6 +461,7 @@ const Picker = styled.div`
     position: sticky;
     bottom: 0;
     display: flex;
+    align-items: center;
     gap: 4px;
     margin-top: 14px;
     padding: 6px;
@@ -431,11 +482,14 @@ export function OverviewView({
     onPlacesChanged,
     onRecentCleared,
     onLayoutChanged,
+    onDrivesChanged,
 }: OverviewViewProps) {
     const [editing, setEditing] = useState(false);
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const [iconFor, setIconFor] = useState<string | null>(null);
     const [placeIconFor, setPlaceIconFor] = useState<string | null>(null);
+    const [driveRename, setDriveRename] = useState<{ drive: Drive; label: string } | null>(null);
+    const [driveNotice, setDriveNotice] = useState<string | null>(null);
 
     useEffect(() => {
         void getSettings().then(setSettings, () => setSettings(null));
@@ -464,6 +518,32 @@ export function OverviewView({
         setPlaceIconFor(null);
         await save({placeIcons: icons});
         onPlacesChanged(await listPlaces());
+    };
+
+    /** Opens the label editor under the overview, where the icon picker lives too. */
+    const startDriveRename = (drive: Drive) => {
+        setDriveNotice(null);
+        setDriveRename({drive, label: drive.label});
+    };
+
+    /** Writes the label straight back to Windows; access denied means it needs elevation. */
+    const applyDriveRename = async () => {
+        if (!driveRename) return;
+
+        const {drive, label} = driveRename;
+        setDriveRename(null);
+
+        const result = await renameDrive(drive.name, label.trim());
+
+        if (result.ok) {
+            setDriveNotice(null);
+            onDrivesChanged?.();
+            return;
+        }
+
+        setDriveNotice(result.needsAdmin
+            ? "Windows needs administrator rights to rename a volume. Restart the app as administrator and try again."
+            : result.error ?? "Windows refused the volume label.");
     };
     const columns = settings?.overviewColumns ?? 1;
     const hidden = settings?.overviewHidden ?? [];
@@ -501,10 +581,14 @@ export function OverviewView({
     const setView = (id: string, view: ViewMode) =>
         void save({overviewViews: {...settings?.overviewViews, [id]: view}});
 
-    const togglePin = (id: string) =>
+    const togglePin = (id: string) => {
+        // No stored list yet: start from the panels' default pin state, not from nothing.
+        const pinned = settings?.overviewPinned ?? panels.filter((panel) => panel.pinned).map((panel) => panel.id);
+
         void save({overviewPinned: panels.find((panel) => panel.id === id)?.pinned
-            ? (settings?.overviewPinned ?? []).filter((item) => item !== id)
-            : [...(settings?.overviewPinned ?? []), id]});
+            ? pinned.filter((item) => item !== id)
+            : [...pinned, id]});
+    };
 
     const toggleHidden = (id: string) =>
         void save({overviewHidden: hidden.includes(id) ? hidden.filter((item) => item !== id) : [...hidden, id]});
@@ -580,6 +664,16 @@ export function OverviewView({
                                 <strong>{driveName(drive)}</strong>
                                 <span>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</span>
                             </CardText>
+                            <DriveRenameButton
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    startDriveRename(drive);
+                                }}
+                                title="Rename volume"
+                                type="button"
+                            >
+                                <PencilIcon size={11}/>
+                            </DriveRenameButton>
                         </Card>
                     ))}
                 </Places>
@@ -679,19 +773,23 @@ export function OverviewView({
                             const used = drive.totalSize > 0 ? 1 - drive.freeSpace / drive.totalSize : 0;
 
                             return (
-                                <Row
-                                    key={drive.name}
-                                    onClick={(event) => onOpen(drive.name, wantsNewTab(event))}
-                                    title={drive.name}
-                                    type="button"
-                                >
-                                    <DriveIcon size={18}/>
-                                    <RowText>
-                                        <strong>{driveName(drive)}</strong>
-                                        <span>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</span>
-                                    </RowText>
-                                    <Bar><Fill $used={used} $tone={usageTone(used)}/></Bar>
-                                </Row>
+                                <DriveRow key={drive.name}>
+                                    <DriveRowButton
+                                        onClick={(event) => onOpen(drive.name, wantsNewTab(event))}
+                                        title={drive.name}
+                                        type="button"
+                                    >
+                                        <DriveIcon size={18}/>
+                                        <RowText>
+                                            <strong>{driveName(drive)}</strong>
+                                            <span>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</span>
+                                        </RowText>
+                                        <Bar><Fill $used={used} $tone={usageTone(used)}/></Bar>
+                                    </DriveRowButton>
+                                    <DriveRenameButton onClick={() => startDriveRename(drive)} title="Rename volume" type="button">
+                                        <PencilIcon size={11}/>
+                                    </DriveRenameButton>
+                                </DriveRow>
                             );
                         })}
                     </Rows>
@@ -735,6 +833,8 @@ export function OverviewView({
                     {editing ? "Done" : "Edit"}
                 </Ghost>
             </Toolbar>
+
+            {driveNotice && <Notice>{driveNotice}</Notice>}
 
             <Panels $columns={columns}>
                 {panels
@@ -900,15 +1000,32 @@ export function OverviewView({
                     </Ghost>
                 </Picker>
             )}
+
+            {driveRename && (
+                <Picker>
+                    <RenameTarget>{driveName(driveRename.drive)}</RenameTarget>
+                    <RenameInput
+                        autoFocus
+                        maxLength={32}
+                        onChange={(event) => setDriveRename({...driveRename, label: event.target.value})}
+                        onKeyDown={(event) => {
+                            if (event.key === "Enter") void applyDriveRename();
+                            if (event.key === "Escape") setDriveRename(null);
+                        }}
+                        placeholder="Volume label"
+                        spellCheck={false}
+                        value={driveRename.label}
+                    />
+                    <IconButton onClick={() => void applyDriveRename()} title="Write the label to Windows" type="button">
+                        <CheckIcon size={12}/>
+                    </IconButton>
+                    <IconButton onClick={() => setDriveRename(null)} title="Cancel" type="button">
+                        <CrossIcon size={12}/>
+                    </IconButton>
+                </Picker>
+            )}
         </Page>
     );
-}
-
-/** "Local Disk (C:)" — the label the user gave, plus the letter Windows uses. */
-function driveName(drive: Drive): string {
-    const letter = drive.name.replace(/[\\\\/]/g, "");
-
-    return `${drive.label || "Local Disk"} (${letter}:)`;
 }
 
 /** One folder rendered as a panel: a table or a grid of its entries. */

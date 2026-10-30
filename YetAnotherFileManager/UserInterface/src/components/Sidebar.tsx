@@ -5,7 +5,7 @@ import {getSettings} from "../api/settings";
 import type {TabKind} from "../tabs";
 import {buildPanels, PanelGlyph, type Panel} from "../panels";
 import {DriveIcon, FileIcon, FolderIcon, GearIcon, ImageIcon, OverviewIcon, TrashIcon} from "./Icons";
-import {formatBytes, usageTone} from "../utils/format";
+import {driveName, formatBytes, usageTone} from "../utils/format";
 import {wantsNewTab} from "../shortcuts";
 
 interface SidebarProps {
@@ -170,13 +170,6 @@ function FolderItems({path, onNavigate}: { path: string; onNavigate: (path: stri
                 <Label>{entry.name}</Label>
             </Item>
         ));
-}
-
-/** "Local Disk (C:)" — the label the user gave, plus the letter Windows uses. */
-function driveName(drive: Drive): string {
-    const letter = drive.name.replace(/[\\\\/]/g, "");
-
-    return `${drive.label || "Local Disk"} (${letter}:)`;
 }
 
 /** Comparing paths is enough here: the backend always answers with canonical full paths. */

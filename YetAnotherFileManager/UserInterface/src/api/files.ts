@@ -20,12 +20,19 @@ export interface DirectoryListing {
     folderSizes: Record<string, number>;
 }
 
-/** Renames a volume; Windows may ask for administrator rights. */
-export async function renameDrive(root: string, label: string): Promise<boolean> {
-    if (!Native.available) return false;
+/** What Windows answered when a volume label was written. */
+export interface DriveRenameResult {
+    ok: boolean;
+    /** True when Windows refused because the app is not running as administrator. */
+    needsAdmin: boolean;
+    error: string | null;
+}
 
-    const data = await Native.request<{ ok: boolean }>("fs.drive.rename", {root, label});
-    return data.ok;
+/** Renames a volume; Windows may ask for administrator rights. */
+export async function renameDrive(root: string, label: string): Promise<DriveRenameResult> {
+    if (!Native.available) return {ok: false, needsAdmin: false, error: "Volume labels need the desktop app."};
+
+    return await Native.request<DriveRenameResult>("fs.drive.rename", {root, label});
 }
 
 /** Opens a file with whatever the system uses for it. */
