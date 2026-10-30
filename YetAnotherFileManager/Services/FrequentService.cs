@@ -14,7 +14,7 @@ internal sealed class FrequentService : Singleton<FrequentService>
 {
     private const int Capacity = 100;
 
-    private static readonly string StorePath = Path.Combine(Constants.DataDirectory, "frequent.json");
+    private static readonly string StorePath = Path.Combine(Constants.SettingsDirectory, "frequent.json");
 
     private readonly object _gate = new();
 

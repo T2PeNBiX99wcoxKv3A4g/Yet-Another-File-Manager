@@ -9,7 +9,7 @@ namespace YetAnotherFileManager.Services;
 /// <summary>Stores <see cref="AppSettings" /> next to the app's other data.</summary>
 internal sealed class SettingsService : Singleton<SettingsService>
 {
-    private static readonly string SettingsPath = Path.Combine(Constants.DataDirectory, "settings.json");
+    private static readonly string SettingsPath = Path.Combine(Constants.SettingsDirectory, "settings.json");
 
     public AppSettings Current { get; private set; } = Load();
 

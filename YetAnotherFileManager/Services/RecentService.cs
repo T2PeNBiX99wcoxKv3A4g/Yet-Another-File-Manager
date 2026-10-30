@@ -14,7 +14,7 @@ internal sealed class RecentService : Singleton<RecentService>
 {
     private const int Capacity = 50;
 
-    private static readonly string StorePath = Path.Combine(Constants.DataDirectory, "recent.json");
+    private static readonly string StorePath = Path.Combine(Constants.SettingsDirectory, "recent.json");
 
     private readonly object _gate = new();
 
