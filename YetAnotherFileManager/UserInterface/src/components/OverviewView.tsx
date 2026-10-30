@@ -616,7 +616,7 @@ function buildPanels(settings: AppSettings | null): Panel[] {
     return ids.map((id) => {
         const kind: PanelKind = id.startsWith("folder:")
             ? "folder"
-            : id as PanelKind;
+            : id.split(":")[0] as PanelKind;
 
         return {
             id,

@@ -26,6 +26,10 @@ export interface AppSettings {
     overviewTitles: Record<string, string> | null;
     /** "list" or "grid" per overview panel, by panel id. */
     overviewViews: Record<string, string> | null;
+    /** Icon per overview panel, by panel id. */
+    overviewIcons: Record<string, string> | null;
+    /** Overview panels that also appear in the sidebar, by panel id. */
+    overviewPinned: string[] | null;
 }
 
 const fallback: AppSettings = {
@@ -43,6 +47,8 @@ const fallback: AppSettings = {
     placeIcons: null,
     overviewTitles: null,
     overviewViews: null,
+    overviewIcons: null,
+    overviewPinned: null,
 };
 
 /** The interface settings, persisted by the host. */
@@ -66,6 +72,8 @@ export async function getSettings(): Promise<AppSettings> {
         placeIcons: raw?.placeIcons ?? null,
         overviewTitles: raw?.overviewTitles ?? null,
         overviewViews: raw?.overviewViews ?? null,
+        overviewIcons: raw?.overviewIcons ?? null,
+        overviewPinned: raw?.overviewPinned ?? null,
     };
 }
 
@@ -90,6 +98,8 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         placeIcons: saved?.placeIcons ?? settings.placeIcons,
         overviewTitles: saved?.overviewTitles ?? settings.overviewTitles,
         overviewViews: saved?.overviewViews ?? settings.overviewViews,
+        overviewIcons: saved?.overviewIcons ?? settings.overviewIcons,
+        overviewPinned: saved?.overviewPinned ?? settings.overviewPinned,
     };
 }
 

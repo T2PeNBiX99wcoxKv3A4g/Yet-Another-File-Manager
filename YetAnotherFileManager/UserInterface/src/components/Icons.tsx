@@ -122,6 +122,15 @@ export function GearIcon({size = 18}: IconProps) {
     );
 }
 
+export function PinIcon({size = 14}: IconProps) {
+    return (
+        <svg {...base(size)}>
+            <path d="M9 3h6l-1 6 3 3H7l3-3z"/>
+            <path d="M12 12v8"/>
+        </svg>
+    );
+}
+
 export function ListIcon({size = 14}: IconProps) {
     return (
         <svg {...base(size)}>
