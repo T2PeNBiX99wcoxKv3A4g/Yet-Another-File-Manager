@@ -83,6 +83,9 @@ internal sealed record PlaceRenameRequest(string Path, string? Name);
 /// <summary>Body for the <c>fs.changed</c> event: the folder whose contents changed.</summary>
 internal sealed record FsChangedPayload(string Path);
 
+/// <summary>Payload for <c>fs.watch</c>: every folder that is on screen right now.</summary>
+internal sealed record FsWatchRequest(List<string> Paths);
+
 /// <summary>Body for <c>app.memory</c>: what this process is using, in bytes.</summary>
 internal sealed record MemoryPayload(long Managed, long Private, long WorkingSet, long Available);
 

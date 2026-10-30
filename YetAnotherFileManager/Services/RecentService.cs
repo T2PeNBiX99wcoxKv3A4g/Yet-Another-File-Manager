@@ -32,17 +32,17 @@ internal sealed class RecentService : Singleton<RecentService>
     }
 
     /// <summary>Moves a folder to the front, dropping the oldest entries beyond the capacity.</summary>
-    public void Record(string path)
+    public void Record(string path, bool isDirectory = true)
     {
         if (string.IsNullOrWhiteSpace(path))
             return;
 
-        var name = Try.Run(() => new DirectoryInfo(path).Name).GetOrElse(_ => path);
+        var name = Try.Run(() => isDirectory ? new DirectoryInfo(path).Name : new FileInfo(path).Name).GetOrElse(_ => path);
 
         lock (_gate)
         {
             _entries.RemoveAll(entry => string.Equals(entry.Path, path, StringComparison.OrdinalIgnoreCase));
-            _entries.Insert(0, new RecentEntry(path, name.Length > 0 ? name : path, true,
+            _entries.Insert(0, new RecentEntry(path, name.Length > 0 ? name : path, isDirectory,
                 DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()));
 
             if (_entries.Count > Capacity)

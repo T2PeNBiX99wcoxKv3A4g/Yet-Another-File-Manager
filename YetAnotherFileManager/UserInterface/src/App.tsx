@@ -390,7 +390,10 @@ export default function App() {
     useEffect(() => {
         if (!Native.available) return;
 
-        Native.send({type: "fs.watch", payload: {path: kind === "files" ? location : null}});
+        // The overview watches its own folders, so this only speaks for a files tab.
+        if (kind !== "files") return;
+
+        Native.send({type: "fs.watch", payload: {paths: [location]}});
     }, [kind, location]);
 
     // A change in the folder that is on screen refreshes it in place, without a spinner or a click.
@@ -514,6 +517,7 @@ export default function App() {
                             homePath={places.find((place) => place.kind === "home")?.path ?? ""}
                             onOpen={navigate}
                             onLayoutChanged={reloadSettings}
+                            onPlacesChanged={setPlaces}
                             onRecentCleared={reloadRecent}
                             places={places}
                             recent={recent}

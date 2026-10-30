@@ -1,10 +1,10 @@
 import {useEffect, useState} from "react";
 import styled from "styled-components";
-import {listDirectory, type DirectoryListing, type Drive, type Place, type RecentEntry} from "../api/files";
+import {listDirectory, openFile, type DirectoryListing, type Drive, type Place, type RecentEntry} from "../api/files";
 import {getSettings} from "../api/settings";
 import type {TabKind} from "../tabs";
 import {buildPanels, PanelGlyph, type Panel} from "../panels";
-import {DriveIcon, FolderIcon, GearIcon, ImageIcon, OverviewIcon, TrashIcon} from "./Icons";
+import {DriveIcon, FileIcon, FolderIcon, GearIcon, ImageIcon, OverviewIcon, TrashIcon} from "./Icons";
 import {formatBytes, usageTone} from "../utils/format";
 import {wantsNewTab} from "../shortcuts";
 
@@ -90,11 +90,13 @@ export function Sidebar({
                                 <Item
                                     key={entry.path}
                                     $active={showFiles && isSamePath(currentPath, entry.path)}
-                                    onClick={(event) => onNavigate(entry.path, wantsNewTab(event))}
+                                    onClick={(event) => entry.isDirectory
+                                        ? onNavigate(entry.path, wantsNewTab(event))
+                                        : void openFile(entry.path)}
                                     title={entry.path}
                                     type="button"
                                 >
-                                    <FolderIcon/>
+                                    {entry.isDirectory ? <FolderIcon/> : <FileIcon/>}
                                     <Label>{entry.name}</Label>
                                 </Item>
                             ))}
@@ -153,17 +155,18 @@ function FolderItems({path, onNavigate}: { path: string; onNavigate: (path: stri
     }, [path]);
 
     return (listing?.entries ?? [])
-        .filter((entry) => entry.isDirectory)
-        .slice(0, 40)
+        .slice(0, 60)
         .map((entry) => (
             <Item
                 key={entry.fullPath}
                 $active={false}
-                onClick={(event) => onNavigate(entry.fullPath, wantsNewTab(event))}
+                onClick={(event) => entry.isDirectory
+                    ? onNavigate(entry.fullPath, wantsNewTab(event))
+                    : void openFile(entry.fullPath)}
                 title={entry.fullPath}
                 type="button"
             >
-                <FolderIcon/>
+                {entry.isDirectory ? <FolderIcon/> : <FileIcon/>}
                 <Label>{entry.name}</Label>
             </Item>
         ));

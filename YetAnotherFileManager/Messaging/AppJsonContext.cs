@@ -48,6 +48,7 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(PlacesRequest))]
 [JsonSerializable(typeof(PlaceRenameRequest))]
 [JsonSerializable(typeof(FsChangedPayload))]
+[JsonSerializable(typeof(FsWatchRequest))]
 [JsonSerializable(typeof(AdminOrphansPayload))]
 [JsonSerializable(typeof(RecycleEntry))]
 [JsonSerializable(typeof(List<RecycleEntry>))]

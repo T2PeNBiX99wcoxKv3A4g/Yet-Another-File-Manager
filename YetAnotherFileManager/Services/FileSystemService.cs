@@ -55,7 +55,7 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
                 new FsPlacesPayload(RenamePlace(context.Payload<PlaceRenameRequest>())))),
 
             "fs.watch" => Task.FromResult<NativeResponse?>(context.Reply("fs.watch.result",
-                new OkPayload(Watch(context.Payload<FsListRequest>()?.Path)))),
+                new OkPayload(Watch(context.Payload<FsWatchRequest>()?.Paths ?? [])))),
 
             "fs.open" => Task.FromResult<NativeResponse?>(context.Reply("fs.open.result",
                 new OkPayload(OpenFile(context.Payload<FsListRequest>()?.Path)))),
@@ -269,6 +269,8 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
             return false;
 
+        RecentService.Instance.Record(path, false);
+
         return Try.Run(() => Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }) is not null)
             .GetOrElse(ex =>
             {
@@ -278,9 +280,9 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
     }
 
     /// <summary>Points the folder watcher at the tab that is on screen.</summary>
-    private static bool Watch(string? path)
+    private static bool Watch(IReadOnlyList<string> paths)
     {
-        DirectoryWatcher.Instance.Watch(path);
+        DirectoryWatcher.Instance.Watch(paths);
         return true;
     }
 

@@ -3,6 +3,7 @@ import styled from "styled-components";
 import {
     clearRecent,
     listDirectory,
+    listPlaces,
     openFile,
     type DirectoryListing,
     type Drive,
@@ -10,6 +11,7 @@ import {
     type RecentEntry,
 } from "../api/files";
 import {getSettings, pickFolder, pickIconFile, saveSettings, type AppSettings} from "../api/settings";
+import {Native} from "@photino-net-utils/bridge";
 import {useIcon} from "../api/icons";
 import {FileList} from "./FileList";
 import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, FolderIcon, ImageIcon, PencilIcon, PlusIcon, TextIcon} from "./Icons";
@@ -24,6 +26,7 @@ interface OverviewViewProps {
     recentLimit: number;
     homePath: string;
     onOpen: (path: string, newTab?: boolean) => void;
+    onPlacesChanged: (places: Place[]) => void;
     onRecentCleared: () => void;
     onLayoutChanged?: () => void;
 }
@@ -365,6 +368,26 @@ const Tile = styled.button`
     }
 `;
 
+const PlaceIconButton = styled.button<{ $inline?: boolean }>`
+    position: ${({$inline}) => $inline ? "static" : "absolute"};
+    top: ${({$inline}) => $inline ? "auto" : "5px"};
+    right: ${({$inline}) => $inline ? "auto" : "5px"};
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border: 0;
+    border-radius: 5px;
+    background: rgba(148, 163, 184, 0.18);
+    color: var(--text-secondary);
+    cursor: pointer;
+
+    &:hover {
+        background: rgba(99, 102, 241, 0.28);
+        color: #c7d2fe;
+    }
+`;
+
 const Empty = styled.p`
     padding: 14px;
     border: 1px dashed var(--border-color);
@@ -395,18 +418,43 @@ export function OverviewView({
     recentLimit,
     homePath,
     onOpen,
+    onPlacesChanged,
     onRecentCleared,
     onLayoutChanged,
 }: OverviewViewProps) {
     const [editing, setEditing] = useState(false);
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const [iconFor, setIconFor] = useState<string | null>(null);
+    const [placeIconFor, setPlaceIconFor] = useState<string | null>(null);
 
     useEffect(() => {
         void getSettings().then(setSettings, () => setSettings(null));
     }, []);
 
     const panels = buildPanels(settings);
+
+    // The overview watches every folder it shows; the tab it lives in is the only one that matters.
+    useEffect(() => {
+        if (!Native.available) return;
+
+        const paths = panels
+            .filter((panel) => panel.kind === "home" || panel.kind === "folder")
+            .map((panel) => panel.path ?? homePath)
+            .filter((path) => path.length > 0);
+
+        Native.send({type: "fs.watch", payload: {paths}});
+    }, [panels.map((panel) => panel.path ?? panel.id).join("|"), homePath]);
+
+    const setPlaceIcon = async (path: string, icon: string | null) => {
+        const icons = {...settings?.placeIcons};
+
+        if (icon) icons[path] = icon;
+        else delete icons[path];
+
+        setPlaceIconFor(null);
+        await save({placeIcons: icons});
+        onPlacesChanged(await listPlaces());
+    };
     const columns = settings?.overviewColumns ?? 1;
     const hidden = settings?.overviewHidden ?? [];
 
@@ -497,6 +545,18 @@ export function OverviewView({
                                     onClick={(event) => !editing && onOpen(place.path, wantsNewTab(event))}
                                     title={place.path}
                                 >
+                                    {editing && (
+                                        <PlaceIconButton
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                setPlaceIconFor(placeIconFor === place.path ? null : place.path);
+                                            }}
+                                            title="Icon"
+                                            type="button"
+                                        >
+                                            <ImageIcon size={11}/>
+                                        </PlaceIconButton>
+                                    )}
                                     <Glyph><FolderIcon size={18}/></Glyph>
                                     <CardText>
                                         <strong>{place.name}</strong>
@@ -520,6 +580,19 @@ export function OverviewView({
                                         <strong>{place.name}</strong>
                                         <span>{place.path}</span>
                                     </RowText>
+                                    {editing && (
+                                        <PlaceIconButton
+                                            $inline
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                setPlaceIconFor(placeIconFor === place.path ? null : place.path);
+                                            }}
+                                            title="Icon"
+                                            type="button"
+                                        >
+                                            <ImageIcon size={11}/>
+                                        </PlaceIconButton>
+                                    )}
                                 </Row>
                             ))}
                         </Rows>
@@ -728,6 +801,30 @@ export function OverviewView({
                     })}
             </Panels>
 
+            {editing && placeIconFor && (
+                <Picker>
+                    {Object.keys(PanelIcons).map((name) => (
+                        <IconButton key={name} onClick={() => void setPlaceIcon(placeIconFor, name)} title={name} type="button">
+                            {PanelIcons[name](16)}
+                        </IconButton>
+                    ))}
+                    <IconButton onClick={() => void setPlaceIcon(placeIconFor, null)} title="Default" type="button">
+                        <CrossIcon size={12}/>
+                    </IconButton>
+                    <Ghost
+                        onClick={async () => {
+                            const file = await pickIconFile();
+                            if (file) await setPlaceIcon(placeIconFor, `file:${file}`);
+                        }}
+                        title="Choose an image"
+                        type="button"
+                    >
+                        <PlusIcon size={13}/>
+                        Image
+                    </Ghost>
+                </Picker>
+            )}
+
             {editing && iconFor && (
                 <Picker>
                     {Object.keys(PanelIcons).map((name) => (
@@ -764,6 +861,19 @@ function FolderBody({path, mode, onOpen}: { path: string; mode: ViewMode; onOpen
 
         setListing(null);
         listDirectory(path).then(setListing, () => setListing(null));
+    }, [path]);
+
+    // The folder is one of the ones the overview watches, so it keeps itself current.
+    useEffect(() => {
+        if (!Native.available) return;
+
+        return Native.on((evt) => {
+            const event = evt as { type?: string; data?: { path?: string } };
+            if (event.type !== "fs.changed" || typeof event.data?.path !== "string") return;
+            if (event.data.path.replace(/[\\\\/]+$/, "").toLowerCase() !== path.replace(/[\\\\/]+$/, "").toLowerCase()) return;
+
+            void listDirectory(path).then(setListing, () => undefined);
+        });
     }, [path]);
 
     if (!listing)
