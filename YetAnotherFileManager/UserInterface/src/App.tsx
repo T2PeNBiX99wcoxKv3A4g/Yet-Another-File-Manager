@@ -145,6 +145,7 @@ export default function App() {
     const [filter, setFilter] = useState("");
     const [recent, setRecent] = useState<RecentEntry[]>([]);
     const [recentLimit, setRecentLimit] = useState(10);
+    const [placeNames, setPlaceNames] = useState<Record<string, string>>({});
     const [shortcuts, setShortcuts] = useState<ShortcutMap>(DefaultShortcuts);
     const [settingsVersion, setSettingsVersion] = useState(0);
 
@@ -282,6 +283,7 @@ export default function App() {
     const reloadSettings = useCallback(() => {
         void getSettings().then((settings) => {
             setRecentLimit(settings.recentLimit);
+            setPlaceNames(settings.placeNames ?? {});
 
             const keys = {...DefaultShortcuts, ...settings.shortcuts};
             setShortcuts(keys);
@@ -486,6 +488,7 @@ export default function App() {
                             label={kind === "files" ? undefined : viewTitles[kind]}
                             onNavigate={navigate}
                             path={kind === "files" ? folderOf(active) : location}
+                            placeNames={placeNames}
                             places={places}
                         />
 

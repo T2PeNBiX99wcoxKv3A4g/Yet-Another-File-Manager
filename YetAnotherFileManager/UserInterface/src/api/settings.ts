@@ -22,6 +22,8 @@ export interface AppSettings {
     shortcuts: Record<string, string> | null;
     /** Icon per quick-access folder, by path: a built-in name or "file:<path>". */
     placeIcons: Record<string, string> | null;
+    /** Custom names for folders shown in Quick access, by path. */
+    placeNames: Record<string, string> | null;
     /** Titles the user gave to overview panels, by panel id. */
     overviewTitles: Record<string, string> | null;
     /** "list" or "grid" per overview panel, by panel id. */
@@ -49,6 +51,7 @@ const fallback: AppSettings = {
     overviewColumns: 1,
     shortcuts: null,
     placeIcons: null,
+    placeNames: null,
     overviewTitles: null,
     overviewViews: null,
     overviewIcons: null,
@@ -76,6 +79,7 @@ export async function getSettings(): Promise<AppSettings> {
         overviewColumns: raw?.overviewColumns ?? 1,
         shortcuts: raw?.shortcuts ?? null,
         placeIcons: raw?.placeIcons ?? null,
+        placeNames: raw?.placeNames ?? null,
         overviewTitles: raw?.overviewTitles ?? null,
         overviewViews: raw?.overviewViews ?? null,
         overviewIcons: raw?.overviewIcons ?? null,
@@ -104,6 +108,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         overviewColumns: saved?.overviewColumns ?? settings.overviewColumns,
         shortcuts: saved?.shortcuts ?? settings.shortcuts,
         placeIcons: saved?.placeIcons ?? settings.placeIcons,
+        placeNames: saved?.placeNames ?? settings.placeNames,
         overviewTitles: saved?.overviewTitles ?? settings.overviewTitles,
         overviewViews: saved?.overviewViews ?? settings.overviewViews,
         overviewIcons: saved?.overviewIcons ?? settings.overviewIcons,

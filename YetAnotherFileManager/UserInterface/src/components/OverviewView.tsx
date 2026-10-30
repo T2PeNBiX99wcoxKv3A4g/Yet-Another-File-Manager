@@ -518,7 +518,7 @@ const RemovePlaceButton = styled.button<{ $inline?: boolean }>`
 `;
 
 /** The rename action sits right after the drive name, not at the far end of the row. */
-const DriveRenameButton = styled.button`
+const RenameButton = styled.button`
     display: inline-grid;
     place-items: center;
     width: 16px;
@@ -541,7 +541,7 @@ const DriveRenameButton = styled.button`
 `;
 
 /** The name turns into a text box with cancel and apply, the way the path bar does. */
-const DriveEditorBox = styled.span`
+const InlineEditorBox = styled.span`
     display: inline-flex;
     align-items: center;
     gap: 2px;
@@ -617,6 +617,7 @@ export function OverviewView({
     const [iconEditor, setIconEditor] = useState<{ kind: "panel" | "place"; id: string } | null>(null);
     const [addOpen, setAddOpen] = useState(false);
     const [driveRename, setDriveRename] = useState<{ drive: Drive; label: string } | null>(null);
+    const [placeRename, setPlaceRename] = useState<{ path: string; name: string } | null>(null);
     const [driveNotice, setDriveNotice] = useState<string | null>(null);
 
     useEffect(() => {
@@ -666,6 +667,19 @@ export function OverviewView({
 
         setIconEditor(null);
         await save({placeIcons: icons});
+        onPlacesChanged(await listPlaces());
+    };
+
+    /** Renames a folder in any Quick access panel; the name is stored by path for the path bar too. */
+    const renamePlaceName = async (path: string, name: string) => {
+        const names = {...settings?.placeNames};
+        const trimmed = name.trim();
+
+        if (trimmed.length > 0) names[path] = trimmed;
+        else delete names[path];
+
+        setPlaceRename(null);
+        await save({placeNames: names});
         onPlacesChanged(await listPlaces());
     };
 
@@ -833,7 +847,7 @@ export function OverviewView({
             const known = places.find((place) => samePath(place.path, path));
 
             return {
-                name: known?.name ?? (baseName(path) || path),
+                name: settings?.placeNames?.[path] ?? known?.name ?? (baseName(path) || path),
                 path,
                 kind: "folder",
                 icon: known?.icon ?? settings?.placeIcons?.[path] ?? null,
@@ -881,7 +895,8 @@ export function OverviewView({
                                 <strong>
                                     {driveRename?.drive.name === drive.name ? (
                                         <>
-                                            <DriveEditor
+                                            <InlineEditor
+                                                maxLength={32}
                                                 onCancel={() => setDriveRename(null)}
                                                 onChange={(label) => setDriveRename({...driveRename, label})}
                                                 onCommit={() => void applyDriveRename()}
@@ -892,7 +907,7 @@ export function OverviewView({
                                     ) : (
                                         <>
                                             {driveName(drive)}
-                                            <DriveRenameButton
+                                            <RenameButton
                                                 onClick={(event) => {
                                                     event.stopPropagation();
                                                     startDriveRename(drive);
@@ -901,7 +916,7 @@ export function OverviewView({
                                                 type="button"
                                             >
                                                 <PencilIcon size={11}/>
-                                            </DriveRenameButton>
+                                            </RenameButton>
                                         </>
                                     )}
                                 </strong>
@@ -965,7 +980,33 @@ export function OverviewView({
                                         )}
                                     </IconAnchor>
                                     <CardText>
-                                        <strong>{place.name}</strong>
+                                        {placeRename?.path === place.path ? (
+                                            <strong>
+                                                <InlineEditor
+                                                    onCancel={() => setPlaceRename(null)}
+                                                    onChange={(name) => setPlaceRename({path: place.path, name})}
+                                                    onCommit={() => void renamePlaceName(place.path, placeRename?.name ?? "")}
+                                                    value={placeRename?.name ?? ""}
+                                                />
+                                            </strong>
+                                        ) : (
+                                            <strong>
+                                                {place.name}
+                                                {editing && (
+                                                    <RenameButton
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            setIconEditor(null);
+                                                            setPlaceRename({path: place.path, name: place.name});
+                                                        }}
+                                                        title="Rename folder"
+                                                        type="button"
+                                                    >
+                                                        <PencilIcon size={11}/>
+                                                    </RenameButton>
+                                                )}
+                                            </strong>
+                                        )}
                                         <Meta>{place.path}</Meta>
                                     </CardText>
                                 </Card>
@@ -1015,7 +1056,33 @@ export function OverviewView({
                                         )}
                                     </IconAnchor>
                                     <RowText>
-                                        <strong>{place.name}</strong>
+                                        {placeRename?.path === place.path ? (
+                                            <strong>
+                                                <InlineEditor
+                                                    onCancel={() => setPlaceRename(null)}
+                                                    onChange={(name) => setPlaceRename({path: place.path, name})}
+                                                    onCommit={() => void renamePlaceName(place.path, placeRename?.name ?? "")}
+                                                    value={placeRename?.name ?? ""}
+                                                />
+                                            </strong>
+                                        ) : (
+                                            <strong>
+                                                {place.name}
+                                                {editing && (
+                                                    <RenameButton
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            setIconEditor(null);
+                                                            setPlaceRename({path: place.path, name: place.name});
+                                                        }}
+                                                        title="Rename folder"
+                                                        type="button"
+                                                    >
+                                                        <PencilIcon size={11}/>
+                                                    </RenameButton>
+                                                )}
+                                            </strong>
+                                        )}
                                         <Meta>{place.path}</Meta>
                                     </RowText>
                                     {editing && (
@@ -1082,7 +1149,8 @@ export function OverviewView({
                                     <DriveIcon size={18}/>
                                     <RowText>
                                         <strong>
-                                            <DriveEditor
+                                            <InlineEditor
+                                                maxLength={32}
                                                 onCancel={() => setDriveRename(null)}
                                                 onChange={(label) => setDriveRename({...driveRename, label})}
                                                 onCommit={() => void applyDriveRename()}
@@ -1105,7 +1173,7 @@ export function OverviewView({
                                     <RowText>
                                         <strong>
                                             {driveName(drive)}
-                                            <DriveRenameButton
+                                            <RenameButton
                                                 onClick={(event) => {
                                                     event.stopPropagation();
                                                     startDriveRename(drive);
@@ -1114,7 +1182,7 @@ export function OverviewView({
                                                 type="button"
                                             >
                                                 <PencilIcon size={11}/>
-                                            </DriveRenameButton>
+                                            </RenameButton>
                                         </strong>
                                         <Meta>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</Meta>
                                     </RowText>
@@ -1185,6 +1253,7 @@ export function OverviewView({
                         setEditing((current) => !current);
                         setAddOpen(false);
                         setIconEditor(null);
+                        setPlaceRename(null);
                     }}
                     title={editing ? "Done" : "Edit"}
                     type="button"
@@ -1316,18 +1385,19 @@ export function OverviewView({
     );
 }
 
-/** The name turns into a text box with cancel and apply, like the path bar's editor. */
-function DriveEditor({value, onChange, onCommit, onCancel}: {
+/** A name turns into a text box with cancel and apply, the way the path bar does. */
+function InlineEditor({value, onChange, onCommit, onCancel, maxLength = 120}: {
     value: string;
     onChange: (value: string) => void;
     onCommit: () => void;
     onCancel: () => void;
+    maxLength?: number;
 }) {
     return (
-        <DriveEditorBox onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
+        <InlineEditorBox onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
             <input
                 autoFocus
-                maxLength={32}
+                maxLength={maxLength}
                 onChange={(event) => onChange(event.target.value)}
                 onFocus={(event) => event.currentTarget.select()}
                 onKeyDown={(event) => {
@@ -1344,7 +1414,7 @@ function DriveEditor({value, onChange, onCommit, onCancel}: {
             <EditorButton $apply onClick={onCommit} title="Rename volume" type="button">
                 <CheckIcon size={12}/>
             </EditorButton>
-        </DriveEditorBox>
+        </InlineEditorBox>
     );
 }
 
@@ -1443,4 +1513,6 @@ function FolderBody({path, mode, onOpen}: { path: string; mode: ViewMode; onOpen
         </Scroller>
     );
 }
+
+
 

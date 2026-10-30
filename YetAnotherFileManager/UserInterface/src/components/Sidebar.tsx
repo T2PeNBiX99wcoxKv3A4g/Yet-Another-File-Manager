@@ -61,7 +61,7 @@ export function Sidebar({
             const known = places.find((place) => isSamePath(place.path, path));
 
             return {
-                name: known?.name ?? (baseName(path) || path),
+                name: settings?.placeNames?.[path] ?? known?.name ?? (baseName(path) || path),
                 path,
                 kind: "folder",
                 icon: known?.icon ?? settings?.placeIcons?.[path] ?? null,
