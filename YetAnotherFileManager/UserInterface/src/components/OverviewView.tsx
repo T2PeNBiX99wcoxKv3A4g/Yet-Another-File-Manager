@@ -925,7 +925,7 @@ function FolderBody({path, mode, onOpen}: { path: string; mode: ViewMode; onOpen
             if (event.type !== "fs.changed" || typeof event.data?.path !== "string") return;
             if (event.data.path.replace(/[\\\\/]+$/, "").toLowerCase() !== path.replace(/[\\\\/]+$/, "").toLowerCase()) return;
 
-            void listDirectory(path, false).then(setListing, () => undefined);
+            void listDirectory(path).then(setListing, () => undefined);
         });
     }, [path]);
 
