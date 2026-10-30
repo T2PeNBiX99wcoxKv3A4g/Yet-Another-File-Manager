@@ -24,6 +24,13 @@ import {TitleBar} from "./components/TitleBar";
 import {viewTitles, type TabKind} from "./tabs";
 import {Native, ResizeHandles, useWindowCorners} from "@photino-net-utils/bridge";
 import {baseName, formatBytes} from "./utils/format";
+import {
+    comboOf,
+    DefaultShortcuts,
+    isTyping,
+    setClickModifier,
+    type ShortcutMap,
+} from "./shortcuts";
 
 type ViewKind = Exclude<TabKind, "files">;
 
@@ -138,6 +145,7 @@ export default function App() {
     const [filter, setFilter] = useState("");
     const [recent, setRecent] = useState<RecentEntry[]>([]);
     const [recentLimit, setRecentLimit] = useState(10);
+    const [shortcuts, setShortcuts] = useState<ShortcutMap>(DefaultShortcuts);
 
     const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
     const kind = kindOf(active);
@@ -243,16 +251,41 @@ export default function App() {
             setActiveId(remaining[Math.min(index, remaining.length - 1)].id);
     }, []);
 
-    const navigate = useCallback((target?: string) => {
+    const navigate = useCallback((target?: string, newTab = false) => {
+        if (newTab) {
+            openFiles(target);
+            return;
+        }
+
         openLocation(stateRef.current.activeId, target ?? viewLocation("home"));
-    }, [openLocation]);
+    }, [openLocation, openFiles]);
+
+    /** Moves a tab next to another one, which is what dragging a tab does. */
+    const moveTab = useCallback((id: string, beforeId: string) => {
+        setTabs((current) => {
+            const from = current.findIndex((tab) => tab.id === id);
+            const to = current.findIndex((tab) => tab.id === beforeId);
+            if (from < 0 || to < 0 || from === to) return current;
+
+            const next = [...current];
+            const [moved] = next.splice(from, 1);
+            next.splice(to, 0, moved);
+            return next;
+        });
+    }, []);
 
     const reloadPlaces = useCallback(() => {
         void listPlaces().then(setPlaces, () => setPlaces([]));
     }, []);
 
     const reloadSettings = useCallback(() => {
-        void getSettings().then((settings) => setRecentLimit(settings.recentLimit), () => setRecentLimit(10));
+        void getSettings().then((settings) => {
+            setRecentLimit(settings.recentLimit);
+
+            const keys = {...DefaultShortcuts, ...settings.shortcuts};
+            setShortcuts(keys);
+            setClickModifier(keys.openInNewTab);
+        }, () => setRecentLimit(10));
     }, []);
 
     const reloadRecent = useCallback(() => {
@@ -331,6 +364,26 @@ export default function App() {
         });
     }, []);
 
+    // Global shortcuts; a field that has the focus keeps the keys to itself.
+    useEffect(() => {
+        const onKey = (event: KeyboardEvent) => {
+            if (isTyping(event.target)) return;
+
+            const combo = comboOf(event);
+
+            if (combo === shortcuts.closeTab) {
+                event.preventDefault();
+                closeTab(stateRef.current.activeId);
+            } else if (combo === shortcuts.newTab) {
+                event.preventDefault();
+                openFiles();
+            }
+        };
+
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [shortcuts, closeTab, openFiles]);
+
     // Only the folder on screen is watched; the host tells us when something in it changes.
     useEffect(() => {
         if (!Native.available) return;
@@ -373,6 +426,7 @@ export default function App() {
                 activeId={active.id}
                 onClose={closeTab}
                 onNewTab={() => openFiles()}
+                onReorder={moveTab}
                 onSelect={setActiveId}
                 tabs={tabs.map((tab) => {
                     const tabKind = kindOf(tab);

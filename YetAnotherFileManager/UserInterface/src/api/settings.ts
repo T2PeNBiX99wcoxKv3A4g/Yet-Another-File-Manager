@@ -18,6 +18,8 @@ export interface AppSettings {
     overviewHidden: string[] | null;
     /** How many columns the overview lays its panels out in. */
     overviewColumns: number;
+    /** Key combination per action, e.g. {closeTab: "ctrl+w"}. */
+    shortcuts: Record<string, string> | null;
 }
 
 const fallback: AppSettings = {
@@ -31,6 +33,7 @@ const fallback: AppSettings = {
     overviewPanels: null,
     overviewHidden: null,
     overviewColumns: 1,
+    shortcuts: null,
 };
 
 /** The interface settings, persisted by the host. */
@@ -50,6 +53,7 @@ export async function getSettings(): Promise<AppSettings> {
         overviewPanels: raw?.overviewPanels ?? null,
         overviewHidden: raw?.overviewHidden ?? null,
         overviewColumns: raw?.overviewColumns ?? 1,
+        shortcuts: raw?.shortcuts ?? null,
     };
 }
 
@@ -70,6 +74,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         overviewPanels: saved?.overviewPanels ?? settings.overviewPanels,
         overviewHidden: saved?.overviewHidden ?? settings.overviewHidden,
         overviewColumns: saved?.overviewColumns ?? settings.overviewColumns,
+        shortcuts: saved?.shortcuts ?? settings.shortcuts,
     };
 }
 

@@ -1,4 +1,5 @@
 import styled from "styled-components";
+import {wantsNewTab} from "../shortcuts";
 import type {DirectoryListing, FileEntry} from "../api/files";
 import {useIcon, useIconFile} from "../api/icons";
 import {formatBytes, formatDate} from "../utils/format";
@@ -10,7 +11,7 @@ interface FileListProps {
     loading: boolean;
     error: string | null;
     filter: string;
-    onOpen: (path: string) => void;
+    onOpen: (path: string, newTab?: boolean) => void;
 }
 
 export function FileList({listing, loading, error, filter, onOpen}: FileListProps) {
@@ -41,7 +42,8 @@ export function FileList({listing, loading, error, filter, onOpen}: FileListProp
                     <Row
                         key={entry.fullPath}
                         $hidden={entry.isHidden}
-                        onDoubleClick={() => entry.isDirectory && onOpen(entry.fullPath)}
+                        onClick={(event) => entry.isDirectory && wantsNewTab(event) && onOpen(entry.fullPath, true)}
+                        onDoubleClick={(event) => entry.isDirectory && onOpen(entry.fullPath, wantsNewTab(event))}
                     >
                         <Name>
                             <EntryIcon entry={entry}/>

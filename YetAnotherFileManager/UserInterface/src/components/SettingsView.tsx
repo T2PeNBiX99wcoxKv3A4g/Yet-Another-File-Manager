@@ -13,6 +13,7 @@ import {
 import type {AppInfo} from "../api/system";
 import {getMemory, getScheme, setScheme, trimMemory, type MemoryUsage} from "../api/system";
 import {CheckIcon, CrossIcon, FolderIcon, PlusIcon} from "./Icons";
+import {comboOf, DefaultShortcuts, prettyShortcut, type ShortcutMap} from "../shortcuts";
 import {BuiltinIcon, builtinIcons} from "../icons/fileTypes";
 import {baseName, formatBytes, usageTone} from "../utils/format";
 
@@ -20,6 +21,13 @@ interface SettingsViewProps {
     appInfo: AppInfo | null;
     onSettingsChanged: () => void;
 }
+
+/** The actions the interface can bind; the ids are what settings.json stores. */
+const ShortcutRows: { id: keyof ShortcutMap; label: string; note: string }[] = [
+    {id: "closeTab", label: "Close tab", note: "Closes the tab that is open."},
+    {id: "newTab", label: "New tab", note: "Opens the overview in a new tab."},
+    {id: "openInNewTab", label: "Open in a new tab", note: "Hold this while clicking a folder."},
+];
 
 export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
     const [visibility, setVisibility] = useState<FileVisibility | null>(null);
@@ -30,6 +38,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
     const [busy, setBusy] = useState(false);
     const [memory, setMemory] = useState<MemoryUsage | null>(null);
     const [scheme, setSchemeState] = useState(false);
+    const [capturing, setCapturing] = useState<string | null>(null);
 
     useEffect(() => {
         void getVisibility().then(setVisibility, () => setVisibility(null));
@@ -67,6 +76,32 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
 
         await update({extensionIcons: icons});
     };
+
+    const keys = {...DefaultShortcuts, ...settings?.shortcuts};
+
+    // While a shortcut is being recorded, the next key press becomes the new combination.
+    useEffect(() => {
+        if (!capturing) return;
+
+        const record = (event: KeyboardEvent) => {
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (event.key === "Escape") {
+                setCapturing(null);
+                return;
+            }
+
+            const combo = comboOf(event);
+            if (!combo) return;
+
+            setCapturing(null);
+            void update({shortcuts: {...keys, [capturing]: combo}}).then(onSettingsChanged);
+        };
+
+        window.addEventListener("keydown", record, true);
+        return () => window.removeEventListener("keydown", record, true);
+    }, [capturing, settings]);
 
     /** Recent items are a display preference, so the host is told whenever the number changes. */
     const setRecentLimit = async (limit: number) => {
@@ -157,6 +192,43 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                             >
                                 <Knob/>
                             </Toggle>
+                        </RowEnd>
+                    </Row>
+                </Rows>
+            </Section>
+
+            <Section>
+                <Title>Shortcuts</Title>
+                <Rows>
+                    {ShortcutRows.map(({id, label, note}) => (
+                        <Row key={id}>
+                            <RowText>
+                                <Label>{label}</Label>
+                                <Note>{note}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <KeyButton
+                                    $listening={capturing === id}
+                                    onClick={() => setCapturing(id)}
+                                    type="button"
+                                >
+                                    {capturing === id ? "Press a key…" : prettyShortcut(keys[id])}
+                                </KeyButton>
+                            </RowEnd>
+                        </Row>
+                    ))}
+                    <Row>
+                        <RowText>
+                            <Label>Reset</Label>
+                            <Note>Back to the default combination for every action.</Note>
+                        </RowText>
+                        <RowEnd>
+                            <ActionButton
+                                onClick={() => void update({shortcuts: {...DefaultShortcuts}}).then(onSettingsChanged)}
+                                type="button"
+                            >
+                                Reset
+                            </ActionButton>
                         </RowEnd>
                     </Row>
                 </Rows>
@@ -654,6 +726,23 @@ const Select = styled.select`
     font-family: var(--font-mono);
     font-size: 11px;
     outline: 0;
+`;
+
+const KeyButton = styled.button<{ $listening: boolean }>`
+    min-width: 92px;
+    padding: 4px 10px;
+    border: 1px solid ${({$listening}) => $listening ? "var(--border-color-focus)" : "var(--border-color)"};
+    border-radius: var(--radius-sm);
+    background: ${({$listening}) => $listening ? "rgba(59, 130, 246, 0.16)" : "var(--bg-input)"};
+    color: ${({$listening}) => $listening ? "var(--text-primary)" : "var(--text-secondary)"};
+    font-family: var(--font-mono);
+    font-size: 11px;
+    cursor: pointer;
+
+    &:hover {
+        border-color: var(--border-color-hover);
+        color: var(--text-primary);
+    }
 `;
 
 const ActionButton = styled.button`

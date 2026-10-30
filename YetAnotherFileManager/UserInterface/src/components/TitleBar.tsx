@@ -17,12 +17,14 @@ interface TitleBarProps {
     onSelect: (id: string) => void;
     onClose: (id: string) => void;
     onNewTab: () => void;
+    onReorder: (id: string, beforeId: string) => void;
 }
 
-export function TitleBar({tabs, activeId, onSelect, onClose, onNewTab}: TitleBarProps) {
+export function TitleBar({tabs, activeId, onSelect, onClose, onNewTab, onReorder}: TitleBarProps) {
     const controls = useWindowControls();
     const drag = useWindowDrag();
     const [overflow, setOverflow] = useState({left: false, right: false});
+    const [dragging, setDragging] = useState<string | null>(null);
     const scroller = useRef<HTMLDivElement | null>(null);
     const activeTab = useRef<HTMLButtonElement | null>(null);
 
@@ -78,6 +80,18 @@ export function TitleBar({tabs, activeId, onSelect, onClose, onNewTab}: TitleBar
                         <Tab
                             key={tab.id}
                             $active={tab.id === activeId}
+                            $dragging={dragging === tab.id}
+                            draggable
+                            onDragEnd={() => setDragging(null)}
+                            onDragOver={(event) => {
+                                if (dragging) event.preventDefault();
+                            }}
+                            onDragStart={() => setDragging(tab.id)}
+                            onDrop={(event) => {
+                                event.preventDefault();
+                                if (dragging) onReorder(dragging, tab.id);
+                                setDragging(null);
+                            }}
                             onClick={() => onSelect(tab.id)}
                             ref={tab.id === activeId ? activeTab : undefined}
                             title={tab.path || tab.title}
@@ -221,7 +235,7 @@ const ScrollButton = styled.button`
     }
 `;
 
-const Tab = styled.button<{ $active: boolean }>`
+const Tab = styled.button<{ $active: boolean; $dragging: boolean }>`
     display: flex;
     align-items: center;
     gap: 7px;
@@ -237,7 +251,8 @@ const Tab = styled.button<{ $active: boolean }>`
     font: inherit;
     font-size: 11px;
     cursor: pointer;
-    transition: background 110ms ease, color 110ms ease;
+    opacity: ${({$dragging}) => $dragging ? 0.45 : 1};
+    transition: background 110ms ease, color 110ms ease, opacity 110ms ease;
 
     svg {
         flex-shrink: 0;

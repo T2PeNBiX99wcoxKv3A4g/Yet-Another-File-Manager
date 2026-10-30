@@ -1,4 +1,5 @@
 import styled from "styled-components";
+import {wantsNewTab} from "../shortcuts";
 import type {Drive, Place, RecentEntry} from "../api/files";
 import type {TabKind} from "../tabs";
 import {
@@ -20,7 +21,7 @@ interface SidebarProps {
     recentLimit: number;
     currentPath: string;
     activeKind: TabKind;
-    onNavigate: (path: string) => void;
+    onNavigate: (path: string, newTab?: boolean) => void;
     onOpenView: (kind: Exclude<TabKind, "files">) => void;
 }
 
@@ -85,7 +86,7 @@ export function Sidebar({
                                 <Item
                                     key={place.path}
                                     $active={showFiles && isSamePath(currentPath, place.path)}
-                                    onClick={() => onNavigate(place.path)}
+                                    onClick={(event) => onNavigate(place.path, wantsNewTab(event))}
                                     title={place.path}
                                     type="button"
                                 >
@@ -109,7 +110,7 @@ export function Sidebar({
                                     <Item
                                         key={entry.path}
                                         $active={showFiles && isSamePath(currentPath, entry.path)}
-                                        onClick={() => onNavigate(entry.path)}
+                                        onClick={(event) => onNavigate(entry.path, wantsNewTab(event))}
                                         title={entry.path}
                                         type="button"
                                     >
@@ -136,7 +137,7 @@ export function Sidebar({
                                     <Item
                                         key={drive.name}
                                         $active={showFiles && isSamePath(currentPath, drive.name)}
-                                        onClick={() => onNavigate(drive.name)}
+                                        onClick={(event) => onNavigate(drive.name, wantsNewTab(event))}
                                         title={`${drive.label || drive.name} · ${formatBytes(drive.freeSpace)} free of ${formatBytes(drive.totalSize)}`}
                                         type="button"
                                     >

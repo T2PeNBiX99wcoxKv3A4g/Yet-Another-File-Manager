@@ -1,5 +1,6 @@
 import {useEffect, useState} from "react";
 import styled from "styled-components";
+import {wantsNewTab} from "../shortcuts";
 import {
     clearRecent,
     listDirectory,
@@ -21,7 +22,7 @@ interface OverviewViewProps {
     recent: RecentEntry[];
     recentLimit: number;
     homePath: string;
-    onOpen: (path: string) => void;
+    onOpen: (path: string, newTab?: boolean) => void;
     onPlacesChanged: (places: Place[]) => void;
     onRecentCleared: () => void;
 }
@@ -127,7 +128,7 @@ export function OverviewView({
                                 <Card
                                     key={place.path}
                                     $editing={editing}
-                                    onClick={() => !editing && onOpen(place.path)}
+                                    onClick={(event) => !editing && onOpen(place.path, wantsNewTab(event))}
                                     title={place.path}
                                 >
                                     {editing && (
@@ -199,7 +200,7 @@ export function OverviewView({
                             {recent.slice(0, recentLimit).map((entry) => (
                                 <RecentRow
                                     key={entry.path}
-                                    onClick={() => onOpen(entry.path)}
+                                    onClick={(event) => onOpen(entry.path, wantsNewTab(event))}
                                     title={entry.path}
                                     type="button"
                                 >
@@ -232,7 +233,11 @@ export function OverviewView({
                             const used = drive.totalSize > 0 ? 1 - drive.freeSpace / drive.totalSize : 0;
 
                             return (
-                                <DriveRow key={drive.name} onClick={() => onOpen(drive.name)} type="button">
+                                <DriveRow
+                                    key={drive.name}
+                                    onClick={(event) => onOpen(drive.name, wantsNewTab(event))}
+                                    type="button"
+                                >
                                     <DriveIcon size={20}/>
                                     <DriveText>
                                         <strong>{drive.label || drive.name}</strong>
