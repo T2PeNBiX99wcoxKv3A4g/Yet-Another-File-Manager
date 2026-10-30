@@ -40,104 +40,130 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
     public FileSystemService() => NativeBridge.MessageReceived += HandleMessageAsync;
 
-    private static Task<NativeResponse?> HandleMessageAsync(NativeContext context) =>
-        context.Request.Type switch
+    private static async Task<NativeResponse?> HandleMessageAsync(NativeContext context)
+    {
+        switch (context.Request.Type)
         {
-            "fs.places" => Task.FromResult<NativeResponse?>(context.Reply("fs.places.result",
-                new FsPlacesPayload(GetPlaces()))),
+            case "fs.places":
+                return context.Reply("fs.places.result", new FsPlacesPayload(await GetPlacesAsync()));
 
-            "fs.drives" => Task.FromResult<NativeResponse?>(context.Reply("fs.drives.result",
-                new FsDrivesPayload(GetDrives()))),
+            case "fs.drives":
+                return context.Reply("fs.drives.result", new FsDrivesPayload(await GetDrivesAsync()));
 
-            "fs.recycle" => Task.FromResult<NativeResponse?>(context.Reply("fs.recycle.result",
-                new FsRecyclePayload(RecycleBin.List(context.Payload<RecycleListRequest>()?.IncludeOrphans ?? false)))),
+            case "fs.recycle":
+                return context.Reply("fs.recycle.result", new FsRecyclePayload(
+                    await RecycleBin.ListAsync(context.Payload<RecycleListRequest>()?.IncludeOrphans ?? false)));
 
-            "fs.visibility" => Task.FromResult<NativeResponse?>(context.Reply("fs.visibility.result",
-                new FsVisibilityPayload(FileVisibility.ShowHidden, FileVisibility.ShowSystem))),
+            case "fs.visibility":
+            {
+                var visibility = await Task.Run(() => new FsVisibilityPayload(FileVisibility.ShowHidden,
+                    FileVisibility.ShowSystem));
+                return context.Reply("fs.visibility.result", visibility);
+            }
 
-            "fs.gallery" => Task.FromResult<NativeResponse?>(context.Reply("fs.gallery.result",
-                GalleryPage(context.Payload<GalleryRequest>()))),
+            case "fs.gallery":
+                return context.Reply("fs.gallery.result", await GalleryPageAsync(context.Payload<GalleryRequest>()));
 
-            "fs.thumbnail" => Task.FromResult<NativeResponse?>(context.Reply("fs.thumbnail.result",
-                new IconPayload(Thumbnail(context.Payload<ThumbnailRequest>())))),
+            case "fs.thumbnail":
+                return context.Reply("fs.thumbnail.result",
+                    new IconPayload(await ThumbnailAsync(context.Payload<ThumbnailRequest>())));
 
-            "fs.recent" => Task.FromResult<NativeResponse?>(context.Reply("fs.recent.result",
-                new FsRecentPayload(HistoryService.Instance.Recent(SettingsService.Instance.Current.RecentCount)))),
+            case "fs.recent":
+                return context.Reply("fs.recent.result", new FsRecentPayload(
+                    await HistoryService.Instance.RecentAsync(SettingsService.Instance.Current.RecentCount)));
 
-            "fs.frequent" => Task.FromResult<NativeResponse?>(context.Reply("fs.frequent.result",
-                new FsFrequentPayload(HistoryService.Instance.Frequent()))),
+            case "fs.frequent":
+                return context.Reply("fs.frequent.result",
+                    new FsFrequentPayload(await HistoryService.Instance.FrequentAsync()));
 
-            "fs.frequent.record" => Task.FromResult<NativeResponse?>(context.Reply("fs.frequent.record.result",
-                new OkPayload(RecordVisit(context.Payload<PathPayload>()?.Path)))),
+            case "fs.frequent.record":
+                await HistoryService.Instance.RecordFrequentAsync(context.Payload<PathPayload>()?.Path ?? "");
+                return context.Reply("fs.frequent.record.result", new OkPayload(true));
 
-            "fs.recent.clear" => Task.FromResult<NativeResponse?>(context.Reply("fs.recent.clear.result",
-                new OkPayload(ClearRecent()))),
+            case "fs.recent.clear":
+                await HistoryService.Instance.ClearRecentAsync();
+                return context.Reply("fs.recent.clear.result", new OkPayload(true));
 
-            "app.places.set" => Task.FromResult<NativeResponse?>(context.Reply("app.places.set.result",
-                new FsPlacesPayload(SetPlaces(context.Payload<PlacesRequest>()?.Paths)))),
+            case "app.places.set":
+                return context.Reply("app.places.set.result",
+                    new FsPlacesPayload(await SetPlacesAsync(context.Payload<PlacesRequest>()?.Paths)));
 
-            "app.places.rename" => Task.FromResult<NativeResponse?>(context.Reply("app.places.set.result",
-                new FsPlacesPayload(RenamePlace(context.Payload<PlaceRenameRequest>())))),
+            case "app.places.rename":
+                return context.Reply("app.places.set.result",
+                    new FsPlacesPayload(await RenamePlaceAsync(context.Payload<PlaceRenameRequest>())));
 
-            "fs.watch" => Task.FromResult<NativeResponse?>(context.Reply("fs.watch.result",
-                new OkPayload(Watch(context.Payload<FsWatchRequest>()?.Paths ?? [])))),
+            case "fs.watch":
+                return context.Reply("fs.watch.result",
+                    new OkPayload(Watch(context.Payload<FsWatchRequest>()?.Paths ?? [])));
 
-            "fs.drive.rename" => Task.FromResult<NativeResponse?>(context.Reply("fs.drive.rename.result",
-                RenameDrive(context.Payload<DriveRenameRequest>()))),
+            case "fs.drive.rename":
+                return context.Reply("fs.drive.rename.result", await RenameDriveAsync(context.Payload<DriveRenameRequest>()));
 
-            "fs.open" => Task.FromResult<NativeResponse?>(context.Reply("fs.open.result",
-                new OkPayload(OpenFile(context.Payload<FsListRequest>()?.Path)))),
+            case "fs.open":
+                return context.Reply("fs.open.result",
+                    new OkPayload(await OpenFileAsync(context.Payload<FsListRequest>()?.Path)));
 
-            "fs.icon" => Task.FromResult<NativeResponse?>(context.Reply("fs.icon.result",
-                new IconPayload(Icon(context.Payload<IconRequest>())))),
+            case "fs.icon":
+                return context.Reply("fs.icon.result", new IconPayload(await IconAsync(context.Payload<IconRequest>())));
 
-            "fs.iconFile" => Task.FromResult<NativeResponse?>(context.Reply("fs.iconFile.result",
-                new IconPayload(IconFile(context.Payload<PathPayload>()?.Path)))),
+            case "fs.iconFile":
+                return context.Reply("fs.iconFile.result",
+                    new IconPayload(await IconFileAsync(context.Payload<PathPayload>()?.Path)));
 
-            "fs.icon.set" => Task.FromResult<NativeResponse?>(context.Reply("fs.icon.set.result",
-                new OkPayload(SetIconOverride(context.Payload<IconOverrideRequest>())))),
+            case "fs.icon.set":
+                return context.Reply("fs.icon.set.result",
+                    new OkPayload(await SetIconOverrideAsync(context.Payload<IconOverrideRequest>())));
 
-            "fs.recycle.restore" => Task.FromResult<NativeResponse?>(context.Reply("fs.recycle.restore.result",
-                new OkPayload(RestoreRecycleEntry(context.Payload<RecycleRequest>()?.Id ?? "")))),
+            case "fs.recycle.restore":
+                return context.Reply("fs.recycle.restore.result",
+                    new OkPayload(await RecycleBin.RestoreAsync(context.Payload<RecycleRequest>()?.Id ?? "")));
 
-            "fs.recycle.empty" => Task.FromResult<NativeResponse?>(context.Reply("fs.recycle.empty.result",
-                new OkPayload(EmptyRecycleBin(context.Payload<RecycleListRequest>()?.IncludeOrphans ?? false)))),
+            case "fs.recycle.empty":
+                await RecycleBin.EmptyAsync(context.Payload<RecycleListRequest>()?.IncludeOrphans ?? false);
+                return context.Reply("fs.recycle.empty.result", new OkPayload(true));
 
-            "fs.recycle.delete" => Task.FromResult<NativeResponse?>(context.Reply("fs.recycle.delete.result",
-                new OkPayload(DeleteRecycleEntry(context.Payload<RecycleRequest>()?.Id ?? "")))),
+            case "fs.recycle.delete":
+                return context.Reply("fs.recycle.delete.result",
+                    new OkPayload(await RecycleBin.DeleteAsync(context.Payload<RecycleRequest>()?.Id ?? "")));
 
-            "fs.recycle.admin.list" => ListOrphansAsAdmin(context),
+            case "fs.recycle.admin.list":
+                return await ListOrphansAsAdmin(context);
 
-            "fs.recycle.admin.purge" => PurgeOrphansAsAdmin(context),
+            case "fs.recycle.admin.purge":
+                return await PurgeOrphansAsAdmin(context);
 
-            "app.settings" => Task.FromResult<NativeResponse?>(context.Reply("app.settings.result",
-                SettingsService.Instance.Current)),
+            case "app.settings":
+                return context.Reply("app.settings.result", SettingsService.Instance.Current);
 
-            "app.settings.set" => Task.FromResult<NativeResponse?>(context.Reply("app.settings.result",
-                context.Payload<AppSettings>() is { } settings
-                    ? SettingsService.Instance.Save(settings)
-                    : SettingsService.Instance.Current)),
+            case "app.settings.set":
+                return context.Reply("app.settings.result", context.Payload<AppSettings>() is { } settings
+                    ? await SettingsService.Instance.SaveAsync(settings)
+                    : SettingsService.Instance.Current);
 
-            "app.memory" => Task.FromResult<NativeResponse?>(context.Reply("app.memory.result",
-                AppMemory.Report())),
+            case "app.memory":
+                return context.Reply("app.memory.result", AppMemory.Report());
 
-            "app.memory.trim" => Task.FromResult<NativeResponse?>(context.Reply("app.memory.result",
-                AppMemory.Trim())),
+            case "app.memory.trim":
+                return context.Reply("app.memory.result", await Task.Run(AppMemory.Trim));
 
-            "app.scheme" => Task.FromResult<NativeResponse?>(context.Reply("app.scheme.result",
-                new SchemePayload(UrlScheme.IsRegistered()))),
+            case "app.scheme":
+                return context.Reply("app.scheme.result", new SchemePayload(await Task.Run(UrlScheme.IsRegistered)));
 
-            "app.scheme.set" => Task.FromResult<NativeResponse?>(context.Reply("app.scheme.result",
-                new SchemePayload(SetScheme(context.Payload<SchemeRequest>()?.Enabled ?? false)))),
+            case "app.scheme.set":
+                return context.Reply("app.scheme.result",
+                    new SchemePayload(await SetSchemeAsync(context.Payload<SchemeRequest>()?.Enabled ?? false)));
 
-            "fs.list" => Task.FromResult<NativeResponse?>(context.Reply("fs.list.result",
-                List(context.Payload<FsListRequest>()?.Path, context.Payload<FsListRequest>()?.Sizes ?? true))),
+            case "fs.list":
+                return context.Reply("fs.list.result",
+                    await ListAsync(context.Payload<FsListRequest>()?.Path, context.Payload<FsListRequest>()?.Sizes ?? true));
 
-            _ => Task.FromResult<NativeResponse?>(null)
-        };
+            default:
+                return null;
+        }
+    }
 
     /// <summary>The icon the shell would show, or null when the settings and the shell have none.</summary>
-    private static string? Icon(IconRequest? request)
+    private static async Task<string?> IconAsync(IconRequest? request)
     {
         if (request is not { Path.Length: > 0 } || !OperatingSystem.IsWindows())
             return null;
@@ -146,8 +172,8 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
         // A folder's own icon (desktop.ini) is a system setting of that folder, so it stays visible
         // even when the generic system icons are turned off.
-        if (request.Directory && settings.UseCustomFolderIcons && HasCustomFolderIcon(request.Path)
-            && ShellIcon.DataUrl(request.Path, true, false) is { } custom)
+        if (request.Directory && settings.UseCustomFolderIcons && await HasCustomFolderIconAsync(request.Path)
+            && await Task.Run(() => ShellIcon.DataUrl(request.Path, true, false)) is { } custom)
             return custom;
 
         if (!settings.UseSystemIcons)
@@ -157,11 +183,11 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         // for real; asking by extension would give every .lnk the same picture.
         var perFile = !request.Directory && PerFileIconExtensions.Contains(Path.GetExtension(request.Path));
 
-        return ShellIcon.DataUrl(request.Path, request.Directory, !request.Directory && !perFile);
+        return await Task.Run(() => ShellIcon.DataUrl(request.Path, request.Directory, !request.Directory && !perFile));
     }
 
     /// <summary>An icon file chosen by the user, as a data URL.</summary>
-    private static string? IconFile(string? path)
+    private static async Task<string?> IconFileAsync(string? path)
     {
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
             return null;
@@ -181,12 +207,13 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         if (media is null)
             return null;
 
-        return Try.Run(() => $"data:{media};base64,{Convert.ToBase64String(File.ReadAllBytes(path))}")
-            .GetOrNull();
+        var bytes = (await Try.Run(() => File.ReadAllBytesAsync(path))).GetOrNull();
+
+        return bytes is null ? null : $"data:{media};base64,{Convert.ToBase64String(bytes)}";
     }
 
     /// <summary>Records (or clears) the icon of one entry in its folder's index.</summary>
-    private static bool SetIconOverride(IconOverrideRequest? request)
+    private static async Task<bool> SetIconOverrideAsync(IconOverrideRequest? request)
     {
         if (request is not { Directory.Length: > 0, Name.Length: > 0 })
             return false;
@@ -194,20 +221,20 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         if (!Directory.Exists(request.Directory))
             return false;
 
-        return DirectoryIndex.SetIcon(request.Directory, request.Name, request.Source);
+        return await DirectoryIndex.SetIconAsync(request.Directory, request.Name, request.Source);
     }
 
     /// <summary>One slice of the gallery, scanning the folders only when asked to.</summary>
-    private static FsGalleryPayload GalleryPage(GalleryRequest? request)
+    private static async Task<FsGalleryPayload> GalleryPageAsync(GalleryRequest? request)
     {
-        var (entries, total) = Gallery.Instance.Page(request?.Offset ?? 0, request?.Count ?? 150,
+        var (entries, total) = await Gallery.Instance.PageAsync(request?.Offset ?? 0, request?.Count ?? 150,
             request?.Refresh ?? false);
 
         return new(entries, total);
     }
 
     /// <summary>A shell thumbnail for the gallery, at the requested size.</summary>
-    private static string? Thumbnail(ThumbnailRequest? request)
+    private static async Task<string?> ThumbnailAsync(ThumbnailRequest? request)
     {
         if (request is not { Path.Length: > 0 } || !OperatingSystem.IsWindows())
             return null;
@@ -216,11 +243,11 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
         // A thumbnail means decoding the whole picture inside this process. A screenful of tiles
         // would otherwise decode dozens of photos at once, so only a few run concurrently.
-        ThumbnailGate.Wait();
+        await ThumbnailGate.WaitAsync();
 
         try
         {
-            return ShellThumbnail.DataUrl(request.Path, size);
+            return await Task.Run(() => ShellThumbnail.DataUrl(request.Path, size));
         }
         finally
         {
@@ -229,53 +256,45 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     }
 
     /// <summary>Whether a folder defines its own icon, which Explorer reads from desktop.ini.</summary>
-    private static bool HasCustomFolderIcon(string directory)
+    private static async Task<bool> HasCustomFolderIconAsync(string directory)
     {
         var desktopIni = Path.Combine(directory, "desktop.ini");
 
-        return Try.Run(() =>
+        try
         {
             if (!File.Exists(desktopIni))
                 return false;
 
-            foreach (var line in File.ReadLines(desktopIni))
+            await foreach (var line in File.ReadLinesAsync(desktopIni))
                 if (line.StartsWith("IconResource", StringComparison.OrdinalIgnoreCase)
                     || line.StartsWith("IconFile", StringComparison.OrdinalIgnoreCase))
                     return true;
 
             return false;
-        }).GetOrElse(_ => false);
-    }
-
-    private static bool ClearRecent()
-    {
-        HistoryService.Instance.ClearRecent();
-        return true;
-    }
-
-    /// <summary>Counts one user navigation to a folder for the Frequent panel.</summary>
-    private static bool RecordVisit(string? path)
-    {
-        HistoryService.Instance.RecordFrequent(path ?? "");
-        return true;
+        }
+        catch (Exception ex)
+        {
+            Serilog.Log.Debug(ex, "Could not read {Path}", desktopIni);
+            return false;
+        }
     }
 
     /// <summary>Pins the given folders to Quick access, in order, and answers with the resulting list.</summary>
-    private static List<PlaceEntry> SetPlaces(List<string>? paths)
+    private static async Task<List<PlaceEntry>> SetPlacesAsync(List<string>? paths)
     {
-        SettingsService.Instance.Update(settings => settings with
+        await SettingsService.Instance.UpdateAsync(settings => settings with
         {
             QuickAccess = paths
         });
 
-        return GetPlaces();
+        return await GetPlacesAsync();
     }
 
     /// <summary>Renames one pinned folder; an empty name goes back to the folder's own name.</summary>
-    private static List<PlaceEntry> RenamePlace(PlaceRenameRequest? request)
+    private static async Task<List<PlaceEntry>> RenamePlaceAsync(PlaceRenameRequest? request)
     {
         if (request is not { Path.Length: > 0 })
-            return GetPlaces();
+            return await GetPlacesAsync();
 
         var names = new Dictionary<string, string>(
             SettingsService.Instance.Current.PlaceNameOverrides, StringComparer.OrdinalIgnoreCase);
@@ -285,18 +304,21 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         else
             names[request.Path] = request.Name.Trim();
 
-        SettingsService.Instance.Update(settings => settings with
+        await SettingsService.Instance.UpdateAsync(settings => settings with
         {
             PlaceNames = names
         });
 
-        return GetPlaces();
+        return await GetPlacesAsync();
     }
 
     /// <summary>
     ///     Renames a volume, the way Explorer does. Windows wants administrator rights for a fixed
     ///     volume, so the answer says so instead of only reporting a failure.
     /// </summary>
+    private static Task<DriveRenamePayload> RenameDriveAsync(DriveRenameRequest? request) =>
+        Task.Run(() => RenameDrive(request));
+
     private static DriveRenamePayload RenameDrive(DriveRenameRequest? request)
     {
         if (request is not { Root.Length: > 0 })
@@ -329,25 +351,25 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     ///     Remembers the user's choice and applies it now. The stored flag is what lets the next
     ///     launch put a lost registry entry back.
     /// </summary>
-    private static bool SetScheme(bool enabled)
+    private static async Task<bool> SetSchemeAsync(bool enabled)
     {
-        SettingsService.Instance.Update(settings => settings with
+        await SettingsService.Instance.UpdateAsync(settings => settings with
         {
             LinksEnabled = enabled
         });
 
-        return enabled ? UrlScheme.Register() : UrlScheme.Unregister();
+        return await Task.Run(() => enabled ? UrlScheme.Register() : UrlScheme.Unregister());
     }
 
     /// <summary>Hands a file to the shell, which opens it with whatever the user made its default.</summary>
-    private static bool OpenFile(string? path)
+    private static async Task<bool> OpenFileAsync(string? path)
     {
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
             return false;
 
-        HistoryService.Instance.RecordRecent(path, false);
+        await HistoryService.Instance.RecordRecentAsync(path, false);
 
-        return Try.Run(() => Process.Start(new ProcessStartInfo(path)
+        return await Task.Run(() => Try.Run(() => Process.Start(new ProcessStartInfo(path)
             {
                 UseShellExecute = true
             }) is not null)
@@ -355,31 +377,13 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             {
                 Serilog.Log.Warning(ex, "Could not open {Path}", path);
                 return false;
-            });
+            }));
     }
 
     /// <summary>Points the folder watcher at the tab that is on screen.</summary>
     private static bool Watch(IReadOnlyList<string> paths)
     {
         DirectoryWatcher.Instance.Watch(paths);
-        return true;
-    }
-
-    private static bool EmptyRecycleBin(bool includeOrphans)
-    {
-        RecycleBin.Empty(includeOrphans);
-        return true;
-    }
-
-    private static bool RestoreRecycleEntry(string id) =>
-        id.Length > 0 && RecycleBin.Restore(id);
-
-    private static bool DeleteRecycleEntry(string id)
-    {
-        if (id.Length == 0)
-            return false;
-
-        RecycleBin.Delete(id);
         return true;
     }
 
@@ -395,12 +399,14 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         if (!started)
             return context.Reply("fs.recycle.admin.list.result", new AdminOrphansPayload([], true, false));
 
-        var entries = Try.Run(() => JsonSerializer.Deserialize(
-                File.ReadAllText(report), AppJsonContext.Default.ListRecycleEntry))
-            .OnFailure(ex => Instance.Log.Warning(ex, "Could not read the elevated report"))
-            .GetOrNull();
+        var json = (await Try.Run(() => File.ReadAllTextAsync(report))).GetOrNull();
+        var entries = json is null
+            ? null
+            : Try.Run(() => JsonSerializer.Deserialize(json, AppJsonContext.Default.ListRecycleEntry))
+                .OnFailure(ex => Instance.Log.Warning(ex, "Could not read the elevated report"))
+                .GetOrNull();
 
-        Try.Run(() => File.Delete(report));
+        await RemoveFileAsync(report);
 
         // Elevation worked but the report is unusable: say so instead of pretending the view is loaded.
         return entries is null
@@ -415,56 +421,65 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         var started = await RunElevatedAsync(Constants.OrphansReportArgument, report,
             Constants.OrphansDeleteArgument);
 
-        Try.Run(() => File.Delete(report));
+        await RemoveFileAsync(report);
 
         return context.Reply("fs.recycle.admin.purge.result", new OkPayload(started));
     }
+
+    private static Task RemoveFileAsync(string path) =>
+        Task.Run(() =>
+        {
+            Try.Run(() => File.Delete(path))
+                .OnFailure(ex => Instance.Log.Warning(ex, "Could not remove {Path}", path));
+        });
 
     /// <summary>
     ///     Starts this executable elevated for one short-lived run. Windows shows the UAC prompt;
     ///     declining it is not an error, so the caller only learns that nothing happened.
     /// </summary>
-    private static Task<bool> RunElevatedAsync(params string[] arguments) =>
-        Task.Run(() =>
+    private static async Task<bool> RunElevatedAsync(params string[] arguments)
+    {
+        if (!OperatingSystem.IsWindows())
+            return false;
+
+        if (Environment.ProcessPath is not { Length: > 0 } executable)
+            return false;
+
+        var startInfo = new ProcessStartInfo(executable)
         {
-            if (!OperatingSystem.IsWindows())
+            UseShellExecute = true,
+            Verb = "runas"
+        };
+
+        foreach (var argument in arguments)
+            startInfo.ArgumentList.Add(argument);
+
+        try
+        {
+            using var process = Process.Start(startInfo);
+            if (process is null)
                 return false;
 
-            if (Environment.ProcessPath is not { Length: > 0 } executable)
-                return false;
-
-            var startInfo = new ProcessStartInfo(executable)
-            {
-                UseShellExecute = true,
-                Verb = "runas"
-            };
-
-            foreach (var argument in arguments)
-                startInfo.ArgumentList.Add(argument);
-
-            try
-            {
-                using var process = Process.Start(startInfo);
-                process?.WaitForExit();
-                return process?.ExitCode == 0;
-            }
-            catch (Win32Exception ex) when (ex.NativeErrorCode == ErrorCancelledByUser)
-            {
-                Instance.Log.Information("The user declined the elevation prompt");
-                return false;
-            }
-            catch (Exception ex)
-            {
-                Instance.Log.Warning(ex, "Could not start the elevated helper");
-                return false;
-            }
-        });
+            await process.WaitForExitAsync();
+            return process.ExitCode == 0;
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == ErrorCancelledByUser)
+        {
+            Instance.Log.Information("The user declined the elevation prompt");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Instance.Log.Warning(ex, "Could not start the elevated helper");
+            return false;
+        }
+    }
 
     private static string TempReportPath() =>
         Path.Combine(Path.GetTempPath(), $"yafm-orphans-{Guid.NewGuid():N}.json");
 
     /// <summary>Lists a directory. A missing path starts at the user's home directory.</summary>
-    private static FsListPayload List(string? path, bool measure = true)
+    private static async Task<FsListPayload> ListAsync(string? path, bool measure = true)
     {
         var target = ResolvePath(path);
         var directory = new DirectoryInfo(target);
@@ -473,33 +488,36 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             throw new DirectoryNotFoundException($"'{target}' is not a directory.");
 
         // Explorer's own switches, so the listing matches what the user's file manager shows.
-        var showHidden = FileVisibility.ShowHidden;
-        var showSystem = FileVisibility.ShowSystem;
+        var (showHidden, showSystem) = await Task.Run(() => (FileVisibility.ShowHidden, FileVisibility.ShowSystem));
 
         // The index lives beside the files; reading it must never be able to fail a listing.
         var settings = SettingsService.Instance.Current;
 
-        // Creating and migrating a database, hiding it and recording a visit all touch the disk. They
-        // must never stand between the user and the listing, so they run behind it.
+        // Creating and migrating a database touches the disk; it must never stand between the user
+        // and the listing, so it runs behind it.
         if (settings.ShouldWriteDirectoryIndex)
-            _ = Task.Run(() => DirectoryIndex.Ensure(directory.FullName));
+            _ = DirectoryIndex.EnsureAsync(directory.FullName);
 
-        DirectoryIndex.EnsureHidden(directory.FullName);
+        await DirectoryIndex.EnsureHiddenAsync(directory.FullName);
 
-        var icons = DirectoryIndex.Icons(directory.FullName);
-        var sizes = DirectoryIndex.Sizes(directory.FullName);
+        var iconsTask = DirectoryIndex.IconsAsync(directory.FullName);
+        var sizesTask = DirectoryIndex.SizesAsync(directory.FullName);
+        await Task.WhenAll(iconsTask, sizesTask);
 
-        var entries = directory.EnumerateFileSystemInfos()
+        var icons = await iconsTask;
+        var sizes = await sizesTask;
+
+        var entries = await Task.Run(() => directory.EnumerateFileSystemInfos()
             .Where(info => !DirectoryIndex.IsIndexFile(info.Name))
             .Where(info => IsVisible(info, showHidden, showSystem))
             .Select(info => ToEntry(info, icons.GetValueOrDefault(info.Name)))
             .OfType<FileEntry>()
             .OrderByDescending(entry => entry.IsDirectory)
             .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+            .ToList());
 
         if (measure) RequestSizes(directory.FullName, entries);
-        _ = Task.Run(() => HistoryService.Instance.RecordRecent(directory.FullName));
+        _ = HistoryService.Instance.RecordRecentAsync(directory.FullName);
 
         return new(directory.FullName, directory.Parent?.FullName, entries, sizes);
     }
@@ -526,6 +544,8 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         return (showSystem || !attributes.HasFlag(FileAttributes.System))
                && (showHidden || !attributes.HasFlag(FileAttributes.Hidden));
     }
+
+    private static Task<List<PlaceEntry>> GetPlacesAsync() => Task.Run(GetPlaces);
 
     /// <summary>
     ///     The shortcuts shown above the drive list: the folders the user pinned in the settings, or
@@ -593,6 +613,8 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             : Same(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos)) ? "videos"
             : null;
     }
+
+    private static Task<List<DriveEntry>> GetDrivesAsync() => Task.Run(GetDrives);
 
     /// <summary>The ready volumes, with their free space for the sidebar's capacity hint.</summary>
     private static List<DriveEntry> GetDrives() =>

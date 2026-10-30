@@ -24,6 +24,9 @@ internal static class DirectoryIndex
 
     private static readonly ConcurrentDictionary<string, bool> Unusable = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>SQLite allows one writer at a time; reads never take this gate.</summary>
+    private static readonly SemaphoreSlim WriteGate = new(1, 1);
+
     /// <summary>Directories whose index attributes were already checked in this process.</summary>
     private static readonly ConcurrentDictionary<string, bool> Checked = new(StringComparer.OrdinalIgnoreCase);
 
@@ -58,24 +61,24 @@ internal static class DirectoryIndex
         name.StartsWith(FileName, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Icons recorded for the entries of a directory, by entry name.</summary>
-    public static Dictionary<string, string> Icons(string directory) =>
-        Read(directory, "SELECT name, source FROM icons", reader =>
+    public static async Task<Dictionary<string, string>> IconsAsync(string directory) =>
+        await ReadAsync(directory, "SELECT name, source FROM icons", async reader =>
         {
             var icons = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-            while (reader.Read())
+            while (await reader.ReadAsync())
                 icons[reader.GetString(0)] = reader.GetString(1);
 
             return icons;
         }) ?? new Dictionary<string, string>();
 
     /// <summary>Cached sizes of the entries of a directory, by entry name.</summary>
-    public static Dictionary<string, long> Sizes(string directory) =>
-        Read(directory, "SELECT name, bytes FROM sizes", reader =>
+    public static async Task<Dictionary<string, long>> SizesAsync(string directory) =>
+        await ReadAsync(directory, "SELECT name, bytes FROM sizes", async reader =>
         {
             var sizes = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
 
-            while (reader.Read())
+            while (await reader.ReadAsync())
                 sizes[reader.GetString(0)] = reader.GetInt64(1);
 
             return sizes;
@@ -105,59 +108,80 @@ internal static class DirectoryIndex
         }).OnFailure(ex => Log.Debug(ex, "Could not hide {Path}", path));
     }
 
-    /// <summary>Creates the index of a directory if it is not there yet. Returns false when it cannot.</summary>
-    public static bool Ensure(string directory) =>
-        Try.Run(() =>
-        {
-            using var connection = Open(directory, true);
-            return connection is not null;
-        }).GetOrElse(_ => false);
+    /// <summary>Offloads the attribute check; it only touches the disk the first time.</summary>
+    public static Task EnsureHiddenAsync(string directory) => Task.Run(() => EnsureHidden(directory));
 
-    public static string? Icon(string directory, string name) =>
-        Read(directory, "SELECT source FROM icons WHERE name = $name",
-            reader => { return reader.Read() ? reader.GetString(0) : null; });
+    /// <summary>Creates the index of a directory if it is not there yet. Returns false when it cannot.</summary>
+    public static async Task<bool> EnsureAsync(string directory)
+    {
+        await WriteGate.WaitAsync();
+        try
+        {
+            var connection = await OpenAsync(directory, true);
+            if (connection is null)
+                return false;
+
+            await connection.DisposeAsync();
+            return true;
+        }
+        finally
+        {
+            WriteGate.Release();
+        }
+    }
 
     /// <summary>Stores the sizes of several entries in one transaction.</summary>
-    public static bool SetSizes(string directory, IReadOnlyDictionary<string, long> sizes)
+    public static async Task<bool> SetSizesAsync(string directory, IReadOnlyDictionary<string, long> sizes)
     {
         if (sizes.Count == 0)
             return true;
 
-        return Try.Run(() =>
+        await WriteGate.WaitAsync();
+        try
         {
-            using var connection = Open(directory, true);
-            if (connection is null)
-                return false;
-
-            using var transaction = connection.BeginTransaction();
-            using var command = connection.CreateCommand();
-            command.CommandText = "INSERT INTO sizes (name, bytes, computed_at) VALUES ($name, $bytes, $now) " +
-                                  "ON CONFLICT(name) DO UPDATE SET bytes = excluded.bytes, " +
-                                  "computed_at = excluded.computed_at";
-
-            var name = command.Parameters.Add("$name", SqliteType.Text);
-            var bytes = command.Parameters.Add("$bytes", SqliteType.Integer);
-            command.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-
-            foreach (var (entry, size) in sizes)
+            var result = await Try.Run(async () =>
             {
-                name.Value = entry;
-                bytes.Value = size;
-                command.ExecuteNonQuery();
-            }
+                await using var connection = await OpenAsync(directory, true);
+                if (connection is null)
+                    return false;
 
-            transaction.Commit();
-            return true;
-        }).OnFailure(ex =>
+                await using var transaction = await connection.BeginTransactionAsync();
+                await using var command = connection.CreateCommand();
+                command.Transaction = (SqliteTransaction)transaction;
+                command.CommandText = "INSERT INTO sizes (name, bytes, computed_at) VALUES ($name, $bytes, $now) " +
+                                      "ON CONFLICT(name) DO UPDATE SET bytes = excluded.bytes, " +
+                                      "computed_at = excluded.computed_at";
+
+                var name = command.Parameters.Add("$name", SqliteType.Text);
+                var bytes = command.Parameters.Add("$bytes", SqliteType.Integer);
+                command.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+
+                foreach (var (entry, size) in sizes)
+                {
+                    name.Value = entry;
+                    bytes.Value = size;
+                    await command.ExecuteNonQueryAsync();
+                }
+
+                await transaction.CommitAsync();
+                return true;
+            });
+
+            return result.OnFailure(ex =>
+            {
+                Unusable[directory] = true;
+                Log.Debug(ex, "Could not store the sizes of {Directory}", directory);
+            }).GetOrElse(_ => false);
+        }
+        finally
         {
-            Unusable[directory] = true;
-            Log.Debug(ex, "Could not store the sizes of {Directory}", directory);
-        }).GetOrElse(_ => false);
+            WriteGate.Release();
+        }
     }
 
     /// <summary>Stores an icon source for one entry; a null source removes the override.</summary>
-    public static bool SetIcon(string directory, string name, string? source) =>
-        Write(directory, source is null
+    public static Task<bool> SetIconAsync(string directory, string name, string? source) =>
+        WriteAsync(directory, source is null
                 ? "DELETE FROM icons WHERE name = $name"
                 : "INSERT INTO icons (name, source) VALUES ($name, $source) " +
                   "ON CONFLICT(name) DO UPDATE SET source = excluded.source",
@@ -168,23 +192,9 @@ internal static class DirectoryIndex
                     command.Parameters.AddWithValue("$source", source);
             });
 
-    public static string? Meta(string directory, string key) =>
-        Read(directory, "SELECT value FROM meta WHERE key = $key",
-            reader => { return reader.Read() ? reader.GetString(0) : null; },
-            command => command.Parameters.AddWithValue("$key", key));
-
-    public static bool SetMeta(string directory, string key, string value) =>
-        Write(directory, "INSERT INTO meta (key, value) VALUES ($key, $value) " +
-                         "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            command =>
-            {
-                command.Parameters.AddWithValue("$key", key);
-                command.Parameters.AddWithValue("$value", value);
-            });
-
-    public static bool SetSize(string directory, string name, long bytes) =>
-        Write(directory, "INSERT INTO sizes (name, bytes, computed_at) VALUES ($name, $bytes, $now) " +
-                         "ON CONFLICT(name) DO UPDATE SET bytes = excluded.bytes, computed_at = excluded.computed_at",
+    public static Task<bool> SetSizeAsync(string directory, string name, long bytes) =>
+        WriteAsync(directory, "INSERT INTO sizes (name, bytes, computed_at) VALUES ($name, $bytes, $now) " +
+                              "ON CONFLICT(name) DO UPDATE SET bytes = excluded.bytes, computed_at = excluded.computed_at",
             command =>
             {
                 command.Parameters.AddWithValue("$name", name);
@@ -194,45 +204,62 @@ internal static class DirectoryIndex
 
     // ---- plumbing ----
 
-    private static T? Read<T>(string directory, string sql, Func<SqliteDataReader, T> read,
-        Action<SqliteCommand>? bind = null) where T : class =>
-        Try.Run(() =>
+    private static async Task<T?> ReadAsync<T>(string directory, string sql, Func<SqliteDataReader, Task<T>> read,
+        Action<SqliteCommand>? bind = null) where T : class
+    {
+        var result = await Try.Run(async () =>
         {
-            using var connection = Open(directory, false);
+            await using var connection = await OpenAsync(directory, false);
             if (connection is null)
                 return null;
 
-            using var command = connection.CreateCommand();
+            await using var command = connection.CreateCommand();
             command.CommandText = sql;
             bind?.Invoke(command);
 
-            using var reader = command.ExecuteReader();
-            return read(reader);
-        }).OnFailure(ex => Log.Debug(ex, "Could not read {Directory} from the index", directory)).GetOrNull();
+            await using var reader = await command.ExecuteReaderAsync();
+            return await read(reader);
+        });
 
-    private static bool Write(string directory, string sql, Action<SqliteCommand> bind) =>
-        Try.Run(() =>
-        {
-            using var connection = Open(directory, true);
-            if (connection is null)
-                return false;
+        return result.OnFailure(ex => Log.Debug(ex, "Could not read {Directory} from the index", directory))
+            .GetOrNull();
+    }
 
-            using var command = connection.CreateCommand();
-            command.CommandText = sql;
-            bind(command);
-            command.ExecuteNonQuery();
-            return true;
-        }).OnFailure(ex =>
+    private static async Task<bool> WriteAsync(string directory, string sql, Action<SqliteCommand> bind)
+    {
+        await WriteGate.WaitAsync();
+        try
         {
-            Unusable[directory] = true;
-            Log.Warning(ex, "Could not write to the index of {Directory}", directory);
-        }).GetOrElse(_ => false);
+            var result = await Try.Run(async () =>
+            {
+                await using var connection = await OpenAsync(directory, true);
+                if (connection is null)
+                    return false;
+
+                await using var command = connection.CreateCommand();
+                command.CommandText = sql;
+                bind(command);
+                await command.ExecuteNonQueryAsync();
+                return true;
+            });
+
+            return result.OnFailure(ex =>
+            {
+                Unusable[directory] = true;
+                Log.Warning(ex, "Could not write to the index of {Directory}", directory);
+            }).GetOrElse(_ => false);
+        }
+        finally
+        {
+            WriteGate.Release();
+        }
+    }
 
     /// <summary>
     ///     Opens a database, creating and migrating it when asked to. A database that cannot be
     ///     opened is remembered so the next listing does not pay for the same failure again.
     /// </summary>
-    private static SqliteConnection? Open(string directory, bool create)
+    private static async Task<SqliteConnection?> OpenAsync(string directory, bool create)
     {
         var path = PathFor(directory);
 
@@ -256,14 +283,17 @@ internal static class DirectoryIndex
 
         try
         {
-            connection.Open();
-            using var timeout = connection.CreateCommand();
-            timeout.CommandText = "PRAGMA busy_timeout = 300";
-            timeout.ExecuteNonQuery();
+            await connection.OpenAsync();
+
+            await using (var timeout = connection.CreateCommand())
+            {
+                timeout.CommandText = "PRAGMA busy_timeout = 300";
+                await timeout.ExecuteNonQueryAsync();
+            }
 
             if (create)
             {
-                Migrate(connection);
+                await MigrateAsync(connection);
                 Hide(directory, path);
             }
 
@@ -271,34 +301,34 @@ internal static class DirectoryIndex
         }
         catch (Exception ex)
         {
-            connection.Dispose();
+            await connection.DisposeAsync();
             Unusable[directory] = true;
             Log.Debug(ex, "Could not open the index of {Directory}", directory);
             return null;
         }
     }
 
-    private static void Migrate(SqliteConnection connection)
+    private static async Task MigrateAsync(SqliteConnection connection)
     {
-        var version = Version(connection);
+        var version = await VersionAsync(connection);
 
         for (var step = version; step < SchemaVersion; step++)
         {
-            using var command = connection.CreateCommand();
+            await using var command = connection.CreateCommand();
             command.CommandText = Schema[step];
-            command.ExecuteNonQuery();
+            await command.ExecuteNonQueryAsync();
         }
 
-        using var stamp = connection.CreateCommand();
+        await using var stamp = connection.CreateCommand();
         stamp.CommandText = $"PRAGMA user_version = {SchemaVersion}";
-        stamp.ExecuteNonQuery();
+        await stamp.ExecuteNonQueryAsync();
     }
 
-    private static int Version(SqliteConnection connection)
+    private static async Task<int> VersionAsync(SqliteConnection connection)
     {
-        using var command = connection.CreateCommand();
+        await using var command = connection.CreateCommand();
         command.CommandText = "PRAGMA user_version";
-        return Convert.ToInt32(command.ExecuteScalar() ?? 0);
+        return Convert.ToInt32(await command.ExecuteScalarAsync() ?? 0);
     }
 
     /// <summary>Windows keeps the index hidden and system, the way <c>thumbs.db</c> is.</summary>

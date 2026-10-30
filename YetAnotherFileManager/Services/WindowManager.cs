@@ -166,7 +166,9 @@ internal sealed class WindowManager : Singleton<WindowManager>
 
     public void CreateMainWindow()
     {
-        PrepareWebViewData();
+        // One startup-only wait: the message loop has not started yet, and the web view needs the
+        // cache decision before it is created.
+        PrepareWebViewDataAsync().GetAwaiter().GetResult();
 
         var window = new PhotinoWindow()
             // The native layer prints every property setter and message it handles. That is useful
@@ -342,19 +344,19 @@ internal sealed class WindowManager : Singleton<WindowManager>
     ///     with every upgrade. Only the profile folder goes; the marker that records the build lives
     ///     beside it.
     /// </summary>
-    private void PrepareWebViewData()
+    private async Task PrepareWebViewDataAsync()
     {
         var marker = Path.Combine(Path.GetDirectoryName(WebViewDataPath)!, "webview.build");
 
-        Try.Run(() =>
+        (await Try.Run(async () =>
         {
-            if (File.Exists(marker) && File.ReadAllText(marker) != AppInfoService.BuildToken)
+            if (File.Exists(marker) && await File.ReadAllTextAsync(marker) != AppInfoService.BuildToken)
             {
                 Log.Information("This is a different build; clearing the web view's cache");
-                Directory.Delete(WebViewDataPath, true);
+                await Task.Run(() => Directory.Delete(WebViewDataPath, true));
             }
 
-            File.WriteAllText(marker, AppInfoService.BuildToken);
-        }).OnFailure(ex => Log.Warning(ex, "Failed to prepare the web view's data folder"));
+            await File.WriteAllTextAsync(marker, AppInfoService.BuildToken);
+        })).OnFailure(ex => Log.Warning(ex, "Failed to prepare the web view's data folder"));
     }
 }

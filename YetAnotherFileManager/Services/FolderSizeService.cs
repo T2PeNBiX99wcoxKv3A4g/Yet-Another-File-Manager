@@ -52,13 +52,13 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
 
             var path = Path.Combine(item.Parent, item.Child);
             var generation = _generation;
-            var bytes = await Task.Run(() => Measure(path, generation, Levels));
+            var bytes = await MeasureAsync(path, generation, Levels);
             _queued.TryRemove(path, out _);
 
             if (bytes < 0)
                 continue;
 
-            DirectoryIndex.SetSize(item.Parent, item.Child, bytes);
+            await DirectoryIndex.SetSizeAsync(item.Parent, item.Child, bytes);
 
             WindowManager.Instance.RunOnMainWindow(() =>
                 WindowManager.Instance.Notify("fs.sizes",
@@ -70,15 +70,16 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
     ///     Size of one folder: its own files plus its children. -1 means the walk was superseded by a
     ///     newer listing; a folder that cannot be read is simply skipped by its parent.
     /// </summary>
-    private long Measure(string path, int generation, int depth) =>
-        Try.Run(() =>
+    private async Task<long> MeasureAsync(string path, int generation, int depth)
+    {
+        var result = await Try.Run(async () =>
         {
             if (_generation != generation)
                 return -1;
 
             var directory = new DirectoryInfo(path);
             var measured = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
-            var cached = depth > 0 ? DirectoryIndex.Sizes(path) : [];
+            var cached = depth > 0 ? await DirectoryIndex.SizesAsync(path) : [];
             long total = 0;
 
             // The folder index lives inside the folder and is not part of its contents.
@@ -97,7 +98,7 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
 
                     if (size == 0)
                     {
-                        size = Measure(child.FullName, generation, depth - 1);
+                        size = await MeasureAsync(child.FullName, generation, depth - 1);
 
                         // Only a superseded walk aborts; an unreadable child counts as zero.
                         if (size < 0)
@@ -115,10 +116,13 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
                     total += size;
                 }
 
-            DirectoryIndex.SetSizes(path, measured);
+            await DirectoryIndex.SetSizesAsync(path, measured);
 
             return total;
-        }).GetOrElse(_ => 0L);
+        });
+
+        return result.GetOrElse(_ => 0L);
+    }
 
     private void DropQueued()
     {

@@ -9,8 +9,8 @@ namespace YetAnotherFileManager.Services;
 
 /// <summary>
 ///     Stores the folders opened recently and the folders opened most often in one SQLite database
-///     next to the settings. Raw ADO.NET keeps it usable from the trimmed build, the way the history
-///     database in URLCheck does.
+///     next to the settings. Reads run on their own connections without a lock; only writes are
+///     serialized, which is what SQLite needs.
 /// </summary>
 internal sealed class HistoryService : Singleton<HistoryService>
 {
@@ -42,56 +42,71 @@ internal sealed class HistoryService : Singleton<HistoryService>
     private static readonly string LegacyRecentPath = Path.Combine(Constants.SettingsDirectory, "recent.json");
     private static readonly string LegacyFrequentPath = Path.Combine(Constants.SettingsDirectory, "frequent.json");
 
-    private readonly Lock _gate = new();
+    private readonly Lazy<Task> _ready;
+
+    private readonly SemaphoreSlim _writeGate = new(1, 1);
 
     private readonly string _connectionString;
 
     public HistoryService()
     {
-        Directory.CreateDirectory(Constants.SettingsDirectory);
         _connectionString = new SqliteConnectionStringBuilder { DataSource = DatabasePath }.ToString();
+        _ready = new(InitializeAsync, LazyThreadSafetyMode.ExecutionAndPublication);
+    }
 
-        Try.Run(() =>
+    private async Task InitializeAsync()
+    {
+        (await Try.Run(async () =>
         {
-            using var connection = Open();
-            using var command = connection.CreateCommand();
-            command.CommandText = Schema;
-            command.ExecuteNonQuery();
-        }).OnFailure(ex => Log.Warning(ex, "Could not create the history database"));
+            Directory.CreateDirectory(Constants.SettingsDirectory);
 
-        lock (_gate)
-        {
-            Try.Run(ImportRecent).OnFailure(ex => Log.Warning(ex, "Could not import the recent list"));
-            Try.Run(ImportFrequent).OnFailure(ex => Log.Warning(ex, "Could not import the frequent list"));
-        }
+            await using var connection = await OpenAsync();
+            await using (var command = connection.CreateCommand())
+            {
+                // WAL lets readers continue while one writer is busy.
+                command.CommandText = "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=3000;";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            await using (var command = connection.CreateCommand())
+            {
+                command.CommandText = Schema;
+                await command.ExecuteNonQueryAsync();
+            }
+
+            await ImportRecentAsync();
+            await ImportFrequentAsync();
+        })).OnFailure(ex => Log.Warning(ex, "Could not initialize the history database"));
     }
 
     /// <summary>The most recent entries, capped by the user's limit (0 means "not shown").</summary>
-    public IReadOnlyList<RecentEntry> Recent(int limit)
+    public async Task<IReadOnlyList<RecentEntry>> RecentAsync(int limit)
     {
         if (limit <= 0)
             return [];
 
-        lock (_gate)
-            return Try.Run(() =>
-            {
-                using var connection = Open();
-                using var command = connection.CreateCommand();
-                command.CommandText = "SELECT Path, Name, IsDirectory, At FROM Recent ORDER BY At DESC LIMIT $limit";
-                command.Parameters.AddWithValue("$limit", limit);
+        await _ready.Value;
 
-                using var reader = command.ExecuteReader();
-                var entries = new List<RecentEntry>();
-                while (reader.Read())
-                    entries.Add(new(reader.GetString(0), reader.GetString(1), reader.GetInt64(2) != 0,
-                        reader.GetInt64(3)));
+        var result = await Try.Run(async () =>
+        {
+            await using var connection = await OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT Path, Name, IsDirectory, At FROM Recent ORDER BY At DESC LIMIT $limit";
+            command.Parameters.AddWithValue("$limit", limit);
 
-                return (IReadOnlyList<RecentEntry>)entries;
-            }).OnFailure(ex => Log.Warning(ex, "Could not read the recent list")).GetOrElse(_ => []);
+            await using var reader = await command.ExecuteReaderAsync();
+            var entries = new List<RecentEntry>();
+            while (await reader.ReadAsync())
+                entries.Add(new(reader.GetString(0), reader.GetString(1), reader.GetInt64(2) != 0, reader.GetInt64(3)));
+
+            return (IReadOnlyList<RecentEntry>)entries;
+        });
+
+        return result.OnFailure(ex => Log.Warning(ex, "Could not read the recent list")).GetOrElse(_ => []);
     }
 
     /// <summary>Moves a folder to the front, dropping the oldest entries beyond the capacity.</summary>
-    public void RecordRecent(string path, bool isDirectory = true)
+    public async Task RecordRecentAsync(string path, bool isDirectory = true)
     {
         if (string.IsNullOrWhiteSpace(path))
             return;
@@ -101,11 +116,14 @@ internal sealed class HistoryService : Singleton<HistoryService>
         var name = Try.Run(() => isDirectory ? new DirectoryInfo(full).Name : new FileInfo(full).Name)
             .GetOrElse(_ => full);
 
-        lock (_gate)
-            Try.Run(() =>
+        await _ready.Value;
+        await _writeGate.WaitAsync();
+        try
+        {
+            (await Try.Run(async () =>
             {
-                using var connection = Open();
-                using var command = connection.CreateCommand();
+                await using var connection = await OpenAsync();
+                await using var command = connection.CreateCommand();
                 command.CommandText =
                     """
                     INSERT INTO Recent (PathKey, Path, Name, IsDirectory, At)
@@ -121,47 +139,58 @@ internal sealed class HistoryService : Singleton<HistoryService>
                 command.Parameters.AddWithValue("$name", name.Length > 0 ? name : full);
                 command.Parameters.AddWithValue("$directory", isDirectory ? 1 : 0);
                 command.Parameters.AddWithValue("$at", Now());
-                command.ExecuteNonQuery();
+                await command.ExecuteNonQueryAsync();
 
-                Trim(connection, "Recent", "At DESC", RecentCapacity);
-            }).OnFailure(ex => Log.Warning(ex, "Could not record {Path} as recent", path));
+                await TrimAsync(connection, "Recent", "At DESC", RecentCapacity);
+            })).OnFailure(ex => Log.Warning(ex, "Could not record {Path} as recent", path));
+        }
+        finally
+        {
+            _writeGate.Release();
+        }
     }
 
-    public void ClearRecent() =>
-        Clear("Recent");
+    public async Task ClearRecentAsync()
+    {
+        await _ready.Value;
+        await ClearAsync("Recent");
+    }
 
     /// <summary>The most-opened folders, highest count first and the newest first inside a tie.</summary>
-    public IReadOnlyList<FrequentEntry> Frequent(int limit = 50)
+    public async Task<IReadOnlyList<FrequentEntry>> FrequentAsync(int limit = 50)
     {
         if (limit <= 0)
             return [];
 
-        lock (_gate)
-            return Try.Run(() =>
+        await _ready.Value;
+
+        var result = await Try.Run(async () =>
+        {
+            await using var connection = await OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT Path, Name, Count, Last FROM Frequent ORDER BY Count DESC, Last DESC";
+
+            await using var reader = await command.ExecuteReaderAsync();
+            var entries = new List<FrequentEntry>();
+            while (await reader.ReadAsync())
             {
-                using var connection = Open();
-                using var command = connection.CreateCommand();
-                command.CommandText = "SELECT Path, Name, Count, Last FROM Frequent ORDER BY Count DESC, Last DESC";
+                var path = reader.GetString(0);
 
-                using var reader = command.ExecuteReader();
-                var entries = new List<FrequentEntry>();
-                while (reader.Read())
-                {
-                    var path = reader.GetString(0);
+                // A folder that was deleted should not keep a place in the list.
+                if (!Try.Run(() => Directory.Exists(path)).GetOrElse(_ => false))
+                    continue;
 
-                    // A folder that was deleted should not keep a place in the list.
-                    if (!Try.Run(() => Directory.Exists(path)).GetOrElse(_ => false))
-                        continue;
+                entries.Add(new(path, reader.GetString(1), reader.GetInt32(2), reader.GetInt64(3)));
+            }
 
-                    entries.Add(new(path, reader.GetString(1), reader.GetInt32(2), reader.GetInt64(3)));
-                }
+            return (IReadOnlyList<FrequentEntry>)entries.Take(limit).ToList();
+        });
 
-                return (IReadOnlyList<FrequentEntry>)entries.Take(limit).ToList();
-            }).OnFailure(ex => Log.Warning(ex, "Could not read the frequent list")).GetOrElse(_ => []);
+        return result.OnFailure(ex => Log.Warning(ex, "Could not read the frequent list")).GetOrElse(_ => []);
     }
 
     /// <summary>Counts one visit of a folder.</summary>
-    public void RecordFrequent(string path)
+    public async Task RecordFrequentAsync(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
             return;
@@ -172,11 +201,14 @@ internal sealed class HistoryService : Singleton<HistoryService>
 
         var name = folder.Name.Length > 0 ? folder.Name : folder.FullName;
 
-        lock (_gate)
-            Try.Run(() =>
+        await _ready.Value;
+        await _writeGate.WaitAsync();
+        try
+        {
+            (await Try.Run(async () =>
             {
-                using var connection = Open();
-                using var command = connection.CreateCommand();
+                await using var connection = await OpenAsync();
+                await using var command = connection.CreateCommand();
                 command.CommandText =
                     """
                     INSERT INTO Frequent (PathKey, Path, Name, Count, Last)
@@ -191,14 +223,22 @@ internal sealed class HistoryService : Singleton<HistoryService>
                 command.Parameters.AddWithValue("$path", folder.FullName);
                 command.Parameters.AddWithValue("$name", name);
                 command.Parameters.AddWithValue("$last", Now());
-                command.ExecuteNonQuery();
+                await command.ExecuteNonQueryAsync();
 
-                Trim(connection, "Frequent", "Count DESC, Last DESC", FrequentCapacity);
-            }).OnFailure(ex => Log.Warning(ex, "Could not count a visit to {Path}", path));
+                await TrimAsync(connection, "Frequent", "Count DESC, Last DESC", FrequentCapacity);
+            })).OnFailure(ex => Log.Warning(ex, "Could not count a visit to {Path}", path));
+        }
+        finally
+        {
+            _writeGate.Release();
+        }
     }
 
-    public void ClearFrequent() =>
-        Clear("Frequent");
+    public async Task ClearFrequentAsync()
+    {
+        await _ready.Value;
+        await ClearAsync("Frequent");
+    }
 
     // ---- plumbing ----
 
@@ -207,55 +247,67 @@ internal sealed class HistoryService : Singleton<HistoryService>
     /// <summary>Windows paths are case-insensitive, so the primary key folds the case.</summary>
     private static string KeyFor(string path) => path.TrimEnd('\\', '/').ToLowerInvariant();
 
-    private SqliteConnection Open()
+    private async Task<SqliteConnection> OpenAsync()
     {
         var connection = new SqliteConnection(_connectionString);
-        connection.Open();
+        await connection.OpenAsync();
         return connection;
     }
 
-    private void Clear(string table)
+    private async Task ClearAsync(string table)
     {
-        lock (_gate)
-            Try.Run(() =>
+        await _writeGate.WaitAsync();
+        try
+        {
+            (await Try.Run(async () =>
             {
-                using var connection = Open();
-                using var command = connection.CreateCommand();
+                await using var connection = await OpenAsync();
+                await using var command = connection.CreateCommand();
                 command.CommandText = $"DELETE FROM {table}";
-                command.ExecuteNonQuery();
-            }).OnFailure(ex => Log.Warning(ex, "Could not clear {Table}", table));
+                await command.ExecuteNonQueryAsync();
+            })).OnFailure(ex => Log.Warning(ex, "Could not clear {Table}", table));
+        }
+        finally
+        {
+            _writeGate.Release();
+        }
     }
 
-    private static void Trim(SqliteConnection connection, string table, string order, int capacity)
+    private static async Task TrimAsync(SqliteConnection connection, string table, string order, int capacity)
     {
-        using var command = connection.CreateCommand();
+        await using var command = connection.CreateCommand();
         command.CommandText = $"DELETE FROM {table} WHERE PathKey NOT IN " +
                               $"(SELECT PathKey FROM {table} ORDER BY {order} LIMIT $capacity)";
         command.Parameters.AddWithValue("$capacity", capacity);
-        command.ExecuteNonQuery();
+        await command.ExecuteNonQueryAsync();
     }
 
     /// <summary>Imports the old JSON list once; afterwards the file belongs to no one.</summary>
-    private void ImportRecent()
+    private async Task ImportRecentAsync()
     {
         if (!File.Exists(LegacyRecentPath))
             return;
 
-        var entries = Try.Run(() => JsonSerializer.Deserialize(File.ReadAllText(LegacyRecentPath),
-            AppJsonContext.Default.ListRecentEntry)).GetOrNull();
+        var json = (await Try.Run(() => File.ReadAllTextAsync(LegacyRecentPath))).GetOrNull();
+        if (json is null)
+            return;
+
+        var entries = Try.Run(() => JsonSerializer.Deserialize(json, AppJsonContext.Default.ListRecentEntry))
+            .GetOrNull();
         if (entries is null)
             return;
 
-        using (var connection = Open())
+        await using (var connection = await OpenAsync())
         {
-            if (!IsEmpty(connection, "Recent") || entries.Count == 0)
+            if (!await IsEmptyAsync(connection, "Recent") || entries.Count == 0)
             {
-                RemoveLegacy(LegacyRecentPath);
+                await RemoveLegacyAsync(LegacyRecentPath);
                 return;
             }
 
-            using var transaction = connection.BeginTransaction();
-            using var command = connection.CreateCommand();
+            await using var transaction = await connection.BeginTransactionAsync();
+            await using var command = connection.CreateCommand();
+            command.Transaction = (SqliteTransaction)transaction;
             command.CommandText =
                 "INSERT OR REPLACE INTO Recent (PathKey, Path, Name, IsDirectory, At) " +
                 "VALUES ($key, $path, $name, $directory, $at)";
@@ -272,36 +324,41 @@ internal sealed class HistoryService : Singleton<HistoryService>
                 name.Value = entry.Name;
                 directory.Value = entry.IsDirectory ? 1 : 0;
                 at.Value = entry.At;
-                command.ExecuteNonQuery();
+                await command.ExecuteNonQueryAsync();
             }
 
-            transaction.Commit();
+            await transaction.CommitAsync();
         }
 
-        RemoveLegacy(LegacyRecentPath);
+        await RemoveLegacyAsync(LegacyRecentPath);
     }
 
     /// <summary>Imports the old frequent list once, keeping the counts it had collected.</summary>
-    private void ImportFrequent()
+    private async Task ImportFrequentAsync()
     {
         if (!File.Exists(LegacyFrequentPath))
             return;
 
-        var entries = Try.Run(() => JsonSerializer.Deserialize(File.ReadAllText(LegacyFrequentPath),
-            AppJsonContext.Default.ListFrequentEntry)).GetOrNull();
+        var json = (await Try.Run(() => File.ReadAllTextAsync(LegacyFrequentPath))).GetOrNull();
+        if (json is null)
+            return;
+
+        var entries = Try.Run(() => JsonSerializer.Deserialize(json, AppJsonContext.Default.ListFrequentEntry))
+            .GetOrNull();
         if (entries is null)
             return;
 
-        using (var connection = Open())
+        await using (var connection = await OpenAsync())
         {
-            if (!IsEmpty(connection, "Frequent") || entries.Count == 0)
+            if (!await IsEmptyAsync(connection, "Frequent") || entries.Count == 0)
             {
-                RemoveLegacy(LegacyFrequentPath);
+                await RemoveLegacyAsync(LegacyFrequentPath);
                 return;
             }
 
-            using var transaction = connection.BeginTransaction();
-            using var command = connection.CreateCommand();
+            await using var transaction = await connection.BeginTransactionAsync();
+            await using var command = connection.CreateCommand();
+            command.Transaction = (SqliteTransaction)transaction;
             command.CommandText =
                 "INSERT OR REPLACE INTO Frequent (PathKey, Path, Name, Count, Last) " +
                 "VALUES ($key, $path, $name, $count, $last)";
@@ -318,22 +375,23 @@ internal sealed class HistoryService : Singleton<HistoryService>
                 name.Value = entry.Name;
                 count.Value = entry.Count;
                 last.Value = entry.Last;
-                command.ExecuteNonQuery();
+                await command.ExecuteNonQueryAsync();
             }
 
-            transaction.Commit();
+            await transaction.CommitAsync();
         }
 
-        RemoveLegacy(LegacyFrequentPath);
+        await RemoveLegacyAsync(LegacyFrequentPath);
     }
 
-    private static bool IsEmpty(SqliteConnection connection, string table)
+    private static async Task<bool> IsEmptyAsync(SqliteConnection connection, string table)
     {
-        using var command = connection.CreateCommand();
+        await using var command = connection.CreateCommand();
         command.CommandText = $"SELECT COUNT(*) FROM {table}";
-        return Convert.ToInt64(command.ExecuteScalar()) == 0;
+        return Convert.ToInt64(await command.ExecuteScalarAsync()) == 0;
     }
 
-    private static void RemoveLegacy(string path) =>
-        Try.Run(() => File.Delete(path)).OnFailure(ex => Serilog.Log.Warning(ex, "Could not remove {Path}", path));
+    private static Task RemoveLegacyAsync(string path) =>
+        Task.Run(() => Try.Run(() => File.Delete(path))
+            .OnFailure(ex => Serilog.Log.Warning(ex, "Could not remove {Path}", path)));
 }

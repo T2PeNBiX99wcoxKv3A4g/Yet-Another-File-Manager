@@ -32,7 +32,7 @@ internal static class Program
         // a short-lived helper, not another instance of the app.
         if (args.Contains(Constants.OrphansReportArgument))
         {
-            RunOrphansReport(args);
+            RunOrphansReportAsync(args).GetAwaiter().GetResult();
             return;
         }
 
@@ -42,6 +42,11 @@ internal static class Program
 
         // The bridge serializes with the app's source-generated context; nothing is reflected.
         NativeBridge.Initialize(AppJsonContext.Default);
+
+        // Settings are read once before any service asks for them; the message loop needs the real
+        // values as soon as the window is up. Main must stay synchronous on its STA thread, so this
+        // single startup read waits here instead of racing the services.
+        SettingsService.Instance.InitializeAsync().GetAwaiter().GetResult();
 
         if (OperatingSystem.IsLinux())
         {
@@ -133,22 +138,22 @@ internal static class Program
     ///     administrator can see to a JSON file (and deletes them when asked). Nothing else happens —
     ///     no window, no tray.
     /// </summary>
-    private static void RunOrphansReport(string[] args)
+    private static async Task RunOrphansReportAsync(string[] args)
     {
         Logging.Initialize(Constants.Name, "cleanup");
 
         try
         {
-            var entries = RecycleBin.List(true);
+            var entries = await RecycleBin.ListAsync(true);
             var index = Array.IndexOf(args, Constants.OrphansReportArgument);
 
             if (index >= 0 && index + 1 < args.Length)
-                File.WriteAllText(args[index + 1],
+                await File.WriteAllTextAsync(args[index + 1],
                     JsonSerializer.Serialize([.. entries], AppJsonContext.Default.ListRecycleEntry));
 
             if (args.Contains(Constants.OrphansDeleteArgument))
                 Log.Information("Removed {Count} leftover recycle bin records",
-                    RecycleBin.PurgeOrphanMetadata(entries));
+                    await RecycleBin.PurgeOrphanMetadataAsync(entries));
         }
         finally
         {

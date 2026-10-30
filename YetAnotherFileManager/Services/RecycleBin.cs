@@ -42,12 +42,19 @@ internal static class RecycleBin
         .OrderByDescending(entry => entry.Deleted)
     ];
 
+    /// <summary>Async wrapper: the walk is filesystem-bound and must not block the UI thread.</summary>
+    public static Task<IReadOnlyList<RecycleEntry>> ListAsync(bool includeOrphans = false,
+        CancellationToken cancellationToken = default) => Task.Run(() => List(includeOrphans), cancellationToken);
+
     /// <summary>
     ///     Puts one entry back at its original path. Returns false when the stored content is gone
     ///     or the original folder no longer exists.
     /// </summary>
     public static bool Restore(string id) =>
         OperatingSystem.IsWindows() ? RestoreWindows(id) : RestoreUnix(id);
+
+    public static Task<bool> RestoreAsync(string id, CancellationToken cancellationToken = default) =>
+        Task.Run(() => Restore(id), cancellationToken);
 
     /// <summary>Permanently removes every entry this account may delete.</summary>
     public static void Empty(bool includeOrphans = false) =>
@@ -56,6 +63,9 @@ internal static class RecycleBin
             foreach (var entry in List(includeOrphans).Where(entry => entry.Removable))
                 Delete(entry.Id);
         }).OnFailure(ex => Log.Warning(ex, "Could not empty the recycle bin"));
+
+    public static Task EmptyAsync(bool includeOrphans = false, CancellationToken cancellationToken = default) =>
+        Task.Run(() => Empty(includeOrphans), cancellationToken);
 
     /// <summary>Deletes one entry's content and its metadata, permanently.</summary>
     public static bool Delete(string id) =>
@@ -68,6 +78,9 @@ internal static class RecycleBin
 
             return true;
         }).OnFailure(ex => Log.Warning(ex, "Could not delete recycle bin entry {Id}", id)).GetOrElse(_ => false);
+
+    public static Task<bool> DeleteAsync(string id, CancellationToken cancellationToken = default) =>
+        Task.Run(() => Delete(id), cancellationToken);
 
     /// <summary>
     ///     Deletes every leftover record in the given listing, ignoring who owns it. Used by the
@@ -83,6 +96,9 @@ internal static class RecycleBin
 
         return removed;
     }
+
+    public static Task<int> PurgeOrphanMetadataAsync(IEnumerable<RecycleEntry> entries,
+        CancellationToken cancellationToken = default) => Task.Run(() => PurgeOrphanMetadata(entries), cancellationToken);
 
     private static IEnumerable<RecycleEntry> ListWindows(bool includeOrphans)
     {
