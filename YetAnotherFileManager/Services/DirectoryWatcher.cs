@@ -85,8 +85,8 @@ internal sealed class DirectoryWatcher : Singleton<DirectoryWatcher>
         }
     }
 
-    private static void Notify(string path) =>
+    private void Notify(string path) =>
         Try.Run(() => WindowManager.Instance.RunOnMainWindow(() =>
                 WindowManager.Instance.Notify("fs.changed", new FsChangedPayload(path))))
-            .OnFailure(_ => Serilog.Log.Debug("Could not report the change in {Path}", path));
+            .OnFailure(_ => Log.Debug("Could not report the change in {Path}", path));
 }
