@@ -62,10 +62,10 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 new IconPayload(Thumbnail(context.Payload<ThumbnailRequest>())))),
 
             "fs.recent" => Task.FromResult<NativeResponse?>(context.Reply("fs.recent.result",
-                new FsRecentPayload(RecentService.Instance.List(SettingsService.Instance.Current.RecentCount)))),
+                new FsRecentPayload(HistoryService.Instance.Recent(SettingsService.Instance.Current.RecentCount)))),
 
             "fs.frequent" => Task.FromResult<NativeResponse?>(context.Reply("fs.frequent.result",
-                new FsFrequentPayload(FrequentService.Instance.List()))),
+                new FsFrequentPayload(HistoryService.Instance.Frequent()))),
 
             "fs.frequent.record" => Task.FromResult<NativeResponse?>(context.Reply("fs.frequent.record.result",
                 new OkPayload(RecordVisit(context.Payload<PathPayload>()?.Path)))),
@@ -249,14 +249,14 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
     private static bool ClearRecent()
     {
-        RecentService.Instance.Clear();
+        HistoryService.Instance.ClearRecent();
         return true;
     }
 
     /// <summary>Counts one user navigation to a folder for the Frequent panel.</summary>
     private static bool RecordVisit(string? path)
     {
-        FrequentService.Instance.Record(path ?? "");
+        HistoryService.Instance.RecordFrequent(path ?? "");
         return true;
     }
 
@@ -345,7 +345,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
             return false;
 
-        RecentService.Instance.Record(path, false);
+        HistoryService.Instance.RecordRecent(path, false);
 
         return Try.Run(() => Process.Start(new ProcessStartInfo(path)
             {
@@ -499,7 +499,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             .ToList();
 
         if (measure) RequestSizes(directory.FullName, entries);
-        _ = Task.Run(() => RecentService.Instance.Record(directory.FullName));
+        _ = Task.Run(() => HistoryService.Instance.RecordRecent(directory.FullName));
 
         return new(directory.FullName, directory.Parent?.FullName, entries, sizes);
     }
