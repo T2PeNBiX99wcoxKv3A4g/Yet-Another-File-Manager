@@ -1,10 +1,11 @@
 import {useEffect, useState} from "react";
 import styled from "styled-components";
-import {listDirectory, openFile, type DirectoryListing, type Drive, type Place, type RecentEntry} from "../api/files";
+import {listDirectory, openFile, type DirectoryListing, type Drive, type FileEntry, type Place, type RecentEntry} from "../api/files";
 import {getSettings} from "../api/settings";
 import type {TabKind} from "../tabs";
 import {buildPanels, PanelGlyph, type Panel} from "../panels";
 import {DriveIcon, FileIcon, FolderIcon, GearIcon, ImageIcon, OverviewIcon, TrashIcon} from "./Icons";
+import {PathIcon} from "./PathIcon";
 import {driveName, formatBytes, usageTone} from "../utils/format";
 import {wantsNewTab} from "../shortcuts";
 
@@ -96,7 +97,12 @@ export function Sidebar({
                                     title={entry.path}
                                     type="button"
                                 >
-                                    {entry.isDirectory ? <FolderIcon/> : <FileIcon/>}
+                                    <PathIcon
+                                        isDirectory={entry.isDirectory}
+                                        name={entry.name}
+                                        path={entry.path}
+                                        size={18}
+                                    />
                                     <Label>{entry.name}</Label>
                                 </Item>
                             ))}
@@ -143,7 +149,14 @@ export function Sidebar({
     );
 }
 
-/** The subfolders of a pinned folder panel, loaded when the section is on screen. */
+/** A flyout shows a sample: long folders keep the files reachable instead of pushing them past a cap. */
+const FolderListLimit = 10;
+const FileListLimit = 40;
+
+/**
+ * The contents of a pinned folder panel, loaded when the section is on screen. Folders come first,
+ * the way Explorer shows them, then the files inside the folder the panel points at.
+ */
 function FolderItems({path, onNavigate}: { path: string; onNavigate: (path: string, newTab?: boolean) => void }) {
     const [listing, setListing] = useState<DirectoryListing | null>(null);
 
@@ -154,22 +167,47 @@ function FolderItems({path, onNavigate}: { path: string; onNavigate: (path: stri
         listDirectory(path, false).then(setListing, () => setListing(null));
     }, [path]);
 
-    return (listing?.entries ?? [])
-        .slice(0, 60)
-        .map((entry) => (
-            <Item
-                key={entry.fullPath}
-                $active={false}
-                onClick={(event) => entry.isDirectory
-                    ? onNavigate(entry.fullPath, wantsNewTab(event))
-                    : void openFile(entry.fullPath)}
-                title={entry.fullPath}
-                type="button"
-            >
-                {entry.isDirectory ? <FolderIcon/> : <FileIcon/>}
-                <Label>{entry.name}</Label>
-            </Item>
-        ));
+    const entries = listing?.entries ?? [];
+    const folders = entries.filter((entry) => entry.isDirectory).slice(0, FolderListLimit);
+    const files = entries.filter((entry) => !entry.isDirectory).slice(0, FileListLimit);
+    const truncated = entries.length > folders.length + files.length;
+
+    return (
+        <>
+            {folders.map((entry) => (
+                <SidebarEntry entry={entry} key={entry.fullPath} onNavigate={onNavigate}/>
+            ))}
+
+            {folders.length > 0 && files.length > 0 && <Group>Files</Group>}
+
+            {files.map((entry) => (
+                <SidebarEntry entry={entry} key={entry.fullPath} onNavigate={onNavigate}/>
+            ))}
+
+            {truncated && (
+                <More onClick={(event) => onNavigate(path, wantsNewTab(event))} title={path} type="button">
+                    Show all…
+                </More>
+            )}
+        </>
+    );
+}
+
+/** One entry of a sidebar folder panel: folders navigate, files open in their usual program. */
+function SidebarEntry({entry, onNavigate}: { entry: FileEntry; onNavigate: (path: string, newTab?: boolean) => void }) {
+    return (
+        <Item
+            $active={false}
+            onClick={(event) => entry.isDirectory
+                ? onNavigate(entry.fullPath, wantsNewTab(event))
+                : void openFile(entry.fullPath)}
+            title={entry.fullPath}
+            type="button"
+        >
+            {entry.isDirectory ? <FolderIcon/> : <FileIcon/>}
+            <Label>{entry.name}</Label>
+        </Item>
+    );
 }
 
 /** Comparing paths is enough here: the backend always answers with canonical full paths. */
@@ -321,6 +359,30 @@ const Hint = styled.span`
     font-family: var(--font-mono);
     font-size: 9px;
     color: var(--text-muted);
+`;
+
+const Group = styled.span`
+    padding: 5px 8px 2px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+`;
+
+const More = styled.button`
+    padding: 5px 8px;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 11px;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+        color: var(--text-primary);
+    }
 `;
 
 const Bar = styled.span`

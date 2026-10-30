@@ -30,6 +30,8 @@ export interface AppSettings {
     overviewIcons: Record<string, string> | null;
     /** Overview panels that also appear in the sidebar, by panel id. */
     overviewPinned: string[] | null;
+    /** Keep yafm:// registered for this user; the host re-applies it at every launch. */
+    linksEnabled: boolean | null;
 }
 
 const fallback: AppSettings = {
@@ -49,6 +51,7 @@ const fallback: AppSettings = {
     overviewViews: null,
     overviewIcons: null,
     overviewPinned: null,
+    linksEnabled: null,
 };
 
 /** The interface settings, persisted by the host. */
@@ -74,6 +77,7 @@ export async function getSettings(): Promise<AppSettings> {
         overviewViews: raw?.overviewViews ?? null,
         overviewIcons: raw?.overviewIcons ?? null,
         overviewPinned: raw?.overviewPinned ?? null,
+        linksEnabled: raw?.linksEnabled ?? null,
     };
 }
 
@@ -100,6 +104,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         overviewViews: saved?.overviewViews ?? settings.overviewViews,
         overviewIcons: saved?.overviewIcons ?? settings.overviewIcons,
         overviewPinned: saved?.overviewPinned ?? settings.overviewPinned,
+        linksEnabled: saved?.linksEnabled ?? settings.linksEnabled,
     };
 }
 

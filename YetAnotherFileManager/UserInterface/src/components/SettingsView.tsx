@@ -38,6 +38,8 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
     const [busy, setBusy] = useState(false);
     const [memory, setMemory] = useState<MemoryUsage | null>(null);
     const [scheme, setSchemeState] = useState(false);
+    const [schemeBusy, setSchemeBusy] = useState(false);
+    const [schemeError, setSchemeError] = useState<string | null>(null);
     const [capturing, setCapturing] = useState<string | null>(null);
 
     useEffect(() => {
@@ -62,6 +64,31 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
         setSettings(next);
         clearIconCache();
         setSettings(await saveSettings(next));
+    };
+
+    /** Applies the choice now and remembers it, so the next launch can put a lost entry back. */
+    const toggleScheme = async () => {
+        if (schemeBusy) return;
+
+        const wanted = !scheme;
+        setSchemeBusy(true);
+        setSchemeError(null);
+
+        try {
+            const registered = await setScheme(wanted);
+
+            setSchemeState(registered);
+            setSettings((current) => current ? {...current, linksEnabled: wanted} : current);
+
+            if (registered !== wanted)
+                setSchemeError(wanted
+                    ? "Windows did not accept the registration. Try again."
+                    : "The registration is still there. Try turning it off again.");
+        } catch {
+            setSchemeError("The request to Windows failed. Try again.");
+        } finally {
+            setSchemeBusy(false);
+        }
     };
 
     const setOverride = async (extension: string, source: string | null) => {
@@ -181,13 +208,17 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                             <Label>Open yafm:// links</Label>
                             <Note>
                                 Registers this app for yafm:// links, for the current user only.
-                                Without it the links still work inside the app.
+                                While this is on, the app repairs the entry at every launch.
+                                {schemeError ? ` ${schemeError}` : ""}
                             </Note>
                         </RowText>
                         <RowEnd>
+                            <State $on={scheme}>{scheme ? "Active" : "Off"}</State>
                             <Toggle
                                 $on={scheme}
-                                onClick={() => void setScheme(!scheme).then(setSchemeState)}
+                                disabled={schemeBusy}
+                                onClick={() => void toggleScheme()}
+                                title={scheme ? "Stop opening yafm:// links" : "Open yafm:// links with this app"}
                                 type="button"
                             >
                                 <Knob/>
@@ -655,6 +686,14 @@ const Value = styled.span`
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--text-muted);
+`;
+
+const State = styled.span<{ $on: boolean }>`
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: ${({$on}) => $on ? "#34d399" : "var(--text-muted)"};
 `;
 
 const Index = styled.code`

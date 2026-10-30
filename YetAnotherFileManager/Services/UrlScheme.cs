@@ -13,12 +13,33 @@ internal static class UrlScheme
 {
     private const string Scheme = "yafm";
     private const string KeyPath = $@"Software\Classes\{Scheme}";
+    private const string CommandPath = $@"{KeyPath}\shell\open\command";
 
-    public static bool IsRegistered() =>
-        Try.Run(() => Registry.CurrentUser.OpenSubKey(KeyPath) is not null).GetOrElse(_ => false);
+    /// <summary>
+    ///     True when the shell would open this build. A leftover entry that points at another copy
+    ///     counts as missing: registering again repairs it.
+    /// </summary>
+    public static bool IsRegistered()
+    {
+        if (!OperatingSystem.IsWindows())
+            return false;
+
+        var command = Try.Run(() => Registry.CurrentUser.OpenSubKey(CommandPath)?.GetValue(null) as string)
+            .GetOrNull();
+
+        if (command is null)
+            return false;
+
+        var executable = Environment.ProcessPath;
+
+        return executable is null || command.Contains(executable, StringComparison.OrdinalIgnoreCase);
+    }
 
     public static bool Register()
     {
+        if (!OperatingSystem.IsWindows())
+            return false;
+
         var executable = Environment.ProcessPath;
         if (executable is null)
             return false;
@@ -38,9 +59,22 @@ internal static class UrlScheme
 
     public static bool Unregister()
     {
+        if (!OperatingSystem.IsWindows())
+            return false;
+
         Try.Run(() => Registry.CurrentUser.DeleteSubKeyTree(KeyPath, false))
             .OnFailure(ex => Log.Warning(ex, "Could not remove the yafm:// registration"));
 
         return !IsRegistered();
+    }
+
+    /// <summary>
+    ///     Re-applies the user's choice at startup. The registry entry is easy to lose — a cleanup
+    ///     tool, another profile — so the setting is what decides whether links stay enabled.
+    /// </summary>
+    public static void Apply(bool enabled)
+    {
+        if (enabled && !IsRegistered())
+            Register();
     }
 }

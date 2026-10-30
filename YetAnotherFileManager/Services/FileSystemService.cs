@@ -122,9 +122,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 new SchemePayload(UrlScheme.IsRegistered()))),
 
             "app.scheme.set" => Task.FromResult<NativeResponse?>(context.Reply("app.scheme.result",
-                new SchemePayload(context.Payload<SchemeRequest>()?.Enabled ?? false
-                    ? UrlScheme.Register()
-                    : UrlScheme.Unregister()))),
+                new SchemePayload(SetScheme(context.Payload<SchemeRequest>()?.Enabled ?? false)))),
 
             "fs.list" => Task.FromResult<NativeResponse?>(context.Reply("fs.list.result",
                 List(context.Payload<FsListRequest>()?.Path, context.Payload<FsListRequest>()?.Sizes ?? true))),
@@ -313,6 +311,20 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool SetVolumeLabel(string root, string label);
+
+    /// <summary>
+    ///     Remembers the user's choice and applies it now. The stored flag is what lets the next
+    ///     launch put a lost registry entry back.
+    /// </summary>
+    private static bool SetScheme(bool enabled)
+    {
+        SettingsService.Instance.Update(settings => settings with
+        {
+            LinksEnabled = enabled
+        });
+
+        return enabled ? UrlScheme.Register() : UrlScheme.Unregister();
+    }
 
     /// <summary>Hands a file to the shell, which opens it with whatever the user made its default.</summary>
     private static bool OpenFile(string? path)

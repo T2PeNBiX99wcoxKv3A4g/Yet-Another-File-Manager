@@ -23,10 +23,11 @@ public sealed record AppSettings(
     Dictionary<string, string>? OverviewTitles,
     Dictionary<string, string>? OverviewViews,
     Dictionary<string, string>? OverviewIcons,
-    List<string>? OverviewPinned)
+    List<string>? OverviewPinned,
+    bool? LinksEnabled)
 {
     public static AppSettings Default =>
-        new(true, true, true, [], null, 10, null, null, null, 1, null, null, null, null, null, null, null);
+        new(true, true, true, [], null, 10, null, null, null, 1, null, null, null, null, null, null, null, null);
 
     // The accessors below are derived, so they are kept out of settings.json entirely; only the
     // fields above are stored, and the JSON stays readable and stable.
@@ -98,4 +99,11 @@ public sealed record AppSettings(
     /// <summary>Overview panels that also appear in the sidebar.</summary>
     [JsonIgnore]
     public List<string> PinnedPanels => OverviewPinned ?? [];
+
+    /// <summary>
+    ///     Whether this app should own <c>yafm://</c> links. Windows can lose the per-user registry
+    ///     entry, so this choice is stored with the other settings and re-applied at every launch.
+    /// </summary>
+    [JsonIgnore]
+    public bool OwnsLinks => LinksEnabled ?? false;
 }

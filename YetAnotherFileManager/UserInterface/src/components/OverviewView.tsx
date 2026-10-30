@@ -13,9 +13,9 @@ import {
 } from "../api/files";
 import {getSettings, pickFolder, pickIconFile, saveSettings, type AppSettings} from "../api/settings";
 import {Native} from "@photino-net-utils/bridge";
-import {useIcon} from "../api/icons";
 import {FileList} from "./FileList";
-import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, FileIcon, FolderIcon, ImageIcon, PencilIcon, PlusIcon, TextIcon} from "./Icons";
+import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, FolderIcon, ImageIcon, PencilIcon, PlusIcon} from "./Icons";
+import {PathIcon} from "./PathIcon";
 import {driveName, formatBytes, usageTone} from "../utils/format";
 import {wantsNewTab} from "../shortcuts";
 import {buildPanels, kindOfPanel, PanelGlyph, PanelIcons, type Panel, type PanelKind, type ViewMode} from "../panels";
@@ -401,21 +401,27 @@ const PlaceIconButton = styled.button<{ $inline?: boolean }>`
     }
 `;
 
-/** A drive row: the entry itself plus its rename button, which cannot live inside a button. */
-const DriveRow = styled.div`
-    position: relative;
-    display: flex;
-    min-width: 0;
-`;
+/** The rename action sits right after the drive name, not at the far end of the row. */
+const DriveRenameButton = styled.button`
+    display: inline-grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    margin-left: 4px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    opacity: 0.55;
+    vertical-align: -3px;
+    cursor: pointer;
 
-const DriveRowButton = styled(Row)`
-    padding-right: 36px;
-`;
-
-const DriveRenameButton = styled(PlaceIconButton)`
-    top: 50%;
-    right: 8px;
-    transform: translateY(-50%);
+    &:hover {
+        background: rgba(99, 102, 241, 0.28);
+        color: #c7d2fe;
+        opacity: 1;
+    }
 `;
 
 const Notice = styled.p`
@@ -639,7 +645,9 @@ export function OverviewView({
                                 : void openFile(entry.path)}
                             title={entry.path}
                         >
-                            <Glyph>{entry.isDirectory ? <FolderIcon size={18}/> : <FileIcon size={18}/>}</Glyph>
+                            <Glyph>
+                                <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.path} size={18}/>
+                            </Glyph>
                             <CardText>
                                 <strong>{entry.name}</strong>
                                 <span>{entry.path}</span>
@@ -661,19 +669,21 @@ export function OverviewView({
                         >
                             <Glyph><DriveIcon size={18}/></Glyph>
                             <CardText>
-                                <strong>{driveName(drive)}</strong>
+                                <strong>
+                                    {driveName(drive)}
+                                    <DriveRenameButton
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            startDriveRename(drive);
+                                        }}
+                                        title="Rename volume"
+                                        type="button"
+                                    >
+                                        <PencilIcon size={11}/>
+                                    </DriveRenameButton>
+                                </strong>
                                 <span>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</span>
                             </CardText>
-                            <DriveRenameButton
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    startDriveRename(drive);
-                                }}
-                                title="Rename volume"
-                                type="button"
-                            >
-                                <PencilIcon size={11}/>
-                            </DriveRenameButton>
                         </Card>
                     ))}
                 </Places>
@@ -746,17 +756,19 @@ export function OverviewView({
 
             case "recent":
                 return recent.length === 0
-                    ? <Empty>Folders you open show up here.</Empty>
+                    ? <Empty>Files and folders you open show up here.</Empty>
                     : (
                         <Rows>
                             {recent.slice(0, recentLimit).map((entry) => (
                                 <Row
                                     key={entry.path}
-                                    onClick={(event) => onOpen(entry.path, wantsNewTab(event))}
+                                    onClick={(event) => entry.isDirectory
+                                        ? onOpen(entry.path, wantsNewTab(event))
+                                        : void openFile(entry.path)}
                                     title={entry.path}
                                     type="button"
                                 >
-                                    <FolderIcon size={15}/>
+                                    <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.path} size={15}/>
                                     <RowText>
                                         <strong>{entry.name}</strong>
                                         <span>{entry.path}</span>
@@ -773,23 +785,31 @@ export function OverviewView({
                             const used = drive.totalSize > 0 ? 1 - drive.freeSpace / drive.totalSize : 0;
 
                             return (
-                                <DriveRow key={drive.name}>
-                                    <DriveRowButton
-                                        onClick={(event) => onOpen(drive.name, wantsNewTab(event))}
-                                        title={drive.name}
-                                        type="button"
-                                    >
-                                        <DriveIcon size={18}/>
-                                        <RowText>
-                                            <strong>{driveName(drive)}</strong>
-                                            <span>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</span>
-                                        </RowText>
-                                        <Bar><Fill $used={used} $tone={usageTone(used)}/></Bar>
-                                    </DriveRowButton>
-                                    <DriveRenameButton onClick={() => startDriveRename(drive)} title="Rename volume" type="button">
-                                        <PencilIcon size={11}/>
-                                    </DriveRenameButton>
-                                </DriveRow>
+                                <Row
+                                    key={drive.name}
+                                    onClick={(event) => onOpen(drive.name, wantsNewTab(event))}
+                                    title={drive.name}
+                                    type="button"
+                                >
+                                    <DriveIcon size={18}/>
+                                    <RowText>
+                                        <strong>
+                                            {driveName(drive)}
+                                            <DriveRenameButton
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    startDriveRename(drive);
+                                                }}
+                                                title="Rename volume"
+                                                type="button"
+                                            >
+                                                <PencilIcon size={11}/>
+                                            </DriveRenameButton>
+                                        </strong>
+                                        <span>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</span>
+                                    </RowText>
+                                    <Bar><Fill $used={used} $tone={usageTone(used)}/></Bar>
+                                </Row>
                             );
                         })}
                     </Rows>
@@ -1082,21 +1102,13 @@ function FolderBody({path, mode, onOpen}: { path: string; mode: ViewMode; onOpen
                     title={entry.name}
                     type="button"
                 >
-                    <EntryGlyph entry={entry}/>
+                    <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.fullPath} size={16}/>
                     <span>{entry.name}</span>
                 </Tile>
             ))}
         </Tiles>
         </Scroller>
     );
-}
-
-function EntryGlyph({entry}: { entry: DirectoryListing["entries"][number] }) {
-    const icon = useIcon(entry.fullPath, entry.isDirectory);
-
-    if (icon) return <img alt="" src={icon}/>;
-
-    return entry.isDirectory ? <FolderIcon size={16}/> : <TextIcon size={16}/>;
 }
 
 /** A small pin, drawn inline so the header does not need another icon file. */
