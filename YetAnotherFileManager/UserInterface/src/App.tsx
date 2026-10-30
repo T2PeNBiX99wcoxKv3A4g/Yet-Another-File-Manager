@@ -148,6 +148,7 @@ export default function App() {
     const [recent, setRecent] = useState<RecentEntry[]>([]);
     const [recentLimit, setRecentLimit] = useState(10);
     const [settings, setSettings] = useState<AppSettings | null>(null);
+    const [historyVersion, setHistoryVersion] = useState(0);
     const [shortcuts, setShortcuts] = useState<ShortcutMap>(DefaultShortcuts);
     const [settingsVersion, setSettingsVersion] = useState(0);
 
@@ -493,6 +494,7 @@ export default function App() {
                     activeKind={kind}
                     currentPath={kind === "files" ? location : ""}
                     drives={drives}
+                    historyVersion={historyVersion}
                     onNavigate={(path) => navigate(path)}
                     onOpenView={openView}
                     homePath={places.find((place) => place.kind === "home")?.path ?? ""}
@@ -554,8 +556,10 @@ export default function App() {
                     ) : kind === "home" ? (
                         <OverviewView
                             drives={drives}
+                            historyVersion={historyVersion}
                             homePath={places.find((place) => place.kind === "home")?.path ?? ""}
                             onDrivesChanged={reloadDrives}
+                            onHistoryChanged={() => setHistoryVersion((current) => current + 1)}
                             onOpen={navigate}
                             onLayoutChanged={reloadSettings}
                             onPlacesChanged={setPlaces}

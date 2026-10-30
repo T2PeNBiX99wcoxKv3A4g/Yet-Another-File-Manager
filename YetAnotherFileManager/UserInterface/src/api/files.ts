@@ -200,6 +200,11 @@ export async function clearRecent(): Promise<void> {
     await Native.request("fs.recent.clear");
 }
 
+/** Forgets the frequent list. */
+export async function clearFrequent(): Promise<void> {
+    await Native.request("fs.frequent.clear");
+}
+
 /** Renames one pinned folder; an empty name goes back to the folder's own name. */
 export async function renamePlace(path: string, name: string | null): Promise<Place[]> {
     const data = await Native.request<{ places: Place[] }>("app.places.rename", {path, name});

@@ -84,6 +84,10 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 await HistoryService.Instance.ClearRecentAsync();
                 return context.Reply("fs.recent.clear.result", new OkPayload(true));
 
+            case "fs.frequent.clear":
+                await HistoryService.Instance.ClearFrequentAsync();
+                return context.Reply("fs.frequent.clear.result", new OkPayload(true));
+
             case "app.places.set":
                 return context.Reply("app.places.set.result",
                     new FsPlacesPayload(await SetPlacesAsync(context.Payload<PlacesRequest>()?.Paths)));

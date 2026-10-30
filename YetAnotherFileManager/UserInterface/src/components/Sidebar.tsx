@@ -20,6 +20,8 @@ interface SidebarProps {
     homePath?: string;
     /** Bumped whenever the overview layout changes, so pinned panels follow along. */
     version?: number;
+    /** Bumped when the recent or frequent history is cleared. */
+    historyVersion?: number;
     onNavigate: (path: string, newTab?: boolean) => void;
     onOpenView: (kind: Exclude<TabKind, "files">) => void;
 }
@@ -37,6 +39,7 @@ export function Sidebar({
     activeKind,
     homePath = "",
     version = 0,
+    historyVersion = 0,
     onNavigate,
     onOpenView,
 }: SidebarProps) {
@@ -129,7 +132,9 @@ export function Sidebar({
                                 </Item>
                             ))}
 
-                            {panel.kind === "frequent" && <FrequentItems onNavigate={onNavigate}/>}
+                            {panel.kind === "frequent" && (
+                                <FrequentItems historyVersion={historyVersion} onNavigate={onNavigate}/>
+                            )}
 
                             {panel.kind === "drives" && drives.map((drive) => {
                                 const used = drive.totalSize > 0 ? 1 - drive.freeSpace / drive.totalSize : 0;
@@ -178,12 +183,15 @@ const FolderListLimit = 10;
 const FileListLimit = 40;
 
 /** The folders opened most often, capped to a flyout-sized list. */
-function FrequentItems({onNavigate}: { onNavigate: (path: string, newTab?: boolean) => void }) {
+function FrequentItems({historyVersion = 0, onNavigate}: {
+    historyVersion?: number;
+    onNavigate: (path: string, newTab?: boolean) => void;
+}) {
     const [entries, setEntries] = useState<FrequentEntry[] | null>(null);
 
     useEffect(() => {
         listFrequent().then(setEntries, () => setEntries([]));
-    }, []);
+    }, [historyVersion]);
 
     return (entries ?? []).slice(0, 15).map((entry) => (
         <Item

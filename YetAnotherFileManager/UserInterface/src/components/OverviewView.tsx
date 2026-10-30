@@ -1,6 +1,7 @@
 import {useEffect, useState} from "react";
 import styled from "styled-components";
 import {
+    clearFrequent,
     clearRecent,
     listDirectory,
     listFrequent,
@@ -29,10 +30,13 @@ interface OverviewViewProps {
     recent: RecentEntry[];
     recentLimit: number;
     homePath: string;
+    /** Bumped when the recent or frequent history is cleared, so those panels reload. */
+    historyVersion: number;
     onOpen: (path: string, newTab?: boolean) => void;
     onPlacesChanged: (places: Place[]) => void;
     onRecentCleared: () => void;
     onLayoutChanged?: () => void;
+    onHistoryChanged?: () => void;
     /** Called after a volume label was written, so the drive lists show the new name. */
     onDrivesChanged?: () => void;
 }
@@ -608,10 +612,12 @@ export function OverviewView({
     recent,
     recentLimit,
     homePath,
+    historyVersion,
     onOpen,
     onPlacesChanged,
     onRecentCleared,
     onLayoutChanged,
+    onHistoryChanged,
     onDrivesChanged,
 }: OverviewViewProps) {
     const [editing, setEditing] = useState(false);
@@ -1119,7 +1125,7 @@ export function OverviewView({
             }
 
             case "frequent":
-                return <FrequentBody mode={panel.view} onOpen={onOpen}/>;
+                return <FrequentBody mode={panel.view} onOpen={onOpen} version={historyVersion}/>;
 
             case "recent":
                 return recent.length === 0
@@ -1327,6 +1333,16 @@ export function OverviewView({
                                             </Ghost>
                                         )}
 
+                                        {!editing && panel.kind === "frequent" && (
+                                            <Ghost
+                                                onClick={() => void clearFrequent().then(() => onHistoryChanged?.())}
+                                                title="Clear the frequent list"
+                                                type="button"
+                                            >
+                                                Clear
+                                            </Ghost>
+                                        )}
+
                                         {!editing && (panel.kind === "home" || panel.kind === "folder") && (
                                             <Ghost onClick={() => onOpen(panel.path ?? homePath)} title="Open folder" type="button">
                                                 Open
@@ -1387,7 +1403,9 @@ export function OverviewView({
                                     </HeadEnd>
                                 </Head>
 
-                                {body(panel)}
+                                {panel.kind === "home" || panel.kind === "folder"
+                                    ? body(panel)
+                                    : <Scroller>{body(panel)}</Scroller>}
                             </Section>
                         );
                     })}
@@ -1463,12 +1481,16 @@ function samePath(left: string, right: string): boolean {
 }
 
 /** The folders this user opens most often, ranked by how many visits the host counted. */
-function FrequentBody({mode, onOpen}: { mode: ViewMode; onOpen: (path: string, newTab?: boolean) => void }) {
+function FrequentBody({mode, onOpen, version}: {
+    mode: ViewMode;
+    onOpen: (path: string, newTab?: boolean) => void;
+    version: number;
+}) {
     const [entries, setEntries] = useState<FrequentEntry[] | null>(null);
 
     useEffect(() => {
         listFrequent().then(setEntries, () => setEntries([]));
-    }, []);
+    }, [version]);
 
     if (!entries)
         return <Empty>Reading…</Empty>;

@@ -19,10 +19,10 @@ export interface Panel {
     pinned: boolean;
 }
 
-export const DefaultPanels = ["quick", "recent", "home", "drives"];
+export const DefaultPanels = ["quick", "frequent", "recent", "home", "drives"];
 
-/** Panel kinds that can be stored in the layout. Frequent is not part of the factory layout. */
-export const KnownPanels = [...DefaultPanels, "frequent"];
+/** Panel kinds that can be stored in the layout. */
+export const KnownPanels = DefaultPanels;
 
 export const DefaultTitles: Record<string, string> = {
     quick: "Quick access",
@@ -68,8 +68,8 @@ export function buildPanels(settings: AppSettings | null): Panel[] {
     const titles = settings?.overviewTitles ?? {};
     const views = settings?.overviewViews ?? {};
     const icons = settings?.overviewIcons ?? {};
-    // Quick access, recent folders and the drives are in the sidebar until the user says otherwise.
-    const pinned = settings?.overviewPinned ?? ["quick", "recent", "drives"];
+    // Quick access, frequent folders, recent folders and the drives are in the sidebar by default.
+    const pinned = settings?.overviewPinned ?? ["quick", "frequent", "recent", "drives"];
 
     return ids.map((id) => {
         const kind = kindOfPanel(id);
