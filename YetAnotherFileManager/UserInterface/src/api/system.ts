@@ -40,3 +40,19 @@ export async function trimMemory(): Promise<MemoryUsage> {
 
     return await Native.request<MemoryUsage>("app.memory.trim");
 }
+
+/** Whether Windows is set up to open yafm:// links with this app. */
+export async function getScheme(): Promise<boolean> {
+    if (!Native.available) return false;
+
+    const data = await Native.request<{ registered: boolean }>("app.scheme");
+    return data.registered;
+}
+
+/** Registers or unregisters yafm:// for the current user. */
+export async function setScheme(enabled: boolean): Promise<boolean> {
+    if (!Native.available) return false;
+
+    const data = await Native.request<{ registered: boolean }>("app.scheme.set", {enabled});
+    return data.registered;
+}

@@ -62,8 +62,11 @@ internal sealed record AdminOrphansPayload(
     bool Cancelled,
     bool Failed);
 
-/// <summary>Body for <c>fs.gallery</c>: the pictures found in the scanned folders, newest first.</summary>
-internal sealed record FsGalleryPayload(IReadOnlyList<GalleryEntry> Entries);
+/// <summary>Body for <c>fs.gallery</c>: a slice of the pictures, newest first, plus the total.</summary>
+internal sealed record FsGalleryPayload(IReadOnlyList<GalleryEntry> Entries, int Total);
+
+/// <summary>Payload for <c>fs.gallery</c>: which slice to send, and whether to walk the folders again.</summary>
+internal sealed record GalleryRequest(int Offset, int Count, bool Refresh);
 
 /// <summary>Payload for <c>fs.thumbnail</c>: which picture, and how big the thumbnail should be.</summary>
 internal sealed record ThumbnailRequest(string Path, int Size);
@@ -76,6 +79,12 @@ internal sealed record PlacesRequest(List<string> Paths);
 
 /// <summary>Body for <c>app.memory</c>: what this process is using, in bytes.</summary>
 internal sealed record MemoryPayload(long Managed, long Private, long WorkingSet, long Available);
+
+/// <summary>Payload for <c>app.scheme.set</c>: whether this app should own <c>yafm://</c> links.</summary>
+internal sealed record SchemeRequest(bool Enabled);
+
+/// <summary>Body for <c>app.scheme</c>: whether <c>yafm://</c> links are registered.</summary>
+internal sealed record SchemePayload(bool Registered);
 
 /// <summary>Body for <c>fs.visibility</c>: the shell's hidden-item options.</summary>
 internal sealed record FsVisibilityPayload(bool ShowHidden, bool ShowSystem);

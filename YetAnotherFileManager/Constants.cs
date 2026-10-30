@@ -21,6 +21,9 @@ public static class Constants
     ///     leftovers it can see to the path that follows (and deletes them when <c>--delete</c> is
     ///     also present), then exits without opening a window.
     /// </summary>
+    /// <summary>Links this app understands, e.g. <c>yafm://overview</c>.</summary>
+    public const string ViewScheme = "yafm://";
+
     public const string OrphansReportArgument = "--orphans-report";
 
     /// <summary>Adds deletion to the elevated report run.</summary>

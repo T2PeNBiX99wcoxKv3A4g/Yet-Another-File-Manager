@@ -165,6 +165,14 @@ internal static class Program
             if (arg.Length == 0 || arg.StartsWith('-'))
                 continue;
 
+            // yafm:// links arrive as the only argument when the shell opens one; the interface
+            // knows how to parse them, so they are passed through untouched.
+            if (arg.StartsWith(Constants.ViewScheme, StringComparison.OrdinalIgnoreCase))
+            {
+                paths.Add(arg);
+                continue;
+            }
+
             var full = Try.Run(() => Path.GetFullPath(arg)).GetOrNull();
             if (full is null || paths.Contains(full, StringComparer.OrdinalIgnoreCase))
                 continue;

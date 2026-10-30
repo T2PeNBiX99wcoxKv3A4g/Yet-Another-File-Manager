@@ -1,7 +1,17 @@
+import {useState} from "react";
 import styled from "styled-components";
 import type {Drive, Place, RecentEntry} from "../api/files";
 import type {TabKind} from "../tabs";
-import {DriveIcon, FolderIcon, GearIcon, HomeIcon, ImageIcon, OverviewIcon, TrashIcon} from "./Icons";
+import {
+    ChevronRightIcon,
+    DriveIcon,
+    FolderIcon,
+    GearIcon,
+    HomeIcon,
+    ImageIcon,
+    OverviewIcon,
+    TrashIcon,
+} from "./Icons";
 import {formatBytes, usageTone} from "../utils/format";
 
 interface SidebarProps {
@@ -16,9 +26,8 @@ interface SidebarProps {
 }
 
 /**
- * A rail of icons that expands under the pointer. It is positioned over the content rather than
- * beside it, so revealing the labels never reflows the file list. Collapsed it only costs 52px and
- * each row keeps its icon; the labels, the drive hints and the section titles appear on hover.
+ * A rail of icons that expands under the pointer. The lists are a collapsed tree: closed until the
+ * section title is clicked, and only shown while the rail is open, so the closed rail stays small.
  */
 export function Sidebar({
     places,
@@ -30,8 +39,10 @@ export function Sidebar({
     onNavigate,
     onOpenView,
 }: SidebarProps) {
+    const [open, setOpen] = useState<Record<string, boolean>>({});
     const showFiles = activeKind === "files";
-    const recentShown = recentLimit > 0 && recent.length > 0;
+    const isOpen = (id: string) => open[id] ?? false;
+    const toggle = (id: string) => setOpen((current) => ({...current, [id]: !current[id]}));
 
     return (
         <Aside>
@@ -67,71 +78,86 @@ export function Sidebar({
                 </List>
             </Section>
 
-            <Section>
-                <SectionTitle>Places</SectionTitle>
-                <List>
-                    {places.map((place) => (
-                        <Item
-                            key={place.path}
-                            $active={showFiles && isSamePath(currentPath, place.path)}
-                            onClick={() => onNavigate(place.path)}
-                            title={place.path}
-                            type="button"
-                        >
-                            {place.kind === "home" ? <HomeIcon/> : <FolderIcon/>}
-                            <Label>{place.name}</Label>
-                        </Item>
-                    ))}
-                </List>
-            </Section>
-
-            {recentShown && (
-                <ScrollSection>
-                    <SectionTitle>Recent</SectionTitle>
+            <Tree $grow>
+                <TreeHead onClick={() => toggle("places")} title="Places" type="button">
+                    <Chevron $open={isOpen("places")}><ChevronRightIcon size={11}/></Chevron>
+                    <SectionTitle>Places</SectionTitle>
+                </TreeHead>
+                {isOpen("places") && (
                     <List>
-                        {recent.slice(0, recentLimit).map((entry) => (
+                        {places.map((place) => (
                             <Item
-                                key={entry.path}
-                                $active={showFiles && isSamePath(currentPath, entry.path)}
-                                onClick={() => onNavigate(entry.path)}
-                                title={entry.path}
+                                key={place.path}
+                                $active={showFiles && isSamePath(currentPath, place.path)}
+                                onClick={() => onNavigate(place.path)}
+                                title={place.path}
                                 type="button"
                             >
-                                <FolderIcon/>
-                                <Label>{entry.name}</Label>
+                                {place.kind === "home" ? <HomeIcon/> : <FolderIcon/>}
+                                <Label>{place.name}</Label>
                             </Item>
                         ))}
                     </List>
-                </ScrollSection>
+                )}
+            </Tree>
+
+            {recentLimit > 0 && recent.length > 0 && (
+                <Tree>
+                    <TreeHead onClick={() => toggle("recent")} title="Recent" type="button">
+                        <Chevron $open={isOpen("recent")}><ChevronRightIcon size={11}/></Chevron>
+                        <SectionTitle>Recent</SectionTitle>
+                    </TreeHead>
+                    {isOpen("recent") && (
+                        <List>
+                            {recent.slice(0, recentLimit).map((entry) => (
+                                <Item
+                                    key={entry.path}
+                                    $active={showFiles && isSamePath(currentPath, entry.path)}
+                                    onClick={() => onNavigate(entry.path)}
+                                    title={entry.path}
+                                    type="button"
+                                >
+                                    <FolderIcon/>
+                                    <Label>{entry.name}</Label>
+                                </Item>
+                            ))}
+                        </List>
+                    )}
+                </Tree>
             )}
 
-            <ScrollSection>
-                <SectionTitle>Drives</SectionTitle>
-                <List>
-                    {drives.map((drive) => {
-                        const used = drive.totalSize > 0 ? 1 - drive.freeSpace / drive.totalSize : 0;
+            <Tree $grow>
+                <TreeHead onClick={() => toggle("drives")} title="Drives" type="button">
+                    <Chevron $open={isOpen("drives")}><ChevronRightIcon size={11}/></Chevron>
+                    <SectionTitle>Drives</SectionTitle>
+                </TreeHead>
+                {isOpen("drives") && (
+                    <List>
+                        {drives.map((drive) => {
+                            const used = drive.totalSize > 0 ? 1 - drive.freeSpace / drive.totalSize : 0;
 
-                        return (
-                            <Item
-                                key={drive.name}
-                                $active={showFiles && isSamePath(currentPath, drive.name)}
-                                onClick={() => onNavigate(drive.name)}
-                                title={`${drive.label || drive.name} · ${formatBytes(drive.freeSpace)} free of ${formatBytes(drive.totalSize)}`}
-                                type="button"
-                            >
-                                <DriveIcon/>
-                                <Label>
-                                    {drive.label || drive.name}
-                                    <Hint>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</Hint>
-                                    <Bar>
-                                        <Fill $used={used} $tone={usageTone(used)}/>
-                                    </Bar>
-                                </Label>
-                            </Item>
-                        );
-                    })}
-                </List>
-            </ScrollSection>
+                            return (
+                                <Item
+                                    key={drive.name}
+                                    $active={showFiles && isSamePath(currentPath, drive.name)}
+                                    onClick={() => onNavigate(drive.name)}
+                                    title={`${drive.label || drive.name} · ${formatBytes(drive.freeSpace)} free of ${formatBytes(drive.totalSize)}`}
+                                    type="button"
+                                >
+                                    <DriveIcon/>
+                                    <Label>
+                                        {drive.label || drive.name}
+                                        <Hint>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</Hint>
+                                        <Bar>
+                                            <Fill $used={used} $tone={usageTone(used)}/>
+                                        </Bar>
+                                    </Label>
+                                </Item>
+                            );
+                        })}
+                    </List>
+                )}
+            </Tree>
 
             <Section $bottom>
                 <List>
@@ -184,11 +210,9 @@ const Aside = styled.aside`
         box-shadow: 14px 0 34px rgba(0, 0, 0, 0.45);
     }
 
-    /* Everything that only makes sense once the rail is open. */
-    &:not(:hover) ${() => SectionTitle} {
-        height: 0;
-        margin: 0;
-        opacity: 0;
+    /* The tree only exists while the rail is open; the closed rail is a strip of icons. */
+    &:not(:hover) ${() => Tree} {
+        display: none;
     }
 
     &:not(:hover) ${() => Hint},
@@ -201,17 +225,49 @@ const Aside = styled.aside`
     }
 `;
 
-const SectionTitle = styled.h2`
-    padding: 0 8px;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+const Tree = styled.section<{ $grow?: boolean }>`
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: ${({$grow}) => $grow ? "1 1 0" : "0 0 auto"};
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+`;
+
+const TreeHead = styled.button`
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    width: 100%;
+    padding: 4px 4px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
     color: var(--text-muted);
-    opacity: 0;
-    overflow: hidden;
-    transition: opacity 130ms ease, height 130ms ease, margin 130ms ease;
-    white-space: nowrap;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--bg-card-hover);
+        color: var(--text-secondary);
+    }
+`;
+
+const Chevron = styled.span<{ $open: boolean }>`
+    display: grid;
+    place-items: center;
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    transform: rotate(${({$open}) => $open ? "90deg" : "0deg"});
+    transition: transform 130ms ease;
+    opacity: 1;
 `;
 
 const Section = styled.section<{ $bottom?: boolean }>`
@@ -222,22 +278,22 @@ const Section = styled.section<{ $bottom?: boolean }>`
     margin-top: ${({$bottom}) => $bottom ? "auto" : "0"};
 `;
 
-/** A section that gives up its space when the list is long, so the rail never overflows. */
-const ScrollSection = styled(Section)`
-    flex: 1 1 0;
-    min-height: 0;
-    overflow-y: auto;
-    scrollbar-width: none;
-
-    &::-webkit-scrollbar {
-        display: none;
-    }
+const SectionTitle = styled.h2`
+    padding: 0 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    overflow: hidden;
+    white-space: nowrap;
 `;
 
 const List = styled.div`
     display: flex;
     flex-direction: column;
     gap: 1px;
+    padding-left: 12px;
 `;
 
 const Item = styled.button<{ $active: boolean }>`

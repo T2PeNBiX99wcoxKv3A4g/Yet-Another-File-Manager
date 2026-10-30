@@ -31,36 +31,86 @@ import {viewTitles, type TabKind} from "./tabs";
 import {Native, ResizeHandles, useWindowCorners} from "@photino-net-utils/bridge";
 import {baseName, formatBytes} from "./utils/format";
 
+type ViewKind = Exclude<TabKind, "files">;
+
+/**
+ * Every tab is a list of locations; a location is either a folder path or a <c>yafm://</c> link to
+ * one of the built-in pages. Back and forward therefore work the same everywhere, and the address
+ * bar can be used on any page.
+ */
 interface Tab {
     id: string;
-    kind: TabKind;
-    path: string;
     listing: DirectoryListing | null;
     loading: boolean;
     error: string | null;
-    /** Folders visited in this tab, so back and forward work per tab. */
     history: string[];
     index: number;
     /** Nothing has been opened in it yet, so a path arriving from the host can take it over. */
     fresh: boolean;
 }
 
-type ViewKind = Exclude<TabKind, "files">;
+const ViewScheme = "yafm://";
+
+const ViewNames: Record<string, ViewKind> = {
+    overview: "home",
+    home: "home",
+    settings: "settings",
+    recycle: "recycle",
+    gallery: "gallery",
+};
 
 let nextTabId = 0;
 
-function createTab(kind: TabKind = "files", path = ""): Tab {
+/** The address of one of the built-in pages. */
+function viewLocation(kind: ViewKind): string {
+    return `${ViewScheme}${kind === "home" ? "overview" : kind}`;
+}
+
+/** Reads a yafm:// link, or answers null when the text is a folder path instead. */
+function viewKind(location: string): ViewKind | null {
+    if (!location.toLowerCase().startsWith(ViewScheme)) return null;
+
+    const name = location.slice(ViewScheme.length).replace(/\/+$/, "").toLowerCase();
+
+    return ViewNames[name] ?? null;
+}
+
+/** What the address bar sends: a folder path or a yafm:// link. */
+function parseLocation(input: string): string | null {
+    const value = input.trim();
+    if (value.length === 0) return null;
+    if (!value.toLowerCase().startsWith(ViewScheme)) return value;
+
+    const kind = ViewNames[value.slice(ViewScheme.length).replace(/\/+$/, "").toLowerCase()];
+
+    return kind ? viewLocation(kind) : null;
+}
+
+function locationOf(tab: Tab): string {
+    return tab.history[tab.index] ?? viewLocation("home");
+}
+
+function kindOf(tab: Tab): TabKind {
+    return viewKind(locationOf(tab)) ?? "files";
+}
+
+/** The folder a tab shows, or an empty string when it shows a built-in page. */
+function folderOf(tab: Tab): string {
+    const location = locationOf(tab);
+
+    return viewKind(location) ? "" : tab.listing?.path || location;
+}
+
+function createTab(location = viewLocation("home")): Tab {
     nextTabId += 1;
 
     return {
         id: `tab-${nextTabId}`,
-        kind,
-        path,
         listing: null,
-        loading: kind === "files",
+        loading: !viewKind(location),
         error: null,
-        history: [],
-        index: -1,
+        history: [location],
+        index: 0,
         fresh: true,
     };
 }
@@ -79,7 +129,7 @@ function statusLine(listing: DirectoryListing): string {
 }
 
 export default function App() {
-    const [tabs, setTabs] = useState<Tab[]>(() => [createTab("home")]);
+    const [tabs, setTabs] = useState<Tab[]>(() => [createTab()]);
     const [activeId, setActiveId] = useState(() => tabs[0].id);
     const [places, setPlaces] = useState<Place[]>([]);
     const [drives, setDrives] = useState<Drive[]>([]);
@@ -90,6 +140,8 @@ export default function App() {
     const [recentLimit, setRecentLimit] = useState(10);
 
     const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
+    const kind = kindOf(active);
+    const location = locationOf(active);
 
     // Handlers that outlive a render (the native event subscription) read the latest state here.
     const stateRef = useRef({tabs, activeId});
@@ -101,7 +153,7 @@ export default function App() {
 
     /** Opens a folder in a tab, recording it in that tab's history. */
     const load = useCallback(async (id: string, path?: string, keepFresh = false) => {
-        patch(id, (tab) => ({kind: "files", loading: true, error: null, fresh: keepFresh && tab.fresh}));
+        patch(id, (tab) => ({loading: true, error: null, fresh: keepFresh && tab.fresh}));
         setFilter("");
 
         try {
@@ -109,8 +161,8 @@ export default function App() {
 
             patch(id, (tab) => ({
                 listing,
-                path: listing.path,
                 loading: false,
+                fresh: false,
                 history: [...tab.history.slice(0, tab.index + 1), listing.path],
                 index: tab.index + 1,
             }));
@@ -119,45 +171,64 @@ export default function App() {
         }
     }, [patch]);
 
-    /** Shows a folder already in the tab's history, without adding it again. */
-    const goTo = useCallback(async (id: string, path: string, index: number) => {
-        patch(id, () => ({loading: true, error: null, index}));
+    /** Goes to a location: a folder is listed, a yafm:// page is simply shown. */
+    const openLocation = useCallback((id: string, target: string) => {
+        const parsed = parseLocation(target);
+        if (!parsed) return;
+
+        if (viewKind(parsed)) {
+            patch(id, (tab) => ({
+                listing: null,
+                loading: false,
+                error: null,
+                fresh: false,
+                history: [...tab.history.slice(0, tab.index + 1), parsed],
+                index: tab.index + 1,
+            }));
+            return;
+        }
+
+        void load(id, parsed);
+    }, [load, patch]);
+
+    /** Shows a location already in the tab's history, without adding it again. */
+    const goTo = useCallback(async (id: string, target: string, index: number) => {
         setFilter("");
 
+        if (viewKind(target)) {
+            patch(id, () => ({index, listing: null, loading: false, error: null}));
+            return;
+        }
+
+        patch(id, () => ({index, loading: true, error: null}));
+
         try {
-            const listing = await listDirectory(path);
-            patch(id, () => ({listing, path: listing.path, loading: false}));
+            const listing = await listDirectory(target);
+            patch(id, () => ({listing, loading: false}));
         } catch (cause) {
             patch(id, () => ({loading: false, error: message(cause)}));
         }
     }, [patch]);
 
     const openFiles = useCallback((path?: string) => {
-        const tab = createTab();
+        const tab = createTab(path ?? viewLocation("home"));
 
         setTabs((current) => [...current, tab]);
         setActiveId(tab.id);
-        void load(tab.id, path);
+        if (path) void load(tab.id, path);
     }, [load]);
 
-    const openView = useCallback((kind: ViewKind) => {
-        const existing = stateRef.current.tabs.find((tab) => tab.kind === kind);
-        if (existing) {
-            setActiveId(existing.id);
-            return;
-        }
-
-        const tab = createTab(kind);
-        setTabs((current) => [...current, tab]);
-        setActiveId(tab.id);
-    }, []);
+    /** The sidebar and the overview replace the page the active tab shows. */
+    const openView = useCallback((next: ViewKind) => {
+        openLocation(stateRef.current.activeId, viewLocation(next));
+    }, [openLocation]);
 
     const closeTab = useCallback((id: string) => {
         const {tabs: current, activeId: currentActive} = stateRef.current;
 
         if (current.length === 1) {
-            // A window always keeps one tab; closing the last one starts over at the home folder.
-            const replacement = createTab("home");
+            // A window always keeps one tab; closing the last one starts over at the overview.
+            const replacement = createTab();
 
             setTabs([replacement]);
             setActiveId(replacement.id);
@@ -170,11 +241,11 @@ export default function App() {
         setTabs(remaining);
         if (currentActive === id)
             setActiveId(remaining[Math.min(index, remaining.length - 1)].id);
-    }, [load]);
+    }, []);
 
-    const navigate = useCallback((path?: string) => {
-        void load(stateRef.current.activeId, path);
-    }, [load]);
+    const navigate = useCallback((target?: string) => {
+        openLocation(stateRef.current.activeId, target ?? viewLocation("home"));
+    }, [openLocation]);
 
     const reloadPlaces = useCallback(() => {
         void listPlaces().then(setPlaces, () => setPlaces([]));
@@ -198,7 +269,7 @@ export default function App() {
         const {tabs: current, activeId: currentActive} = stateRef.current;
         const first = current.find((tab) => tab.id === currentActive);
 
-        if (first?.kind === "files")
+        if (first && kindOf(first) === "files")
             void load(first.id, undefined, true);
 
         reloadPlaces();
@@ -213,13 +284,13 @@ export default function App() {
         return () => clearInterval(timer);
     }, [reloadDrives]);
 
-    // The recent list changes on every folder visit; refresh it when the overview is shown again.
+    // The recent list and the volumes change while the app runs; refresh them when the overview shows.
     useEffect(() => {
-        if (active.kind !== "home") return;
+        if (kind !== "home") return;
 
         reloadRecent();
         reloadDrives();
-    }, [active.kind, active.id, reloadRecent, reloadDrives]);
+    }, [kind, active.id, reloadRecent, reloadDrives]);
 
     // The host pushes a path for command-line arguments and for a second launch (single instance).
     // It waits for `app.ready` first, because sending to a web view that is still loading crashes it.
@@ -230,19 +301,19 @@ export default function App() {
             const event = evt as { type?: string; data?: { path?: unknown; startup?: unknown } };
             if (event.type !== "app.navigate" || typeof event.data?.path !== "string") return;
 
-            const path = event.data.path;
+            const target = event.data.path;
             const {tabs: current} = stateRef.current;
             const isStartup = event.data.startup === true;
 
             if (isStartup && current.length === 1 && current[0].fresh)
-                void load(current[0].id, path);
+                openLocation(current[0].id, target);
             else
-                openFiles(path);
+                openFiles(target);
         });
 
         Native.send({type: "app.ready"});
         return unsubscribe;
-    }, [load, openFiles]);
+    }, [openLocation, openFiles]);
 
     // Folder sizes are measured in the background; each result lands in whichever tab shows that folder.
     useEffect(() => {
@@ -260,8 +331,8 @@ export default function App() {
         });
     }, []);
 
-    const canBack = active.kind === "files" && active.index > 0;
-    const canForward = active.kind === "files" && active.index < active.history.length - 1;
+    const canBack = active.index > 0;
+    const canForward = active.index < active.history.length - 1;
 
     const goBack = () => {
         if (canBack) void goTo(active.id, active.history[active.index - 1], active.index - 1);
@@ -271,29 +342,39 @@ export default function App() {
         if (canForward) void goTo(active.id, active.history[active.index + 1], active.index + 1);
     };
 
+    const refresh = () => {
+        if (kindOf(active) === "files")
+            void goTo(active.id, location, active.index);
+    };
+
     return (
         <Root $rounded={corners}>
             <TitleBar
                 activeId={active.id}
                 onClose={closeTab}
-                onNewTab={() => openView("home")}
+                onNewTab={() => openFiles()}
                 onSelect={setActiveId}
-                tabs={tabs.map((tab) => ({
-                    id: tab.id,
-                    kind: tab.kind,
-                    path: tab.listing?.path ?? tab.path,
-                    title: tab.kind === "files"
-                        ? baseName(tab.listing?.path ?? tab.path) || "Files"
-                        : viewTitles[tab.kind],
-                }))}
+                tabs={tabs.map((tab) => {
+                    const tabKind = kindOf(tab);
+                    const folder = folderOf(tab);
+
+                    return {
+                        id: tab.id,
+                        kind: tabKind,
+                        path: folder,
+                        title: tabKind === "files"
+                            ? baseName(folder) || "Files"
+                            : viewTitles[tabKind],
+                    };
+                })}
             />
 
             <Body>
                 <Sidebar
-                    activeKind={active.kind}
-                    currentPath={active.kind === "files" ? active.listing?.path ?? "" : ""}
+                    activeKind={kind}
+                    currentPath={kind === "files" ? location : ""}
                     drives={drives}
-                    onNavigate={navigate}
+                    onNavigate={(path) => navigate(path)}
                     onOpenView={openView}
                     places={places}
                     recent={recent}
@@ -301,80 +382,76 @@ export default function App() {
                 />
 
                 <Main>
-                    {active.kind === "files" ? (
-                        <>
-                            <Toolbar>
-                                <IconButton disabled={!canBack} onClick={goBack} title="Back" type="button">
-                                    <ArrowLeftIcon/>
-                                </IconButton>
+                    <Toolbar>
+                        <IconButton disabled={!canBack} onClick={goBack} title="Back" type="button">
+                            <ArrowLeftIcon/>
+                        </IconButton>
 
-                                <IconButton disabled={!canForward} onClick={goForward} title="Forward" type="button">
-                                    <ArrowRightIcon/>
-                                </IconButton>
+                        <IconButton disabled={!canForward} onClick={goForward} title="Forward" type="button">
+                            <ArrowRightIcon/>
+                        </IconButton>
 
-                                <IconButton
-                                    disabled={!active.listing?.parent}
-                                    onClick={() => active.listing?.parent && navigate(active.listing.parent)}
-                                    title="Up one level"
-                                    type="button"
-                                >
-                                    <ArrowUpIcon/>
-                                </IconButton>
+                        <IconButton
+                            disabled={kind !== "files" || !active.listing?.parent}
+                            onClick={() => active.listing?.parent && navigate(active.listing.parent)}
+                            title="Up one level"
+                            type="button"
+                        >
+                            <ArrowUpIcon/>
+                        </IconButton>
 
-                                <IconButton
-                                    onClick={() => void goTo(active.id, active.path, active.index)}
-                                    title="Refresh"
-                                    type="button"
-                                >
-                                    <Spin $spinning={active.loading}><RefreshIcon/></Spin>
-                                </IconButton>
+                        <IconButton disabled={kind !== "files"} onClick={refresh} title="Refresh" type="button">
+                            <Spin $spinning={active.loading}><RefreshIcon/></Spin>
+                        </IconButton>
 
-                                <PathBar onNavigate={navigate} path={active.listing?.path ?? active.path}/>
+                        <PathBar onNavigate={navigate} path={kind === "files" ? folderOf(active) : location}/>
 
-                                <Search>
-                                    <SearchIcon/>
-                                    <input
-                                        aria-label="Filter this folder"
-                                        onChange={(event) => setFilter(event.target.value)}
-                                        placeholder="Filter…"
-                                        spellCheck={false}
-                                        type="search"
-                                        value={filter}
-                                    />
-                                </Search>
-                            </Toolbar>
+                        {kind === "files" && (
+                            <Search>
+                                <SearchIcon/>
+                                <input
+                                    aria-label="Filter this folder"
+                                    onChange={(event) => setFilter(event.target.value)}
+                                    placeholder="Filter…"
+                                    spellCheck={false}
+                                    type="search"
+                                    value={filter}
+                                />
+                            </Search>
+                        )}
+                    </Toolbar>
 
-                            <FileList
-                                error={active.error}
-                                filter={filter}
-                                listing={active.listing}
-                                loading={active.loading}
-                                onOpen={navigate}
-                            />
-
-                            <StatusBar>
-                                <span>{active.listing ? statusLine(active.listing) : "—"}</span>
-                                <span>{appInfo ? `v${appInfo.version} · ${appInfo.platform}` : "browser preview"}</span>
-                            </StatusBar>
-                        </>
-                    ) : active.kind === "home" ? (
+                    {kind === "files" ? (
+                        <FileList
+                            error={active.error}
+                            filter={filter}
+                            listing={active.listing}
+                            loading={active.loading}
+                            onOpen={navigate}
+                        />
+                    ) : kind === "home" ? (
                         <OverviewView
                             drives={drives}
                             homePath={places.find((place) => place.kind === "home")?.path ?? ""}
-                            onOpen={(path) => openFiles(path)}
+                            onOpen={navigate}
                             onPlacesChanged={setPlaces}
                             onRecentCleared={reloadRecent}
                             places={places}
                             recent={recent}
                             recentLimit={recentLimit}
                         />
-                    ) : active.kind === "settings" ? (
+                    ) : kind === "settings" ? (
                         <SettingsView appInfo={appInfo} onSettingsChanged={reloadSettings}/>
-                    ) : active.kind === "gallery" ? (
+                    ) : kind === "gallery" ? (
                         <GalleryView/>
                     ) : (
                         <RecycleView/>
                     )}
+
+                    <StatusBar>
+                        <span>{kind === "files" && active.listing ? statusLine(active.listing) : location}</span>
+                        <span>{appInfo ? `v${appInfo.version} · ${appInfo.platform}` : "browser preview"}</span>
+                    </StatusBar>
                 </Main>
             </Body>
 

@@ -37,7 +37,7 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
                 new FsVisibilityPayload(FileVisibility.ShowHidden, FileVisibility.ShowSystem))),
 
             "fs.gallery" => Task.FromResult<NativeResponse?>(context.Reply("fs.gallery.result",
-                new FsGalleryPayload(Gallery.List()))),
+                GalleryPage(context.Payload<GalleryRequest>()))),
 
             "fs.thumbnail" => Task.FromResult<NativeResponse?>(context.Reply("fs.thumbnail.result",
                 new IconPayload(Thumbnail(context.Payload<ThumbnailRequest>())))),
@@ -86,6 +86,14 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
 
             "app.memory.trim" => Task.FromResult<NativeResponse?>(context.Reply("app.memory.result",
                 AppMemory.Trim())),
+
+            "app.scheme" => Task.FromResult<NativeResponse?>(context.Reply("app.scheme.result",
+                new SchemePayload(UrlScheme.IsRegistered()))),
+
+            "app.scheme.set" => Task.FromResult<NativeResponse?>(context.Reply("app.scheme.result",
+                new SchemePayload((context.Payload<SchemeRequest>()?.Enabled ?? false)
+                    ? UrlScheme.Register()
+                    : UrlScheme.Unregister()))),
 
             "fs.list" => Task.FromResult<NativeResponse?>(context.Reply("fs.list.result",
                 List(context.Payload<FsListRequest>()?.Path))),
@@ -157,6 +165,15 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
             return false;
 
         return DirectoryIndex.SetIcon(request.Directory, request.Name, request.Source);
+    }
+
+    /// <summary>One slice of the gallery, scanning the folders only when asked to.</summary>
+    private static FsGalleryPayload GalleryPage(GalleryRequest? request)
+    {
+        var (entries, total) = Gallery.Instance.Page(request?.Offset ?? 0, request?.Count ?? 150,
+            request?.Refresh ?? false);
+
+        return new FsGalleryPayload(entries, total);
     }
 
     /// <summary>A shell thumbnail for the gallery, at the requested size.</summary>

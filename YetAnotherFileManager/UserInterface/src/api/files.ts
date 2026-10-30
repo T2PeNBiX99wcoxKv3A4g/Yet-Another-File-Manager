@@ -56,6 +56,11 @@ export interface GalleryEntry {
     size: number;
 }
 
+export interface GalleryPage {
+    entries: GalleryEntry[];
+    total: number;
+}
+
 export interface RecentEntry {
     path: string;
     name: string;
@@ -128,12 +133,11 @@ export async function purgeOrphansAsAdmin(): Promise<boolean> {
     return data.ok;
 }
 
-/** The pictures in the scanned folders, newest first. */
-export async function listGallery(): Promise<GalleryEntry[]> {
-    if (!Native.available) return [];
+/** One slice of the gallery, newest first, plus how many pictures there are in total. */
+export async function listGallery(offset = 0, count = 150, refresh = false): Promise<GalleryPage> {
+    if (!Native.available) return {entries: [], total: 0};
 
-    const data = await Native.request<{ entries: GalleryEntry[] }>("fs.gallery");
-    return data.entries;
+    return await Native.request<GalleryPage>("fs.gallery", {offset, count, refresh});
 }
 
 /** The folders opened most recently, newest first. */

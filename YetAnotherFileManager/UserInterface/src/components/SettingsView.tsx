@@ -11,10 +11,10 @@ import {
     type AppSettings,
 } from "../api/settings";
 import type {AppInfo} from "../api/system";
-import {getMemory, trimMemory, type MemoryUsage} from "../api/system";
+import {getMemory, getScheme, setScheme, trimMemory, type MemoryUsage} from "../api/system";
 import {CheckIcon, CrossIcon, FolderIcon, PlusIcon} from "./Icons";
 import {BuiltinIcon, builtinIcons} from "../icons/fileTypes";
-import {baseName, formatBytes} from "../utils/format";
+import {baseName, formatBytes, usageTone} from "../utils/format";
 
 interface SettingsViewProps {
     appInfo: AppInfo | null;
@@ -29,10 +29,12 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
     const [newIcon, setNewIcon] = useState<string>("file");
     const [busy, setBusy] = useState(false);
     const [memory, setMemory] = useState<MemoryUsage | null>(null);
+    const [scheme, setSchemeState] = useState(false);
 
     useEffect(() => {
         void getVisibility().then(setVisibility, () => setVisibility(null));
         void getSettings().then(setSettings, () => setSettings(null));
+        void getScheme().then(setSchemeState, () => setSchemeState(false));
     }, []);
 
     // Usage changes while the page is open, so the numbers refresh themselves.
@@ -139,38 +141,70 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         <Label>Platform</Label>
                         <Value>{appInfo?.platform ?? "—"}</Value>
                     </Row>
+                    <Row>
+                        <RowText>
+                            <Label>Open yafm:// links</Label>
+                            <Note>
+                                Registers this app for yafm:// links, for the current user only.
+                                Without it the links still work inside the app.
+                            </Note>
+                        </RowText>
+                        <RowEnd>
+                            <Toggle
+                                $on={scheme}
+                                onClick={() => void setScheme(!scheme).then(setSchemeState)}
+                                type="button"
+                            >
+                                <Knob/>
+                            </Toggle>
+                        </RowEnd>
+                    </Row>
                 </Rows>
             </Section>
 
             <Section>
                 <Title>Memory</Title>
                 <Rows>
-                    <Row>
-                        <RowText>
-                            <Label>Application process</Label>
-                            <Note>
-                                {memory
-                                    ? `${formatBytes(memory.private)} committed, ${formatBytes(memory.workingSet)} resident of ${formatBytes(memory.available)} in the machine. The webview runs in its own process and is not counted here.`
-                                    : "Reading the current usage…"}
-                            </Note>
-                        </RowText>
-                        <RowEnd>
+                    <Gauge>
+                        <GaugeHead>
+                            <Label>Process memory</Label>
                             <Value>
-                                {memory && memory.available > 0
-                                    ? `${(memory.private / memory.available * 100).toFixed(1)}%`
-                                    : "—"}
+                                {memory ? `${formatBytes(memory.private)} · ${percent(memory.private, memory.available)}` : "—"}
                             </Value>
-                        </RowEnd>
-                    </Row>
-                    <Row>
-                        <RowText>
+                        </GaugeHead>
+                        <Track>
+                            <TrackFill
+                                $ratio={memory ? memory.private / Math.max(memory.available, 1) : 0}
+                                $tone={usageTone(memory ? memory.private / Math.max(memory.available, 1) : 0)}
+                            />
+                        </Track>
+                        <Note>
+                            {memory
+                                ? `Committed of ${formatBytes(memory.available)} the runtime can use; ${formatBytes(memory.workingSet)} is resident. The webview runs in its own process.`
+                                : "Reading the current usage…"}
+                        </Note>
+                    </Gauge>
+
+                    <Gauge>
+                        <GaugeHead>
                             <Label>Managed heap</Label>
-                            <Note>The .NET side; thumbnails and folder size walks pass through it.</Note>
-                        </RowText>
-                        <RowEnd>
-                            <Value>{memory ? formatBytes(memory.managed) : "—"}</Value>
-                        </RowEnd>
-                    </Row>
+                            <Value>
+                                {memory ? `${formatBytes(memory.managed)} · ${percent(memory.managed, memory.private)}` : "—"}
+                            </Value>
+                        </GaugeHead>
+                        <Track>
+                            <TrackFill
+                                $ratio={memory ? memory.managed / Math.max(memory.private, 1) : 0}
+                                $tone="var(--accent-secondary)"
+                            />
+                        </Track>
+                        <Note>
+                            Share of this process that the .NET heap holds; thumbnails and folder
+                            size walks live here. The runtime grows it on demand and gives it back
+                            after a collection.
+                        </Note>
+                    </Gauge>
+
                     <Row>
                         <RowText>
                             <Label>Free memory</Label>
@@ -467,6 +501,45 @@ const Rows = styled.div`
     border-radius: var(--radius-md);
     background: var(--bg-card);
     overflow: hidden;
+`;
+
+/** A share of something, always drawn the same way so the numbers stay comparable. */
+function percent(part: number, whole: number): string {
+    return whole > 0 ? `${(part / whole * 100).toFixed(1)}%` : "—";
+}
+
+const Gauge = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 0;
+
+    & + & {
+        border-top: 1px solid var(--border-color);
+    }
+`;
+
+const GaugeHead = styled.div`
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+`;
+
+const Track = styled.div`
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(148, 163, 184, 0.18);
+    overflow: hidden;
+`;
+
+const TrackFill = styled.div<{ $ratio: number; $tone: string }>`
+    /* A usage this small still has to be visible, so the fill never disappears completely. */
+    width: max(${({$ratio}) => Math.min(Math.max($ratio, 0), 1) * 100}%, 2px);
+    height: 100%;
+    border-radius: 3px;
+    background: ${({$tone}) => $tone};
+    transition: width 220ms ease;
 `;
 
 const Row = styled.div`

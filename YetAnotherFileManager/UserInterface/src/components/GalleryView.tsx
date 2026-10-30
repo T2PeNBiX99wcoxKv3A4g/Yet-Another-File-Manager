@@ -1,22 +1,31 @@
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import styled from "styled-components";
 import {listGallery, type GalleryEntry} from "../api/files";
 import {useThumbnail} from "../api/icons";
-import {formatBytes} from "../utils/format";
-import {ImageIcon, RefreshIcon} from "./Icons";
+import {RefreshIcon} from "./Icons";
 
-/** A wall of thumbnails from the configured folders, newest first. */
+/** How many pictures one request carries; the rest arrive while the user scrolls. */
+const PageSize = 150;
+
+/** A wall of thumbnails from the configured folders, newest first, grouped by day. */
 export function GalleryView() {
     const [entries, setEntries] = useState<GalleryEntry[]>([]);
+    const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [busy, setBusy] = useState(false);
 
-    const reload = useCallback(async () => {
+    const loadingMore = useRef(false);
+    const sentinel = useRef<HTMLDivElement | null>(null);
+
+    const load = useCallback(async (refresh: boolean) => {
         setLoading(true);
         setError(null);
 
         try {
-            setEntries(await listGallery());
+            const page = await listGallery(0, PageSize, refresh);
+            setEntries(page.entries);
+            setTotal(page.total);
         } catch (cause) {
             setError(cause instanceof Error ? cause.message : String(cause));
         } finally {
@@ -25,30 +34,79 @@ export function GalleryView() {
     }, []);
 
     useEffect(() => {
-        void reload();
-    }, [reload]);
+        void load(false);
+    }, [load]);
+
+    // The next page is asked for before the sentinel is actually visible, so the wall keeps filling
+    // while the user is still looking at the pictures that are already there.
+    const loadMore = useCallback(async () => {
+        if (loadingMore.current) return;
+
+        loadingMore.current = true;
+
+        try {
+            const page = await listGallery(entries.length, PageSize, false);
+
+            setEntries((current) => [...current, ...page.entries]);
+            setTotal(page.total);
+        } catch {
+            // A failed page is not worth a banner; scrolling again asks once more.
+        } finally {
+            loadingMore.current = false;
+        }
+    }, [entries.length]);
+
+    useEffect(() => {
+        const target = sentinel.current;
+        if (!target) return;
+
+        const observer = new IntersectionObserver(
+            (rows) => {
+                if (rows.some((row) => row.isIntersecting) && entries.length < total)
+                    void loadMore();
+            },
+            {rootMargin: "800px"});
+
+        observer.observe(target);
+        return () => observer.disconnect();
+    }, [entries.length, total, loadMore]);
+
+    const groups = useMemo(() => byDay(entries), [entries]);
+
+    const refresh = () => {
+        setBusy(true);
+        void load(true).finally(() => setBusy(false));
+    };
 
     return (
         <Page>
             <Header>
                 <Heading>
-                    <ImageIcon size={16}/>
                     <span>Gallery</span>
-                    <Count>{loading ? "…" : `${entries.length} pictures`}</Count>
+                    <Count>{loading ? "scanning…" : `${entries.length} of ${total} pictures`}</Count>
                 </Heading>
 
-                <IconButton onClick={() => void reload()} title="Refresh" type="button">
-                    <RefreshIcon size={14}/>
+                <IconButton onClick={refresh} title="Scan the folders again" type="button">
+                    <Spin $spinning={busy}><RefreshIcon size={14}/></Spin>
                 </IconButton>
             </Header>
 
             {error && <Message>{error}</Message>}
-            {!error && !loading && entries.length === 0 && <Message>No pictures found.</Message>}
+            {!error && !loading && total === 0 && <Message>No pictures found.</Message>}
 
             <Grid>
-                {entries.map((entry) => (
-                    <Tile key={entry.path} entry={entry}/>
+                {groups.map((group) => (
+                    <Group key={group.label}>
+                        <GroupTitle>{group.label}</GroupTitle>
+                        <Tiles>
+                            {group.entries.map((entry) => (
+                                <Tile key={entry.path} entry={entry}/>
+                            ))}
+                        </Tiles>
+                    </Group>
                 ))}
+
+                <Sentinel ref={sentinel}/>
             </Grid>
         </Page>
     );
@@ -76,13 +134,43 @@ function Tile({entry}: { entry: GalleryEntry }) {
     }, []);
 
     return (
-        <Cell ref={element} title={`${entry.name} · ${formatBytes(entry.size)}`}>
+        <Cell ref={element} title={entry.name}>
             {thumbnail
-                ? <img alt="" loading="lazy" src={thumbnail}/>
-                : <Placeholder><ImageIcon size={22}/></Placeholder>}
+                ? <img alt="" decoding="async" loading="lazy" src={thumbnail}/>
+                : <Placeholder/>}
             <Caption>{entry.name}</Caption>
         </Cell>
     );
+}
+
+/** Pictures are sorted newest first, so a day is one contiguous run and the labels stay unique. */
+function byDay(entries: GalleryEntry[]): { label: string; entries: GalleryEntry[] }[] {
+    const groups: { label: string; entries: GalleryEntry[] }[] = [];
+
+    for (const entry of entries) {
+        const label = dayLabel(entry.modified);
+        const last = groups[groups.length - 1];
+
+        if (last?.label === label)
+            last.entries.push(entry);
+        else
+            groups.push({label, entries: [entry]});
+    }
+
+    return groups;
+}
+
+function dayLabel(unixMilliseconds: number): string {
+    const date = new Date(unixMilliseconds);
+    const today = new Date();
+    const day = (value: Date) => new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
+    const days = Math.round((day(today) - day(date)) / 86_400_000);
+
+    if (days === 0) return "Today";
+    if (days === 1) return "Yesterday";
+    if (days < 7) return date.toLocaleDateString(undefined, {weekday: "long"});
+
+    return date.toLocaleDateString(undefined, {year: "numeric", month: "long", day: "numeric"});
 }
 
 const Page = styled.div`
@@ -97,21 +185,17 @@ const Header = styled.header`
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    padding: 16px 22px 10px;
+    padding: 14px 22px 9px;
     border-bottom: 1px solid var(--border-color);
 `;
 
 const Heading = styled.div`
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: 10px;
     font-size: 13px;
     font-weight: 600;
     color: var(--text-primary);
-
-    svg {
-        color: var(--text-muted);
-    }
 `;
 
 const Count = styled.span`
@@ -139,18 +223,52 @@ const IconButton = styled.button`
     }
 `;
 
+const Spin = styled.span<{ $spinning: boolean }>`
+    display: grid;
+    place-items: center;
+    animation: ${({$spinning}) => $spinning ? "yafm-gallery-spin 900ms linear infinite" : "none"};
+
+    @keyframes yafm-gallery-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+`;
+
 const Grid = styled.div`
+    flex: 1;
+    min-height: 0;
+    padding: 14px 22px 30px;
+    overflow-y: auto;
+`;
+
+const Group = styled.section`
+    & + & {
+        margin-top: 18px;
+    }
+`;
+
+const GroupTitle = styled.h2`
+    position: sticky;
+    top: -14px;
+    z-index: 1;
+    margin: 0 -22px 10px;
+    padding: 8px 22px;
+    background: var(--bg-primary);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.01em;
+`;
+
+const Tiles = styled.div`
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
     /* Explicit row height: an auto row collapses to nothing in Chromium when the tile is a shrinking
        flex box, which once left the gallery as a wall of empty strips. */
     grid-auto-rows: 124px;
     gap: 12px;
-    padding: 16px 22px 26px;
-    overflow-y: auto;
     align-content: start;
-    flex: 1;
-    min-height: 0;
 `;
 
 const Cell = styled.div`
@@ -159,11 +277,14 @@ const Cell = styled.div`
     border-radius: var(--radius-md);
     background: rgba(15, 23, 42, 0.6);
     overflow: hidden;
-    transition: border-color 120ms ease, transform 120ms ease;
+    /* Tiles far below the viewport are laid out but not painted, which is what keeps a long
+       scroll smooth. */
+    content-visibility: auto;
+    contain-intrinsic-size: 124px 200px;
+    transition: border-color 120ms ease;
 
     &:hover {
         border-color: var(--border-color-hover);
-        transform: translateY(-1px);
     }
 
     img {
@@ -177,9 +298,9 @@ const Cell = styled.div`
 const Placeholder = styled.div`
     position: absolute;
     inset: 0;
-    display: grid;
-    place-items: center;
-    color: var(--text-muted);
+    background:
+            radial-gradient(circle at 50% 45%, rgba(99, 102, 241, 0.12), transparent 60%),
+            rgba(15, 23, 42, 0.6);
 `;
 
 /** The name sits on the picture itself, on a scrim so it stays readable over bright photos. */
@@ -189,12 +310,16 @@ const Caption = styled.span`
     bottom: 0;
     left: 0;
     padding: 18px 8px 6px;
-    background: linear-gradient(to top, rgba(2, 6, 23, 0.88), rgba(2, 6, 23, 0));
+    background: linear-gradient(to top, rgba(2, 6, 23, 0.9), rgba(2, 6, 23, 0));
     overflow: hidden;
     font-size: 11px;
     color: #e5e7eb;
     text-overflow: ellipsis;
     white-space: nowrap;
+`;
+
+const Sentinel = styled.div`
+    height: 1px;
 `;
 
 const Message = styled.p`

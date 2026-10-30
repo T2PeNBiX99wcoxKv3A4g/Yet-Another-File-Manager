@@ -57,7 +57,9 @@ export function PathBar({path, onNavigate}: PathBarProps) {
             </Editor>
         );
 
-    const crumbs = breadcrumbs(path);
+    const crumbs = path.toLowerCase().startsWith("yafm://")
+        ? [{label: path, path}]
+        : breadcrumbs(path);
 
     return (
         <Trail onClick={start} title="Click to type a path">
@@ -67,7 +69,7 @@ export function PathBar({path, onNavigate}: PathBarProps) {
                     <CrumbButton
                         onClick={(event) => {
                             event.stopPropagation();
-                            onNavigate(crumb.path);
+                            if (crumb.path !== path) onNavigate(crumb.path);
                         }}
                         type="button"
                     >

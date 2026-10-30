@@ -117,6 +117,34 @@ const thumbnailCache = new Map<string, string | null>();
 /** Thumbnails are big strings; keep the last screenfuls rather than every picture ever scrolled past. */
 const ThumbnailCacheLimit = 200;
 
+/** A screenful of tiles must not turn into a burst of hundreds of decodes at once. */
+const MaxThumbnailRequests = 3;
+
+const thumbnailQueue: (() => void)[] = [];
+let thumbnailRequests = 0;
+
+function scheduleThumbnail(task: () => void) {
+    thumbnailQueue.push(task);
+
+    while (thumbnailRequests < MaxThumbnailRequests) {
+        const next = thumbnailQueue.shift();
+        if (!next) break;
+
+        thumbnailRequests += 1;
+        next();
+    }
+}
+
+function finishThumbnail() {
+    thumbnailRequests -= 1;
+
+    const next = thumbnailQueue.shift();
+    if (!next) return;
+
+    thumbnailRequests += 1;
+    next();
+}
+
 function rememberThumbnail(path: string, data: string | null) {
     thumbnailCache.delete(path);
     thumbnailCache.set(path, data);
@@ -144,18 +172,37 @@ export function useThumbnail(path: string | null, size = 128): string | null {
         }
 
         let alive = true;
+        let started = false;
 
-        void Native.request<{ dataUrl: string | null }>("fs.thumbnail", {path, size})
-            .then((result) => {
-                rememberThumbnail(path, result.dataUrl);
-                if (alive) setData(result.dataUrl);
-            }, () => {
-                rememberThumbnail(path, null);
-                if (alive) setData(null);
-            });
+        const task = () => {
+            started = true;
+
+            if (!alive) {
+                finishThumbnail();
+                return;
+            }
+
+            void Native.request<{ dataUrl: string | null }>("fs.thumbnail", {path, size})
+                .then((result) => {
+                    rememberThumbnail(path, result.dataUrl);
+                    if (alive) setData(result.dataUrl);
+                }, () => {
+                    rememberThumbnail(path, null);
+                    if (alive) setData(null);
+                })
+                .finally(finishThumbnail);
+        };
+
+        scheduleThumbnail(task);
 
         return () => {
             alive = false;
+
+            // A task that never started holds no slot, so it is simply taken back out of the queue.
+            if (started) return;
+
+            const index = thumbnailQueue.indexOf(task);
+            if (index >= 0) thumbnailQueue.splice(index, 1);
         };
     }, [path, size, revision]);
 
