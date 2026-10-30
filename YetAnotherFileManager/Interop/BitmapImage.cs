@@ -7,13 +7,13 @@ namespace YetAnotherFileManager.Interop;
 ///     Turns a GDI bitmap (an icon or a shell thumbnail) into a PNG data URL the interface can show.
 /// </summary>
 [SupportedOSPlatform("windows")]
-internal static class BitmapImage
+internal static partial class BitmapImage
 {
     private const int DibRgbColors = 0;
     private const int BiRgb = 0;
     private const int MaxSize = 1024;
 
-    public static string? ToDataUrl(IntPtr bitmap)
+    public static unsafe string? ToDataUrl(IntPtr bitmap)
     {
         if (bitmap == IntPtr.Zero)
             return null;
@@ -45,8 +45,11 @@ internal static class BitmapImage
 
         try
         {
-            if (GetDIBits(dc, bitmap, 0, (uint)height, pixels, ref header, DibRgbColors) == 0)
-                return null;
+            fixed (byte* buffer = pixels)
+            {
+                if (GetDIBits(dc, bitmap, 0, (uint)height, buffer, ref header, DibRgbColors) == 0)
+                    return null;
+            }
         }
         finally
         {
@@ -72,17 +75,18 @@ internal static class BitmapImage
         return $"data:image/png;base64,{Convert.ToBase64String(Png.Encode(width, height, pixels))}";
     }
 
-    [DllImport("gdi32.dll", EntryPoint = "GetObjectW")]
-    private static extern int GetObject(IntPtr handle, int size, out Bitmap bitmap);
+    [LibraryImport("gdi32.dll", EntryPoint = "GetObjectW")]
+    private static partial int GetObject(IntPtr handle, int size, out Bitmap bitmap);
 
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetDC(IntPtr window);
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr GetDC(IntPtr window);
 
-    [DllImport("user32.dll")]
-    private static extern int ReleaseDC(IntPtr window, IntPtr dc);
+    [LibraryImport("user32.dll")]
+    private static partial int ReleaseDC(IntPtr window, IntPtr dc);
 
-    [DllImport("gdi32.dll")]
-    private static extern int GetDIBits(IntPtr dc, IntPtr bitmap, uint start, uint lines, byte[] bits,
+    // The pixels are passed as a fixed buffer, whose length the generator cannot infer from a byte[].
+    [LibraryImport("gdi32.dll")]
+    private static unsafe partial int GetDIBits(IntPtr dc, IntPtr bitmap, uint start, uint lines, byte* bits,
         ref BitmapInfoHeader header, uint usage);
 
     [StructLayout(LayoutKind.Sequential)]

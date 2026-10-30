@@ -12,7 +12,7 @@ namespace YetAnotherFileManager.Services;
 ///     Reports and trims the memory this process uses. The webview has its own process, so the
 ///     numbers here are the file manager itself.
 /// </summary>
-internal static class AppMemory
+internal static partial class AppMemory
 {
     /// <summary>The heap level worth collecting; below it the churn is not worth the pause.</summary>
     private const long Bloated = 64 * 1024 * 1024;
@@ -86,6 +86,7 @@ internal static class AppMemory
         SetProcessWorkingSetSize(process.Handle, -1, -1);
     }
 
-    [DllImport("kernel32.dll")]
-    private static extern bool SetProcessWorkingSetSize(IntPtr process, nint minimum, nint maximum);
+    [LibraryImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetProcessWorkingSetSize(IntPtr process, nint minimum, nint maximum);
 }

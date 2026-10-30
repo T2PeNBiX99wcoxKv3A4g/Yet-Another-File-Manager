@@ -13,7 +13,7 @@ namespace YetAnotherFileManager.Interop;
 ///     by hand instead of through <c>[ComImport]</c>: one QueryInterface-less cast, one vtable slot.
 /// </remarks>
 [SupportedOSPlatform("windows")]
-internal static unsafe class ShellThumbnail
+internal static unsafe partial class ShellThumbnail
 {
     private const int SiigbfResizeToFit = 0x00;
     private const int SiigbfBiggerSizeOk = 0x01;
@@ -74,12 +74,13 @@ internal static unsafe class ShellThumbnail
         }
     }
 
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
-    private static extern int SHCreateItemFromParsingName(string path, IntPtr bindContext, in Guid iid,
+    [LibraryImport("shell32.dll", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial int SHCreateItemFromParsingName(string path, IntPtr bindContext, in Guid iid,
         out IntPtr item);
 
-    [DllImport("gdi32.dll")]
-    private static extern bool DeleteObject(IntPtr handle);
+    [LibraryImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool DeleteObject(IntPtr handle);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct NativeSize

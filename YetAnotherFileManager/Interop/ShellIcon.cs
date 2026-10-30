@@ -11,7 +11,7 @@ namespace YetAnotherFileManager.Interop;
 ///     folders are asked for by path so a custom <c>desktop.ini</c> icon is picked up.
 /// </summary>
 [SupportedOSPlatform("windows")]
-internal static class ShellIcon
+internal static unsafe partial class ShellIcon
 {
     private const uint ShgfiIcon = 0x000000100;
     private const uint ShgfiLargeIcon = 0x000000000;
@@ -82,8 +82,11 @@ internal static class ShellIcon
 
             try
             {
-                if (GetDIBits(dc, info.ColorBitmap, 0, (uint)height, pixels, ref header, DibRgbColors) == 0)
-                    return null;
+                fixed (byte* buffer = pixels)
+                {
+                    if (GetDIBits(dc, info.ColorBitmap, 0, (uint)height, buffer, ref header, DibRgbColors) == 0)
+                        return null;
+                }
             }
             finally
             {
@@ -118,50 +121,52 @@ internal static class ShellIcon
         }
     }
 
-    [DllImport("shell32.dll", EntryPoint = "SHGetFileInfoW", CharSet = CharSet.Unicode)]
-    private static extern IntPtr ShellGetFileInfo(string path, uint attributes, ref ShellFileInfo info, uint size,
+    [LibraryImport("shell32.dll", EntryPoint = "SHGetFileInfoW", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial IntPtr ShellGetFileInfo(string path, uint attributes, ref ShellFileInfo info, uint size,
         uint flags);
 
-    [DllImport("user32.dll")]
-    private static extern bool DestroyIcon(IntPtr icon);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool DestroyIcon(IntPtr icon);
 
-    [DllImport("user32.dll")]
-    private static extern bool GetIconInfo(IntPtr icon, out IconInfo info);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetIconInfo(IntPtr icon, out IconInfo info);
 
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetDC(IntPtr window);
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr GetDC(IntPtr window);
 
-    [DllImport("user32.dll")]
-    private static extern int ReleaseDC(IntPtr window, IntPtr dc);
+    [LibraryImport("user32.dll")]
+    private static partial int ReleaseDC(IntPtr window, IntPtr dc);
 
-    [DllImport("gdi32.dll", EntryPoint = "GetObjectW")]
-    private static extern int GetObject(IntPtr handle, int size, out Bitmap bitmap);
+    [LibraryImport("gdi32.dll", EntryPoint = "GetObjectW")]
+    private static partial int GetObject(IntPtr handle, int size, out Bitmap bitmap);
 
-    [DllImport("gdi32.dll")]
-    private static extern int GetDIBits(IntPtr dc, IntPtr bitmap, uint start, uint lines, byte[] bits,
+    // The pixels are passed as a fixed buffer, whose length the generator cannot infer from a byte[].
+    [LibraryImport("gdi32.dll")]
+    private static partial int GetDIBits(IntPtr dc, IntPtr bitmap, uint start, uint lines, byte* bits,
         ref BitmapInfoHeader header, uint usage);
 
-    [DllImport("gdi32.dll")]
-    private static extern bool DeleteObject(IntPtr handle);
+    [LibraryImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool DeleteObject(IntPtr handle);
 
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    // Matches SHFILEINFOW exactly: three fields, then the display and type names as wide chars.
+    [StructLayout(LayoutKind.Sequential)]
     private struct ShellFileInfo
     {
         public IntPtr Icon;
         public int IconIndex;
         public uint Attributes;
-
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
-        public string DisplayName;
-
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 80)]
-        public string TypeName;
+        public fixed char DisplayName[260];
+        public fixed char TypeName[80];
     }
 
     [StructLayout(LayoutKind.Sequential)]
     private struct IconInfo
     {
-        [MarshalAs(UnmanagedType.Bool)] public bool IsIcon;
+        // BOOL, so the struct stays blittable for LibraryImport; only the two bitmaps are used.
+        public int IsIcon;
 
         public uint HotspotX;
         public uint HotspotY;
