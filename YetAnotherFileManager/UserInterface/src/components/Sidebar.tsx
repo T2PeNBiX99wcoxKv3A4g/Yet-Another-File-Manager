@@ -1,17 +1,7 @@
-import {useState} from "react";
 import styled from "styled-components";
 import type {Drive, Place, RecentEntry} from "../api/files";
 import type {TabKind} from "../tabs";
-import {
-    ChevronRightIcon,
-    DriveIcon,
-    FolderIcon,
-    GearIcon,
-    HomeIcon,
-    ImageIcon,
-    OverviewIcon,
-    TrashIcon,
-} from "./Icons";
+import {DriveIcon, FolderIcon, GearIcon, HomeIcon, ImageIcon, OverviewIcon, TrashIcon} from "./Icons";
 import {formatBytes, usageTone} from "../utils/format";
 
 interface SidebarProps {
@@ -26,8 +16,8 @@ interface SidebarProps {
 }
 
 /**
- * A rail of icons that expands under the pointer. The lists are a collapsed tree: closed until the
- * section title is clicked, and only shown while the rail is open, so the closed rail stays small.
+ * A rail of icons that expands under the pointer. The lists stay out of the way while it is closed
+ * and are all there, fully expanded, as soon as it opens.
  */
 export function Sidebar({
     places,
@@ -39,10 +29,7 @@ export function Sidebar({
     onNavigate,
     onOpenView,
 }: SidebarProps) {
-    const [open, setOpen] = useState<Record<string, boolean>>({});
     const showFiles = activeKind === "files";
-    const isOpen = (id: string) => open[id] ?? false;
-    const toggle = (id: string) => setOpen((current) => ({...current, [id]: !current[id]}));
 
     return (
         <Aside>
@@ -78,13 +65,10 @@ export function Sidebar({
                 </List>
             </Section>
 
-            <Tree $grow>
-                <TreeHead onClick={() => toggle("places")} title="Places" type="button">
-                    <Chevron $open={isOpen("places")}><ChevronRightIcon size={11}/></Chevron>
-                    <SectionTitle>Places</SectionTitle>
-                </TreeHead>
-                {isOpen("places") && (
-                    <List>
+            <TreeColumn>
+            <Tree>
+                <SectionTitle>Places</SectionTitle>
+                <List>
                         {places.map((place) => (
                             <Item
                                 key={place.path}
@@ -96,19 +80,14 @@ export function Sidebar({
                                 {place.kind === "home" ? <HomeIcon/> : <FolderIcon/>}
                                 <Label>{place.name}</Label>
                             </Item>
-                        ))}
-                    </List>
-                )}
+                    ))}
+                </List>
             </Tree>
 
             {recentLimit > 0 && recent.length > 0 && (
                 <Tree>
-                    <TreeHead onClick={() => toggle("recent")} title="Recent" type="button">
-                        <Chevron $open={isOpen("recent")}><ChevronRightIcon size={11}/></Chevron>
-                        <SectionTitle>Recent</SectionTitle>
-                    </TreeHead>
-                    {isOpen("recent") && (
-                        <List>
+                    <SectionTitle>Recent</SectionTitle>
+                    <List>
                             {recent.slice(0, recentLimit).map((entry) => (
                                 <Item
                                     key={entry.path}
@@ -120,19 +99,14 @@ export function Sidebar({
                                     <FolderIcon/>
                                     <Label>{entry.name}</Label>
                                 </Item>
-                            ))}
-                        </List>
-                    )}
+                        ))}
+                    </List>
                 </Tree>
             )}
 
-            <Tree $grow>
-                <TreeHead onClick={() => toggle("drives")} title="Drives" type="button">
-                    <Chevron $open={isOpen("drives")}><ChevronRightIcon size={11}/></Chevron>
-                    <SectionTitle>Drives</SectionTitle>
-                </TreeHead>
-                {isOpen("drives") && (
-                    <List>
+            <Tree>
+                <SectionTitle>Drives</SectionTitle>
+                <List>
                         {drives.map((drive) => {
                             const used = drive.totalSize > 0 ? 1 - drive.freeSpace / drive.totalSize : 0;
 
@@ -155,9 +129,9 @@ export function Sidebar({
                                 </Item>
                             );
                         })}
-                    </List>
-                )}
+                </List>
             </Tree>
+            </TreeColumn>
 
             <Section $bottom>
                 <List>
@@ -225,11 +199,12 @@ const Aside = styled.aside`
     }
 `;
 
-const Tree = styled.section<{ $grow?: boolean }>`
+/** The three lists scroll together, so a long list never clips a row in the middle. */
+const TreeColumn = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    flex: ${({$grow}) => $grow ? "1 1 0" : "0 0 auto"};
+    gap: 8px;
+    flex: 1 1 0;
     min-height: 0;
     overflow-y: auto;
     scrollbar-width: none;
@@ -239,35 +214,11 @@ const Tree = styled.section<{ $grow?: boolean }>`
     }
 `;
 
-const TreeHead = styled.button`
+const Tree = styled.section`
     display: flex;
-    align-items: center;
-    gap: 3px;
-    width: 100%;
-    padding: 4px 4px;
-    border: 0;
-    border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--text-muted);
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-
-    &:hover {
-        background: var(--bg-card-hover);
-        color: var(--text-secondary);
-    }
-`;
-
-const Chevron = styled.span<{ $open: boolean }>`
-    display: grid;
-    place-items: center;
-    width: 14px;
-    height: 14px;
+    flex-direction: column;
+    gap: 2px;
     flex-shrink: 0;
-    transform: rotate(${({$open}) => $open ? "90deg" : "0deg"});
-    transition: transform 130ms ease;
-    opacity: 1;
 `;
 
 const Section = styled.section<{ $bottom?: boolean }>`
@@ -279,7 +230,7 @@ const Section = styled.section<{ $bottom?: boolean }>`
 `;
 
 const SectionTitle = styled.h2`
-    padding: 0 4px;
+    padding: 2px 6px;
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.1em;
@@ -293,7 +244,6 @@ const List = styled.div`
     display: flex;
     flex-direction: column;
     gap: 1px;
-    padding-left: 12px;
 `;
 
 const Item = styled.button<{ $active: boolean }>`
@@ -301,7 +251,7 @@ const Item = styled.button<{ $active: boolean }>`
     align-items: center;
     gap: 9px;
     width: 100%;
-    padding: 6px 7px;
+    padding: 6px 8px;
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
     background: ${({$active}) => $active ? "rgba(99, 102, 241, 0.14)" : "transparent"};

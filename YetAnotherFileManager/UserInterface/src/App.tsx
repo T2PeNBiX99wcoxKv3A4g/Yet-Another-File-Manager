@@ -449,7 +449,7 @@ export default function App() {
                     )}
 
                     <StatusBar>
-                        <span>{kind === "files" && active.listing ? statusLine(active.listing) : location}</span>
+                        <span>{kind === "files" && active.listing ? statusLine(active.listing) : ""}</span>
                         <span>{appInfo ? `v${appInfo.version} · ${appInfo.platform}` : "browser preview"}</span>
                     </StatusBar>
                 </Main>
