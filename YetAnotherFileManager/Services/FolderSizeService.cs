@@ -23,6 +23,9 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
     /// </summary>
     private const int Levels = 1;
 
+    /// <summary>How many folders of one listing are measured; the rest keeps its cached size.</summary>
+    private const int Burst = 40;
+
     private static readonly EnumerationOptions TopLevel = new()
     {
         IgnoreInaccessible = true,
@@ -46,7 +49,7 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
         DropQueued();
         Interlocked.Increment(ref _generation);
 
-        foreach (var child in children)
+        foreach (var child in children.Take(Burst))
         {
             // A listing that arrives while a previous one is still queued replaces it: only the
             // folder on screen is worth measuring.
@@ -103,8 +106,10 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
             var cached = depth > 0 ? DirectoryIndex.Sizes(path) : [];
             long total = 0;
 
+            // The folder index lives inside the folder and is not part of its contents.
             foreach (var file in directory.EnumerateFiles("*", TopLevel))
-                total += file.Length;
+                if (!DirectoryIndex.IsIndexFile(file.Name))
+                    total += file.Length;
 
             if (depth > 0)
                 foreach (var child in directory.EnumerateDirectories("*", TopLevel))
