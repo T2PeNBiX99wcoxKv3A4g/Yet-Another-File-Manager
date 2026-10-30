@@ -1074,11 +1074,13 @@ Error generating stack: `+e.message+`
         width: 224px;
         padding: 10px 10px;
         box-shadow: 14px 0 34px rgba(0, 0, 0, 0.45);
+        /* The open lists can outgrow the window; the rail scrolls instead of clipping them. */
+        overflow-y: auto;
+        scrollbar-width: none;
     }
 
-    /* A flyout is only meaningful while the rail is open; clipped otherwise. */
-    &:not(:hover) ${()=>ss} {
-        display: none;
+    &:hover::-webkit-scrollbar {
+        width: 0;
     }
 
     &:not(:hover) ${()=>us},
@@ -1097,34 +1099,31 @@ Error generating stack: `+e.message+`
 `,as=M(is)`
     margin-top: auto;
 `,os=M.div`
-    position: relative;
+    display: flex;
+    flex-direction: column;
 `,ss=M.div`
-    position: absolute;
-    z-index: 30;
-    top: calc(100% + 3px);
-    left: 0;
-    display: none;
-    width: 200px;
-    max-height: 340px;
-    padding: 4px;
-    overflow-y: auto;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    background: var(--bg-secondary);
-    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+    display: grid;
+    grid-template-rows: 0fr;
+    overflow: hidden;
+    transition: grid-template-rows 150ms ease;
 
     ${os}:hover > &,
     ${os}:focus-within > & {
-        display: block;
-    }
-
-    &::-webkit-scrollbar {
-        width: 6px;
+        grid-template-rows: 1fr;
     }
 `,H=M.div`
     display: flex;
     flex-direction: column;
     gap: 1px;
+    min-height: 0;
+    max-height: 42vh;
+    padding-left: 10px;
+    overflow-y: auto;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+        width: 0;
+    }
 `,cs=M.button`
     display: flex;
     align-items: center;

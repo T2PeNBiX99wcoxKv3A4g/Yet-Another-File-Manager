@@ -26,7 +26,7 @@ interface SidebarProps {
 
 /**
  * Two levels of collapsing. The rail folds to a strip of icons when the pointer leaves it, and the
- * lists (places, recent folders, drives) live in flyouts that drop down from their button on hover.
+ * lists (places, recent folders, drives) open in place under their button on hover and push the\n * rest of the rail down.
  */
 export function Sidebar({
     places,
@@ -79,8 +79,8 @@ export function Sidebar({
                         <FolderIcon/>
                         <Label>Places</Label>
                     </Item>
-                    <Flyout>
-                        <FlyoutList>
+                    <Sub>
+                        <Inner>
                             {places.map((place) => (
                                 <Item
                                     key={place.path}
@@ -93,8 +93,8 @@ export function Sidebar({
                                     <Label>{place.name}</Label>
                                 </Item>
                             ))}
-                        </FlyoutList>
-                    </Flyout>
+                        </Inner>
+                    </Sub>
                 </Menu>
 
                 {hasRecent && (
@@ -103,8 +103,8 @@ export function Sidebar({
                             <ClockIcon/>
                             <Label>Recent</Label>
                         </Item>
-                        <Flyout>
-                            <FlyoutList>
+                        <Sub>
+                            <Inner>
                                 {recent.slice(0, recentLimit).map((entry) => (
                                     <Item
                                         key={entry.path}
@@ -117,8 +117,8 @@ export function Sidebar({
                                         <Label>{entry.name}</Label>
                                     </Item>
                                 ))}
-                            </FlyoutList>
-                        </Flyout>
+                            </Inner>
+                        </Sub>
                     </Menu>
                 )}
 
@@ -127,8 +127,8 @@ export function Sidebar({
                         <DriveIcon/>
                         <Label>Drives</Label>
                     </Item>
-                    <Flyout>
-                        <FlyoutList>
+                    <Sub>
+                        <Inner>
                             {drives.map((drive) => {
                                 const used = drive.totalSize > 0 ? 1 - drive.freeSpace / drive.totalSize : 0;
 
@@ -151,8 +151,8 @@ export function Sidebar({
                                     </Item>
                                 );
                             })}
-                        </FlyoutList>
-                    </Flyout>
+                        </Inner>
+                    </Sub>
                 </Menu>
             </List>
 
@@ -198,11 +198,13 @@ const Aside = styled.aside`
         width: 224px;
         padding: 10px 10px;
         box-shadow: 14px 0 34px rgba(0, 0, 0, 0.45);
+        /* The open lists can outgrow the window; the rail scrolls instead of clipping them. */
+        overflow-y: auto;
+        scrollbar-width: none;
     }
 
-    /* A flyout is only meaningful while the rail is open; clipped otherwise. */
-    &:not(:hover) ${() => Flyout} {
-        display: none;
+    &:hover::-webkit-scrollbar {
+        width: 0;
     }
 
     &:not(:hover) ${() => Hint},
@@ -226,40 +228,37 @@ const Bottom = styled(List)`
     margin-top: auto;
 `;
 
-/** A button with a list that drops down from it while the pointer is on it. */
+/** A button whose list opens in place, pushing everything below it down. */
 const Menu = styled.div`
-    position: relative;
+    display: flex;
+    flex-direction: column;
 `;
 
-const Flyout = styled.div`
-    position: absolute;
-    z-index: 30;
-    top: calc(100% + 3px);
-    left: 0;
-    display: none;
-    width: 200px;
-    max-height: 340px;
-    padding: 4px;
-    overflow-y: auto;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    background: var(--bg-secondary);
-    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+const Sub = styled.div`
+    display: grid;
+    grid-template-rows: 0fr;
+    overflow: hidden;
+    transition: grid-template-rows 150ms ease;
 
     ${Menu}:hover > &,
     ${Menu}:focus-within > & {
-        display: block;
-    }
-
-    &::-webkit-scrollbar {
-        width: 6px;
+        grid-template-rows: 1fr;
     }
 `;
 
-const FlyoutList = styled.div`
+const Inner = styled.div`
     display: flex;
     flex-direction: column;
     gap: 1px;
+    min-height: 0;
+    max-height: 42vh;
+    padding-left: 10px;
+    overflow-y: auto;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+        width: 0;
+    }
 `;
 
 const Item = styled.button<{ $active: boolean }>`
