@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useEffect, useState, type MouseEvent} from "react";
 import styled from "styled-components";
 import {
     clearFrequent,
@@ -765,11 +765,22 @@ export function OverviewView({
     const remove = (id: string) => {
         setIconEditor(null);
 
-        // A panel that comes back later starts empty, not with the folders it used to hold.
-        const places = {...settings?.panelPlaces};
-        delete places[id];
+        // Deleting a panel forgets everything that belonged to it, so a new one starts clean.
+        const without = <T,>(record: Record<string, T> | null | undefined) => {
+            const next = {...record};
+            delete next[id];
+            return next;
+        };
+        const pinned = settings?.overviewPinned ?? panels.filter((panel) => panel.pinned).map((panel) => panel.id);
 
-        void save({overviewPanels: ids.filter((item) => item !== id), panelPlaces: places});
+        void save({
+            overviewPanels: ids.filter((item) => item !== id),
+            overviewPinned: pinned.filter((item) => item !== id),
+            overviewTitles: without(settings?.overviewTitles),
+            overviewViews: without(settings?.overviewViews),
+            overviewIcons: without(settings?.overviewIcons),
+            panelPlaces: without(settings?.panelPlaces),
+        });
     };
 
     const setIcon = (id: string, icon: string | null) => {
@@ -863,11 +874,17 @@ export function OverviewView({
         });
     };
 
-    const body = (panel: Panel) => {
-        if (panel.view === "grid" && panel.kind === "recent")
-            return (
+    /** Recent is one kind: the same entries, shown as cards or rows, with one empty state. */
+    const renderRecent = (panel: Panel) => {
+        if (recent.length === 0)
+            return <Empty>Files and folders you open show up here.</Empty>;
+
+        const entries = recent.slice(0, recentLimit);
+
+        return panel.view === "grid"
+            ? (
                 <Places>
-                    {recent.slice(0, recentLimit).map((entry) => (
+                    {entries.map((entry) => (
                         <Card
                             key={entry.path}
                             $plain={false}
@@ -886,57 +903,107 @@ export function OverviewView({
                         </Card>
                     ))}
                 </Places>
-            );
-
-        if (panel.view === "grid" && panel.kind === "drives")
-            return (
-                <Places>
-                    {drives.map((drive) => (
-                        <Card
-                            key={drive.name}
-                            $plain={false}
-                            onClick={(event) => onOpen(drive.name, wantsNewTab(event))}
-                            title={drive.name}
+            )
+            : (
+                <Rows>
+                    {entries.map((entry) => (
+                        <Row
+                            key={entry.path}
+                            onClick={(event) => entry.isDirectory
+                                ? onOpen(entry.path, wantsNewTab(event))
+                                : void openFile(entry.path)}
+                            title={entry.path}
+                            type="button"
                         >
-                            <Glyph><DriveIcon size={18}/></Glyph>
-                            <CardText>
-                                <strong>
-                                    {driveRename?.drive.name === drive.name ? (
-                                        <>
-                                            <InlineEditor
-                                                maxLength={32}
-                                                onCancel={() => setDriveRename(null)}
-                                                onChange={(label) => setDriveRename({...driveRename, label})}
-                                                onCommit={() => void applyDriveRename()}
-                                                value={driveRename.label}
-                                            />
-                                            {driveLetter(drive)}
-                                        </>
-                                    ) : (
-                                        <>
-                                            {driveName(drive)}
-                                            {editing && (
-                                                <RenameButton
-                                                    onClick={(event) => {
-                                                        event.stopPropagation();
-                                                        startDriveRename(drive);
-                                                    }}
-                                                    title="Rename volume"
-                                                    type="button"
-                                                >
-                                                    <PencilIcon size={11}/>
-                                                </RenameButton>
-                                            )}
-                                        </>
-                                    )}
-                                </strong>
-                                <Meta>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</Meta>
-                            </CardText>
-                        </Card>
+                            <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.path} size={15}/>
+                            <RowText>
+                                <strong>{entry.name}</strong>
+                                <Meta>{entry.path}</Meta>
+                            </RowText>
+                        </Row>
                     ))}
-                </Places>
+                </Rows>
             );
+    };
 
+    /** Drives are one kind: the same volumes, shown as cards or rows, with one empty state. */
+    const renderDrives = (panel: Panel) => {
+        if (drives.length === 0)
+            return <Empty>No drives are available.</Empty>;
+
+        const items = drives.map((drive) => {
+            const used = drive.totalSize > 0 ? 1 - drive.freeSpace / drive.totalSize : 0;
+            const editingName = driveRename?.drive.name === drive.name;
+            const name = editingName ? (
+                <InlineEditor
+                    maxLength={32}
+                    onCancel={() => setDriveRename(null)}
+                    onChange={(label) => setDriveRename({...driveRename, label})}
+                    onCommit={() => void applyDriveRename()}
+                    value={driveRename?.label ?? ""}
+                />
+            ) : (
+                <>{driveName(drive)}</>
+            );
+            const rename = !editingName && editing && (
+                <RenameButton
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        startDriveRename(drive);
+                    }}
+                    title="Rename volume"
+                    type="button"
+                >
+                    <PencilIcon size={11}/>
+                </RenameButton>
+            );
+            const meta = <Meta>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</Meta>;
+
+            return panel.view === "grid"
+                ? (
+                    <Card
+                        key={drive.name}
+                        $plain={false}
+                        onClick={(event) => !editingName && onOpen(drive.name, wantsNewTab(event))}
+                        title={drive.name}
+                    >
+                        <Glyph><DriveIcon size={18}/></Glyph>
+                        <CardText>
+                            <strong>
+                                {name}
+                                {editingName && driveLetter(drive)}
+                                {rename}
+                            </strong>
+                            {meta}
+                        </CardText>
+                    </Card>
+                )
+                : (
+                    <Row
+                        as={editingName ? "div" : "button"}
+                        key={drive.name}
+                        onClick={editingName ? undefined : (event: MouseEvent<HTMLElement>) => onOpen(drive.name, wantsNewTab(event))}
+                        title={drive.name}
+                        type={editingName ? undefined : "button"}
+                    >
+                        <DriveIcon size={18}/>
+                        <RowText>
+                            <strong>
+                                {name}
+                                {editingName && driveLetter(drive)}
+                                {rename}
+                            </strong>
+                            {meta}
+                        </RowText>
+                        <Bar><Fill $used={used} $tone={usageTone(used)}/></Bar>
+                    </Row>
+                );
+        });
+
+        return panel.view === "grid" ? <Places>{items}</Places> : <Rows>{items}</Rows>;
+    };
+
+    const body = (panel: Panel) => {
         switch (panel.kind) {
             case "quick": {
                 const items = quickItems(panel);
@@ -1128,85 +1195,10 @@ export function OverviewView({
                 return <FrequentBody mode={panel.view} onOpen={onOpen} version={historyVersion}/>;
 
             case "recent":
-                return recent.length === 0
-                    ? <Empty>Files and folders you open show up here.</Empty>
-                    : (
-                        <Rows>
-                            {recent.slice(0, recentLimit).map((entry) => (
-                                <Row
-                                    key={entry.path}
-                                    onClick={(event) => entry.isDirectory
-                                        ? onOpen(entry.path, wantsNewTab(event))
-                                        : void openFile(entry.path)}
-                                    title={entry.path}
-                                    type="button"
-                                >
-                                    <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.path} size={15}/>
-                                    <RowText>
-                                        <strong>{entry.name}</strong>
-                                        <Meta>{entry.path}</Meta>
-                                    </RowText>
-                                </Row>
-                            ))}
-                        </Rows>
-                    );
+                return renderRecent(panel);
 
             case "drives":
-                return (
-                    <Rows>
-                        {drives.map((drive) => {
-                            const used = drive.totalSize > 0 ? 1 - drive.freeSpace / drive.totalSize : 0;
-
-                            return driveRename?.drive.name === drive.name ? (
-                                <Row as="div" key={drive.name}>
-                                    <DriveIcon size={18}/>
-                                    <RowText>
-                                        <strong>
-                                            <InlineEditor
-                                                maxLength={32}
-                                                onCancel={() => setDriveRename(null)}
-                                                onChange={(label) => setDriveRename({...driveRename, label})}
-                                                onCommit={() => void applyDriveRename()}
-                                                value={driveRename.label}
-                                            />
-                                            {driveLetter(drive)}
-                                        </strong>
-                                        <Meta>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</Meta>
-                                    </RowText>
-                                    <Bar><Fill $used={used} $tone={usageTone(used)}/></Bar>
-                                </Row>
-                            ) : (
-                                <Row
-                                    key={drive.name}
-                                    onClick={(event) => onOpen(drive.name, wantsNewTab(event))}
-                                    title={drive.name}
-                                    type="button"
-                                >
-                                    <DriveIcon size={18}/>
-                                    <RowText>
-                                        <strong>
-                                            {driveName(drive)}
-                                            {editing && (
-                                                <RenameButton
-                                                    onClick={(event) => {
-                                                        event.stopPropagation();
-                                                        startDriveRename(drive);
-                                                    }}
-                                                    title="Rename volume"
-                                                    type="button"
-                                                >
-                                                    <PencilIcon size={11}/>
-                                                </RenameButton>
-                                            )}
-                                        </strong>
-                                        <Meta>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</Meta>
-                                    </RowText>
-                                    <Bar><Fill $used={used} $tone={usageTone(used)}/></Bar>
-                                </Row>
-                            );
-                        })}
-                    </Rows>
-                );
+                return renderDrives(panel);
 
             default:
                 return <FolderBody mode={panel.view} onOpen={onOpen} path={panel.path ?? homePath}/>;
@@ -1284,7 +1276,6 @@ export function OverviewView({
 
             <Panels $columns={columns}>
                 {panels
-                    .filter((panel) => editing || (panel.kind !== "recent" || (recentLimit > 0 && recent.length > 0)))
                     .map((panel) => {
                         const index = ids.indexOf(panel.id);
 
@@ -1327,7 +1318,7 @@ export function OverviewView({
                                     </HeadStart>
 
                                     <HeadEnd>
-                                        {!editing && panel.kind === "recent" && recent.length > 0 && (
+                                        {!editing && panel.kind === "recent" && (
                                             <Ghost onClick={() => void clearRecent().then(onRecentCleared)} title="Clear" type="button">
                                                 Clear
                                             </Ghost>
@@ -1584,21 +1575,25 @@ function FolderBody({path, mode, onOpen}: { path: string; mode: ViewMode; onOpen
 
     return (
         <Scroller>
-        <Tiles>
-            {listing.entries.map((entry) => (
-                <Tile
-                    key={entry.fullPath}
-                    onClick={(event) => entry.isDirectory
-                        ? onOpen(entry.fullPath, wantsNewTab(event))
-                        : void openFile(entry.fullPath)}
-                    title={entry.name}
-                    type="button"
-                >
-                    <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.fullPath} size={16}/>
-                    <span>{entry.name}</span>
-                </Tile>
-            ))}
-        </Tiles>
+            {listing.entries.length === 0
+                ? <Empty>This folder is empty.</Empty>
+                : (
+                    <Tiles>
+                        {listing.entries.map((entry) => (
+                            <Tile
+                                key={entry.fullPath}
+                                onClick={(event) => entry.isDirectory
+                                    ? onOpen(entry.fullPath, wantsNewTab(event))
+                                    : void openFile(entry.fullPath)}
+                                title={entry.name}
+                                type="button"
+                            >
+                                <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.fullPath} size={16}/>
+                                <span>{entry.name}</span>
+                            </Tile>
+                        ))}
+                    </Tiles>
+                )}
         </Scroller>
     );
 }

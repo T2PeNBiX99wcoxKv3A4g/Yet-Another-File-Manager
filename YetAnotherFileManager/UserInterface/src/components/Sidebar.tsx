@@ -7,6 +7,7 @@ import {buildPanels, PanelGlyph, type Panel} from "../panels";
 import {DriveIcon, GearIcon, ImageIcon, OverviewIcon, TrashIcon} from "./Icons";
 import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
+import {Native} from "@photino-net-utils/bridge";
 import {baseName, driveName, formatBytes, usageTone} from "../utils/format";
 import {wantsNewTab} from "../shortcuts";
 
@@ -112,7 +113,7 @@ export function Sidebar({
                                 </Item>
                             ))}
 
-                            {panel.kind === "recent" && recent.slice(0, Math.max(recentLimit, 1)).map((entry) => (
+                            {panel.kind === "recent" && recent.slice(0, recentLimit).map((entry) => (
                                 <Item
                                     key={entry.path}
                                     $active={showFiles && isSamePath(currentPath, entry.path)}
@@ -219,6 +220,19 @@ function FolderItems({path, onNavigate}: { path: string; onNavigate: (path: stri
 
         setListing(null);
         listDirectory(path, false).then(setListing, () => setListing(null));
+    }, [path]);
+
+    // A pinned folder is one of the folders the overview watches, so it stays current too.
+    useEffect(() => {
+        if (!path || !Native.available) return;
+
+        return Native.on((evt) => {
+            const event = evt as { type?: string; data?: { path?: string } };
+            if (event.type !== "fs.changed" || typeof event.data?.path !== "string") return;
+            if (!isSamePath(event.data.path, path)) return;
+
+            void listDirectory(path, false).then(setListing, () => undefined);
+        });
     }, [path]);
 
     const entries = listing?.entries ?? [];

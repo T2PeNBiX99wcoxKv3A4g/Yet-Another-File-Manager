@@ -213,7 +213,8 @@ export default function App() {
             }));
 
             // A refresh shows the same folder again; only a real navigation counts as a visit.
-            if (!keepFresh) void recordVisit(listing.path);
+            if (!keepFresh)
+                void recordVisit(listing.path).then(() => setHistoryVersion((current) => current + 1));
         } catch (cause) {
             patch(id, () => ({loading: false, error: message(cause)}));
         }
