@@ -1,7 +1,16 @@
 import styled from "styled-components";
 import type {Drive, Place, RecentEntry} from "../api/files";
 import type {TabKind} from "../tabs";
-import {DriveIcon, FolderIcon, GearIcon, HomeIcon, ImageIcon, OverviewIcon, TrashIcon} from "./Icons";
+import {
+    ClockIcon,
+    DriveIcon,
+    FolderIcon,
+    GearIcon,
+    HomeIcon,
+    ImageIcon,
+    OverviewIcon,
+    TrashIcon,
+} from "./Icons";
 import {formatBytes, usageTone} from "../utils/format";
 
 interface SidebarProps {
@@ -16,8 +25,8 @@ interface SidebarProps {
 }
 
 /**
- * A rail of icons that expands under the pointer. The lists stay out of the way while it is closed
- * and are all there, fully expanded, as soon as it opens.
+ * Two levels of collapsing. The rail folds to a strip of icons when the pointer leaves it, and the
+ * lists (places, recent folders, drives) live in flyouts that drop down from their button on hover.
  */
 export function Sidebar({
     places,
@@ -30,122 +39,134 @@ export function Sidebar({
     onOpenView,
 }: SidebarProps) {
     const showFiles = activeKind === "files";
+    const hasRecent = recentLimit > 0 && recent.length > 0;
 
     return (
         <Aside>
-            <Section>
-                <List>
-                    <Item
-                        $active={activeKind === "home"}
-                        onClick={() => onOpenView("home")}
-                        title="Overview"
-                        type="button"
-                    >
-                        <OverviewIcon/>
-                        <Label>Overview</Label>
-                    </Item>
-                    <Item
-                        $active={activeKind === "recycle"}
-                        onClick={() => onOpenView("recycle")}
-                        title="Recycle Bin"
-                        type="button"
-                    >
-                        <TrashIcon/>
-                        <Label>Recycle Bin</Label>
-                    </Item>
-                    <Item
-                        $active={activeKind === "gallery"}
-                        onClick={() => onOpenView("gallery")}
-                        title="Gallery"
-                        type="button"
-                    >
-                        <ImageIcon/>
-                        <Label>Gallery</Label>
-                    </Item>
-                </List>
-            </Section>
+            <List>
+                <Item
+                    $active={activeKind === "home"}
+                    onClick={() => onOpenView("home")}
+                    title="Overview"
+                    type="button"
+                >
+                    <OverviewIcon/>
+                    <Label>Overview</Label>
+                </Item>
+                <Item
+                    $active={activeKind === "recycle"}
+                    onClick={() => onOpenView("recycle")}
+                    title="Recycle Bin"
+                    type="button"
+                >
+                    <TrashIcon/>
+                    <Label>Recycle Bin</Label>
+                </Item>
+                <Item
+                    $active={activeKind === "gallery"}
+                    onClick={() => onOpenView("gallery")}
+                    title="Gallery"
+                    type="button"
+                >
+                    <ImageIcon/>
+                    <Label>Gallery</Label>
+                </Item>
+            </List>
 
-            <TreeColumn>
-            <Tree>
-                <SectionTitle>Places</SectionTitle>
-                <List>
-                        {places.map((place) => (
-                            <Item
-                                key={place.path}
-                                $active={showFiles && isSamePath(currentPath, place.path)}
-                                onClick={() => onNavigate(place.path)}
-                                title={place.path}
-                                type="button"
-                            >
-                                {place.kind === "home" ? <HomeIcon/> : <FolderIcon/>}
-                                <Label>{place.name}</Label>
-                            </Item>
-                    ))}
-                </List>
-            </Tree>
-
-            {recentLimit > 0 && recent.length > 0 && (
-                <Tree>
-                    <SectionTitle>Recent</SectionTitle>
-                    <List>
-                            {recent.slice(0, recentLimit).map((entry) => (
+            <List>
+                <Menu>
+                    <Item as="div" $active={false}>
+                        <FolderIcon/>
+                        <Label>Places</Label>
+                    </Item>
+                    <Flyout>
+                        <FlyoutList>
+                            {places.map((place) => (
                                 <Item
-                                    key={entry.path}
-                                    $active={showFiles && isSamePath(currentPath, entry.path)}
-                                    onClick={() => onNavigate(entry.path)}
-                                    title={entry.path}
+                                    key={place.path}
+                                    $active={showFiles && isSamePath(currentPath, place.path)}
+                                    onClick={() => onNavigate(place.path)}
+                                    title={place.path}
                                     type="button"
                                 >
-                                    <FolderIcon/>
-                                    <Label>{entry.name}</Label>
+                                    {place.kind === "home" ? <HomeIcon/> : <FolderIcon/>}
+                                    <Label>{place.name}</Label>
                                 </Item>
-                        ))}
-                    </List>
-                </Tree>
-            )}
+                            ))}
+                        </FlyoutList>
+                    </Flyout>
+                </Menu>
 
-            <Tree>
-                <SectionTitle>Drives</SectionTitle>
-                <List>
-                        {drives.map((drive) => {
-                            const used = drive.totalSize > 0 ? 1 - drive.freeSpace / drive.totalSize : 0;
+                {hasRecent && (
+                    <Menu>
+                        <Item as="div" $active={false}>
+                            <ClockIcon/>
+                            <Label>Recent</Label>
+                        </Item>
+                        <Flyout>
+                            <FlyoutList>
+                                {recent.slice(0, recentLimit).map((entry) => (
+                                    <Item
+                                        key={entry.path}
+                                        $active={showFiles && isSamePath(currentPath, entry.path)}
+                                        onClick={() => onNavigate(entry.path)}
+                                        title={entry.path}
+                                        type="button"
+                                    >
+                                        <FolderIcon/>
+                                        <Label>{entry.name}</Label>
+                                    </Item>
+                                ))}
+                            </FlyoutList>
+                        </Flyout>
+                    </Menu>
+                )}
 
-                            return (
-                                <Item
-                                    key={drive.name}
-                                    $active={showFiles && isSamePath(currentPath, drive.name)}
-                                    onClick={() => onNavigate(drive.name)}
-                                    title={`${drive.label || drive.name} · ${formatBytes(drive.freeSpace)} free of ${formatBytes(drive.totalSize)}`}
-                                    type="button"
-                                >
-                                    <DriveIcon/>
-                                    <Label>
-                                        {drive.label || drive.name}
-                                        <Hint>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</Hint>
-                                        <Bar>
-                                            <Fill $used={used} $tone={usageTone(used)}/>
-                                        </Bar>
-                                    </Label>
-                                </Item>
-                            );
-                        })}
-                </List>
-            </Tree>
-            </TreeColumn>
-
-            <Section $bottom>
-                <List>
-                    <Item
-                        $active={activeKind === "settings"}
-                        onClick={() => onOpenView("settings")}
-                        title="Settings"
-                        type="button"
-                    >
-                        <GearIcon/>
-                        <Label>Settings</Label>
+                <Menu>
+                    <Item as="div" $active={false}>
+                        <DriveIcon/>
+                        <Label>Drives</Label>
                     </Item>
-                </List>
-            </Section>
+                    <Flyout>
+                        <FlyoutList>
+                            {drives.map((drive) => {
+                                const used = drive.totalSize > 0 ? 1 - drive.freeSpace / drive.totalSize : 0;
+
+                                return (
+                                    <Item
+                                        key={drive.name}
+                                        $active={showFiles && isSamePath(currentPath, drive.name)}
+                                        onClick={() => onNavigate(drive.name)}
+                                        title={`${drive.label || drive.name} · ${formatBytes(drive.freeSpace)} free of ${formatBytes(drive.totalSize)}`}
+                                        type="button"
+                                    >
+                                        <DriveIcon/>
+                                        <Label>
+                                            {drive.label || drive.name}
+                                            <Hint>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</Hint>
+                                            <Bar>
+                                                <Fill $used={used} $tone={usageTone(used)}/>
+                                            </Bar>
+                                        </Label>
+                                    </Item>
+                                );
+                            })}
+                        </FlyoutList>
+                    </Flyout>
+                </Menu>
+            </List>
+
+            <Bottom>
+                <Item
+                    $active={activeKind === "settings"}
+                    onClick={() => onOpenView("settings")}
+                    title="Settings"
+                    type="button"
+                >
+                    <GearIcon/>
+                    <Label>Settings</Label>
+                </Item>
+            </Bottom>
         </Aside>
     );
 }
@@ -165,18 +186,13 @@ const Aside = styled.aside`
     left: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     width: 52px;
     padding: 10px 9px;
     overflow: hidden;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border-color);
-    scrollbar-width: none;
     transition: width 150ms ease, padding 150ms ease, box-shadow 150ms ease;
-
-    &::-webkit-scrollbar {
-        display: none;
-    }
 
     &:hover {
         width: 224px;
@@ -184,8 +200,8 @@ const Aside = styled.aside`
         box-shadow: 14px 0 34px rgba(0, 0, 0, 0.45);
     }
 
-    /* The tree only exists while the rail is open; the closed rail is a strip of icons. */
-    &:not(:hover) ${() => Tree} {
+    /* A flyout is only meaningful while the rail is open; clipped otherwise. */
+    &:not(:hover) ${() => Flyout} {
         display: none;
     }
 
@@ -199,48 +215,48 @@ const Aside = styled.aside`
     }
 `;
 
-/** The three lists scroll together, so a long list never clips a row in the middle. */
-const TreeColumn = styled.div`
+const List = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    flex: 1 1 0;
-    min-height: 0;
+    gap: 1px;
+    flex-shrink: 0;
+`;
+
+const Bottom = styled(List)`
+    margin-top: auto;
+`;
+
+/** A button with a list that drops down from it while the pointer is on it. */
+const Menu = styled.div`
+    position: relative;
+`;
+
+const Flyout = styled.div`
+    position: absolute;
+    z-index: 30;
+    top: calc(100% + 3px);
+    left: 0;
+    display: none;
+    width: 200px;
+    max-height: 340px;
+    padding: 4px;
     overflow-y: auto;
-    scrollbar-width: none;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+
+    ${Menu}:hover > &,
+    ${Menu}:focus-within > & {
+        display: block;
+    }
 
     &::-webkit-scrollbar {
-        display: none;
+        width: 6px;
     }
 `;
 
-const Tree = styled.section`
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    flex-shrink: 0;
-`;
-
-const Section = styled.section<{ $bottom?: boolean }>`
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    flex-shrink: 0;
-    margin-top: ${({$bottom}) => $bottom ? "auto" : "0"};
-`;
-
-const SectionTitle = styled.h2`
-    padding: 2px 6px;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    overflow: hidden;
-    white-space: nowrap;
-`;
-
-const List = styled.div`
+const FlyoutList = styled.div`
     display: flex;
     flex-direction: column;
     gap: 1px;

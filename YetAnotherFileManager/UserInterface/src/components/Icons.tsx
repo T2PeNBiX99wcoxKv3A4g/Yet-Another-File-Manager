@@ -122,6 +122,15 @@ export function GearIcon({size = 18}: IconProps) {
     );
 }
 
+export function ClockIcon({size = 18}: IconProps) {
+    return (
+        <svg {...base(size)}>
+            <circle cx="12" cy="12" r="8.5"/>
+            <path d="M12 7.6V12l3.1 2"/>
+        </svg>
+    );
+}
+
 export function TrashIcon({size = 18}: IconProps) {
     return (
         <svg {...base(size)}>
