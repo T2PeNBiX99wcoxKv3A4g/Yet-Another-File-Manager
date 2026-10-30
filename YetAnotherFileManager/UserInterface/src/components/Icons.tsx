@@ -41,6 +41,7 @@ import DownloadsSvg from "./icons/downloads.svg?react";
 import PicturesSvg from "./icons/pictures.svg?react";
 import MusicSvg from "./icons/music.svg?react";
 import VideosSvg from "./icons/videos.svg?react";
+import StarSvg from "./icons/star.svg?react";
 
 interface IconProps extends SVGProps<SVGSVGElement> {
     size?: number;
@@ -95,3 +96,4 @@ export const DownloadsIcon = sized(DownloadsSvg, 18);
 export const PicturesIcon = sized(PicturesSvg, 18);
 export const MusicIcon = sized(MusicSvg, 18);
 export const VideosIcon = sized(VideosSvg, 18);
+export const StarIcon = sized(StarSvg, 18);

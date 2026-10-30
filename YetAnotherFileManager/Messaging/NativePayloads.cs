@@ -74,6 +74,9 @@ internal sealed record ThumbnailRequest(string Path, int Size);
 /// <summary>Body for <c>fs.recent</c>: the folders opened most recently.</summary>
 internal sealed record FsRecentPayload(IReadOnlyList<RecentEntry> Entries);
 
+/// <summary>Body for <c>fs.frequent</c>: the folders opened most often.</summary>
+internal sealed record FsFrequentPayload(IReadOnlyList<FrequentEntry> Entries);
+
 /// <summary>Payload for <c>app.places.set</c>: the folders to pin, in order.</summary>
 internal sealed record PlacesRequest(List<string> Paths);
 

@@ -1,9 +1,9 @@
 import type {ReactNode} from "react";
 import type {AppSettings} from "./api/settings";
 import {useIconFile} from "./api/icons";
-import {ClockIcon, CodeIcon, DesktopIcon, DocumentsIcon, DownloadsIcon, DriveIcon, FolderIcon, HomeIcon, ImageIcon, MusicIcon, PicturesIcon, TextIcon, VideosIcon} from "./components/Icons";
+import {ClockIcon, CodeIcon, DesktopIcon, DocumentsIcon, DownloadsIcon, DriveIcon, FolderIcon, HomeIcon, ImageIcon, MusicIcon, PicturesIcon, StarIcon, TextIcon, VideosIcon} from "./components/Icons";
 
-export type PanelKind = "quick" | "recent" | "home" | "drives" | "folder";
+export type PanelKind = "quick" | "recent" | "frequent" | "home" | "drives" | "folder";
 export type ViewMode = "list" | "grid";
 
 /** One block on the overview; several blocks of the same kind are allowed. */
@@ -21,9 +21,13 @@ export interface Panel {
 
 export const DefaultPanels = ["quick", "recent", "home", "drives"];
 
+/** Panel kinds that can be stored in the layout. Frequent is not part of the factory layout. */
+export const KnownPanels = [...DefaultPanels, "frequent"];
+
 export const DefaultTitles: Record<string, string> = {
     quick: "Quick access",
     recent: "Recent",
+    frequent: "Frequent",
     home: "Home",
     drives: "Drives",
 };
@@ -43,6 +47,7 @@ export const PanelIcons: Record<string, (size: number) => ReactNode> = {
     text: (size) => <TextIcon size={size}/>,
     code: (size) => <CodeIcon size={size}/>,
     clock: (size) => <ClockIcon size={size}/>,
+    star: (size) => <StarIcon size={size}/>,
 };
 
 /** The kind of a panel id: "quick", "quick:2", "folder:D:\x". */
@@ -59,7 +64,7 @@ export function buildPanels(settings: AppSettings | null): Panel[] {
     const source = stored ?? DefaultPanels;
     // A stored list is the whole truth: deleting a default panel has to keep it deleted.
     const ids = [...new Set(source)].filter((id) => !hidden.includes(id)
-        && (id.startsWith("folder:") || DefaultPanels.some((base) => id === base || id.startsWith(`${base}:`))));
+        && (id.startsWith("folder:") || KnownPanels.some((base) => id === base || id.startsWith(`${base}:`))));
     const titles = settings?.overviewTitles ?? {};
     const views = settings?.overviewViews ?? {};
     const icons = settings?.overviewIcons ?? {};
@@ -105,6 +110,8 @@ export function PanelGlyph({panel, size = 16}: { panel: Pick<Panel, "icon" | "ki
             return <FolderIcon size={size}/>;
         case "recent":
             return <ClockIcon size={size}/>;
+        case "frequent":
+            return <StarIcon size={size}/>;
         case "drives":
             return <DriveIcon size={size}/>;
         case "home":

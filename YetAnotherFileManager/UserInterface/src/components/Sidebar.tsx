@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import styled from "styled-components";
-import {listDirectory, openFile, type DirectoryListing, type Drive, type FileEntry, type Place, type RecentEntry} from "../api/files";
+import {listDirectory, listFrequent, openFile, type DirectoryListing, type Drive, type FileEntry, type FrequentEntry, type Place, type RecentEntry} from "../api/files";
 import {getSettings, type AppSettings} from "../api/settings";
 import type {TabKind} from "../tabs";
 import {buildPanels, PanelGlyph, type Panel} from "../panels";
@@ -129,6 +129,8 @@ export function Sidebar({
                                 </Item>
                             ))}
 
+                            {panel.kind === "frequent" && <FrequentItems onNavigate={onNavigate}/>}
+
                             {panel.kind === "drives" && drives.map((drive) => {
                                 const used = drive.totalSize > 0 ? 1 - drive.freeSpace / drive.totalSize : 0;
 
@@ -174,6 +176,28 @@ export function Sidebar({
 /** A flyout shows a sample: long folders keep the files reachable instead of pushing them past a cap. */
 const FolderListLimit = 10;
 const FileListLimit = 40;
+
+/** The folders opened most often, capped to a flyout-sized list. */
+function FrequentItems({onNavigate}: { onNavigate: (path: string, newTab?: boolean) => void }) {
+    const [entries, setEntries] = useState<FrequentEntry[] | null>(null);
+
+    useEffect(() => {
+        listFrequent().then(setEntries, () => setEntries([]));
+    }, []);
+
+    return (entries ?? []).slice(0, 15).map((entry) => (
+        <Item
+            key={entry.path}
+            $active={false}
+            onClick={(event) => onNavigate(entry.path, wantsNewTab(event))}
+            title={`${entry.count} ${entry.count === 1 ? "visit" : "visits"} · ${entry.path}`}
+            type="button"
+        >
+            <PathIcon isDirectory name={entry.name} path={entry.path} size={18}/>
+            <Label>{entry.name}</Label>
+        </Item>
+    ));
+}
 
 /**
  * The contents of a pinned folder panel, loaded when the section is on screen. Folders come first,

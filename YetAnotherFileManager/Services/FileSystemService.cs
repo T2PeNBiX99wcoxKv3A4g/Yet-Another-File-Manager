@@ -64,6 +64,12 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             "fs.recent" => Task.FromResult<NativeResponse?>(context.Reply("fs.recent.result",
                 new FsRecentPayload(RecentService.Instance.List(SettingsService.Instance.Current.RecentCount)))),
 
+            "fs.frequent" => Task.FromResult<NativeResponse?>(context.Reply("fs.frequent.result",
+                new FsFrequentPayload(FrequentService.Instance.List()))),
+
+            "fs.frequent.record" => Task.FromResult<NativeResponse?>(context.Reply("fs.frequent.record.result",
+                new OkPayload(RecordVisit(context.Payload<PathPayload>()?.Path)))),
+
             "fs.recent.clear" => Task.FromResult<NativeResponse?>(context.Reply("fs.recent.clear.result",
                 new OkPayload(ClearRecent()))),
 
@@ -244,6 +250,13 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     private static bool ClearRecent()
     {
         RecentService.Instance.Clear();
+        return true;
+    }
+
+    /// <summary>Counts one user navigation to a folder for the Frequent panel.</summary>
+    private static bool RecordVisit(string? path)
+    {
+        FrequentService.Instance.Record(path ?? "");
         return true;
     }
 

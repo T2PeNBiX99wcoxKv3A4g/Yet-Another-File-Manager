@@ -93,6 +93,13 @@ export interface RecentEntry {
     at: number;
 }
 
+export interface FrequentEntry {
+    path: string;
+    name: string;
+    count: number;
+    last: number;
+}
+
 export interface FileVisibility {
     showHidden: boolean;
     showSystem: boolean;
@@ -171,6 +178,21 @@ export async function listRecent(): Promise<RecentEntry[]> {
 
     const data = await Native.request<{ entries: RecentEntry[] }>("fs.recent");
     return data.entries;
+}
+
+/** The folders opened most often, most-used first. */
+export async function listFrequent(): Promise<FrequentEntry[]> {
+    if (!Native.available) return [];
+
+    const data = await Native.request<{ entries: FrequentEntry[] }>("fs.frequent");
+    return data.entries;
+}
+
+/** Counts one navigation to a folder for the Frequent panel. */
+export async function recordVisit(path: string): Promise<void> {
+    if (!Native.available) return;
+
+    await Native.request("fs.frequent.record", {path});
 }
 
 /** Forgets the recent list. */

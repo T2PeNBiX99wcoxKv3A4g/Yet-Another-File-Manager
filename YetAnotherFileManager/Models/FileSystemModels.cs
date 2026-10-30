@@ -23,6 +23,9 @@ public sealed record GalleryEntry(string Path, string Name, long Modified, long 
 /// <summary>A folder (or, later, a file) that was opened recently.</summary>
 public sealed record RecentEntry(string Path, string Name, bool IsDirectory, long At);
 
+/// <summary>A folder that is opened often, with how many times it was opened.</summary>
+public sealed record FrequentEntry(string Path, string Name, int Count, long Last);
+
 /// <summary>One item in the recycle bin, as its metadata record describes it.</summary>
 /// <param name="Id">Opaque handle: the path of the metadata record that describes the entry.</param>
 /// <param name="IsOrphan">True when the content is gone and only the metadata record is left.</param>

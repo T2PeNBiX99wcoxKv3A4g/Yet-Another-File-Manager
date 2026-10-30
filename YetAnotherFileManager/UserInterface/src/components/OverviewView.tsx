@@ -3,11 +3,13 @@ import styled from "styled-components";
 import {
     clearRecent,
     listDirectory,
+    listFrequent,
     listPlaces,
     openFile,
     renameDrive,
     type DirectoryListing,
     type Drive,
+    type FrequentEntry,
     type Place,
     type RecentEntry,
 } from "../api/files";
@@ -907,16 +909,18 @@ export function OverviewView({
                                     ) : (
                                         <>
                                             {driveName(drive)}
-                                            <RenameButton
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    startDriveRename(drive);
-                                                }}
-                                                title="Rename volume"
-                                                type="button"
-                                            >
-                                                <PencilIcon size={11}/>
-                                            </RenameButton>
+                                            {editing && (
+                                                <RenameButton
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        startDriveRename(drive);
+                                                    }}
+                                                    title="Rename volume"
+                                                    type="button"
+                                                >
+                                                    <PencilIcon size={11}/>
+                                                </RenameButton>
+                                            )}
                                         </>
                                     )}
                                 </strong>
@@ -1114,6 +1118,9 @@ export function OverviewView({
                     );
             }
 
+            case "frequent":
+                return <FrequentBody mode={panel.view} onOpen={onOpen}/>;
+
             case "recent":
                 return recent.length === 0
                     ? <Empty>Files and folders you open show up here.</Empty>
@@ -1173,16 +1180,18 @@ export function OverviewView({
                                     <RowText>
                                         <strong>
                                             {driveName(drive)}
-                                            <RenameButton
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    startDriveRename(drive);
-                                                }}
-                                                title="Rename volume"
-                                                type="button"
-                                            >
-                                                <PencilIcon size={11}/>
-                                            </RenameButton>
+                                            {editing && (
+                                                <RenameButton
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        startDriveRename(drive);
+                                                    }}
+                                                    title="Rename volume"
+                                                    type="button"
+                                                >
+                                                    <PencilIcon size={11}/>
+                                                </RenameButton>
+                                            )}
                                         </strong>
                                         <Meta>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</Meta>
                                     </RowText>
@@ -1228,7 +1237,7 @@ export function OverviewView({
                         </Ghost>
                         {addOpen && (
                             <PanelMenu onPointerDown={(event) => event.stopPropagation()}>
-                                {(["quick", "recent", "home", "drives", "folder"] as PanelKind[]).map((kind) => (
+                                {(["quick", "recent", "frequent", "home", "drives", "folder"] as PanelKind[]).map((kind) => (
                                     <PanelMenuItem
                                         key={kind}
                                         onClick={() => {
@@ -1239,8 +1248,9 @@ export function OverviewView({
                                     >
                                         {kind === "quick" ? "Quick access"
                                             : kind === "recent" ? "Recent"
-                                                : kind === "home" ? "Home"
-                                                    : kind === "drives" ? "This PC" : "Folder…"}
+                                                : kind === "frequent" ? "Frequent"
+                                                    : kind === "home" ? "Home"
+                                                        : kind === "drives" ? "This PC" : "Folder…"}
                                     </PanelMenuItem>
                                 ))}
                             </PanelMenu>
@@ -1254,6 +1264,7 @@ export function OverviewView({
                         setAddOpen(false);
                         setIconEditor(null);
                         setPlaceRename(null);
+                        setDriveRename(null);
                     }}
                     title={editing ? "Done" : "Edit"}
                     type="button"
@@ -1449,6 +1460,62 @@ function samePath(left: string, right: string): boolean {
     const normalize = (value: string) => value.replace(/[\\/]+$/, "").toLowerCase();
 
     return normalize(left) === normalize(right);
+}
+
+/** The folders this user opens most often, ranked by how many visits the host counted. */
+function FrequentBody({mode, onOpen}: { mode: ViewMode; onOpen: (path: string, newTab?: boolean) => void }) {
+    const [entries, setEntries] = useState<FrequentEntry[] | null>(null);
+
+    useEffect(() => {
+        listFrequent().then(setEntries, () => setEntries([]));
+    }, []);
+
+    if (!entries)
+        return <Empty>Reading…</Empty>;
+
+    if (entries.length === 0)
+        return <Empty>Folders you open often show up here.</Empty>;
+
+    const subtitle = (entry: FrequentEntry) => `${entry.count} ${entry.count === 1 ? "visit" : "visits"} · ${entry.path}`;
+
+    if (mode === "grid")
+        return (
+            <Places>
+                {entries.map((entry) => (
+                    <Card
+                        key={entry.path}
+                        $plain={false}
+                        onClick={(event) => onOpen(entry.path, wantsNewTab(event))}
+                        title={entry.path}
+                    >
+                        <Glyph><PathIcon isDirectory name={entry.name} path={entry.path} size={18}/></Glyph>
+                        <CardText>
+                            <strong>{entry.name}</strong>
+                            <Meta>{subtitle(entry)}</Meta>
+                        </CardText>
+                    </Card>
+                ))}
+            </Places>
+        );
+
+    return (
+        <Rows>
+            {entries.map((entry) => (
+                <Row
+                    key={entry.path}
+                    onClick={(event) => onOpen(entry.path, wantsNewTab(event))}
+                    title={entry.path}
+                    type="button"
+                >
+                    <PathIcon isDirectory name={entry.name} path={entry.path} size={15}/>
+                    <RowText>
+                        <strong>{entry.name}</strong>
+                        <Meta>{subtitle(entry)}</Meta>
+                    </RowText>
+                </Row>
+            ))}
+        </Rows>
+    );
 }
 
 /** One folder rendered as a panel: a table or a grid of its entries. */

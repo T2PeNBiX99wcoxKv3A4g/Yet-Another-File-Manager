@@ -5,6 +5,7 @@ import {
     listDrives,
     listPlaces,
     listRecent,
+    recordVisit,
     type DirectoryListing,
     type Drive,
     type Place,
@@ -209,6 +210,9 @@ export default function App() {
                 history: [...tab.history.slice(0, tab.index + 1), listing.path],
                 index: tab.index + 1,
             }));
+
+            // A refresh shows the same folder again; only a real navigation counts as a visit.
+            if (!keepFresh) void recordVisit(listing.path);
         } catch (cause) {
             patch(id, () => ({loading: false, error: message(cause)}));
         }
