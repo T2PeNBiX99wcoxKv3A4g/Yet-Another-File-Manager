@@ -17,7 +17,7 @@ import {FileList} from "./FileList";
 import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, PencilIcon, PlusIcon} from "./Icons";
 import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
-import {driveName, formatBytes, usageTone} from "../utils/format";
+import {driveLetter, driveName, formatBytes, usageTone} from "../utils/format";
 import {wantsNewTab} from "../shortcuts";
 import {buildPanels, PanelGlyph, PanelIcons, type Panel, type PanelKind, type ViewMode} from "../panels";
 
@@ -92,15 +92,41 @@ const Ghost = styled.button`
 `;
 
 /** The panel choices live in one menu, so another kind only ever needs one more option. */
-const AddPanel = styled.select`
-    padding: 3px 8px;
+const AddMenu = styled.div`
+    position: relative;
+    display: inline-flex;
+`;
+
+const PanelMenu = styled.div`
+    position: absolute;
+    z-index: 40;
+    top: calc(100% + 6px);
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    min-width: 150px;
+    padding: 5px;
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    background: var(--bg-input);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+`;
+
+const PanelMenuItem = styled.button`
+    padding: 6px 10px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
     color: var(--text-secondary);
     font: inherit;
-    font-size: 11px;
+    font-size: 12px;
+    text-align: left;
     cursor: pointer;
+
+    &:hover {
+        background: var(--bg-card-hover);
+        color: var(--text-primary);
+    }
 `;
 
 const Panels = styled.div<{ $columns: number }>`
@@ -193,7 +219,7 @@ const IconButton = styled.button<{ $active?: boolean }>`
 
 const Places = styled.div`
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 10px;
 `;
 
@@ -243,15 +269,16 @@ const CardText = styled.span`
         font-size: 13px;
         font-weight: 600;
     }
+`;
 
-    span {
-        overflow: hidden;
-        font-family: var(--font-mono);
-        font-size: 10px;
-        color: var(--text-muted);
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
+/** The second line of a card or row: a path, a capacity hint or a modification time. */
+const Meta = styled.span`
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
 `;
 
 const Rows = styled.div`
@@ -296,14 +323,31 @@ const RowText = styled.span`
         font-size: 12.5px;
         font-weight: 500;
     }
+`;
 
-    span {
-        overflow: hidden;
-        font-family: var(--font-mono);
-        font-size: 10px;
-        color: var(--text-muted);
-        text-overflow: ellipsis;
-        white-space: nowrap;
+/** A fake directory entry at the end of Quick access; it only exists in edit mode. */
+const AddFolder = styled.button<{ $row?: boolean }>`
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: ${({$row}) => $row ? "7px 10px" : "11px 13px"};
+    border: 1px dashed var(--border-color-hover);
+    border-radius: ${({$row}) => $row ? "var(--radius-sm)" : "var(--radius-md)"};
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    strong {
+        font-size: ${({$row}) => $row ? "12.5px" : "13px"};
+        font-weight: ${({$row}) => $row ? 500 : 600};
+    }
+
+    &:hover {
+        border-color: var(--border-color-focus);
+        background: var(--bg-card-hover);
+        color: var(--text-primary);
     }
 `;
 
@@ -475,20 +519,18 @@ const DriveRenameButton = styled.button`
 
 /** The name turns into a text box with cancel and apply, the way the path bar does. */
 const DriveEditorBox = styled.span`
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 2px;
-    flex: 1;
-    min-width: 0;
-    padding: 1px 2px 1px 8px;
+    max-width: 100%;
+    padding: 1px 2px 1px 6px;
     border: 1px solid var(--border-color-focus);
     border-radius: var(--radius-sm);
     background: var(--bg-input);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
 
     input {
-        flex: 1;
-        min-width: 0;
+        min-width: 4ch;
         border: 0;
         outline: 0;
         background: transparent;
@@ -550,6 +592,7 @@ export function OverviewView({
     const [editing, setEditing] = useState(false);
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const [iconEditor, setIconEditor] = useState<{ kind: "panel" | "place"; id: string } | null>(null);
+    const [addOpen, setAddOpen] = useState(false);
     const [driveRename, setDriveRename] = useState<{ drive: Drive; label: string } | null>(null);
     const [driveNotice, setDriveNotice] = useState<string | null>(null);
 
@@ -565,6 +608,15 @@ export function OverviewView({
         window.addEventListener("pointerdown", close);
         return () => window.removeEventListener("pointerdown", close);
     }, [iconEditor]);
+
+    // The add-panel menu behaves the same way.
+    useEffect(() => {
+        if (!addOpen) return;
+
+        const close = () => setAddOpen(false);
+        window.addEventListener("pointerdown", close);
+        return () => window.removeEventListener("pointerdown", close);
+    }, [addOpen]);
 
     const panels = buildPanels(settings);
     const ids = panels.map((panel) => panel.id);
@@ -597,7 +649,7 @@ export function OverviewView({
     /** Starts a drive rename in place: the name itself becomes the editor. */
     const startDriveRename = (drive: Drive) => {
         setDriveNotice(null);
-        setDriveRename({drive, label: drive.label});
+        setDriveRename({drive, label: drive.label || "Local Disk"});
     };
 
     /** Writes the label straight back to Windows; access denied means it needs elevation. */
@@ -701,6 +753,15 @@ export function OverviewView({
         await save({overviewPanels: [...ids, id]});
     };
 
+    /** Pins one more folder to Quick access, keeping the ones that are already there. */
+    const addPlace = async () => {
+        const folder = await pickFolder();
+        if (!folder) return;
+
+        await save({quickAccess: [...new Set([...places.map((place) => place.path), folder])]});
+        onPlacesChanged(await listPlaces());
+    };
+
     const body = (panel: Panel) => {
         if (panel.view === "grid" && panel.kind === "recent")
             return (
@@ -719,7 +780,7 @@ export function OverviewView({
                             </Glyph>
                             <CardText>
                                 <strong>{entry.name}</strong>
-                                <span>{entry.path}</span>
+                                <Meta>{entry.path}</Meta>
                             </CardText>
                         </Card>
                     ))}
@@ -737,31 +798,36 @@ export function OverviewView({
                             title={drive.name}
                         >
                             <Glyph><DriveIcon size={18}/></Glyph>
-                            {driveRename?.drive.name === drive.name ? (
-                                <DriveEditor
-                                    onCancel={() => setDriveRename(null)}
-                                    onChange={(label) => setDriveRename({...driveRename, label})}
-                                    onCommit={() => void applyDriveRename()}
-                                    value={driveRename.label}
-                                />
-                            ) : (
-                                <CardText>
-                                    <strong>
-                                        {driveName(drive)}
-                                        <DriveRenameButton
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                startDriveRename(drive);
-                                            }}
-                                            title="Rename volume"
-                                            type="button"
-                                        >
-                                            <PencilIcon size={11}/>
-                                        </DriveRenameButton>
-                                    </strong>
-                                    <span>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</span>
-                                </CardText>
-                            )}
+                            <CardText>
+                                <strong>
+                                    {driveRename?.drive.name === drive.name ? (
+                                        <>
+                                            <DriveEditor
+                                                onCancel={() => setDriveRename(null)}
+                                                onChange={(label) => setDriveRename({...driveRename, label})}
+                                                onCommit={() => void applyDriveRename()}
+                                                value={driveRename.label}
+                                            />
+                                            {driveLetter(drive)}
+                                        </>
+                                    ) : (
+                                        <>
+                                            {driveName(drive)}
+                                            <DriveRenameButton
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    startDriveRename(drive);
+                                                }}
+                                                title="Rename volume"
+                                                type="button"
+                                            >
+                                                <PencilIcon size={11}/>
+                                            </DriveRenameButton>
+                                        </>
+                                    )}
+                                </strong>
+                                <Meta>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</Meta>
+                            </CardText>
                         </Card>
                     ))}
                 </Places>
@@ -804,10 +870,20 @@ export function OverviewView({
                                     </IconAnchor>
                                     <CardText>
                                         <strong>{place.name}</strong>
-                                        <span>{place.path}</span>
+                                        <Meta>{place.path}</Meta>
                                     </CardText>
                                 </Card>
                             ))}
+
+                            {editing && (
+                                <AddFolder onClick={() => void addPlace()} title="Pin a folder to Quick access" type="button">
+                                    <Glyph><PlusIcon size={15}/></Glyph>
+                                    <CardText>
+                                        <strong>Add folder</strong>
+                                        <Meta>Pin a directory here</Meta>
+                                    </CardText>
+                                </AddFolder>
+                            )}
                         </Places>
                     )
                     : (
@@ -844,10 +920,20 @@ export function OverviewView({
                                     </IconAnchor>
                                     <RowText>
                                         <strong>{place.name}</strong>
-                                        <span>{place.path}</span>
+                                        <Meta>{place.path}</Meta>
                                     </RowText>
                                 </Row>
                             ))}
+
+                            {editing && (
+                                <AddFolder $row onClick={() => void addPlace()} title="Pin a folder to Quick access" type="button">
+                                    <PlusIcon size={15}/>
+                                    <RowText>
+                                        <strong>Add folder</strong>
+                                        <Meta>Pin a directory here</Meta>
+                                    </RowText>
+                                </AddFolder>
+                            )}
                         </Rows>
                     );
 
@@ -868,7 +954,7 @@ export function OverviewView({
                                     <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.path} size={15}/>
                                     <RowText>
                                         <strong>{entry.name}</strong>
-                                        <span>{entry.path}</span>
+                                        <Meta>{entry.path}</Meta>
                                     </RowText>
                                 </Row>
                             ))}
@@ -884,12 +970,18 @@ export function OverviewView({
                             return driveRename?.drive.name === drive.name ? (
                                 <Row as="div" key={drive.name}>
                                     <DriveIcon size={18}/>
-                                    <DriveEditor
-                                        onCancel={() => setDriveRename(null)}
-                                        onChange={(label) => setDriveRename({...driveRename, label})}
-                                        onCommit={() => void applyDriveRename()}
-                                        value={driveRename.label}
-                                    />
+                                    <RowText>
+                                        <strong>
+                                            <DriveEditor
+                                                onCancel={() => setDriveRename(null)}
+                                                onChange={(label) => setDriveRename({...driveRename, label})}
+                                                onCommit={() => void applyDriveRename()}
+                                                value={driveRename.label}
+                                            />
+                                            {driveLetter(drive)}
+                                        </strong>
+                                        <Meta>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</Meta>
+                                    </RowText>
                                     <Bar><Fill $used={used} $tone={usageTone(used)}/></Bar>
                                 </Row>
                             ) : (
@@ -914,7 +1006,7 @@ export function OverviewView({
                                                 <PencilIcon size={11}/>
                                             </DriveRenameButton>
                                         </strong>
-                                        <span>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</span>
+                                        <Meta>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</Meta>
                                     </RowText>
                                     <Bar><Fill $used={used} $tone={usageTone(used)}/></Bar>
                                 </Row>
@@ -946,25 +1038,47 @@ export function OverviewView({
                 </Segmented>
 
                 {editing && (
-                    <AddPanel
-                        aria-label="Add a panel"
-                        onChange={(event) => {
-                            const kind = event.target.value as PanelKind;
-                            if (kind) void addBlock(kind);
-                        }}
-                        title="Add a panel"
-                        value=""
-                    >
-                        <option disabled value="">+ Add panel…</option>
-                        <option value="quick">Quick access</option>
-                        <option value="recent">Recent</option>
-                        <option value="home">Home</option>
-                        <option value="drives">This PC</option>
-                        <option value="folder">Folder…</option>
-                    </AddPanel>
+                    <AddMenu>
+                        <Ghost
+                            onClick={() => setAddOpen((current) => !current)}
+                            onPointerDown={(event) => event.stopPropagation()}
+                            title="Add a panel"
+                            type="button"
+                        >
+                            <PlusIcon size={12}/>
+                            Add panel ▾
+                        </Ghost>
+                        {addOpen && (
+                            <PanelMenu onPointerDown={(event) => event.stopPropagation()}>
+                                {(["quick", "recent", "home", "drives", "folder"] as PanelKind[]).map((kind) => (
+                                    <PanelMenuItem
+                                        key={kind}
+                                        onClick={() => {
+                                            setAddOpen(false);
+                                            void addBlock(kind);
+                                        }}
+                                        type="button"
+                                    >
+                                        {kind === "quick" ? "Quick access"
+                                            : kind === "recent" ? "Recent"
+                                                : kind === "home" ? "Home"
+                                                    : kind === "drives" ? "This PC" : "Folder…"}
+                                    </PanelMenuItem>
+                                ))}
+                            </PanelMenu>
+                        )}
+                    </AddMenu>
                 )}
 
-                <Ghost onClick={() => setEditing((current) => !current)} title={editing ? "Done" : "Edit"} type="button">
+                <Ghost
+                    onClick={() => {
+                        setEditing((current) => !current);
+                        setAddOpen(false);
+                        setIconEditor(null);
+                    }}
+                    title={editing ? "Done" : "Edit"}
+                    type="button"
+                >
                     {editing ? <CheckIcon size={13}/> : <PencilIcon size={13}/>}
                     {editing ? "Done" : "Edit"}
                 </Ghost>
@@ -1115,12 +1229,13 @@ function DriveEditor({value, onChange, onCommit, onCancel}: {
                 autoFocus
                 maxLength={32}
                 onChange={(event) => onChange(event.target.value)}
+                onFocus={(event) => event.currentTarget.select()}
                 onKeyDown={(event) => {
                     if (event.key === "Enter") onCommit();
                     if (event.key === "Escape") onCancel();
                 }}
-                placeholder="Volume label"
                 spellCheck={false}
+                style={{width: `${Math.max(value.length + 1, 8)}ch`}}
                 value={value}
             />
             <EditorButton onClick={onCancel} title="Cancel" type="button">
@@ -1232,3 +1347,4 @@ function PinMark() {
         </svg>
     );
 }
+

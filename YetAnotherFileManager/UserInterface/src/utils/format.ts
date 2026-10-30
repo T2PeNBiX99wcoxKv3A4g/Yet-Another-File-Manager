@@ -42,10 +42,14 @@ export function baseName(path: string): string {
     return parts.at(-1) || path;
 }
 
+/** " (C:)" — the letter Windows uses, or nothing for a volume mounted at a path. */
+export function driveLetter(drive: { name: string }): string {
+    const root = drive.name.replace(/[\\/]+$/, "");
+
+    return /^[a-z]:$/i.test(root) ? ` (${root.toUpperCase()})` : "";
+}
+
 /** "Local Disk (C:)" — the label the user gave, plus the letter Windows uses. */
 export function driveName(drive: { name: string; label: string }): string {
-    const root = drive.name.replace(/[\\/]+$/, "");
-    const letter = /^[a-z]:$/i.test(root) ? ` (${root.toUpperCase()})` : "";
-
-    return `${drive.label || "Local Disk"}${letter}`;
+    return `${drive.label || "Local Disk"}${driveLetter(drive)}`;
 }

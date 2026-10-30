@@ -171,7 +171,6 @@ function FolderItems({path, onNavigate}: { path: string; onNavigate: (path: stri
     const entries = listing?.entries ?? [];
     const folders = entries.filter((entry) => entry.isDirectory).slice(0, FolderListLimit);
     const files = entries.filter((entry) => !entry.isDirectory).slice(0, FileListLimit);
-    const truncated = entries.length > folders.length + files.length;
 
     return (
         <>
@@ -182,12 +181,6 @@ function FolderItems({path, onNavigate}: { path: string; onNavigate: (path: stri
             {files.map((entry) => (
                 <SidebarEntry entry={entry} key={entry.fullPath} onNavigate={onNavigate}/>
             ))}
-
-            {truncated && (
-                <More onClick={(event) => onNavigate(path, wantsNewTab(event))} title={path} type="button">
-                    Show all…
-                </More>
-            )}
         </>
     );
 }
@@ -358,21 +351,6 @@ const Hint = styled.span`
     font-family: var(--font-mono);
     font-size: 9px;
     color: var(--text-muted);
-`;
-
-const More = styled.button`
-    padding: 5px 8px;
-    border: 0;
-    background: transparent;
-    color: var(--text-muted);
-    font: inherit;
-    font-size: 11px;
-    text-align: left;
-    cursor: pointer;
-
-    &:hover {
-        color: var(--text-primary);
-    }
 `;
 
 const Bar = styled.span`
