@@ -512,7 +512,7 @@ const Gauge = styled.div`
     display: flex;
     flex-direction: column;
     gap: 6px;
-    padding: 12px 0;
+    padding: 12px 16px;
 
     & + & {
         border-top: 1px solid var(--border-color);

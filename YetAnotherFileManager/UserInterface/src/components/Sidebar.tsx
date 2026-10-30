@@ -240,8 +240,9 @@ const Sub = styled.div`
     overflow: hidden;
     transition: grid-template-rows 150ms ease;
 
-    ${Menu}:hover > &,
-    ${Menu}:focus-within > & {
+    /* Only while the whole rail is open: collapsing the rail collapses every list with it. */
+    ${Aside}:hover ${Menu}:hover > &,
+    ${Aside}:hover ${Menu}:focus-within > & {
         grid-template-rows: 1fr;
     }
 `;

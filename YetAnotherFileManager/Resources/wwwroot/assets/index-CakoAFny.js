@@ -753,7 +753,7 @@ Error generating stack: `+e.message+`
     display: flex;
     flex-direction: column;
     gap: 6px;
-    padding: 12px 0;
+    padding: 12px 16px;
 
     & + & {
         border-top: 1px solid var(--border-color);
@@ -1107,8 +1107,9 @@ Error generating stack: `+e.message+`
     overflow: hidden;
     transition: grid-template-rows 150ms ease;
 
-    ${os}:hover > &,
-    ${os}:focus-within > & {
+    /* Only while the whole rail is open: collapsing the rail collapses every list with it. */
+    ${rs}:hover ${os}:hover > &,
+    ${rs}:hover ${os}:focus-within > & {
         grid-template-rows: 1fr;
     }
 `,H=M.div`
