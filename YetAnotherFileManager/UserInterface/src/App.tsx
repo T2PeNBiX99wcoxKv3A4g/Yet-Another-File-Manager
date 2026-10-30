@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import styled from "styled-components";
 import {
     listDirectory,
@@ -10,7 +10,7 @@ import {
     type Place,
     type RecentEntry,
 } from "./api/files";
-import {getSettings} from "./api/settings";
+import {getSettings, type AppSettings} from "./api/settings";
 import {getAppInfo, type AppInfo} from "./api/system";
 import {FileList} from "./components/FileList";
 import {ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, SearchIcon} from "./components/Icons";
@@ -22,6 +22,7 @@ import {GalleryView} from "./components/GalleryView";
 import {Sidebar} from "./components/Sidebar";
 import {TitleBar} from "./components/TitleBar";
 import {viewTitles, type TabKind} from "./tabs";
+import {buildPanels} from "./panels";
 import {Native, ResizeHandles, useWindowCorners} from "@photino-net-utils/bridge";
 import {baseName, formatBytes} from "./utils/format";
 import {
@@ -145,13 +146,45 @@ export default function App() {
     const [filter, setFilter] = useState("");
     const [recent, setRecent] = useState<RecentEntry[]>([]);
     const [recentLimit, setRecentLimit] = useState(10);
-    const [placeNames, setPlaceNames] = useState<Record<string, string>>({});
+    const [settings, setSettings] = useState<AppSettings | null>(null);
     const [shortcuts, setShortcuts] = useState<ShortcutMap>(DefaultShortcuts);
     const [settingsVersion, setSettingsVersion] = useState(0);
 
     const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
     const kind = kindOf(active);
     const location = locationOf(active);
+
+    /**
+     * Every folder that lives in a Quick access panel, with the name that panel shows. The path
+     * bar folds the path into the same name, whether the panel is the factory one or a hand-made
+     * one — and a folder that is no longer in any panel stops being folded.
+     */
+    const quickNames = useMemo(() => {
+        const names: Record<string, string> = {};
+        const normalize = (value: string) => value.replace(/[\\/]+$/, "").toLowerCase();
+        const panels = buildPanels(settings);
+        const overrides: Record<string, string> = {};
+
+        for (const [path, name] of Object.entries(settings?.placeNames ?? {}))
+            overrides[normalize(path)] = name;
+
+        // The factory panel is the global Quick access list; the other quick panels are per-panel.
+        if (panels.some((panel) => panel.id === "quick"))
+            for (const place of places)
+                names[normalize(place.path)] = place.name;
+
+        for (const panel of panels) {
+            if (panel.kind !== "quick" || panel.id === "quick") continue;
+
+            for (const path of panel.places ?? []) {
+                const key = normalize(path);
+                const known = places.find((place) => normalize(place.path) === key);
+                names[key] = overrides[key] ?? known?.name ?? (baseName(path) || path);
+            }
+        }
+
+        return names;
+    }, [places, settings]);
 
     // Handlers that outlive a render (the native event subscription) read the latest state here.
     const stateRef = useRef({tabs, activeId});
@@ -282,8 +315,8 @@ export default function App() {
 
     const reloadSettings = useCallback(() => {
         void getSettings().then((settings) => {
+            setSettings(settings);
             setRecentLimit(settings.recentLimit);
-            setPlaceNames(settings.placeNames ?? {});
 
             const keys = {...DefaultShortcuts, ...settings.shortcuts};
             setShortcuts(keys);
@@ -486,10 +519,9 @@ export default function App() {
 
                         <PathBar
                             label={kind === "files" ? undefined : viewTitles[kind]}
+                            names={quickNames}
                             onNavigate={navigate}
                             path={kind === "files" ? folderOf(active) : location}
-                            placeNames={placeNames}
-                            places={places}
                         />
 
                         {kind === "files" && (

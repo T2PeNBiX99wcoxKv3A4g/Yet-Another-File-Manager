@@ -1,15 +1,13 @@
 import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
 import {CheckIcon, ChevronRightIcon, CrossIcon} from "./Icons";
-import type {Place} from "../api/files";
 
 interface PathBarProps {
     path: string;
     /** Shown instead of the path when the tab is on a built-in page, e.g. "Overview". */
     label?: string;
-    places: Place[];
-    /** Names given to folders anywhere in Quick access, by path. */
-    placeNames?: Record<string, string>;
+    /** Quick access names by normalized path; the longest match folds the breadcrumbs. */
+    names: Record<string, string>;
     onNavigate: (path: string) => void;
 }
 
@@ -18,7 +16,7 @@ interface PathBarProps {
  * platform and the text box always uses forward slashes, which every supported OS accepts.
  * A folder that has a Quick access name shows that name instead of its real one.
  */
-export function PathBar({path, label, places, placeNames = {}, onNavigate}: PathBarProps) {
+export function PathBar({path, label, names, onNavigate}: PathBarProps) {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState("");
     const input = useRef<HTMLInputElement | null>(null);
@@ -81,7 +79,7 @@ export function PathBar({path, label, places, placeNames = {}, onNavigate}: Path
 
     const crumbs = label
         ? [{label, path}]
-        : crumbsFor(path, places, placeNames);
+        : crumbsFor(path, names);
 
     return (
         <Trail onClick={start} title="Click to type a path">
@@ -127,34 +125,26 @@ function breadcrumbs(path: string): { label: string; path: string }[] {
  * Breadcrumbs with the longest named folder folded into its Quick access name, so "Documents"
  * replaces "C: / Users / me / Documents" — the full path only appears while editing.
  */
-function crumbsFor(path: string, places: Place[], names: Record<string, string>): { label: string; path: string }[] {
+function crumbsFor(path: string, names: Record<string, string>): { label: string; path: string }[] {
     const crumbs = breadcrumbs(path);
     const normalize = (value: string) => value.replace(/[\\/]+$/, "").toLowerCase();
 
     let deepest = -1;
-    let match: { name: string; path: string } | null = null;
+    let match: string | null = null;
 
-    // The names map covers folders that only live in a hand-made Quick access panel; the places
-    // list carries the same names for the factory panel, so both are candidates.
-    const candidates = [
-        ...Object.entries(names)
-            .filter(([, name]) => name.trim().length > 0)
-            .map(([path, name]) => ({name, path})),
-        ...places.map((place) => ({name: place.name, path: place.path})),
-    ];
+    for (const [candidate, name] of Object.entries(names)) {
+        if (name.trim().length === 0) continue;
 
-    // The longest match wins: a pinned "Documents" beats the pinned home folder above it.
-    for (const candidate of candidates) {
-        const index = crumbs.findIndex((crumb) => normalize(crumb.path) === normalize(candidate.path));
+        const index = crumbs.findIndex((crumb) => normalize(crumb.path) === normalize(candidate));
 
         if (index > deepest) {
             deepest = index;
-            match = candidate;
+            match = name;
         }
     }
 
     if (match && deepest >= 0)
-        crumbs.splice(0, deepest + 1, {label: match.name, path: crumbs[deepest].path});
+        crumbs.splice(0, deepest + 1, {label: match, path: crumbs[deepest].path});
 
     return crumbs;
 }
