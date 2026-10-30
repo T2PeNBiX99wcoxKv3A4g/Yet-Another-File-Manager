@@ -84,8 +84,8 @@ export interface FileVisibility {
 }
 
 /** Lists one directory. Omit the path to start at the user's home directory. */
-export async function listDirectory(path?: string): Promise<DirectoryListing> {
-    return await Native.request<DirectoryListing>("fs.list", {path: path ?? null});
+export async function listDirectory(path?: string, sizes = true): Promise<DirectoryListing> {
+    return await Native.request<DirectoryListing>("fs.list", {path: path ?? null, sizes});
 }
 
 /** The shortcuts shown above the drive list. */

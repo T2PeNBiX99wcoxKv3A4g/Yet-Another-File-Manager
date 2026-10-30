@@ -151,7 +151,7 @@ function FolderItems({path, onNavigate}: { path: string; onNavigate: (path: stri
         if (!path) return;
 
         setListing(null);
-        listDirectory(path).then(setListing, () => setListing(null));
+        listDirectory(path, false).then(setListing, () => setListing(null));
     }, [path]);
 
     return (listing?.entries ?? [])

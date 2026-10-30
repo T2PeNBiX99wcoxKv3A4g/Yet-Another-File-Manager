@@ -14,7 +14,7 @@ import {getSettings, pickFolder, pickIconFile, saveSettings, type AppSettings} f
 import {Native} from "@photino-net-utils/bridge";
 import {useIcon} from "../api/icons";
 import {FileList} from "./FileList";
-import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, FolderIcon, ImageIcon, PencilIcon, PlusIcon, TextIcon} from "./Icons";
+import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, FileIcon, FolderIcon, ImageIcon, PencilIcon, PlusIcon, TextIcon} from "./Icons";
 import {formatBytes, usageTone} from "../utils/format";
 import {wantsNewTab} from "../shortcuts";
 import {buildPanels, kindOfPanel, PanelGlyph, PanelIcons, type Panel, type PanelKind, type ViewMode} from "../panels";
@@ -183,6 +183,7 @@ const Places = styled.div`
 `;
 
 const Card = styled.div<{ $plain: boolean }>`
+    position: relative;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -320,6 +321,15 @@ const Preview = styled.div`
     & > div {
         min-height: 0;
     }
+`;
+
+const Scroller = styled.div`
+    max-height: 320px;
+    padding: 4px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    overflow-y: auto;
 `;
 
 const Tiles = styled.div`
@@ -533,6 +543,48 @@ export function OverviewView({
     };
 
     const body = (panel: Panel) => {
+        if (panel.view === "grid" && panel.kind === "recent")
+            return (
+                <Places>
+                    {recent.slice(0, recentLimit).map((entry) => (
+                        <Card
+                            key={entry.path}
+                            $plain={false}
+                            onClick={(event) => entry.isDirectory
+                                ? onOpen(entry.path, wantsNewTab(event))
+                                : void openFile(entry.path)}
+                            title={entry.path}
+                        >
+                            <Glyph>{entry.isDirectory ? <FolderIcon size={18}/> : <FileIcon size={18}/>}</Glyph>
+                            <CardText>
+                                <strong>{entry.name}</strong>
+                                <span>{entry.path}</span>
+                            </CardText>
+                        </Card>
+                    ))}
+                </Places>
+            );
+
+        if (panel.view === "grid" && panel.kind === "drives")
+            return (
+                <Places>
+                    {drives.map((drive) => (
+                        <Card
+                            key={drive.name}
+                            $plain={false}
+                            onClick={(event) => onOpen(drive.name, wantsNewTab(event))}
+                            title={drive.name}
+                        >
+                            <Glyph><DriveIcon size={18}/></Glyph>
+                            <CardText>
+                                <strong>{drive.label || drive.name}</strong>
+                                <span>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</span>
+                            </CardText>
+                        </Card>
+                    ))}
+                </Places>
+            );
+
         switch (panel.kind) {
             case "quick":
                 return panel.view === "grid"
@@ -860,7 +912,7 @@ function FolderBody({path, mode, onOpen}: { path: string; mode: ViewMode; onOpen
         if (!path) return;
 
         setListing(null);
-        listDirectory(path).then(setListing, () => setListing(null));
+        listDirectory(path, false).then(setListing, () => setListing(null));
     }, [path]);
 
     // The folder is one of the ones the overview watches, so it keeps itself current.
@@ -872,7 +924,7 @@ function FolderBody({path, mode, onOpen}: { path: string; mode: ViewMode; onOpen
             if (event.type !== "fs.changed" || typeof event.data?.path !== "string") return;
             if (event.data.path.replace(/[\\\\/]+$/, "").toLowerCase() !== path.replace(/[\\\\/]+$/, "").toLowerCase()) return;
 
-            void listDirectory(path).then(setListing, () => undefined);
+            void listDirectory(path, false).then(setListing, () => undefined);
         });
     }, [path]);
 
@@ -894,6 +946,7 @@ function FolderBody({path, mode, onOpen}: { path: string; mode: ViewMode; onOpen
         );
 
     return (
+        <Scroller>
         <Tiles>
             {listing.entries.map((entry) => (
                 <Tile
@@ -909,6 +962,7 @@ function FolderBody({path, mode, onOpen}: { path: string; mode: ViewMode; onOpen
                 </Tile>
             ))}
         </Tiles>
+        </Scroller>
     );
 }
 

@@ -105,7 +105,7 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
                     : UrlScheme.Unregister()))),
 
             "fs.list" => Task.FromResult<NativeResponse?>(context.Reply("fs.list.result",
-                List(context.Payload<FsListRequest>()?.Path))),
+                List(context.Payload<FsListRequest>()?.Path, context.Payload<FsListRequest>()?.Sizes ?? true))),
 
             _ => Task.FromResult<NativeResponse?>(null)
         };
@@ -419,7 +419,7 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
             .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        RequestSizes(directory.FullName, entries);
+        if (measure) RequestSizes(directory.FullName, entries);
         _ = Task.Run(() => RecentService.Instance.Record(directory.FullName));
 
         return new(directory.FullName, directory.Parent?.FullName, entries, sizes);

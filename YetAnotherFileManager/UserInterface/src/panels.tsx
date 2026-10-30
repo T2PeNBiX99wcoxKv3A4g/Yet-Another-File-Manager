@@ -23,7 +23,7 @@ export const DefaultTitles: Record<string, string> = {
     quick: "Quick access",
     recent: "Recent",
     home: "Home",
-    drives: "This PC",
+    drives: "Drives",
 };
 
 /** Built-in icons a panel can be given. */
@@ -52,7 +52,8 @@ export function buildPanels(settings: AppSettings | null): Panel[] {
     const titles = settings?.overviewTitles ?? {};
     const views = settings?.overviewViews ?? {};
     const icons = settings?.overviewIcons ?? {};
-    const pinned = settings?.overviewPinned ?? [];
+    // Quick access, recent folders and the drives are in the sidebar until the user says otherwise.
+    const pinned = settings?.overviewPinned ?? ["quick", "recent", "drives"];
 
     return ids.map((id) => {
         const kind = kindOfPanel(id);
