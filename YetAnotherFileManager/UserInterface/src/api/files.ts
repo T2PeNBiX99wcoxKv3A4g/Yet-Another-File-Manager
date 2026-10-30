@@ -20,10 +20,20 @@ export interface DirectoryListing {
     folderSizes: Record<string, number>;
 }
 
+/** Opens a file with whatever the system uses for it. */
+export async function openFile(path: string): Promise<boolean> {
+    if (!Native.available) return false;
+
+    const data = await Native.request<{ ok: boolean }>("fs.open", {path});
+    return data.ok;
+}
+
 export interface Place {
     name: string;
     path: string;
     kind: string;
+    /** A built-in icon name or "file:<path>", or null for the default folder glyph. */
+    icon: string | null;
 }
 
 export interface Drive {

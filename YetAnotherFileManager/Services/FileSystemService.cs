@@ -57,6 +57,9 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
             "fs.watch" => Task.FromResult<NativeResponse?>(context.Reply("fs.watch.result",
                 new OkPayload(Watch(context.Payload<FsListRequest>()?.Path)))),
 
+            "fs.open" => Task.FromResult<NativeResponse?>(context.Reply("fs.open.result",
+                new OkPayload(OpenFile(context.Payload<FsListRequest>()?.Path)))),
+
             "fs.icon" => Task.FromResult<NativeResponse?>(context.Reply("fs.icon.result",
                 new IconPayload(Icon(context.Payload<IconRequest>())))),
 
@@ -260,6 +263,20 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
         return GetPlaces();
     }
 
+    /// <summary>Hands a file to the shell, which opens it with whatever the user made its default.</summary>
+    private static bool OpenFile(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            return false;
+
+        return Try.Run(() => Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }) is not null)
+            .GetOrElse(ex =>
+            {
+                Serilog.Log.Warning(ex, "Could not open {Path}", path);
+                return false;
+            });
+    }
+
     /// <summary>Points the folder watcher at the tab that is on screen.</summary>
     private static bool Watch(string? path)
     {
@@ -454,15 +471,17 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
         var isHome = string.Equals(path.TrimEnd('\\', '/'), home.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase);
 
         // The user can rename a pinned folder; the path stays the key.
+        var icon = SettingsService.Instance.Current.PlaceIconOverrides.GetValueOrDefault(path);
+
         if (SettingsService.Instance.Current.PlaceNameOverrides.TryGetValue(path, out var custom)
             && !string.IsNullOrWhiteSpace(custom))
-            return new PlaceEntry(custom.Trim(), path, isHome ? "home" : "folder");
+            return new PlaceEntry(custom.Trim(), path, isHome ? "home" : "folder", icon);
 
         var name = isHome
             ? "Home"
             : Try.Run(() => new DirectoryInfo(path).Name).GetOrElse(_ => path);
 
-        return new PlaceEntry(name.Length > 0 ? name : path, path, isHome ? "home" : "folder");
+        return new PlaceEntry(name.Length > 0 ? name : path, path, isHome ? "home" : "folder", icon);
     }
 
     /// <summary>The folders Windows calls the user's own, in Explorer's order.</summary>

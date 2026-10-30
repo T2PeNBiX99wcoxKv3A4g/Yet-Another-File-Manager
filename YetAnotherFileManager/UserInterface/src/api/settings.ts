@@ -20,6 +20,12 @@ export interface AppSettings {
     overviewColumns: number;
     /** Key combination per action, e.g. {closeTab: "ctrl+w"}. */
     shortcuts: Record<string, string> | null;
+    /** Icon per quick-access folder, by path: a built-in name or "file:<path>". */
+    placeIcons: Record<string, string> | null;
+    /** Titles the user gave to overview panels, by panel id. */
+    overviewTitles: Record<string, string> | null;
+    /** "list" or "grid" per overview panel, by panel id. */
+    overviewViews: Record<string, string> | null;
 }
 
 const fallback: AppSettings = {
@@ -34,6 +40,9 @@ const fallback: AppSettings = {
     overviewHidden: null,
     overviewColumns: 1,
     shortcuts: null,
+    placeIcons: null,
+    overviewTitles: null,
+    overviewViews: null,
 };
 
 /** The interface settings, persisted by the host. */
@@ -54,6 +63,9 @@ export async function getSettings(): Promise<AppSettings> {
         overviewHidden: raw?.overviewHidden ?? null,
         overviewColumns: raw?.overviewColumns ?? 1,
         shortcuts: raw?.shortcuts ?? null,
+        placeIcons: raw?.placeIcons ?? null,
+        overviewTitles: raw?.overviewTitles ?? null,
+        overviewViews: raw?.overviewViews ?? null,
     };
 }
 
@@ -75,6 +87,9 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         overviewHidden: saved?.overviewHidden ?? settings.overviewHidden,
         overviewColumns: saved?.overviewColumns ?? settings.overviewColumns,
         shortcuts: saved?.shortcuts ?? settings.shortcuts,
+        placeIcons: saved?.placeIcons ?? settings.placeIcons,
+        overviewTitles: saved?.overviewTitles ?? settings.overviewTitles,
+        overviewViews: saved?.overviewViews ?? settings.overviewViews,
     };
 }
 

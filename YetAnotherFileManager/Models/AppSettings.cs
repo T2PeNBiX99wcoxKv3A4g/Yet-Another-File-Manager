@@ -18,9 +18,13 @@ public sealed record AppSettings(
     List<string>? OverviewHidden,
     int? OverviewColumns,
     Dictionary<string, string>? PlaceNames,
-    Dictionary<string, string>? Shortcuts)
+    Dictionary<string, string>? Shortcuts,
+    Dictionary<string, string>? PlaceIcons,
+    Dictionary<string, string>? OverviewTitles,
+    Dictionary<string, string>? OverviewViews)
 {
-    public static AppSettings Default => new(true, true, true, [], null, 10, null, null, null, 1, null, null);
+    public static AppSettings Default =>
+        new(true, true, true, [], null, 10, null, null, null, 1, null, null, null, null, null);
 
     // The accessors below are derived, so they are kept out of settings.json entirely; only the
     // fields above are stored, and the JSON stays readable and stable.
@@ -69,7 +73,19 @@ public sealed record AppSettings(
     [JsonIgnore]
     public Dictionary<string, string> PlaceNameOverrides => PlaceNames ?? [];
 
+    /// <summary>Icons the user picked for quick-access folders, by path.</summary>
+    [JsonIgnore]
+    public Dictionary<string, string> PlaceIconOverrides => PlaceIcons ?? [];
+
     /// <summary>Key combination per action, as the interface stores them (e.g. <c>ctrl+w</c>).</summary>
     [JsonIgnore]
     public Dictionary<string, string> KeyBindings => Shortcuts ?? [];
+
+    /// <summary>Titles the user gave to overview panels, by panel id.</summary>
+    [JsonIgnore]
+    public Dictionary<string, string> PanelTitles => OverviewTitles ?? [];
+
+    /// <summary>List or grid per overview panel, by panel id.</summary>
+    [JsonIgnore]
+    public Dictionary<string, string> PanelViews => OverviewViews ?? [];
 }

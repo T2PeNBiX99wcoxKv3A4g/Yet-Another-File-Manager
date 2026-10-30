@@ -12,7 +12,7 @@ public sealed record FileEntry(
     string? IconSource);
 
 /// <summary>A shortcut to a well-known folder, shown in the sidebar.</summary>
-public sealed record PlaceEntry(string Name, string Path, string Kind);
+public sealed record PlaceEntry(string Name, string Path, string Kind, string? Icon = null);
 
 /// <summary>A mounted volume, shown in the sidebar.</summary>
 public sealed record DriveEntry(string Name, string Label, string? Format, long TotalSize, long FreeSpace);

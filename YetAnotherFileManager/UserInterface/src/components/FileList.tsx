@@ -12,9 +12,11 @@ interface FileListProps {
     error: string | null;
     filter: string;
     onOpen: (path: string, newTab?: boolean) => void;
+    /** Double-clicking a file hands it to the system; without this, files are inert. */
+    onOpenFile?: (path: string) => void;
 }
 
-export function FileList({listing, loading, error, filter, onOpen}: FileListProps) {
+export function FileList({listing, loading, error, filter, onOpen, onOpenFile}: FileListProps) {
     if (loading && !listing)
         return <Center><Muted>Loading…</Muted></Center>;
 
@@ -43,7 +45,9 @@ export function FileList({listing, loading, error, filter, onOpen}: FileListProp
                         key={entry.fullPath}
                         $hidden={entry.isHidden}
                         onClick={(event) => entry.isDirectory && wantsNewTab(event) && onOpen(entry.fullPath, true)}
-                        onDoubleClick={(event) => entry.isDirectory && onOpen(entry.fullPath, wantsNewTab(event))}
+                        onDoubleClick={(event) => entry.isDirectory
+                            ? onOpen(entry.fullPath, wantsNewTab(event))
+                            : onOpenFile?.(entry.fullPath)}
                     >
                         <Name>
                             <EntryIcon entry={entry}/>
