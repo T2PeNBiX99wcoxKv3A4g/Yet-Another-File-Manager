@@ -1,22 +1,35 @@
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useRef, useState, type ReactNode} from "react";
 import styled from "styled-components";
-import {CheckIcon, ChevronRightIcon, CrossIcon} from "./Icons";
+import type {Place} from "../api/files";
+import {CheckIcon, ChevronRightIcon, CrossIcon, DriveIcon, FolderIcon} from "./Icons";
+import {PlaceIcon} from "./PlaceIcon";
 
 interface PathBarProps {
     path: string;
     /** Shown instead of the path when the tab is on a built-in page, e.g. "Overview". */
     label?: string;
-    /** Quick access names by normalized path; the longest match folds the breadcrumbs. */
-    names: Record<string, string>;
+    /** The built-in page's icon, shown beside its label. */
+    icon?: ReactNode;
+    /** Quick access entries by normalized path; the longest match folds the breadcrumbs. */
+    quick: Record<string, Place>;
     onNavigate: (path: string) => void;
+}
+
+interface Crumb {
+    label: string;
+    path: string;
+    /** Set when this crumb was folded from a Quick access entry, so its icon follows. */
+    place?: Place;
+    /** An explicit icon, used by the built-in pages. */
+    icon?: ReactNode;
 }
 
 /**
  * Breadcrumbs that turn into a text box when clicked. The separators are the same on every
  * platform and the text box always uses forward slashes, which every supported OS accepts.
- * A folder that has a Quick access name shows that name instead of its real one.
+ * A folder that has a Quick access name shows that name and its icon instead of its real ones.
  */
-export function PathBar({path, label, names, onNavigate}: PathBarProps) {
+export function PathBar({path, label, icon, quick, onNavigate}: PathBarProps) {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState("");
     const input = useRef<HTMLInputElement | null>(null);
@@ -77,9 +90,9 @@ export function PathBar({path, label, names, onNavigate}: PathBarProps) {
             </Editor>
         );
 
-    const crumbs = label
-        ? [{label, path}]
-        : crumbsFor(path, names);
+    const crumbs: Crumb[] = label
+        ? [{label, path, icon}]
+        : crumbsFor(path, quick);
 
     return (
         <Trail onClick={start} title="Click to type a path">
@@ -93,6 +106,11 @@ export function PathBar({path, label, names, onNavigate}: PathBarProps) {
                         }}
                         type="button"
                     >
+                        <CrumbGlyph>
+                            {crumb.place
+                                ? <PlaceIcon place={crumb.place} size={13}/>
+                                : crumb.icon ?? (isDriveRoot(crumb.path) ? <DriveIcon size={13}/> : <FolderIcon size={13}/>)}
+                        </CrumbGlyph>
                         {crumb.label}
                     </CrumbButton>
                 </Crumb>
@@ -101,11 +119,16 @@ export function PathBar({path, label, names, onNavigate}: PathBarProps) {
     );
 }
 
+/** "C:\" and "C:" both mean the drive itself, which gets the drive glyph. */
+function isDriveRoot(path: string): boolean {
+    return /^[a-z]:[\\/]?$/i.test(path);
+}
+
 /** Splits a path into clickable ancestors, keeping the Windows drive root intact. */
-function breadcrumbs(path: string): { label: string; path: string }[] {
+function breadcrumbs(path: string): Crumb[] {
     const separator = path.includes("\\") ? "\\" : "/";
     const parts = path.split(/[\\/]/).filter((part) => part.length > 0);
-    const crumbs: { label: string; path: string }[] = [];
+    const crumbs: Crumb[] = [];
 
     let current = separator === "\\" ? "" : "/";
     parts.forEach((part, index) => {
@@ -125,26 +148,26 @@ function breadcrumbs(path: string): { label: string; path: string }[] {
  * Breadcrumbs with the longest named folder folded into its Quick access name, so "Documents"
  * replaces "C: / Users / me / Documents" — the full path only appears while editing.
  */
-function crumbsFor(path: string, names: Record<string, string>): { label: string; path: string }[] {
+function crumbsFor(path: string, quick: Record<string, Place>): Crumb[] {
     const crumbs = breadcrumbs(path);
     const normalize = (value: string) => value.replace(/[\\/]+$/, "").toLowerCase();
 
     let deepest = -1;
-    let match: string | null = null;
+    let match: Place | null = null;
 
-    for (const [candidate, name] of Object.entries(names)) {
-        if (name.trim().length === 0) continue;
+    for (const place of Object.values(quick)) {
+        if (place.name.trim().length === 0) continue;
 
-        const index = crumbs.findIndex((crumb) => normalize(crumb.path) === normalize(candidate));
+        const index = crumbs.findIndex((crumb) => normalize(crumb.path) === normalize(place.path));
 
         if (index > deepest) {
             deepest = index;
-            match = name;
+            match = place;
         }
     }
 
     if (match && deepest >= 0)
-        crumbs.splice(0, deepest + 1, {label: match, path: crumbs[deepest].path});
+        crumbs.splice(0, deepest + 1, {label: match.name, path: crumbs[deepest].path, place: match});
 
     return crumbs;
 }
@@ -176,6 +199,18 @@ const Crumb = styled.span<{ $last: boolean }>`
     color: ${({$last}) => $last ? "var(--text-primary)" : "var(--text-secondary)"};
 `;
 
+const CrumbGlyph = styled.span`
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    margin-right: 5px;
+    color: var(--text-muted);
+
+    img {
+        display: block;
+    }
+`;
+
 const Chevron = styled.span`
     display: grid;
     place-items: center;
@@ -190,6 +225,8 @@ const Chevron = styled.span`
 `;
 
 const CrumbButton = styled.button`
+    display: inline-flex;
+    align-items: center;
     padding: 4px 6px;
     border: 0;
     border-radius: 5px;

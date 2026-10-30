@@ -14,7 +14,7 @@ import {
 import {getSettings, type AppSettings} from "./api/settings";
 import {getAppInfo, type AppInfo} from "./api/system";
 import {FileList} from "./components/FileList";
-import {ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, SearchIcon} from "./components/Icons";
+import {ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, GearIcon, ImageIcon, OverviewIcon, SearchIcon, TrashIcon} from "./components/Icons";
 import {OverviewView} from "./components/OverviewView";
 import {PathBar} from "./components/PathBar";
 import {RecycleView} from "./components/RecycleView";
@@ -157,12 +157,12 @@ export default function App() {
     const location = locationOf(active);
 
     /**
-     * Every folder that lives in a Quick access panel, with the name that panel shows. The path
-     * bar folds the path into the same name, whether the panel is the factory one or a hand-made
-     * one — and a folder that is no longer in any panel stops being folded.
+     * Every folder that lives in a Quick access panel, with the name and icon that panel shows.
+     * The path bar folds the path into the same entry, whether the panel is the factory one or a
+     * hand-made one — and a folder that is no longer in any panel stops being folded.
      */
-    const quickNames = useMemo(() => {
-        const names: Record<string, string> = {};
+    const quickPlaces = useMemo(() => {
+        const entries: Record<string, Place> = {};
         const normalize = (value: string) => value.replace(/[\\/]+$/, "").toLowerCase();
         const panels = buildPanels(settings);
         const overrides: Record<string, string> = {};
@@ -173,7 +173,7 @@ export default function App() {
         // The factory panel is the global Quick access list; the other quick panels are per-panel.
         if (panels.some((panel) => panel.id === "quick"))
             for (const place of places)
-                names[normalize(place.path)] = place.name;
+                entries[normalize(place.path)] = place;
 
         for (const panel of panels) {
             if (panel.kind !== "quick" || panel.id === "quick") continue;
@@ -181,12 +181,24 @@ export default function App() {
             for (const path of panel.places ?? []) {
                 const key = normalize(path);
                 const known = places.find((place) => normalize(place.path) === key);
-                names[key] = overrides[key] ?? known?.name ?? (baseName(path) || path);
+
+                entries[key] = {
+                    name: overrides[key] ?? known?.name ?? (baseName(path) || path),
+                    path,
+                    kind: "folder",
+                    icon: known?.icon ?? settings?.placeIcons?.[path] ?? null,
+                };
             }
         }
 
-        return names;
+        return entries;
     }, [places, settings]);
+
+    const viewIcon = kind === "home" ? <OverviewIcon size={13}/>
+        : kind === "settings" ? <GearIcon size={13}/>
+            : kind === "recycle" ? <TrashIcon size={13}/>
+                : kind === "gallery" ? <ImageIcon size={13}/>
+                    : undefined;
 
     // Handlers that outlive a render (the native event subscription) read the latest state here.
     const stateRef = useRef({tabs, activeId});
@@ -525,10 +537,11 @@ export default function App() {
                         </IconButton>
 
                         <PathBar
+                            icon={viewIcon}
                             label={kind === "files" ? undefined : viewTitles[kind]}
-                            names={quickNames}
                             onNavigate={navigate}
                             path={kind === "files" ? folderOf(active) : location}
+                            quick={quickPlaces}
                         />
 
                         {kind === "files" && (

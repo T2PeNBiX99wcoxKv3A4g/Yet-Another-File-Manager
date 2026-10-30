@@ -1,4 +1,5 @@
-import {useEffect, useState, type MouseEvent} from "react";
+import {useEffect, useLayoutEffect, useRef, useState, type MouseEvent} from "react";
+import {createPortal} from "react-dom";
 import styled from "styled-components";
 import {
     clearFrequent,
@@ -637,8 +638,20 @@ export function OverviewView({
         if (!iconEditor) return;
 
         const close = () => setIconEditor(null);
-        window.addEventListener("pointerdown", close);
-        return () => window.removeEventListener("pointerdown", close);
+        const closeOnPointer = (event: PointerEvent) => {
+            const target = event.target as Element | null;
+            if (target?.closest("[data-icon-menu]")) return;
+            setIconEditor(null);
+        };
+
+        window.addEventListener("pointerdown", closeOnPointer);
+        window.addEventListener("resize", close);
+        document.addEventListener("scroll", close, true);
+        return () => {
+            window.removeEventListener("pointerdown", closeOnPointer);
+            window.removeEventListener("resize", close);
+            document.removeEventListener("scroll", close, true);
+        };
     }, [iconEditor]);
 
     // The add-panel menu behaves the same way.
@@ -1438,29 +1451,69 @@ function InlineEditor({value, onChange, onCommit, onCancel, maxLength = 120}: {
     );
 }
 
-/** The icon choices, shown right next to the icon being changed instead of in a bar below. */
+/** The icon choices, shown in a fixed layer so a panel's scroll frame cannot clip it. */
 function IconPicker({value, onPick}: { value?: string | null; onPick: (icon: string | null) => void }) {
+    const anchor = useRef<HTMLSpanElement>(null);
+    const menu = useRef<HTMLDivElement>(null);
+    const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+
+    useLayoutEffect(() => {
+        const host = anchor.current?.parentElement;
+        if (!host) return;
+
+        const rect = host.getBoundingClientRect();
+        setPosition({top: rect.bottom + 6, left: rect.left});
+    }, []);
+
+    // Keep the menu inside the window; the first pass only knows the anchor.
+    useLayoutEffect(() => {
+        if (!position || !menu.current) return;
+
+        const rect = menu.current.getBoundingClientRect();
+        const top = rect.bottom > window.innerHeight - 8
+            ? Math.max(8, position.top - rect.height - 12)
+            : position.top;
+        const left = rect.right > window.innerWidth - 8
+            ? Math.max(8, window.innerWidth - rect.width - 8)
+            : position.left;
+
+        if (top !== position.top || left !== position.left)
+            setPosition({top, left});
+    }, [position]);
+
     return (
-        <IconMenu onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
-            {Object.keys(PanelIcons).map((name) => (
-                <IconChoice $active={value === name} key={name} onClick={() => onPick(name)} title={name} type="button">
-                    {PanelIcons[name](16)}
-                </IconChoice>
-            ))}
-            <IconChoice
-                onClick={async () => {
-                    const file = await pickIconFile();
-                    if (file) onPick(`file:${file}`);
-                }}
-                title="Choose an image"
-                type="button"
-            >
-                <PlusIcon size={13}/>
-            </IconChoice>
-            <IconChoice $active={!value} onClick={() => onPick(null)} title="Default" type="button">
-                <CrossIcon size={12}/>
-            </IconChoice>
-        </IconMenu>
+        <>
+            <span ref={anchor} style={{display: "none"}}/>
+            {position && createPortal(
+                <IconMenu
+                    data-icon-menu="true"
+                    onClick={(event) => event.stopPropagation()}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    ref={menu}
+                    style={{position: "fixed", top: position.top, left: position.left}}
+                >
+                    {Object.keys(PanelIcons).map((name) => (
+                        <IconChoice $active={value === name} key={name} onClick={() => onPick(name)} title={name} type="button">
+                            {PanelIcons[name](16)}
+                        </IconChoice>
+                    ))}
+                    <IconChoice
+                        onClick={async () => {
+                            const file = await pickIconFile();
+                            if (file) onPick(`file:${file}`);
+                        }}
+                        title="Choose an image"
+                        type="button"
+                    >
+                        <PlusIcon size={13}/>
+                    </IconChoice>
+                    <IconChoice $active={!value} onClick={() => onPick(null)} title="Default" type="button">
+                        <CrossIcon size={12}/>
+                    </IconChoice>
+                </IconMenu>,
+                document.body
+            )}
+        </>
     );
 }
 
