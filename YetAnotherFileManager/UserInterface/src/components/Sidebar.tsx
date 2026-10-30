@@ -114,7 +114,7 @@ export function Sidebar({
                                     >
                                         <DriveIcon/>
                                         <Label>
-                                            {drive.label || drive.name}
+                                            {driveName(drive)}
                                             <Hint>{formatBytes(drive.freeSpace)} free</Hint>
                                             <Bar><Fill $used={used} $tone={usageTone(used)}/></Bar>
                                         </Label>
@@ -170,6 +170,13 @@ function FolderItems({path, onNavigate}: { path: string; onNavigate: (path: stri
                 <Label>{entry.name}</Label>
             </Item>
         ));
+}
+
+/** "Local Disk (C:)" — the label the user gave, plus the letter Windows uses. */
+function driveName(drive: Drive): string {
+    const letter = drive.name.replace(/[\\\\/]/g, "");
+
+    return `${drive.label || "Local Disk"} (${letter}:)`;
 }
 
 /** Comparing paths is enough here: the backend always answers with canonical full paths. */

@@ -69,6 +69,9 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
             "fs.watch" => Task.FromResult<NativeResponse?>(context.Reply("fs.watch.result",
                 new OkPayload(Watch(context.Payload<FsWatchRequest>()?.Paths ?? [])))),
 
+            "fs.drive.rename" => Task.FromResult<NativeResponse?>(context.Reply("fs.drive.rename.result",
+                new OkPayload(RenameDrive(context.Payload<DriveRenameRequest>())))),
+
             "fs.open" => Task.FromResult<NativeResponse?>(context.Reply("fs.open.result",
                 new OkPayload(OpenFile(context.Payload<FsListRequest>()?.Path)))),
 
@@ -271,6 +274,20 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
 
         return GetPlaces();
     }
+
+    /// <summary>Renames a volume, the way Explorer does; it needs the rights Windows asks for.</summary>
+    private static bool RenameDrive(DriveRenameRequest? request)
+    {
+        if (request is not { Root.Length: > 0 } || string.IsNullOrWhiteSpace(request.Label))
+            return false;
+
+        return Try.Run(() => SetVolumeLabel(request.Root, request.Label.Trim()))
+            .OnFailure(ex => Serilog.Log.Warning(ex, "Could not rename {Root}", request.Root))
+            .GetOrElse(_ => false);
+    }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern bool SetVolumeLabel(string root, string label);
 
     /// <summary>Hands a file to the shell, which opens it with whatever the user made its default.</summary>
     private static bool OpenFile(string? path)

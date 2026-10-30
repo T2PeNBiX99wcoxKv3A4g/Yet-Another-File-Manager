@@ -577,7 +577,7 @@ export function OverviewView({
                         >
                             <Glyph><DriveIcon size={18}/></Glyph>
                             <CardText>
-                                <strong>{drive.label || drive.name}</strong>
+                                <strong>{driveName(drive)}</strong>
                                 <span>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</span>
                             </CardText>
                         </Card>
@@ -687,7 +687,7 @@ export function OverviewView({
                                 >
                                     <DriveIcon size={18}/>
                                     <RowText>
-                                        <strong>{drive.label || drive.name}</strong>
+                                        <strong>{driveName(drive)}</strong>
                                         <span>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</span>
                                     </RowText>
                                     <Bar><Fill $used={used} $tone={usageTone(used)}/></Bar>
@@ -902,6 +902,13 @@ export function OverviewView({
             )}
         </Page>
     );
+}
+
+/** "Local Disk (C:)" — the label the user gave, plus the letter Windows uses. */
+function driveName(drive: Drive): string {
+    const letter = drive.name.replace(/[\\\\/]/g, "");
+
+    return `${drive.label || "Local Disk"} (${letter}:)`;
 }
 
 /** One folder rendered as a panel: a table or a grid of its entries. */

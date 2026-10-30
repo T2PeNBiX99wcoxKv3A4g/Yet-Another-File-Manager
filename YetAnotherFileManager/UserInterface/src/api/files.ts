@@ -20,6 +20,14 @@ export interface DirectoryListing {
     folderSizes: Record<string, number>;
 }
 
+/** Renames a volume; Windows may ask for administrator rights. */
+export async function renameDrive(root: string, label: string): Promise<boolean> {
+    if (!Native.available) return false;
+
+    const data = await Native.request<{ ok: boolean }>("fs.drive.rename", {root, label});
+    return data.ok;
+}
+
 /** Opens a file with whatever the system uses for it. */
 export async function openFile(path: string): Promise<boolean> {
     if (!Native.available) return false;
