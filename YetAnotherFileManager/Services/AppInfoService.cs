@@ -1,5 +1,5 @@
-using PhotinoNetUtils.Messaging;
 using JetBrains.Annotations;
+using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Utils;
 using YetAnotherFileManager.Messaging;
 

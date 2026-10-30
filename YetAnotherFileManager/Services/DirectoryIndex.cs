@@ -114,10 +114,8 @@ internal static class DirectoryIndex
         }).GetOrElse(_ => false);
 
     public static string? Icon(string directory, string name) =>
-        Read(directory, "SELECT source FROM icons WHERE name = $name", reader =>
-        {
-            return reader.Read() ? reader.GetString(0) : null;
-        });
+        Read(directory, "SELECT source FROM icons WHERE name = $name",
+            reader => { return reader.Read() ? reader.GetString(0) : null; });
 
     /// <summary>Stores the sizes of several entries in one transaction.</summary>
     public static bool SetSizes(string directory, IReadOnlyDictionary<string, long> sizes)
@@ -160,9 +158,9 @@ internal static class DirectoryIndex
     /// <summary>Stores an icon source for one entry; a null source removes the override.</summary>
     public static bool SetIcon(string directory, string name, string? source) =>
         Write(directory, source is null
-            ? "DELETE FROM icons WHERE name = $name"
-            : "INSERT INTO icons (name, source) VALUES ($name, $source) " +
-              "ON CONFLICT(name) DO UPDATE SET source = excluded.source",
+                ? "DELETE FROM icons WHERE name = $name"
+                : "INSERT INTO icons (name, source) VALUES ($name, $source) " +
+                  "ON CONFLICT(name) DO UPDATE SET source = excluded.source",
             command =>
             {
                 command.Parameters.AddWithValue("$name", name);
@@ -171,10 +169,9 @@ internal static class DirectoryIndex
             });
 
     public static string? Meta(string directory, string key) =>
-        Read(directory, "SELECT value FROM meta WHERE key = $key", reader =>
-        {
-            return reader.Read() ? reader.GetString(0) : null;
-        }, command => command.Parameters.AddWithValue("$key", key));
+        Read(directory, "SELECT value FROM meta WHERE key = $key",
+            reader => { return reader.Read() ? reader.GetString(0) : null; },
+            command => command.Parameters.AddWithValue("$key", key));
 
     public static bool SetMeta(string directory, string key, string value) =>
         Write(directory, "INSERT INTO meta (key, value) VALUES ($key, $value) " +

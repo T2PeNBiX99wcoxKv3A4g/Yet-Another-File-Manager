@@ -31,8 +31,8 @@ internal static class Png
         var header = new byte[13];
         BinaryPrimitives.WriteInt32BigEndian(header.AsSpan(0), width);
         BinaryPrimitives.WriteInt32BigEndian(header.AsSpan(4), height);
-        header[8] = 8;  // bit depth
-        header[9] = 6;  // colour type: truecolour with alpha
+        header[8] = 8; // bit depth
+        header[9] = 6; // colour type: truecolour with alpha
         return header;
     }
 
@@ -50,7 +50,7 @@ internal static class Png
         for (var row = 0; row < height; row++)
         {
             var line = rgba.AsSpan(row * stride, stride);
-            long bestScore = long.MaxValue;
+            var bestScore = long.MaxValue;
             var bestFilter = 0;
 
             for (var filter = 0; filter < 5; filter++)
@@ -107,7 +107,9 @@ internal static class Png
 
         return distanceLeft <= distanceUp && distanceLeft <= distanceUpLeft
             ? left
-            : distanceUp <= distanceUpLeft ? up : upLeft;
+            : distanceUp <= distanceUpLeft
+                ? up
+                : upLeft;
     }
 
     private static void WriteChunk(Stream output, string type, byte[] data)
@@ -130,10 +132,10 @@ internal static class Png
         var crc = 0xFFFFFFFFu;
 
         foreach (var value in type)
-            crc = CrcTable[(crc ^ value) & 0xFF] ^ (crc >> 8);
+            crc = CrcTable[(crc ^ value) & 0xFF] ^ crc >> 8;
 
         foreach (var value in data)
-            crc = CrcTable[(crc ^ value) & 0xFF] ^ (crc >> 8);
+            crc = CrcTable[(crc ^ value) & 0xFF] ^ crc >> 8;
 
         return crc ^ 0xFFFFFFFFu;
     }
@@ -147,7 +149,7 @@ internal static class Png
             var value = index;
 
             for (var bit = 0; bit < 8; bit++)
-                value = (value & 1) != 0 ? 0xEDB88320u ^ (value >> 1) : value >> 1;
+                value = (value & 1) != 0 ? 0xEDB88320u ^ value >> 1 : value >> 1;
 
             table[index] = value;
         }

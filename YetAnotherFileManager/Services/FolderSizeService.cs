@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
-using Serilog;
 using YetAnotherFileManager.Messaging;
 
 namespace YetAnotherFileManager.Services;
@@ -23,6 +22,14 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
     ///     while still telling the truth about a child folder's own files and its immediate children.
     /// </summary>
     private const int Levels = 1;
+
+    private static readonly EnumerationOptions TopLevel = new()
+    {
+        IgnoreInaccessible = true,
+        RecurseSubdirectories = false,
+        // Junctions and symlinks would either double count or loop forever.
+        AttributesToSkip = FileAttributes.ReparsePoint
+    };
 
     private readonly ConcurrentQueue<(string Parent, string Child)> _queue = new();
     private readonly ConcurrentDictionary<string, bool> _queued = new(StringComparer.OrdinalIgnoreCase);
@@ -73,7 +80,10 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
 
             WindowManager.Instance.RunOnMainWindow(() =>
                 WindowManager.Instance.Notify("fs.sizes",
-                    new FsSizesPayload(item.Parent, new Dictionary<string, long> { [item.Child] = bytes })));
+                    new FsSizesPayload(item.Parent, new()
+                    {
+                        [item.Child] = bytes
+                    })));
         }
     }
 
@@ -130,12 +140,4 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
         while (_queue.TryDequeue(out var item))
             _queued.TryRemove(Path.Combine(item.Parent, item.Child), out _);
     }
-
-    private static readonly EnumerationOptions TopLevel = new()
-    {
-        IgnoreInaccessible = true,
-        RecurseSubdirectories = false,
-        // Junctions and symlinks would either double count or loop forever.
-        AttributesToSkip = FileAttributes.ReparsePoint
-    };
 }

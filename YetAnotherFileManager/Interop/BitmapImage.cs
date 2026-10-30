@@ -7,7 +7,7 @@ namespace YetAnotherFileManager.Interop;
 ///     Turns a GDI bitmap (an icon or a shell thumbnail) into a PNG data URL the interface can show.
 /// </summary>
 [SupportedOSPlatform("windows")]
-internal static partial class BitmapImage
+internal static class BitmapImage
 {
     private const int DibRgbColors = 0;
     private const int BiRgb = 0;
@@ -72,6 +72,19 @@ internal static partial class BitmapImage
         return $"data:image/png;base64,{Convert.ToBase64String(Png.Encode(width, height, pixels))}";
     }
 
+    [DllImport("gdi32.dll", EntryPoint = "GetObjectW")]
+    private static extern int GetObject(IntPtr handle, int size, out Bitmap bitmap);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetDC(IntPtr window);
+
+    [DllImport("user32.dll")]
+    private static extern int ReleaseDC(IntPtr window, IntPtr dc);
+
+    [DllImport("gdi32.dll")]
+    private static extern int GetDIBits(IntPtr dc, IntPtr bitmap, uint start, uint lines, byte[] bits,
+        ref BitmapInfoHeader header, uint usage);
+
     [StructLayout(LayoutKind.Sequential)]
     private struct Bitmap
     {
@@ -99,17 +112,4 @@ internal static partial class BitmapImage
         public uint ColorsUsed;
         public uint ColorsImportant;
     }
-
-    [DllImport("gdi32.dll", EntryPoint = "GetObjectW")]
-    private static extern int GetObject(IntPtr handle, int size, out Bitmap bitmap);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetDC(IntPtr window);
-
-    [DllImport("user32.dll")]
-    private static extern int ReleaseDC(IntPtr window, IntPtr dc);
-
-    [DllImport("gdi32.dll")]
-    private static extern int GetDIBits(IntPtr dc, IntPtr bitmap, uint start, uint lines, byte[] bits,
-        ref BitmapInfoHeader header, uint usage);
 }

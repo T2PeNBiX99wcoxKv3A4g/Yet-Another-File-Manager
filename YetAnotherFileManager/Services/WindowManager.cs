@@ -4,7 +4,6 @@ using PhotinoNetUtils.Interop;
 using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Platform;
 using PhotinoNetUtils.Utils;
-using YetAnotherFileManager.Interop;
 using YetAnotherFileManager.Messaging;
 
 namespace YetAnotherFileManager.Services;
@@ -32,13 +31,13 @@ internal sealed class WindowManager : Singleton<WindowManager>
     /// <summary>A path that arrived before the interface was listening for navigation.</summary>
     private (string Path, bool Startup)? _pendingPath;
 
+    public WindowManager() => NativeBridge.MessageReceived += HandleMessageAsync;
+
     /// <summary>
     ///     Whether the interface has to paint the window's rounded corners, because the platform leaves
     ///     an undecorated window without a frame (Linux).
     /// </summary>
     public bool DrawsWindowCorners { get; private set; }
-
-    public WindowManager() => NativeBridge.MessageReceived += HandleMessageAsync;
 
     /// <summary>Address the window loads the interface from, set before the window is created.</summary>
     public string AppUrl { get; set; } = "";
@@ -115,7 +114,7 @@ internal sealed class WindowManager : Singleton<WindowManager>
                         ?.FirstOrDefault());
 
             case "app.pickFolder":
-                return Pick(context, () => _mainWindow?.ShowOpenFolder("Choose a folder", "", false)
+                return Pick(context, () => _mainWindow?.ShowOpenFolder("Choose a folder", "")
                     ?.FirstOrDefault());
         }
 
@@ -161,7 +160,7 @@ internal sealed class WindowManager : Singleton<WindowManager>
             return;
         }
 
-        var maximized = window.Maximized != true;
+        var maximized = !window.Maximized;
         window.SetMaximized(maximized);
         NotifyWindowState(maximized);
     }

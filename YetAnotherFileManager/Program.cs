@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json;
 using System.Runtime.Versioning;
+using System.Text.Json;
 using PhotinoNetUtils;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Interop;
@@ -103,7 +103,7 @@ internal static class Program
             // The window is already visible at startup; these only decide what it shows. Paths that
             // arrive now are queued until the interface reports that it is listening.
             foreach (var path in startupPaths)
-                manager.ShowPath(path, startup: true);
+                manager.ShowPath(path, true);
 
             StartTray(tray);
 
@@ -135,7 +135,7 @@ internal static class Program
 
         try
         {
-            var entries = RecycleBin.List(includeOrphans: true);
+            var entries = RecycleBin.List(true);
             var index = Array.IndexOf(args, Constants.OrphansReportArgument);
 
             if (index >= 0 && index + 1 < args.Length)

@@ -118,6 +118,32 @@ internal static class ShellIcon
         }
     }
 
+    [DllImport("shell32.dll", EntryPoint = "SHGetFileInfoW", CharSet = CharSet.Unicode)]
+    private static extern IntPtr ShellGetFileInfo(string path, uint attributes, ref ShellFileInfo info, uint size,
+        uint flags);
+
+    [DllImport("user32.dll")]
+    private static extern bool DestroyIcon(IntPtr icon);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetIconInfo(IntPtr icon, out IconInfo info);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetDC(IntPtr window);
+
+    [DllImport("user32.dll")]
+    private static extern int ReleaseDC(IntPtr window, IntPtr dc);
+
+    [DllImport("gdi32.dll", EntryPoint = "GetObjectW")]
+    private static extern int GetObject(IntPtr handle, int size, out Bitmap bitmap);
+
+    [DllImport("gdi32.dll")]
+    private static extern int GetDIBits(IntPtr dc, IntPtr bitmap, uint start, uint lines, byte[] bits,
+        ref BitmapInfoHeader header, uint usage);
+
+    [DllImport("gdi32.dll")]
+    private static extern bool DeleteObject(IntPtr handle);
+
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct ShellFileInfo
     {
@@ -135,8 +161,7 @@ internal static class ShellIcon
     [StructLayout(LayoutKind.Sequential)]
     private struct IconInfo
     {
-        [MarshalAs(UnmanagedType.Bool)]
-        public bool IsIcon;
+        [MarshalAs(UnmanagedType.Bool)] public bool IsIcon;
 
         public uint HotspotX;
         public uint HotspotY;
@@ -171,30 +196,4 @@ internal static class ShellIcon
         public uint ColorsUsed;
         public uint ColorsImportant;
     }
-
-    [DllImport("shell32.dll", EntryPoint = "SHGetFileInfoW", CharSet = CharSet.Unicode)]
-    private static extern IntPtr ShellGetFileInfo(string path, uint attributes, ref ShellFileInfo info, uint size,
-        uint flags);
-
-    [DllImport("user32.dll")]
-    private static extern bool DestroyIcon(IntPtr icon);
-
-    [DllImport("user32.dll")]
-    private static extern bool GetIconInfo(IntPtr icon, out IconInfo info);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetDC(IntPtr window);
-
-    [DllImport("user32.dll")]
-    private static extern int ReleaseDC(IntPtr window, IntPtr dc);
-
-    [DllImport("gdi32.dll", EntryPoint = "GetObjectW")]
-    private static extern int GetObject(IntPtr handle, int size, out Bitmap bitmap);
-
-    [DllImport("gdi32.dll")]
-    private static extern int GetDIBits(IntPtr dc, IntPtr bitmap, uint start, uint lines, byte[] bits,
-        ref BitmapInfoHeader header, uint usage);
-
-    [DllImport("gdi32.dll")]
-    private static extern bool DeleteObject(IntPtr handle);
 }

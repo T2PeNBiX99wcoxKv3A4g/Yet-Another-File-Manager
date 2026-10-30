@@ -1,7 +1,6 @@
 using System.Text.Json;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
-using Serilog;
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
 
@@ -37,12 +36,13 @@ internal sealed class RecentService : Singleton<RecentService>
         if (string.IsNullOrWhiteSpace(path))
             return;
 
-        var name = Try.Run(() => isDirectory ? new DirectoryInfo(path).Name : new FileInfo(path).Name).GetOrElse(_ => path);
+        var name = Try.Run(() => isDirectory ? new DirectoryInfo(path).Name : new FileInfo(path).Name)
+            .GetOrElse(_ => path);
 
         lock (_gate)
         {
             _entries.RemoveAll(entry => string.Equals(entry.Path, path, StringComparison.OrdinalIgnoreCase));
-            _entries.Insert(0, new RecentEntry(path, name.Length > 0 ? name : path, isDirectory,
+            _entries.Insert(0, new(path, name.Length > 0 ? name : path, isDirectory,
                 DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()));
 
             if (_entries.Count > Capacity)

@@ -19,6 +19,18 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
     /// <summary>ERROR_CANCELLED: the user said no to the UAC prompt.</summary>
     private const int ErrorCancelledByUser = 1223;
 
+    private static readonly HashSet<string> PerFileIconExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".lnk",
+        ".exe",
+        ".ico",
+        ".url",
+        ".msi",
+        ".appref-ms"
+    };
+
+    private static readonly SemaphoreSlim ThumbnailGate = new(Math.Clamp(Environment.ProcessorCount / 4, 2, 4));
+
     public FileSystemService() => NativeBridge.MessageReceived += HandleMessageAsync;
 
     private static Task<NativeResponse?> HandleMessageAsync(NativeContext context) =>
@@ -100,7 +112,7 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
                 new SchemePayload(UrlScheme.IsRegistered()))),
 
             "app.scheme.set" => Task.FromResult<NativeResponse?>(context.Reply("app.scheme.result",
-                new SchemePayload((context.Payload<SchemeRequest>()?.Enabled ?? false)
+                new SchemePayload(context.Payload<SchemeRequest>()?.Enabled ?? false
                     ? UrlScheme.Register()
                     : UrlScheme.Unregister()))),
 
@@ -133,11 +145,6 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
 
         return ShellIcon.DataUrl(request.Path, request.Directory, !request.Directory && !perFile);
     }
-
-    private static readonly HashSet<string> PerFileIconExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".lnk", ".exe", ".ico", ".url", ".msi", ".appref-ms"
-    };
 
     /// <summary>An icon file chosen by the user, as a data URL.</summary>
     private static string? IconFile(string? path)
@@ -182,7 +189,7 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
         var (entries, total) = Gallery.Instance.Page(request?.Offset ?? 0, request?.Count ?? 150,
             request?.Refresh ?? false);
 
-        return new FsGalleryPayload(entries, total);
+        return new(entries, total);
     }
 
     /// <summary>A shell thumbnail for the gallery, at the requested size.</summary>
@@ -207,8 +214,6 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
         }
     }
 
-    private static readonly SemaphoreSlim ThumbnailGate = new(Math.Clamp(Environment.ProcessorCount / 4, 2, 4));
-
     /// <summary>Whether a folder defines its own icon, which Explorer reads from desktop.ini.</summary>
     private static bool HasCustomFolderIcon(string directory)
     {
@@ -220,11 +225,9 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
                 return false;
 
             foreach (var line in File.ReadLines(desktopIni))
-            {
                 if (line.StartsWith("IconResource", StringComparison.OrdinalIgnoreCase)
                     || line.StartsWith("IconFile", StringComparison.OrdinalIgnoreCase))
                     return true;
-            }
 
             return false;
         }).GetOrElse(_ => false);
@@ -239,7 +242,10 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
     /// <summary>Pins the given folders to Quick access, in order, and answers with the resulting list.</summary>
     private static List<PlaceEntry> SetPlaces(List<string>? paths)
     {
-        SettingsService.Instance.Update(settings => settings with { QuickAccess = paths });
+        SettingsService.Instance.Update(settings => settings with
+        {
+            QuickAccess = paths
+        });
 
         return GetPlaces();
     }
@@ -258,7 +264,10 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
         else
             names[request.Path] = request.Name.Trim();
 
-        SettingsService.Instance.Update(settings => settings with { PlaceNames = names });
+        SettingsService.Instance.Update(settings => settings with
+        {
+            PlaceNames = names
+        });
 
         return GetPlaces();
     }
@@ -271,7 +280,10 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
 
         RecentService.Instance.Record(path, false);
 
-        return Try.Run(() => Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }) is not null)
+        return Try.Run(() => Process.Start(new ProcessStartInfo(path)
+            {
+                UseShellExecute = true
+            }) is not null)
             .GetOrElse(ex =>
             {
                 Serilog.Log.Warning(ex, "Could not open {Path}", path);
@@ -445,7 +457,7 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
         var attributes = Try.Run(() => info.Attributes).GetOrElse(_ => FileAttributes.Normal);
 
         return (showSystem || !attributes.HasFlag(FileAttributes.System))
-            && (showHidden || !attributes.HasFlag(FileAttributes.Hidden));
+               && (showHidden || !attributes.HasFlag(FileAttributes.Hidden));
     }
 
     /// <summary>
@@ -477,13 +489,13 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
 
         if (SettingsService.Instance.Current.PlaceNameOverrides.TryGetValue(path, out var custom)
             && !string.IsNullOrWhiteSpace(custom))
-            return new PlaceEntry(custom.Trim(), path, isHome ? "home" : "folder", icon);
+            return new(custom.Trim(), path, isHome ? "home" : "folder", icon);
 
         var name = isHome
             ? "Home"
             : Try.Run(() => new DirectoryInfo(path).Name).GetOrElse(_ => path);
 
-        return new PlaceEntry(name.Length > 0 ? name : path, path, isHome ? "home" : "folder", icon);
+        return new(name.Length > 0 ? name : path, path, isHome ? "home" : "folder", icon);
     }
 
     /// <summary>The folders Windows calls the user's own, in Explorer's order.</summary>

@@ -12,7 +12,7 @@ namespace YetAnotherFileManager.Services;
 ///     Reports and trims the memory this process uses. The webview has its own process, so the
 ///     numbers here are the file manager itself.
 /// </summary>
-internal static partial class AppMemory
+internal static class AppMemory
 {
     /// <summary>The heap level worth collecting; below it the churn is not worth the pause.</summary>
     private const long Bloated = 64 * 1024 * 1024;
@@ -24,7 +24,7 @@ internal static partial class AppMemory
 
         // TotalAvailableMemoryBytes is the memory the runtime considers usable, which is the
         // machine's RAM unless the process runs inside a container.
-        return new MemoryPayload(GC.GetTotalMemory(false), process.PrivateMemorySize64, process.WorkingSet64,
+        return new(GC.GetTotalMemory(false), process.PrivateMemorySize64, process.WorkingSet64,
             GC.GetGCMemoryInfo().TotalAvailableMemoryBytes);
     }
 

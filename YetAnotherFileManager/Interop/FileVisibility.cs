@@ -9,9 +9,9 @@ namespace YetAnotherFileManager.Interop;
 /// </summary>
 internal static partial class FileVisibility
 {
-    private static readonly IntPtr HkeyCurrentUser = new(0x80000001);
     private const uint RrfRtRegDword = 0x00000010;
     private const string AdvancedKey = @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced";
+    private static readonly IntPtr HkeyCurrentUser = new(0x80000001);
 
     /// <summary>"Hidden" is 1 when hidden items are shown and 2 (the default) when they are not.</summary>
     public static bool ShowHidden =>

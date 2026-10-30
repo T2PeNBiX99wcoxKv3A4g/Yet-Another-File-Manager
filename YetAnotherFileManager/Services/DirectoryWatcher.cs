@@ -11,9 +11,9 @@ namespace YetAnotherFileManager.Services;
 /// </summary>
 internal sealed class DirectoryWatcher : Singleton<DirectoryWatcher>
 {
-    private readonly object _gate = new();
-    private readonly Dictionary<string, FileSystemWatcher> _watchers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Lock _gate = new();
     private readonly Dictionary<string, Timer> _timers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, FileSystemWatcher> _watchers = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Replaces the watched set with exactly these folders.</summary>
     public void Watch(IReadOnlyList<string> paths)
@@ -25,7 +25,8 @@ internal sealed class DirectoryWatcher : Singleton<DirectoryWatcher>
 
         lock (_gate)
         {
-            foreach (var path in _watchers.Keys.Where(path => !wanted.Contains(path, StringComparer.OrdinalIgnoreCase)).ToList())
+            foreach (var path in _watchers.Keys.Where(path => !wanted.Contains(path, StringComparer.OrdinalIgnoreCase))
+                         .ToList())
                 Remove(path);
 
             foreach (var path in wanted.Where(path => !_watchers.ContainsKey(path)))
@@ -80,7 +81,7 @@ internal sealed class DirectoryWatcher : Singleton<DirectoryWatcher>
             if (_timers.Remove(path, out var previous))
                 previous.Dispose();
 
-            _timers[path] = new Timer(_ => Notify(path), null, 250, Timeout.Infinite);
+            _timers[path] = new(_ => Notify(path), null, 250, Timeout.Infinite);
         }
     }
 

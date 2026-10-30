@@ -30,6 +30,12 @@ internal static class RecycleBin
         AttributesToSkip = FileAttributes.None
     };
 
+    // ---- Windows ----
+
+    /// <summary>The per-user folder Windows itself shows: our SID, not every profile that ever used the volume.</summary>
+    private static string? CurrentSid =>
+        Try.Run(() => WindowsIdentity.GetCurrent().User?.Value).GetOrNull();
+
     public static IReadOnlyList<RecycleEntry> List(bool includeOrphans = false) =>
         (OperatingSystem.IsWindows() ? ListWindows(includeOrphans) : ListUnix(includeOrphans))
         .OrderByDescending(entry => entry.Deleted)
@@ -77,12 +83,6 @@ internal static class RecycleBin
         return removed;
     }
 
-    // ---- Windows ----
-
-    /// <summary>The per-user folder Windows itself shows: our SID, not every profile that ever used the volume.</summary>
-    private static string? CurrentSid =>
-        Try.Run(() => WindowsIdentity.GetCurrent().User?.Value).GetOrNull();
-
     private static IEnumerable<RecycleEntry> ListWindows(bool includeOrphans)
     {
         if (CurrentSid is not { Length: > 0 } sid)
@@ -107,7 +107,7 @@ internal static class RecycleBin
 
             var folders = includeOrphans
                 ? bin.EnumerateDirectories("*", Readable).ToList()
-                : [new DirectoryInfo(Path.Combine(bin.FullName, sid))];
+                : [new(Path.Combine(bin.FullName, sid))];
 
             return folders
                 .Where(folder => folder.Exists)
@@ -149,7 +149,7 @@ internal static class RecycleBin
         var owner = Path.GetFileName(Path.GetDirectoryName(infoPath));
         var removable = string.Equals(owner, currentSid, StringComparison.OrdinalIgnoreCase);
 
-        return new RecycleEntry(
+        return new(
             infoPath,
             Path.GetFileName(original.TrimEnd('\\', '/')),
             original,
@@ -190,14 +190,6 @@ internal static class RecycleBin
         {
             return ContentState.Unknown;
         }
-    }
-
-    private enum ContentState
-    {
-        Missing,
-        File,
-        Directory,
-        Unknown
     }
 
     private static bool RestoreWindows(string infoPath)
@@ -334,7 +326,7 @@ internal static class RecycleBin
         if (isOrphan && !includeOrphans)
             return null;
 
-        return new RecycleEntry(
+        return new(
             info.FullName,
             Path.GetFileName(original.TrimEnd('/')),
             original,
@@ -352,7 +344,7 @@ internal static class RecycleBin
         if (string.IsNullOrWhiteSpace(original))
             return false;
 
-        var stored = StoredPath(new FileInfo(infoPath), TrashFilesRoot(infoPath));
+        var stored = StoredPath(new(infoPath), TrashFilesRoot(infoPath));
         if (!Directory.Exists(stored) && !File.Exists(stored))
             return false;
 
@@ -371,7 +363,7 @@ internal static class RecycleBin
 
     private static void DeleteUnix(string infoPath)
     {
-        var stored = StoredPath(new FileInfo(infoPath), TrashFilesRoot(infoPath));
+        var stored = StoredPath(new(infoPath), TrashFilesRoot(infoPath));
 
         if (Directory.Exists(stored))
             Directory.Delete(stored, true);
@@ -436,5 +428,13 @@ internal static class RecycleBin
         }
 
         return original;
+    }
+
+    private enum ContentState
+    {
+        Missing,
+        File,
+        Directory,
+        Unknown
     }
 }

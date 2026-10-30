@@ -15,7 +15,15 @@ internal sealed class Gallery : Singleton<Gallery>
 
     private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".avif", ".tif", ".tiff"
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".webp",
+        ".bmp",
+        ".avif",
+        ".tif",
+        ".tiff"
     };
 
     private static readonly EnumerationOptions Options = new()

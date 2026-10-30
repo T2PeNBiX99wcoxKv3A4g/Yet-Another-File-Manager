@@ -42,7 +42,11 @@ internal static unsafe class ShellThumbnail
                 var getImage = (delegate* unmanaged[Stdcall]<IntPtr, NativeSize, int, IntPtr*, int>)
                     (*(IntPtr**)item)[GetImageSlot];
 
-                var request = new NativeSize { Width = size, Height = size };
+                var request = new NativeSize
+                {
+                    Width = size,
+                    Height = size
+                };
                 var bitmap = IntPtr.Zero;
 
                 if (getImage(item, request, SiigbfResizeToFit | SiigbfBiggerSizeOk, &bitmap) != 0
@@ -70,17 +74,17 @@ internal static unsafe class ShellThumbnail
         }
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct NativeSize
-    {
-        public int Width;
-        public int Height;
-    }
-
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern int SHCreateItemFromParsingName(string path, IntPtr bindContext, in Guid iid,
         out IntPtr item);
 
     [DllImport("gdi32.dll")]
     private static extern bool DeleteObject(IntPtr handle);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeSize
+    {
+        public int Width;
+        public int Height;
+    }
 }
