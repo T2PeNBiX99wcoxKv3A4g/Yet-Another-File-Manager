@@ -14,11 +14,12 @@ import {
 import {getSettings, pickFolder, pickIconFile, saveSettings, type AppSettings} from "../api/settings";
 import {Native} from "@photino-net-utils/bridge";
 import {FileList} from "./FileList";
-import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, FolderIcon, ImageIcon, PencilIcon, PlusIcon} from "./Icons";
+import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, PencilIcon, PlusIcon} from "./Icons";
 import {PathIcon} from "./PathIcon";
+import {PlaceIcon} from "./PlaceIcon";
 import {driveName, formatBytes, usageTone} from "../utils/format";
 import {wantsNewTab} from "../shortcuts";
-import {buildPanels, kindOfPanel, PanelGlyph, PanelIcons, type Panel, type PanelKind, type ViewMode} from "../panels";
+import {buildPanels, PanelGlyph, PanelIcons, type Panel, type PanelKind, type ViewMode} from "../panels";
 
 interface OverviewViewProps {
     places: Place[];
@@ -90,6 +91,18 @@ const Ghost = styled.button`
     }
 `;
 
+/** The panel choices live in one menu, so another kind only ever needs one more option. */
+const AddPanel = styled.select`
+    padding: 3px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+`;
+
 const Panels = styled.div<{ $columns: number }>`
     display: grid;
     grid-template-columns: repeat(${({$columns}) => $columns}, minmax(0, 1fr));
@@ -97,12 +110,11 @@ const Panels = styled.div<{ $columns: number }>`
     align-items: start;
 `;
 
-const Section = styled.section<{ $hidden?: boolean }>`
+const Section = styled.section`
     display: flex;
     flex-direction: column;
     gap: 10px;
     min-width: 0;
-    opacity: ${({$hidden}) => $hidden ? 0.45 : 1};
 `;
 
 const Head = styled.div`
@@ -381,23 +393,60 @@ const Tile = styled.button`
     }
 `;
 
-const PlaceIconButton = styled.button<{ $inline?: boolean }>`
-    position: ${({$inline}) => $inline ? "static" : "absolute"};
-    top: ${({$inline}) => $inline ? "auto" : "5px"};
-    right: ${({$inline}) => $inline ? "auto" : "5px"};
+/** Anchors an icon's picker to the icon itself, so the list opens right where it is used. */
+const IconAnchor = styled.span`
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    flex-shrink: 0;
+`;
+
+const IconTrigger = styled.button`
+    display: inline-grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+
+    &:hover {
+        background: rgba(99, 102, 241, 0.22);
+    }
+`;
+
+const IconMenu = styled.div`
+    position: absolute;
+    z-index: 40;
+    top: calc(100% + 6px);
+    left: 0;
+    display: grid;
+    grid-template-columns: repeat(4, 24px);
+    gap: 4px;
+    width: max-content;
+    padding: 6px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+`;
+
+const IconChoice = styled.button<{ $active?: boolean }>`
     display: grid;
     place-items: center;
-    width: 18px;
-    height: 18px;
-    border: 0;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid ${({$active}) => $active ? "var(--border-color-focus)" : "transparent"};
     border-radius: 5px;
-    background: rgba(148, 163, 184, 0.18);
+    background: ${({$active}) => $active ? "rgba(99, 102, 241, 0.24)" : "transparent"};
     color: var(--text-secondary);
     cursor: pointer;
 
     &:hover {
-        background: rgba(99, 102, 241, 0.28);
-        color: #c7d2fe;
+        background: var(--bg-card-hover);
+        color: var(--text-primary);
     }
 `;
 
@@ -424,6 +473,49 @@ const DriveRenameButton = styled.button`
     }
 `;
 
+/** The name turns into a text box with cancel and apply, the way the path bar does. */
+const DriveEditorBox = styled.span`
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+    padding: 1px 2px 1px 8px;
+    border: 1px solid var(--border-color-focus);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+
+    input {
+        flex: 1;
+        min-width: 0;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: var(--text-primary);
+        font: inherit;
+        font-size: 12.5px;
+    }
+`;
+
+const EditorButton = styled.button<{ $apply?: boolean }>`
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+
+    &:hover {
+        background: ${({$apply}) => $apply ? "rgba(34, 197, 94, 0.22)" : "rgba(148, 163, 184, 0.2)"};
+        color: ${({$apply}) => $apply ? "#4ade80" : "var(--text-primary)"};
+    }
+`;
+
 const Notice = styled.p`
     margin-bottom: 12px;
     padding: 8px 10px;
@@ -434,26 +526,6 @@ const Notice = styled.p`
     color: #fcd34d;
 `;
 
-const RenameTarget = styled.span`
-    padding: 0 4px;
-    font-size: 11px;
-    color: var(--text-muted);
-    white-space: nowrap;
-`;
-
-const RenameInput = styled.input`
-    flex: 1;
-    min-width: 0;
-    padding: 4px 8px;
-    border: 1px solid var(--border-color-focus);
-    border-radius: var(--radius-sm);
-    outline: 0;
-    background: var(--bg-input);
-    color: var(--text-primary);
-    font: inherit;
-    font-size: 12px;
-`;
-
 const Empty = styled.p`
     padding: 14px;
     border: 1px dashed var(--border-color);
@@ -462,21 +534,6 @@ const Empty = styled.p`
     color: var(--text-muted);
     text-align: center;
 `;
-
-const Picker = styled.div`
-    position: sticky;
-    bottom: 0;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin-top: 14px;
-    padding: 6px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    background: var(--bg-secondary);
-`;
-
-
 
 export function OverviewView({
     places,
@@ -492,8 +549,7 @@ export function OverviewView({
 }: OverviewViewProps) {
     const [editing, setEditing] = useState(false);
     const [settings, setSettings] = useState<AppSettings | null>(null);
-    const [iconFor, setIconFor] = useState<string | null>(null);
-    const [placeIconFor, setPlaceIconFor] = useState<string | null>(null);
+    const [iconEditor, setIconEditor] = useState<{ kind: "panel" | "place"; id: string } | null>(null);
     const [driveRename, setDriveRename] = useState<{ drive: Drive; label: string } | null>(null);
     const [driveNotice, setDriveNotice] = useState<string | null>(null);
 
@@ -501,7 +557,19 @@ export function OverviewView({
         void getSettings().then(setSettings, () => setSettings(null));
     }, []);
 
+    // Any click outside an open icon list closes it, the way a menu should.
+    useEffect(() => {
+        if (!iconEditor) return;
+
+        const close = () => setIconEditor(null);
+        window.addEventListener("pointerdown", close);
+        return () => window.removeEventListener("pointerdown", close);
+    }, [iconEditor]);
+
     const panels = buildPanels(settings);
+    const ids = panels.map((panel) => panel.id);
+    const isPanelIconOpen = (id: string) => iconEditor?.kind === "panel" && iconEditor.id === id;
+    const isPlaceIconOpen = (path: string) => iconEditor?.kind === "place" && iconEditor.id === path;
 
     // The overview watches every folder it shows; the tab it lives in is the only one that matters.
     useEffect(() => {
@@ -521,12 +589,12 @@ export function OverviewView({
         if (icon) icons[path] = icon;
         else delete icons[path];
 
-        setPlaceIconFor(null);
+        setIconEditor(null);
         await save({placeIcons: icons});
         onPlacesChanged(await listPlaces());
     };
 
-    /** Opens the label editor under the overview, where the icon picker lives too. */
+    /** Starts a drive rename in place: the name itself becomes the editor. */
     const startDriveRename = (drive: Drive) => {
         setDriveNotice(null);
         setDriveRename({drive, label: drive.label});
@@ -551,18 +619,18 @@ export function OverviewView({
             ? "Windows needs administrator rights to rename a volume. Restart the app as administrator and try again."
             : result.error ?? "Windows refused the volume label.");
     };
+
     const columns = settings?.overviewColumns ?? 1;
-    const hidden = settings?.overviewHidden ?? [];
 
     const save = async (patch: Partial<AppSettings>) => {
         if (!settings) return;
 
-        const next = {...settings, ...patch};
+        // The panel list is the whole truth now: one delete removes a panel for good. Writing it on
+        // every change also migrates ids that older versions only hid.
+        const next = {...settings, ...patch, overviewPanels: patch.overviewPanels ?? ids, overviewHidden: []};
         setSettings(await saveSettings(next));
         onLayoutChanged?.();
     };
-
-    const ids = panels.map((panel) => panel.id);
 
     const move = (id: string, offset: number) => {
         const index = ids.indexOf(id);
@@ -596,12 +664,10 @@ export function OverviewView({
             : [...pinned, id]});
     };
 
-    const toggleHidden = (id: string) =>
-        void save({overviewHidden: hidden.includes(id) ? hidden.filter((item) => item !== id) : [...hidden, id]});
-
+    /** Deletes the panel outright; any kind can be added again from the toolbar. */
     const remove = (id: string) => {
-        const next = ids.filter((item) => item !== id);
-        void save({overviewPanels: next});
+        setIconEditor(null);
+        void save({overviewPanels: ids.filter((item) => item !== id)});
     };
 
     const setIcon = (id: string, icon: string | null) => {
@@ -610,7 +676,7 @@ export function OverviewView({
         if (icon) icons[id] = icon;
         else delete icons[id];
 
-        setIconFor(null);
+        setIconEditor(null);
         void save({overviewIcons: icons});
     };
 
@@ -627,8 +693,11 @@ export function OverviewView({
             return;
         }
 
-        const count = ids.filter((id) => kindOfPanel(id) === kind).length;
-        const id = count === 0 ? kind : `${kind}:${count + 1}`;
+        // Gaps are allowed after deleting a numbered block, so the first unused id wins.
+        let id: string = kind;
+        for (let suffix = 2; ids.includes(id); suffix += 1)
+            id = `${kind}:${suffix}`;
+
         await save({overviewPanels: [...ids, id]});
     };
 
@@ -668,22 +737,31 @@ export function OverviewView({
                             title={drive.name}
                         >
                             <Glyph><DriveIcon size={18}/></Glyph>
-                            <CardText>
-                                <strong>
-                                    {driveName(drive)}
-                                    <DriveRenameButton
-                                        onClick={(event) => {
-                                            event.stopPropagation();
-                                            startDriveRename(drive);
-                                        }}
-                                        title="Rename volume"
-                                        type="button"
-                                    >
-                                        <PencilIcon size={11}/>
-                                    </DriveRenameButton>
-                                </strong>
-                                <span>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</span>
-                            </CardText>
+                            {driveRename?.drive.name === drive.name ? (
+                                <DriveEditor
+                                    onCancel={() => setDriveRename(null)}
+                                    onChange={(label) => setDriveRename({...driveRename, label})}
+                                    onCommit={() => void applyDriveRename()}
+                                    value={driveRename.label}
+                                />
+                            ) : (
+                                <CardText>
+                                    <strong>
+                                        {driveName(drive)}
+                                        <DriveRenameButton
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                startDriveRename(drive);
+                                            }}
+                                            title="Rename volume"
+                                            type="button"
+                                        >
+                                            <PencilIcon size={11}/>
+                                        </DriveRenameButton>
+                                    </strong>
+                                    <span>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</span>
+                                </CardText>
+                            )}
                         </Card>
                     ))}
                 </Places>
@@ -701,19 +779,29 @@ export function OverviewView({
                                     onClick={(event) => !editing && onOpen(place.path, wantsNewTab(event))}
                                     title={place.path}
                                 >
-                                    {editing && (
-                                        <PlaceIconButton
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                setPlaceIconFor(placeIconFor === place.path ? null : place.path);
-                                            }}
-                                            title="Icon"
-                                            type="button"
-                                        >
-                                            <ImageIcon size={11}/>
-                                        </PlaceIconButton>
-                                    )}
-                                    <Glyph><FolderIcon size={18}/></Glyph>
+                                    <IconAnchor>
+                                        {editing ? (
+                                            <IconTrigger
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    setIconEditor(isPlaceIconOpen(place.path) ? null : {kind: "place", id: place.path});
+                                                }}
+                                                onPointerDown={(event) => event.stopPropagation()}
+                                                title="Change icon"
+                                                type="button"
+                                            >
+                                                <Glyph><PlaceIcon place={place}/></Glyph>
+                                            </IconTrigger>
+                                        ) : (
+                                            <Glyph><PlaceIcon place={place}/></Glyph>
+                                        )}
+                                        {isPlaceIconOpen(place.path) && (
+                                            <IconPicker
+                                                onPick={(icon) => void setPlaceIcon(place.path, icon)}
+                                                value={settings?.placeIcons?.[place.path] ?? place.icon}
+                                            />
+                                        )}
+                                    </IconAnchor>
                                     <CardText>
                                         <strong>{place.name}</strong>
                                         <span>{place.path}</span>
@@ -731,24 +819,33 @@ export function OverviewView({
                                     title={place.path}
                                     type="button"
                                 >
-                                    <FolderIcon size={15}/>
+                                    <IconAnchor>
+                                        {editing ? (
+                                            <IconTrigger
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    setIconEditor(isPlaceIconOpen(place.path) ? null : {kind: "place", id: place.path});
+                                                }}
+                                                onPointerDown={(event) => event.stopPropagation()}
+                                                title="Change icon"
+                                                type="button"
+                                            >
+                                                <PlaceIcon place={place} size={15}/>
+                                            </IconTrigger>
+                                        ) : (
+                                            <PlaceIcon place={place} size={15}/>
+                                        )}
+                                        {isPlaceIconOpen(place.path) && (
+                                            <IconPicker
+                                                onPick={(icon) => void setPlaceIcon(place.path, icon)}
+                                                value={settings?.placeIcons?.[place.path] ?? place.icon}
+                                            />
+                                        )}
+                                    </IconAnchor>
                                     <RowText>
                                         <strong>{place.name}</strong>
                                         <span>{place.path}</span>
                                     </RowText>
-                                    {editing && (
-                                        <PlaceIconButton
-                                            $inline
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                setPlaceIconFor(placeIconFor === place.path ? null : place.path);
-                                            }}
-                                            title="Icon"
-                                            type="button"
-                                        >
-                                            <ImageIcon size={11}/>
-                                        </PlaceIconButton>
-                                    )}
                                 </Row>
                             ))}
                         </Rows>
@@ -784,7 +881,18 @@ export function OverviewView({
                         {drives.map((drive) => {
                             const used = drive.totalSize > 0 ? 1 - drive.freeSpace / drive.totalSize : 0;
 
-                            return (
+                            return driveRename?.drive.name === drive.name ? (
+                                <Row as="div" key={drive.name}>
+                                    <DriveIcon size={18}/>
+                                    <DriveEditor
+                                        onCancel={() => setDriveRename(null)}
+                                        onChange={(label) => setDriveRename({...driveRename, label})}
+                                        onCommit={() => void applyDriveRename()}
+                                        value={driveRename.label}
+                                    />
+                                    <Bar><Fill $used={used} $tone={usageTone(used)}/></Bar>
+                                </Row>
+                            ) : (
                                 <Row
                                     key={drive.name}
                                     onClick={(event) => onOpen(drive.name, wantsNewTab(event))}
@@ -824,7 +932,7 @@ export function OverviewView({
         <Page>
             <Toolbar>
                 <Segmented role="group" title="Columns">
-                    {[1, 2, 3].map((count) => (
+                    {[1, 2, 3, 4, 5].map((count) => (
                         <Segment
                             key={count}
                             $active={columns === count}
@@ -838,14 +946,22 @@ export function OverviewView({
                 </Segmented>
 
                 {editing && (
-                    <>
-                        {(["quick", "recent", "drives", "folder"] as PanelKind[]).map((kind) => (
-                            <Ghost key={kind} onClick={() => void addBlock(kind)} title={`Add a ${kind} block`} type="button">
-                                <PlusIcon size={12}/>
-                                {kind === "quick" ? "Quick access" : kind === "recent" ? "Recent" : kind === "drives" ? "This PC" : "Folder"}
-                            </Ghost>
-                        ))}
-                    </>
+                    <AddPanel
+                        aria-label="Add a panel"
+                        onChange={(event) => {
+                            const kind = event.target.value as PanelKind;
+                            if (kind) void addBlock(kind);
+                        }}
+                        title="Add a panel"
+                        value=""
+                    >
+                        <option disabled value="">+ Add panel…</option>
+                        <option value="quick">Quick access</option>
+                        <option value="recent">Recent</option>
+                        <option value="home">Home</option>
+                        <option value="drives">This PC</option>
+                        <option value="folder">Folder…</option>
+                    </AddPanel>
                 )}
 
                 <Ghost onClick={() => setEditing((current) => !current)} title={editing ? "Done" : "Edit"} type="button">
@@ -858,17 +974,34 @@ export function OverviewView({
 
             <Panels $columns={columns}>
                 {panels
-                    .filter((panel) => editing || (!hidden.includes(panel.id)
-                        && (panel.kind !== "recent" || (recentLimit > 0 && recent.length > 0))))
+                    .filter((panel) => editing || (panel.kind !== "recent" || (recentLimit > 0 && recent.length > 0)))
                     .map((panel) => {
                         const index = ids.indexOf(panel.id);
-                        const isHidden = hidden.includes(panel.id);
 
                         return (
-                            <Section key={panel.id} $hidden={isHidden}>
+                            <Section key={panel.id}>
                                 <Head>
                                     <HeadStart>
-                                        <PanelGlyph panel={panel} size={15}/>
+                                        <IconAnchor>
+                                            {editing ? (
+                                                <IconTrigger
+                                                    onClick={() => setIconEditor(isPanelIconOpen(panel.id) ? null : {kind: "panel", id: panel.id})}
+                                                    onPointerDown={(event) => event.stopPropagation()}
+                                                    title="Change icon"
+                                                    type="button"
+                                                >
+                                                    <PanelGlyph panel={panel} size={15}/>
+                                                </IconTrigger>
+                                            ) : (
+                                                <PanelGlyph panel={panel} size={15}/>
+                                            )}
+                                            {isPanelIconOpen(panel.id) && (
+                                                <IconPicker
+                                                    onPick={(icon) => setIcon(panel.id, icon)}
+                                                    value={panel.icon}
+                                                />
+                                            )}
+                                        </IconAnchor>
 
                                         {editing
                                             ? (
@@ -898,13 +1031,6 @@ export function OverviewView({
 
                                         {editing && (
                                             <>
-                                                <IconButton
-                                                    onClick={() => setIconFor(iconFor === panel.id ? null : panel.id)}
-                                                    title="Icon"
-                                                    type="button"
-                                                >
-                                                    <ImageIcon size={12}/>
-                                                </IconButton>
                                                 <IconButton
                                                     $active={panel.pinned}
                                                     onClick={() => togglePin(panel.id)}
@@ -956,11 +1082,11 @@ export function OverviewView({
                                                     <ArrowUpIcon size={12}/>
                                                 </IconButton>
                                                 <IconButton
-                                                    onClick={() => panel.kind === "folder" ? remove(panel.id) : toggleHidden(panel.id)}
-                                                    title={panel.kind === "folder" ? "Remove" : isHidden ? "Show" : "Hide"}
+                                                    onClick={() => remove(panel.id)}
+                                                    title="Remove panel"
                                                     type="button"
                                                 >
-                                                    {panel.kind === "folder" || !isHidden ? <CrossIcon size={12}/> : <CheckIcon size={12}/>}
+                                                    <CrossIcon size={12}/>
                                                 </IconButton>
                                             </>
                                         )}
@@ -972,79 +1098,64 @@ export function OverviewView({
                         );
                     })}
             </Panels>
-
-            {editing && placeIconFor && (
-                <Picker>
-                    {Object.keys(PanelIcons).map((name) => (
-                        <IconButton key={name} onClick={() => void setPlaceIcon(placeIconFor, name)} title={name} type="button">
-                            {PanelIcons[name](16)}
-                        </IconButton>
-                    ))}
-                    <IconButton onClick={() => void setPlaceIcon(placeIconFor, null)} title="Default" type="button">
-                        <CrossIcon size={12}/>
-                    </IconButton>
-                    <Ghost
-                        onClick={async () => {
-                            const file = await pickIconFile();
-                            if (file) await setPlaceIcon(placeIconFor, `file:${file}`);
-                        }}
-                        title="Choose an image"
-                        type="button"
-                    >
-                        <PlusIcon size={13}/>
-                        Image
-                    </Ghost>
-                </Picker>
-            )}
-
-            {editing && iconFor && (
-                <Picker>
-                    {Object.keys(PanelIcons).map((name) => (
-                        <IconButton key={name} onClick={() => setIcon(iconFor, name)} title={name} type="button">
-                            {PanelIcons[name](16)}
-                        </IconButton>
-                    ))}
-                    <IconButton onClick={() => setIcon(iconFor, null)} title="Default" type="button">
-                        <CrossIcon size={12}/>
-                    </IconButton>
-                    <Ghost
-                        onClick={async () => {
-                            const file = await pickIconFile();
-                            if (file) setIcon(iconFor, `file:${file}`);
-                        }}
-                        title="Choose an image"
-                        type="button"
-                    >
-                        <PlusIcon size={13}/>
-                        Image
-                    </Ghost>
-                </Picker>
-            )}
-
-            {driveRename && (
-                <Picker>
-                    <RenameTarget>{driveName(driveRename.drive)}</RenameTarget>
-                    <RenameInput
-                        autoFocus
-                        maxLength={32}
-                        onChange={(event) => setDriveRename({...driveRename, label: event.target.value})}
-                        onKeyDown={(event) => {
-                            if (event.key === "Enter") void applyDriveRename();
-                            if (event.key === "Escape") setDriveRename(null);
-                        }}
-                        placeholder="Volume label"
-                        spellCheck={false}
-                        value={driveRename.label}
-                    />
-                    <IconButton onClick={() => void applyDriveRename()} title="Write the label to Windows" type="button">
-                        <CheckIcon size={12}/>
-                    </IconButton>
-                    <IconButton onClick={() => setDriveRename(null)} title="Cancel" type="button">
-                        <CrossIcon size={12}/>
-                    </IconButton>
-                </Picker>
-            )}
         </Page>
+    );
+}
+
+/** The name turns into a text box with cancel and apply, like the path bar's editor. */
+function DriveEditor({value, onChange, onCommit, onCancel}: {
+    value: string;
+    onChange: (value: string) => void;
+    onCommit: () => void;
+    onCancel: () => void;
+}) {
+    return (
+        <DriveEditorBox onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
+            <input
+                autoFocus
+                maxLength={32}
+                onChange={(event) => onChange(event.target.value)}
+                onKeyDown={(event) => {
+                    if (event.key === "Enter") onCommit();
+                    if (event.key === "Escape") onCancel();
+                }}
+                placeholder="Volume label"
+                spellCheck={false}
+                value={value}
+            />
+            <EditorButton onClick={onCancel} title="Cancel" type="button">
+                <CrossIcon size={11}/>
+            </EditorButton>
+            <EditorButton $apply onClick={onCommit} title="Rename volume" type="button">
+                <CheckIcon size={12}/>
+            </EditorButton>
+        </DriveEditorBox>
+    );
+}
+
+/** The icon choices, shown right next to the icon being changed instead of in a bar below. */
+function IconPicker({value, onPick}: { value?: string | null; onPick: (icon: string | null) => void }) {
+    return (
+        <IconMenu onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
+            {Object.keys(PanelIcons).map((name) => (
+                <IconChoice $active={value === name} key={name} onClick={() => onPick(name)} title={name} type="button">
+                    {PanelIcons[name](16)}
+                </IconChoice>
+            ))}
+            <IconChoice
+                onClick={async () => {
+                    const file = await pickIconFile();
+                    if (file) onPick(`file:${file}`);
+                }}
+                title="Choose an image"
+                type="button"
+            >
+                <PlusIcon size={13}/>
+            </IconChoice>
+            <IconChoice $active={!value} onClick={() => onPick(null)} title="Default" type="button">
+                <CrossIcon size={12}/>
+            </IconChoice>
+        </IconMenu>
     );
 }
 

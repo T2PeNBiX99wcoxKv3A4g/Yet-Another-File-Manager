@@ -14,7 +14,7 @@ export interface AppSettings {
     galleryRoots: string[] | null;
     /** Order of the overview panels, or null for the default order. */
     overviewPanels: string[] | null;
-    /** Overview panels the user turned off. */
+    /** Overview panels the user turned off in older versions; dropped when the layout is next saved. */
     overviewHidden: string[] | null;
     /** How many columns the overview lays its panels out in. */
     overviewColumns: number;

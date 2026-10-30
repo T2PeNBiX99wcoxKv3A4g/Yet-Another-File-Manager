@@ -64,13 +64,13 @@ public sealed record AppSettings(
     [JsonIgnore]
     public List<string>? PanelOrder => OverviewPanels;
 
-    /// <summary>The overview panels the user turned off.</summary>
+    /// <summary>Panels older versions hid instead of deleting. Only used to migrate them away.</summary>
     [JsonIgnore]
     public List<string> HiddenPanels => OverviewHidden ?? [];
 
-    /// <summary>How many columns the overview uses; 1 to 3.</summary>
+    /// <summary>How many columns the overview uses; 1 to 5.</summary>
     [JsonIgnore]
-    public int PanelColumns => Math.Clamp(OverviewColumns ?? 1, 1, 3);
+    public int PanelColumns => Math.Clamp(OverviewColumns ?? 1, 1, 5);
 
     /// <summary>Names the user gave to quick-access folders, by path.</summary>
     [JsonIgnore]

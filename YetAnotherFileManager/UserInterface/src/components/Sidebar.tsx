@@ -4,8 +4,9 @@ import {listDirectory, openFile, type DirectoryListing, type Drive, type FileEnt
 import {getSettings} from "../api/settings";
 import type {TabKind} from "../tabs";
 import {buildPanels, PanelGlyph, type Panel} from "../panels";
-import {DriveIcon, FileIcon, FolderIcon, GearIcon, ImageIcon, OverviewIcon, TrashIcon} from "./Icons";
+import {DriveIcon, GearIcon, ImageIcon, OverviewIcon, TrashIcon} from "./Icons";
 import {PathIcon} from "./PathIcon";
+import {PlaceIcon} from "./PlaceIcon";
 import {driveName, formatBytes, usageTone} from "../utils/format";
 import {wantsNewTab} from "../shortcuts";
 
@@ -82,7 +83,7 @@ export function Sidebar({
                                     title={place.path}
                                     type="button"
                                 >
-                                    <FolderIcon/>
+                                    <PlaceIcon place={place}/>
                                     <Label>{place.name}</Label>
                                 </Item>
                             ))}
@@ -178,8 +179,6 @@ function FolderItems({path, onNavigate}: { path: string; onNavigate: (path: stri
                 <SidebarEntry entry={entry} key={entry.fullPath} onNavigate={onNavigate}/>
             ))}
 
-            {folders.length > 0 && files.length > 0 && <Group>Files</Group>}
-
             {files.map((entry) => (
                 <SidebarEntry entry={entry} key={entry.fullPath} onNavigate={onNavigate}/>
             ))}
@@ -204,7 +203,7 @@ function SidebarEntry({entry, onNavigate}: { entry: FileEntry; onNavigate: (path
             title={entry.fullPath}
             type="button"
         >
-            {entry.isDirectory ? <FolderIcon/> : <FileIcon/>}
+            <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.fullPath} size={18}/>
             <Label>{entry.name}</Label>
         </Item>
     );
@@ -358,15 +357,6 @@ const Label = styled.span`
 const Hint = styled.span`
     font-family: var(--font-mono);
     font-size: 9px;
-    color: var(--text-muted);
-`;
-
-const Group = styled.span`
-    padding: 5px 8px 2px;
-    font-size: 9px;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
     color: var(--text-muted);
 `;
 

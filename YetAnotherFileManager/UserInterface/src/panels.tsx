@@ -46,9 +46,12 @@ export function kindOfPanel(id: string): PanelKind {
 
 /** Every panel, in order, with its title, view, icon and pin state filled in. */
 export function buildPanels(settings: AppSettings | null): Panel[] {
-    const stored = settings?.overviewPanels ?? [];
-    const known = stored.filter((id) => id.startsWith("folder:") || DefaultPanels.some((base) => id === base || id.startsWith(`${base}:`)));
-    const ids = [...known, ...DefaultPanels.filter((id) => !known.includes(id))];
+    const stored = settings?.overviewPanels;
+    const hidden = settings?.overviewHidden ?? [];
+    const source = stored ?? DefaultPanels;
+    // A stored list is the whole truth: deleting a default panel has to keep it deleted.
+    const ids = [...new Set(source)].filter((id) => !hidden.includes(id)
+        && (id.startsWith("folder:") || DefaultPanels.some((base) => id === base || id.startsWith(`${base}:`))));
     const titles = settings?.overviewTitles ?? {};
     const views = settings?.overviewViews ?? {};
     const icons = settings?.overviewIcons ?? {};
