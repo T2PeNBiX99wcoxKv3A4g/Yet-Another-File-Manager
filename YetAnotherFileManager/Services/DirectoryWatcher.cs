@@ -38,7 +38,8 @@ internal sealed class DirectoryWatcher : Singleton<DirectoryWatcher>
         var watcher = Try.Run(() => new FileSystemWatcher(path)
         {
             IncludeSubdirectories = false,
-            // Only real entries appearing or disappearing count; a file being written to does not.
+            NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName |
+                           NotifyFilters.LastWrite | NotifyFilters.Size
         }).GetOrNull();
 
         if (watcher is null)
@@ -46,6 +47,7 @@ internal sealed class DirectoryWatcher : Singleton<DirectoryWatcher>
 
         watcher.Created += (_, args) => OnChanged(path, args);
         watcher.Deleted += (_, args) => OnChanged(path, args);
+        watcher.Changed += (_, args) => OnChanged(path, args);
         watcher.Renamed += (_, args) => OnChanged(path, args);
 
         Try.Run(() => watcher.EnableRaisingEvents = true)

@@ -409,7 +409,8 @@ export default function App() {
 
             if (!tab || kindOf(tab) !== "files" || !samePath(folderOf(tab), event.data.path)) return;
 
-            void listDirectory(event.data.path)
+            // Only the entries are refreshed; sizes are measured when the folder is entered.
+            void listDirectory(event.data.path, false)
                 .then((listing) => patch(tab.id, () => ({listing})), () => undefined);
         });
     }, [patch]);
