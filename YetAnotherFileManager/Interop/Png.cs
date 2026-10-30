@@ -129,14 +129,8 @@ internal static class Png
 
     private static uint Crc32(byte[] type, byte[] data)
     {
-        var crc = 0xFFFFFFFFu;
-
-        foreach (var value in type)
-            crc = CrcTable[(crc ^ value) & 0xFF] ^ crc >> 8;
-
-        foreach (var value in data)
-            crc = CrcTable[(crc ^ value) & 0xFF] ^ crc >> 8;
-
+        var crc = type.Aggregate(0xFFFFFFFFu, (current, value) => CrcTable[(current ^ value) & 0xFF] ^ current >> 8);
+        crc = data.Aggregate(crc, (current, value) => CrcTable[(current ^ value) & 0xFF] ^ current >> 8);
         return crc ^ 0xFFFFFFFFu;
     }
 
