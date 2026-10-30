@@ -16,7 +16,7 @@ internal sealed class RecentService : Singleton<RecentService>
 
     private static readonly string StorePath = Path.Combine(Constants.SettingsDirectory, "recent.json");
 
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
 
     private List<RecentEntry> _entries = Load();
 
@@ -27,7 +27,7 @@ internal sealed class RecentService : Singleton<RecentService>
             return [];
 
         lock (_gate)
-            return _entries.Take(limit).ToList();
+            return [.. _entries.Take(limit)];
     }
 
     /// <summary>Moves a folder to the front, dropping the oldest entries beyond the capacity.</summary>

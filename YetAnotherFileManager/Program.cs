@@ -144,7 +144,7 @@ internal static class Program
 
             if (index >= 0 && index + 1 < args.Length)
                 File.WriteAllText(args[index + 1],
-                    JsonSerializer.Serialize(entries.ToList(), AppJsonContext.Default.ListRecycleEntry));
+                    JsonSerializer.Serialize([.. entries], AppJsonContext.Default.ListRecycleEntry));
 
             if (args.Contains(Constants.OrphansDeleteArgument))
                 Log.Information("Removed {Count} leftover recycle bin records",

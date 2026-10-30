@@ -16,7 +16,7 @@ internal sealed class FrequentService : Singleton<FrequentService>
 
     private static readonly string StorePath = Path.Combine(Constants.SettingsDirectory, "frequent.json");
 
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
 
     private List<FrequentEntry> _entries = Load();
 
@@ -27,12 +27,14 @@ internal sealed class FrequentService : Singleton<FrequentService>
             return [];
 
         lock (_gate)
-            return _entries
-                .Where(entry => Try.Run(() => Directory.Exists(entry.Path)).GetOrElse(_ => false))
-                .OrderByDescending(entry => entry.Count)
-                .ThenByDescending(entry => entry.Last)
-                .Take(limit)
-                .ToList();
+            return
+            [
+                .. _entries
+                    .Where(entry => Try.Run(() => Directory.Exists(entry.Path)).GetOrElse(_ => false))
+                    .OrderByDescending(entry => entry.Count)
+                    .ThenByDescending(entry => entry.Last)
+                    .Take(limit)
+            ];
     }
 
     /// <summary>Counts one visit of a folder.</summary>
@@ -56,7 +58,12 @@ internal sealed class FrequentService : Singleton<FrequentService>
             {
                 var entry = _entries[index];
                 _entries.RemoveAt(index);
-                _entries.Add(entry with { Name = name, Count = entry.Count + 1, Last = Now() });
+                _entries.Add(entry with
+                {
+                    Name = name,
+                    Count = entry.Count + 1,
+                    Last = Now()
+                });
             }
             else
             {
@@ -65,11 +72,13 @@ internal sealed class FrequentService : Singleton<FrequentService>
 
             // A folder that is not opened again eventually falls out; keep the list bounded.
             if (_entries.Count > Capacity)
-                _entries = _entries
-                    .OrderByDescending(entry => entry.Count)
-                    .ThenByDescending(entry => entry.Last)
-                    .Take(Capacity)
-                    .ToList();
+                _entries =
+                [
+                    .. _entries
+                        .OrderByDescending(entry => entry.Count)
+                        .ThenByDescending(entry => entry.Last)
+                        .Take(Capacity)
+                ];
 
             Save();
         }

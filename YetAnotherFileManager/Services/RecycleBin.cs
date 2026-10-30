@@ -37,9 +37,10 @@ internal static class RecycleBin
         Try.Run(() => WindowsIdentity.GetCurrent().User?.Value).GetOrNull();
 
     public static IReadOnlyList<RecycleEntry> List(bool includeOrphans = false) =>
-        (OperatingSystem.IsWindows() ? ListWindows(includeOrphans) : ListUnix(includeOrphans))
+    [
+        .. (OperatingSystem.IsWindows() ? ListWindows(includeOrphans) : ListUnix(includeOrphans))
         .OrderByDescending(entry => entry.Deleted)
-        .ToList();
+    ];
 
     /// <summary>
     ///     Puts one entry back at its original path. Returns false when the stored content is gone

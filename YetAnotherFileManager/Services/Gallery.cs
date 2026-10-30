@@ -34,7 +34,7 @@ internal sealed class Gallery : Singleton<Gallery>
         AttributesToSkip = FileAttributes.ReparsePoint
     };
 
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
 
     /// <summary>The whole gallery, newest first, or null when it has not been scanned yet.</summary>
     private List<GalleryEntry>? _entries;
@@ -62,12 +62,14 @@ internal sealed class Gallery : Singleton<Gallery>
             ? configured
             : [Environment.GetFolderPath(Environment.SpecialFolder.MyPictures)];
 
-        return roots
-            .Where(root => root.Length > 0)
-            .SelectMany(Read)
-            .Where(entry => !DirectoryIndex.IsIndexFile(entry.Name))
-            .OrderByDescending(entry => entry.Modified)
-            .ToList();
+        return
+        [
+            .. roots
+                .Where(root => root.Length > 0)
+                .SelectMany(Read)
+                .Where(entry => !DirectoryIndex.IsIndexFile(entry.Name))
+                .OrderByDescending(entry => entry.Modified)
+        ];
     }
 
     private static IEnumerable<GalleryEntry> Read(string root) =>
