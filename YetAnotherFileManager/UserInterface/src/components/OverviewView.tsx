@@ -911,8 +911,9 @@ function FolderBody({path, mode, onOpen}: { path: string; mode: ViewMode; onOpen
     useEffect(() => {
         if (!path) return;
 
+        // Sizes are measured once, when the overview is entered; refreshing never re-measures.
         setListing(null);
-        listDirectory(path, false).then(setListing, () => setListing(null));
+        listDirectory(path).then(setListing, () => setListing(null));
     }, [path]);
 
     // The folder is one of the ones the overview watches, so it keeps itself current.

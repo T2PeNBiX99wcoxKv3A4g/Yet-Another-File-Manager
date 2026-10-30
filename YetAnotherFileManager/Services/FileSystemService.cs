@@ -385,7 +385,7 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
         Path.Combine(Path.GetTempPath(), $"yafm-orphans-{Guid.NewGuid():N}.json");
 
     /// <summary>Lists a directory. A missing path starts at the user's home directory.</summary>
-    private static FsListPayload List(string? path)
+    private static FsListPayload List(string? path, bool measure = true)
     {
         var target = ResolvePath(path);
         var directory = new DirectoryInfo(target);
