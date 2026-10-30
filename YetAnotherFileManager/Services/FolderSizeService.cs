@@ -7,43 +7,24 @@ namespace YetAnotherFileManager.Services;
 
 /// <summary>
 ///     Measures folder sizes in the background, one level deep. A folder's size is the files it
-///     holds plus the files of its own children; anything deeper is taken from the index the child
-///     itself keeps, if it has one. Entering a folder therefore never walks the whole tree.
+///     holds plus its children's sizes; children that were measured before are read from their own
+///     index instead of being walked again.
 /// </summary>
-/// <remarks>
-///     Only the folder that is on screen is worth measuring, so a new listing drops everything that
-///     was still queued and aborts a walk that is already running. One worker, so a slow disk is
-///     never hit from more than one direction at a time, and the UI thread is never involved.
-/// </remarks>
 internal sealed class FolderSizeService : Singleton<FolderSizeService>
 {
-    /// <summary>
-    ///     How far below the measured folder the filesystem is read. One level keeps a visit cheap
-    ///     while still telling the truth about a child folder's own files and its immediate children.
-    /// </summary>
     private const int Levels = 1;
 
     /// <summary>How many folders of one listing are measured; the rest keeps its cached size.</summary>
     private const int Burst = 40;
 
-    private static readonly EnumerationOptions TopLevel = new()
-    {
-        IgnoreInaccessible = true,
-        RecurseSubdirectories = false,
-        // Junctions and symlinks would either double count or loop forever.
-        AttributesToSkip = FileAttributes.ReparsePoint
-    };
-
     private readonly ConcurrentQueue<(string Parent, string Child)> _queue = new();
     private readonly ConcurrentDictionary<string, bool> _queued = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _signal = new(0);
 
-    /// <summary>Bumped on every listing; a walk that sees a different value has been superseded.</summary>
     private volatile int _generation;
 
     public FolderSizeService() => _ = Task.Run(WorkAsync);
 
-    /// <summary>Queues the folders of a listing. Their sizes are re-summed on every visit.</summary>
     public void Request(string directory, IEnumerable<string> children)
     {
         DropQueued();
@@ -51,8 +32,6 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
 
         foreach (var child in children.Take(Burst))
         {
-            // A listing that arrives while a previous one is still queued replaces it: only the
-            // folder on screen is worth measuring.
             var key = Path.Combine(directory, child);
             if (!_queued.TryAdd(key, true))
                 continue;
@@ -83,17 +62,13 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
 
             WindowManager.Instance.RunOnMainWindow(() =>
                 WindowManager.Instance.Notify("fs.sizes",
-                    new FsSizesPayload(item.Parent, new()
-                    {
-                        [item.Child] = bytes
-                    })));
+                    new FsSizesPayload(item.Parent, new Dictionary<string, long> { [item.Child] = bytes })));
         }
     }
 
     /// <summary>
-    ///     Size of one folder: its own files plus its children's sizes. A child's number comes from
-    ///     the cache the child keeps when it was measured before; otherwise it is measured here while
-    ///     <paramref name="depth" /> lasts, so the first visit stops instead of scanning everything.
+    ///     Size of one folder: its own files plus its children. -1 means the walk was superseded by a
+    ///     newer listing; a folder that cannot be read is simply skipped by its parent.
     /// </summary>
     private long Measure(string path, int generation, int depth) =>
         Try.Run(() =>
@@ -108,8 +83,12 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
 
             // The folder index lives inside the folder and is not part of its contents.
             foreach (var file in directory.EnumerateFiles("*", TopLevel))
-                if (!DirectoryIndex.IsIndexFile(file.Name))
-                    total += file.Length;
+            {
+                if (DirectoryIndex.IsIndexFile(file.Name))
+                    continue;
+
+                total += Try.Run(() => file.Length).GetOrElse(_ => 0L);
+            }
 
             if (depth > 0)
                 foreach (var child in directory.EnumerateDirectories("*", TopLevel))
@@ -120,29 +99,38 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
                     {
                         size = Measure(child.FullName, generation, depth - 1);
 
-                        // A superseded or failed walk must not leave a half-counted total behind.
+                        // Only a superseded walk aborts; an unreadable child counts as zero.
                         if (size < 0)
-                            return -1;
+                        {
+                            if (_generation != generation)
+                                return -1;
 
-                        measured[child.Name] = size;
+                            size = 0;
+                        }
+
+                        if (size > 0)
+                            measured[child.Name] = size;
                     }
 
                     total += size;
                 }
 
-            // One transaction per folder instead of one connection per child.
             DirectoryIndex.SetSizes(path, measured);
 
             return total;
-        }).GetOrElse(ex =>
-        {
-            Log.Debug(ex, "Could not measure {Path}", path);
-            return -1;
-        });
+        }).GetOrElse(_ => 0L);
 
     private void DropQueued()
     {
         while (_queue.TryDequeue(out var item))
             _queued.TryRemove(Path.Combine(item.Parent, item.Child), out _);
     }
+
+    private static readonly EnumerationOptions TopLevel = new()
+    {
+        IgnoreInaccessible = true,
+        RecurseSubdirectories = false,
+        // Junctions and symlinks would either double count or loop forever.
+        AttributesToSkip = FileAttributes.ReparsePoint
+    };
 }
