@@ -1,18 +1,12 @@
+import {useEffect, useState} from "react";
 import styled from "styled-components";
-import {wantsNewTab} from "../shortcuts";
-import type {Drive, Place, RecentEntry} from "../api/files";
+import {listDirectory, type DirectoryListing, type Drive, type Place, type RecentEntry} from "../api/files";
+import {getSettings} from "../api/settings";
 import type {TabKind} from "../tabs";
-import {
-    ClockIcon,
-    DriveIcon,
-    FolderIcon,
-    GearIcon,
-    HomeIcon,
-    ImageIcon,
-    OverviewIcon,
-    TrashIcon,
-} from "./Icons";
+import {buildPanels, PanelGlyph, type Panel} from "../panels";
+import {DriveIcon, FolderIcon, GearIcon, ImageIcon, OverviewIcon, TrashIcon} from "./Icons";
 import {formatBytes, usageTone} from "../utils/format";
+import {wantsNewTab} from "../shortcuts";
 
 interface SidebarProps {
     places: Place[];
@@ -21,13 +15,16 @@ interface SidebarProps {
     recentLimit: number;
     currentPath: string;
     activeKind: TabKind;
+    homePath?: string;
+    /** Bumped whenever the overview layout changes, so pinned panels follow along. */
+    version?: number;
     onNavigate: (path: string, newTab?: boolean) => void;
     onOpenView: (kind: Exclude<TabKind, "files">) => void;
 }
 
 /**
- * Two levels of collapsing. The rail folds to a strip of icons when the pointer leaves it, and the
- * lists (places, recent folders, drives) open in place under their button on hover and push the\n * rest of the rail down.
+ * A rail that folds to icons and expands under the pointer. Below the fixed pages it shows the
+ * overview panels that were pinned there, each opening in place and pushing the rest down.
  */
 export function Sidebar({
     places,
@@ -36,53 +33,47 @@ export function Sidebar({
     recentLimit,
     currentPath,
     activeKind,
+    homePath = "",
+    version = 0,
     onNavigate,
     onOpenView,
 }: SidebarProps) {
+    const [pinned, setPinned] = useState<Panel[]>([]);
+
+    useEffect(() => {
+        void getSettings().then((settings) => {
+            setPinned(buildPanels(settings).filter((panel) => panel.pinned));
+        }, () => setPinned([]));
+    }, [version]);
+
     const showFiles = activeKind === "files";
-    const hasRecent = recentLimit > 0 && recent.length > 0;
 
     return (
         <Aside>
             <List>
-                <Item
-                    $active={activeKind === "home"}
-                    onClick={() => onOpenView("home")}
-                    title="Overview"
-                    type="button"
-                >
+                <Item $active={activeKind === "home"} onClick={() => onOpenView("home")} title="Overview" type="button">
                     <OverviewIcon/>
                     <Label>Overview</Label>
                 </Item>
-                <Item
-                    $active={activeKind === "recycle"}
-                    onClick={() => onOpenView("recycle")}
-                    title="Recycle Bin"
-                    type="button"
-                >
+                <Item $active={activeKind === "recycle"} onClick={() => onOpenView("recycle")} title="Recycle Bin" type="button">
                     <TrashIcon/>
                     <Label>Recycle Bin</Label>
                 </Item>
-                <Item
-                    $active={activeKind === "gallery"}
-                    onClick={() => onOpenView("gallery")}
-                    title="Gallery"
-                    type="button"
-                >
+                <Item $active={activeKind === "gallery"} onClick={() => onOpenView("gallery")} title="Gallery" type="button">
                     <ImageIcon/>
                     <Label>Gallery</Label>
                 </Item>
             </List>
 
-            <List>
-                <Menu>
+            {pinned.map((panel) => (
+                <Menu key={panel.id}>
                     <Item as="div" $active={false}>
-                        <FolderIcon/>
-                        <Label>Places</Label>
+                        <Glyph><PanelGlyph panel={panel} size={16}/></Glyph>
+                        <Label>{panel.title}</Label>
                     </Item>
                     <Sub>
                         <Inner>
-                            {places.map((place) => (
+                            {panel.kind === "quick" && places.map((place) => (
                                 <Item
                                     key={place.path}
                                     $active={showFiles && isSamePath(currentPath, place.path)}
@@ -90,47 +81,25 @@ export function Sidebar({
                                     title={place.path}
                                     type="button"
                                 >
-                                    {place.kind === "home" ? <HomeIcon/> : <FolderIcon/>}
+                                    <FolderIcon/>
                                     <Label>{place.name}</Label>
                                 </Item>
                             ))}
-                        </Inner>
-                    </Sub>
-                </Menu>
 
-                {hasRecent && (
-                    <Menu>
-                        <Item as="div" $active={false}>
-                            <ClockIcon/>
-                            <Label>Recent</Label>
-                        </Item>
-                        <Sub>
-                            <Inner>
-                                {recent.slice(0, recentLimit).map((entry) => (
-                                    <Item
-                                        key={entry.path}
-                                        $active={showFiles && isSamePath(currentPath, entry.path)}
-                                        onClick={(event) => onNavigate(entry.path, wantsNewTab(event))}
-                                        title={entry.path}
-                                        type="button"
-                                    >
-                                        <FolderIcon/>
-                                        <Label>{entry.name}</Label>
-                                    </Item>
-                                ))}
-                            </Inner>
-                        </Sub>
-                    </Menu>
-                )}
+                            {panel.kind === "recent" && recent.slice(0, Math.max(recentLimit, 1)).map((entry) => (
+                                <Item
+                                    key={entry.path}
+                                    $active={showFiles && isSamePath(currentPath, entry.path)}
+                                    onClick={(event) => onNavigate(entry.path, wantsNewTab(event))}
+                                    title={entry.path}
+                                    type="button"
+                                >
+                                    <FolderIcon/>
+                                    <Label>{entry.name}</Label>
+                                </Item>
+                            ))}
 
-                <Menu>
-                    <Item as="div" $active={false}>
-                        <DriveIcon/>
-                        <Label>Drives</Label>
-                    </Item>
-                    <Sub>
-                        <Inner>
-                            {drives.map((drive) => {
+                            {panel.kind === "drives" && drives.map((drive) => {
                                 const used = drive.totalSize > 0 ? 1 - drive.freeSpace / drive.totalSize : 0;
 
                                 return (
@@ -138,38 +107,66 @@ export function Sidebar({
                                         key={drive.name}
                                         $active={showFiles && isSamePath(currentPath, drive.name)}
                                         onClick={(event) => onNavigate(drive.name, wantsNewTab(event))}
-                                        title={`${drive.label || drive.name} · ${formatBytes(drive.freeSpace)} free of ${formatBytes(drive.totalSize)}`}
+                                        title={drive.name}
                                         type="button"
                                     >
                                         <DriveIcon/>
                                         <Label>
                                             {drive.label || drive.name}
-                                            <Hint>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</Hint>
-                                            <Bar>
-                                                <Fill $used={used} $tone={usageTone(used)}/>
-                                            </Bar>
+                                            <Hint>{formatBytes(drive.freeSpace)} free</Hint>
+                                            <Bar><Fill $used={used} $tone={usageTone(used)}/></Bar>
                                         </Label>
                                     </Item>
                                 );
                             })}
+
+                            {(panel.kind === "home" || panel.kind === "folder") && (
+                                <FolderItems
+                                    onNavigate={onNavigate}
+                                    path={panel.path || homePath}
+                                />
+                            )}
                         </Inner>
                     </Sub>
                 </Menu>
-            </List>
+            ))}
 
             <Bottom>
-                <Item
-                    $active={activeKind === "settings"}
-                    onClick={() => onOpenView("settings")}
-                    title="Settings"
-                    type="button"
-                >
+                <Item $active={activeKind === "settings"} onClick={() => onOpenView("settings")} title="Settings" type="button">
                     <GearIcon/>
                     <Label>Settings</Label>
                 </Item>
             </Bottom>
         </Aside>
     );
+}
+
+/** The subfolders of a pinned folder panel, loaded when the section is on screen. */
+function FolderItems({path, onNavigate}: { path: string; onNavigate: (path: string, newTab?: boolean) => void }) {
+    const [listing, setListing] = useState<DirectoryListing | null>(null);
+
+    useEffect(() => {
+        if (!path) return;
+
+        setListing(null);
+        listDirectory(path).then(setListing, () => setListing(null));
+    }, [path]);
+
+    return (listing?.entries ?? [])
+        .filter((entry) => entry.isDirectory)
+        .slice(0, 40)
+        .map((entry) => (
+            <Item
+                key={entry.fullPath}
+                $active={false}
+                onClick={(event) => onNavigate(entry.fullPath, wantsNewTab(event))}
+                title={entry.fullPath}
+                type="button"
+            >
+                <FolderIcon/>
+                <Label>{entry.name}</Label>
+            </Item>
+        ));
 }
 
 /** Comparing paths is enough here: the backend always answers with canonical full paths. */
@@ -195,17 +192,16 @@ const Aside = styled.aside`
     border-right: 1px solid var(--border-color);
     transition: width 150ms ease, padding 150ms ease, box-shadow 150ms ease;
 
+    &::-webkit-scrollbar {
+        display: none;
+    }
+
     &:hover {
         width: 224px;
         padding: 10px 10px;
         box-shadow: 14px 0 34px rgba(0, 0, 0, 0.45);
-        /* The open lists can outgrow the window; the rail scrolls instead of clipping them. */
         overflow-y: auto;
         scrollbar-width: none;
-    }
-
-    &:hover::-webkit-scrollbar {
-        width: 0;
     }
 
     &:not(:hover) ${() => Hint},
@@ -229,7 +225,6 @@ const Bottom = styled(List)`
     margin-top: auto;
 `;
 
-/** A button whose list opens in place, pushing everything below it down. */
 const Menu = styled.div`
     display: flex;
     flex-direction: column;
@@ -241,9 +236,7 @@ const Sub = styled.div`
     overflow: hidden;
     transition: grid-template-rows 150ms ease;
 
-    /* Only while the whole rail is open: collapsing the rail collapses every list with it. */
-    ${Aside}:hover ${Menu}:hover > &,
-    ${Aside}:hover ${Menu}:focus-within > & {
+    ${Aside}:hover ${Menu}:hover > & {
         grid-template-rows: 1fr;
     }
 `;
@@ -253,7 +246,7 @@ const Inner = styled.div`
     flex-direction: column;
     gap: 1px;
     min-height: 0;
-    max-height: 42vh;
+    max-height: 40vh;
     padding-left: 10px;
     overflow-y: auto;
     scrollbar-width: none;
@@ -277,7 +270,6 @@ const Item = styled.button<{ $active: boolean }>`
     font-size: 12.5px;
     text-align: left;
     cursor: pointer;
-    transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 
     svg {
         flex-shrink: 0;
@@ -293,6 +285,20 @@ const Item = styled.button<{ $active: boolean }>`
     &:focus-visible {
         outline: 2px solid var(--border-color-focus);
         outline-offset: 1px;
+    }
+`;
+
+const Glyph = styled.span`
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+
+    img {
+        width: 16px;
+        height: 16px;
+        object-fit: contain;
     }
 `;
 

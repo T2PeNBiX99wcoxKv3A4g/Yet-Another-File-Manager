@@ -146,6 +146,7 @@ export default function App() {
     const [recent, setRecent] = useState<RecentEntry[]>([]);
     const [recentLimit, setRecentLimit] = useState(10);
     const [shortcuts, setShortcuts] = useState<ShortcutMap>(DefaultShortcuts);
+    const [settingsVersion, setSettingsVersion] = useState(0);
 
     const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
     const kind = kindOf(active);
@@ -285,6 +286,7 @@ export default function App() {
             const keys = {...DefaultShortcuts, ...settings.shortcuts};
             setShortcuts(keys);
             setClickModifier(keys.openInNewTab);
+            setSettingsVersion((current) => current + 1);
         }, () => setRecentLimit(10));
     }, []);
 
@@ -450,9 +452,11 @@ export default function App() {
                     drives={drives}
                     onNavigate={(path) => navigate(path)}
                     onOpenView={openView}
+                    homePath={places.find((place) => place.kind === "home")?.path ?? ""}
                     places={places}
                     recent={recent}
                     recentLimit={recentLimit}
+                    version={settingsVersion}
                 />
 
                 <Main>
@@ -509,7 +513,7 @@ export default function App() {
                             drives={drives}
                             homePath={places.find((place) => place.kind === "home")?.path ?? ""}
                             onOpen={navigate}
-                            onPlacesChanged={setPlaces}
+                            onLayoutChanged={reloadSettings}
                             onRecentCleared={reloadRecent}
                             places={places}
                             recent={recent}
