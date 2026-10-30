@@ -22,8 +22,10 @@ import {
     CrossIcon,
     DriveIcon,
     FolderIcon,
+    GridIcon,
     HomeIcon,
     ImageIcon,
+    ListIcon,
     PencilIcon,
     PlusIcon,
     TextIcon,
@@ -455,19 +457,21 @@ export function OverviewView({
                                             <>
                                                 <ViewToggle
                                                     $active={panel.view === "list"}
+                                                    aria-label="Show as a list"
                                                     onClick={() => setView(panel.id, "list")}
                                                     title="List"
                                                     type="button"
                                                 >
-                                                    List
+                                                    <ListIcon size={13}/>
                                                 </ViewToggle>
                                                 <ViewToggle
                                                     $active={panel.view === "grid"}
+                                                    aria-label="Show as a grid"
                                                     onClick={() => setView(panel.id, "grid")}
                                                     title="Grid"
                                                     type="button"
                                                 >
-                                                    Grid
+                                                    <GridIcon size={13}/>
                                                 </ViewToggle>
 
                                                 <MoveButton
@@ -735,14 +739,21 @@ const GhostButton = styled.button`
 `;
 
 const ViewToggle = styled.button<{ $active: boolean }>`
-    padding: 2px 7px;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
     border: 1px solid ${({$active}) => $active ? "var(--border-color-focus)" : "var(--border-color)"};
-    border-radius: var(--radius-sm);
+    border-radius: 5px;
     background: ${({$active}) => $active ? "rgba(99, 102, 241, 0.2)" : "var(--bg-input)"};
     color: ${({$active}) => $active ? "var(--text-primary)" : "var(--text-muted)"};
-    font: inherit;
-    font-size: 10px;
     cursor: pointer;
+
+    &:hover {
+        color: var(--text-primary);
+        border-color: var(--border-color-hover);
+    }
 `;
 
 const MoveButton = styled.button<{ $down?: boolean }>`

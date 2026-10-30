@@ -122,6 +122,26 @@ export function GearIcon({size = 18}: IconProps) {
     );
 }
 
+export function ListIcon({size = 14}: IconProps) {
+    return (
+        <svg {...base(size)}>
+            <path d="M8.5 6h11M8.5 12h11M8.5 18h11"/>
+            <path d="M4 6h.01M4 12h.01M4 18h.01"/>
+        </svg>
+    );
+}
+
+export function GridIcon({size = 14}: IconProps) {
+    return (
+        <svg {...base(size)}>
+            <rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/>
+            <rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/>
+            <rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/>
+            <rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>
+        </svg>
+    );
+}
+
 export function ClockIcon({size = 18}: IconProps) {
     return (
         <svg {...base(size)}>
