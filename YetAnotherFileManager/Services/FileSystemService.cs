@@ -51,6 +51,12 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
             "app.places.set" => Task.FromResult<NativeResponse?>(context.Reply("app.places.set.result",
                 new FsPlacesPayload(SetPlaces(context.Payload<PlacesRequest>()?.Paths)))),
 
+            "app.places.rename" => Task.FromResult<NativeResponse?>(context.Reply("app.places.set.result",
+                new FsPlacesPayload(RenamePlace(context.Payload<PlaceRenameRequest>())))),
+
+            "fs.watch" => Task.FromResult<NativeResponse?>(context.Reply("fs.watch.result",
+                new OkPayload(Watch(context.Payload<FsListRequest>()?.Path)))),
+
             "fs.icon" => Task.FromResult<NativeResponse?>(context.Reply("fs.icon.result",
                 new IconPayload(Icon(context.Payload<IconRequest>())))),
 
@@ -233,6 +239,32 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
         SettingsService.Instance.Update(settings => settings with { QuickAccess = paths });
 
         return GetPlaces();
+    }
+
+    /// <summary>Renames one pinned folder; an empty name goes back to the folder's own name.</summary>
+    private static List<PlaceEntry> RenamePlace(PlaceRenameRequest? request)
+    {
+        if (request is not { Path.Length: > 0 })
+            return GetPlaces();
+
+        var names = new Dictionary<string, string>(
+            SettingsService.Instance.Current.PlaceNameOverrides, StringComparer.OrdinalIgnoreCase);
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+            names.Remove(request.Path);
+        else
+            names[request.Path] = request.Name.Trim();
+
+        SettingsService.Instance.Update(settings => settings with { PlaceNames = names });
+
+        return GetPlaces();
+    }
+
+    /// <summary>Points the folder watcher at the tab that is on screen.</summary>
+    private static bool Watch(string? path)
+    {
+        DirectoryWatcher.Instance.Watch(path);
+        return true;
     }
 
     private static bool EmptyRecycleBin(bool includeOrphans)
@@ -420,6 +452,12 @@ internal sealed class FileSystemService : Singleton<FileSystemService>
     private static PlaceEntry ToPlace(string path, string home)
     {
         var isHome = string.Equals(path.TrimEnd('\\', '/'), home.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase);
+
+        // The user can rename a pinned folder; the path stays the key.
+        if (SettingsService.Instance.Current.PlaceNameOverrides.TryGetValue(path, out var custom)
+            && !string.IsNullOrWhiteSpace(custom))
+            return new PlaceEntry(custom.Trim(), path, isHome ? "home" : "folder");
+
         var name = isHome
             ? "Home"
             : Try.Run(() => new DirectoryInfo(path).Name).GetOrElse(_ => path);

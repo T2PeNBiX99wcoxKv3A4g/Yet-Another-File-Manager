@@ -77,6 +77,12 @@ internal sealed record FsRecentPayload(IReadOnlyList<RecentEntry> Entries);
 /// <summary>Payload for <c>app.places.set</c>: the folders to pin, in order.</summary>
 internal sealed record PlacesRequest(List<string> Paths);
 
+/// <summary>Payload for <c>app.places.rename</c>: which pinned folder, and its new name.</summary>
+internal sealed record PlaceRenameRequest(string Path, string? Name);
+
+/// <summary>Body for the <c>fs.changed</c> event: the folder whose contents changed.</summary>
+internal sealed record FsChangedPayload(string Path);
+
 /// <summary>Body for <c>app.memory</c>: what this process is using, in bytes.</summary>
 internal sealed record MemoryPayload(long Managed, long Private, long WorkingSet, long Available);
 

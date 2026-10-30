@@ -3,6 +3,7 @@ import styled from "styled-components";
 import {
     clearRecent,
     listDirectory,
+    renamePlace,
     setPlaces,
     type DirectoryListing,
     type Drive,
@@ -52,6 +53,8 @@ export function OverviewView({
     onRecentCleared,
 }: OverviewViewProps) {
     const [editing, setEditing] = useState(false);
+    const [renaming, setRenaming] = useState<string | null>(null);
+    const [draft, setDraft] = useState("");
     const [home, setHome] = useState<DirectoryListing | null>(null);
     const [settings, setSettings] = useState<AppSettings | null>(null);
 
@@ -96,6 +99,13 @@ export function OverviewView({
         onPlacesChanged(await setPlaces(paths));
     };
 
+    /** Renames a pinned folder; an empty name goes back to the folder name. */
+    const commitRename = async (path: string) => {
+        const name = draft.trim();
+        setRenaming(null);
+        onPlacesChanged(await renamePlace(path, name.length > 0 ? name : null));
+    };
+
     const addPlace = async () => {
         const folder = await pickFolder();
 
@@ -119,27 +129,54 @@ export function OverviewView({
                                     $editing={editing}
                                     onClick={() => !editing && onOpen(place.path)}
                                     title={place.path}
-                                    type="button"
                                 >
                                     {editing && (
-                                        <RemoveButton
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                void savePlaces(places.filter((item) => item.path !== place.path)
-                                                    .map((item) => item.path));
-                                            }}
-                                            title="Remove from Quick access"
-                                            type="button"
-                                        >
-                                            <CrossIcon size={11}/>
-                                        </RemoveButton>
+                                        <>
+                                            <RenameButton
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    setDraft(place.name);
+                                                    setRenaming(place.path);
+                                                }}
+                                                title="Rename in Quick access"
+                                                type="button"
+                                            >
+                                                <PencilIcon size={11}/>
+                                            </RenameButton>
+
+                                            <RemoveButton
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    void savePlaces(places.filter((item) => item.path !== place.path)
+                                                        .map((item) => item.path));
+                                                }}
+                                                title="Remove from Quick access"
+                                                type="button"
+                                            >
+                                                <CrossIcon size={11}/>
+                                            </RemoveButton>
+                                        </>
                                     )}
 
                                     <CardIcon>
                                         {place.kind === "home" ? <HomeIcon size={20}/> : <FolderIcon size={20}/>}
                                     </CardIcon>
                                     <CardText>
-                                        <strong>{place.name}</strong>
+                                        {renaming === place.path
+                                            ? (
+                                                <Name
+                                                    autoFocus
+                                                    onBlur={() => void commitRename(place.path)}
+                                                    onChange={(event) => setDraft(event.target.value)}
+                                                    onClick={(event) => event.stopPropagation()}
+                                                    onKeyDown={(event) => {
+                                                        if (event.key === "Enter") void commitRename(place.path);
+                                                        if (event.key === "Escape") setRenaming(null);
+                                                    }}
+                                                    value={draft}
+                                                />
+                                            )
+                                            : <strong>{place.name}</strong>}
                                         <span>{place.path}</span>
                                     </CardText>
                                 </Card>
@@ -461,7 +498,7 @@ const Places = styled.div`
     gap: 10px;
 `;
 
-const Card = styled.button<{ $editing: boolean }>`
+const Card = styled.div<{ $editing: boolean }>`
     position: relative;
     display: flex;
     align-items: center;
@@ -506,6 +543,41 @@ const RemoveButton = styled.button`
         background: rgba(248, 113, 113, 0.25);
         color: #fca5a5;
     }
+`;
+
+const RenameButton = styled.button`
+    position: absolute;
+    top: 5px;
+    right: 27px;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border: 0;
+    border-radius: 5px;
+    background: rgba(148, 163, 184, 0.18);
+    color: var(--text-secondary);
+    cursor: pointer;
+
+    &:hover {
+        background: rgba(99, 102, 241, 0.28);
+        color: #c7d2fe;
+    }
+`;
+
+/** The name turns into this while it is being renamed. */
+const Name = styled.input`
+    width: 100%;
+    min-width: 0;
+    padding: 1px 4px;
+    border: 1px solid var(--border-color-focus);
+    border-radius: 4px;
+    outline: 0;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
 `;
 
 const AddCard = styled.button`

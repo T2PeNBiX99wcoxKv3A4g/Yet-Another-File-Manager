@@ -16,9 +16,10 @@ public sealed record AppSettings(
     List<string>? GalleryRoots,
     List<string>? OverviewPanels,
     List<string>? OverviewHidden,
-    int? OverviewColumns)
+    int? OverviewColumns,
+    Dictionary<string, string>? PlaceNames)
 {
-    public static AppSettings Default => new(true, true, true, [], null, 10, null, null, null, 1);
+    public static AppSettings Default => new(true, true, true, [], null, 10, null, null, null, 1, null);
 
     // The accessors below are derived, so they are kept out of settings.json entirely; only the
     // fields above are stored, and the JSON stays readable and stable.
@@ -62,4 +63,8 @@ public sealed record AppSettings(
     /// <summary>How many columns the overview uses; 1 to 3.</summary>
     [JsonIgnore]
     public int PanelColumns => Math.Clamp(OverviewColumns ?? 1, 1, 3);
+
+    /// <summary>Names the user gave to quick-access folders, by path.</summary>
+    [JsonIgnore]
+    public Dictionary<string, string> PlaceNameOverrides => PlaceNames ?? [];
 }

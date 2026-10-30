@@ -13,13 +13,7 @@ import {
 import {getSettings} from "./api/settings";
 import {getAppInfo, type AppInfo} from "./api/system";
 import {FileList} from "./components/FileList";
-import {
-    ArrowLeftIcon,
-    ArrowRightIcon,
-    ArrowUpIcon,
-    RefreshIcon,
-    SearchIcon,
-} from "./components/Icons";
+import {ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, SearchIcon} from "./components/Icons";
 import {OverviewView} from "./components/OverviewView";
 import {PathBar} from "./components/PathBar";
 import {RecycleView} from "./components/RecycleView";
@@ -119,9 +113,15 @@ function message(cause: unknown): string {
     return cause instanceof Error ? cause.message : String(cause);
 }
 
+/** Paths from the host and from the interface differ only in separators and trailing slashes. */
+function samePath(left: string, right: string): boolean {
+    const normalize = (value: string) => value.replace(/[\\/]+/g, "\\").replace(/\\$/, "").toLowerCase();
+
+    return normalize(left) === normalize(right);
+}
+
 /** What the folder adds up to: files right away, folders once their size has been measured. */
-function statusLine(listing: DirectoryListing): string {
-    const total = listing.entries.reduce((sum, entry) => sum + (entry.isDirectory
+function statusLine(listing: DirectoryListing): string {    const total = listing.entries.reduce((sum, entry) => sum + (entry.isDirectory
         ? listing.folderSizes[entry.name] ?? 0
         : Math.max(entry.size, 0)), 0);
 
@@ -331,6 +331,31 @@ export default function App() {
         });
     }, []);
 
+    // Only the folder on screen is watched; the host tells us when something in it changes.
+    useEffect(() => {
+        if (!Native.available) return;
+
+        Native.send({type: "fs.watch", payload: {path: kind === "files" ? location : null}});
+    }, [kind, location]);
+
+    // A change in the folder that is on screen refreshes it in place, without a spinner or a click.
+    useEffect(() => {
+        if (!Native.available) return;
+
+        return Native.on((evt) => {
+            const event = evt as { type?: string; data?: { path?: string } };
+            if (event.type !== "fs.changed" || typeof event.data?.path !== "string") return;
+
+            const {tabs, activeId} = stateRef.current;
+            const tab = tabs.find((item) => item.id === activeId);
+
+            if (!tab || kindOf(tab) !== "files" || !samePath(folderOf(tab), event.data.path)) return;
+
+            void listDirectory(event.data.path)
+                .then((listing) => patch(tab.id, () => ({listing})), () => undefined);
+        });
+    }, [patch]);
+
     const canBack = active.index > 0;
     const canForward = active.index < active.history.length - 1;
 
@@ -340,11 +365,6 @@ export default function App() {
 
     const goForward = () => {
         if (canForward) void goTo(active.id, active.history[active.index + 1], active.index + 1);
-    };
-
-    const refresh = () => {
-        if (kindOf(active) === "files")
-            void goTo(active.id, location, active.index);
     };
 
     return (
@@ -400,11 +420,12 @@ export default function App() {
                             <ArrowUpIcon/>
                         </IconButton>
 
-                        <IconButton disabled={kind !== "files"} onClick={refresh} title="Refresh" type="button">
-                            <Spin $spinning={active.loading}><RefreshIcon/></Spin>
-                        </IconButton>
-
-                        <PathBar onNavigate={navigate} path={kind === "files" ? folderOf(active) : location}/>
+                        <PathBar
+                            label={kind === "files" ? undefined : viewTitles[kind]}
+                            onNavigate={navigate}
+                            path={kind === "files" ? folderOf(active) : location}
+                            places={places}
+                        />
 
                         {kind === "files" && (
                             <Search>
@@ -528,18 +549,6 @@ const IconButton = styled.button`
     &:focus-visible {
         outline: 2px solid var(--border-color-focus);
         outline-offset: 1px;
-    }
-`;
-
-const Spin = styled.span<{ $spinning: boolean }>`
-    display: grid;
-    place-items: center;
-    animation: ${({$spinning}) => $spinning ? "yafm-spin 900ms linear infinite" : "none"};
-
-    @keyframes yafm-spin {
-        to {
-            transform: rotate(360deg);
-        }
     }
 `;
 

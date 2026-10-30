@@ -1,17 +1,22 @@
 import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
 import {CheckIcon, ChevronRightIcon, CrossIcon} from "./Icons";
+import type {Place} from "../api/files";
 
 interface PathBarProps {
     path: string;
+    /** Shown instead of the path when the tab is on a built-in page, e.g. "Overview". */
+    label?: string;
+    places: Place[];
     onNavigate: (path: string) => void;
 }
 
 /**
  * Breadcrumbs that turn into a text box when clicked. The separators are the same on every
  * platform and the text box always uses forward slashes, which every supported OS accepts.
+ * A folder that is pinned to Quick access shows the name it was given there.
  */
-export function PathBar({path, onNavigate}: PathBarProps) {
+export function PathBar({path, label, places, onNavigate}: PathBarProps) {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState("");
     const input = useRef<HTMLInputElement | null>(null);
@@ -22,6 +27,15 @@ export function PathBar({path, onNavigate}: PathBarProps) {
 
     useEffect(() => {
         if (editing) input.current?.select();
+    }, [editing]);
+
+    // Anything that takes the focus away (a click on the file list, another tab) abandons the edit.
+    useEffect(() => {
+        if (!editing) return;
+
+        const cancel = () => setEditing(false);
+        window.addEventListener("pointerdown", cancel);
+        return () => window.removeEventListener("pointerdown", cancel);
     }, [editing]);
 
     const start = () => {
@@ -37,7 +51,7 @@ export function PathBar({path, onNavigate}: PathBarProps) {
 
     if (editing)
         return (
-            <Editor>
+            <Editor onPointerDown={(event) => event.stopPropagation()}>
                 <input
                     onChange={(event) => setDraft(event.target.value)}
                     onKeyDown={(event) => {
@@ -48,18 +62,24 @@ export function PathBar({path, onNavigate}: PathBarProps) {
                     spellCheck={false}
                     value={draft}
                 />
-                <EditorButton onClick={() => setDraft("")} title="Clear" type="button">
+                <EditorButton onClick={() => setEditing(false)} title="Cancel" type="button">
                     <CrossIcon size={12}/>
                 </EditorButton>
-                <EditorButton $apply onClick={commit} title="Open this path" type="button">
+                <EditorButton
+                    $apply
+                    onClick={commit}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    title="Open this path"
+                    type="button"
+                >
                     <CheckIcon size={14}/>
                 </EditorButton>
             </Editor>
         );
 
-    const crumbs = path.toLowerCase().startsWith("yafm://")
-        ? [{label: path, path}]
-        : breadcrumbs(path);
+    const crumbs = label
+        ? [{label, path}]
+        : crumbsFor(path, places);
 
     return (
         <Trail onClick={start} title="Click to type a path">
@@ -97,6 +117,33 @@ function breadcrumbs(path: string): { label: string; path: string }[] {
 
         crumbs.push({label: part, path: current});
     });
+
+    return crumbs;
+}
+
+/**
+ * Breadcrumbs with the longest pinned folder folded into its Quick access name, so "Documents"
+ * replaces "C: / Users / me / Documents" — the full path only appears while editing.
+ */
+function crumbsFor(path: string, places: Place[]): { label: string; path: string }[] {
+    const crumbs = breadcrumbs(path);
+    const normalize = (value: string) => value.replace(/[\\/]+$/, "").toLowerCase();
+
+    let deepest = -1;
+    let match: Place | null = null;
+
+    // The longest match wins: a pinned "Documents" beats the pinned home folder above it.
+    for (const place of places) {
+        const index = crumbs.findIndex((crumb) => normalize(crumb.path) === normalize(place.path));
+
+        if (index > deepest) {
+            deepest = index;
+            match = place;
+        }
+    }
+
+    if (match && deepest >= 0)
+        crumbs.splice(0, deepest + 1, {label: match.name, path: match.path});
 
     return crumbs;
 }
