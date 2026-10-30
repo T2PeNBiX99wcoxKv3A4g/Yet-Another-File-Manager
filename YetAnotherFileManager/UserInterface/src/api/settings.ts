@@ -32,6 +32,8 @@ export interface AppSettings {
     overviewPinned: string[] | null;
     /** Keep yafm:// registered for this user; the host re-applies it at every launch. */
     linksEnabled: boolean | null;
+    /** Folders shown by a Quick access panel, by panel id. The factory "quick" panel uses quickAccess. */
+    panelPlaces: Record<string, string[]> | null;
 }
 
 const fallback: AppSettings = {
@@ -52,6 +54,7 @@ const fallback: AppSettings = {
     overviewIcons: null,
     overviewPinned: null,
     linksEnabled: null,
+    panelPlaces: null,
 };
 
 /** The interface settings, persisted by the host. */
@@ -78,6 +81,7 @@ export async function getSettings(): Promise<AppSettings> {
         overviewIcons: raw?.overviewIcons ?? null,
         overviewPinned: raw?.overviewPinned ?? null,
         linksEnabled: raw?.linksEnabled ?? null,
+        panelPlaces: raw?.panelPlaces ?? null,
     };
 }
 
@@ -105,6 +109,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         overviewIcons: saved?.overviewIcons ?? settings.overviewIcons,
         overviewPinned: saved?.overviewPinned ?? settings.overviewPinned,
         linksEnabled: saved?.linksEnabled ?? settings.linksEnabled,
+        panelPlaces: saved?.panelPlaces ?? settings.panelPlaces,
     };
 }
 

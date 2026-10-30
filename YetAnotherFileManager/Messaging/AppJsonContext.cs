@@ -63,6 +63,7 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(PathPayload))]
 [JsonSerializable(typeof(Dictionary<string, long>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
+[JsonSerializable(typeof(Dictionary<string, List<string>>))]
 [JsonSerializable(typeof(List<string>))]
 [JsonSerializable(typeof(AppSettings))]
 [JsonSerializable(typeof(NavigatePayload))]

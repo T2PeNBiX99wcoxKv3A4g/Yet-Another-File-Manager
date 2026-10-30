@@ -14,10 +14,10 @@ import {
 import {getSettings, pickFolder, pickIconFile, saveSettings, type AppSettings} from "../api/settings";
 import {Native} from "@photino-net-utils/bridge";
 import {FileList} from "./FileList";
-import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, PencilIcon, PlusIcon} from "./Icons";
+import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, GridIcon, ListIcon, PencilIcon, PinIcon, PlusIcon} from "./Icons";
 import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
-import {driveLetter, driveName, formatBytes, usageTone} from "../utils/format";
+import {baseName, driveLetter, driveName, formatBytes, usageTone} from "../utils/format";
 import {wantsNewTab} from "../shortcuts";
 import {buildPanels, PanelGlyph, PanelIcons, type Panel, type PanelKind, type ViewMode} from "../panels";
 
@@ -494,6 +494,29 @@ const IconChoice = styled.button<{ $active?: boolean }>`
     }
 `;
 
+/** Removes a folder from one Quick access panel; only shown while the overview is being edited. */
+const RemovePlaceButton = styled.button<{ $inline?: boolean }>`
+    position: ${({$inline}) => $inline ? "static" : "absolute"};
+    top: 5px;
+    right: 5px;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 5px;
+    background: rgba(148, 163, 184, 0.18);
+    color: var(--text-secondary);
+    cursor: pointer;
+
+    &:hover {
+        background: rgba(239, 68, 68, 0.25);
+        color: #fca5a5;
+    }
+`;
+
 /** The rename action sits right after the drive name, not at the far end of the row. */
 const DriveRenameButton = styled.button`
     display: inline-grid;
@@ -719,7 +742,12 @@ export function OverviewView({
     /** Deletes the panel outright; any kind can be added again from the toolbar. */
     const remove = (id: string) => {
         setIconEditor(null);
-        void save({overviewPanels: ids.filter((item) => item !== id)});
+
+        // A panel that comes back later starts empty, not with the folders it used to hold.
+        const places = {...settings?.panelPlaces};
+        delete places[id];
+
+        void save({overviewPanels: ids.filter((item) => item !== id), panelPlaces: places});
     };
 
     const setIcon = (id: string, icon: string | null) => {
@@ -745,6 +773,14 @@ export function OverviewView({
             return;
         }
 
+        // A hand-made Quick access always starts empty; "quick" is reserved for the factory panel.
+        if (kind === "quick") {
+            let suffix = 2;
+            while (ids.includes(`quick:${suffix}`)) suffix += 1;
+            await save({overviewPanels: [...ids, `quick:${suffix}`]});
+            return;
+        }
+
         // Gaps are allowed after deleting a numbered block, so the first unused id wins.
         let id: string = kind;
         for (let suffix = 2; ids.includes(id); suffix += 1)
@@ -753,13 +789,56 @@ export function OverviewView({
         await save({overviewPanels: [...ids, id]});
     };
 
-    /** Pins one more folder to Quick access, keeping the ones that are already there. */
-    const addPlace = async () => {
+    /** Pins one more folder to the chosen Quick access panel. */
+    const addPlace = async (panel: Panel) => {
         const folder = await pickFolder();
         if (!folder) return;
 
-        await save({quickAccess: [...new Set([...places.map((place) => place.path), folder])]});
-        onPlacesChanged(await listPlaces());
+        if (panel.id === "quick") {
+            await save({quickAccess: [...new Set([...places.map((place) => place.path), folder])]});
+            onPlacesChanged(await listPlaces());
+            return;
+        }
+
+        const current = panel.places ?? [];
+        if (current.some((path) => samePath(path, folder))) return;
+
+        await save({panelPlaces: {...settings?.panelPlaces, [panel.id]: [...current, folder]}});
+    };
+
+    /** Takes one folder out of the chosen Quick access panel. */
+    const removePlace = async (panel: Panel, path: string) => {
+        setIconEditor(null);
+
+        if (panel.id === "quick") {
+            await save({quickAccess: places.filter((place) => !samePath(place.path, path)).map((place) => place.path)});
+            onPlacesChanged(await listPlaces());
+            return;
+        }
+
+        await save({
+            panelPlaces: {
+                ...settings?.panelPlaces,
+                [panel.id]: (panel.places ?? []).filter((item) => !samePath(item, path))
+            }
+        });
+    };
+
+    /** The folders one Quick access panel shows: the factory panel uses the global places. */
+    const quickItems = (panel: Panel): Place[] => {
+        if (panel.id === "quick")
+            return places;
+
+        return (panel.places ?? []).map((path) => {
+            const known = places.find((place) => samePath(place.path, path));
+
+            return {
+                name: known?.name ?? (baseName(path) || path),
+                path,
+                kind: "folder",
+                icon: known?.icon ?? settings?.placeIcons?.[path] ?? null,
+            };
+        });
     };
 
     const body = (panel: Panel) => {
@@ -834,17 +913,34 @@ export function OverviewView({
             );
 
         switch (panel.kind) {
-            case "quick":
+            case "quick": {
+                const items = quickItems(panel);
+
+                if (!editing && items.length === 0)
+                    return <Empty>No folders in this Quick access panel yet.</Empty>;
+
                 return panel.view === "grid"
                     ? (
                         <Places>
-                            {places.map((place) => (
+                            {items.map((place) => (
                                 <Card
                                     key={place.path}
                                     $plain={editing}
                                     onClick={(event) => !editing && onOpen(place.path, wantsNewTab(event))}
                                     title={place.path}
                                 >
+                                    {editing && (
+                                        <RemovePlaceButton
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                void removePlace(panel, place.path);
+                                            }}
+                                            title="Remove from Quick access"
+                                            type="button"
+                                        >
+                                            <CrossIcon size={11}/>
+                                        </RemovePlaceButton>
+                                    )}
                                     <IconAnchor>
                                         {editing ? (
                                             <IconTrigger
@@ -876,7 +972,7 @@ export function OverviewView({
                             ))}
 
                             {editing && (
-                                <AddFolder onClick={() => void addPlace()} title="Pin a folder to Quick access" type="button">
+                                <AddFolder onClick={() => void addPlace(panel)} title="Pin a folder here" type="button">
                                     <Glyph><PlusIcon size={15}/></Glyph>
                                     <CardText>
                                         <strong>Add folder</strong>
@@ -888,7 +984,7 @@ export function OverviewView({
                     )
                     : (
                         <Rows>
-                            {places.map((place) => (
+                            {items.map((place) => (
                                 <Row
                                     key={place.path}
                                     onClick={(event) => !editing && onOpen(place.path, wantsNewTab(event))}
@@ -922,11 +1018,24 @@ export function OverviewView({
                                         <strong>{place.name}</strong>
                                         <Meta>{place.path}</Meta>
                                     </RowText>
+                                    {editing && (
+                                        <RemovePlaceButton
+                                            $inline
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                void removePlace(panel, place.path);
+                                            }}
+                                            title="Remove from Quick access"
+                                            type="button"
+                                        >
+                                            <CrossIcon size={11}/>
+                                        </RemovePlaceButton>
+                                    )}
                                 </Row>
                             ))}
 
                             {editing && (
-                                <AddFolder $row onClick={() => void addPlace()} title="Pin a folder to Quick access" type="button">
+                                <AddFolder $row onClick={() => void addPlace(panel)} title="Pin a folder here" type="button">
                                     <PlusIcon size={15}/>
                                     <RowText>
                                         <strong>Add folder</strong>
@@ -936,6 +1045,7 @@ export function OverviewView({
                             )}
                         </Rows>
                     );
+            }
 
             case "recent":
                 return recent.length === 0
@@ -1151,7 +1261,7 @@ export function OverviewView({
                                                     title={panel.pinned ? "Unpin from the sidebar" : "Pin to the sidebar"}
                                                     type="button"
                                                 >
-                                                    <PinMark/>
+                                                    <PinIcon size={12}/>
                                                 </IconButton>
                                                 <IconButton
                                                     $active={panel.view === "list"}
@@ -1159,11 +1269,7 @@ export function OverviewView({
                                                     title="List"
                                                     type="button"
                                                 >
-                                                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none"
-                                                         stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                                                        <path d="M8.5 6h11M8.5 12h11M8.5 18h11"/>
-                                                        <path d="M4 6h.01M4 12h.01M4 18h.01"/>
-                                                    </svg>
+                                                    <ListIcon size={13}/>
                                                 </IconButton>
                                                 <IconButton
                                                     $active={panel.view === "grid"}
@@ -1171,13 +1277,7 @@ export function OverviewView({
                                                     title="Grid"
                                                     type="button"
                                                 >
-                                                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none"
-                                                         stroke="currentColor" strokeWidth="1.8">
-                                                        <rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/>
-                                                        <rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/>
-                                                        <rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/>
-                                                        <rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>
-                                                    </svg>
+                                                    <GridIcon size={13}/>
                                                 </IconButton>
                                                 <IconButton
                                                     disabled={index === 0}
@@ -1274,6 +1374,13 @@ function IconPicker({value, onPick}: { value?: string | null; onPick: (icon: str
     );
 }
 
+/** Windows paths compare case-insensitively and ignore a trailing separator. */
+function samePath(left: string, right: string): boolean {
+    const normalize = (value: string) => value.replace(/[\\/]+$/, "").toLowerCase();
+
+    return normalize(left) === normalize(right);
+}
+
 /** One folder rendered as a panel: a table or a grid of its entries. */
 function FolderBody({path, mode, onOpen}: { path: string; mode: ViewMode; onOpen: (path: string, newTab?: boolean) => void }) {
     const [listing, setListing] = useState<DirectoryListing | null>(null);
@@ -1334,17 +1441,6 @@ function FolderBody({path, mode, onOpen}: { path: string; mode: ViewMode; onOpen
             ))}
         </Tiles>
         </Scroller>
-    );
-}
-
-/** A small pin, drawn inline so the header does not need another icon file. */
-function PinMark() {
-    return (
-        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.8"
-             strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 3h6l-1 6 3 3H7l3-3z"/>
-            <path d="M12 12v8"/>
-        </svg>
     );
 }
 

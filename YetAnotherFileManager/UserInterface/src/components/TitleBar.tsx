@@ -10,6 +10,12 @@ import {
     PlusIcon,
     TrashIcon,
 } from "./Icons";
+import ChevronLeftSmallSvg from "./icons/chevron-left-small.svg?react";
+import ChevronRightSmallSvg from "./icons/chevron-right-small.svg?react";
+import CloseSmallSvg from "./icons/close-small.svg?react";
+import MinimizeSvg from "./icons/minimize.svg?react";
+import MaximizeSvg from "./icons/maximize.svg?react";
+import RestoreSmallSvg from "./icons/restore-small.svg?react";
 
 interface TitleBarProps {
     tabs: TabInfo[];
@@ -62,7 +68,7 @@ export function TitleBar({tabs, activeId, onSelect, onClose, onNewTab, onReorder
             <Tabs>
                 {overflow.left && (
                     <ScrollButton onClick={() => scrollBy(-180)} title="Scroll tabs left" type="button">
-                        <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M6.5 2 3.5 5l3 3"/></svg>
+                        <ChevronLeftSmallSvg/>
                     </ScrollButton>
                 )}
 
@@ -106,7 +112,7 @@ export function TitleBar({tabs, activeId, onSelect, onClose, onNewTab, onReorder
                                 }}
                                 title="Close tab"
                             >
-                                <svg viewBox="0 0 10 10" aria-hidden="true"><path d="m2 2 6 6M8 2 2 8"/></svg>
+                                <CloseSmallSvg/>
                             </TabClose>
                         </Tab>
                     ))}
@@ -114,7 +120,7 @@ export function TitleBar({tabs, activeId, onSelect, onClose, onNewTab, onReorder
 
                 {overflow.right && (
                     <ScrollButton onClick={() => scrollBy(180)} title="Scroll tabs right" type="button">
-                        <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2 6.5 5l-3 3"/></svg>
+                        <ChevronRightSmallSvg/>
                     </ScrollButton>
                 )}
 
@@ -127,7 +133,7 @@ export function TitleBar({tabs, activeId, onSelect, onClose, onNewTab, onReorder
 
             <Controls>
                 <ControlButton onClick={controls.minimize} title="Minimize" type="button">
-                    <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5h6"/></svg>
+                    <MinimizeSvg/>
                 </ControlButton>
                 <ControlButton
                     onClick={controls.toggleMaximize}
@@ -135,14 +141,11 @@ export function TitleBar({tabs, activeId, onSelect, onClose, onNewTab, onReorder
                     type="button"
                 >
                     {controls.maximized
-                        ? <svg viewBox="0 0 10 10" aria-hidden="true">
-                            <rect height="6" width="6" x="3" y="1"/>
-                            <rect height="6" width="6" x="1" y="3"/>
-                        </svg>
-                        : <svg viewBox="0 0 10 10" aria-hidden="true"><rect height="6" width="6" x="2" y="2"/></svg>}
+                        ? <RestoreSmallSvg/>
+                        : <MaximizeSvg/>}
                 </ControlButton>
                 <CloseButton onClick={controls.close} title="Close" type="button">
-                    <svg viewBox="0 0 10 10" aria-hidden="true"><path d="m2 2 6 6M8 2 2 8"/></svg>
+                    <CloseSmallSvg/>
                 </CloseButton>
             </Controls>
         </Bar>

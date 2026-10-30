@@ -539,7 +539,8 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         var isHome = string.Equals(path.TrimEnd('\\', '/'), home.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase);
 
         // The user can rename a pinned folder; the path stays the key.
-        var icon = SettingsService.Instance.Current.PlaceIconOverrides.GetValueOrDefault(path);
+        var icon = SettingsService.Instance.Current.PlaceIconOverrides.GetValueOrDefault(path)
+                   ?? DefaultPlaceIcon(path, home);
 
         if (SettingsService.Instance.Current.PlaceNameOverrides.TryGetValue(path, out var custom)
             && !string.IsNullOrWhiteSpace(custom))
@@ -561,9 +562,24 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         Path.Combine(home, "Downloads"),
         Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
         Environment.GetFolderPath(Environment.SpecialFolder.MyMusic),
-        Environment.GetFolderPath(Environment.SpecialFolder.MyVideos),
-        Environment.GetEnvironmentVariable("OneDrive") ?? ""
+        Environment.GetFolderPath(Environment.SpecialFolder.MyVideos)
     ];
+
+    /// <summary>The icon a well-known folder gets before the user picks one.</summary>
+    private static string? DefaultPlaceIcon(string path, string home)
+    {
+        var Same = (string folder) =>
+            string.Equals(path.TrimEnd('\\', '/'), folder.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase);
+
+        return Same(home) ? "home"
+            : Same(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory)) ? "desktop"
+            : Same(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)) ? "documents"
+            : Same(Path.Combine(home, "Downloads")) ? "downloads"
+            : Same(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures)) ? "pictures"
+            : Same(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic)) ? "music"
+            : Same(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos)) ? "videos"
+            : null;
+    }
 
     /// <summary>The ready volumes, with their free space for the sidebar's capacity hint.</summary>
     private static List<DriveEntry> GetDrives() =>

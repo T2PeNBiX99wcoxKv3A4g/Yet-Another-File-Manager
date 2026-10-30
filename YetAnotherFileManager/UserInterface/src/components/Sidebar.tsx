@@ -1,13 +1,13 @@
 import {useEffect, useState} from "react";
 import styled from "styled-components";
 import {listDirectory, openFile, type DirectoryListing, type Drive, type FileEntry, type Place, type RecentEntry} from "../api/files";
-import {getSettings} from "../api/settings";
+import {getSettings, type AppSettings} from "../api/settings";
 import type {TabKind} from "../tabs";
 import {buildPanels, PanelGlyph, type Panel} from "../panels";
 import {DriveIcon, GearIcon, ImageIcon, OverviewIcon, TrashIcon} from "./Icons";
 import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
-import {driveName, formatBytes, usageTone} from "../utils/format";
+import {baseName, driveName, formatBytes, usageTone} from "../utils/format";
 import {wantsNewTab} from "../shortcuts";
 
 interface SidebarProps {
@@ -41,12 +41,33 @@ export function Sidebar({
     onOpenView,
 }: SidebarProps) {
     const [pinned, setPinned] = useState<Panel[]>([]);
+    const [settings, setSettings] = useState<AppSettings | null>(null);
 
     useEffect(() => {
-        void getSettings().then((settings) => {
-            setPinned(buildPanels(settings).filter((panel) => panel.pinned));
-        }, () => setPinned([]));
+        void getSettings().then((loaded) => {
+            setSettings(loaded);
+            setPinned(buildPanels(loaded).filter((panel) => panel.pinned));
+        }, () => {
+            setSettings(null);
+            setPinned([]);
+        });
     }, [version]);
+
+    const quickItems = (panel: Panel): Place[] => {
+        if (panel.id === "quick")
+            return places;
+
+        return (panel.places ?? []).map((path) => {
+            const known = places.find((place) => isSamePath(place.path, path));
+
+            return {
+                name: known?.name ?? (baseName(path) || path),
+                path,
+                kind: "folder",
+                icon: known?.icon ?? settings?.placeIcons?.[path] ?? null,
+            };
+        });
+    };
 
     const showFiles = activeKind === "files";
 
@@ -75,7 +96,7 @@ export function Sidebar({
                     </Item>
                     <Sub>
                         <Inner>
-                            {panel.kind === "quick" && places.map((place) => (
+                            {panel.kind === "quick" && quickItems(panel).map((place) => (
                                 <Item
                                     key={place.path}
                                     $active={showFiles && isSamePath(currentPath, place.path)}

@@ -12,6 +12,7 @@ import {
 import {useIcon} from "../api/icons";
 import {formatBytes, formatDate} from "../utils/format";
 import {CheckIcon, CrossIcon, FileIcon, FolderIcon, RefreshIcon, TrashIcon} from "./Icons";
+import RestoreSvg from "./icons/restore.svg?react";
 
 export function RecycleView() {
     const [entries, setEntries] = useState<RecycleEntry[]>([]);
@@ -229,10 +230,7 @@ export function RecycleView() {
                                             title="Restore to its original folder"
                                             type="button"
                                         >
-                                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                                <path d="M4 10a8 8 0 1 1 2.3 5.7"/>
-                                                <path d="M4 4v6h6"/>
-                                            </svg>
+                                            <RestoreSvg/>
                                         </RowButton>
                                     )}
                                     {entry.removable && (

@@ -1,7 +1,7 @@
 import type {ReactNode} from "react";
 import type {AppSettings} from "./api/settings";
 import {useIconFile} from "./api/icons";
-import {ClockIcon, CodeIcon, DriveIcon, FolderIcon, HomeIcon, ImageIcon, TextIcon} from "./components/Icons";
+import {ClockIcon, CodeIcon, DesktopIcon, DocumentsIcon, DownloadsIcon, DriveIcon, FolderIcon, HomeIcon, ImageIcon, MusicIcon, PicturesIcon, TextIcon, VideosIcon} from "./components/Icons";
 
 export type PanelKind = "quick" | "recent" | "home" | "drives" | "folder";
 export type ViewMode = "list" | "grid";
@@ -11,6 +11,8 @@ export interface Panel {
     id: string;
     kind: PanelKind;
     path?: string;
+    /** Folders of a manually added Quick access panel; the factory "quick" uses the global places. */
+    places?: string[];
     title: string;
     view: ViewMode;
     icon?: string;
@@ -30,6 +32,12 @@ export const DefaultTitles: Record<string, string> = {
 export const PanelIcons: Record<string, (size: number) => ReactNode> = {
     folder: (size) => <FolderIcon size={size}/>,
     home: (size) => <HomeIcon size={size}/>,
+    desktop: (size) => <DesktopIcon size={size}/>,
+    documents: (size) => <DocumentsIcon size={size}/>,
+    downloads: (size) => <DownloadsIcon size={size}/>,
+    pictures: (size) => <PicturesIcon size={size}/>,
+    music: (size) => <MusicIcon size={size}/>,
+    videos: (size) => <VideosIcon size={size}/>,
     drive: (size) => <DriveIcon size={size}/>,
     image: (size) => <ImageIcon size={size}/>,
     text: (size) => <TextIcon size={size}/>,
@@ -55,9 +63,8 @@ export function buildPanels(settings: AppSettings | null): Panel[] {
     const titles = settings?.overviewTitles ?? {};
     const views = settings?.overviewViews ?? {};
     const icons = settings?.overviewIcons ?? {};
-    // Quick access, recent folders, the user's home folder and the drives are in the sidebar until
-    // the user says otherwise.
-    const pinned = settings?.overviewPinned ?? ["quick", "recent", "home", "drives"];
+    // Quick access, recent folders and the drives are in the sidebar until the user says otherwise.
+    const pinned = settings?.overviewPinned ?? ["quick", "recent", "drives"];
 
     return ids.map((id) => {
         const kind = kindOfPanel(id);
@@ -66,6 +73,7 @@ export function buildPanels(settings: AppSettings | null): Panel[] {
             id,
             kind,
             path: kind === "folder" ? id.slice("folder:".length) : undefined,
+            places: kind === "quick" && id !== "quick" ? settings?.panelPlaces?.[id] ?? [] : undefined,
             title: titles[id] ?? (kind === "folder"
                 ? id.slice("folder:".length).split(/[\\/]/).filter(Boolean).pop() ?? id
                 : kind === "home" ? "Home" : `${DefaultTitles[kind] ?? kind}${suffix(id)}`),
