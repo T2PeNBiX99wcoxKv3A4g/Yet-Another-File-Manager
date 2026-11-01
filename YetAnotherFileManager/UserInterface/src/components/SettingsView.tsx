@@ -68,6 +68,8 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
         setSettings(next);
         clearIconCache();
         setSettings(await saveSettings(next));
+        // The window keeps its own copy of the settings; a toggle here has to reach it too.
+        onSettingsChanged();
     };
 
     /** Applies the choice now and remembers it, so the next launch can put a lost entry back. */
@@ -127,17 +129,16 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
             if (!combo) return;
 
             setCapturing(null);
-            void update({shortcuts: {...keys, [capturing]: combo}}).then(onSettingsChanged);
+            void update({shortcuts: {...keys, [capturing]: combo}});
         };
 
         window.addEventListener("keydown", record, true);
         return () => window.removeEventListener("keydown", record, true);
     }, [capturing, settings]);
 
-    /** Recent items are a display preference, so the host is told whenever the number changes. */
+    /** Recent items are a display preference, stored like every other setting. */
     const setRecentLimit = async (limit: number) => {
         await update({recentLimit: Math.min(Math.max(limit, 0), 50)});
-        onSettingsChanged();
     };
 
     const saveGallery = async (paths: string[]) => {
@@ -276,7 +277,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         </RowText>
                         <RowEnd>
                             <ActionButton
-                                onClick={() => void update({shortcuts: {...DefaultShortcuts}}).then(onSettingsChanged)}
+                                onClick={() => void update({shortcuts: {...DefaultShortcuts}})}
                                 type="button"
                             >
                                 Reset

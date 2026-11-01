@@ -1,7 +1,9 @@
 import {useEffect, useRef, useState, type ReactNode} from "react";
 import styled from "styled-components";
 import type {Place} from "../api/files";
-import {CheckIcon, ChevronRightIcon, CrossIcon} from "./Icons";
+import {useIcon} from "../api/icons";
+import {useQuickAccess} from "../quick";
+import {CheckIcon, ChevronRightIcon, CrossIcon, FolderIcon} from "./Icons";
 import {PlaceIcon} from "./PlaceIcon";
 
 interface PathBarProps {
@@ -10,8 +12,6 @@ interface PathBarProps {
     label?: string;
     /** The built-in page's icon, shown beside its label. */
     icon?: ReactNode;
-    /** Quick access entries by normalized path; the longest match folds the breadcrumbs. */
-    quick: Record<string, Place>;
     onNavigate: (path: string) => void;
 }
 
@@ -29,7 +29,8 @@ interface Crumb {
  * platform and the text box always uses forward slashes, which every supported OS accepts.
  * A folder that has a Quick access name shows that name and its icon instead of its real ones.
  */
-export function PathBar({path, label, icon, quick, onNavigate}: PathBarProps) {
+export function PathBar({path, label, icon, onNavigate}: PathBarProps) {
+    const quick = useQuickAccess();
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState("");
     const input = useRef<HTMLInputElement | null>(null);
@@ -92,7 +93,7 @@ export function PathBar({path, label, icon, quick, onNavigate}: PathBarProps) {
 
     const crumbs: Crumb[] = label
         ? [{label, path, icon}]
-        : crumbsFor(path, quick);
+        : crumbsFor(path, quick.places);
 
     return (
         <Trail onClick={start} title="Click to type a path">
@@ -107,7 +108,7 @@ export function PathBar({path, label, icon, quick, onNavigate}: PathBarProps) {
                         type="button"
                     >
                         {crumb.place
-                            ? <CrumbGlyph><PlaceIcon place={crumb.place} size={13}/></CrumbGlyph>
+                            ? <CrumbGlyph><PlaceGlyph place={crumb.place}/></CrumbGlyph>
                             : crumb.icon && <CrumbGlyph>{crumb.icon}</CrumbGlyph>}
                         {crumb.label}
                     </CrumbButton>
@@ -117,9 +118,18 @@ export function PathBar({path, label, icon, quick, onNavigate}: PathBarProps) {
     );
 }
 
+/** The Quick access glyph, or the shell icon while the app is using the system's own icons. */
+function PlaceGlyph({place}: { place: Place }) {
+    const quick = useQuickAccess();
+    const icon = useIcon(place.path, true);
+
+    if (quick.useIcons) return <PlaceIcon place={place} size={13}/>;
+
+    return icon ? <img alt="" height={13} src={icon} width={13}/> : <FolderIcon size={13}/>;
+}
+
 /** Splits a path into clickable ancestors, keeping the Windows drive root intact. */
-function breadcrumbs(path: string): Crumb[] {
-    const separator = path.includes("\\") ? "\\" : "/";
+function breadcrumbs(path: string): Crumb[] {    const separator = path.includes("\\") ? "\\" : "/";
     const parts = path.split(/[\\/]/).filter((part) => part.length > 0);
     const crumbs: Crumb[] = [];
 

@@ -2,6 +2,9 @@ import {useCallback, useEffect, useRef, useState} from "react";
 import styled from "styled-components";
 import {useWindowControls, useWindowDrag} from "@photino-net-utils/bridge";
 import type {TabInfo} from "../tabs";
+import {useQuickAccess} from "../quick";
+import {useIcon} from "../api/icons";
+import {PlaceIcon} from "./PlaceIcon";
 import {
     AppIcon,
     FolderIcon,
@@ -103,7 +106,7 @@ export function TitleBar({tabs, activeId, onSelect, onClose, onNewTab, onReorder
                             title={tab.path || tab.title}
                             type="button"
                         >
-                            <TabIcon kind={tab.kind}/>
+                            <TabGlyph tab={tab}/>
                             <TabName>{tab.title}</TabName>
                             <TabClose
                                 onClick={(event) => {
@@ -152,8 +155,8 @@ export function TitleBar({tabs, activeId, onSelect, onClose, onNewTab, onReorder
     );
 }
 
-function TabIcon({kind}: { kind: TabInfo["kind"] }) {
-    switch (kind) {
+function TabGlyph({tab}: { tab: TabInfo }) {
+    switch (tab.kind) {
         case "home":
             return <HomeIcon size={13}/>;
         case "settings":
@@ -161,8 +164,19 @@ function TabIcon({kind}: { kind: TabInfo["kind"] }) {
         case "recycle":
             return <TrashIcon size={13}/>;
         default:
-            return <FolderIcon size={13}/>;
+            return <FilesTabGlyph path={tab.path} place={tab.place}/>;
     }
+}
+
+/** A files tab's glyph: the Quick access icon, or the shell icon while those are in use. */
+function FilesTabGlyph({path, place}: { path: string; place?: TabInfo["place"] }) {
+    const quick = useQuickAccess();
+    const icon = useIcon(path, true);
+
+    if (place && quick.useIcons) return <PlaceIcon place={place} size={13}/>;
+    if (icon) return <img alt="" height={13} src={icon} style={{objectFit: "contain"}} width={13}/>;
+
+    return <FolderIcon size={13}/>;
 }
 
 const Bar = styled.header`

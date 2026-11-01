@@ -21,6 +21,7 @@ import {FileList} from "./FileList";
 import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, GridIcon, ListIcon, PencilIcon, PinIcon, PlusIcon} from "./Icons";
 import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
+import {quickPlace, useQuickAccess} from "../quick";
 import {baseName, driveLetter, driveName, formatBytes, usageTone} from "../utils/format";
 import {wantsNewTab} from "../shortcuts";
 import {buildPanels, PanelGlyph, PanelIcons, type Panel, type PanelKind, type ViewMode} from "../panels";
@@ -623,6 +624,7 @@ export function OverviewView({
     onHistoryChanged,
     onDrivesChanged,
 }: OverviewViewProps) {
+    const quick = useQuickAccess();
     const [editing, setEditing] = useState(false);
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const [iconEditor, setIconEditor] = useState<{ kind: "panel" | "place"; id: string } | null>(null);
@@ -899,44 +901,56 @@ export function OverviewView({
         return panel.view === "grid"
             ? (
                 <Places>
-                    {entries.map((entry) => (
-                        <Card
-                            key={entry.path}
-                            $plain={false}
-                            onClick={(event) => entry.isDirectory
-                                ? onOpen(entry.path, wantsNewTab(event))
-                                : void openFile(entry.path)}
-                            title={entry.path}
-                        >
-                            <Glyph>
-                                <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.path} size={18}/>
-                            </Glyph>
-                            <CardText>
-                                <strong>{entry.name}</strong>
-                                <Meta>{entry.path}</Meta>
-                            </CardText>
-                        </Card>
-                    ))}
+                    {entries.map((entry) => {
+                        const place = quickPlace(quick, entry.path);
+
+                        return (
+                            <Card
+                                key={entry.path}
+                                $plain={false}
+                                onClick={(event) => entry.isDirectory
+                                    ? onOpen(entry.path, wantsNewTab(event))
+                                    : void openFile(entry.path)}
+                                title={entry.path}
+                            >
+                                <Glyph>
+                                    {place && quick.useIcons
+                                        ? <PlaceIcon place={place} size={18}/>
+                                        : <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.path} size={18}/>}
+                                </Glyph>
+                                <CardText>
+                                    <strong>{place?.name || entry.name}</strong>
+                                    <Meta>{entry.path}</Meta>
+                                </CardText>
+                            </Card>
+                        );
+                    })}
                 </Places>
             )
             : (
                 <Rows>
-                    {entries.map((entry) => (
-                        <Row
-                            key={entry.path}
-                            onClick={(event) => entry.isDirectory
-                                ? onOpen(entry.path, wantsNewTab(event))
-                                : void openFile(entry.path)}
-                            title={entry.path}
-                            type="button"
-                        >
-                            <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.path} size={15}/>
-                            <RowText>
-                                <strong>{entry.name}</strong>
-                                <Meta>{entry.path}</Meta>
-                            </RowText>
-                        </Row>
-                    ))}
+                    {entries.map((entry) => {
+                        const place = quickPlace(quick, entry.path);
+
+                        return (
+                            <Row
+                                key={entry.path}
+                                onClick={(event) => entry.isDirectory
+                                    ? onOpen(entry.path, wantsNewTab(event))
+                                    : void openFile(entry.path)}
+                                title={entry.path}
+                                type="button"
+                            >
+                                {place && quick.useIcons
+                                    ? <PlaceIcon place={place} size={15}/>
+                                    : <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.path} size={15}/>}
+                                <RowText>
+                                    <strong>{place?.name || entry.name}</strong>
+                                    <Meta>{entry.path}</Meta>
+                                </RowText>
+                            </Row>
+                        );
+                    })}
                 </Rows>
             );
     };
@@ -1533,6 +1547,7 @@ function FrequentBody({mode, onOpen, version}: {
     version: number;
 }) {
     const [entries, setEntries] = useState<FrequentEntry[] | null>(null);
+    const quick = useQuickAccess();
 
     useEffect(() => {
         listFrequent().then(setEntries, () => setEntries([]));
@@ -1549,39 +1564,53 @@ function FrequentBody({mode, onOpen, version}: {
     if (mode === "grid")
         return (
             <Places>
-                {entries.map((entry) => (
-                    <Card
-                        key={entry.path}
-                        $plain={false}
-                        onClick={(event) => onOpen(entry.path, wantsNewTab(event))}
-                        title={entry.path}
-                    >
-                        <Glyph><PathIcon isDirectory name={entry.name} path={entry.path} size={18}/></Glyph>
-                        <CardText>
-                            <strong>{entry.name}</strong>
-                            <Meta>{subtitle(entry)}</Meta>
-                        </CardText>
-                    </Card>
-                ))}
+                {entries.map((entry) => {
+                    const place = quickPlace(quick, entry.path);
+
+                    return (
+                        <Card
+                            key={entry.path}
+                            $plain={false}
+                            onClick={(event) => onOpen(entry.path, wantsNewTab(event))}
+                            title={entry.path}
+                        >
+                            <Glyph>
+                                {place && quick.useIcons
+                                    ? <PlaceIcon place={place} size={18}/>
+                                    : <PathIcon isDirectory name={entry.name} path={entry.path} size={18}/>}
+                            </Glyph>
+                            <CardText>
+                                <strong>{place?.name || entry.name}</strong>
+                                <Meta>{subtitle(entry)}</Meta>
+                            </CardText>
+                        </Card>
+                    );
+                })}
             </Places>
         );
 
     return (
         <Rows>
-            {entries.map((entry) => (
-                <Row
-                    key={entry.path}
-                    onClick={(event) => onOpen(entry.path, wantsNewTab(event))}
-                    title={entry.path}
-                    type="button"
-                >
-                    <PathIcon isDirectory name={entry.name} path={entry.path} size={15}/>
-                    <RowText>
-                        <strong>{entry.name}</strong>
-                        <Meta>{subtitle(entry)}</Meta>
-                    </RowText>
-                </Row>
-            ))}
+            {entries.map((entry) => {
+                const place = quickPlace(quick, entry.path);
+
+                return (
+                    <Row
+                        key={entry.path}
+                        onClick={(event) => onOpen(entry.path, wantsNewTab(event))}
+                        title={entry.path}
+                        type="button"
+                    >
+                        {place && quick.useIcons
+                            ? <PlaceIcon place={place} size={15}/>
+                            : <PathIcon isDirectory name={entry.name} path={entry.path} size={15}/>}
+                        <RowText>
+                            <strong>{place?.name || entry.name}</strong>
+                            <Meta>{subtitle(entry)}</Meta>
+                        </RowText>
+                    </Row>
+                );
+            })}
         </Rows>
     );
 }
@@ -1589,6 +1618,7 @@ function FrequentBody({mode, onOpen, version}: {
 /** One folder rendered as a panel: a table or a grid of its entries. */
 function FolderBody({path, mode, onOpen}: { path: string; mode: ViewMode; onOpen: (path: string, newTab?: boolean) => void }) {
     const [listing, setListing] = useState<DirectoryListing | null>(null);
+    const quick = useQuickAccess();
 
     useEffect(() => {
         if (!path) return;
@@ -1633,19 +1663,25 @@ function FolderBody({path, mode, onOpen}: { path: string; mode: ViewMode; onOpen
                 ? <Empty>This folder is empty.</Empty>
                 : (
                     <Tiles>
-                        {listing.entries.map((entry) => (
-                            <Tile
-                                key={entry.fullPath}
-                                onClick={(event) => entry.isDirectory
-                                    ? onOpen(entry.fullPath, wantsNewTab(event))
-                                    : void openFile(entry.fullPath)}
-                                title={entry.name}
-                                type="button"
-                            >
-                                <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.fullPath} size={16}/>
-                                <span>{entry.name}</span>
-                            </Tile>
-                        ))}
+                        {listing.entries.map((entry) => {
+                            const place = quickPlace(quick, entry.fullPath);
+
+                            return (
+                                <Tile
+                                    key={entry.fullPath}
+                                    onClick={(event) => entry.isDirectory
+                                        ? onOpen(entry.fullPath, wantsNewTab(event))
+                                        : void openFile(entry.fullPath)}
+                                    title={entry.name}
+                                    type="button"
+                                >
+                                    {place && quick.useIcons
+                                        ? <PlaceIcon place={place} size={16}/>
+                                        : <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.fullPath} size={16}/>}
+                                    <span>{place?.name || entry.name}</span>
+                                </Tile>
+                            );
+                        })}
                     </Tiles>
                 )}
         </Scroller>

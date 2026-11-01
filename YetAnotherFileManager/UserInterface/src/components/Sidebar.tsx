@@ -7,6 +7,7 @@ import {buildPanels, PanelGlyph, type Panel} from "../panels";
 import {DriveIcon, GearIcon, ImageIcon, OverviewIcon, TrashIcon} from "./Icons";
 import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
+import {quickPlace, useQuickAccess} from "../quick";
 import {Native} from "@photino-net-utils/bridge";
 import {baseName, driveName, formatBytes, usageTone} from "../utils/format";
 import {wantsNewTab} from "../shortcuts";
@@ -46,6 +47,7 @@ export function Sidebar({
 }: SidebarProps) {
     const [pinned, setPinned] = useState<Panel[]>([]);
     const [settings, setSettings] = useState<AppSettings | null>(null);
+    const quick = useQuickAccess();
 
     useEffect(() => {
         void getSettings().then((loaded) => {
@@ -113,25 +115,31 @@ export function Sidebar({
                                 </Item>
                             ))}
 
-                            {panel.kind === "recent" && recent.slice(0, recentLimit).map((entry) => (
-                                <Item
-                                    key={entry.path}
-                                    $active={showFiles && isSamePath(currentPath, entry.path)}
-                                    onClick={(event) => entry.isDirectory
-                                        ? onNavigate(entry.path, wantsNewTab(event))
-                                        : void openFile(entry.path)}
-                                    title={entry.path}
-                                    type="button"
-                                >
-                                    <PathIcon
-                                        isDirectory={entry.isDirectory}
-                                        name={entry.name}
-                                        path={entry.path}
-                                        size={18}
-                                    />
-                                    <Label>{entry.name}</Label>
-                                </Item>
-                            ))}
+                            {panel.kind === "recent" && recent.slice(0, recentLimit).map((entry) => {
+                                const place = quickPlace(quick, entry.path);
+
+                                return (
+                                    <Item
+                                        key={entry.path}
+                                        $active={showFiles && isSamePath(currentPath, entry.path)}
+                                        onClick={(event) => entry.isDirectory
+                                            ? onNavigate(entry.path, wantsNewTab(event))
+                                            : void openFile(entry.path)}
+                                        title={entry.path}
+                                        type="button"
+                                    >
+                                        {place && quick.useIcons
+                                            ? <PlaceIcon place={place}/>
+                                            : <PathIcon
+                                                isDirectory={entry.isDirectory}
+                                                name={entry.name}
+                                                path={entry.path}
+                                                size={18}
+                                            />}
+                                        <Label>{place?.name || entry.name}</Label>
+                                    </Item>
+                                );
+                            })}
 
                             {panel.kind === "frequent" && (
                                 <FrequentItems historyVersion={historyVersion} onNavigate={onNavigate}/>
@@ -189,23 +197,30 @@ function FrequentItems({historyVersion = 0, onNavigate}: {
     onNavigate: (path: string, newTab?: boolean) => void;
 }) {
     const [entries, setEntries] = useState<FrequentEntry[] | null>(null);
+    const quick = useQuickAccess();
 
     useEffect(() => {
         listFrequent().then(setEntries, () => setEntries([]));
     }, [historyVersion]);
 
-    return (entries ?? []).slice(0, 15).map((entry) => (
-        <Item
-            key={entry.path}
-            $active={false}
-            onClick={(event) => onNavigate(entry.path, wantsNewTab(event))}
-            title={`${entry.count} ${entry.count === 1 ? "visit" : "visits"} · ${entry.path}`}
-            type="button"
-        >
-            <PathIcon isDirectory name={entry.name} path={entry.path} size={18}/>
-            <Label>{entry.name}</Label>
-        </Item>
-    ));
+    return (entries ?? []).slice(0, 15).map((entry) => {
+        const place = quickPlace(quick, entry.path);
+
+        return (
+            <Item
+                key={entry.path}
+                $active={false}
+                onClick={(event) => onNavigate(entry.path, wantsNewTab(event))}
+                title={`${entry.count} ${entry.count === 1 ? "visit" : "visits"} · ${entry.path}`}
+                type="button"
+            >
+                {place && quick.useIcons
+                    ? <PlaceIcon place={place}/>
+                    : <PathIcon isDirectory name={entry.name} path={entry.path} size={18}/>}
+                <Label>{place?.name || entry.name}</Label>
+            </Item>
+        );
+    });
 }
 
 /**
@@ -254,6 +269,9 @@ function FolderItems({path, onNavigate}: { path: string; onNavigate: (path: stri
 
 /** One entry of a sidebar folder panel: folders navigate, files open in their usual program. */
 function SidebarEntry({entry, onNavigate}: { entry: FileEntry; onNavigate: (path: string, newTab?: boolean) => void }) {
+    const quick = useQuickAccess();
+    const place = quickPlace(quick, entry.fullPath);
+
     return (
         <Item
             $active={false}
@@ -263,8 +281,10 @@ function SidebarEntry({entry, onNavigate}: { entry: FileEntry; onNavigate: (path
             title={entry.fullPath}
             type="button"
         >
-            <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.fullPath} size={18}/>
-            <Label>{entry.name}</Label>
+            {place && quick.useIcons
+                ? <PlaceIcon place={place}/>
+                : <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.fullPath} size={18}/>}
+            <Label>{place?.name || entry.name}</Label>
         </Item>
     );
 }

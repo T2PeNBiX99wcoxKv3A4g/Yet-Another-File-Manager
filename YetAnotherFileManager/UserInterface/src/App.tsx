@@ -17,6 +17,7 @@ import {getAppInfo, type AppInfo} from "./api/system";
 import {FileList} from "./components/FileList";
 import {FindBar} from "./components/FindBar";
 import {EmptyFind, matchesName, type FindState} from "./find";
+import {QuickAccessProvider, quickName, quickPlace, type QuickAccess} from "./quick";
 import {ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, GearIcon, ImageIcon, OverviewIcon, TrashIcon} from "./components/Icons";
 import {OverviewView} from "./components/OverviewView";
 import {PathBar} from "./components/PathBar";
@@ -198,7 +199,10 @@ export default function App() {
     }, [places, settings]);
 
     /** The Quick access icon only replaces the real one while the file types use the app's glyphs. */
-    const quickIcons = settings?.systemIcons === false;
+    const quickAccess: QuickAccess = useMemo(() => ({
+        places: quickPlaces,
+        useIcons: settings?.systemIcons === false,
+    }), [quickPlaces, settings?.systemIcons]);
 
     const viewIcon = kind === "home" ? <OverviewIcon size={13}/>
         : kind === "settings" ? <GearIcon size={13}/>
@@ -214,11 +218,10 @@ export default function App() {
     const findHits = useMemo(
         () => searching && active.listing
             ? active.listing.entries
-                .filter((entry) => matchesName(
-                    quickPlaces[normalizePath(entry.fullPath)]?.name || entry.name, find))
+                .filter((entry) => matchesName(quickName(quickAccess, entry.fullPath, entry.name), find))
                 .map((entry) => entry.fullPath)
             : [],
-        [searching, find, active.listing, quickPlaces],
+        [searching, find, active.listing, quickAccess],
     );
 
     // A new query starts again at the first hit; stepping through them leaves the query alone.
@@ -750,6 +753,7 @@ export default function App() {
     const canForward = active.index < active.history.length - 1;
 
     return (
+        <QuickAccessProvider value={quickAccess}>
         <Root $rounded={corners}>
             <TitleBar
                 activeId={active.id}
@@ -765,8 +769,9 @@ export default function App() {
                         id: tab.id,
                         kind: tabKind,
                         path: folder,
+                        place: tabKind === "files" ? quickPlace(quickAccess, folder) : undefined,
                         title: tabKind === "files"
-                            ? baseName(folder) || "Files"
+                            ? quickName(quickAccess, folder, baseName(folder) || "Files")
                             : viewTitles[tabKind],
                     };
                 })}
@@ -811,7 +816,6 @@ export default function App() {
                             label={kind === "files" ? undefined : viewTitles[kind]}
                             onNavigate={navigate}
                             path={kind === "files" ? folderOf(active) : location}
-                            quick={quickPlaces}
                         />
                     </Toolbar>
 
@@ -823,8 +827,6 @@ export default function App() {
                                 listing={active.listing}
                                 loading={active.loading}
                                 onOpen={navigate}
-                                quick={quickPlaces}
-                                quickIcons={quickIcons}
                             />
 
                             {find.open && (
@@ -881,6 +883,7 @@ export default function App() {
 
             <ResizeHandles/>
         </Root>
+        </QuickAccessProvider>
     );
 }
 
