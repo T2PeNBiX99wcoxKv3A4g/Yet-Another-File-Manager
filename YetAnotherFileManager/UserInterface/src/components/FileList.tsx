@@ -13,6 +13,7 @@ import {BuiltinIcon, iconForName} from "../icons/fileTypes";
 
 /** The columns the list can show besides the name. `linkTarget` is drawn inside the name cell. */
 export const ViewColumns: { id: string; label: string; width: number }[] = [
+    {id: "type", label: "Type", width: 150},
     {id: "size", label: "Size", width: 100},
     {id: "modified", label: "Modified", width: 150},
     {id: "created", label: "Created", width: 150},
@@ -255,6 +256,8 @@ function markOf(view: ResolvedView, column: string): string {
 function sortRows(rows: RowModel[], view: ResolvedView, listing: DirectoryListing): RowModel[] {
     const value = (entry: FileEntry): string | number => {
         switch (view.sort) {
+            case "type":
+                return typeLabel(entry);
             case "size":
                 return entry.isDirectory ? listing.folderSizes[entry.name] ?? 0 : entry.size;
             case "modified":
@@ -317,16 +320,51 @@ function isImage(name: string): boolean {
     return dot > 0 && ImageExtensions.has(name.slice(dot).toLowerCase());
 }
 
-/** "PNG", for the caption under a preview. */
-function typeOf(name: string): string {
-    const dot = name.lastIndexOf(".");
+/** Human labels for the file categories the extension map knows. */
+const TypeLabels: Record<string, string> = {
+    file: "file",
+    folder: "folder",
+    text: "text file",
+    code: "source file",
+    image: "image",
+    video: "video",
+    audio: "audio",
+    archive: "archive",
+    pdf: "PDF",
+    executable: "application",
+    font: "font",
+    database: "database",
+    config: "configuration",
+    spreadsheet: "spreadsheet",
+    presentation: "presentation",
+    document: "document",
+};
 
-    return dot > 0 && dot < name.length - 1 ? name.slice(dot + 1).toUpperCase() : "FILE";
+/** What the Type column says: a shortcut and a symbolic link must not look the same. */
+function typeLabel(entry: FileEntry): string {
+    const lower = entry.name.toLowerCase();
+
+    if (lower.endsWith(".lnk"))
+        return "Shortcut";
+    if (lower.endsWith(".url") || lower.endsWith(".website"))
+        return "Internet shortcut";
+    if (entry.linkTarget != null)
+        return entry.isDirectory ? "Folder link" : "Symbolic link";
+    if (entry.isDirectory)
+        return "Folder";
+
+    const dot = entry.name.lastIndexOf(".");
+    const extension = dot > 0 && dot < entry.name.length - 1 ? entry.name.slice(dot + 1).toUpperCase() : "";
+    const kind = TypeLabels[iconForName(entry.name)] ?? "file";
+
+    return extension.length > 0 ? `${extension} ${kind}` : "File";
 }
 
 /** What one list cell shows. */
 function cellValue(column: string, entry: FileEntry, listing: DirectoryListing): string {
     switch (column) {
+        case "type":
+            return typeLabel(entry);
         case "size":
             return sizeOf(entry, listing.folderSizes);
         case "modified":
@@ -491,8 +529,8 @@ const GridTile = memo(function GridTile({
                 </TileName>
                 <TileMeta>
                     {row.entry.isDirectory
-                        ? (itemCount === undefined ? "Folder" : `Folder · ${itemCount} items`)
-                        : `${typeOf(row.entry.name)} · ${formatBytes(row.entry.size)}`}
+                        ? (itemCount === undefined ? typeLabel(row.entry) : `${typeLabel(row.entry)} · ${itemCount} items`)
+                        : `${typeLabel(row.entry)} · ${formatBytes(row.entry.size)}`}
                 </TileMeta>
                 {showTarget && row.entry.linkTarget && (
                     <TileLink title={row.entry.linkTarget}>→ {row.entry.linkTarget}</TileLink>

@@ -51,7 +51,7 @@ export const DefaultViewDefaults: ViewDefaults = {
     mode: "list",
     iconSize: 20,
     gridSize: 148,
-    columns: ["size", "modified"],
+    columns: ["type", "size", "modified"],
 };
 
 /** The effective view: the directory's own settings over the window-wide defaults. */
