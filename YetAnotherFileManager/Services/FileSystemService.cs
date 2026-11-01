@@ -26,14 +26,17 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     /// <summary>Characters Windows refuses in a volume label.</summary>
     private static readonly char[] InvalidLabelChars = ['\\', '/', ':', '*', '?', '"', '<', '>', '|'];
 
+    /// <summary>
+    ///     Types whose icon lives in the file itself or in the handler it is registered with. Asking
+    ///     by extension would give every one of them the same generic shortcut/executable glyph.
+    /// </summary>
     private static readonly HashSet<string> PerFileIconExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".lnk",
-        ".exe",
-        ".ico",
-        ".url",
-        ".msi",
-        ".appref-ms"
+        ".lnk", ".url", ".website", ".pif", ".scf", ".application", ".appref-ms",
+        ".exe", ".com", ".scr", ".cpl", ".msi", ".msp", ".mst", ".ico",
+        ".appx", ".appxbundle", ".msix", ".msixbundle", ".appinstaller",
+        ".gadget", ".settingcontent-ms", ".library-ms", ".searchconnector-ms", ".wsc",
+        ".contact", ".diagcpl", ".diagpkg", ".diagcab", ".theme", ".themepack"
     };
 
     public FileSystemService() => NativeBridge.MessageReceived += HandleMessageAsync;
@@ -198,7 +201,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         // A folder's own icon (desktop.ini) is a system setting of that folder, so it stays visible
         // even when the generic system icons are turned off.
         if (request.Directory && settings.UseCustomFolderIcons && await HasCustomFolderIconAsync(request.Path)
-            && await Task.Run(() => ShellIcon.DataUrl(request.Path, true, false)) is { } custom)
+            && await StaThread.RunAsync(() => ShellIcon.DataUrl(request.Path, true, false)) is { } custom)
             return custom;
 
         if (!settings.UseSystemIcons)
@@ -208,7 +211,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         // for real; asking by extension would give every .lnk the same picture.
         var perFile = !request.Directory && PerFileIconExtensions.Contains(Path.GetExtension(request.Path));
 
-        return await Task.Run(() => ShellIcon.DataUrl(request.Path, request.Directory, !request.Directory && !perFile));
+        // Per-file icon handlers need an STA caller; the thread pool silently gets a generic glyph.
+        return await StaThread.RunAsync(() =>
+            ShellIcon.DataUrl(request.Path, request.Directory, !request.Directory && !perFile));
     }
 
     /// <summary>An icon file chosen by the user, as a data URL.</summary>

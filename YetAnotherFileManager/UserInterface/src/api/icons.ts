@@ -30,8 +30,14 @@ function useIconVersion(): number {
     return value;
 }
 
-/** These carry their icon inside the file, so every one of them needs its own lookup. */
-const perFileIcons = new Set([".lnk", ".exe", ".ico", ".url", ".msi", ".appref-ms"]);
+/** These carry their icon inside the file — or in the handler they register — so the path is the key. */
+const perFileIcons = new Set([
+    ".lnk", ".url", ".website", ".pif", ".scf", ".application", ".appref-ms",
+    ".exe", ".com", ".scr", ".cpl", ".msi", ".msp", ".mst", ".ico",
+    ".appx", ".appxbundle", ".msix", ".msixbundle", ".appinstaller",
+    ".gadget", ".settingcontent-ms", ".library-ms", ".searchconnector-ms", ".wsc",
+    ".contact", ".diagcpl", ".diagpkg", ".diagcab", ".theme", ".themepack",
+]);
 
 /** Folders are cached by path (custom icons differ per folder); files usually by extension. */
 function cacheKey(path: string, isDirectory: boolean): string {

@@ -253,7 +253,7 @@ function sortRows(rows: RowModel[], view: ResolvedView, listing: DirectoryListin
             case "linkCount":
                 return entry.linkCount > 1 ? entry.linkCount : 0;
             case "linkStatus":
-                if (entry.linkTarget !== null) return entry.linkValid ? 0 : 1;
+                if (entry.linkTarget != null) return entry.linkValid ? 0 : 1;
                 return entry.linkCount > 1 ? 2 : 3;
             case "tags":
                 return (listing.tags[entry.name] ?? []).join(", ");
@@ -290,7 +290,7 @@ function cellValue(column: string, entry: FileEntry, listing: DirectoryListing):
         case "linkCount":
             return entry.linkCount > 1 ? String(entry.linkCount) : "—";
         case "linkStatus":
-            if (entry.linkTarget !== null) return entry.linkValid ? "OK" : "Broken";
+            if (entry.linkTarget != null) return entry.linkValid ? "OK" : "Broken";
             return entry.linkCount > 1 ? "OK" : "—";
         default:
             return "";
