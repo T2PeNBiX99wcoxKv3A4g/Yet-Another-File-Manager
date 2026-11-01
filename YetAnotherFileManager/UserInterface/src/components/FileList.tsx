@@ -173,7 +173,7 @@ export function FileList({
                                     {row.place && quick.useIcons
                                         ? <IconSlot><PlaceIcon place={row.place} size={view.iconSize}/></IconSlot>
                                         : <EntryIcon entry={row.entry} size={view.iconSize}/>}
-                                    <NameText title={row.entry.name}>
+                                    <NameText $broken={row.entry.linkValid === false} title={row.entry.name}>
                                         <Highlighted name={row.label} ranges={row.ranges}/>
                                     </NameText>
                                     {showTarget && row.entry.linkTarget && (
@@ -477,7 +477,7 @@ const GridTile = memo(function GridTile({
                     )}
             </TileMedia>
             <TileCaption>
-                <TileName>
+                <TileName $broken={row.entry.linkValid === false}>
                     <Highlighted name={row.label} ranges={row.ranges}/>
                 </TileName>
                 <TileMeta>
@@ -652,8 +652,10 @@ const Name = styled.div`
     min-width: 0;
 `;
 
-const NameText = styled.span`
+const NameText = styled.span<{ $broken?: boolean }>`
     overflow: hidden;
+    color: ${({$broken}) => $broken ? "#f87171" : "inherit"};
+    text-decoration: ${({$broken}) => $broken ? "line-through" : "none"};
     text-overflow: ellipsis;
     white-space: nowrap;
 `;
@@ -790,12 +792,13 @@ const TileCaption = styled.div`
     overflow: hidden;
 `;
 
-const TileName = styled.span`
+const TileName = styled.span<{ $broken?: boolean }>`
     width: 100%;
     overflow: hidden;
+    color: ${({$broken}) => $broken ? "#f87171" : "var(--text-secondary)"};
     font-size: 11px;
-    color: var(--text-secondary);
     text-align: left;
+    text-decoration: ${({$broken}) => $broken ? "line-through" : "none"};
     text-overflow: ellipsis;
     white-space: nowrap;
 `;

@@ -564,6 +564,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
             .ToList());
 
+        // Shortcuts carry their target inside the file; the shell reader runs on the STA pool.
+        all = await ResolveShortcutsAsync(all);
+
         // Storing is best effort and must not hold the listing back; the next open paints it first.
         _ = DirectoryIndex.SaveListingAsync(directory.FullName, all);
 
@@ -735,6 +738,30 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 value[1..].TrimStart('/', '\\'))
             : value;
+    }
+
+    /// <summary>
+    ///     Fills in the target of every <c>.lnk</c>, so a dead shortcut can be shown struck through.
+    ///     The shell's shortcut reader needs an STA caller, so it runs on that pool.
+    /// </summary>
+    private static async Task<List<FileEntry>> ResolveShortcutsAsync(List<FileEntry> entries)
+    {
+        var shortcuts = entries
+            .Where(entry => !entry.IsDirectory && entry.Name.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (shortcuts.Count == 0)
+            return entries;
+
+        var resolved = await Task.WhenAll(shortcuts.Select(async entry =>
+        {
+            var (target, valid) = await StaThread.RunAsync(() => ShellLink.Resolve(entry.FullPath));
+            return entry with { LinkTarget = target, LinkValid = valid };
+        }));
+
+        var byPath = resolved.ToDictionary(entry => entry.FullPath, StringComparer.OrdinalIgnoreCase);
+
+        return entries.Select(entry => byPath.GetValueOrDefault(entry.FullPath) ?? entry).ToList();
     }
 
     /// <summary>
