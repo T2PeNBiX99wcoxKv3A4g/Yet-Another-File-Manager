@@ -175,7 +175,8 @@ export default function App() {
     const viewDefaults = settings?.defaultView ?? DefaultViewDefaults;
     const view: ResolvedView = {
         mode: active.view?.mode ?? viewDefaults.mode,
-        iconSize: active.view?.iconSize ?? viewDefaults.iconSize,
+        iconSize: active.view?.iconSize || viewDefaults.iconSize || DefaultView.iconSize,
+        gridSize: active.view?.gridSize || viewDefaults.gridSize || DefaultView.gridSize,
         sort: active.view?.sort ?? DefaultView.sort,
         sortDescending: active.view?.sortDescending ?? DefaultView.sortDescending,
         columns: viewDefaults.columns ?? DefaultViewDefaults.columns ?? [],
@@ -498,7 +499,8 @@ export default function App() {
         const defaults = settingsRef.current?.defaultView ?? DefaultViewDefaults;
         const base: DirectoryView = {
             mode: tab.view?.mode ?? defaults.mode,
-            iconSize: tab.view?.iconSize ?? defaults.iconSize,
+            iconSize: tab.view?.iconSize || defaults.iconSize || DefaultView.iconSize,
+            gridSize: tab.view?.gridSize || defaults.gridSize || DefaultView.gridSize,
             sort: tab.view?.sort ?? DefaultView.sort,
             sortDescending: tab.view?.sortDescending ?? DefaultView.sortDescending,
         };

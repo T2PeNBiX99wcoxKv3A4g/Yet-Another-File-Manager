@@ -296,21 +296,40 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                     </Row>
                     <Row>
                         <RowText>
-                            <Label>Icon size</Label>
-                            <Note>Used in every folder.</Note>
+                            <Label>List icon size</Label>
+                            <Note>The icon in the list rows.</Note>
                         </RowText>
                         <RowEnd>
                             <RangeInput
-                                max={96}
+                                max={48}
                                 min={16}
                                 onChange={(event) => void update({
                                     defaultView: {...defaultView, iconSize: Number(event.target.value)},
                                 })}
-                                step={4}
+                                step={2}
                                 type="range"
                                 value={defaultView.iconSize}
                             />
                             <Value>{defaultView.iconSize}px</Value>
+                        </RowEnd>
+                    </Row>
+                    <Row>
+                        <RowText>
+                            <Label>Grid size</Label>
+                            <Note>The height of a grid tile; the icon inside follows it.</Note>
+                        </RowText>
+                        <RowEnd>
+                            <RangeInput
+                                max={260}
+                                min={100}
+                                onChange={(event) => void update({
+                                    defaultView: {...defaultView, gridSize: Number(event.target.value)},
+                                })}
+                                step={4}
+                                type="range"
+                                value={defaultView.gridSize}
+                            />
+                            <Value>{defaultView.gridSize}px</Value>
                         </RowEnd>
                     </Row>
                     <Row>

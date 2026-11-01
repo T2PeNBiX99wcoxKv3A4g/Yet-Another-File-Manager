@@ -96,7 +96,7 @@ export function FileList({
             <Wrapper>
                 <GridBody>
                     {loading && !listing
-                        ? <Tiles><PlaceholderTiles size={view.iconSize}/></Tiles>
+                        ? <Tiles $size={view.gridSize}><PlaceholderTiles size={view.gridSize}/></Tiles>
                         : groups.map((group) => (
                             <GridSection key={group.id}>
                                 <GridHeader>
@@ -104,12 +104,12 @@ export function FileList({
                                     <GridCount>{group.rows.length}</GridCount>
                                     <GridRule/>
                                 </GridHeader>
-                                <Tiles>
+                                <Tiles $size={view.gridSize}>
                                     {group.rows.map((row) => (
                                         <GridTile
                                             current={searching && row.entry.fullPath === find.currentPath}
                                             dim={searching && row.ranges === null}
-                                            iconSize={view.iconSize}
+                                            iconSize={Math.min(32, Math.max(16, view.gridSize - 50))}
                                             innerRef={currentRow}
                                             itemCount={listing?.counts[row.entry.name]}
                                             key={row.entry.fullPath}
@@ -445,7 +445,6 @@ const GridTile = memo(function GridTile({
     const image = !row.entry.isDirectory && isImage(row.entry.name);
     const preview = useThumbnail(image ? row.entry.fullPath : null, 192, row.entry.modified);
     const [failed, setFailed] = useState(false);
-    const icon = Math.min(iconSize, 64);
 
     return (
         <Tile
@@ -469,9 +468,13 @@ const GridTile = memo(function GridTile({
                             src={preview}
                         />
                     )
-                    : row.place && quick.useIcons
-                        ? <PlaceIcon place={row.place} size={icon}/>
-                        : <EntryIcon entry={row.entry} size={icon}/>}
+                    : (
+                        <TileIcon>
+                            {row.place && quick.useIcons
+                                ? <PlaceIcon place={row.place} size={iconSize}/>
+                                : <EntryIcon entry={row.entry} size={iconSize}/>}
+                        </TileIcon>
+                    )}
             </TileMedia>
             <TileCaption>
                 <TileName>
@@ -587,10 +590,10 @@ const GridRule = styled.span`
     background: linear-gradient(to right, var(--border-color), transparent);
 `;
 
-const Tiles = styled.div`
+const Tiles = styled.div<{ $size: number }>`
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-    grid-auto-rows: 148px;
+    grid-template-columns: repeat(auto-fill, minmax(${({$size}) => $size + 42}px, 1fr));
+    grid-auto-rows: ${({$size}) => $size}px;
     gap: 10px;
     align-content: start;
 `;
@@ -741,8 +744,7 @@ const Tile = styled.div<{ $dim: boolean; $current: boolean }>`
 
 const TileMedia = styled.div`
     position: relative;
-    display: grid;
-    place-items: center;
+    display: flex;
     flex: 1;
     min-height: 0;
     overflow: hidden;
@@ -753,9 +755,24 @@ const TileMedia = styled.div`
         height: 100%;
         object-fit: cover;
     }
+`;
+
+/** A directory's or file's glyph, aligned to the top-left of the tile like a file-manager icon. */
+const TileIcon = styled.span`
+    display: grid;
+    place-items: start;
+    width: 100%;
+    height: 100%;
+    padding: 6px;
+    overflow: hidden;
 
     svg {
         color: var(--text-muted);
+    }
+
+    img {
+        display: block;
+        object-fit: contain;
     }
 `;
 

@@ -23,7 +23,10 @@ export interface FileEntry {
 /** How a directory is shown. Stored with the directory, or as the app's default. */
 export interface DirectoryView {
     mode: "list" | "grid";
+    /** The icon size of the list rows. */
     iconSize: number;
+    /** The height of a grid tile; its icon scales with it. */
+    gridSize: number;
     sort: string;
     sortDescending: boolean;
 }
@@ -32,12 +35,14 @@ export interface DirectoryView {
 export interface ViewDefaults {
     mode: "list" | "grid";
     iconSize: number;
+    gridSize: number;
     columns: string[] | null;
 }
 
 export const DefaultView: DirectoryView = {
     mode: "list",
     iconSize: 20,
+    gridSize: 148,
     sort: "name",
     sortDescending: false,
 };
@@ -45,6 +50,7 @@ export const DefaultView: DirectoryView = {
 export const DefaultViewDefaults: ViewDefaults = {
     mode: "list",
     iconSize: 20,
+    gridSize: 148,
     columns: ["size", "modified"],
 };
 

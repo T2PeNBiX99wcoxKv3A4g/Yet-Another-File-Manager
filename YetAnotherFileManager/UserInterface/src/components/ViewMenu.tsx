@@ -70,18 +70,32 @@ export function ViewMenu({view, onChange, onColumns, disabled}: ViewMenuProps) {
                         </Choice>
                     </Segmented>
 
-                    <SectionTitle>Icon size</SectionTitle>
+                    <SectionTitle>List icon size</SectionTitle>
                     <SliderRow>
                         <input
-                            aria-label="Icon size"
-                            max={96}
+                            aria-label="List icon size"
+                            max={48}
                             min={16}
                             onChange={(event) => onChange({iconSize: Number(event.target.value)})}
-                            step={4}
+                            step={2}
                             type="range"
                             value={view.iconSize}
                         />
                         <SizeValue>{view.iconSize}px</SizeValue>
+                    </SliderRow>
+
+                    <SectionTitle>Grid size</SectionTitle>
+                    <SliderRow>
+                        <input
+                            aria-label="Grid size"
+                            max={260}
+                            min={100}
+                            onChange={(event) => onChange({gridSize: Number(event.target.value)})}
+                            step={4}
+                            type="range"
+                            value={view.gridSize}
+                        />
+                        <SizeValue>{view.gridSize}px</SizeValue>
                     </SliderRow>
 
                     <SectionTitle>Columns</SectionTitle>
