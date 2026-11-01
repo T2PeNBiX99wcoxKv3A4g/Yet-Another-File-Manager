@@ -2,6 +2,7 @@ import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import styled from "styled-components";
 import {listGallery, type GalleryEntry} from "../api/files";
 import {useThumbnail} from "../api/icons";
+import {formatBytes} from "../utils/format";
 import {RefreshIcon} from "./Icons";
 
 /** How many pictures one request carries; the rest arrive while the user scrolls. */
@@ -138,9 +139,19 @@ function Tile({entry}: { entry: GalleryEntry }) {
             {thumbnail
                 ? <img alt="" decoding="async" loading="lazy" src={thumbnail}/>
                 : <Placeholder/>}
-            <Caption>{entry.name}</Caption>
+            <Caption>
+                <CaptionName>{entry.name}</CaptionName>
+                <CaptionMeta>{`${typeOf(entry.name)} · ${formatBytes(entry.size)}`}</CaptionMeta>
+            </Caption>
         </Cell>
     );
+}
+
+/** "PNG", or "FILE" for a picture without an extension worth showing. */
+function typeOf(name: string): string {
+    const dot = name.lastIndexOf(".");
+
+    return dot > 0 && dot < name.length - 1 ? name.slice(dot + 1).toUpperCase() : "FILE";
 }
 
 /** Pictures are sorted newest first, so a day is one contiguous run and the labels stay unique. */
@@ -244,7 +255,7 @@ const Grid = styled.div`
 
 const Group = styled.section`
     & + & {
-        margin-top: 18px;
+        margin-top: 28px;
     }
 `;
 
@@ -252,13 +263,33 @@ const GroupTitle = styled.h2`
     position: sticky;
     top: -14px;
     z-index: 1;
-    margin: 0 -22px 10px;
-    padding: 8px 22px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 -22px 12px;
+    padding: 9px 22px;
     background: var(--bg-primary);
     font-size: 12px;
     font-weight: 600;
     color: var(--text-secondary);
     letter-spacing: 0.01em;
+
+    /* A short accent bar marks the day; the rule then carries the eye across to the first tile. */
+    &::before {
+        content: "";
+        width: 3px;
+        height: 12px;
+        flex-shrink: 0;
+        border-radius: 2px;
+        background: var(--accent-gradient);
+    }
+
+    &::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(to right, var(--border-color), transparent);
+    }
 `;
 
 const Tiles = styled.div`
@@ -303,17 +334,32 @@ const Placeholder = styled.div`
             rgba(15, 23, 42, 0.6);
 `;
 
-/** The name sits on the picture itself, on a scrim so it stays readable over bright photos. */
+/** The name and its details sit on the picture itself, on a scrim so they stay readable. */
 const Caption = styled.span`
     position: absolute;
     right: 0;
     bottom: 0;
     left: 0;
-    padding: 18px 8px 6px;
-    background: linear-gradient(to top, rgba(2, 6, 23, 0.9), rgba(2, 6, 23, 0));
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 20px 8px 7px;
+    background: linear-gradient(to top, rgba(2, 6, 23, 0.92), rgba(2, 6, 23, 0));
+    overflow: hidden;
+`;
+
+const CaptionName = styled.span`
     overflow: hidden;
     font-size: 11px;
     color: #e5e7eb;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
+const CaptionMeta = styled.span`
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: #9ca3af;
     text-overflow: ellipsis;
     white-space: nowrap;
 `;
