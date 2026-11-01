@@ -53,7 +53,7 @@ internal sealed record FsDrivesPayload(IReadOnlyList<DriveEntry> Drives);
 internal sealed record FsRecyclePayload(IReadOnlyList<RecycleEntry> Entries);
 
 /// <summary>Payload for <c>fs.icon</c>: the path whose shell icon is wanted.</summary>
-internal sealed record IconRequest(string Path, bool Directory);
+internal sealed record IconRequest(string Path, bool Directory, bool Large = false);
 
 /// <summary>Body for <c>fs.icon</c>: a PNG data URL, or null when the shell has no icon.</summary>
 internal sealed record IconPayload(string? DataUrl);

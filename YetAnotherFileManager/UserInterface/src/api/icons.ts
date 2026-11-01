@@ -40,20 +40,22 @@ const perFileIcons = new Set([
 ]);
 
 /** Folders are cached by path (custom icons differ per folder); files usually by extension. */
-function cacheKey(path: string, isDirectory: boolean): string {
-    if (isDirectory) return `d:${path}`;
+function cacheKey(path: string, isDirectory: boolean, large: boolean): string {
+    const size = large ? "1" : "0";
+
+    if (isDirectory) return `d:${size}:${path}`;
 
     const dot = path.lastIndexOf(".");
     const slash = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
     const extension = dot > slash ? path.slice(dot).toLowerCase() : "";
 
-    return perFileIcons.has(extension) ? `f:${path}` : `f:${extension}`;
+    return perFileIcons.has(extension) ? `f:${size}:${path}` : `f:${size}:${extension}`;
 }
 
 /** The icon the shell would show, as a data URL, or null while it loads or when unavailable. */
-export function useIcon(path: string, isDirectory: boolean): string | null {
+export function useIcon(path: string, isDirectory: boolean, large = false): string | null {
     const revision = useIconVersion();
-    const id = cacheKey(path, isDirectory);
+    const id = cacheKey(path, isDirectory, large);
     const [icon, setIcon] = useState<string | null>(() => iconCache.get(id) ?? null);
 
     useEffect(() => {
@@ -66,7 +68,7 @@ export function useIcon(path: string, isDirectory: boolean): string | null {
 
         let alive = true;
 
-        void Native.request<{ dataUrl: string | null }>("fs.icon", {path, directory: isDirectory})
+        void Native.request<{ dataUrl: string | null }>("fs.icon", {path, directory: isDirectory, large})
             .then((data) => {
                 iconCache.set(id, data.dataUrl);
                 if (alive) setIcon(data.dataUrl);
@@ -78,7 +80,7 @@ export function useIcon(path: string, isDirectory: boolean): string | null {
         return () => {
             alive = false;
         };
-    }, [id, path, isDirectory, revision]);
+    }, [id, path, isDirectory, large, revision]);
 
     return icon;
 }

@@ -109,7 +109,7 @@ export function FileList({
                                         <GridTile
                                             current={searching && row.entry.fullPath === find.currentPath}
                                             dim={searching && row.ranges === null}
-                                            iconSize={Math.min(32, Math.max(16, view.gridSize - 50))}
+                                            iconSize={Math.max(24, Math.min(view.gridSize - 56, 160))}
                                             innerRef={currentRow}
                                             itemCount={listing?.counts[row.entry.name]}
                                             key={row.entry.fullPath}
@@ -369,7 +369,7 @@ function sizeOf(entry: FileEntry, folderSizes: Record<string, number>): string {
  * desktop.ini when that is enabled), then the built-in icon for the file type.
  */
 function EntryIcon({entry, size = 18}: { entry: FileEntry; size?: number }) {
-    const shellIcon = useIcon(entry.fullPath, entry.isDirectory);
+    const shellIcon = useIcon(entry.fullPath, entry.isDirectory, size > 32);
     const customFile = entry.iconSource?.startsWith("file:") ? entry.iconSource.slice(5) : null;
     const customImage = useIconFile(customFile);
 

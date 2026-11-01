@@ -201,7 +201,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         // A folder's own icon (desktop.ini) is a system setting of that folder, so it stays visible
         // even when the generic system icons are turned off.
         if (request.Directory && settings.UseCustomFolderIcons && await HasCustomFolderIconAsync(request.Path)
-            && await StaThread.RunAsync(() => ShellIcon.DataUrl(request.Path, true, false)) is { } custom)
+            && await StaThread.RunAsync(() => request.Large
+                ? ShellIcon.JumboDataUrl(request.Path, true, false)
+                : ShellIcon.DataUrl(request.Path, true, false)) is { } custom)
             return custom;
 
         if (!settings.UseSystemIcons)
@@ -210,10 +212,13 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         // Shortcuts and executables carry their icon in the file itself, so they must be looked up
         // for real; asking by extension would give every .lnk the same picture.
         var perFile = !request.Directory && PerFileIconExtensions.Contains(Path.GetExtension(request.Path));
+        var byAttributes = !request.Directory && !perFile;
 
         // Per-file icon handlers need an STA caller; the thread pool silently gets a generic glyph.
-        return await StaThread.RunAsync(() =>
-            ShellIcon.DataUrl(request.Path, request.Directory, !request.Directory && !perFile));
+        // The grid asks for the jumbo list so a large tile is not an upscaled 32px bitmap.
+        return await StaThread.RunAsync(() => request.Large
+            ? ShellIcon.JumboDataUrl(request.Path, request.Directory, byAttributes)
+            : ShellIcon.DataUrl(request.Path, request.Directory, byAttributes));
     }
 
     /// <summary>An icon file chosen by the user, as a data URL.</summary>

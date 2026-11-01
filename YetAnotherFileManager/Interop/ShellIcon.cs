@@ -15,10 +15,27 @@ internal static unsafe partial class ShellIcon
 {
     private const uint ShgfiIcon = 0x000000100;
     private const uint ShgfiLargeIcon = 0x000000000;
+    private const uint ShgfiSysIconIndex = 0x000004000;
     private const uint ShgfiUseFileAttributes = 0x000000010;
 
     private const uint FileAttributeDirectory = 0x00000010;
     private const uint FileAttributeNormal = 0x00000080;
+
+    /// <summary><c>SHIL_JUMBO</c>: the 256×256 image list, for grid tiles that need sharp icons.</summary>
+    private const int ShilJumbo = 0x4;
+
+    /// <summary><c>ILD_TRANSPARENT</c>.</summary>
+    private const uint IldTransparent = 0x1;
+
+    private const int ReleaseSlot = 2;
+
+    /// <summary>
+    ///     <c>IImageList::GetIcon</c>. The vtable is Add, ReplaceIcon, SetOverlayImage, Replace,
+    ///     AddMasked, Draw, <b>Remove</b>, GetIcon — the Remove slot is easy to miss.
+    /// </summary>
+    private const int GetIconSlot = 10;
+
+    private static readonly Guid ImageListId = new("46EB5926-582E-4017-9FDF-E8998DAA0950");
 
     private const int DibRgbColors = 0;
     private const int BiRgb = 0;
@@ -43,6 +60,58 @@ internal static unsafe partial class ShellIcon
         finally
         {
             DestroyIcon(info.Icon);
+        }
+    }
+
+    /// <summary>
+    ///     The 256×256 version of the same icon, for grid tiles. Falls back to the normal large icon
+    ///     when the jumbo image list or the icon itself is missing.
+    /// </summary>
+    public static unsafe string? JumboDataUrl(string path, bool directory, bool useFileAttributes)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return null;
+
+        try
+        {
+            var attributes = directory ? FileAttributeDirectory : FileAttributeNormal;
+            var flags = ShgfiSysIconIndex | (useFileAttributes ? ShgfiUseFileAttributes : 0);
+            var info = new ShellFileInfo();
+
+            if (ShellGetFileInfo(path, attributes, ref info, (uint)Marshal.SizeOf<ShellFileInfo>(), flags) == IntPtr.Zero)
+                return DataUrl(path, directory, useFileAttributes);
+
+            if (SHGetImageList(ShilJumbo, in ImageListId, out var list) != 0 || list == IntPtr.Zero)
+                return DataUrl(path, directory, useFileAttributes);
+
+            try
+            {
+                var getIcon = (delegate* unmanaged[Stdcall]<IntPtr, int, uint, IntPtr*, int>)
+                    (*(IntPtr**)list)[GetIconSlot];
+
+                var icon = IntPtr.Zero;
+
+                if (getIcon(list, info.IconIndex, IldTransparent, &icon) != 0 || icon == IntPtr.Zero)
+                    return DataUrl(path, directory, useFileAttributes);
+
+                try
+                {
+                    return ToDataUrl(icon);
+                }
+                finally
+                {
+                    DestroyIcon(icon);
+                }
+            }
+            finally
+            {
+                ((delegate* unmanaged[Stdcall]<IntPtr, uint>)(*(IntPtr**)list)[ReleaseSlot])(list);
+            }
+        }
+        catch (Exception ex)
+        {
+            Serilog.Log.Debug(ex, "Could not read a jumbo icon for {Path}", path);
+            return DataUrl(path, directory, useFileAttributes);
         }
     }
 
@@ -124,6 +193,9 @@ internal static unsafe partial class ShellIcon
     [LibraryImport("shell32.dll", EntryPoint = "SHGetFileInfoW", StringMarshalling = StringMarshalling.Utf16)]
     private static partial IntPtr ShellGetFileInfo(string path, uint attributes, ref ShellFileInfo info, uint size,
         uint flags);
+
+    [LibraryImport("shell32.dll")]
+    private static partial int SHGetImageList(int imageList, in Guid riid, out IntPtr list);
 
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
