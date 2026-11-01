@@ -1,8 +1,8 @@
-import {useEffect, useMemo, useRef, useState, type ReactNode} from "react";
+import {memo, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject} from "react";
 import styled from "styled-components";
 import {wantsNewTab} from "../shortcuts";
 import type {DirectoryListing, FileEntry, Place, ResolvedView} from "../api/files";
-import {useIcon, useIconFile} from "../api/icons";
+import {useIcon, useIconFile, useThumbnail} from "../api/icons";
 import {NoFind, rangesOf, type FindView} from "../find";
 import {quickPlace, useQuickAccess} from "../quick";
 import {formatBytes, formatDate} from "../utils/format";
@@ -83,6 +83,8 @@ export function FileList({
         return sortRows(matched, view, listing);
     }, [listing, searching, find, quick, view.sort, view.sortDescending]);
 
+    const groups = useMemo(() => groupRows(rows), [rows]);
+
     if (error)
         return <Center><ErrorText>{error}</ErrorText></Center>;
 
@@ -92,33 +94,33 @@ export function FileList({
     if (view.mode === "grid")
         return (
             <Wrapper>
-                <GridBody $size={view.iconSize}>
+                <GridBody>
                     {loading && !listing
-                        ? <PlaceholderTiles size={view.iconSize}/>
-                        : rows.map((row) => (
-                            <Tile
-                                $current={searching && row.entry.fullPath === find.currentPath}
-                                $dim={searching && row.ranges === null}
-                                key={row.entry.fullPath}
-                                onClick={(event) => row.entry.isDirectory && wantsNewTab(event) && onOpen(row.entry.fullPath, true)}
-                                onDoubleClick={(event) => row.entry.isDirectory
-                                    ? onOpen(row.entry.fullPath, wantsNewTab(event))
-                                    : onOpenFile?.(row.entry.fullPath)}
-                                ref={searching && row.entry.fullPath === find.currentPath ? currentRow : undefined}
-                                title={row.entry.name}
-                            >
-                                <TileGlyph>
-                                    {row.place && quick.useIcons
-                                        ? <PlaceIcon place={row.place} size={view.iconSize}/>
-                                        : <EntryIcon entry={row.entry} size={view.iconSize}/>}
-                                </TileGlyph>
-                                <TileName>
-                                    <Highlighted name={row.label} ranges={row.ranges}/>
-                                </TileName>
-                                {showTarget && row.entry.linkTarget && (
-                                    <TileLink title={row.entry.linkTarget}>→ {row.entry.linkTarget}</TileLink>
-                                )}
-                            </Tile>
+                        ? <Tiles><PlaceholderTiles size={view.iconSize}/></Tiles>
+                        : groups.map((group) => (
+                            <GridSection key={group.id}>
+                                <GridHeader>
+                                    {group.label}
+                                    <GridCount>{group.rows.length}</GridCount>
+                                    <GridRule/>
+                                </GridHeader>
+                                <Tiles>
+                                    {group.rows.map((row) => (
+                                        <GridTile
+                                            current={searching && row.entry.fullPath === find.currentPath}
+                                            dim={searching && row.ranges === null}
+                                            iconSize={view.iconSize}
+                                            innerRef={currentRow}
+                                            itemCount={listing?.counts[row.entry.name]}
+                                            key={row.entry.fullPath}
+                                            onOpen={onOpen}
+                                            onOpenFile={onOpenFile}
+                                            row={row}
+                                            showTarget={showTarget}
+                                        />
+                                    ))}
+                                </Tiles>
+                            </GridSection>
                         ))}
 
                     {!loading && listing && rows.length === 0 && (
@@ -194,7 +196,9 @@ export function FileList({
                                                     title="Edit tags"
                                                     type="button"
                                                 >
-                                                    {row.tags.length > 0 ? row.tags.join(", ") : "+"}
+                                                    {row.tags.length > 0
+                                                        ? row.tags.map((tag) => <TagChip key={tag}>{tag}</TagChip>)
+                                                        : <TagEmpty>+</TagEmpty>}
                                                 </TagsButton>
                                             )
                                             : column.id === "linkStatus" && row.entry.linkValid === false
@@ -274,6 +278,41 @@ function sortRows(rows: RowModel[], view: ResolvedView, listing: DirectoryListin
 
         return view.sortDescending ? -order : order;
     });
+}
+
+/** The picture formats the grid renders as a preview instead of an icon. */
+const ImageExtensions = new Set([
+    ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".avif", ".tif", ".tiff", ".svg", ".ico",
+]);
+
+/** A folder, an image or any other file — the three sections of the grid. */
+function groupRows(rows: RowModel[]): { id: string; label: string; rows: RowModel[] }[] {
+    const groups = [
+        {id: "folders", label: "Folders", rows: [] as RowModel[]},
+        {id: "images", label: "Images", rows: [] as RowModel[]},
+        {id: "files", label: "Other files", rows: [] as RowModel[]},
+    ];
+
+    for (const row of rows) {
+        if (row.entry.isDirectory) groups[0].rows.push(row);
+        else if (isImage(row.entry.name)) groups[1].rows.push(row);
+        else groups[2].rows.push(row);
+    }
+
+    return groups.filter((group) => group.rows.length > 0);
+}
+
+function isImage(name: string): boolean {
+    const dot = name.lastIndexOf(".");
+
+    return dot > 0 && ImageExtensions.has(name.slice(dot).toLowerCase());
+}
+
+/** "PNG", for the caption under a preview. */
+function typeOf(name: string): string {
+    const dot = name.lastIndexOf(".");
+
+    return dot > 0 && dot < name.length - 1 ? name.slice(dot + 1).toUpperCase() : "FILE";
 }
 
 /** What one list cell shows. */
@@ -376,13 +415,80 @@ function PlaceholderTiles({size}: { size: number }) {
         <>
             {[42, 58, 36, 64, 48, 54, 39, 61, 45, 50, 57, 43].map((width, index) => (
                 <Tile $dim={false} $current={false} key={index}>
-                    <Bone style={{height: size, width: size}}/>
-                    <Bone style={{height: 9, width: `${width}%`}}/>
+                    <TileMedia>
+                        <Bone style={{height: size, width: size}}/>
+                    </TileMedia>
+                    <TileCaption>
+                        <Bone style={{height: 9, width: `${width}%`}}/>
+                    </TileCaption>
                 </Tile>
             ))}
         </>
     );
 }
+
+/** One rectangular grid tile: a picture preview, or the entry's icon, with a caption underneath. */
+const GridTile = memo(function GridTile({
+    row, current, dim, iconSize, itemCount, showTarget, innerRef, onOpen, onOpenFile,
+}: {
+    row: RowModel;
+    current: boolean;
+    dim: boolean;
+    iconSize: number;
+    itemCount?: number;
+    showTarget: boolean;
+    innerRef: RefObject<HTMLDivElement | null>;
+    onOpen: (path: string, newTab?: boolean) => void;
+    onOpenFile?: (path: string) => void;
+}) {
+    const quick = useQuickAccess();
+    const image = !row.entry.isDirectory && isImage(row.entry.name);
+    const preview = useThumbnail(image ? row.entry.fullPath : null, 192, row.entry.modified);
+    const [failed, setFailed] = useState(false);
+    const icon = Math.min(iconSize, 64);
+
+    return (
+        <Tile
+            $current={current}
+            $dim={dim}
+            onClick={(event) => row.entry.isDirectory && wantsNewTab(event) && onOpen(row.entry.fullPath, true)}
+            onDoubleClick={(event) => row.entry.isDirectory
+                ? onOpen(row.entry.fullPath, wantsNewTab(event))
+                : onOpenFile?.(row.entry.fullPath)}
+            ref={current ? innerRef : undefined}
+            title={row.entry.name}
+        >
+            <TileMedia>
+                {image && preview && !failed
+                    ? (
+                        <img
+                            alt=""
+                            decoding="async"
+                            loading="lazy"
+                            onError={() => setFailed(true)}
+                            src={preview}
+                        />
+                    )
+                    : row.place && quick.useIcons
+                        ? <PlaceIcon place={row.place} size={icon}/>
+                        : <EntryIcon entry={row.entry} size={icon}/>}
+            </TileMedia>
+            <TileCaption>
+                <TileName>
+                    <Highlighted name={row.label} ranges={row.ranges}/>
+                </TileName>
+                <TileMeta>
+                    {row.entry.isDirectory
+                        ? (itemCount === undefined ? "Folder" : `Folder · ${itemCount} items`)
+                        : `${typeOf(row.entry.name)} · ${formatBytes(row.entry.size)}`}
+                </TileMeta>
+                {showTarget && row.entry.linkTarget && (
+                    <TileLink title={row.entry.linkTarget}>→ {row.entry.linkTarget}</TileLink>
+                )}
+            </TileCaption>
+        </Tile>
+    );
+});
 
 const IconSlot = styled.span<{ $size?: number }>`
     display: grid;
@@ -444,16 +550,49 @@ const Body = styled.div`
     padding: 8px 10px 22px;
 `;
 
-const GridBody = styled.div<{ $size: number }>`
-    display: grid;
+const GridBody = styled.div`
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    grid-template-columns: repeat(auto-fill, minmax(${({$size}) => $size + 70}px, 1fr));
-    grid-auto-rows: auto;
+    padding: 12px 14px 24px;
+`;
+
+const GridSection = styled.section`
+    & + & {
+        margin-top: 22px;
+    }
+`;
+
+const GridHeader = styled.h3`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+`;
+
+const GridCount = styled.span`
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-muted);
+`;
+
+const GridRule = styled.span`
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, var(--border-color), transparent);
+`;
+
+const Tiles = styled.div`
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    grid-auto-rows: 148px;
     gap: 10px;
     align-content: start;
-    padding: 12px 14px 24px;
 `;
 
 const Skeleton = styled.div`
@@ -536,28 +675,44 @@ const Cell = styled.span`
     white-space: nowrap;
 `;
 
-/** The tags cell is a button so clicking it opens the picker. */
+/** The tags cell is a button so clicking it opens the picker; tags stack as little badges. */
 const TagsButton = styled.button`
-    display: block;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
     width: 100%;
+    max-height: 100%;
     overflow: hidden;
     padding: 2px 4px;
     border: 1px dashed transparent;
     border-radius: var(--radius-sm);
     background: transparent;
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    font-size: 10px;
     text-align: left;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     cursor: pointer;
 
     &:hover {
         border-color: var(--border-color);
         background: var(--bg-card-hover);
-        color: var(--text-secondary);
     }
+`;
+
+const TagChip = styled.span`
+    max-width: 100%;
+    padding: 1px 7px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.18);
+    color: var(--text-secondary);
+    font-size: 9px;
+    line-height: 1.5;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
+const TagEmpty = styled.span`
+    color: var(--text-muted);
+    font-size: 10px;
 `;
 
 const Broken = styled.span`
@@ -565,15 +720,14 @@ const Broken = styled.span`
 `;
 
 const Tile = styled.div<{ $dim: boolean; $current: boolean }>`
+    position: relative;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 7px;
     min-width: 0;
-    padding: 12px 8px 10px;
-    border: 1px solid ${({$current}) => $current ? "rgba(59, 130, 246, 0.5)" : "transparent"};
+    overflow: hidden;
+    border: 1px solid ${({$current}) => $current ? "rgba(59, 130, 246, 0.5)" : "var(--border-color)"};
     border-radius: var(--radius-md);
-    background: ${({$current}) => $current ? "rgba(59, 130, 246, 0.14)" : "transparent"};
+    background: ${({$current}) => $current ? "rgba(59, 130, 246, 0.14)" : "var(--bg-primary)"};
     opacity: ${({$dim}) => $dim ? 0.3 : 1};
     cursor: default;
     user-select: none;
@@ -581,18 +735,23 @@ const Tile = styled.div<{ $dim: boolean; $current: boolean }>`
 
     &:hover {
         background: var(--bg-card-hover);
-        border-color: var(--border-color);
+        border-color: var(--border-color-hover);
     }
 `;
 
-const TileGlyph = styled.span`
+const TileMedia = styled.div`
+    position: relative;
     display: grid;
     place-items: center;
-    flex-shrink: 0;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
 
     img {
         display: block;
-        object-fit: contain;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
     }
 
     svg {
@@ -600,24 +759,43 @@ const TileGlyph = styled.span`
     }
 `;
 
+/** The name sits over the tile, on a scrim, the way the gallery draws its captions. */
+const TileCaption = styled.div`
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 18px 8px 6px;
+    background: linear-gradient(to top, rgba(2, 6, 23, 0.92), rgba(2, 6, 23, 0));
+    overflow: hidden;
+`;
+
 const TileName = styled.span`
     width: 100%;
     overflow: hidden;
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-secondary);
-    text-align: center;
+    text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
+`;
+
+const TileMeta = styled.span`
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-muted);
 `;
 
 const TileLink = styled.span`
     width: 100%;
     overflow: hidden;
-    padding: 0 2px;
     font-family: var(--font-mono);
     font-size: 9px;
     color: var(--accent-primary);
-    text-align: center;
+    text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
 `;

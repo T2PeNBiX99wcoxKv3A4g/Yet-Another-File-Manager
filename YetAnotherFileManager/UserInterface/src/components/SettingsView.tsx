@@ -261,14 +261,14 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
             </Section>
 
             <Section>
-                <Title>Files view</Title>
+                <Title>Files view (global)</Title>
                 <Rows>
                     <Row>
                         <RowText>
                             <Label>Default view</Label>
                             <Note>
-                                New folders open this way. A folder can still remember its own list or
-                                grid mode.
+                                The mode every folder starts with. A folder can still remember its own
+                                list or grid mode from the title bar.
                             </Note>
                         </RowText>
                         <RowEnd>
@@ -295,7 +295,10 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         </RowEnd>
                     </Row>
                     <Row>
-                        <Label>Icon size</Label>
+                        <RowText>
+                            <Label>Icon size</Label>
+                            <Note>Used in every folder.</Note>
+                        </RowText>
                         <RowEnd>
                             <RangeInput
                                 max={96}
@@ -313,7 +316,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                     <Row>
                         <RowText>
                             <Label>Columns</Label>
-                            <Note>These columns are shown in every folder.</Note>
+                            <Note>Shown in every folder; changing them changes all folders at once.</Note>
                         </RowText>
                     </Row>
                     <Row>
@@ -339,6 +342,10 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         </ColumnGrid>
                     </Row>
                 </Rows>
+                <Footnote>
+                    These are global settings. A folder can still remember its own mode, icon size and
+                    sort order from the title bar.
+                </Footnote>
             </Section>
 
             <Section>
