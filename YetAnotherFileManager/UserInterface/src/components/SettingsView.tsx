@@ -525,9 +525,9 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         </Toggle>
                     </Row>
                 </Rows>
-                <Notice>
-                    {folderIndexNotice(appInfo?.platform, settings?.writeDirectoryIndex ?? true)}
-                </Notice>
+                {!(settings?.writeDirectoryIndex ?? true) && (
+                    <Notice>{folderIndexNotice(appInfo?.platform)}</Notice>
+                )}
             </Section>
 
             <Section>
@@ -558,17 +558,15 @@ function describe(value: boolean | undefined): string {
 }
 
 /**
- * The index has to live somewhere, so the notice names the drive the central database grows on.
+ * Shown only while per-folder indexes are off, and names the drive the central database grows on.
  * Windows and Linux keep the settings in different places, and only the user knows where that is.
  */
-function folderIndexNotice(platform: string | undefined, perFolder: boolean): string {
+function folderIndexNotice(platform: string | undefined): string {
     const place = platform === "windows" ? "%APPDATA%, which sits on the system drive (usually C:)"
         : platform === "linux" ? "your home folder, which often shares a partition with the system"
             : "the app's settings folder, which usually sits on the system drive";
 
-    return perFolder
-        ? `Turning this off moves every folder's icons, sizes and cached listing into one database in ${place}. That drive then grows with every folder you open, and the space is not given back when those folders are deleted.`
-        : `Indexes are off. Every folder's icons, sizes and cached listing now live in one database in ${place}, so that drive grows with every folder you open — that is the cost of keeping folders free of extra files.`;
+    return `Indexes are off. Every folder's icons, sizes and cached listing now live in one database in ${place}, so that drive grows with every folder you open — that is the cost of keeping folders free of extra files.`;
 }
 
 function describeSource(source: string): string {
