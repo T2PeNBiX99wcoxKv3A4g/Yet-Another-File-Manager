@@ -92,7 +92,7 @@ internal static class Png
         raw.Position = 0;
 
         using var compressed = new MemoryStream();
-        using (var zlib = new ZLibStream(compressed, CompressionLevel.Optimal, true))
+        using (var zlib = new ZLibStream(compressed, CompressionLevel.Fastest, true))
             raw.CopyTo(zlib);
 
         return compressed.ToArray();

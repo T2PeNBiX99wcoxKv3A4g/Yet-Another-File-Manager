@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {startTransition, useCallback, useEffect, useMemo, useRef, useState, memo} from "react";
 import styled from "styled-components";
 import {listGallery, type GalleryEntry} from "../api/files";
 import {useThumbnail} from "../api/icons";
@@ -6,7 +6,7 @@ import {formatBytes} from "../utils/format";
 import {RefreshIcon} from "./Icons";
 
 /** How many pictures one request carries; the rest arrive while the user scrolls. */
-const PageSize = 150;
+const PageSize = 100;
 
 /** A wall of thumbnails from the configured folders, newest first, grouped by day. */
 export function GalleryView() {
@@ -48,8 +48,11 @@ export function GalleryView() {
         try {
             const page = await listGallery(entries.length, PageSize, false);
 
-            setEntries((current) => [...current, ...page.entries]);
-            setTotal(page.total);
+            // Appending is not urgent; keeping it a transition lets scrolling stay smooth.
+            startTransition(() => {
+                setEntries((current) => [...current, ...page.entries]);
+                setTotal(page.total);
+            });
         } catch {
             // A failed page is not worth a banner; scrolling again asks once more.
         } finally {
@@ -114,8 +117,8 @@ export function GalleryView() {
 }
 
 /** Thumbnails are fetched by the web view itself; a lazy image is enough to keep the wall fast. */
-function Tile({entry}: { entry: GalleryEntry }) {
-    const thumbnail = useThumbnail(entry.path, 160, entry.modified);
+const Tile = memo(function Tile({entry}: { entry: GalleryEntry }) {
+    const thumbnail = useThumbnail(entry.path, 128, entry.modified);
     const [failed, setFailed] = useState(false);
 
     return (
@@ -136,7 +139,7 @@ function Tile({entry}: { entry: GalleryEntry }) {
             </Caption>
         </Cell>
     );
-}
+});
 
 /** "PNG", or "FILE" for a picture without an extension worth showing. */
 function typeOf(name: string): string {
@@ -300,9 +303,9 @@ const Cell = styled.div`
     background: rgba(15, 23, 42, 0.6);
     overflow: hidden;
     /* Tiles far below the viewport are laid out but not painted, which is what keeps a long
-       scroll smooth. */
+       scroll smooth. The intrinsic size matches the real cell so the scrollbar does not jump. */
     content-visibility: auto;
-    contain-intrinsic-size: 124px 200px;
+    contain-intrinsic-size: 200px 124px;
     transition: border-color 120ms ease;
 
     &:hover {

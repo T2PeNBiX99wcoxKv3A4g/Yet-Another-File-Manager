@@ -22,7 +22,7 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
     private readonly string _token = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
     private readonly ConcurrentDictionary<string, byte[]> _cache = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentQueue<string> _order = new();
-    private readonly SemaphoreSlim _gate = new(Math.Clamp(Environment.ProcessorCount, 4, 10));
+    private readonly SemaphoreSlim _gate = new(Math.Clamp(Environment.ProcessorCount / 2, 2, 4));
     private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
 
     public ThumbnailServer()
@@ -73,13 +73,13 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
                 if (request is null)
                     return;
 
-                if (!TryReadPath(request, out var path, out var size))
+                if (!TryReadPath(request, out var path, out var size, out var version))
                 {
                     await RespondAsync(stream, 404, "text/plain", []);
                     return;
                 }
 
-                var bytes = await ThumbnailAsync(path, size);
+                var bytes = await ThumbnailAsync(path, size, version);
                 await RespondAsync(stream, bytes is null ? 404 : 200,
                     bytes is null ? "text/plain" : "image/png", bytes ?? []);
             }
@@ -98,25 +98,28 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
 
         while (length < buffer.Length)
         {
-            if (await stream.ReadAsync(buffer.AsMemory(length, 1)) == 0)
+            var read = await stream.ReadAsync(buffer.AsMemory(length, buffer.Length - length));
+            if (read == 0)
                 return null;
 
-            length += 1;
+            var searchFrom = Math.Max(0, length - 3);
+            length += read;
 
-            if (length >= 4
-                && buffer[length - 4] == (byte)'\r' && buffer[length - 3] == (byte)'\n'
-                && buffer[length - 2] == (byte)'\r' && buffer[length - 1] == (byte)'\n')
-                return Encoding.ASCII.GetString(buffer, 0, length);
+            for (var index = searchFrom; index + 3 < length; index++)
+                if (buffer[index] == (byte)'\r' && buffer[index + 1] == (byte)'\n'
+                    && buffer[index + 2] == (byte)'\r' && buffer[index + 3] == (byte)'\n')
+                    return Encoding.ASCII.GetString(buffer, 0, index);
         }
 
         return null;
     }
 
-    /// <summary>Validates the token and reads the file path and size from the query string.</summary>
-    private bool TryReadPath(string request, out string path, out int size)
+    /// <summary>Validates the token and reads the file path, size and cache version from the query.</summary>
+    private bool TryReadPath(string request, out string path, out int size, out string version)
     {
         path = "";
         size = 128;
+        version = "";
 
         var line = request.Split("\r\n", 2)[0];
         var parts = line.Split(' ');
@@ -144,14 +147,16 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
                 path = value;
             else if (pair[..equals] == "size" && int.TryParse(value, out var parsed))
                 size = Math.Clamp(parsed, 32, 512);
+            else if (pair[..equals] == "v")
+                version = value;
         }
 
         return path.Length > 0;
     }
 
-    private async Task<byte[]?> ThumbnailAsync(string path, int size)
+    private async Task<byte[]?> ThumbnailAsync(string path, int size, string version)
     {
-        var key = $"{path}|{size}";
+        var key = $"{path}|{size}|{version}";
         if (_cache.TryGetValue(key, out var cached))
             return cached;
 
