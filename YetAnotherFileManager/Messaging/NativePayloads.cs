@@ -24,6 +24,12 @@ internal sealed record FsListPayload(
     IReadOnlyList<FileEntry> Entries,
     Dictionary<string, long> FolderSizes);
 
+/// <summary>
+///     Body for <c>fs.list.cached</c>: the listing saved the last time the folder was opened. When
+///     the folder was never cached <c>Cached</c> is false and <c>Listing</c> is null.
+/// </summary>
+internal sealed record FsCachedListPayload(bool Cached, FsListPayload? Listing);
+
 /// <summary>Body for <c>fs.places</c>.</summary>
 internal sealed record FsPlacesPayload(IReadOnlyList<PlaceEntry> Places);
 

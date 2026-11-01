@@ -161,6 +161,10 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 return context.Reply("fs.list.result",
                     await ListAsync(context.Payload<FsListRequest>()?.Path, context.Payload<FsListRequest>()?.Sizes ?? true));
 
+            case "fs.list.cached":
+                return context.Reply("fs.list.cached.result",
+                    await CachedListAsync(context.Payload<FsListRequest>()?.Path));
+
             default:
                 return null;
         }
@@ -494,14 +498,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         // Explorer's own switches, so the listing matches what the user's file manager shows.
         var (showHidden, showSystem) = await Task.Run(() => (FileVisibility.ShowHidden, FileVisibility.ShowSystem));
 
-        // The index lives beside the files; reading it must never be able to fail a listing.
-        var settings = SettingsService.Instance.Current;
-
-        // Creating and migrating a database touches the disk; it must never stand between the user
-        // and the listing, so it runs behind it.
-        if (settings.ShouldWriteDirectoryIndex)
-            _ = DirectoryIndex.EnsureAsync(directory.FullName);
-
+        // The index is best effort: reading it must never be able to fail a listing.
         await DirectoryIndex.EnsureHiddenAsync(directory.FullName);
 
         var iconsTask = DirectoryIndex.IconsAsync(directory.FullName);
@@ -511,14 +508,22 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         var icons = await iconsTask;
         var sizes = await sizesTask;
 
-        var entries = await Task.Run(() => directory.EnumerateFileSystemInfos()
+        // Everything is enumerated, hidden and system entries included, so the cache is complete;
+        // the response only carries what the user's settings ask to see.
+        var all = await Task.Run(() => directory.EnumerateFileSystemInfos()
             .Where(info => !DirectoryIndex.IsIndexFile(info.Name))
-            .Where(info => IsVisible(info, showHidden, showSystem))
             .Select(info => ToEntry(info, icons.GetValueOrDefault(info.Name)))
             .OfType<FileEntry>()
             .OrderByDescending(entry => entry.IsDirectory)
             .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
             .ToList());
+
+        // Storing is best effort and must not hold the listing back; the next open paints it first.
+        _ = DirectoryIndex.SaveListingAsync(directory.FullName, all);
+
+        var entries = showHidden && showSystem
+            ? all
+            : all.Where(entry => (showSystem || !entry.IsSystem) && (showHidden || !entry.IsHidden)).ToList();
 
         if (measure) RequestSizes(directory.FullName, entries);
         _ = HistoryService.Instance.RecordRecentAsync(directory.FullName);
@@ -526,12 +531,35 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         return new(directory.FullName, directory.Parent?.FullName, entries, sizes);
     }
 
+    /// <summary>
+    ///     The listing saved the last time this folder was opened, so the window can paint it before
+    ///     the disk is walked again. It may be stale; the live listing replaces it right after.
+    /// </summary>
+    private static async Task<FsCachedListPayload> CachedListAsync(string? path)
+    {
+        var directory = new DirectoryInfo(ResolvePath(path));
+
+        var entries = directory.Exists ? await DirectoryIndex.ListingAsync(directory.FullName) : null;
+        if (entries is null)
+            return new(false, null);
+
+        var (showHidden, showSystem) = await Task.Run(() => (FileVisibility.ShowHidden, FileVisibility.ShowSystem));
+
+        // The saved rows carry the icon of the last scan; the icon table may be newer.
+        var icons = await DirectoryIndex.IconsAsync(directory.FullName);
+        var sizes = await DirectoryIndex.SizesAsync(directory.FullName);
+
+        var visible = entries
+            .Where(entry => (showSystem || !entry.IsSystem) && (showHidden || !entry.IsHidden))
+            .Select(entry => entry with { IconSource = icons.GetValueOrDefault(entry.Name) })
+            .ToList();
+
+        return new(true, new FsListPayload(directory.FullName, directory.Parent?.FullName, visible, sizes));
+    }
+
     /// <summary>Queues the folders of the listing that have no fresh measurement.</summary>
     private static void RequestSizes(string directory, List<FileEntry> entries)
     {
-        if (!SettingsService.Instance.Current.ShouldWriteDirectoryIndex)
-            return;
-
         var children = entries
             .Where(entry => entry.IsDirectory)
             .Select(entry => entry.Name)
@@ -539,14 +567,6 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
         if (children.Count > 0)
             FolderSizeService.Instance.Request(directory, children);
-    }
-
-    private static bool IsVisible(FileSystemInfo info, bool showHidden, bool showSystem)
-    {
-        var attributes = Try.Run(() => info.Attributes).GetOrElse(_ => FileAttributes.Normal);
-
-        return (showSystem || !attributes.HasFlag(FileAttributes.System))
-               && (showHidden || !attributes.HasFlag(FileAttributes.Hidden));
     }
 
     private static Task<List<PlaceEntry>> GetPlacesAsync() => Task.Run(GetPlaces);

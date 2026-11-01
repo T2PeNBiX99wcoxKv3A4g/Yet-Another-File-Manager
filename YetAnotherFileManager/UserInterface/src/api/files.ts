@@ -110,6 +110,17 @@ export async function listDirectory(path?: string, sizes = true): Promise<Direct
     return await Native.request<DirectoryListing>("fs.list", {path: path ?? null, sizes});
 }
 
+/**
+ * The listing saved the last time this folder was opened, so the window can paint it before the
+ * disk is walked again. `listing` is null when the folder was never cached.
+ */
+export async function listDirectoryCached(path?: string): Promise<{ cached: boolean; listing: DirectoryListing | null }> {
+    if (!Native.available) return {cached: false, listing: null};
+
+    return await Native.request<{ cached: boolean; listing: DirectoryListing | null }>(
+        "fs.list.cached", {path: path ?? null});
+}
+
 /** The shortcuts shown above the drive list. */
 export async function listPlaces(): Promise<Place[]> {
     const data = await Native.request<{ places: Place[] }>("fs.places");

@@ -2,6 +2,7 @@ import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import styled from "styled-components";
 import {
     listDirectory,
+    listDirectoryCached,
     listDrives,
     listPlaces,
     listRecent,
@@ -208,13 +209,46 @@ export default function App() {
         setTabs((current) => current.map((tab) => tab.id === id ? {...tab, ...update(tab)} : tab));
     }, []);
 
+    // One token per tab, so a slow folder can never paint over the newer one the user just opened.
+    const loads = useRef(new Map<string, number>());
+
+    const beginLoad = useCallback((id: string): (() => boolean) => {
+        const token = (loads.current.get(id) ?? 0) + 1;
+        loads.current.set(id, token);
+        return () => loads.current.get(id) === token;
+    }, []);
+
+    /**
+     * Paints the listing saved the last time the folder was opened, unless the live listing wins the
+     * race or the tab has already moved on. Returns a function that stops the cache from painting.
+     */
+    const paintCached = useCallback((id: string, path: string | undefined, current: () => boolean) => {
+        let live = false;
+
+        void listDirectoryCached(path)
+            .then((cached) => {
+                if (!live && current() && cached.listing) patch(id, () => ({listing: cached.listing}));
+            })
+            .catch(() => undefined);
+
+        return () => {
+            live = true;
+        };
+    }, [patch]);
+
     /** Opens a folder in a tab, recording it in that tab's history. */
     const load = useCallback(async (id: string, path?: string, keepFresh = false) => {
+        const current = beginLoad(id);
+
         patch(id, (tab) => ({loading: true, error: null, fresh: keepFresh && tab.fresh}));
         setFilter("");
 
+        const settle = paintCached(id, path, current);
+
         try {
             const listing = await listDirectory(path);
+            settle();
+            if (!current()) return;
 
             patch(id, (tab) => ({
                 listing,
@@ -226,11 +260,14 @@ export default function App() {
 
             // A refresh shows the same folder again; only a real navigation counts as a visit.
             if (!keepFresh)
-                void recordVisit(listing.path).then(() => setHistoryVersion((current) => current + 1));
+                void recordVisit(listing.path).then(() => setHistoryVersion((version) => version + 1));
         } catch (cause) {
+            settle();
+            if (!current()) return;
+
             patch(id, () => ({loading: false, error: message(cause)}));
         }
-    }, [patch]);
+    }, [beginLoad, paintCached, patch]);
 
     /** Goes to a location: a folder is listed, a yafm:// page is simply shown. */
     const openLocation = useCallback((id: string, target: string) => {
@@ -238,6 +275,7 @@ export default function App() {
         if (!parsed) return;
 
         if (viewKind(parsed)) {
+            beginLoad(id);
             patch(id, (tab) => ({
                 listing: null,
                 loading: false,
@@ -250,26 +288,37 @@ export default function App() {
         }
 
         void load(id, parsed);
-    }, [load, patch]);
+    }, [beginLoad, load, patch]);
 
     /** Shows a location already in the tab's history, without adding it again. */
     const goTo = useCallback(async (id: string, target: string, index: number) => {
         setFilter("");
 
         if (viewKind(target)) {
+            beginLoad(id);
             patch(id, () => ({index, listing: null, loading: false, error: null}));
             return;
         }
 
+        const current = beginLoad(id);
+
         patch(id, () => ({index, loading: true, error: null}));
+
+        const settle = paintCached(id, target, current);
 
         try {
             const listing = await listDirectory(target);
+            settle();
+            if (!current()) return;
+
             patch(id, () => ({listing, loading: false}));
         } catch (cause) {
+            settle();
+            if (!current()) return;
+
             patch(id, () => ({loading: false, error: message(cause)}));
         }
-    }, [patch]);
+    }, [beginLoad, paintCached, patch]);
 
     const openFiles = useCallback((path?: string) => {
         const tab = createTab(path ?? viewLocation("home"));

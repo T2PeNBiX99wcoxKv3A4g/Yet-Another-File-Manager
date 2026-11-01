@@ -510,8 +510,9 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         <RowText>
                             <Label>Keep a <Index>.yafm-index.db</Index> in every folder</Label>
                             <Note>
-                                Holds icons, cached folder sizes and other per-folder data. Hidden and marked
-                                as a system file on Windows; skipped where the folder is read-only.
+                                Holds icons, cached folder sizes and the folder's last listing, so it opens
+                                instantly next time. Hidden and marked as a system file on Windows; skipped
+                                where the folder is read-only.
                             </Note>
                         </RowText>
                         <Toggle
@@ -524,6 +525,9 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         </Toggle>
                     </Row>
                 </Rows>
+                <Notice>
+                    {folderIndexNotice(appInfo?.platform, settings?.writeDirectoryIndex ?? true)}
+                </Notice>
             </Section>
 
             <Section>
@@ -551,6 +555,20 @@ function describe(value: boolean | undefined): string {
     if (value === undefined) return "Reading…";
 
     return value ? "Shown" : "Hidden";
+}
+
+/**
+ * The index has to live somewhere, so the notice names the drive the central database grows on.
+ * Windows and Linux keep the settings in different places, and only the user knows where that is.
+ */
+function folderIndexNotice(platform: string | undefined, perFolder: boolean): string {
+    const place = platform === "windows" ? "%APPDATA%, which sits on the system drive (usually C:)"
+        : platform === "linux" ? "your home folder, which often shares a partition with the system"
+            : "the app's settings folder, which usually sits on the system drive";
+
+    return perFolder
+        ? `Turning this off moves every folder's icons, sizes and cached listing into one database in ${place}. That drive then grows with every folder you open, and the space is not given back when those folders are deleted.`
+        : `Indexes are off. Every folder's icons, sizes and cached listing now live in one database in ${place}, so that drive grows with every folder you open — that is the cost of keeping folders free of extra files.`;
 }
 
 function describeSource(source: string): string {
@@ -854,4 +872,15 @@ const Footnote = styled.p`
     font-size: 11px;
     line-height: 1.6;
     color: var(--text-muted);
+`;
+
+/** A consequence the user should read before flipping a switch, not a quiet footnote. */
+const Notice = styled.p`
+    padding: 9px 11px;
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: var(--radius-sm);
+    background: rgba(251, 191, 36, 0.08);
+    font-size: 11px;
+    line-height: 1.6;
+    color: #fcd34d;
 `;
