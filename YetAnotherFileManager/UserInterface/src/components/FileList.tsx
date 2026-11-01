@@ -1,7 +1,9 @@
+import {useEffect, useRef, type ReactNode} from "react";
 import styled from "styled-components";
 import {wantsNewTab} from "../shortcuts";
 import type {DirectoryListing, FileEntry} from "../api/files";
 import {useIcon, useIconFile} from "../api/icons";
+import {NoFind, rangesOf, type FindView} from "../find";
 import {formatBytes, formatDate} from "../utils/format";
 import {FolderIcon} from "./Icons";
 import {BuiltinIcon, iconForName} from "../icons/fileTypes";
@@ -10,25 +12,33 @@ interface FileListProps {
     listing: DirectoryListing | null;
     loading: boolean;
     error: string | null;
-    filter: string;
+    /** The search that is open, if any; absent means "no search". */
+    find?: FindView;
     onOpen: (path: string, newTab?: boolean) => void;
     /** Double-clicking a file hands it to the system; without this, files are inert. */
     onOpenFile?: (path: string) => void;
 }
 
-export function FileList({listing, loading, error, filter, onOpen, onOpenFile}: FileListProps) {
+export function FileList({listing, loading, error, find = NoFind, onOpen, onOpenFile}: FileListProps) {
+    const currentRow = useRef<HTMLDivElement | null>(null);
+
+    // Typing a letter jumps to the first match; the row has to be brought into view with it.
+    useEffect(() => {
+        currentRow.current?.scrollIntoView({block: "nearest"});
+    }, [find.currentPath]);
+
     if (error)
         return <Center><ErrorText>{error}</ErrorText></Center>;
 
     if (!listing && !loading)
         return <Center><Muted>Nothing selected.</Muted></Center>;
 
-    const needle = filter.trim().toLowerCase();
+    const searching = find.query.length > 0;
     const folderSizes = listing?.folderSizes ?? {};
-    const entries = listing
-        ? needle
-            ? listing.entries.filter((entry) => entry.name.toLowerCase().includes(needle))
-            : listing.entries
+    const rows = listing
+        ? listing.entries
+            .map((entry) => ({entry, ranges: searching ? rangesOf(entry.name, find) : null}))
+            .filter((row) => !searching || find.mode === "dim" || row.ranges !== null)
         : [];
 
     return (
@@ -42,32 +52,62 @@ export function FileList({listing, loading, error, filter, onOpen, onOpenFile}: 
             <Body>
                 {loading && !listing
                     ? <PlaceholderRows/>
-                    : entries.map((entry) => (
-                        <Row
-                            key={entry.fullPath}
-                            $hidden={entry.isHidden}
-                            onClick={(event) => entry.isDirectory && wantsNewTab(event) && onOpen(entry.fullPath, true)}
-                            onDoubleClick={(event) => entry.isDirectory
-                                ? onOpen(entry.fullPath, wantsNewTab(event))
-                                : onOpenFile?.(entry.fullPath)}
-                        >
-                            <Name>
-                                <EntryIcon entry={entry}/>
-                                <span>{entry.name}</span>
-                            </Name>
-                            <Size>{sizeOf(entry, folderSizes)}</Size>
-                            <Modified>{formatDate(entry.modified)}</Modified>
-                        </Row>
-                    ))}
+                    : rows.map(({entry, ranges}) => {
+                        const dim = searching && ranges === null;
+                        const current = searching && entry.fullPath === find.currentPath;
 
-                {!loading && listing && entries.length === 0 && (
+                        return (
+                            <Row
+                                key={entry.fullPath}
+                                $hidden={entry.isHidden}
+                                $dim={dim}
+                                $current={current}
+                                onClick={(event) => entry.isDirectory && wantsNewTab(event) && onOpen(entry.fullPath, true)}
+                                onDoubleClick={(event) => entry.isDirectory
+                                    ? onOpen(entry.fullPath, wantsNewTab(event))
+                                    : onOpenFile?.(entry.fullPath)}
+                                ref={current ? currentRow : undefined}
+                            >
+                                <Name>
+                                    <EntryIcon entry={entry}/>
+                                    <span><Highlighted name={entry.name} ranges={ranges}/></span>
+                                </Name>
+                                <Size>{sizeOf(entry, folderSizes)}</Size>
+                                <Modified>{formatDate(entry.modified)}</Modified>
+                            </Row>
+                        );
+                    })}
+
+                {!loading && listing && rows.length === 0 && (
                     <Center>
-                        <Muted>{needle ? "No entries match the filter." : "This folder is empty."}</Muted>
+                        <Muted>
+                            {searching && find.mode === "hide"
+                                ? "No entries match the search."
+                                : "This folder is empty."}
+                        </Muted>
                     </Center>
                 )}
             </Body>
         </Wrapper>
     );
+}
+
+/** The name with every match of the query marked, so a dimmed list still points at the hit. */
+function Highlighted({name, ranges}: { name: string; ranges: [number, number][] | null }) {
+    if (!ranges || ranges.length === 0) return <>{name}</>;
+
+    const parts: ReactNode[] = [];
+    let at = 0;
+
+    for (const [start, end] of ranges) {
+        if (start > at) parts.push(name.slice(at, start));
+        parts.push(<Mark key={start}>{name.slice(start, end)}</Mark>);
+        at = end;
+    }
+
+    if (at < name.length) parts.push(name.slice(at));
+
+    return <>{parts}</>;
 }
 
 /**
@@ -196,7 +236,7 @@ const Bone = styled.span`
     }
 `;
 
-const Row = styled.div<{ $hidden: boolean }>`
+const Row = styled.div<{ $hidden: boolean; $dim: boolean; $current: boolean }>`
     display: grid;
     grid-template-columns: minmax(0, 1fr) 110px 170px;
     gap: 16px;
@@ -204,12 +244,14 @@ const Row = styled.div<{ $hidden: boolean }>`
     padding: 9px 12px;
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
+    background: ${({$current}) => $current ? "rgba(59, 130, 246, 0.14)" : "transparent"};
+    box-shadow: ${({$current}) => $current ? "inset 0 0 0 1px rgba(59, 130, 246, 0.5)" : "none"};
     font-size: 13px;
     color: var(--text-secondary);
-    opacity: ${({$hidden}) => $hidden ? 0.5 : 1};
+    opacity: ${({$hidden, $dim}) => $dim ? 0.3 : $hidden ? 0.55 : 1};
     cursor: default;
     user-select: none;
-    transition: background 100ms ease, border-color 100ms ease;
+    transition: background 100ms ease, border-color 100ms ease, opacity 100ms ease;
 
     &:hover {
         background: var(--bg-card-hover);
@@ -241,6 +283,12 @@ const Modified = styled.span`
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--text-muted);
+`;
+
+const Mark = styled.mark`
+    border-radius: 2px;
+    background: rgba(59, 130, 246, 0.5);
+    color: var(--text-primary);
 `;
 
 const Center = styled.div`

@@ -1,5 +1,10 @@
 /** The key combinations the interface listens for; the values are what settings.json holds. */
 export interface ShortcutMap {
+    goBack: string;
+    goForward: string;
+    goUp: string;
+    refresh: string;
+    find: string;
     closeTab: string;
     newTab: string;
     /** Modifier held while clicking to open something in a new tab. */
@@ -7,6 +12,11 @@ export interface ShortcutMap {
 }
 
 export const DefaultShortcuts: ShortcutMap = {
+    goBack: "alt+arrowleft",
+    goForward: "alt+arrowright",
+    goUp: "alt+arrowup",
+    refresh: "f5",
+    find: "ctrl+f",
     closeTab: "ctrl+w",
     newTab: "ctrl+t",
     openInNewTab: "ctrl",
@@ -50,9 +60,24 @@ export function prettyShortcut(value: string): string {
     return value
         .split("+")
         .filter(Boolean)
-        .map((part) => part.length === 1 ? part.toUpperCase() : part.charAt(0).toUpperCase() + part.slice(1))
+        .map((part) => KeyLabels[part]
+            ?? (part.length === 1 ? part.toUpperCase() : part.charAt(0).toUpperCase() + part.slice(1)))
         .join(" + ");
 }
+
+/** Keys whose own name is not readable enough when title-cased. */
+const KeyLabels: Record<string, string> = {
+    arrowleft: "Left",
+    arrowright: "Right",
+    arrowup: "Up",
+    arrowdown: "Down",
+    backspace: "Backspace",
+    delete: "Delete",
+    enter: "Enter",
+    escape: "Esc",
+    space: "Space",
+    tab: "Tab",
+};
 
 /** Typing in a field must never trigger a global shortcut. */
 export function isTyping(target: EventTarget | null): boolean {

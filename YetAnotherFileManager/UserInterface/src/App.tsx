@@ -15,7 +15,9 @@ import {
 import {getSettings, type AppSettings} from "./api/settings";
 import {getAppInfo, type AppInfo} from "./api/system";
 import {FileList} from "./components/FileList";
-import {ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, GearIcon, ImageIcon, OverviewIcon, SearchIcon, TrashIcon} from "./components/Icons";
+import {FindBar} from "./components/FindBar";
+import {EmptyFind, matchesName, type FindState} from "./find";
+import {ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, GearIcon, ImageIcon, OverviewIcon, TrashIcon} from "./components/Icons";
 import {OverviewView} from "./components/OverviewView";
 import {PathBar} from "./components/PathBar";
 import {RecycleView} from "./components/RecycleView";
@@ -145,7 +147,9 @@ export default function App() {
     const [drives, setDrives] = useState<Drive[]>([]);
     const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
     const corners = useWindowCorners();
-    const [filter, setFilter] = useState("");
+    const [find, setFind] = useState<FindState>(EmptyFind);
+    const [findIndex, setFindIndex] = useState(0);
+    const [findFocus, setFindFocus] = useState(0);
     const [recent, setRecent] = useState<RecentEntry[]>([]);
     const [recentLimit, setRecentLimit] = useState(10);
     const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -201,6 +205,55 @@ export default function App() {
                 : kind === "gallery" ? <ImageIcon size={13}/>
                     : undefined;
 
+    // ---- search ----
+
+    const searching = find.open && find.query.length > 0;
+
+    /** The entries the current query matches, in list order; the find bar walks this. */
+    const findHits = useMemo(
+        () => searching && active.listing
+            ? active.listing.entries
+                .filter((entry) => matchesName(entry.name, find))
+                .map((entry) => entry.fullPath)
+            : [],
+        [searching, find, active.listing],
+    );
+
+    // A new query starts again at the first hit; stepping through them leaves the query alone.
+    useEffect(() => {
+        setFindIndex(0);
+    }, [find.query, find.matchCase, find.regex, active.listing?.path]);
+
+    const findCurrent = findHits.length === 0 ? -1 : Math.min(findIndex, findHits.length - 1);
+
+    const resetFind = useCallback(() => {
+        setFind((current) => ({...current, open: false, query: ""}));
+        setFindIndex(0);
+    }, []);
+
+    const openFind = useCallback(() => {
+        setFind((current) => ({...current, open: true}));
+        setFindFocus((token) => token + 1);
+    }, []);
+
+    /** Typing in a folder opens the search with what was typed, the way a file manager jumps to a name. */
+    const startFind = useCallback((text: string) => {
+        setFind((current) => ({
+            ...current,
+            open: true,
+            query: current.open ? current.query + text : text,
+        }));
+        setFindFocus((token) => token + 1);
+    }, []);
+
+    const stepFind = useCallback((delta: number) => {
+        setFindIndex((index) => {
+            if (findHits.length === 0) return 0;
+
+            return (Math.min(index, findHits.length - 1) + delta + findHits.length) % findHits.length;
+        });
+    }, [findHits.length]);
+
     // Handlers that outlive a render (the native event subscription) read the latest state here.
     const stateRef = useRef({tabs, activeId});
     stateRef.current = {tabs, activeId};
@@ -235,7 +288,10 @@ export default function App() {
     const load = useCallback(async (id: string, path?: string, keepFresh = false) => {
         const current = beginLoad(id);
 
-        setFilter("");
+        resetFind();
+
+        // A refresh already has the same folder on screen, so the saved listing could only be older.
+        const paintCache = !keepFresh || !stateRef.current.tabs.find((tab) => tab.id === id)?.listing;
 
         // A navigation clears the folder that was on screen so it cannot linger over the new one;
         // the saved listing fills the gap immediately. A refresh keeps what is already visible.
@@ -247,8 +303,10 @@ export default function App() {
         }));
 
         try {
-            await showCached(id, path, current);
-            if (!current()) return;
+            if (paintCache) {
+                await showCached(id, path, current);
+                if (!current()) return;
+            }
 
             const listing = await listDirectory(path);
             if (!current()) return;
@@ -269,7 +327,7 @@ export default function App() {
 
             patch(id, () => ({loading: false, error: message(cause)}));
         }
-    }, [beginLoad, patch, showCached]);
+    }, [beginLoad, patch, resetFind, showCached]);
 
     /** Goes to a location: a folder is listed, a yafm:// page is simply shown. */
     const openLocation = useCallback((id: string, target: string) => {
@@ -277,6 +335,7 @@ export default function App() {
         if (!parsed) return;
 
         if (viewKind(parsed)) {
+            resetFind();
             beginLoad(id);
             patch(id, (tab) => ({
                 listing: null,
@@ -290,11 +349,11 @@ export default function App() {
         }
 
         void load(id, parsed);
-    }, [beginLoad, load, patch]);
+    }, [beginLoad, load, patch, resetFind]);
 
     /** Shows a location already in the tab's history, without adding it again. */
     const goTo = useCallback(async (id: string, target: string, index: number) => {
-        setFilter("");
+        resetFind();
 
         if (viewKind(target)) {
             beginLoad(id);
@@ -320,7 +379,7 @@ export default function App() {
 
             patch(id, () => ({loading: false, error: message(cause)}));
         }
-    }, [beginLoad, patch, showCached]);
+    }, [beginLoad, patch, resetFind, showCached]);
 
     const openFiles = useCallback((path?: string) => {
         const tab = createTab(path ?? viewLocation("home"));
@@ -363,6 +422,44 @@ export default function App() {
 
         openLocation(stateRef.current.activeId, target ?? viewLocation("home"));
     }, [openLocation, openFiles]);
+
+    /**
+     * Steps through the active tab's history. These read the tab from the ref so the keyboard
+     * shortcuts stay stable, and so a long list of them does not re-register on every render.
+     */
+    const goBack = useCallback(() => {
+        const {tabs, activeId} = stateRef.current;
+        const tab = tabs.find((item) => item.id === activeId);
+
+        if (tab && tab.index > 0)
+            void goTo(tab.id, tab.history[tab.index - 1], tab.index - 1);
+    }, [goTo]);
+
+    const goForward = useCallback(() => {
+        const {tabs, activeId} = stateRef.current;
+        const tab = tabs.find((item) => item.id === activeId);
+
+        if (tab && tab.index < tab.history.length - 1)
+            void goTo(tab.id, tab.history[tab.index + 1], tab.index + 1);
+    }, [goTo]);
+
+    /** Goes to the folder above the one on screen, the way the toolbar's Up button does. */
+    const goUp = useCallback(() => {
+        const {tabs, activeId} = stateRef.current;
+        const tab = tabs.find((item) => item.id === activeId);
+
+        if (tab && kindOf(tab) === "files" && tab.listing?.parent)
+            navigate(tab.listing.parent);
+    }, [navigate]);
+
+    /** Reads the folder that is already on screen again, without touching the tab's history. */
+    const refreshFolder = useCallback(() => {
+        const {tabs, activeId} = stateRef.current;
+        const tab = tabs.find((item) => item.id === activeId);
+
+        if (tab && kindOf(tab) === "files")
+            void load(tab.id, folderOf(tab), true);
+    }, [load]);
 
     /** Moves a tab next to another one, which is what dragging a tab does. */
     const moveTab = useCallback((id: string, beforeId: string) => {
@@ -475,6 +572,25 @@ export default function App() {
         const onKey = (event: KeyboardEvent) => {
             if (isTyping(event.target)) return;
 
+            // The mouse-style back and forward keys are handled directly, whatever the settings say.
+            if (event.key === "BrowserBack") {
+                event.preventDefault();
+                goBack();
+                return;
+            }
+
+            if (event.key === "BrowserForward") {
+                event.preventDefault();
+                goForward();
+                return;
+            }
+
+            if (event.key === "Escape" && find.open) {
+                event.preventDefault();
+                resetFind();
+                return;
+            }
+
             const combo = comboOf(event);
 
             if (combo === shortcuts.closeTab) {
@@ -483,12 +599,59 @@ export default function App() {
             } else if (combo === shortcuts.newTab) {
                 event.preventDefault();
                 openFiles();
+            } else if (combo === shortcuts.goBack) {
+                event.preventDefault();
+                goBack();
+            } else if (combo === shortcuts.goForward) {
+                event.preventDefault();
+                goForward();
+            } else if (combo === shortcuts.goUp) {
+                event.preventDefault();
+                goUp();
+            } else if (combo === shortcuts.refresh) {
+                event.preventDefault();
+                refreshFolder();
+            } else if (combo === shortcuts.find) {
+                event.preventDefault();
+                openFind();
+            } else if (kind === "files" && event.key.length === 1 && event.key !== " "
+                && !event.ctrlKey && !event.altKey && !event.metaKey) {
+                // Typing anywhere in a folder starts a search with that letter; the first hit jumps.
+                event.preventDefault();
+                startFind(event.key);
             }
         };
 
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [shortcuts, closeTab, openFiles]);
+    }, [shortcuts, kind, find.open, closeTab, openFiles, goBack, goForward, goUp, refreshFolder, openFind, resetFind, startFind]);
+
+    // Back and forward on the mouse: WebView2 would otherwise walk its own history and reload the app.
+    useEffect(() => {
+        const onDown = (event: MouseEvent) => {
+            if (event.button === 3) {
+                event.preventDefault();
+                goBack();
+            } else if (event.button === 4) {
+                event.preventDefault();
+                goForward();
+            }
+        };
+
+        const swallow = (event: MouseEvent) => {
+            if (event.button === 3 || event.button === 4) event.preventDefault();
+        };
+
+        window.addEventListener("mousedown", onDown);
+        window.addEventListener("mouseup", swallow);
+        window.addEventListener("auxclick", swallow);
+
+        return () => {
+            window.removeEventListener("mousedown", onDown);
+            window.removeEventListener("mouseup", swallow);
+            window.removeEventListener("auxclick", swallow);
+        };
+    }, [goBack, goForward]);
 
     // Only the folder on screen is watched; the host tells us when something in it changes.
     useEffect(() => {
@@ -521,14 +684,6 @@ export default function App() {
 
     const canBack = active.index > 0;
     const canForward = active.index < active.history.length - 1;
-
-    const goBack = () => {
-        if (canBack) void goTo(active.id, active.history[active.index - 1], active.index - 1);
-    };
-
-    const goForward = () => {
-        if (canForward) void goTo(active.id, active.history[active.index + 1], active.index + 1);
-    };
 
     return (
         <Root $rounded={corners}>
@@ -594,30 +749,40 @@ export default function App() {
                             path={kind === "files" ? folderOf(active) : location}
                             quick={quickPlaces}
                         />
-
-                        {kind === "files" && (
-                            <Search>
-                                <SearchIcon/>
-                                <input
-                                    aria-label="Filter this folder"
-                                    onChange={(event) => setFilter(event.target.value)}
-                                    placeholder="Filter…"
-                                    spellCheck={false}
-                                    type="search"
-                                    value={filter}
-                                />
-                            </Search>
-                        )}
                     </Toolbar>
 
                     {kind === "files" ? (
-                        <FileList
-                            error={active.error}
-                            filter={filter}
-                            listing={active.listing}
-                            loading={active.loading}
-                            onOpen={navigate}
-                        />
+                        <Files>
+                            <FileList
+                                error={active.error}
+                                find={{...find, currentPath: findCurrent < 0 ? null : findHits[findCurrent]}}
+                                listing={active.listing}
+                                loading={active.loading}
+                                onOpen={navigate}
+                            />
+
+                            {find.open && (
+                                <FindBar
+                                    current={findCurrent}
+                                    focusToken={findFocus}
+                                    matchCase={find.matchCase}
+                                    mode={find.mode}
+                                    onClose={resetFind}
+                                    onMatchCase={() => setFind((current) => ({...current, matchCase: !current.matchCase}))}
+                                    onMode={() => setFind((current) => ({
+                                        ...current,
+                                        mode: current.mode === "dim" ? "hide" : "dim",
+                                    }))}
+                                    onNext={() => stepFind(1)}
+                                    onPrevious={() => stepFind(-1)}
+                                    onQuery={(query) => setFind((current) => ({...current, query}))}
+                                    onRegex={() => setFind((current) => ({...current, regex: !current.regex}))}
+                                    query={find.query}
+                                    regex={find.regex}
+                                    total={findHits.length}
+                                />
+                            )}
+                        </Files>
                     ) : kind === "home" ? (
                         <OverviewView
                             drives={drives}
@@ -724,37 +889,12 @@ const IconButton = styled.button`
     }
 `;
 
-const Search = styled.label`
+const Files = styled.div`
+    position: relative;
     display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 190px;
-    flex-shrink: 0;
-    padding: 0 10px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    background: var(--bg-input);
-    color: var(--text-muted);
-
-    &:focus-within {
-        border-color: var(--border-color-focus);
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
-    }
-
-    input {
-        width: 100%;
-        padding: 7px 0;
-        border: 0;
-        outline: 0;
-        background: transparent;
-        color: var(--text-primary);
-        font: inherit;
-        font-size: 12px;
-
-        &::placeholder {
-            color: var(--text-muted);
-        }
-    }
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
 `;
 
 const StatusBar = styled.footer`

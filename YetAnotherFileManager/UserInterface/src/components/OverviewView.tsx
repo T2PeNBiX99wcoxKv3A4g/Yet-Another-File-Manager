@@ -1617,7 +1617,6 @@ function FolderBody({path, mode, onOpen}: { path: string; mode: ViewMode; onOpen
             <Preview>
                 <FileList
                     error={null}
-                    filter=""
                     listing={listing}
                     loading={false}
                     onOpen={onOpen}
