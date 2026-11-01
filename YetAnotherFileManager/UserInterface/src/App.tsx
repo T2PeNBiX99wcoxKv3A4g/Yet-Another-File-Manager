@@ -197,8 +197,8 @@ export default function App() {
         return entries;
     }, [places, settings]);
 
-    /** Quick access only lends its names and icons while the file types use the app's own glyphs. */
-    const quickForList = settings?.systemIcons === false ? quickPlaces : undefined;
+    /** The Quick access icon only replaces the real one while the file types use the app's glyphs. */
+    const quickIcons = settings?.systemIcons === false;
 
     const viewIcon = kind === "home" ? <OverviewIcon size={13}/>
         : kind === "settings" ? <GearIcon size={13}/>
@@ -215,10 +215,10 @@ export default function App() {
         () => searching && active.listing
             ? active.listing.entries
                 .filter((entry) => matchesName(
-                    quickForList?.[normalizePath(entry.fullPath)]?.name || entry.name, find))
+                    quickPlaces[normalizePath(entry.fullPath)]?.name || entry.name, find))
                 .map((entry) => entry.fullPath)
             : [],
-        [searching, find, active.listing, quickForList],
+        [searching, find, active.listing, quickPlaces],
     );
 
     // A new query starts again at the first hit; stepping through them leaves the query alone.
@@ -823,7 +823,8 @@ export default function App() {
                                 listing={active.listing}
                                 loading={active.loading}
                                 onOpen={navigate}
-                                quick={quickForList}
+                                quick={quickPlaces}
+                                quickIcons={quickIcons}
                             />
 
                             {find.open && (

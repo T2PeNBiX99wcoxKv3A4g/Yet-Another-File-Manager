@@ -16,16 +16,18 @@ interface FileListProps {
     /** The search that is open, if any; absent means "no search". */
     find?: FindView;
     /**
-     * Quick access entries by normalized path. A folder that has one is shown with that name and
-     * icon instead of its own, which is how the Quick access panels present it.
+     * Quick access entries by normalized path. A folder that has one is shown with that name, which
+     * is how the Quick access panels present it.
      */
     quick?: Record<string, Place>;
+    /** Draw the Quick access icon instead of the real one too, for folders that have an entry. */
+    quickIcons?: boolean;
     onOpen: (path: string, newTab?: boolean) => void;
     /** Double-clicking a file hands it to the system; without this, files are inert. */
     onOpenFile?: (path: string) => void;
 }
 
-export function FileList({listing, loading, error, find = NoFind, quick, onOpen, onOpenFile}: FileListProps) {
+export function FileList({listing, loading, error, find = NoFind, quick, quickIcons, onOpen, onOpenFile}: FileListProps) {
     const currentRow = useRef<HTMLDivElement | null>(null);
 
     // Typing a letter jumps to the first match; the row has to be brought into view with it.
@@ -80,7 +82,7 @@ export function FileList({listing, loading, error, find = NoFind, quick, onOpen,
                                 ref={current ? currentRow : undefined}
                             >
                                 <Name>
-                                    {place
+                                    {place && quickIcons
                                         ? <IconSlot><PlaceIcon place={place}/></IconSlot>
                                         : <EntryIcon entry={entry}/>}
                                     <span title={entry.name}><Highlighted name={label} ranges={ranges}/></span>
