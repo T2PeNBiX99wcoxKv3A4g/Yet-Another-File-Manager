@@ -1,9 +1,8 @@
 import {useEffect, useRef, useState, type ReactNode} from "react";
 import styled from "styled-components";
 import type {Place} from "../api/files";
-import {useIcon} from "../api/icons";
 import {useQuickAccess} from "../quick";
-import {CheckIcon, ChevronRightIcon, CrossIcon, FolderIcon} from "./Icons";
+import {CheckIcon, ChevronRightIcon, CrossIcon} from "./Icons";
 import {PlaceIcon} from "./PlaceIcon";
 
 interface PathBarProps {
@@ -108,7 +107,7 @@ export function PathBar({path, label, icon, onNavigate}: PathBarProps) {
                         type="button"
                     >
                         {crumb.place
-                            ? <CrumbGlyph><PlaceGlyph place={crumb.place}/></CrumbGlyph>
+                            ? <CrumbGlyph><PlaceIcon place={crumb.place} size={13}/></CrumbGlyph>
                             : crumb.icon && <CrumbGlyph>{crumb.icon}</CrumbGlyph>}
                         {crumb.label}
                     </CrumbButton>
@@ -116,16 +115,6 @@ export function PathBar({path, label, icon, onNavigate}: PathBarProps) {
             ))}
         </Trail>
     );
-}
-
-/** The Quick access glyph, or the shell icon while the app is using the system's own icons. */
-function PlaceGlyph({place}: { place: Place }) {
-    const quick = useQuickAccess();
-    const icon = useIcon(place.path, true);
-
-    if (quick.useIcons) return <PlaceIcon place={place} size={13}/>;
-
-    return icon ? <img alt="" height={13} src={icon} width={13}/> : <FolderIcon size={13}/>;
 }
 
 /** Splits a path into clickable ancestors, keeping the Windows drive root intact. */
