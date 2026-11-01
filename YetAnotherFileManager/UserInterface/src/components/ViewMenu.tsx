@@ -8,11 +8,13 @@ interface ViewMenuProps {
     view: ResolvedView;
     onChange: (change: Partial<DirectoryView>) => void;
     onColumns: (columns: string[]) => void;
+    showImages: boolean;
+    onShowImages: (value: boolean) => void;
     disabled?: boolean;
 }
 
 /** The capture-style view button that sits with the window controls, and the panel it opens. */
-export function ViewMenu({view, onChange, onColumns, disabled}: ViewMenuProps) {
+export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, disabled}: ViewMenuProps) {
     const [open, setOpen] = useState(false);
     const root = useRef<HTMLDivElement | null>(null);
 
@@ -116,6 +118,16 @@ export function ViewMenu({view, onChange, onColumns, disabled}: ViewMenuProps) {
                             type="checkbox"
                         />
                         <span>Link target after the name</span>
+                    </Check>
+
+                    <SectionTitle>Pictures</SectionTitle>
+                    <Check>
+                        <input
+                            checked={showImages}
+                            onChange={() => onShowImages(!showImages)}
+                            type="checkbox"
+                        />
+                        <span>Images under the list</span>
                     </Check>
                 </Panel>
             )}

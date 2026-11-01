@@ -37,6 +37,8 @@ export interface ViewDefaults {
     iconSize: number;
     gridSize: number;
     columns: string[] | null;
+    /** Show the pictures of a folder in a strip under the list. */
+    showImages: boolean;
 }
 
 export const DefaultView: DirectoryView = {
@@ -52,6 +54,7 @@ export const DefaultViewDefaults: ViewDefaults = {
     iconSize: 20,
     gridSize: 148,
     columns: ["type", "size", "modified"],
+    showImages: true,
 };
 
 /** The effective view: the directory's own settings over the window-wide defaults. */

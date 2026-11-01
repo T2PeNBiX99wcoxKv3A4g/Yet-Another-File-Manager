@@ -31,6 +31,8 @@ interface FileListProps {
     find?: FindView;
     /** List or grid, the icon size, the visible columns and the sort order. */
     view: ResolvedView;
+    /** Draw a picture strip under the list; a window-wide setting. */
+    showImages: boolean;
     onSort: (column: string) => void;
     onSetTags?: (name: string, tags: string[], colors?: Record<string, string>) => void;
     onOpen: (path: string, newTab?: boolean) => void;
@@ -47,7 +49,7 @@ interface RowModel {
 }
 
 export function FileList({
-    listing, loading, error, find = NoFind, view, onSort, onSetTags, onOpen, onOpenFile,
+    listing, loading, error, find = NoFind, view, showImages, onSort, onSetTags, onOpen, onOpenFile,
 }: FileListProps) {
     const quick = useQuickAccess();
     const currentRow = useRef<HTMLDivElement | null>(null);
@@ -85,6 +87,12 @@ export function FileList({
     }, [listing, searching, find, quick, view.sort, view.sortDescending]);
 
     const groups = useMemo(() => groupRows(rows), [rows]);
+
+    // The strip repeats what the rows already show, so the images stay in the list too.
+    const images = useMemo(
+        () => rows.filter((row) => !row.entry.isDirectory && isImage(row.entry.name)),
+        [rows]
+    );
 
     if (error)
         return <Center><ErrorText>{error}</ErrorText></Center>;
@@ -229,6 +237,24 @@ export function FileList({
                     </Center>
                 )}
             </Body>
+
+            {showImages && images.length > 0 && (
+                <Strip>
+                    <StripHead>
+                        Images
+                        <StripCount>{images.length}</StripCount>
+                    </StripHead>
+                    <StripRow>
+                        {images.map((row) => (
+                            <ImageCard
+                                entry={row.entry}
+                                key={row.entry.fullPath}
+                                onOpenFile={onOpenFile}
+                            />
+                        ))}
+                    </StripRow>
+                </Strip>
+            )}
 
             {tagTarget && listing && (
                 <TagPicker
@@ -540,6 +566,35 @@ const GridTile = memo(function GridTile({
     );
 });
 
+/** One picture in the strip under the list, sized like a small grid tile. */
+const ImageCard = memo(function ImageCard({
+    entry, onOpenFile,
+}: {
+    entry: FileEntry;
+    onOpenFile?: (path: string) => void;
+}) {
+    const preview = useThumbnail(entry.fullPath, 320, entry.modified);
+    const [failed, setFailed] = useState(false);
+
+    return (
+        <ImageCardFrame onDoubleClick={() => onOpenFile?.(entry.fullPath)} title={entry.name}>
+            {preview && !failed
+                ? (
+                    <img
+                        alt=""
+                        decoding="async"
+                        draggable={false}
+                        loading="lazy"
+                        onError={() => setFailed(true)}
+                        src={preview}
+                    />
+                )
+                : <ImageIcon><EntryIcon entry={entry} size={34}/></ImageIcon>}
+            <ImageLabel>{entry.name}</ImageLabel>
+        </ImageCardFrame>
+    );
+});
+
 const IconSlot = styled.span<{ $size?: number }>`
     display: grid;
     place-items: center;
@@ -598,6 +653,87 @@ const Body = styled.div`
     min-height: 0;
     overflow: auto;
     padding: 8px 10px 22px;
+`;
+
+/** The picture strip under the list: a fixed height so the rows keep most of the window. */
+const Strip = styled.div`
+    flex-shrink: 0;
+    padding: 7px 12px 10px;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+`;
+
+const StripHead = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+`;
+
+const StripCount = styled.span`
+    font-family: var(--font-mono);
+    font-size: 9px;
+`;
+
+const StripRow = styled.div`
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 2px;
+`;
+
+const ImageCardFrame = styled.div`
+    position: relative;
+    flex: 0 0 auto;
+    width: 148px;
+    height: 104px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    cursor: default;
+
+    img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    &:hover {
+        border-color: var(--border-color-hover);
+    }
+`;
+
+const ImageIcon = styled.span`
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+
+    svg {
+        color: var(--text-muted);
+    }
+`;
+
+const ImageLabel = styled.span`
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    padding: 12px 6px 4px;
+    overflow: hidden;
+    background: linear-gradient(to top, rgba(2, 6, 23, 0.92), rgba(2, 6, 23, 0));
+    color: var(--text-secondary);
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 `;
 
 const GridBody = styled.div`

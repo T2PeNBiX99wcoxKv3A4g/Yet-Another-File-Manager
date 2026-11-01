@@ -1556,6 +1556,7 @@ function FolderBody({path, mode, onOpen}: { path: string; mode: ViewMode; onOpen
                     onOpen={onOpen}
                     onOpenFile={(file) => void openFile(file)}
                     onSort={() => undefined}
+                    showImages={false}
                     view={{...DefaultView, columns: DefaultViewDefaults.columns ?? []}}
                 />
             </Preview>

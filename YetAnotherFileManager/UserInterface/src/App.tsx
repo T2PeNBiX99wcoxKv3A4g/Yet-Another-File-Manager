@@ -218,11 +218,14 @@ export default function App() {
         return entries;
     }, [places, settings]);
 
-    /** The Quick access icon only replaces the real one while the file types use the app's glyphs. */
+    /** Quick access only lends its names and icons while the file types use the app's own glyphs. */
     const quickAccess: QuickAccess = useMemo(() => ({
         places: quickPlaces,
         useIcons: settings?.systemIcons === false,
     }), [quickPlaces, settings?.systemIcons]);
+
+    /** The picture strip under the list is a window-wide setting. */
+    const showImages = settings?.defaultView?.showImages ?? true;
 
     const viewIcon = kind === "home" ? <OverviewIcon size={13}/>
         : kind === "settings" ? <GearIcon size={13}/>
@@ -524,6 +527,20 @@ export default function App() {
         const next = {
             ...current,
             defaultView: {...(current.defaultView ?? DefaultViewDefaults), columns},
+        };
+
+        setSettings(next);
+        void saveSettings(next);
+    }, []);
+
+    /** The picture strip under the list is window-wide too. */
+    const setShowImages = useCallback((value: boolean) => {
+        const current = settingsRef.current;
+        if (!current) return;
+
+        const next = {
+            ...current,
+            defaultView: {...(current.defaultView ?? DefaultViewDefaults), showImages: value},
         };
 
         setSettings(next);
@@ -880,6 +897,8 @@ export default function App() {
                 onSelect={setActiveId}
                 onViewChange={changeView}
                 onColumns={setColumns}
+                onShowImages={setShowImages}
+                showImages={showImages}
                 view={view}
                 tabs={tabs.map((tab) => {
                     const tabKind = kindOf(tab);
@@ -949,6 +968,7 @@ export default function App() {
                                 onOpen={navigate}
                                 onSetTags={setEntryTags}
                                 onSort={sortBy}
+                                showImages={showImages}
                                 view={view}
                             />
 

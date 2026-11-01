@@ -30,11 +30,13 @@ interface TitleBarProps {
     view: ResolvedView;
     onViewChange: (change: Partial<DirectoryView>) => void;
     onColumns: (columns: string[]) => void;
+    showImages: boolean;
+    onShowImages: (value: boolean) => void;
 }
 
 export function TitleBar({
     tabs, activeId, onSelect, onClose, onNewTab, onReorder,
-    view, onViewChange, onColumns,
+    view, onViewChange, onColumns, showImages, onShowImages,
 }: TitleBarProps) {
     const controls = useWindowControls();
     const drag = useWindowDrag();
@@ -145,6 +147,8 @@ export function TitleBar({
                     disabled={tabs.find((tab) => tab.id === activeId)?.kind !== "files"}
                     onChange={onViewChange}
                     onColumns={onColumns}
+                    onShowImages={onShowImages}
+                    showImages={showImages}
                     view={view}
                 />
                 <ControlButton onClick={controls.minimize} title="Minimize" type="button">

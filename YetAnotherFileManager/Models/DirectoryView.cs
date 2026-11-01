@@ -16,4 +16,5 @@ public sealed record ViewDefaults(
     string Mode = "list",
     int IconSize = 20,
     int GridSize = 148,
-    List<string>? Columns = null);
+    List<string>? Columns = null,
+    bool ShowImages = true);

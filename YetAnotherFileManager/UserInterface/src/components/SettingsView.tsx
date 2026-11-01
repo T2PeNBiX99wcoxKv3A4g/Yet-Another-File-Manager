@@ -334,6 +334,24 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                     </Row>
                     <Row>
                         <RowText>
+                            <Label>Images under the list</Label>
+                            <Note>
+                                Shows the folder's pictures in a strip below the list. Grid mode already
+                                shows the pictures, so the strip only appears in list mode.
+                            </Note>
+                        </RowText>
+                        <Toggle
+                            $on={defaultView.showImages ?? true}
+                            onClick={() => void update({
+                                defaultView: {...defaultView, showImages: !(defaultView.showImages ?? true)},
+                            })}
+                            type="button"
+                        >
+                            <Knob/>
+                        </Toggle>
+                    </Row>
+                    <Row>
+                        <RowText>
                             <Label>Columns</Label>
                             <Note>Shown in every folder; changing them changes all folders at once.</Note>
                         </RowText>
