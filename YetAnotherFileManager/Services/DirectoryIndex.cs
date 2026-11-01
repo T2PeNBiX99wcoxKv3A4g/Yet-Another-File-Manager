@@ -70,7 +70,7 @@ internal static class DirectoryIndex
 
     /// <summary>Stores one entry's tags, which is only possible while the folder keeps its own index.</summary>
     public static Task<bool> SetTagsAsync(string directory, string name, IReadOnlyList<string> tags) =>
-        WritesFolderIndex
+        HoldsOwnIndex(directory)
             ? FolderIndex.SetTagsAsync(directory, name, tags)
             : Task.FromResult(false);
 
@@ -82,7 +82,7 @@ internal static class DirectoryIndex
 
     /// <summary>Stores a child count, which is only possible while the folder keeps its own index.</summary>
     public static Task<bool> SetCountAsync(string directory, string name, long count) =>
-        WritesFolderIndex
+        HoldsOwnIndex(directory)
             ? FolderIndex.SetCountAsync(directory, name, count)
             : Task.FromResult(false);
 
