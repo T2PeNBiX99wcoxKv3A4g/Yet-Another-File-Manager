@@ -128,7 +128,8 @@ function Tile({entry}: { entry: GalleryEntry }) {
                 if (rows.some((row) => row.isIntersecting))
                     setNearby(true);
             },
-            {rootMargin: "300px"});
+            // Ask well before the tile is on screen, so scrolling does not wait for the shell.
+            {rootMargin: "1000px"});
 
         observer.observe(target);
         return () => observer.disconnect();

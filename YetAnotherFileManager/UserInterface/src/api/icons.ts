@@ -115,10 +115,11 @@ export function useIconFile(path: string | null): string | null {
 const thumbnailCache = new Map<string, string | null>();
 
 /** Thumbnails are big strings; keep the last screenfuls rather than every picture ever scrolled past. */
-const ThumbnailCacheLimit = 200;
+const ThumbnailCacheLimit = 480;
 
-/** A screenful of tiles must not turn into a burst of hundreds of decodes at once. */
-const MaxThumbnailRequests = 3;
+/** A screenful of tiles must not turn into a burst of hundreds of decodes at once, but a small
+ *  limit makes the wall fill a tile at a time. */
+const MaxThumbnailRequests = 8;
 
 const thumbnailQueue: (() => void)[] = [];
 let thumbnailRequests = 0;

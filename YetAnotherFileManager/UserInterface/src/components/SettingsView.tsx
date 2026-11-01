@@ -12,9 +12,10 @@ import {
 } from "../api/settings";
 import type {AppInfo} from "../api/system";
 import {getMemory, getScheme, setScheme, trimMemory, type MemoryUsage} from "../api/system";
-import {CheckIcon, CrossIcon, FolderIcon, PlusIcon} from "./Icons";
+import {CheckIcon, CrossIcon, PlusIcon} from "./Icons";
+import {IconPicker} from "./IconPicker";
 import {comboOf, DefaultShortcuts, prettyShortcut, type ShortcutMap} from "../shortcuts";
-import {BuiltinIcon, builtinIcons} from "../icons/fileTypes";
+import {BuiltinIcon} from "../icons/fileTypes";
 import {baseName, formatBytes, usageTone} from "../utils/format";
 
 interface SettingsViewProps {
@@ -39,6 +40,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
     const [folderIcon, setFolderIcon] = useState<{ folder: string; icon: string } | null>(null);
     const [newExtension, setNewExtension] = useState("");
     const [newIcon, setNewIcon] = useState<string>("file");
+    const [pickingIcon, setPickingIcon] = useState(false);
     const [busy, setBusy] = useState(false);
     const [memory, setMemory] = useState<MemoryUsage | null>(null);
     const [scheme, setSchemeState] = useState(false);
@@ -163,13 +165,6 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
 
         await setOverride(extension, newIcon);
         setNewExtension("");
-    };
-
-    const pickCustomIcon = async () => {
-        const path = await pickIconFile();
-
-        if (path)
-            setNewIcon(`file:${path}`);
     };
 
     const assignFolderIcon = async () => {
@@ -476,15 +471,26 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                 spellCheck={false}
                                 value={newExtension}
                             />
-                            <Select onChange={(event) => setNewIcon(event.target.value)} value={newIcon}>
-                                {newIcon.startsWith("file:") && <option value={newIcon}>Custom image</option>}
-                                {builtinIcons.map((name) => (
-                                    <option key={name} value={name}>{name}</option>
-                                ))}
-                            </Select>
-                            <IconButton onClick={() => void pickCustomIcon()} title="Choose an image" type="button">
-                                <FolderIcon size={13}/>
-                            </IconButton>
+                            <IconTrigger>
+                                <IconButton
+                                    onClick={() => setPickingIcon((current) => !current)}
+                                    title="Choose the icon"
+                                    type="button"
+                                >
+                                    <Preview source={newIcon}/>
+                                </IconButton>
+                                {pickingIcon && (
+                                    <IconPicker
+                                        allowDefault={false}
+                                        onClose={() => setPickingIcon(false)}
+                                        onPick={(icon) => {
+                                            setNewIcon(icon ?? "file");
+                                            setPickingIcon(false);
+                                        }}
+                                        value={newIcon}
+                                    />
+                                )}
+                            </IconTrigger>
                             <IconButton onClick={() => void addRule()} title="Add the rule" type="button">
                                 <PlusIcon size={13}/>
                             </IconButton>
@@ -793,16 +799,9 @@ const Input = styled.input`
     }
 `;
 
-const Select = styled.select`
-    max-width: 130px;
-    padding: 5px 6px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    background: var(--bg-input);
-    color: var(--text-primary);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    outline: 0;
+const IconTrigger = styled.span`
+    position: relative;
+    display: inline-flex;
 `;
 
 const KeyButton = styled.button<{ $listening: boolean }>`

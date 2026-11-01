@@ -36,7 +36,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         ".appref-ms"
     };
 
-    private static readonly SemaphoreSlim ThumbnailGate = new(Math.Clamp(Environment.ProcessorCount / 4, 2, 4));
+    private static readonly SemaphoreSlim ThumbnailGate = new(Math.Clamp(Environment.ProcessorCount, 4, 10));
 
     public FileSystemService() => NativeBridge.MessageReceived += HandleMessageAsync;
 

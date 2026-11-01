@@ -1,5 +1,4 @@
-import {useEffect, useLayoutEffect, useRef, useState, type MouseEvent} from "react";
-import {createPortal} from "react-dom";
+import {useEffect, useState, type MouseEvent} from "react";
 import styled from "styled-components";
 import {
     clearFrequent,
@@ -15,7 +14,7 @@ import {
     type Place,
     type RecentEntry,
 } from "../api/files";
-import {getSettings, pickFolder, pickIconFile, saveSettings, type AppSettings} from "../api/settings";
+import {getSettings, pickFolder, saveSettings, type AppSettings} from "../api/settings";
 import {Native} from "@photino-net-utils/bridge";
 import {FileList} from "./FileList";
 import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, GridIcon, ListIcon, PencilIcon, PinIcon, PlusIcon} from "./Icons";
@@ -24,7 +23,8 @@ import {PlaceIcon} from "./PlaceIcon";
 import {quickPlace, useQuickAccess} from "../quick";
 import {baseName, driveLetter, driveName, formatBytes, usageTone} from "../utils/format";
 import {wantsNewTab} from "../shortcuts";
-import {buildPanels, PanelGlyph, PanelIcons, type Panel, type PanelKind, type ViewMode} from "../panels";
+import {buildPanels, PanelGlyph, type Panel, type PanelKind, type ViewMode} from "../panels";
+import {IconPicker} from "./IconPicker";
 
 interface OverviewViewProps {
     places: Place[];
@@ -468,41 +468,7 @@ const IconTrigger = styled.button`
     }
 `;
 
-const IconMenu = styled.div`
-    position: absolute;
-    z-index: 40;
-    top: calc(100% + 6px);
-    left: 0;
-    display: grid;
-    grid-template-columns: repeat(6, 24px);
-    gap: 4px;
-    width: max-content;
-    max-height: 236px;
-    overflow-y: auto;
-    padding: 6px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    background: var(--bg-secondary);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
-`;
 
-const IconChoice = styled.button<{ $active?: boolean }>`
-    display: grid;
-    place-items: center;
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    border: 1px solid ${({$active}) => $active ? "var(--border-color-focus)" : "transparent"};
-    border-radius: 5px;
-    background: ${({$active}) => $active ? "rgba(99, 102, 241, 0.24)" : "transparent"};
-    color: var(--text-secondary);
-    cursor: pointer;
-
-    &:hover {
-        background: var(--bg-card-hover);
-        color: var(--text-primary);
-    }
-`;
 
 /** Removes a folder from one Quick access panel; only shown while the overview is being edited. */
 const RemovePlaceButton = styled.button<{ $inline?: boolean }>`
@@ -1464,72 +1430,6 @@ function InlineEditor({value, onChange, onCommit, onCancel, maxLength = 120}: {
                 <CheckIcon size={12}/>
             </EditorButton>
         </InlineEditorBox>
-    );
-}
-
-/** The icon choices, shown in a fixed layer so a panel's scroll frame cannot clip it. */
-function IconPicker({value, onPick}: { value?: string | null; onPick: (icon: string | null) => void }) {
-    const anchor = useRef<HTMLSpanElement>(null);
-    const menu = useRef<HTMLDivElement>(null);
-    const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
-
-    useLayoutEffect(() => {
-        const host = anchor.current?.parentElement;
-        if (!host) return;
-
-        const rect = host.getBoundingClientRect();
-        setPosition({top: rect.bottom + 6, left: rect.left});
-    }, []);
-
-    // Keep the menu inside the window; the first pass only knows the anchor.
-    useLayoutEffect(() => {
-        if (!position || !menu.current) return;
-
-        const rect = menu.current.getBoundingClientRect();
-        const top = rect.bottom > window.innerHeight - 8
-            ? Math.max(8, position.top - rect.height - 12)
-            : position.top;
-        const left = rect.right > window.innerWidth - 8
-            ? Math.max(8, window.innerWidth - rect.width - 8)
-            : position.left;
-
-        if (top !== position.top || left !== position.left)
-            setPosition({top, left});
-    }, [position]);
-
-    return (
-        <>
-            <span ref={anchor} style={{display: "none"}}/>
-            {position && createPortal(
-                <IconMenu
-                    data-icon-menu="true"
-                    onClick={(event) => event.stopPropagation()}
-                    onPointerDown={(event) => event.stopPropagation()}
-                    ref={menu}
-                    style={{position: "fixed", top: position.top, left: position.left}}
-                >
-                    {Object.keys(PanelIcons).map((name) => (
-                        <IconChoice $active={value === name} key={name} onClick={() => onPick(name)} title={name} type="button">
-                            {PanelIcons[name](16)}
-                        </IconChoice>
-                    ))}
-                    <IconChoice
-                        onClick={async () => {
-                            const file = await pickIconFile();
-                            if (file) onPick(`file:${file}`);
-                        }}
-                        title="Choose an image"
-                        type="button"
-                    >
-                        <PlusIcon size={13}/>
-                    </IconChoice>
-                    <IconChoice $active={!value} onClick={() => onPick(null)} title="Default" type="button">
-                        <CrossIcon size={12}/>
-                    </IconChoice>
-                </IconMenu>,
-                document.body
-            )}
-        </>
     );
 }
 
