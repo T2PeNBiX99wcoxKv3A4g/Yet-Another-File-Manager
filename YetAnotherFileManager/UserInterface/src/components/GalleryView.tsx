@@ -119,17 +119,19 @@ export function GalleryView() {
 /** Thumbnails are fetched by the web view itself; a lazy image is enough to keep the wall fast. */
 const Tile = memo(function Tile({entry}: { entry: GalleryEntry }) {
     const thumbnail = useThumbnail(entry.path, 128, entry.modified);
+    const [loaded, setLoaded] = useState(false);
     const [failed, setFailed] = useState(false);
 
     return (
         <Cell title={entry.name}>
-            <Placeholder/>
+            {(!thumbnail || !loaded || failed) && <Placeholder/>}
             {thumbnail && !failed && (
                 <img
                     alt=""
                     decoding="async"
                     loading="lazy"
                     onError={() => setFailed(true)}
+                    onLoad={() => setLoaded(true)}
                     src={thumbnail}
                 />
             )}
@@ -300,7 +302,8 @@ const Cell = styled.div`
     position: relative;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    background: rgba(15, 23, 42, 0.6);
+    /* Transparent pictures show the app's own background, not a black box. */
+    background: var(--bg-primary);
     overflow: hidden;
     /* Tiles far below the viewport are laid out but not painted, which is what keeps a long
        scroll smooth. The intrinsic size matches the real cell so the scrollbar does not jump. */
