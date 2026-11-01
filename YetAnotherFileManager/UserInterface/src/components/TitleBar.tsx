@@ -3,8 +3,6 @@ import styled from "styled-components";
 import {useWindowControls, useWindowDrag} from "@photino-net-utils/bridge";
 import type {TabInfo} from "../tabs";
 import type {DirectoryView, ResolvedView} from "../api/files";
-import {useQuickAccess} from "../quick";
-import {useIcon} from "../api/icons";
 import {PlaceIcon} from "./PlaceIcon";
 import {ViewMenu} from "./ViewMenu";
 import {
@@ -178,19 +176,13 @@ function TabGlyph({tab}: { tab: TabInfo }) {
         case "recycle":
             return <TrashIcon size={13}/>;
         default:
-            return <FilesTabGlyph path={tab.path} place={tab.place}/>;
+            return <FilesTabGlyph place={tab.place}/>;
     }
 }
 
-/** A files tab's glyph: the Quick access icon, or the shell icon while those are in use. */
-function FilesTabGlyph({path, place}: { path: string; place?: TabInfo["place"] }) {
-    const quick = useQuickAccess();
-    const icon = useIcon(path, true);
-
-    if (place && quick.useIcons) return <PlaceIcon place={place} size={13}/>;
-    if (icon) return <img alt="" height={13} src={icon} style={{objectFit: "contain"}} width={13}/>;
-
-    return <FolderIcon size={13}/>;
+/** A files tab always uses the Quick access glyph, or the folder glyph — never a shell icon. */
+function FilesTabGlyph({place}: { place?: TabInfo["place"] }) {
+    return place ? <PlaceIcon place={place} size={13}/> : <FolderIcon size={13}/>;
 }
 
 const Bar = styled.header`
