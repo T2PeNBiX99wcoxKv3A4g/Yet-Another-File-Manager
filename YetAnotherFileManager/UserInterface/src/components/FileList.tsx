@@ -17,19 +17,19 @@ interface FileListProps {
 }
 
 export function FileList({listing, loading, error, filter, onOpen, onOpenFile}: FileListProps) {
-    if (loading && !listing)
-        return <Center><Muted>Loading…</Muted></Center>;
-
     if (error)
         return <Center><ErrorText>{error}</ErrorText></Center>;
 
-    if (!listing)
+    if (!listing && !loading)
         return <Center><Muted>Nothing selected.</Muted></Center>;
 
     const needle = filter.trim().toLowerCase();
-    const entries = needle
-        ? listing.entries.filter((entry) => entry.name.toLowerCase().includes(needle))
-        : listing.entries;
+    const folderSizes = listing?.folderSizes ?? {};
+    const entries = listing
+        ? needle
+            ? listing.entries.filter((entry) => entry.name.toLowerCase().includes(needle))
+            : listing.entries
+        : [];
 
     return (
         <Wrapper>
@@ -40,31 +40,56 @@ export function FileList({listing, loading, error, filter, onOpen, onOpenFile}: 
             </Head>
 
             <Body>
-                {entries.map((entry) => (
-                    <Row
-                        key={entry.fullPath}
-                        $hidden={entry.isHidden}
-                        onClick={(event) => entry.isDirectory && wantsNewTab(event) && onOpen(entry.fullPath, true)}
-                        onDoubleClick={(event) => entry.isDirectory
-                            ? onOpen(entry.fullPath, wantsNewTab(event))
-                            : onOpenFile?.(entry.fullPath)}
-                    >
-                        <Name>
-                            <EntryIcon entry={entry}/>
-                            <span>{entry.name}</span>
-                        </Name>
-                        <Size>{sizeOf(entry, listing.folderSizes)}</Size>
-                        <Modified>{formatDate(entry.modified)}</Modified>
-                    </Row>
-                ))}
+                {loading && !listing
+                    ? <PlaceholderRows/>
+                    : entries.map((entry) => (
+                        <Row
+                            key={entry.fullPath}
+                            $hidden={entry.isHidden}
+                            onClick={(event) => entry.isDirectory && wantsNewTab(event) && onOpen(entry.fullPath, true)}
+                            onDoubleClick={(event) => entry.isDirectory
+                                ? onOpen(entry.fullPath, wantsNewTab(event))
+                                : onOpenFile?.(entry.fullPath)}
+                        >
+                            <Name>
+                                <EntryIcon entry={entry}/>
+                                <span>{entry.name}</span>
+                            </Name>
+                            <Size>{sizeOf(entry, folderSizes)}</Size>
+                            <Modified>{formatDate(entry.modified)}</Modified>
+                        </Row>
+                    ))}
 
-                {entries.length === 0 && (
+                {!loading && listing && entries.length === 0 && (
                     <Center>
                         <Muted>{needle ? "No entries match the filter." : "This folder is empty."}</Muted>
                     </Center>
                 )}
             </Body>
         </Wrapper>
+    );
+}
+
+/**
+ * Stand-in rows while the folder is read, so the columns keep their shape and the wait looks like
+ * the contents filling in instead of the whole list disappearing.
+ */
+function PlaceholderRows() {
+    const widths = [42, 58, 36, 64, 48, 54, 39, 61, 45, 50, 57, 43, 66, 47];
+
+    return (
+        <>
+            {widths.map((width, index) => (
+                <Skeleton key={index}>
+                    <Name>
+                        <Bone style={{flexShrink: 0, height: 18, width: 18}}/>
+                        <Bone style={{width: `${width}%`}}/>
+                    </Name>
+                    <Bone style={{width: 44}}/>
+                    <Bone style={{width: 92}}/>
+                </Skeleton>
+            ))}
+        </>
     );
 }
 
@@ -143,6 +168,32 @@ const Body = styled.div`
     min-height: 0;
     overflow-y: auto;
     padding: 8px 10px 22px;
+`;
+
+/** A row that mirrors the real one but holds no content, for the moment before the listing lands. */
+const Skeleton = styled.div`
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 110px 170px;
+    gap: 16px;
+    align-items: center;
+    padding: 9px 12px;
+`;
+
+const Bone = styled.span`
+    display: block;
+    height: 9px;
+    border-radius: 4px;
+    background: var(--border-color);
+    animation: yafm-bone 1.25s ease-in-out infinite;
+
+    @keyframes yafm-bone {
+        0%, 100% {
+            opacity: 0.3;
+        }
+        50% {
+            opacity: 0.7;
+        }
+    }
 `;
 
 const Row = styled.div<{ $hidden: boolean }>`
