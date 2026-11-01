@@ -219,35 +219,38 @@ export default function App() {
     }, []);
 
     /**
-     * Paints the listing saved the last time the folder was opened, unless the live listing wins the
-     * race or the tab has already moved on. Returns a function that stops the cache from painting.
+     * Paints the listing saved the last time the folder was opened, so the window never waits on the
+     * disk to show something. The live listing takes over right after.
      */
-    const paintCached = useCallback((id: string, path: string | undefined, current: () => boolean) => {
-        let live = false;
-
-        void listDirectoryCached(path)
-            .then((cached) => {
-                if (!live && current() && cached.listing) patch(id, () => ({listing: cached.listing}));
-            })
-            .catch(() => undefined);
-
-        return () => {
-            live = true;
-        };
+    const showCached = useCallback(async (id: string, path: string | undefined, current: () => boolean) => {
+        try {
+            const cached = await listDirectoryCached(path);
+            if (current() && cached.listing) patch(id, () => ({listing: cached.listing}));
+        } catch {
+            // The cache is best effort; the live listing is still on its way.
+        }
     }, [patch]);
 
     /** Opens a folder in a tab, recording it in that tab's history. */
     const load = useCallback(async (id: string, path?: string, keepFresh = false) => {
         const current = beginLoad(id);
 
-        patch(id, (tab) => ({loading: true, error: null, fresh: keepFresh && tab.fresh}));
         setFilter("");
 
-        const settle = paintCached(id, path, current);
+        // A navigation clears the folder that was on screen so it cannot linger over the new one;
+        // the saved listing fills the gap immediately. A refresh keeps what is already visible.
+        patch(id, (tab) => ({
+            listing: keepFresh ? tab.listing : null,
+            loading: true,
+            error: null,
+            fresh: keepFresh && tab.fresh,
+        }));
 
         try {
+            await showCached(id, path, current);
+            if (!current()) return;
+
             const listing = await listDirectory(path);
-            settle();
             if (!current()) return;
 
             patch(id, (tab) => ({
@@ -262,12 +265,11 @@ export default function App() {
             if (!keepFresh)
                 void recordVisit(listing.path).then(() => setHistoryVersion((version) => version + 1));
         } catch (cause) {
-            settle();
             if (!current()) return;
 
             patch(id, () => ({loading: false, error: message(cause)}));
         }
-    }, [beginLoad, paintCached, patch]);
+    }, [beginLoad, patch, showCached]);
 
     /** Goes to a location: a folder is listed, a yafm:// page is simply shown. */
     const openLocation = useCallback((id: string, target: string) => {
@@ -302,23 +304,23 @@ export default function App() {
 
         const current = beginLoad(id);
 
-        patch(id, () => ({index, loading: true, error: null}));
-
-        const settle = paintCached(id, target, current);
+        // Same as a navigation: the new folder starts empty and the saved listing fills it.
+        patch(id, () => ({index, listing: null, loading: true, error: null}));
 
         try {
+            await showCached(id, target, current);
+            if (!current()) return;
+
             const listing = await listDirectory(target);
-            settle();
             if (!current()) return;
 
             patch(id, () => ({listing, loading: false}));
         } catch (cause) {
-            settle();
             if (!current()) return;
 
             patch(id, () => ({loading: false, error: message(cause)}));
         }
-    }, [beginLoad, paintCached, patch]);
+    }, [beginLoad, patch, showCached]);
 
     const openFiles = useCallback((path?: string) => {
         const tab = createTab(path ?? viewLocation("home"));

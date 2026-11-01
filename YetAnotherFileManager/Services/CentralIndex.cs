@@ -13,8 +13,8 @@ namespace YetAnotherFileManager.Services;
 /// </summary>
 /// <remarks>
 ///     Reads run on their own connections without a lock; only writes are serialized, which is what
-///     SQLite needs. A folder that still has its own index is imported the first time it is touched
-///     and its files are removed afterwards.
+///     SQLite needs. A folder that still has its own index is imported the next time that folder is
+///     written, and its files are removed afterwards.
 /// </remarks>
 internal sealed class CentralIndex : Singleton<CentralIndex>
 {
@@ -93,7 +93,6 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
     public async Task<Dictionary<string, string>> IconsAsync(string directory)
     {
         await _ready.Value;
-        await ImportAsync(directory);
 
         var result = await Try.Run(async () =>
         {
@@ -118,7 +117,6 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
     public async Task<Dictionary<string, long>> SizesAsync(string directory)
     {
         await _ready.Value;
-        await ImportAsync(directory);
 
         var result = await Try.Run(async () =>
         {
@@ -143,7 +141,6 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
     public async Task<List<FileEntry>?> ListingAsync(string directory)
     {
         await _ready.Value;
-        await ImportAsync(directory);
 
         var result = await Try.Run(async () =>
         {
@@ -358,25 +355,9 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
 
     /// <summary>
     ///     Moves a folder's own <c>.yafm-index.db</c> into the central database the first time the
-    ///     folder is touched after per-folder indexes were turned off.
+    ///     folder is written after per-folder indexes were turned off. Reads never take the write
+    ///     gate, so the move waits for the next write.
     /// </summary>
-    private async Task ImportAsync(string directory)
-    {
-        if (!File.Exists(FolderIndex.PathFor(directory)))
-            return;
-
-        await _writeGate.WaitAsync();
-        try
-        {
-            await ImportCoreAsync(directory);
-        }
-        finally
-        {
-            _writeGate.Release();
-        }
-    }
-
-    /// <summary>Unlocked body of <see cref="ImportAsync" />; callers must hold the write gate.</summary>
     private async Task ImportCoreAsync(string directory)
     {
         if (!File.Exists(FolderIndex.PathFor(directory)))
