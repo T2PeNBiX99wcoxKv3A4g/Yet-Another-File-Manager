@@ -3,7 +3,6 @@ export interface ShortcutMap {
     goBack: string;
     goForward: string;
     goUp: string;
-    refresh: string;
     find: string;
     closeTab: string;
     newTab: string;
@@ -15,7 +14,6 @@ export const DefaultShortcuts: ShortcutMap = {
     goBack: "alt+arrowleft",
     goForward: "alt+arrowright",
     goUp: "alt+arrowup",
-    refresh: "f5",
     find: "ctrl+f",
     closeTab: "ctrl+w",
     newTab: "ctrl+t",

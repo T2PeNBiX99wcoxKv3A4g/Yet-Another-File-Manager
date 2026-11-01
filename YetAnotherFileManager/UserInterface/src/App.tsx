@@ -452,15 +452,6 @@ export default function App() {
             navigate(tab.listing.parent);
     }, [navigate]);
 
-    /** Reads the folder that is already on screen again, without touching the tab's history. */
-    const refreshFolder = useCallback(() => {
-        const {tabs, activeId} = stateRef.current;
-        const tab = tabs.find((item) => item.id === activeId);
-
-        if (tab && kindOf(tab) === "files")
-            void load(tab.id, folderOf(tab), true);
-    }, [load]);
-
     /** Moves a tab next to another one, which is what dragging a tab does. */
     const moveTab = useCallback((id: string, beforeId: string) => {
         setTabs((current) => {
@@ -608,9 +599,6 @@ export default function App() {
             } else if (combo === shortcuts.goUp) {
                 event.preventDefault();
                 goUp();
-            } else if (combo === shortcuts.refresh) {
-                event.preventDefault();
-                refreshFolder();
             } else if (combo === shortcuts.find) {
                 event.preventDefault();
                 openFind();
@@ -624,7 +612,7 @@ export default function App() {
 
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [shortcuts, kind, find.open, closeTab, openFiles, goBack, goForward, goUp, refreshFolder, openFind, resetFind, startFind]);
+    }, [shortcuts, kind, find.open, closeTab, openFiles, goBack, goForward, goUp, openFind, resetFind, startFind]);
 
     // Back and forward on the mouse: WebView2 would otherwise walk its own history and reload the app.
     useEffect(() => {

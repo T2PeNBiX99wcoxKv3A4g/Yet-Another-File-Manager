@@ -27,7 +27,6 @@ const ShortcutRows: { id: keyof ShortcutMap; label: string; note: string }[] = [
     {id: "goBack", label: "Back", note: "The previous folder in this tab. The mouse back button and the browser back key always work."},
     {id: "goForward", label: "Forward", note: "The next folder in this tab. The mouse forward button and the browser forward key always work."},
     {id: "goUp", label: "Up one level", note: "Opens the folder that contains the current one."},
-    {id: "refresh", label: "Refresh", note: "Reads the folder on screen again."},
     {id: "find", label: "Search", note: "Opens the floating search box. Typing a letter in a folder opens it too."},
     {id: "closeTab", label: "Close tab", note: "Closes the tab that is open."},
     {id: "newTab", label: "New tab", note: "Opens the overview in a new tab."},
