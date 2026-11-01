@@ -24,19 +24,34 @@ export interface FileEntry {
 export interface DirectoryView {
     mode: "list" | "grid";
     iconSize: number;
-    /** Visible column ids, or null for the built-in set. */
-    columns: string[] | null;
     sort: string;
     sortDescending: boolean;
+}
+
+/** The window-wide view a directory falls back to. Columns are always global. */
+export interface ViewDefaults {
+    mode: "list" | "grid";
+    iconSize: number;
+    columns: string[] | null;
 }
 
 export const DefaultView: DirectoryView = {
     mode: "list",
     iconSize: 20,
-    columns: ["size", "modified"],
     sort: "name",
     sortDescending: false,
 };
+
+export const DefaultViewDefaults: ViewDefaults = {
+    mode: "list",
+    iconSize: 20,
+    columns: ["size", "modified"],
+};
+
+/** The effective view: the directory's own settings over the window-wide defaults. */
+export interface ResolvedView extends DirectoryView {
+    columns: string[];
+}
 
 export interface DirectoryListing {
     path: string;
@@ -46,6 +61,12 @@ export interface DirectoryListing {
     folderSizes: Record<string, number>;
     /** This directory's own view settings, or null when it inherits the default. */
     view: DirectoryView | null;
+    /** Custom tags recorded in this folder, by entry name. */
+    tags: Record<string, string[]>;
+    /** Every tag that exists in this folder, for the picker. */
+    allTags: string[];
+    /** Child counts of folders, by entry name. */
+    counts: Record<string, number>;
 }
 
 /** What Windows answered when a volume label was written. */
@@ -138,11 +159,19 @@ export async function listDirectory(path?: string, sizes = true): Promise<Direct
     return await Native.request<DirectoryListing>("fs.list", {path: path ?? null, sizes});
 }
 
-/** Remembers how a directory is shown, and whether the same settings become the app's default. */
-export async function saveDirectoryView(directory: string, view: DirectoryView, global: boolean): Promise<boolean> {
+/** Remembers how one directory is shown. */
+export async function saveDirectoryView(directory: string, view: DirectoryView): Promise<boolean> {
     if (!Native.available) return false;
 
-    const data = await Native.request<{ ok: boolean }>("fs.view.set", {directory, view, global});
+    const data = await Native.request<{ ok: boolean }>("fs.view.set", {directory, view});
+    return data.ok;
+}
+
+/** Stores the tags of one entry in its folder's own index. */
+export async function saveTags(directory: string, name: string, tags: string[]): Promise<boolean> {
+    if (!Native.available) return false;
+
+    const data = await Native.request<{ ok: boolean }>("fs.tags.set", {directory, name, tags});
     return data.ok;
 }
 

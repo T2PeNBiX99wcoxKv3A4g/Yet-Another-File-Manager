@@ -112,100 +112,46 @@ export function useIconFile(path: string | null): string | null {
     return data;
 }
 
-const thumbnailCache = new Map<string, string | null>();
+let thumbnailBase: string | null = null;
+let thumbnailBaseTask: Promise<string> | null = null;
 
-/** Thumbnails are big strings; keep the last screenfuls rather than every picture ever scrolled past. */
-const ThumbnailCacheLimit = 480;
+function loadThumbnailBase(): Promise<string> {
+    if (thumbnailBase !== null) return Promise.resolve(thumbnailBase);
+    if (!Native.available) return Promise.resolve("");
 
-/** A screenful of tiles must not turn into a burst of hundreds of decodes at once, but a small
- *  limit makes the wall fill a tile at a time. */
-const MaxThumbnailRequests = 8;
+    thumbnailBaseTask ??= Native.request<{ base: string }>("app.thumbnails")
+        .then((data) => {
+            thumbnailBase = data.base ?? "";
+            return thumbnailBase;
+        }, () => {
+            thumbnailBase = "";
+            return "";
+        });
 
-const thumbnailQueue: (() => void)[] = [];
-let thumbnailRequests = 0;
-
-function scheduleThumbnail(task: () => void) {
-    thumbnailQueue.push(task);
-
-    while (thumbnailRequests < MaxThumbnailRequests) {
-        const next = thumbnailQueue.shift();
-        if (!next) break;
-
-        thumbnailRequests += 1;
-        next();
-    }
+    return thumbnailBaseTask;
 }
 
-function finishThumbnail() {
-    thumbnailRequests -= 1;
-
-    const next = thumbnailQueue.shift();
-    if (!next) return;
-
-    thumbnailRequests += 1;
-    next();
-}
-
-function rememberThumbnail(path: string, data: string | null) {
-    thumbnailCache.delete(path);
-    thumbnailCache.set(path, data);
-
-    if (thumbnailCache.size <= ThumbnailCacheLimit) return;
-
-    const oldest = thumbnailCache.keys().next().value;
-    if (oldest !== undefined) thumbnailCache.delete(oldest);
-}
-
-/** A shell thumbnail for the gallery, requested only once the tile is close to the viewport. */
-export function useThumbnail(path: string | null, size = 128): string | null {
-    const revision = useIconVersion();
-    const [data, setData] = useState<string | null>(() => path ? thumbnailCache.get(path) ?? null : null);
+/**
+ * A loopback URL for the shell thumbnail. The web view fetches it with its own connection pool and
+ * cache, which is far cheaper than pushing base64 strings through the native message bridge.
+ */
+export function useThumbnail(path: string | null, size = 128, version = 0): string | null {
+    const [base, setBase] = useState<string | null>(thumbnailBase);
 
     useEffect(() => {
-        if (!path || !Native.available) {
-            setData(null);
-            return;
-        }
-
-        if (thumbnailCache.has(path)) {
-            setData(thumbnailCache.get(path) ?? null);
-            return;
-        }
+        if (!path || base !== null) return;
 
         let alive = true;
-        let started = false;
-
-        const task = () => {
-            started = true;
-
-            if (!alive) {
-                finishThumbnail();
-                return;
-            }
-
-            void Native.request<{ dataUrl: string | null }>("fs.thumbnail", {path, size})
-                .then((result) => {
-                    rememberThumbnail(path, result.dataUrl);
-                    if (alive) setData(result.dataUrl);
-                }, () => {
-                    rememberThumbnail(path, null);
-                    if (alive) setData(null);
-                })
-                .finally(finishThumbnail);
-        };
-
-        scheduleThumbnail(task);
+        void loadThumbnailBase().then((value) => {
+            if (alive) setBase(value);
+        });
 
         return () => {
             alive = false;
-
-            // A task that never started holds no slot, so it is simply taken back out of the queue.
-            if (started) return;
-
-            const index = thumbnailQueue.indexOf(task);
-            if (index >= 0) thumbnailQueue.splice(index, 1);
         };
-    }, [path, size, revision]);
+    }, [path, base]);
 
-    return data;
+    if (!path || !base) return null;
+
+    return `${base}/thumb?path=${encodeURIComponent(path)}&size=${size}&v=${version}`;
 }

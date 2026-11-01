@@ -89,6 +89,7 @@ internal static class Program
             // Touching each singleton constructs it, which is what registers its message handlers.
             _ = AppInfoService.Instance;
             _ = FileSystemService.Instance;
+            _ = ThumbnailServer.Instance;
 
             // A cleanup tool or another profile can wipe the per-user entry, so the stored choice is
             // applied again on every launch.

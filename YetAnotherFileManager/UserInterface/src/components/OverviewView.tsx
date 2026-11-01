@@ -4,6 +4,7 @@ import {
     clearFrequent,
     clearRecent,
     DefaultView,
+    DefaultViewDefaults,
     listDirectory,
     listFrequent,
     listPlaces,
@@ -1555,7 +1556,7 @@ function FolderBody({path, mode, onOpen}: { path: string; mode: ViewMode; onOpen
                     onOpen={onOpen}
                     onOpenFile={(file) => void openFile(file)}
                     onSort={() => undefined}
-                    view={DefaultView}
+                    view={{...DefaultView, columns: DefaultViewDefaults.columns ?? []}}
                 />
             </Preview>
         );

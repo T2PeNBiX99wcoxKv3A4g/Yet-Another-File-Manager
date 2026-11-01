@@ -23,10 +23,19 @@ internal sealed record FsListPayload(
     string? Parent,
     IReadOnlyList<FileEntry> Entries,
     Dictionary<string, long> FolderSizes,
-    DirectoryView? View);
+    DirectoryView? View,
+    Dictionary<string, List<string>> Tags,
+    List<string> AllTags,
+    Dictionary<string, long> Counts);
 
-/// <summary>Payload for <c>fs.view.set</c>: how a directory is shown, and whether it is the default too.</summary>
-internal sealed record ViewRequest(string Directory, DirectoryView View, bool Global);
+/// <summary>Payload for <c>fs.view.set</c>: how one directory is shown.</summary>
+internal sealed record ViewRequest(string Directory, DirectoryView View);
+
+/// <summary>Body for <c>app.thumbnails</c>: the base URL of the loopback thumbnail server.</summary>
+internal sealed record ThumbnailServerPayload(string Base);
+
+/// <summary>Payload for <c>fs.tags.set</c>: the tags of one entry in one directory.</summary>
+internal sealed record TagsRequest(string Directory, string Name, List<string> Tags);
 
 /// <summary>
 ///     Body for <c>fs.list.cached</c>: the listing saved the last time the folder was opened. When
@@ -61,6 +70,9 @@ internal sealed record IconOverrideRequest(string Directory, string Name, string
 /// <summary>Body for <c>fs.sizes</c>: folder sizes measured since the listing was sent.</summary>
 internal sealed record FsSizesPayload(string Path, Dictionary<string, long> Sizes);
 
+/// <summary>Body for <c>fs.counts</c>: child counts measured since the listing was sent.</summary>
+internal sealed record FsCountsPayload(string Path, Dictionary<string, long> Counts);
+
 /// <summary>Body for <c>app.pickIcon</c> and <c>app.pickFolder</c>: the chosen path, or null.</summary>
 internal sealed record PathPayload(string? Path);
 
@@ -77,9 +89,6 @@ internal sealed record FsGalleryPayload(IReadOnlyList<GalleryEntry> Entries, int
 
 /// <summary>Payload for <c>fs.gallery</c>: which slice to send, and whether to walk the folders again.</summary>
 internal sealed record GalleryRequest(int Offset, int Count, bool Refresh);
-
-/// <summary>Payload for <c>fs.thumbnail</c>: which picture, and how big the thumbnail should be.</summary>
-internal sealed record ThumbnailRequest(string Path, int Size);
 
 /// <summary>Body for <c>fs.recent</c>: the folders opened most recently.</summary>
 internal sealed record FsRecentPayload(IReadOnlyList<RecentEntry> Entries);

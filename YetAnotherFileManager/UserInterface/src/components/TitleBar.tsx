@@ -2,11 +2,11 @@ import {useCallback, useEffect, useRef, useState} from "react";
 import styled from "styled-components";
 import {useWindowControls, useWindowDrag} from "@photino-net-utils/bridge";
 import type {TabInfo} from "../tabs";
-import type {DirectoryView} from "../api/files";
+import type {DirectoryView, ResolvedView} from "../api/files";
 import {useQuickAccess} from "../quick";
 import {useIcon} from "../api/icons";
 import {PlaceIcon} from "./PlaceIcon";
-import {ViewMenu, type ViewScope} from "./ViewMenu";
+import {ViewMenu} from "./ViewMenu";
 import {
     AppIcon,
     FolderIcon,
@@ -29,15 +29,14 @@ interface TitleBarProps {
     onClose: (id: string) => void;
     onNewTab: () => void;
     onReorder: (id: string, beforeId: string) => void;
-    view: DirectoryView;
-    viewScope: ViewScope;
-    onViewScope: (scope: ViewScope) => void;
+    view: ResolvedView;
     onViewChange: (change: Partial<DirectoryView>) => void;
+    onColumns: (columns: string[]) => void;
 }
 
 export function TitleBar({
     tabs, activeId, onSelect, onClose, onNewTab, onReorder,
-    view, viewScope, onViewScope, onViewChange,
+    view, onViewChange, onColumns,
 }: TitleBarProps) {
     const controls = useWindowControls();
     const drag = useWindowDrag();
@@ -147,8 +146,7 @@ export function TitleBar({
                 <ViewMenu
                     disabled={tabs.find((tab) => tab.id === activeId)?.kind !== "files"}
                     onChange={onViewChange}
-                    onScope={onViewScope}
-                    scope={viewScope}
+                    onColumns={onColumns}
                     view={view}
                 />
                 <ControlButton onClick={controls.minimize} title="Minimize" type="button">

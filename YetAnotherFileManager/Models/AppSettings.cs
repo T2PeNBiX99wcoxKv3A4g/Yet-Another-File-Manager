@@ -29,7 +29,7 @@ public sealed record AppSettings(
     bool? RestoreTabs,
     List<string>? OpenTabs,
     int? ActiveTab,
-    DirectoryView? DefaultView)
+    ViewDefaults? DefaultView)
 {
     public static AppSettings Default =>
         new(true, true, true, [], null, 10, null, ["quick", "frequent", "recent", "home", "drives"], null, 1, null,

@@ -26,7 +26,7 @@ internal static unsafe partial class ShellThumbnail
 
     private static readonly Guid ImageFactoryId = new("bcc18b79-ba16-442f-80c4-8a59c30c463b");
 
-    public static string? DataUrl(string path, int size)
+    public static byte[]? Bytes(string path, int size)
     {
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
             return null;
@@ -55,7 +55,7 @@ internal static unsafe partial class ShellThumbnail
 
                 try
                 {
-                    return BitmapImage.ToDataUrl(bitmap);
+                    return BitmapImage.ToPng(bitmap);
                 }
                 finally
                 {

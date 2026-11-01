@@ -22,7 +22,7 @@ internal static class FolderIndex
 {
     public const string FileName = ".yafm-index.db";
 
-    private const int SchemaVersion = 4;
+    private const int SchemaVersion = 5;
 
     private static readonly ConcurrentDictionary<string, bool> Unusable = new(StringComparer.OrdinalIgnoreCase);
 
@@ -78,6 +78,19 @@ internal static class FolderIndex
         CREATE TABLE IF NOT EXISTS settings (
             key   TEXT NOT NULL CONSTRAINT PK_settings PRIMARY KEY,
             value TEXT NOT NULL
+        );
+        """,
+
+        // v5: user tags and how many entries each child directory holds. Both stay with the folder.
+        """
+        CREATE TABLE IF NOT EXISTS tags (
+            name TEXT NOT NULL CONSTRAINT PK_tags PRIMARY KEY,
+            tags TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS counts (
+            name        TEXT NOT NULL CONSTRAINT PK_counts PRIMARY KEY,
+            count       INTEGER NOT NULL,
+            computed_at INTEGER NOT NULL
         );
         """
     ];
@@ -268,6 +281,63 @@ internal static class FolderIndex
             "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
             command => command.Parameters.AddWithValue("$value",
                 JsonSerializer.Serialize(view, AppJsonContext.Default.DirectoryView)));
+
+    /// <summary>Every entry that has tags, by entry name. Tags only ever live in the folder itself.</summary>
+    public static async Task<Dictionary<string, List<string>>> TagsAsync(string directory) =>
+        await ReadAsync(directory, "SELECT name, tags FROM tags", async reader =>
+        {
+            var tags = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+            while (await reader.ReadAsync())
+            {
+                var list = Try.Run(() => JsonSerializer.Deserialize(reader.GetString(1),
+                    AppJsonContext.Default.ListString)).GetOrNull();
+
+                if (list is { Count: > 0 })
+                    tags[reader.GetString(0)] = list;
+            }
+
+            return tags;
+        }) ?? [];
+
+    /// <summary>Replaces one entry's tags; an empty list removes the row.</summary>
+    public static Task<bool> SetTagsAsync(string directory, string name, IReadOnlyList<string> tags) =>
+        WriteAsync(directory,
+            tags.Count == 0
+                ? "DELETE FROM tags WHERE name = $name"
+                : "INSERT INTO tags (name, tags) VALUES ($name, $tags) " +
+                  "ON CONFLICT(name) DO UPDATE SET tags = excluded.tags",
+            command =>
+            {
+                command.Parameters.AddWithValue("$name", name);
+                if (tags.Count > 0)
+                    command.Parameters.AddWithValue("$tags",
+                        JsonSerializer.Serialize(tags.ToList(), AppJsonContext.Default.ListString));
+            });
+
+    /// <summary>How many entries each child directory holds, as last counted.</summary>
+    public static async Task<Dictionary<string, long>> CountsAsync(string directory) =>
+        await ReadAsync(directory, "SELECT name, count FROM counts", async reader =>
+        {
+            var counts = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+
+            while (await reader.ReadAsync())
+                counts[reader.GetString(0)] = reader.GetInt64(1);
+
+            return counts;
+        }) ?? [];
+
+    /// <summary>Stores how many entries a child directory holds.</summary>
+    public static Task<bool> SetCountAsync(string directory, string name, long count) =>
+        WriteAsync(directory,
+            "INSERT INTO counts (name, count, computed_at) VALUES ($name, $count, $now) " +
+            "ON CONFLICT(name) DO UPDATE SET count = excluded.count, computed_at = excluded.computed_at",
+            command =>
+            {
+                command.Parameters.AddWithValue("$name", name);
+                command.Parameters.AddWithValue("$count", count);
+                command.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+            });
 
     /// <summary>Removes the per-folder database after its data was moved elsewhere.</summary>
     public static async Task DeleteFilesAsync(string directory)

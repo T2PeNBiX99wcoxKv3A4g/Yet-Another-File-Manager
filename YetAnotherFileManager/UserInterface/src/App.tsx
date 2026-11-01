@@ -2,6 +2,7 @@ import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import styled from "styled-components";
 import {
     DefaultView,
+    DefaultViewDefaults,
     listDirectory,
     listDirectoryCached,
     listDrives,
@@ -9,13 +10,15 @@ import {
     listRecent,
     recordVisit,
     saveDirectoryView,
+    saveTags,
     type DirectoryListing,
     type DirectoryView,
     type Drive,
     type Place,
     type RecentEntry,
+    type ResolvedView,
 } from "./api/files";
-import {getSettings, saveOpenTabs, type AppSettings} from "./api/settings";
+import {getSettings, saveOpenTabs, saveSettings, type AppSettings} from "./api/settings";
 import {getAppInfo, type AppInfo} from "./api/system";
 import {FileList} from "./components/FileList";
 import {FindBar} from "./components/FindBar";
@@ -163,12 +166,20 @@ export default function App() {
     const [historyVersion, setHistoryVersion] = useState(0);
     const [shortcuts, setShortcuts] = useState<ShortcutMap>(DefaultShortcuts);
     const [settingsVersion, setSettingsVersion] = useState(0);
-    const [viewScope, setViewScope] = useState<"folder" | "global">("folder");
 
     const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
     const kind = kindOf(active);
     const location = locationOf(active);
-    const view = active.view ?? settings?.defaultView ?? DefaultView;
+
+    // The directory's own mode/size/sort sit on top of the window-wide defaults; columns are global.
+    const viewDefaults = settings?.defaultView ?? DefaultViewDefaults;
+    const view: ResolvedView = {
+        mode: active.view?.mode ?? viewDefaults.mode,
+        iconSize: active.view?.iconSize ?? viewDefaults.iconSize,
+        sort: active.view?.sort ?? DefaultView.sort,
+        sortDescending: active.view?.sortDescending ?? DefaultView.sortDescending,
+        columns: viewDefaults.columns ?? DefaultViewDefaults.columns ?? [],
+    };
 
     /**
      * Every folder that lives in a Quick access panel, with the name and icon that panel shows.
@@ -475,23 +486,70 @@ export default function App() {
             navigate(tab.listing.parent);
     }, [navigate]);
 
-    /** Applies a view change to the current directory, and optionally makes it the default too. */
+    const viewSave = useRef<number | null>(null);
+
+    /** Applies a view change to the current directory. Columns are handled separately. */
     const changeView = useCallback((change: Partial<DirectoryView>) => {
         const {tabs, activeId} = stateRef.current;
         const tab = tabs.find((item) => item.id === activeId);
         if (!tab || kindOf(tab) !== "files") return;
 
         const folder = folderOf(tab);
-        const base = tab.view ?? settingsRef.current?.defaultView ?? DefaultView;
-        const next = {...base, ...change, columns: change.columns ?? base.columns};
-        const global = viewScope === "global";
+        const defaults = settingsRef.current?.defaultView ?? DefaultViewDefaults;
+        const base: DirectoryView = {
+            mode: tab.view?.mode ?? defaults.mode,
+            iconSize: tab.view?.iconSize ?? defaults.iconSize,
+            sort: tab.view?.sort ?? DefaultView.sort,
+            sortDescending: tab.view?.sortDescending ?? DefaultView.sortDescending,
+        };
+        const next = {...base, ...change};
 
         patch(tab.id, () => ({view: next}));
-        if (global)
-            setSettings((current) => current ? {...current, defaultView: next} : current);
 
-        void saveDirectoryView(folder, next, global);
-    }, [patch, viewScope]);
+        // Dragging the size slider would otherwise write the database on every pixel.
+        if (viewSave.current !== null) window.clearTimeout(viewSave.current);
+        viewSave.current = window.setTimeout(() => {
+            viewSave.current = null;
+            void saveDirectoryView(folder, next);
+        }, 250);
+    }, [patch]);
+
+    /** Columns are window-wide, so every folder changes together. */
+    const setColumns = useCallback((columns: string[]) => {
+        const current = settingsRef.current;
+        if (!current) return;
+
+        const next = {
+            ...current,
+            defaultView: {...(current.defaultView ?? DefaultViewDefaults), columns},
+        };
+
+        setSettings(next);
+        void saveSettings(next);
+    }, []);
+
+    /** Adds or removes one entry's tags; the folder index keeps them, so this stays optimistic. */
+    const setEntryTags = useCallback((name: string, tags: string[]) => {
+        const {tabs, activeId} = stateRef.current;
+        const tab = tabs.find((item) => item.id === activeId);
+        if (!tab || kindOf(tab) !== "files" || !tab.listing) return;
+
+        const folder = folderOf(tab);
+        const allTags = [...new Set([...tab.listing.allTags, ...tags])]
+            .sort((left, right) => left.localeCompare(right));
+
+        patch(tab.id, (current) => current.listing
+            ? {
+                listing: {
+                    ...current.listing,
+                    tags: {...current.listing.tags, [name]: tags},
+                    allTags,
+                },
+            }
+            : current);
+
+        void saveTags(folder, name, tags);
+    }, [patch]);
 
     /** A header click sorts by that column, and a second click flips the direction. */
     const sortBy = useCallback((column: string) => {
@@ -676,6 +734,22 @@ export default function App() {
         });
     }, []);
 
+    // Child counts arrive in the background the same way, for the Items column.
+    useEffect(() => {
+        if (!Native.available) return;
+
+        return Native.on((evt) => {
+            const event = evt as { type?: string; data?: { path?: string; counts?: Record<string, number> } };
+            if (event.type !== "fs.counts" || typeof event.data?.path !== "string" || !event.data.counts) return;
+
+            const {path, counts} = event.data;
+
+            setTabs((current) => current.map((tab) => tab.listing?.path === path
+                ? {...tab, listing: {...tab.listing, counts: {...tab.listing.counts, ...counts}}}
+                : tab));
+        });
+    }, []);
+
     // Global shortcuts; a field that has the focus keeps the keys to itself.
     useEffect(() => {
         const onKey = (event: KeyboardEvent) => {
@@ -801,9 +875,8 @@ export default function App() {
                 onReorder={moveTab}
                 onSelect={setActiveId}
                 onViewChange={changeView}
-                onViewScope={setViewScope}
+                onColumns={setColumns}
                 view={view}
-                viewScope={viewScope}
                 tabs={tabs.map((tab) => {
                     const tabKind = kindOf(tab);
                     const folder = folderOf(tab);
@@ -870,6 +943,7 @@ export default function App() {
                                 listing={active.listing}
                                 loading={active.loading}
                                 onOpen={navigate}
+                                onSetTags={setEntryTags}
                                 onSort={sortBy}
                                 view={view}
                             />

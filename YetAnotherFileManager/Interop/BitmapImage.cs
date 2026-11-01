@@ -13,7 +13,8 @@ internal static partial class BitmapImage
     private const int BiRgb = 0;
     private const int MaxSize = 1024;
 
-    public static unsafe string? ToDataUrl(IntPtr bitmap)
+    /// <summary>Turns a GDI bitmap into PNG bytes, without the data URL wrapper.</summary>
+    public static unsafe byte[]? ToPng(IntPtr bitmap)
     {
         if (bitmap == IntPtr.Zero)
             return null;
@@ -72,7 +73,7 @@ internal static partial class BitmapImage
                 pixels[index + 3] = 0xFF;
         }
 
-        return $"data:image/png;base64,{Convert.ToBase64String(Png.Encode(width, height, pixels))}";
+        return Png.Encode(width, height, pixels);
     }
 
     [LibraryImport("gdi32.dll", EntryPoint = "GetObjectW")]

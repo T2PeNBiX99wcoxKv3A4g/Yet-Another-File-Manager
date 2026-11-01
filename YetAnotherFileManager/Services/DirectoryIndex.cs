@@ -62,6 +62,30 @@ internal static class DirectoryIndex
             () => FolderIndex.SaveViewAsync(directory, view),
             () => CentralIndex.Instance.SaveViewAsync(directory, view));
 
+    /// <summary>Tags recorded in this folder, by entry name. They never move to the central index.</summary>
+    public static Task<Dictionary<string, List<string>>> TagsAsync(string directory) =>
+        File.Exists(FolderIndex.PathFor(directory))
+            ? FolderIndex.TagsAsync(directory)
+            : Task.FromResult(new Dictionary<string, List<string>>());
+
+    /// <summary>Stores one entry's tags, which is only possible while the folder keeps its own index.</summary>
+    public static Task<bool> SetTagsAsync(string directory, string name, IReadOnlyList<string> tags) =>
+        WritesFolderIndex
+            ? FolderIndex.SetTagsAsync(directory, name, tags)
+            : Task.FromResult(false);
+
+    /// <summary>Child counts recorded in this folder, by entry name. They never move to the central index.</summary>
+    public static Task<Dictionary<string, long>> CountsAsync(string directory) =>
+        File.Exists(FolderIndex.PathFor(directory))
+            ? FolderIndex.CountsAsync(directory)
+            : Task.FromResult(new Dictionary<string, long>());
+
+    /// <summary>Stores a child count, which is only possible while the folder keeps its own index.</summary>
+    public static Task<bool> SetCountAsync(string directory, string name, long count) =>
+        WritesFolderIndex
+            ? FolderIndex.SetCountAsync(directory, name, count)
+            : Task.FromResult(false);
+
     /// <summary>Stores the complete listing, hidden and system entries included.</summary>
     public static Task<bool> SaveListingAsync(string directory, IReadOnlyList<FileEntry> entries) =>
         WriteAsync(directory,

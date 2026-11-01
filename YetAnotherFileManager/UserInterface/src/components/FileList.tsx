@@ -1,13 +1,14 @@
-import {useEffect, useMemo, useRef, type ReactNode} from "react";
+import {useEffect, useMemo, useRef, useState, type ReactNode} from "react";
 import styled from "styled-components";
 import {wantsNewTab} from "../shortcuts";
-import type {DirectoryListing, DirectoryView, FileEntry, Place} from "../api/files";
+import type {DirectoryListing, FileEntry, Place, ResolvedView} from "../api/files";
 import {useIcon, useIconFile} from "../api/icons";
 import {NoFind, rangesOf, type FindView} from "../find";
 import {quickPlace, useQuickAccess} from "../quick";
 import {formatBytes, formatDate} from "../utils/format";
 import {FolderIcon} from "./Icons";
 import {PlaceIcon} from "./PlaceIcon";
+import {TagPicker} from "./TagPicker";
 import {BuiltinIcon, iconForName} from "../icons/fileTypes";
 
 /** The columns the list can show besides the name. `linkTarget` is drawn inside the name cell. */
@@ -15,8 +16,10 @@ export const ViewColumns: { id: string; label: string; width: number }[] = [
     {id: "size", label: "Size", width: 100},
     {id: "modified", label: "Modified", width: 150},
     {id: "created", label: "Created", width: 150},
+    {id: "items", label: "Items", width: 70},
     {id: "linkCount", label: "Links", width: 70},
     {id: "linkStatus", label: "Link", width: 90},
+    {id: "tags", label: "Tags", width: 150},
 ];
 
 interface FileListProps {
@@ -26,8 +29,9 @@ interface FileListProps {
     /** The search that is open, if any; absent means "no search". */
     find?: FindView;
     /** List or grid, the icon size, the visible columns and the sort order. */
-    view: DirectoryView;
+    view: ResolvedView;
     onSort: (column: string) => void;
+    onSetTags?: (name: string, tags: string[]) => void;
     onOpen: (path: string, newTab?: boolean) => void;
     /** Double-clicking a file hands it to the system; without this, files are inert. */
     onOpenFile?: (path: string) => void;
@@ -38,13 +42,15 @@ interface RowModel {
     place?: Place;
     label: string;
     ranges: [number, number][] | null;
+    tags: string[];
 }
 
 export function FileList({
-    listing, loading, error, find = NoFind, view, onSort, onOpen, onOpenFile,
+    listing, loading, error, find = NoFind, view, onSort, onSetTags, onOpen, onOpenFile,
 }: FileListProps) {
     const quick = useQuickAccess();
     const currentRow = useRef<HTMLDivElement | null>(null);
+    const [tagTarget, setTagTarget] = useState<{ entry: FileEntry; x: number; y: number } | null>(null);
 
     // Typing a letter jumps to the first match; the row has to be brought into view with it.
     useEffect(() => {
@@ -55,7 +61,6 @@ export function FileList({
     const visible = ViewColumns.filter((column) => view.columns?.includes(column.id));
     const showTarget = view.columns?.includes("linkTarget") ?? false;
     const template = `minmax(160px, 1fr) ${visible.map((column) => `${column.width}px`).join(" ")}`.trim();
-    const folderSizes = listing?.folderSizes ?? {};
 
     const rows = useMemo(() => {
         if (!listing) return [];
@@ -65,12 +70,18 @@ export function FileList({
                 const place = quickPlace(quick, entry.fullPath);
                 const label = place?.name || entry.name;
 
-                return {entry, place, label, ranges: searching ? rangesOf(label, find) : null};
+                return {
+                    entry,
+                    place,
+                    label,
+                    ranges: searching ? rangesOf(label, find) : null,
+                    tags: listing.tags[entry.name] ?? [],
+                };
             })
             .filter((row) => !searching || find.mode === "dim" || row.ranges !== null);
 
-        return sortRows(matched, view.sort, view.sortDescending, folderSizes);
-    }, [listing, searching, find, quick, view.sort, view.sortDescending, folderSizes]);
+        return sortRows(matched, view, listing);
+    }, [listing, searching, find, quick, view.sort, view.sortDescending]);
 
     if (error)
         return <Center><ErrorText>{error}</ErrorText></Center>;
@@ -169,9 +180,26 @@ export function FileList({
                                 </Name>
                                 {visible.map((column) => (
                                     <Cell key={column.id}>
-                                        {column.id === "linkStatus" && row.entry.linkValid === false
-                                            ? <Broken>Broken</Broken>
-                                            : cellValue(column.id, row.entry, folderSizes)}
+                                        {column.id === "tags"
+                                            ? (
+                                                <TagsButton
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        setTagTarget({
+                                                            entry: row.entry,
+                                                            x: event.clientX,
+                                                            y: event.clientY,
+                                                        });
+                                                    }}
+                                                    title="Edit tags"
+                                                    type="button"
+                                                >
+                                                    {row.tags.length > 0 ? row.tags.join(", ") : "+"}
+                                                </TagsButton>
+                                            )
+                                            : column.id === "linkStatus" && row.entry.linkValid === false
+                                                ? <Broken>Broken</Broken>
+                                                : cellValue(column.id, row.entry, listing!)}
                                     </Cell>
                                 ))}
                             </Row>
@@ -188,31 +216,47 @@ export function FileList({
                     </Center>
                 )}
             </Body>
+
+            {tagTarget && listing && (
+                <TagPicker
+                    allTags={listing.allTags}
+                    onChange={(tags) => onSetTags?.(tagTarget.entry.name, tags)}
+                    onClose={() => setTagTarget(null)}
+                    tags={listing.tags[tagTarget.entry.name] ?? []}
+                    x={tagTarget.x}
+                    y={tagTarget.y}
+                />
+            )}
         </Wrapper>
     );
 }
 
 /** "↑"/"↓" beside the column that is sorted. */
-function markOf(view: DirectoryView, column: string): string {
+function markOf(view: ResolvedView, column: string): string {
     if (view.sort !== column) return "";
 
     return view.sortDescending ? " ↓" : " ↑";
 }
 
 /** Folders stay first, the way Explorer keeps them, and the chosen column orders the rest. */
-function sortRows(rows: RowModel[], column: string, descending: boolean, sizes: Record<string, number>): RowModel[] {
+function sortRows(rows: RowModel[], view: ResolvedView, listing: DirectoryListing): RowModel[] {
     const value = (entry: FileEntry): string | number => {
-        switch (column) {
+        switch (view.sort) {
             case "size":
-                return entry.isDirectory ? sizes[entry.name] ?? 0 : entry.size;
+                return entry.isDirectory ? listing.folderSizes[entry.name] ?? 0 : entry.size;
             case "modified":
                 return entry.modified;
             case "created":
                 return entry.created;
+            case "items":
+                return entry.isDirectory ? listing.counts[entry.name] ?? -1 : -1;
             case "linkCount":
-                return entry.linkCount;
+                return entry.linkCount > 1 ? entry.linkCount : 0;
             case "linkStatus":
-                return entry.linkValid === null ? 2 : entry.linkValid ? 0 : 1;
+                if (entry.linkTarget !== null) return entry.linkValid ? 0 : 1;
+                return entry.linkCount > 1 ? 2 : 3;
+            case "tags":
+                return (listing.tags[entry.name] ?? []).join(", ");
             default:
                 return entry.name;
         }
@@ -228,23 +272,26 @@ function sortRows(rows: RowModel[], column: string, descending: boolean, sizes: 
             ? a - b
             : String(a).localeCompare(String(b), undefined, {numeric: true, sensitivity: "base"});
 
-        return descending ? -order : order;
+        return view.sortDescending ? -order : order;
     });
 }
 
 /** What one list cell shows. */
-function cellValue(column: string, entry: FileEntry, folderSizes: Record<string, number>): string {
+function cellValue(column: string, entry: FileEntry, listing: DirectoryListing): string {
     switch (column) {
         case "size":
-            return sizeOf(entry, folderSizes);
+            return sizeOf(entry, listing.folderSizes);
         case "modified":
             return formatDate(entry.modified);
         case "created":
             return formatDate(entry.created);
+        case "items":
+            return entry.isDirectory ? listing.counts[entry.name]?.toString() ?? "—" : "—";
         case "linkCount":
-            return entry.isDirectory ? "—" : String(entry.linkCount);
+            return entry.linkCount > 1 ? String(entry.linkCount) : "—";
         case "linkStatus":
-            return entry.linkValid === null ? "—" : entry.linkValid ? "OK" : "Broken";
+            if (entry.linkTarget !== null) return entry.linkValid ? "OK" : "Broken";
+            return entry.linkCount > 1 ? "OK" : "—";
         default:
             return "";
     }
@@ -487,6 +534,30 @@ const Cell = styled.span`
     color: var(--text-muted);
     text-overflow: ellipsis;
     white-space: nowrap;
+`;
+
+/** The tags cell is a button so clicking it opens the picker. */
+const TagsButton = styled.button`
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    padding: 2px 4px;
+    border: 1px dashed transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:hover {
+        border-color: var(--border-color);
+        background: var(--bg-card-hover);
+        color: var(--text-secondary);
+    }
 `;
 
 const Broken = styled.span`

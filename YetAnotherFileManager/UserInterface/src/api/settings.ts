@@ -1,5 +1,5 @@
 import {Native} from "@photino-net-utils/bridge";
-import type {DirectoryView} from "./files";
+import type {ViewDefaults} from "./files";
 
 export interface AppSettings {
     systemIcons: boolean;
@@ -44,7 +44,7 @@ export interface AppSettings {
     /** Which of them had the focus. */
     activeTab: number | null;
     /** The view directories use when they have no settings of their own. */
-    defaultView: DirectoryView | null;
+    defaultView: ViewDefaults | null;
 }
 
 const fallback: AppSettings = {

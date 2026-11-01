@@ -1,6 +1,7 @@
 import {useEffect, useState} from "react";
 import styled from "styled-components";
 import {getVisibility, type FileVisibility} from "../api/files";
+import {DefaultViewDefaults} from "../api/files";
 import {clearIconCache, useIconFile} from "../api/icons";
 import {
     getSettings,
@@ -16,6 +17,7 @@ import {CheckIcon, CrossIcon, PlusIcon} from "./Icons";
 import {IconPicker} from "./IconPicker";
 import {comboOf, DefaultShortcuts, prettyShortcut, type ShortcutMap} from "../shortcuts";
 import {BuiltinIcon} from "../icons/fileTypes";
+import {ViewColumns} from "./FileList";
 import {baseName, formatBytes, usageTone} from "../utils/format";
 
 interface SettingsViewProps {
@@ -47,6 +49,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
     const [schemeBusy, setSchemeBusy] = useState(false);
     const [schemeError, setSchemeError] = useState<string | null>(null);
     const [capturing, setCapturing] = useState<string | null>(null);
+    const defaultView = settings?.defaultView ?? DefaultViewDefaults;
 
     useEffect(() => {
         void getVisibility().then(setVisibility, () => setVisibility(null));
@@ -72,6 +75,18 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
         setSettings(await saveSettings(next));
         // The window keeps its own copy of the settings; a toggle here has to reach it too.
         onSettingsChanged();
+    };
+
+    /** Columns are a window-wide setting, so the order stays the same everywhere. */
+    const toggleColumn = async (id: string) => {
+        const wanted = new Set(defaultView.columns ?? DefaultViewDefaults.columns ?? []);
+        if (wanted.has(id)) wanted.delete(id);
+        else wanted.add(id);
+
+        const ordered = ViewColumns.map((column) => column.id).filter((column) => wanted.has(column));
+        if (wanted.has("linkTarget")) ordered.push("linkTarget");
+
+        await update({defaultView: {...defaultView, columns: ordered}});
     };
 
     /** Applies the choice now and remembers it, so the next launch can put a lost entry back. */
@@ -241,6 +256,87 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         >
                             <Knob/>
                         </Toggle>
+                    </Row>
+                </Rows>
+            </Section>
+
+            <Section>
+                <Title>Files view</Title>
+                <Rows>
+                    <Row>
+                        <RowText>
+                            <Label>Default view</Label>
+                            <Note>
+                                New folders open this way. A folder can still remember its own list or
+                                grid mode.
+                            </Note>
+                        </RowText>
+                        <RowEnd>
+                            <Segmented>
+                                <Segment
+                                    $on={defaultView.mode === "list"}
+                                    onClick={() => void update({
+                                        defaultView: {...defaultView, mode: "list"},
+                                    })}
+                                    type="button"
+                                >
+                                    List
+                                </Segment>
+                                <Segment
+                                    $on={defaultView.mode === "grid"}
+                                    onClick={() => void update({
+                                        defaultView: {...defaultView, mode: "grid"},
+                                    })}
+                                    type="button"
+                                >
+                                    Grid
+                                </Segment>
+                            </Segmented>
+                        </RowEnd>
+                    </Row>
+                    <Row>
+                        <Label>Icon size</Label>
+                        <RowEnd>
+                            <RangeInput
+                                max={96}
+                                min={16}
+                                onChange={(event) => void update({
+                                    defaultView: {...defaultView, iconSize: Number(event.target.value)},
+                                })}
+                                step={4}
+                                type="range"
+                                value={defaultView.iconSize}
+                            />
+                            <Value>{defaultView.iconSize}px</Value>
+                        </RowEnd>
+                    </Row>
+                    <Row>
+                        <RowText>
+                            <Label>Columns</Label>
+                            <Note>These columns are shown in every folder.</Note>
+                        </RowText>
+                    </Row>
+                    <Row>
+                        <ColumnGrid>
+                            {ViewColumns.map((column) => (
+                                <ColumnCheck key={column.id}>
+                                    <input
+                                        checked={(defaultView.columns ?? []).includes(column.id)}
+                                        onChange={() => void toggleColumn(column.id)}
+                                        type="checkbox"
+                                    />
+                                    <span>{column.label}</span>
+                                </ColumnCheck>
+                            ))}
+                            <ColumnCheck>
+                                <input
+                                    checked={(defaultView.columns ?? []).includes("linkTarget")}
+                                    onChange={() => void toggleColumn("linkTarget")}
+                                    type="checkbox"
+                                />
+                                <span>Link target after the name</span>
+                            </ColumnCheck>
+                        </ColumnGrid>
                     </Row>
                 </Rows>
             </Section>
@@ -802,6 +898,46 @@ const Input = styled.input`
 const IconTrigger = styled.span`
     position: relative;
     display: inline-flex;
+`;
+
+const Segmented = styled.div`
+    display: flex;
+    gap: 4px;
+`;
+
+const Segment = styled.button<{ $on: boolean }>`
+    padding: 5px 14px;
+    border: 1px solid ${({$on}) => $on ? "var(--border-color-focus)" : "var(--border-color)"};
+    border-radius: var(--radius-sm);
+    background: ${({$on}) => $on ? "rgba(59, 130, 246, 0.18)" : "var(--bg-input)"};
+    color: ${({$on}) => $on ? "var(--text-primary)" : "var(--text-secondary)"};
+    font-size: 11px;
+    cursor: pointer;
+`;
+
+const RangeInput = styled.input`
+    width: 150px;
+    accent-color: var(--accent-primary);
+`;
+
+const ColumnGrid = styled.div`
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px 14px;
+    width: 100%;
+`;
+
+const ColumnCheck = styled.label`
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    cursor: pointer;
+
+    input {
+        accent-color: var(--accent-primary);
+    }
 `;
 
 const KeyButton = styled.button<{ $listening: boolean }>`

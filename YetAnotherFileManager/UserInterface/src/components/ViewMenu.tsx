@@ -1,23 +1,18 @@
 import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
-import {DefaultView, type DirectoryView} from "../api/files";
+import type {DirectoryView, ResolvedView} from "../api/files";
 import {ViewColumns} from "./FileList";
 import {GridIcon, ListIcon} from "./Icons";
 
-export type ViewScope = "folder" | "global";
-
 interface ViewMenuProps {
-    view: DirectoryView;
-    scope: ViewScope;
-    onScope: (scope: ViewScope) => void;
+    view: ResolvedView;
     onChange: (change: Partial<DirectoryView>) => void;
+    onColumns: (columns: string[]) => void;
     disabled?: boolean;
 }
 
-const IconSizes = [16, 20, 24, 32, 48, 64, 96];
-
 /** The capture-style view button that sits with the window controls, and the panel it opens. */
-export function ViewMenu({view, scope, onChange, onScope, disabled}: ViewMenuProps) {
+export function ViewMenu({view, onChange, onColumns, disabled}: ViewMenuProps) {
     const [open, setOpen] = useState(false);
     const root = useRef<HTMLDivElement | null>(null);
 
@@ -43,7 +38,7 @@ export function ViewMenu({view, scope, onChange, onScope, disabled}: ViewMenuPro
         if (disabled) setOpen(false);
     }, [disabled]);
 
-    const columns = view.columns ?? DefaultView.columns ?? [];
+    const columns = view.columns;
 
     const toggleColumn = (id: string) => {
         const wanted = new Set(columns);
@@ -54,7 +49,7 @@ export function ViewMenu({view, scope, onChange, onScope, disabled}: ViewMenuPro
         const ordered = ViewColumns.map((column) => column.id).filter((column) => wanted.has(column));
         if (wanted.has("linkTarget")) ordered.push("linkTarget");
 
-        onChange({columns: ordered});
+        onColumns(ordered);
     };
 
     return (
@@ -75,29 +70,19 @@ export function ViewMenu({view, scope, onChange, onScope, disabled}: ViewMenuPro
                         </Choice>
                     </Segmented>
 
-                    <SectionTitle>Apply to</SectionTitle>
-                    <Segmented>
-                        <Choice $on={scope === "folder"} onClick={() => onScope("folder")} type="button">
-                            This folder
-                        </Choice>
-                        <Choice $on={scope === "global"} onClick={() => onScope("global")} type="button">
-                            All folders
-                        </Choice>
-                    </Segmented>
-
                     <SectionTitle>Icon size</SectionTitle>
-                    <SizeRow>
-                        {IconSizes.map((size) => (
-                            <SizeButton
-                                $on={view.iconSize === size}
-                                key={size}
-                                onClick={() => onChange({iconSize: size})}
-                                type="button"
-                            >
-                                {size}
-                            </SizeButton>
-                        ))}
-                    </SizeRow>
+                    <SliderRow>
+                        <input
+                            aria-label="Icon size"
+                            max={96}
+                            min={16}
+                            onChange={(event) => onChange({iconSize: Number(event.target.value)})}
+                            step={4}
+                            type="range"
+                            value={view.iconSize}
+                        />
+                        <SizeValue>{view.iconSize}px</SizeValue>
+                    </SliderRow>
 
                     <SectionTitle>Columns</SectionTitle>
                     {ViewColumns.map((column) => (
@@ -199,22 +184,23 @@ const Choice = styled.button<{ $on: boolean }>`
     cursor: pointer;
 `;
 
-const SizeRow = styled.div`
+const SliderRow = styled.div`
     display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
+    align-items: center;
+    gap: 8px;
+
+    input {
+        flex: 1;
+        accent-color: var(--accent-primary);
+    }
 `;
 
-const SizeButton = styled.button<{ $on: boolean }>`
-    width: 28px;
-    padding: 4px 0;
-    border: 1px solid ${({$on}) => $on ? "var(--border-color-focus)" : "var(--border-color)"};
-    border-radius: var(--radius-sm);
-    background: ${({$on}) => $on ? "rgba(59, 130, 246, 0.18)" : "var(--bg-input)"};
-    color: ${({$on}) => $on ? "var(--text-primary)" : "var(--text-muted)"};
+const SizeValue = styled.span`
+    min-width: 34px;
     font-family: var(--font-mono);
     font-size: 10px;
-    cursor: pointer;
+    color: var(--text-muted);
+    text-align: right;
 `;
 
 const Check = styled.label`

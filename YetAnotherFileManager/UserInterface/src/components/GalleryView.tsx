@@ -113,33 +113,23 @@ export function GalleryView() {
     );
 }
 
-/** Thumbnails are only asked for once a tile is near the viewport, so a big library still opens fast. */
+/** Thumbnails are fetched by the web view itself; a lazy image is enough to keep the wall fast. */
 function Tile({entry}: { entry: GalleryEntry }) {
-    const element = useRef<HTMLDivElement | null>(null);
-    const [nearby, setNearby] = useState(false);
-    const thumbnail = useThumbnail(nearby ? entry.path : null, 128);
-
-    useEffect(() => {
-        const target = element.current;
-        if (!target) return;
-
-        const observer = new IntersectionObserver(
-            (rows) => {
-                if (rows.some((row) => row.isIntersecting))
-                    setNearby(true);
-            },
-            // Ask well before the tile is on screen, so scrolling does not wait for the shell.
-            {rootMargin: "1000px"});
-
-        observer.observe(target);
-        return () => observer.disconnect();
-    }, []);
+    const thumbnail = useThumbnail(entry.path, 160, entry.modified);
+    const [failed, setFailed] = useState(false);
 
     return (
-        <Cell ref={element} title={entry.name}>
-            {thumbnail
-                ? <img alt="" decoding="async" loading="lazy" src={thumbnail}/>
-                : <Placeholder/>}
+        <Cell title={entry.name}>
+            <Placeholder/>
+            {thumbnail && !failed && (
+                <img
+                    alt=""
+                    decoding="async"
+                    loading="lazy"
+                    onError={() => setFailed(true)}
+                    src={thumbnail}
+                />
+            )}
             <Caption>
                 <CaptionName>{entry.name}</CaptionName>
                 <CaptionMeta>{`${typeOf(entry.name)} · ${formatBytes(entry.size)}`}</CaptionMeta>

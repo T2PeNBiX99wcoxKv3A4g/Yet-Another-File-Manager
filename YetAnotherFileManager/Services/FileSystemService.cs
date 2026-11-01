@@ -36,8 +36,6 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         ".appref-ms"
     };
 
-    private static readonly SemaphoreSlim ThumbnailGate = new(Math.Clamp(Environment.ProcessorCount, 4, 10));
-
     public FileSystemService() => NativeBridge.MessageReceived += HandleMessageAsync;
 
     private static async Task<NativeResponse?> HandleMessageAsync(NativeContext context)
@@ -64,9 +62,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             case "fs.gallery":
                 return context.Reply("fs.gallery.result", await GalleryPageAsync(context.Payload<GalleryRequest>()));
 
-            case "fs.thumbnail":
-                return context.Reply("fs.thumbnail.result",
-                    new IconPayload(await ThumbnailAsync(context.Payload<ThumbnailRequest>())));
+            case "app.thumbnails":
+                return context.Reply("app.thumbnails.result",
+                    new ThumbnailServerPayload(ThumbnailServer.Instance.BaseUrl));
 
             case "fs.recent":
                 return context.Reply("fs.recent.result", new FsRecentPayload(
@@ -180,6 +178,10 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 return context.Reply("fs.view.set.result",
                     new OkPayload(await SaveViewAsync(context.Payload<ViewRequest>())));
 
+            case "fs.tags.set":
+                return context.Reply("fs.tags.set.result",
+                    new OkPayload(await SaveTagsAsync(context.Payload<TagsRequest>())));
+
             default:
                 return null;
         }
@@ -256,28 +258,6 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         return new(entries, total);
     }
 
-    /// <summary>A shell thumbnail for the gallery, at the requested size.</summary>
-    private static async Task<string?> ThumbnailAsync(ThumbnailRequest? request)
-    {
-        if (request is not { Path.Length: > 0 } || !OperatingSystem.IsWindows())
-            return null;
-
-        var size = Math.Clamp(request.Size, 32, 512);
-
-        // A thumbnail means decoding the whole picture inside this process. A screenful of tiles
-        // would otherwise decode dozens of photos at once, so only a few run concurrently.
-        await ThumbnailGate.WaitAsync();
-
-        try
-        {
-            return await Task.Run(() => ShellThumbnail.DataUrl(request.Path, size));
-        }
-        finally
-        {
-            ThumbnailGate.Release();
-        }
-    }
-
     /// <summary>Whether a folder defines its own icon, which Explorer reads from desktop.ini.</summary>
     private static async Task<bool> HasCustomFolderIconAsync(string directory)
     {
@@ -331,17 +311,17 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         return true;
     }
 
-    /// <summary>Remembers how one directory is shown, and optionally the default for every directory.</summary>
-    private static async Task<bool> SaveViewAsync(ViewRequest? request)
-    {
-        if (request is null || request.Directory.Length == 0)
-            return false;
+    /// <summary>Remembers how one directory is shown.</summary>
+    private static Task<bool> SaveViewAsync(ViewRequest? request) =>
+        request is null || request.Directory.Length == 0
+            ? Task.FromResult(false)
+            : DirectoryIndex.SaveViewAsync(request.Directory, request.View);
 
-        if (request.Global)
-            await SettingsService.Instance.UpdateAsync(settings => settings with { DefaultView = request.View });
-
-        return await DirectoryIndex.SaveViewAsync(request.Directory, request.View);
-    }
+    /// <summary>Stores the tags of one entry in its folder's own index.</summary>
+    private static Task<bool> SaveTagsAsync(TagsRequest? request) =>
+        request is null || request.Directory.Length == 0 || request.Name.Length == 0
+            ? Task.FromResult(false)
+            : DirectoryIndex.SetTagsAsync(request.Directory, request.Name, request.Tags);
 
     /// <summary>Renames one pinned folder; an empty name goes back to the folder's own name.</summary>
     private static async Task<List<PlaceEntry>> RenamePlaceAsync(PlaceRenameRequest? request)
@@ -549,11 +529,20 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         var iconsTask = DirectoryIndex.IconsAsync(directory.FullName);
         var sizesTask = DirectoryIndex.SizesAsync(directory.FullName);
         var viewTask = DirectoryIndex.ViewAsync(directory.FullName);
-        await Task.WhenAll(iconsTask, sizesTask, viewTask);
+        var tagsTask = DirectoryIndex.TagsAsync(directory.FullName);
+        var countsTask = DirectoryIndex.CountsAsync(directory.FullName);
+        await Task.WhenAll(iconsTask, sizesTask, viewTask, tagsTask, countsTask);
 
         var icons = await iconsTask;
         var sizes = await sizesTask;
         var view = await viewTask;
+        var tags = await tagsTask;
+        var counts = await countsTask;
+        var allTags = tags.Values
+            .SelectMany(list => list)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         // Everything is enumerated, hidden and system entries included, so the cache is complete;
         // the response only carries what the user's settings ask to see.
@@ -573,9 +562,10 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             : all.Where(entry => (showSystem || !entry.IsSystem) && (showHidden || !entry.IsHidden)).ToList();
 
         if (measure) RequestSizes(directory.FullName, entries);
+        RequestCounts(directory.FullName, entries);
         _ = HistoryService.Instance.RecordRecentAsync(directory.FullName);
 
-        return new(directory.FullName, directory.Parent?.FullName, entries, sizes, view);
+        return new(directory.FullName, directory.Parent?.FullName, entries, sizes, view, tags, allTags, counts);
     }
 
     /// <summary>
@@ -596,13 +586,21 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         var icons = await DirectoryIndex.IconsAsync(directory.FullName);
         var sizes = await DirectoryIndex.SizesAsync(directory.FullName);
         var view = await DirectoryIndex.ViewAsync(directory.FullName);
+        var tags = await DirectoryIndex.TagsAsync(directory.FullName);
+        var counts = await DirectoryIndex.CountsAsync(directory.FullName);
+        var allTags = tags.Values
+            .SelectMany(list => list)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         var visible = entries
             .Where(entry => (showSystem || !entry.IsSystem) && (showHidden || !entry.IsHidden))
             .Select(entry => entry with { IconSource = icons.GetValueOrDefault(entry.Name) })
             .ToList();
 
-        return new(true, new FsListPayload(directory.FullName, directory.Parent?.FullName, visible, sizes, view));
+        return new(true, new FsListPayload(directory.FullName, directory.Parent?.FullName, visible, sizes, view,
+            tags, allTags, counts));
     }
 
     /// <summary>Queues the folders of the listing that have no fresh measurement.</summary>
@@ -615,6 +613,21 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
         if (children.Count > 0)
             FolderSizeService.Instance.Request(directory, children);
+    }
+
+    /// <summary>Queues the child directories whose item count is stale; counts stay with the folder.</summary>
+    private static void RequestCounts(string directory, List<FileEntry> entries)
+    {
+        if (!SettingsService.Instance.Current.ShouldWriteDirectoryIndex)
+            return;
+
+        var children = entries
+            .Where(entry => entry.IsDirectory)
+            .Select(entry => entry.Name)
+            .ToList();
+
+        if (children.Count > 0)
+            FolderCountService.Instance.Request(directory, children);
     }
 
     private static Task<List<PlaceEntry>> GetPlacesAsync() => Task.Run(GetPlaces);
