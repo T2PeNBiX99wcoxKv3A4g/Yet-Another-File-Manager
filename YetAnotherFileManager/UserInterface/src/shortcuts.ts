@@ -63,12 +63,12 @@ export function prettyShortcut(value: string): string {
         .join(" + ");
 }
 
-/** Keys whose own name is not readable enough when title-cased. */
+/** Keys whose own name is not readable enough when title-cased, or that read better as a glyph. */
 const KeyLabels: Record<string, string> = {
-    arrowleft: "Left",
-    arrowright: "Right",
-    arrowup: "Up",
-    arrowdown: "Down",
+    arrowleft: "←",
+    arrowright: "→",
+    arrowup: "↑",
+    arrowdown: "↓",
     backspace: "Backspace",
     delete: "Delete",
     enter: "Enter",

@@ -229,6 +229,23 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                             </Toggle>
                         </RowEnd>
                     </Row>
+                    <Row>
+                        <RowText>
+                            <Label>Reopen the tabs that were open</Label>
+                            <Note>
+                                Keeps the tabs and the folder each one shows, so they come back after a
+                                restart. A folder passed on the command line takes over instead.
+                            </Note>
+                        </RowText>
+                        <Toggle
+                            $on={settings?.restoreTabs ?? true}
+                            disabled={!settings}
+                            onClick={() => void update({restoreTabs: !settings?.restoreTabs})}
+                            type="button"
+                        >
+                            <Knob/>
+                        </Toggle>
+                    </Row>
                 </Rows>
             </Section>
 

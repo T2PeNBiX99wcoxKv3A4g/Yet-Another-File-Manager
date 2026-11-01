@@ -86,6 +86,12 @@ internal sealed record FsFrequentPayload(IReadOnlyList<FrequentEntry> Entries);
 /// <summary>Payload for <c>app.places.set</c>: the folders to pin, in order.</summary>
 internal sealed record PlacesRequest(List<string> Paths);
 
+/// <summary>
+///     Payload for <c>app.tabs.set</c>: the locations of the tabs that are open, and which one has
+///     the focus. The host keeps them so the next launch can put the same tabs back.
+/// </summary>
+internal sealed record OpenTabsRequest(List<string> Tabs, int Active);
+
 /// <summary>Payload for <c>app.places.rename</c>: which pinned folder, and its new name.</summary>
 internal sealed record PlaceRenameRequest(string Path, string? Name);
 

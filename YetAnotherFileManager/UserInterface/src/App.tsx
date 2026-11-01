@@ -12,7 +12,7 @@ import {
     type Place,
     type RecentEntry,
 } from "./api/files";
-import {getSettings, type AppSettings} from "./api/settings";
+import {getSettings, saveOpenTabs, type AppSettings} from "./api/settings";
 import {getAppInfo, type AppInfo} from "./api/system";
 import {FileList} from "./components/FileList";
 import {FindBar} from "./components/FindBar";
@@ -258,6 +258,10 @@ export default function App() {
     const stateRef = useRef({tabs, activeId});
     stateRef.current = {tabs, activeId};
 
+    // The tabs from the last launch are restored once, and never over a path the host opened.
+    const restored = useRef(false);
+    const hostNavigated = useRef(false);
+
     const patch = useCallback((id: string, update: (tab: Tab) => Partial<Tab>) => {
         setTabs((current) => current.map((tab) => tab.id === id ? {...tab, ...update(tab)} : tab));
     }, []);
@@ -470,6 +474,27 @@ export default function App() {
         void listPlaces().then(setPlaces, () => setPlaces([]));
     }, []);
 
+    /** Puts back the tabs that were open when the window was closed, the first time settings arrive. */
+    const restoreOpenTabs = useCallback((saved: AppSettings) => {
+        if (hostNavigated.current) return;
+
+        const locations = (saved.openTabs ?? [])
+            .map(parseLocation)
+            .filter((location): location is string => location !== null);
+
+        if (locations.length === 0) return;
+
+        const opened = locations.map((location) => createTab(location));
+        const index = Math.min(Math.max(saved.activeTab ?? 0, 0), opened.length - 1);
+
+        setTabs(opened);
+        setActiveId(opened[index].id);
+
+        // Every files tab reads its folder; a built-in page is ready as it is.
+        for (const tab of opened)
+            if (kindOf(tab) === "files") void load(tab.id, folderOf(tab), true);
+    }, [load]);
+
     const reloadSettings = useCallback(() => {
         void getSettings().then((settings) => {
             setSettings(settings);
@@ -479,8 +504,13 @@ export default function App() {
             setShortcuts(keys);
             setClickModifier(keys.openInNewTab);
             setSettingsVersion((current) => current + 1);
+
+            if (!restored.current) {
+                restored.current = true;
+                if (settings.restoreTabs) restoreOpenTabs(settings);
+            }
         }, () => setRecentLimit(10));
-    }, []);
+    }, [restoreOpenTabs]);
 
     const reloadRecent = useCallback(() => {
         void listRecent().then(setRecent, () => setRecent([]));
@@ -489,6 +519,18 @@ export default function App() {
     const reloadDrives = useCallback(() => {
         void listDrives().then(setDrives, () => setDrives([]));
     }, []);
+
+    // The host keeps the tab locations, so the next launch can put the same tabs back.
+    const openLocations = tabs.map(locationOf);
+    const openLocationsKey = openLocations.join("\n");
+    const activeIndex = Math.max(tabs.findIndex((tab) => tab.id === activeId), 0);
+
+    useEffect(() => {
+        if (!settings?.restoreTabs) return;
+
+        const timer = setTimeout(() => void saveOpenTabs(openLocations, activeIndex), 700);
+        return () => clearTimeout(timer);
+    }, [openLocationsKey, activeIndex, settings?.restoreTabs]);
 
     useEffect(() => {
         // The first tab is the overview; a path the host sends at startup takes it over instead of
@@ -527,6 +569,9 @@ export default function App() {
         const unsubscribe = Native.on((evt) => {
             const event = evt as { type?: string; data?: { path?: unknown; startup?: unknown } };
             if (event.type !== "app.navigate" || typeof event.data?.path !== "string") return;
+
+            // A path from the host wins over the tabs of the last session.
+            hostNavigated.current = true;
 
             const target = event.data.path;
             const {tabs: current} = stateRef.current;

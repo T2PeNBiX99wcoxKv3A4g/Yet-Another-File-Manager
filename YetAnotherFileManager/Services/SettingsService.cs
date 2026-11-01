@@ -51,21 +51,6 @@ internal sealed class SettingsService : Singleton<SettingsService>
         }
     }
 
-    public async Task<AppSettings> SaveAsync(AppSettings settings)
-    {
-        await _writeGate.WaitAsync();
-        try
-        {
-            _current = settings;
-            await WriteAsync(_current);
-            return _current;
-        }
-        finally
-        {
-            _writeGate.Release();
-        }
-    }
-
     private async Task WriteAsync(AppSettings settings)
     {
         var json = JsonSerializer.Serialize(settings, AppJsonContext.Default.AppSettings);

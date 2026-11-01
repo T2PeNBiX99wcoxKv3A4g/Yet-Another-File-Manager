@@ -140,9 +140,20 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 return context.Reply("app.settings.result", SettingsService.Instance.Current);
 
             case "app.settings.set":
-                return context.Reply("app.settings.result", context.Payload<AppSettings>() is { } settings
-                    ? await SettingsService.Instance.SaveAsync(settings)
-                    : SettingsService.Instance.Current);
+                if (context.Payload<AppSettings>() is { } settings)
+                    return context.Reply("app.settings.result", await SettingsService.Instance.UpdateAsync(current =>
+                        settings with
+                        {
+                            // The settings page never edits tabs; the window owns them through app.tabs.set.
+                            OpenTabs = current.OpenTabs,
+                            ActiveTab = current.ActiveTab
+                        }));
+
+                return context.Reply("app.settings.result", SettingsService.Instance.Current);
+
+            case "app.tabs.set":
+                return context.Reply("app.tabs.set.result",
+                    new OkPayload(await SaveOpenTabsAsync(context.Payload<OpenTabsRequest>())));
 
             case "app.memory":
                 return context.Reply("app.memory.result", AppMemory.Report());
@@ -296,6 +307,24 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         });
 
         return await GetPlacesAsync();
+    }
+
+    /// <summary>Remembers the tabs that are open now, so the next launch can put the same ones back.</summary>
+    private static async Task<bool> SaveOpenTabsAsync(OpenTabsRequest? request)
+    {
+        if (request is null)
+            return false;
+
+        // A cap keeps a misbehaving window from growing settings.json without bound.
+        var tabs = request.Tabs.Where(tab => tab.Length > 0).Take(64).ToList();
+
+        await SettingsService.Instance.UpdateAsync(settings => settings with
+        {
+            OpenTabs = tabs,
+            ActiveTab = Math.Clamp(request.Active, 0, Math.Max(tabs.Count - 1, 0))
+        });
+
+        return true;
     }
 
     /// <summary>Renames one pinned folder; an empty name goes back to the folder's own name.</summary>
