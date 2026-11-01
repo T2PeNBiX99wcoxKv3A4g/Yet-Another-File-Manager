@@ -473,9 +473,11 @@ const IconMenu = styled.div`
     top: calc(100% + 6px);
     left: 0;
     display: grid;
-    grid-template-columns: repeat(4, 24px);
+    grid-template-columns: repeat(6, 24px);
     gap: 4px;
     width: max-content;
+    max-height: 236px;
+    overflow-y: auto;
     padding: 6px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);

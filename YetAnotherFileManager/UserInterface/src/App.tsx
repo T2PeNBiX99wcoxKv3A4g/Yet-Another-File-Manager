@@ -28,7 +28,7 @@ import {TitleBar} from "./components/TitleBar";
 import {viewTitles, type TabKind} from "./tabs";
 import {buildPanels} from "./panels";
 import {Native, ResizeHandles, useWindowCorners} from "@photino-net-utils/bridge";
-import {baseName, formatBytes} from "./utils/format";
+import {baseName, formatBytes, normalizePath} from "./utils/format";
 import {
     comboOf,
     DefaultShortcuts,
@@ -168,24 +168,22 @@ export default function App() {
      */
     const quickPlaces = useMemo(() => {
         const entries: Record<string, Place> = {};
-        const normalize = (value: string) => value.replace(/[\\/]+$/, "").toLowerCase();
         const panels = buildPanels(settings);
         const overrides: Record<string, string> = {};
 
         for (const [path, name] of Object.entries(settings?.placeNames ?? {}))
-            overrides[normalize(path)] = name;
+            overrides[normalizePath(path)] = name;
 
-        // The factory panel is the global Quick access list; the other quick panels are per-panel.
-        if (panels.some((panel) => panel.id === "quick"))
-            for (const place of places)
-                entries[normalize(place.path)] = place;
+        // The sidebar's Quick access list is global; the other quick panels add their own folders.
+        for (const place of places)
+            entries[normalizePath(place.path)] = place;
 
         for (const panel of panels) {
             if (panel.kind !== "quick" || panel.id === "quick") continue;
 
             for (const path of panel.places ?? []) {
-                const key = normalize(path);
-                const known = places.find((place) => normalize(place.path) === key);
+                const key = normalizePath(path);
+                const known = places.find((place) => normalizePath(place.path) === key);
 
                 entries[key] = {
                     name: overrides[key] ?? known?.name ?? (baseName(path) || path),
@@ -198,6 +196,9 @@ export default function App() {
 
         return entries;
     }, [places, settings]);
+
+    /** Quick access only lends its names and icons while the file types use the app's own glyphs. */
+    const quickForList = settings?.systemIcons === false ? quickPlaces : undefined;
 
     const viewIcon = kind === "home" ? <OverviewIcon size={13}/>
         : kind === "settings" ? <GearIcon size={13}/>
@@ -213,10 +214,11 @@ export default function App() {
     const findHits = useMemo(
         () => searching && active.listing
             ? active.listing.entries
-                .filter((entry) => matchesName(entry.name, find))
+                .filter((entry) => matchesName(
+                    quickForList?.[normalizePath(entry.fullPath)]?.name || entry.name, find))
                 .map((entry) => entry.fullPath)
             : [],
-        [searching, find, active.listing],
+        [searching, find, active.listing, quickForList],
     );
 
     // A new query starts again at the first hit; stepping through them leaves the query alone.
@@ -821,6 +823,7 @@ export default function App() {
                                 listing={active.listing}
                                 loading={active.loading}
                                 onOpen={navigate}
+                                quick={quickForList}
                             />
 
                             {find.open && (

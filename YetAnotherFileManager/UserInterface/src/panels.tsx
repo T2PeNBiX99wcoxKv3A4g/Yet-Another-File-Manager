@@ -1,7 +1,49 @@
 import type {ReactNode} from "react";
 import type {AppSettings} from "./api/settings";
 import {useIconFile} from "./api/icons";
-import {ClockIcon, CodeIcon, DesktopIcon, DocumentsIcon, DownloadsIcon, DriveIcon, FolderIcon, HomeIcon, ImageIcon, MusicIcon, PicturesIcon, StarIcon, TextIcon, VideosIcon} from "./components/Icons";
+import {
+    AppIcon,
+    ArchiveIcon,
+    AudioIcon,
+    BookIcon,
+    BriefcaseIcon,
+    CameraIcon,
+    ClockIcon,
+    CloudIcon,
+    CodeIcon,
+    ConfigIcon,
+    DatabaseIcon,
+    DesktopIcon,
+    DocumentIcon,
+    DocumentsIcon,
+    DownloadsIcon,
+    DriveIcon,
+    ExecutableIcon,
+    FileIcon,
+    FolderIcon,
+    FontIcon,
+    GamepadIcon,
+    GearIcon,
+    GlobeIcon,
+    HeartIcon,
+    HomeIcon,
+    ImageIcon,
+    MusicIcon,
+    OverviewIcon,
+    PackageIcon,
+    PdfIcon,
+    PicturesIcon,
+    PinIcon,
+    PresentationIcon,
+    ServerIcon,
+    SpreadsheetIcon,
+    StarIcon,
+    TerminalIcon,
+    TextIcon,
+    TrashIcon,
+    VideoIcon,
+    VideosIcon,
+} from "./components/Icons";
 
 export type PanelKind = "quick" | "recent" | "frequent" | "home" | "drives" | "folder";
 export type ViewMode = "list" | "grid";
@@ -32,7 +74,7 @@ export const DefaultTitles: Record<string, string> = {
     drives: "Drives",
 };
 
-/** Built-in icons a panel can be given. */
+/** Built-in icons a panel or a Quick access folder can be given. */
 export const PanelIcons: Record<string, (size: number) => ReactNode> = {
     folder: (size) => <FolderIcon size={size}/>,
     home: (size) => <HomeIcon size={size}/>,
@@ -44,10 +86,37 @@ export const PanelIcons: Record<string, (size: number) => ReactNode> = {
     videos: (size) => <VideosIcon size={size}/>,
     drive: (size) => <DriveIcon size={size}/>,
     image: (size) => <ImageIcon size={size}/>,
+    video: (size) => <VideoIcon size={size}/>,
+    audio: (size) => <AudioIcon size={size}/>,
     text: (size) => <TextIcon size={size}/>,
     code: (size) => <CodeIcon size={size}/>,
     clock: (size) => <ClockIcon size={size}/>,
     star: (size) => <StarIcon size={size}/>,
+    file: (size) => <FileIcon size={size}/>,
+    archive: (size) => <ArchiveIcon size={size}/>,
+    pdf: (size) => <PdfIcon size={size}/>,
+    executable: (size) => <ExecutableIcon size={size}/>,
+    font: (size) => <FontIcon size={size}/>,
+    database: (size) => <DatabaseIcon size={size}/>,
+    config: (size) => <ConfigIcon size={size}/>,
+    spreadsheet: (size) => <SpreadsheetIcon size={size}/>,
+    presentation: (size) => <PresentationIcon size={size}/>,
+    document: (size) => <DocumentIcon size={size}/>,
+    app: (size) => <AppIcon size={size}/>,
+    gear: (size) => <GearIcon size={size}/>,
+    pin: (size) => <PinIcon size={size}/>,
+    trash: (size) => <TrashIcon size={size}/>,
+    overview: (size) => <OverviewIcon size={size}/>,
+    book: (size) => <BookIcon size={size}/>,
+    briefcase: (size) => <BriefcaseIcon size={size}/>,
+    cloud: (size) => <CloudIcon size={size}/>,
+    gamepad: (size) => <GamepadIcon size={size}/>,
+    camera: (size) => <CameraIcon size={size}/>,
+    terminal: (size) => <TerminalIcon size={size}/>,
+    server: (size) => <ServerIcon size={size}/>,
+    package: (size) => <PackageIcon size={size}/>,
+    globe: (size) => <GlobeIcon size={size}/>,
+    heart: (size) => <HeartIcon size={size}/>,
 };
 
 /** The kind of a panel id: "quick", "quick:2", "folder:D:\x". */

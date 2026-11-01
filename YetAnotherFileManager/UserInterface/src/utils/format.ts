@@ -42,6 +42,11 @@ export function baseName(path: string): string {
     return parts.at(-1) || path;
 }
 
+/** A path with one separator style, no trailing separator and folded case, for map lookups. */
+export function normalizePath(path: string): string {
+    return path.replace(/[\\/]+/g, "\\").replace(/\\$/, "").toLowerCase();
+}
+
 /** " (C:)" — the letter Windows uses, or nothing for a volume mounted at a path. */
 export function driveLetter(drive: { name: string }): string {
     const root = drive.name.replace(/[\\/]+$/, "");

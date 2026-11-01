@@ -1,11 +1,12 @@
 import {useEffect, useRef, type ReactNode} from "react";
 import styled from "styled-components";
 import {wantsNewTab} from "../shortcuts";
-import type {DirectoryListing, FileEntry} from "../api/files";
+import type {DirectoryListing, FileEntry, Place} from "../api/files";
 import {useIcon, useIconFile} from "../api/icons";
 import {NoFind, rangesOf, type FindView} from "../find";
-import {formatBytes, formatDate} from "../utils/format";
+import {formatBytes, formatDate, normalizePath} from "../utils/format";
 import {FolderIcon} from "./Icons";
+import {PlaceIcon} from "./PlaceIcon";
 import {BuiltinIcon, iconForName} from "../icons/fileTypes";
 
 interface FileListProps {
@@ -14,12 +15,17 @@ interface FileListProps {
     error: string | null;
     /** The search that is open, if any; absent means "no search". */
     find?: FindView;
+    /**
+     * Quick access entries by normalized path. A folder that has one is shown with that name and
+     * icon instead of its own, which is how the Quick access panels present it.
+     */
+    quick?: Record<string, Place>;
     onOpen: (path: string, newTab?: boolean) => void;
     /** Double-clicking a file hands it to the system; without this, files are inert. */
     onOpenFile?: (path: string) => void;
 }
 
-export function FileList({listing, loading, error, find = NoFind, onOpen, onOpenFile}: FileListProps) {
+export function FileList({listing, loading, error, find = NoFind, quick, onOpen, onOpenFile}: FileListProps) {
     const currentRow = useRef<HTMLDivElement | null>(null);
 
     // Typing a letter jumps to the first match; the row has to be brought into view with it.
@@ -37,7 +43,12 @@ export function FileList({listing, loading, error, find = NoFind, onOpen, onOpen
     const folderSizes = listing?.folderSizes ?? {};
     const rows = listing
         ? listing.entries
-            .map((entry) => ({entry, ranges: searching ? rangesOf(entry.name, find) : null}))
+            .map((entry) => {
+                const place = quick?.[normalizePath(entry.fullPath)];
+                const label = place?.name || entry.name;
+
+                return {entry, place, label, ranges: searching ? rangesOf(label, find) : null};
+            })
             .filter((row) => !searching || find.mode === "dim" || row.ranges !== null)
         : [];
 
@@ -52,7 +63,7 @@ export function FileList({listing, loading, error, find = NoFind, onOpen, onOpen
             <Body>
                 {loading && !listing
                     ? <PlaceholderRows/>
-                    : rows.map(({entry, ranges}) => {
+                    : rows.map(({entry, place, label, ranges}) => {
                         const dim = searching && ranges === null;
                         const current = searching && entry.fullPath === find.currentPath;
 
@@ -69,8 +80,10 @@ export function FileList({listing, loading, error, find = NoFind, onOpen, onOpen
                                 ref={current ? currentRow : undefined}
                             >
                                 <Name>
-                                    <EntryIcon entry={entry}/>
-                                    <span><Highlighted name={entry.name} ranges={ranges}/></span>
+                                    {place
+                                        ? <IconSlot><PlaceIcon place={place}/></IconSlot>
+                                        : <EntryIcon entry={entry}/>}
+                                    <span title={entry.name}><Highlighted name={label} ranges={ranges}/></span>
                                 </Name>
                                 <Size>{sizeOf(entry, folderSizes)}</Size>
                                 <Modified>{formatDate(entry.modified)}</Modified>
