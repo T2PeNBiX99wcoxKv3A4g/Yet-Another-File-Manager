@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState, type ReactNode} from "react";
 import styled from "styled-components";
 import type {Place} from "../api/files";
-import {CheckIcon, ChevronRightIcon, CrossIcon, DriveIcon, FolderIcon} from "./Icons";
+import {CheckIcon, ChevronRightIcon, CrossIcon} from "./Icons";
 import {PlaceIcon} from "./PlaceIcon";
 
 interface PathBarProps {
@@ -106,22 +106,15 @@ export function PathBar({path, label, icon, quick, onNavigate}: PathBarProps) {
                         }}
                         type="button"
                     >
-                        <CrumbGlyph>
-                            {crumb.place
-                                ? <PlaceIcon place={crumb.place} size={13}/>
-                                : crumb.icon ?? (isDriveRoot(crumb.path) ? <DriveIcon size={13}/> : <FolderIcon size={13}/>)}
-                        </CrumbGlyph>
+                        {crumb.place
+                            ? <CrumbGlyph><PlaceIcon place={crumb.place} size={13}/></CrumbGlyph>
+                            : crumb.icon && <CrumbGlyph>{crumb.icon}</CrumbGlyph>}
                         {crumb.label}
                     </CrumbButton>
                 </Crumb>
             ))}
         </Trail>
     );
-}
-
-/** "C:\" and "C:" both mean the drive itself, which gets the drive glyph. */
-function isDriveRoot(path: string): boolean {
-    return /^[a-z]:[\\/]?$/i.test(path);
 }
 
 /** Splits a path into clickable ancestors, keeping the Windows drive root intact. */
