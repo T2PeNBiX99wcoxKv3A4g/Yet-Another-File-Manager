@@ -531,13 +531,14 @@ export default function App() {
     }, []);
 
     /** Adds or removes one entry's tags; the folder index keeps them, so this stays optimistic. */
-    const setEntryTags = useCallback((name: string, tags: string[]) => {
+    const setEntryTags = useCallback((name: string, tags: string[], colors?: Record<string, string>) => {
         const {tabs, activeId} = stateRef.current;
         const tab = tabs.find((item) => item.id === activeId);
         if (!tab || kindOf(tab) !== "files" || !tab.listing) return;
 
         const folder = folderOf(tab);
-        const allTags = [...new Set([...tab.listing.allTags, ...tags])]
+        const tagColors = colors ? {...tab.listing.tagColors, ...colors} : tab.listing.tagColors;
+        const allTags = [...new Set([...tab.listing.allTags, ...tags, ...Object.keys(tagColors)])]
             .sort((left, right) => left.localeCompare(right));
 
         patch(tab.id, (current) => current.listing
@@ -545,12 +546,13 @@ export default function App() {
                 listing: {
                     ...current.listing,
                     tags: {...current.listing.tags, [name]: tags},
+                    tagColors,
                     allTags,
                 },
             }
             : current);
 
-        void saveTags(folder, name, tags);
+        void saveTags(folder, name, tags, colors);
     }, [patch]);
 
     /** A header click sorts by that column, and a second click flips the direction. */

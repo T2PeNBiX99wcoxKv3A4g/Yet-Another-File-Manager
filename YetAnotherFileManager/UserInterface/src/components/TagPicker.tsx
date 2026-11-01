@@ -1,7 +1,24 @@
 import {useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
-import {CrossIcon} from "./Icons";
+import {CheckIcon, CrossIcon} from "./Icons";
+
+/** The color a tag gets until the user picks one. */
+export const DefaultTagColor = "#64748b";
+
+/** A readable text color for a tag chip, based on how bright the tag color is. */
+export function inkFor(color: string): string {
+    const value = color.replace("#", "");
+    if (value.length !== 6)
+        return "#f9fafb";
+
+    const red = Number.parseInt(value.slice(0, 2), 16);
+    const green = Number.parseInt(value.slice(2, 4), 16);
+    const blue = Number.parseInt(value.slice(4, 6), 16);
+    const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+
+    return luminance > 0.62 ? "#0b0f19" : "#f9fafb";
+}
 
 interface TagPickerProps {
     x: number;
@@ -10,13 +27,16 @@ interface TagPickerProps {
     tags: string[];
     /** Every tag that already exists in the folder. */
     allTags: string[];
-    onChange: (tags: string[]) => void;
+    /** The color of each tag, by name. */
+    colors: Record<string, string>;
+    onChange: (tags: string[], colors?: Record<string, string>) => void;
     onClose: () => void;
 }
 
-/** A small floating panel for choosing existing tags or creating a new one. */
-export function TagPicker({x, y, tags, allTags, onChange, onClose}: TagPickerProps) {
+/** A floating panel for choosing existing tags, creating one, and giving each its own color. */
+export function TagPicker({x, y, tags, allTags, colors, onChange, onClose}: TagPickerProps) {
     const [draft, setDraft] = useState("");
+    const [draftColor, setDraftColor] = useState("#3b82f6");
     const root = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
@@ -40,20 +60,27 @@ export function TagPicker({x, y, tags, allTags, onChange, onClose}: TagPickerPro
 
     const known = [...new Set([...allTags, ...tags])].sort((left, right) => left.localeCompare(right));
 
+    const colorOf = (tag: string) => colors[tag] ?? DefaultTagColor;
+
     const toggle = (tag: string) => {
         onChange(tags.includes(tag) ? tags.filter((value) => value !== tag) : [...tags, tag]);
     };
 
+    const recolor = (tag: string, color: string) => {
+        onChange(tags, {...colors, [tag]: color});
+    };
+
     const add = () => {
         const value = draft.trim();
-        if (value.length === 0 || tags.includes(value)) return;
+        if (value.length === 0)
+            return;
 
-        onChange([...tags, value]);
+        onChange(tags.includes(value) ? tags : [...tags, value], {...colors, [value]: draftColor});
         setDraft("");
     };
 
-    const left = Math.max(8, Math.min(x, window.innerWidth - 252));
-    const top = Math.max(8, Math.min(y + 8, window.innerHeight - 260));
+    const left = Math.max(8, Math.min(x, window.innerWidth - 272));
+    const top = Math.max(8, Math.min(y + 8, window.innerHeight - 320));
 
     return createPortal(
         <Panel data-tag-menu="true" ref={root} style={{left, top}}>
@@ -64,18 +91,45 @@ export function TagPicker({x, y, tags, allTags, onChange, onClose}: TagPickerPro
                 </Close>
             </Header>
 
-            <Chips>
+            <List>
                 {known.length === 0 && <Empty>No tags yet.</Empty>}
-                {known.map((tag) => (
-                    <Chip $on={tags.includes(tag)} key={tag} onClick={() => toggle(tag)} type="button">
-                        {tag}
-                    </Chip>
-                ))}
-            </Chips>
+                {known.map((tag) => {
+                    const color = colorOf(tag);
+                    const on = tags.includes(tag);
+
+                    return (
+                        <TagRow key={tag}>
+                            <ColorInput
+                                aria-label={`Color of ${tag}`}
+                                onChange={(event) => recolor(tag, event.target.value)}
+                                title="Change this tag's color"
+                                type="color"
+                                value={color}
+                            />
+                            <TagToggle
+                                $color={color}
+                                $ink={inkFor(color)}
+                                $on={on}
+                                onClick={() => toggle(tag)}
+                                type="button"
+                            >
+                                {on && <CheckIcon size={11}/>}
+                                <span>{tag}</span>
+                            </TagToggle>
+                        </TagRow>
+                    );
+                })}
+            </List>
 
             <NewRow>
+                <ColorInput
+                    aria-label="Color of the new tag"
+                    onChange={(event) => setDraftColor(event.target.value)}
+                    title="Color of the new tag"
+                    type="color"
+                    value={draftColor}
+                />
                 <input
-                    autoFocus
                     onChange={(event) => setDraft(event.target.value)}
                     onKeyDown={(event) => {
                         if (event.key === "Enter") {
@@ -97,7 +151,7 @@ export function TagPicker({x, y, tags, allTags, onChange, onClose}: TagPickerPro
 const Panel = styled.div`
     position: fixed;
     z-index: 80;
-    width: 244px;
+    width: 264px;
     padding: 9px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
@@ -132,22 +186,64 @@ const Close = styled.button`
     }
 `;
 
-const Chips = styled.div`
+/** Existing tags are a vertical list, each with its own color swatch. */
+const List = styled.div`
     display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    max-height: 130px;
+    flex-direction: column;
+    gap: 3px;
+    max-height: 200px;
     overflow-y: auto;
 `;
 
-const Chip = styled.button<{ $on: boolean }>`
-    padding: 3px 8px;
-    border: 1px solid ${({$on}) => $on ? "var(--border-color-focus)" : "var(--border-color)"};
-    border-radius: 999px;
-    background: ${({$on}) => $on ? "rgba(59, 130, 246, 0.22)" : "var(--bg-input)"};
-    color: ${({$on}) => $on ? "var(--text-primary)" : "var(--text-secondary)"};
-    font-size: 10px;
+const TagRow = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+`;
+
+const ColorInput = styled.input`
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: transparent;
     cursor: pointer;
+
+    &::-webkit-color-swatch-wrapper {
+        padding: 1px;
+    }
+
+    &::-webkit-color-swatch {
+        border: 0;
+        border-radius: 3px;
+    }
+`;
+
+const TagToggle = styled.button<{ $on: boolean; $color: string; $ink: string }>`
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 100%;
+    padding: 3px 9px;
+    border: 1px solid ${({$on, $color}) => $on ? $color : "var(--border-color)"};
+    border-radius: 999px;
+    background: ${({$on, $color}) => $on ? $color : "transparent"};
+    color: ${({$on, $ink}) => $on ? $ink : "var(--text-secondary)"};
+    font-size: 10px;
+    text-align: left;
+    cursor: pointer;
+
+    span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &:hover {
+        border-color: ${({$color}) => $color};
+    }
 `;
 
 const Empty = styled.span`
@@ -157,10 +253,11 @@ const Empty = styled.span`
 
 const NewRow = styled.div`
     display: flex;
-    gap: 4px;
-    margin-top: 8px;
+    align-items: center;
+    gap: 5px;
+    margin-top: 9px;
 
-    input {
+    input:not([type="color"]) {
         flex: 1;
         min-width: 0;
         padding: 4px 6px;

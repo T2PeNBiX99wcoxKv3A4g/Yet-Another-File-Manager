@@ -315,6 +315,23 @@ internal static class FolderIndex
                         JsonSerializer.Serialize(tags.ToList(), AppJsonContext.Default.ListString));
             });
 
+    /// <summary>The color each tag was given, by tag name.</summary>
+    public static async Task<Dictionary<string, string>> TagColorsAsync(string directory) =>
+        await ReadAsync(directory, "SELECT value FROM settings WHERE key = 'tag_colors'",
+            async reader => await reader.ReadAsync()
+                ? Try.Run(() => JsonSerializer.Deserialize(reader.GetString(0),
+                    AppJsonContext.Default.DictionaryStringString)).GetOrNull()
+                : null) ?? [];
+
+    /// <summary>Stores the color of every tag in the folder, so chips keep their colors.</summary>
+    public static Task<bool> SaveTagColorsAsync(string directory, IReadOnlyDictionary<string, string> colors) =>
+        WriteAsync(directory,
+            "INSERT INTO settings (key, value) VALUES ('tag_colors', $value) " +
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            command => command.Parameters.AddWithValue("$value",
+                JsonSerializer.Serialize(colors.ToDictionary(pair => pair.Key, pair => pair.Value),
+                    AppJsonContext.Default.DictionaryStringString)));
+
     /// <summary>How many entries each child directory holds, as last counted.</summary>
     public static async Task<Dictionary<string, long>> CountsAsync(string directory) =>
         await ReadAsync(directory, "SELECT name, count FROM counts", async reader =>

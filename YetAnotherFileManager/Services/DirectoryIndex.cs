@@ -74,6 +74,18 @@ internal static class DirectoryIndex
             ? FolderIndex.SetTagsAsync(directory, name, tags)
             : Task.FromResult(false);
 
+    /// <summary>The colors of this folder's tags, by tag name. They never move to the central index.</summary>
+    public static Task<Dictionary<string, string>> TagColorsAsync(string directory) =>
+        File.Exists(FolderIndex.PathFor(directory))
+            ? FolderIndex.TagColorsAsync(directory)
+            : Task.FromResult(new Dictionary<string, string>());
+
+    /// <summary>Stores the tag colors, which is only possible while the folder keeps its own index.</summary>
+    public static Task<bool> SaveTagColorsAsync(string directory, IReadOnlyDictionary<string, string> colors) =>
+        HoldsOwnIndex(directory)
+            ? FolderIndex.SaveTagColorsAsync(directory, colors)
+            : Task.FromResult(false);
+
     /// <summary>Child counts recorded in this folder, by entry name. They never move to the central index.</summary>
     public static Task<Dictionary<string, long>> CountsAsync(string directory) =>
         File.Exists(FolderIndex.PathFor(directory))

@@ -25,6 +25,7 @@ internal sealed record FsListPayload(
     Dictionary<string, long> FolderSizes,
     DirectoryView? View,
     Dictionary<string, List<string>> Tags,
+    Dictionary<string, string> TagColors,
     List<string> AllTags,
     Dictionary<string, long> Counts);
 
@@ -34,8 +35,9 @@ internal sealed record ViewRequest(string Directory, DirectoryView View);
 /// <summary>Body for <c>app.thumbnails</c>: the base URL of the loopback thumbnail server.</summary>
 internal sealed record ThumbnailServerPayload(string Base);
 
-/// <summary>Payload for <c>fs.tags.set</c>: the tags of one entry in one directory.</summary>
-internal sealed record TagsRequest(string Directory, string Name, List<string> Tags);
+/// <summary>Payload for <c>fs.tags.set</c>: the tags of one entry, and optionally the tag colors.</summary>
+internal sealed record TagsRequest(string Directory, string Name, List<string> Tags,
+    Dictionary<string, string>? Colors = null);
 
 /// <summary>
 ///     Body for <c>fs.list.cached</c>: the listing saved the last time the folder was opened. When

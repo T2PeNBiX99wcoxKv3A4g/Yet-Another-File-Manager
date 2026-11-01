@@ -69,6 +69,8 @@ export interface DirectoryListing {
     view: DirectoryView | null;
     /** Custom tags recorded in this folder, by entry name. */
     tags: Record<string, string[]>;
+    /** The color of each tag in this folder, by tag name. */
+    tagColors: Record<string, string>;
     /** Every tag that exists in this folder, for the picker. */
     allTags: string[];
     /** Child counts of folders, by entry name. */
@@ -173,11 +175,22 @@ export async function saveDirectoryView(directory: string, view: DirectoryView):
     return data.ok;
 }
 
-/** Stores the tags of one entry in its folder's own index. */
-export async function saveTags(directory: string, name: string, tags: string[]): Promise<boolean> {
+/** Stores the tags of one entry in its folder's own index, plus the color of each tag. */
+export async function saveTags(
+    directory: string,
+    name: string,
+    tags: string[],
+    colors?: Record<string, string>,
+): Promise<boolean> {
     if (!Native.available) return false;
 
-    const data = await Native.request<{ ok: boolean }>("fs.tags.set", {directory, name, tags});
+    const data = await Native.request<{ ok: boolean }>("fs.tags.set", {
+        directory,
+        name,
+        tags,
+        colors: colors ?? null,
+    });
+
     return data.ok;
 }
 

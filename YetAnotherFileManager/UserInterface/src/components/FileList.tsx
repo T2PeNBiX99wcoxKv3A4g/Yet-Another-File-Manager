@@ -8,7 +8,7 @@ import {quickPlace, useQuickAccess} from "../quick";
 import {formatBytes, formatDate} from "../utils/format";
 import {FolderIcon} from "./Icons";
 import {PlaceIcon} from "./PlaceIcon";
-import {TagPicker} from "./TagPicker";
+import {TagPicker, DefaultTagColor, inkFor} from "./TagPicker";
 import {BuiltinIcon, iconForName} from "../icons/fileTypes";
 
 /** The columns the list can show besides the name. `linkTarget` is drawn inside the name cell. */
@@ -31,7 +31,7 @@ interface FileListProps {
     /** List or grid, the icon size, the visible columns and the sort order. */
     view: ResolvedView;
     onSort: (column: string) => void;
-    onSetTags?: (name: string, tags: string[]) => void;
+    onSetTags?: (name: string, tags: string[], colors?: Record<string, string>) => void;
     onOpen: (path: string, newTab?: boolean) => void;
     /** Double-clicking a file hands it to the system; without this, files are inert. */
     onOpenFile?: (path: string) => void;
@@ -197,7 +197,15 @@ export function FileList({
                                                     type="button"
                                                 >
                                                     {row.tags.length > 0
-                                                        ? row.tags.map((tag) => <TagChip key={tag}>{tag}</TagChip>)
+                                                        ? row.tags.map((tag) => {
+                                                            const color = listing!.tagColors?.[tag] ?? DefaultTagColor;
+
+                                                            return (
+                                                                <TagChip $color={color} $ink={inkFor(color)} key={tag}>
+                                                                    {tag}
+                                                                </TagChip>
+                                                            );
+                                                        })
                                                         : <TagEmpty>+</TagEmpty>}
                                                 </TagsButton>
                                             )
@@ -224,7 +232,8 @@ export function FileList({
             {tagTarget && listing && (
                 <TagPicker
                     allTags={listing.allTags}
-                    onChange={(tags) => onSetTags?.(tagTarget.entry.name, tags)}
+                    colors={listing.tagColors}
+                    onChange={(tags, colors) => onSetTags?.(tagTarget.entry.name, tags, colors)}
                     onClose={() => setTagTarget(null)}
                     tags={listing.tags[tagTarget.entry.name] ?? []}
                     x={tagTarget.x}
@@ -680,12 +689,13 @@ const Cell = styled.span`
     white-space: nowrap;
 `;
 
-/** The tags cell is a button so clicking it opens the picker; tags stack as little badges. */
+/** The tags cell is a button so clicking it opens the picker; chips wrap horizontally. */
 const TagsButton = styled.button`
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
     align-items: flex-start;
-    gap: 2px;
+    gap: 3px;
     width: 100%;
     max-height: 100%;
     overflow: hidden;
@@ -702,13 +712,14 @@ const TagsButton = styled.button`
     }
 `;
 
-const TagChip = styled.span`
+const TagChip = styled.span<{ $color: string; $ink: string }>`
     max-width: 100%;
     padding: 1px 7px;
     overflow: hidden;
     border-radius: 999px;
-    background: rgba(148, 163, 184, 0.18);
-    color: var(--text-secondary);
+    background: ${({$color}) => $color};
+    color: ${({$ink}) => $ink};
+    font-family: var(--font-sans);
     font-size: 9px;
     line-height: 1.5;
     text-overflow: ellipsis;

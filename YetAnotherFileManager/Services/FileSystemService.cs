@@ -327,11 +327,19 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             ? Task.FromResult(false)
             : DirectoryIndex.SaveViewAsync(request.Directory, request.View);
 
-    /// <summary>Stores the tags of one entry in its folder's own index.</summary>
-    private static Task<bool> SaveTagsAsync(TagsRequest? request) =>
-        request is null || request.Directory.Length == 0 || request.Name.Length == 0
-            ? Task.FromResult(false)
-            : DirectoryIndex.SetTagsAsync(request.Directory, request.Name, request.Tags);
+    /// <summary>Stores the tags of one entry, and the tag colors when the picker sent them.</summary>
+    private static async Task<bool> SaveTagsAsync(TagsRequest? request)
+    {
+        if (request is null || request.Directory.Length == 0 || request.Name.Length == 0)
+            return false;
+
+        var saved = await DirectoryIndex.SetTagsAsync(request.Directory, request.Name, request.Tags);
+
+        if (request.Colors is { } colors)
+            await DirectoryIndex.SaveTagColorsAsync(request.Directory, colors);
+
+        return saved;
+    }
 
     /// <summary>Renames one pinned folder; an empty name goes back to the folder's own name.</summary>
     private static async Task<List<PlaceEntry>> RenamePlaceAsync(PlaceRenameRequest? request)
@@ -540,16 +548,19 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         var sizesTask = DirectoryIndex.SizesAsync(directory.FullName);
         var viewTask = DirectoryIndex.ViewAsync(directory.FullName);
         var tagsTask = DirectoryIndex.TagsAsync(directory.FullName);
+        var tagColorsTask = DirectoryIndex.TagColorsAsync(directory.FullName);
         var countsTask = DirectoryIndex.CountsAsync(directory.FullName);
-        await Task.WhenAll(iconsTask, sizesTask, viewTask, tagsTask, countsTask);
+        await Task.WhenAll(iconsTask, sizesTask, viewTask, tagsTask, tagColorsTask, countsTask);
 
         var icons = await iconsTask;
         var sizes = await sizesTask;
         var view = await viewTask;
         var tags = await tagsTask;
+        var tagColors = await tagColorsTask;
         var counts = await countsTask;
         var allTags = tags.Values
             .SelectMany(list => list)
+            .Concat(tagColors.Keys)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -578,7 +589,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         RequestCounts(directory.FullName, entries);
         _ = HistoryService.Instance.RecordRecentAsync(directory.FullName);
 
-        return new(directory.FullName, directory.Parent?.FullName, entries, sizes, view, tags, allTags, counts);
+        return new(directory.FullName, directory.Parent?.FullName, entries, sizes, view, tags, tagColors, allTags, counts);
     }
 
     /// <summary>
@@ -600,9 +611,11 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         var sizes = await DirectoryIndex.SizesAsync(directory.FullName);
         var view = await DirectoryIndex.ViewAsync(directory.FullName);
         var tags = await DirectoryIndex.TagsAsync(directory.FullName);
+        var tagColors = await DirectoryIndex.TagColorsAsync(directory.FullName);
         var counts = await DirectoryIndex.CountsAsync(directory.FullName);
         var allTags = tags.Values
             .SelectMany(list => list)
+            .Concat(tagColors.Keys)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -613,7 +626,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             .ToList();
 
         return new(true, new FsListPayload(directory.FullName, directory.Parent?.FullName, visible, sizes, view,
-            tags, allTags, counts));
+            tags, tagColors, allTags, counts));
     }
 
     /// <summary>Queues the folders of the listing that have no fresh measurement.</summary>
