@@ -313,6 +313,8 @@ const Cell = styled.div`
     }
 
     img {
+        position: relative;
+        z-index: 1;
         display: block;
         width: 100%;
         height: 100%;
@@ -323,6 +325,7 @@ const Cell = styled.div`
 const Placeholder = styled.div`
     position: absolute;
     inset: 0;
+    z-index: 0;
     background:
             radial-gradient(circle at 50% 45%, rgba(99, 102, 241, 0.12), transparent 60%),
             rgba(15, 23, 42, 0.6);
@@ -334,6 +337,7 @@ const Caption = styled.span`
     right: 0;
     bottom: 0;
     left: 0;
+    z-index: 2;
     display: flex;
     flex-direction: column;
     gap: 2px;
