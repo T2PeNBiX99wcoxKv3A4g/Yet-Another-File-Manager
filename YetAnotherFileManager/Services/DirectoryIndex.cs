@@ -52,6 +52,16 @@ internal static class DirectoryIndex
     public static Task<List<FileEntry>?> ListingAsync(string directory) =>
         ReadsOwnIndex(directory) ? FolderIndex.ListingAsync(directory) : CentralIndex.Instance.ListingAsync(directory);
 
+    /// <summary>How this directory is shown, or null when it inherits the app's default.</summary>
+    public static Task<DirectoryView?> ViewAsync(string directory) =>
+        ReadsOwnIndex(directory) ? FolderIndex.ViewAsync(directory) : CentralIndex.Instance.ViewAsync(directory);
+
+    /// <summary>Stores this directory's own view settings, in its index or the central one.</summary>
+    public static Task<bool> SaveViewAsync(string directory, DirectoryView view) =>
+        WriteAsync(directory,
+            () => FolderIndex.SaveViewAsync(directory, view),
+            () => CentralIndex.Instance.SaveViewAsync(directory, view));
+
     /// <summary>Stores the complete listing, hidden and system entries included.</summary>
     public static Task<bool> SaveListingAsync(string directory, IReadOnlyList<FileEntry> entries) =>
         WriteAsync(directory,

@@ -1,4 +1,5 @@
 import {Native} from "@photino-net-utils/bridge";
+import type {DirectoryView} from "./files";
 
 export interface AppSettings {
     systemIcons: boolean;
@@ -42,6 +43,8 @@ export interface AppSettings {
     openTabs: string[] | null;
     /** Which of them had the focus. */
     activeTab: number | null;
+    /** The view directories use when they have no settings of their own. */
+    defaultView: DirectoryView | null;
 }
 
 const fallback: AppSettings = {
@@ -67,6 +70,7 @@ const fallback: AppSettings = {
     restoreTabs: true,
     openTabs: null,
     activeTab: 0,
+    defaultView: null,
 };
 
 /** The interface settings, persisted by the host. */
@@ -98,6 +102,7 @@ export async function getSettings(): Promise<AppSettings> {
         restoreTabs: raw?.restoreTabs ?? true,
         openTabs: raw?.openTabs ?? null,
         activeTab: raw?.activeTab ?? 0,
+        defaultView: raw?.defaultView ?? null,
     };
 }
 
@@ -130,6 +135,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         restoreTabs: saved?.restoreTabs ?? settings.restoreTabs,
         openTabs: saved?.openTabs ?? settings.openTabs,
         activeTab: saved?.activeTab ?? settings.activeTab,
+        defaultView: saved?.defaultView ?? settings.defaultView,
     };
 }
 

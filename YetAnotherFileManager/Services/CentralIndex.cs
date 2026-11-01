@@ -1,7 +1,9 @@
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
 using Serilog;
+using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
 
 namespace YetAnotherFileManager.Services;
@@ -53,6 +55,13 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
             ComputedAt   INTEGER NOT NULL,
             CONSTRAINT PK_Sizes PRIMARY KEY (DirectoryKey, Name)
         );
+
+        CREATE TABLE IF NOT EXISTS Settings (
+            DirectoryKey TEXT NOT NULL,
+            Key          TEXT NOT NULL,
+            Value        TEXT NOT NULL,
+            CONSTRAINT PK_Settings PRIMARY KEY (DirectoryKey, Key)
+        );
         """;
 
     private static readonly string DatabasePath = Path.Combine(Constants.SettingsDirectory, "directory-index.db");
@@ -86,7 +95,42 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
                 command.CommandText = Schema;
                 await command.ExecuteNonQueryAsync();
             }
+
+            await AddListingColumnsAsync(connection);
         })).OnFailure(ex => Log.Warning(ex, "Could not initialize the directory index"));
+    }
+
+    /// <summary>
+    ///     Older databases predate the creation time and link columns, and SQLite has no
+    ///     "ADD COLUMN IF NOT EXISTS"; checking the table once at startup keeps them working.
+    /// </summary>
+    private static async Task AddListingColumnsAsync(SqliteConnection connection)
+    {
+        var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "PRAGMA table_info(Listing)";
+            await using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+                existing.Add(reader.GetString(1));
+        }
+
+        foreach (var (name, type) in new[]
+                 {
+                     ("Created", "INTEGER NOT NULL DEFAULT 0"),
+                     ("LinkTarget", "TEXT"),
+                     ("LinkValid", "INTEGER"),
+                     ("LinkCount", "INTEGER NOT NULL DEFAULT 1")
+                 })
+        {
+            if (existing.Contains(name))
+                continue;
+
+            await using var alter = connection.CreateCommand();
+            alter.CommandText = $"ALTER TABLE Listing ADD COLUMN {name} {type}";
+            await alter.ExecuteNonQueryAsync();
+        }
     }
 
     /// <summary>Icons recorded for the entries of a directory, by entry name.</summary>
@@ -137,6 +181,41 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
             .GetOrElse(_ => []);
     }
 
+    /// <summary>How this directory is stored to be shown, or null when it inherits the default.</summary>
+    public async Task<DirectoryView?> ViewAsync(string directory)
+    {
+        await _ready.Value;
+
+        var result = await Try.Run(async () =>
+        {
+            await using var connection = await OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT Value FROM Settings WHERE DirectoryKey = $key AND Key = 'view'";
+            command.Parameters.AddWithValue("$key", KeyFor(directory));
+
+            var value = await command.ExecuteScalarAsync();
+
+            return value is string json
+                ? JsonSerializer.Deserialize(json, AppJsonContext.Default.DirectoryView)
+                : null;
+        });
+
+        return result.OnFailure(ex => Log.Debug(ex, "Could not read the view of {Directory}", directory))
+            .GetOrNull();
+    }
+
+    /// <summary>Stores this directory's own view settings, so it opens the same way next time.</summary>
+    public async Task<bool> SaveViewAsync(string directory, DirectoryView view)
+    {
+        await _ready.Value;
+
+        return await WriteAsync(directory, async (connection, transaction) =>
+        {
+            await MergeViewAsync(connection, transaction, directory, view);
+            return true;
+        });
+    }
+
     /// <summary>The last listing saved for this directory, or null when it was never cached.</summary>
     public async Task<List<FileEntry>?> ListingAsync(string directory)
     {
@@ -151,7 +230,8 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
 
             await using var command = connection.CreateCommand();
             command.CommandText =
-                "SELECT Name, Path, IsDirectory, Size, Modified, IsHidden, IsSystem, IconSource " +
+                "SELECT Name, Path, IsDirectory, Size, Modified, IsHidden, IsSystem, IconSource, " +
+                "Created, LinkTarget, LinkValid, LinkCount " +
                 "FROM Listing WHERE DirectoryKey = $key ORDER BY Position";
             command.Parameters.AddWithValue("$key", KeyFor(directory));
 
@@ -166,7 +246,11 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
                     reader.GetInt64(4),
                     reader.GetInt64(5) != 0,
                     reader.GetInt64(6) != 0,
-                    reader.IsDBNull(7) ? null : reader.GetString(7)));
+                    reader.IsDBNull(7) ? null : reader.GetString(7),
+                    reader.GetInt64(8),
+                    reader.IsDBNull(9) ? null : reader.GetString(9),
+                    reader.IsDBNull(10) ? null : reader.GetInt64(10) != 0,
+                    (int)reader.GetInt64(11)));
 
             return entries;
         });
@@ -306,8 +390,9 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
             insert.Transaction = transaction;
             insert.CommandText =
                 "INSERT INTO Listing (DirectoryKey, Position, Name, Path, IsDirectory, Size, Modified, IsHidden, " +
-                "IsSystem, IconSource) VALUES ($key, $position, $name, $path, $directory, $size, $modified, " +
-                "$hidden, $system, $icon)";
+                "IsSystem, IconSource, Created, LinkTarget, LinkValid, LinkCount) " +
+                "VALUES ($key, $position, $name, $path, $directory, $size, $modified, $hidden, $system, $icon, " +
+                "$created, $target, $valid, $links)";
 
             insert.Parameters.AddWithValue("$key", key);
             var position = insert.Parameters.Add("$position", SqliteType.Integer);
@@ -319,6 +404,10 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
             var hidden = insert.Parameters.Add("$hidden", SqliteType.Integer);
             var system = insert.Parameters.Add("$system", SqliteType.Integer);
             var icon = insert.Parameters.Add("$icon", SqliteType.Text);
+            var created = insert.Parameters.Add("$created", SqliteType.Integer);
+            var target = insert.Parameters.Add("$target", SqliteType.Text);
+            var valid = insert.Parameters.Add("$valid", SqliteType.Integer);
+            var links = insert.Parameters.Add("$links", SqliteType.Integer);
 
             for (var index = 0; index < entries.Count; index++)
             {
@@ -332,6 +421,10 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
                 hidden.Value = entry.IsHidden ? 1 : 0;
                 system.Value = entry.IsSystem ? 1 : 0;
                 icon.Value = entry.IconSource is null ? DBNull.Value : entry.IconSource;
+                created.Value = entry.Created;
+                target.Value = entry.LinkTarget is null ? DBNull.Value : entry.LinkTarget;
+                valid.Value = entry.LinkValid is null ? DBNull.Value : entry.LinkValid.Value ? 1 : 0;
+                links.Value = entry.LinkCount;
                 await insert.ExecuteNonQueryAsync();
             }
         }
@@ -376,6 +469,9 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
 
             await MergeIconsAsync(connection, (SqliteTransaction)transaction, directory, data.Icons);
             await MergeSizesAsync(connection, (SqliteTransaction)transaction, directory, data.Sizes);
+
+            if (data.View is { } view)
+                await MergeViewAsync(connection, (SqliteTransaction)transaction, directory, view);
 
             await transaction.CommitAsync();
         }
@@ -428,5 +524,17 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
             bytes.Value = value;
             await command.ExecuteNonQueryAsync();
         }
+    }
+
+    private static async Task MergeViewAsync(SqliteConnection connection, SqliteTransaction transaction,
+        string directory, DirectoryView view)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText =
+            "INSERT OR REPLACE INTO Settings (DirectoryKey, Key, Value) VALUES ($key, 'view', $value)";
+        command.Parameters.AddWithValue("$key", KeyFor(directory));
+        command.Parameters.AddWithValue("$value", JsonSerializer.Serialize(view, AppJsonContext.Default.DirectoryView));
+        await command.ExecuteNonQueryAsync();
     }
 }

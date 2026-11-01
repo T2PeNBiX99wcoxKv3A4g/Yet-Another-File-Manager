@@ -3,6 +3,7 @@ import styled from "styled-components";
 import {
     clearFrequent,
     clearRecent,
+    DefaultView,
     listDirectory,
     listFrequent,
     listPlaces,
@@ -1553,6 +1554,8 @@ function FolderBody({path, mode, onOpen}: { path: string; mode: ViewMode; onOpen
                     loading={false}
                     onOpen={onOpen}
                     onOpenFile={(file) => void openFile(file)}
+                    onSort={() => undefined}
+                    view={DefaultView}
                 />
             </Preview>
         );

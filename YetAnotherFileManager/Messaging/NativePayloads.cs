@@ -22,7 +22,11 @@ internal sealed record FsListPayload(
     string Path,
     string? Parent,
     IReadOnlyList<FileEntry> Entries,
-    Dictionary<string, long> FolderSizes);
+    Dictionary<string, long> FolderSizes,
+    DirectoryView? View);
+
+/// <summary>Payload for <c>fs.view.set</c>: how a directory is shown, and whether it is the default too.</summary>
+internal sealed record ViewRequest(string Directory, DirectoryView View, bool Global);
 
 /// <summary>
 ///     Body for <c>fs.list.cached</c>: the listing saved the last time the folder was opened. When

@@ -28,11 +28,12 @@ public sealed record AppSettings(
     Dictionary<string, List<string>>? PanelPlaces,
     bool? RestoreTabs,
     List<string>? OpenTabs,
-    int? ActiveTab)
+    int? ActiveTab,
+    DirectoryView? DefaultView)
 {
     public static AppSettings Default =>
         new(true, true, true, [], null, 10, null, ["quick", "frequent", "recent", "home", "drives"], null, 1, null,
-            null, null, null, null, null, ["quick", "frequent", "recent", "drives"], null, null, true, null, 0);
+            null, null, null, null, null, ["quick", "frequent", "recent", "drives"], null, null, true, null, 0, null);
 
     // The accessors below are derived, so they are kept out of settings.json entirely; only the
     // fields above are stored, and the JSON stays readable and stable.

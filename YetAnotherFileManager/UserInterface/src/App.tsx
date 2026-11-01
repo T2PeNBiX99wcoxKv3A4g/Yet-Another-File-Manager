@@ -1,13 +1,16 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import styled from "styled-components";
 import {
+    DefaultView,
     listDirectory,
     listDirectoryCached,
     listDrives,
     listPlaces,
     listRecent,
     recordVisit,
+    saveDirectoryView,
     type DirectoryListing,
+    type DirectoryView,
     type Drive,
     type Place,
     type RecentEntry,
@@ -54,6 +57,8 @@ interface Tab {
     index: number;
     /** Nothing has been opened in it yet, so a path arriving from the host can take it over. */
     fresh: boolean;
+    /** This directory's own view settings; null inherits the app's default. */
+    view: DirectoryView | null;
 }
 
 const ViewScheme = "yafm://";
@@ -119,6 +124,7 @@ function createTab(location = viewLocation("home")): Tab {
         history: [location],
         index: 0,
         fresh: true,
+        view: null,
     };
 }
 
@@ -157,10 +163,12 @@ export default function App() {
     const [historyVersion, setHistoryVersion] = useState(0);
     const [shortcuts, setShortcuts] = useState<ShortcutMap>(DefaultShortcuts);
     const [settingsVersion, setSettingsVersion] = useState(0);
+    const [viewScope, setViewScope] = useState<"folder" | "global">("folder");
 
     const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
     const kind = kindOf(active);
     const location = locationOf(active);
+    const view = active.view ?? settings?.defaultView ?? DefaultView;
 
     /**
      * Every folder that lives in a Quick access panel, with the name and icon that panel shows.
@@ -263,6 +271,9 @@ export default function App() {
     const stateRef = useRef({tabs, activeId});
     stateRef.current = {tabs, activeId};
 
+    const settingsRef = useRef(settings);
+    settingsRef.current = settings;
+
     // The tabs from the last launch are restored once; a path from the host waits until then so it
     // can be added after them instead of replacing them.
     const restored = useRef(false);
@@ -288,7 +299,8 @@ export default function App() {
     const showCached = useCallback(async (id: string, path: string | undefined, current: () => boolean) => {
         try {
             const cached = await listDirectoryCached(path);
-            if (current() && cached.listing) patch(id, () => ({listing: cached.listing}));
+            if (current() && cached.listing)
+                patch(id, () => ({listing: cached.listing, view: cached.listing!.view ?? null}));
         } catch {
             // The cache is best effort; the live listing is still on its way.
         }
@@ -323,6 +335,7 @@ export default function App() {
 
             patch(id, (tab) => ({
                 listing,
+                view: listing.view ?? null,
                 loading: false,
                 fresh: false,
                 history: [...tab.history.slice(0, tab.index + 1), listing.path],
@@ -383,7 +396,7 @@ export default function App() {
             const listing = await listDirectory(target);
             if (!current()) return;
 
-            patch(id, () => ({listing, loading: false}));
+            patch(id, () => ({listing, view: listing.view ?? null, loading: false}));
         } catch (cause) {
             if (!current()) return;
 
@@ -461,6 +474,32 @@ export default function App() {
         if (tab && kindOf(tab) === "files" && tab.listing?.parent)
             navigate(tab.listing.parent);
     }, [navigate]);
+
+    /** Applies a view change to the current directory, and optionally makes it the default too. */
+    const changeView = useCallback((change: Partial<DirectoryView>) => {
+        const {tabs, activeId} = stateRef.current;
+        const tab = tabs.find((item) => item.id === activeId);
+        if (!tab || kindOf(tab) !== "files") return;
+
+        const folder = folderOf(tab);
+        const base = tab.view ?? settingsRef.current?.defaultView ?? DefaultView;
+        const next = {...base, ...change, columns: change.columns ?? base.columns};
+        const global = viewScope === "global";
+
+        patch(tab.id, () => ({view: next}));
+        if (global)
+            setSettings((current) => current ? {...current, defaultView: next} : current);
+
+        void saveDirectoryView(folder, next, global);
+    }, [patch, viewScope]);
+
+    /** A header click sorts by that column, and a second click flips the direction. */
+    const sortBy = useCallback((column: string) => {
+        changeView({
+            sort: column,
+            sortDescending: view.sort === column ? !view.sortDescending : false,
+        });
+    }, [changeView, view.sort, view.sortDescending]);
 
     /** Moves a tab next to another one, which is what dragging a tab does. */
     const moveTab = useCallback((id: string, beforeId: string) => {
@@ -761,6 +800,10 @@ export default function App() {
                 onNewTab={() => openFiles()}
                 onReorder={moveTab}
                 onSelect={setActiveId}
+                onViewChange={changeView}
+                onViewScope={setViewScope}
+                view={view}
+                viewScope={viewScope}
                 tabs={tabs.map((tab) => {
                     const tabKind = kindOf(tab);
                     const folder = folderOf(tab);
@@ -827,6 +870,8 @@ export default function App() {
                                 listing={active.listing}
                                 loading={active.loading}
                                 onOpen={navigate}
+                                onSort={sortBy}
+                                view={view}
                             />
 
                             {find.open && (

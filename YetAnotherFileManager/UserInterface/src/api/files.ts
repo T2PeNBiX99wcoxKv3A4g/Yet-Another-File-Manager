@@ -10,7 +10,33 @@ export interface FileEntry {
     isSystem: boolean;
     /** An icon recorded in the folder's own index: "icon:&lt;name&gt;" or "file:&lt;path&gt;". */
     iconSource: string | null;
+    /** Creation time, in Unix milliseconds. */
+    created: number;
+    /** The destination of a symlink or junction, or null when the entry is not a link. */
+    linkTarget: string | null;
+    /** Whether that destination still exists; null when the entry is not a link. */
+    linkValid: boolean | null;
+    /** How many names point at the same file (hard links); 0 for a directory. */
+    linkCount: number;
 }
+
+/** How a directory is shown. Stored with the directory, or as the app's default. */
+export interface DirectoryView {
+    mode: "list" | "grid";
+    iconSize: number;
+    /** Visible column ids, or null for the built-in set. */
+    columns: string[] | null;
+    sort: string;
+    sortDescending: boolean;
+}
+
+export const DefaultView: DirectoryView = {
+    mode: "list",
+    iconSize: 20,
+    columns: ["size", "modified"],
+    sort: "name",
+    sortDescending: false,
+};
 
 export interface DirectoryListing {
     path: string;
@@ -18,6 +44,8 @@ export interface DirectoryListing {
     entries: FileEntry[];
     /** Folder sizes measured earlier and cached in the folder's index, by entry name. */
     folderSizes: Record<string, number>;
+    /** This directory's own view settings, or null when it inherits the default. */
+    view: DirectoryView | null;
 }
 
 /** What Windows answered when a volume label was written. */
@@ -108,6 +136,14 @@ export interface FileVisibility {
 /** Lists one directory. Omit the path to start at the user's home directory. */
 export async function listDirectory(path?: string, sizes = true): Promise<DirectoryListing> {
     return await Native.request<DirectoryListing>("fs.list", {path: path ?? null, sizes});
+}
+
+/** Remembers how a directory is shown, and whether the same settings become the app's default. */
+export async function saveDirectoryView(directory: string, view: DirectoryView, global: boolean): Promise<boolean> {
+    if (!Native.available) return false;
+
+    const data = await Native.request<{ ok: boolean }>("fs.view.set", {directory, view, global});
+    return data.ok;
 }
 
 /**

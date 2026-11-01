@@ -1,8 +1,10 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
 using Serilog;
+using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
 
 namespace YetAnotherFileManager.Services;
@@ -20,7 +22,7 @@ internal static class FolderIndex
 {
     public const string FileName = ".yafm-index.db";
 
-    private const int SchemaVersion = 3;
+    private const int SchemaVersion = 4;
 
     private static readonly ConcurrentDictionary<string, bool> Unusable = new(StringComparer.OrdinalIgnoreCase);
 
@@ -65,6 +67,18 @@ internal static class FolderIndex
             is_system    INTEGER NOT NULL,
             icon_source  TEXT
         );
+        """,
+
+        // v4: how this directory is shown, and the link/creation details the list can display.
+        """
+        ALTER TABLE listing ADD COLUMN created INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE listing ADD COLUMN link_target TEXT;
+        ALTER TABLE listing ADD COLUMN link_valid INTEGER;
+        ALTER TABLE listing ADD COLUMN link_count INTEGER NOT NULL DEFAULT 1;
+        CREATE TABLE IF NOT EXISTS settings (
+            key   TEXT NOT NULL CONSTRAINT PK_settings PRIMARY KEY,
+            value TEXT NOT NULL
+        );
         """
     ];
 
@@ -106,7 +120,8 @@ internal static class FolderIndex
             return null;
 
         return await ReadAsync(directory,
-            "SELECT name, path, is_directory, size, modified, is_hidden, is_system, icon_source FROM listing " +
+            "SELECT name, path, is_directory, size, modified, is_hidden, is_system, icon_source, " +
+            "created, link_target, link_valid, link_count FROM listing " +
             "ORDER BY is_directory DESC, name COLLATE NOCASE",
             async reader =>
             {
@@ -121,7 +136,11 @@ internal static class FolderIndex
                         reader.GetInt64(4),
                         reader.GetInt64(5) != 0,
                         reader.GetInt64(6) != 0,
-                        reader.IsDBNull(7) ? null : reader.GetString(7)));
+                        reader.IsDBNull(7) ? null : reader.GetString(7),
+                        reader.GetInt64(8),
+                        reader.IsDBNull(9) ? null : reader.GetString(9),
+                        reader.IsDBNull(10) ? null : reader.GetInt64(10) != 0,
+                        (int)reader.GetInt64(11)));
 
                 return entries;
             });
@@ -151,8 +170,10 @@ internal static class FolderIndex
                 {
                     insert.Transaction = (SqliteTransaction)transaction;
                     insert.CommandText =
-                        "INSERT INTO listing (name, path, is_directory, size, modified, is_hidden, is_system, icon_source) " +
-                        "VALUES ($name, $path, $directory, $size, $modified, $hidden, $system, $icon)";
+                        "INSERT INTO listing (name, path, is_directory, size, modified, is_hidden, is_system, " +
+                        "icon_source, created, link_target, link_valid, link_count) " +
+                        "VALUES ($name, $path, $directory, $size, $modified, $hidden, $system, $icon, " +
+                        "$created, $target, $valid, $links)";
                     var name = insert.Parameters.Add("$name", SqliteType.Text);
                     var path = insert.Parameters.Add("$path", SqliteType.Text);
                     var isDirectory = insert.Parameters.Add("$directory", SqliteType.Integer);
@@ -161,6 +182,10 @@ internal static class FolderIndex
                     var hidden = insert.Parameters.Add("$hidden", SqliteType.Integer);
                     var system = insert.Parameters.Add("$system", SqliteType.Integer);
                     var icon = insert.Parameters.Add("$icon", SqliteType.Text);
+                    var created = insert.Parameters.Add("$created", SqliteType.Integer);
+                    var target = insert.Parameters.Add("$target", SqliteType.Text);
+                    var valid = insert.Parameters.Add("$valid", SqliteType.Integer);
+                    var links = insert.Parameters.Add("$links", SqliteType.Integer);
 
                     foreach (var entry in entries)
                     {
@@ -172,6 +197,10 @@ internal static class FolderIndex
                         hidden.Value = entry.IsHidden ? 1 : 0;
                         system.Value = entry.IsSystem ? 1 : 0;
                         icon.Value = entry.IconSource is null ? DBNull.Value : entry.IconSource;
+                        created.Value = entry.Created;
+                        target.Value = entry.LinkTarget is null ? DBNull.Value : entry.LinkTarget;
+                        valid.Value = entry.LinkValid is null ? DBNull.Value : entry.LinkValid.Value ? 1 : 0;
+                        links.Value = entry.LinkCount;
                         await insert.ExecuteNonQueryAsync();
                     }
                 }
@@ -220,8 +249,25 @@ internal static class FolderIndex
         return new IndexSnapshot(
             await ListingAsync(directory),
             await IconsAsync(directory),
-            await SizesAsync(directory));
+            await SizesAsync(directory),
+            await ViewAsync(directory));
     }
+
+    /// <summary>How this directory is stored to be shown, or null when it inherits the default.</summary>
+    public static async Task<DirectoryView?> ViewAsync(string directory) =>
+        await ReadAsync(directory, "SELECT value FROM settings WHERE key = 'view'",
+            async reader => await reader.ReadAsync()
+                ? Try.Run(() => JsonSerializer.Deserialize(reader.GetString(0),
+                    AppJsonContext.Default.DirectoryView)).GetOrNull()
+                : null);
+
+    /// <summary>Stores this directory's own view settings, so it opens the same way next time.</summary>
+    public static Task<bool> SaveViewAsync(string directory, DirectoryView view) =>
+        WriteAsync(directory,
+            "INSERT INTO settings (key, value) VALUES ('view', $value) " +
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            command => command.Parameters.AddWithValue("$value",
+                JsonSerializer.Serialize(view, AppJsonContext.Default.DirectoryView)));
 
     /// <summary>Removes the per-folder database after its data was moved elsewhere.</summary>
     public static async Task DeleteFilesAsync(string directory)
@@ -492,4 +538,5 @@ internal static class FolderIndex
 internal sealed record IndexSnapshot(
     List<FileEntry>? Listing,
     Dictionary<string, string> Icons,
-    Dictionary<string, long> Sizes);
+    Dictionary<string, long> Sizes,
+    DirectoryView? View);

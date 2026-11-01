@@ -1,6 +1,10 @@
 namespace YetAnotherFileManager.Models;
 
-/// <summary>One row in a directory listing.</summary>
+/// <summary>
+///     One row in a directory listing. <paramref name="LinkTarget" /> is the destination of a
+///     symlink or junction, <paramref name="LinkValid" /> says whether it still exists, and
+///     <paramref name="LinkCount" /> is how many hard links point at the same file.
+/// </summary>
 public sealed record FileEntry(
     string Name,
     string FullPath,
@@ -9,7 +13,11 @@ public sealed record FileEntry(
     long Modified,
     bool IsHidden,
     bool IsSystem,
-    string? IconSource);
+    string? IconSource,
+    long Created = 0,
+    string? LinkTarget = null,
+    bool? LinkValid = null,
+    int LinkCount = 1);
 
 /// <summary>A shortcut to a well-known folder, shown in the sidebar.</summary>
 public sealed record PlaceEntry(string Name, string Path, string Kind, string? Icon = null);

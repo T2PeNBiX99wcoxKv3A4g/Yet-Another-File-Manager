@@ -176,6 +176,10 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 return context.Reply("fs.list.cached.result",
                     await CachedListAsync(context.Payload<FsListRequest>()?.Path));
 
+            case "fs.view.set":
+                return context.Reply("fs.view.set.result",
+                    new OkPayload(await SaveViewAsync(context.Payload<ViewRequest>())));
+
             default:
                 return null;
         }
@@ -325,6 +329,18 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         });
 
         return true;
+    }
+
+    /// <summary>Remembers how one directory is shown, and optionally the default for every directory.</summary>
+    private static async Task<bool> SaveViewAsync(ViewRequest? request)
+    {
+        if (request is null || request.Directory.Length == 0)
+            return false;
+
+        if (request.Global)
+            await SettingsService.Instance.UpdateAsync(settings => settings with { DefaultView = request.View });
+
+        return await DirectoryIndex.SaveViewAsync(request.Directory, request.View);
     }
 
     /// <summary>Renames one pinned folder; an empty name goes back to the folder's own name.</summary>
@@ -532,10 +548,12 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
         var iconsTask = DirectoryIndex.IconsAsync(directory.FullName);
         var sizesTask = DirectoryIndex.SizesAsync(directory.FullName);
-        await Task.WhenAll(iconsTask, sizesTask);
+        var viewTask = DirectoryIndex.ViewAsync(directory.FullName);
+        await Task.WhenAll(iconsTask, sizesTask, viewTask);
 
         var icons = await iconsTask;
         var sizes = await sizesTask;
+        var view = await viewTask;
 
         // Everything is enumerated, hidden and system entries included, so the cache is complete;
         // the response only carries what the user's settings ask to see.
@@ -557,7 +575,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         if (measure) RequestSizes(directory.FullName, entries);
         _ = HistoryService.Instance.RecordRecentAsync(directory.FullName);
 
-        return new(directory.FullName, directory.Parent?.FullName, entries, sizes);
+        return new(directory.FullName, directory.Parent?.FullName, entries, sizes, view);
     }
 
     /// <summary>
@@ -577,13 +595,14 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         // The saved rows carry the icon of the last scan; the icon table may be newer.
         var icons = await DirectoryIndex.IconsAsync(directory.FullName);
         var sizes = await DirectoryIndex.SizesAsync(directory.FullName);
+        var view = await DirectoryIndex.ViewAsync(directory.FullName);
 
         var visible = entries
             .Where(entry => (showSystem || !entry.IsSystem) && (showHidden || !entry.IsHidden))
             .Select(entry => entry with { IconSource = icons.GetValueOrDefault(entry.Name) })
             .ToList();
 
-        return new(true, new FsListPayload(directory.FullName, directory.Parent?.FullName, visible, sizes));
+        return new(true, new FsListPayload(directory.FullName, directory.Parent?.FullName, visible, sizes, view));
     }
 
     /// <summary>Queues the folders of the listing that have no fresh measurement.</summary>
@@ -695,14 +714,44 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             : value;
     }
 
+    /// <summary>
+    ///     One entry, with the creation time and whatever Windows knows about a link. The hard-link
+    ///     count needs a handle per file, which is why it only runs for files.
+    /// </summary>
     private static FileEntry? ToEntry(FileSystemInfo info, string? iconSource) =>
-        Try.Run(() => new FileEntry(
-            info.Name,
-            info.FullName,
-            info is DirectoryInfo,
-            info is FileInfo file ? file.Length : 0,
-            new DateTimeOffset(info.LastWriteTimeUtc).ToUnixTimeMilliseconds(),
-            info.Attributes.HasFlag(FileAttributes.Hidden),
-            info.Attributes.HasFlag(FileAttributes.System),
-            iconSource)).GetOrNull();
+        Try.Run(() =>
+        {
+            var attributes = info.Attributes;
+            var (target, valid) = LinkOf(info, attributes);
+
+            return new FileEntry(
+                info.Name,
+                info.FullName,
+                info is DirectoryInfo,
+                info is FileInfo file ? file.Length : 0,
+                new DateTimeOffset(info.LastWriteTimeUtc).ToUnixTimeMilliseconds(),
+                attributes.HasFlag(FileAttributes.Hidden),
+                attributes.HasFlag(FileAttributes.System),
+                iconSource,
+                new DateTimeOffset(info.CreationTimeUtc).ToUnixTimeMilliseconds(),
+                target,
+                valid,
+                info is FileInfo ? FileLinks.Count(info.FullName) : 0);
+        }).GetOrNull();
+
+    /// <summary>
+    ///     The destination of a symlink or junction and whether it still exists. Everything else
+    ///     answers (null, null); checking the attributes first keeps ordinary files cheap.
+    /// </summary>
+    private static (string? Target, bool? Valid) LinkOf(FileSystemInfo info, FileAttributes attributes)
+    {
+        if (!attributes.HasFlag(FileAttributes.ReparsePoint))
+            return (null, null);
+
+        var resolved = Try.Run(() => info.ResolveLinkTarget(true)).GetOrNull();
+        var target = resolved?.FullName ?? Try.Run(() => info.LinkTarget).GetOrNull();
+        var valid = target is not null && (File.Exists(target) || Directory.Exists(target));
+
+        return (target, valid);
+    }
 }

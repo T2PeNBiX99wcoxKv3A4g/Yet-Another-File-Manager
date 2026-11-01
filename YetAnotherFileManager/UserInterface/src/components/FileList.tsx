@@ -1,7 +1,7 @@
-import {useEffect, useRef, type ReactNode} from "react";
+import {useEffect, useMemo, useRef, type ReactNode} from "react";
 import styled from "styled-components";
 import {wantsNewTab} from "../shortcuts";
-import type {DirectoryListing, FileEntry} from "../api/files";
+import type {DirectoryListing, DirectoryView, FileEntry, Place} from "../api/files";
 import {useIcon, useIconFile} from "../api/icons";
 import {NoFind, rangesOf, type FindView} from "../find";
 import {quickPlace, useQuickAccess} from "../quick";
@@ -10,18 +10,39 @@ import {FolderIcon} from "./Icons";
 import {PlaceIcon} from "./PlaceIcon";
 import {BuiltinIcon, iconForName} from "../icons/fileTypes";
 
+/** The columns the list can show besides the name. `linkTarget` is drawn inside the name cell. */
+export const ViewColumns: { id: string; label: string; width: number }[] = [
+    {id: "size", label: "Size", width: 100},
+    {id: "modified", label: "Modified", width: 150},
+    {id: "created", label: "Created", width: 150},
+    {id: "linkCount", label: "Links", width: 70},
+    {id: "linkStatus", label: "Link", width: 90},
+];
+
 interface FileListProps {
     listing: DirectoryListing | null;
     loading: boolean;
     error: string | null;
     /** The search that is open, if any; absent means "no search". */
     find?: FindView;
+    /** List or grid, the icon size, the visible columns and the sort order. */
+    view: DirectoryView;
+    onSort: (column: string) => void;
     onOpen: (path: string, newTab?: boolean) => void;
     /** Double-clicking a file hands it to the system; without this, files are inert. */
     onOpenFile?: (path: string) => void;
 }
 
-export function FileList({listing, loading, error, find = NoFind, onOpen, onOpenFile}: FileListProps) {
+interface RowModel {
+    entry: FileEntry;
+    place?: Place;
+    label: string;
+    ranges: [number, number][] | null;
+}
+
+export function FileList({
+    listing, loading, error, find = NoFind, view, onSort, onOpen, onOpenFile,
+}: FileListProps) {
     const quick = useQuickAccess();
     const currentRow = useRef<HTMLDivElement | null>(null);
 
@@ -30,60 +51,129 @@ export function FileList({listing, loading, error, find = NoFind, onOpen, onOpen
         currentRow.current?.scrollIntoView({block: "nearest"});
     }, [find.currentPath]);
 
+    const searching = find.query.length > 0;
+    const visible = ViewColumns.filter((column) => view.columns?.includes(column.id));
+    const showTarget = view.columns?.includes("linkTarget") ?? false;
+    const template = `minmax(160px, 1fr) ${visible.map((column) => `${column.width}px`).join(" ")}`.trim();
+    const folderSizes = listing?.folderSizes ?? {};
+
+    const rows = useMemo(() => {
+        if (!listing) return [];
+
+        const matched = listing.entries
+            .map((entry): RowModel => {
+                const place = quickPlace(quick, entry.fullPath);
+                const label = place?.name || entry.name;
+
+                return {entry, place, label, ranges: searching ? rangesOf(label, find) : null};
+            })
+            .filter((row) => !searching || find.mode === "dim" || row.ranges !== null);
+
+        return sortRows(matched, view.sort, view.sortDescending, folderSizes);
+    }, [listing, searching, find, quick, view.sort, view.sortDescending, folderSizes]);
+
     if (error)
         return <Center><ErrorText>{error}</ErrorText></Center>;
 
     if (!listing && !loading)
         return <Center><Muted>Nothing selected.</Muted></Center>;
 
-    const searching = find.query.length > 0;
-    const folderSizes = listing?.folderSizes ?? {};
-    const rows = listing
-        ? listing.entries
-            .map((entry) => {
-                const place = quickPlace(quick, entry.fullPath);
-                const label = place?.name || entry.name;
+    if (view.mode === "grid")
+        return (
+            <Wrapper>
+                <GridBody $size={view.iconSize}>
+                    {loading && !listing
+                        ? <PlaceholderTiles size={view.iconSize}/>
+                        : rows.map((row) => (
+                            <Tile
+                                $current={searching && row.entry.fullPath === find.currentPath}
+                                $dim={searching && row.ranges === null}
+                                key={row.entry.fullPath}
+                                onClick={(event) => row.entry.isDirectory && wantsNewTab(event) && onOpen(row.entry.fullPath, true)}
+                                onDoubleClick={(event) => row.entry.isDirectory
+                                    ? onOpen(row.entry.fullPath, wantsNewTab(event))
+                                    : onOpenFile?.(row.entry.fullPath)}
+                                ref={searching && row.entry.fullPath === find.currentPath ? currentRow : undefined}
+                                title={row.entry.name}
+                            >
+                                <TileGlyph>
+                                    {row.place && quick.useIcons
+                                        ? <PlaceIcon place={row.place} size={view.iconSize}/>
+                                        : <EntryIcon entry={row.entry} size={view.iconSize}/>}
+                                </TileGlyph>
+                                <TileName>
+                                    <Highlighted name={row.label} ranges={row.ranges}/>
+                                </TileName>
+                                {showTarget && row.entry.linkTarget && (
+                                    <TileLink title={row.entry.linkTarget}>→ {row.entry.linkTarget}</TileLink>
+                                )}
+                            </Tile>
+                        ))}
 
-                return {entry, place, label, ranges: searching ? rangesOf(label, find) : null};
-            })
-            .filter((row) => !searching || find.mode === "dim" || row.ranges !== null)
-        : [];
+                    {!loading && listing && rows.length === 0 && (
+                        <EmptyCell>
+                            <Muted>
+                                {searching && find.mode === "hide"
+                                    ? "No entries match the search."
+                                    : "This folder is empty."}
+                            </Muted>
+                        </EmptyCell>
+                    )}
+                </GridBody>
+            </Wrapper>
+        );
 
     return (
         <Wrapper>
-            <Head>
-                <span>Name</span>
-                <span>Size</span>
-                <span>Modified</span>
+            <Head style={{gridTemplateColumns: template}}>
+                <HeaderButton onClick={() => onSort("name")} type="button">
+                    Name{markOf(view, "name")}
+                </HeaderButton>
+                {visible.map((column) => (
+                    <HeaderButton key={column.id} onClick={() => onSort(column.id)} type="button">
+                        {column.label}{markOf(view, column.id)}
+                    </HeaderButton>
+                ))}
             </Head>
 
             <Body>
                 {loading && !listing
-                    ? <PlaceholderRows/>
-                    : rows.map(({entry, place, label, ranges}) => {
-                        const dim = searching && ranges === null;
-                        const current = searching && entry.fullPath === find.currentPath;
+                    ? <PlaceholderRows template={template} columns={visible.length}/>
+                    : rows.map((row) => {
+                        const dim = searching && row.ranges === null;
+                        const current = searching && row.entry.fullPath === find.currentPath;
 
                         return (
                             <Row
-                                key={entry.fullPath}
-                                $hidden={entry.isHidden}
-                                $dim={dim}
+                                key={row.entry.fullPath}
                                 $current={current}
-                                onClick={(event) => entry.isDirectory && wantsNewTab(event) && onOpen(entry.fullPath, true)}
-                                onDoubleClick={(event) => entry.isDirectory
-                                    ? onOpen(entry.fullPath, wantsNewTab(event))
-                                    : onOpenFile?.(entry.fullPath)}
+                                $dim={dim}
+                                $hidden={row.entry.isHidden}
+                                onClick={(event) => row.entry.isDirectory && wantsNewTab(event) && onOpen(row.entry.fullPath, true)}
+                                onDoubleClick={(event) => row.entry.isDirectory
+                                    ? onOpen(row.entry.fullPath, wantsNewTab(event))
+                                    : onOpenFile?.(row.entry.fullPath)}
                                 ref={current ? currentRow : undefined}
+                                style={{gridTemplateColumns: template}}
                             >
                                 <Name>
-                                    {place && quick.useIcons
-                                        ? <IconSlot><PlaceIcon place={place}/></IconSlot>
-                                        : <EntryIcon entry={entry}/>}
-                                    <span title={entry.name}><Highlighted name={label} ranges={ranges}/></span>
+                                    {row.place && quick.useIcons
+                                        ? <IconSlot><PlaceIcon place={row.place} size={view.iconSize}/></IconSlot>
+                                        : <EntryIcon entry={row.entry} size={view.iconSize}/>}
+                                    <NameText title={row.entry.name}>
+                                        <Highlighted name={row.label} ranges={row.ranges}/>
+                                    </NameText>
+                                    {showTarget && row.entry.linkTarget && (
+                                        <LinkTo title={row.entry.linkTarget}>→ {row.entry.linkTarget}</LinkTo>
+                                    )}
                                 </Name>
-                                <Size>{sizeOf(entry, folderSizes)}</Size>
-                                <Modified>{formatDate(entry.modified)}</Modified>
+                                {visible.map((column) => (
+                                    <Cell key={column.id}>
+                                        {column.id === "linkStatus" && row.entry.linkValid === false
+                                            ? <Broken>Broken</Broken>
+                                            : cellValue(column.id, row.entry, folderSizes)}
+                                    </Cell>
+                                ))}
                             </Row>
                         );
                     })}
@@ -100,6 +190,64 @@ export function FileList({listing, loading, error, find = NoFind, onOpen, onOpen
             </Body>
         </Wrapper>
     );
+}
+
+/** "↑"/"↓" beside the column that is sorted. */
+function markOf(view: DirectoryView, column: string): string {
+    if (view.sort !== column) return "";
+
+    return view.sortDescending ? " ↓" : " ↑";
+}
+
+/** Folders stay first, the way Explorer keeps them, and the chosen column orders the rest. */
+function sortRows(rows: RowModel[], column: string, descending: boolean, sizes: Record<string, number>): RowModel[] {
+    const value = (entry: FileEntry): string | number => {
+        switch (column) {
+            case "size":
+                return entry.isDirectory ? sizes[entry.name] ?? 0 : entry.size;
+            case "modified":
+                return entry.modified;
+            case "created":
+                return entry.created;
+            case "linkCount":
+                return entry.linkCount;
+            case "linkStatus":
+                return entry.linkValid === null ? 2 : entry.linkValid ? 0 : 1;
+            default:
+                return entry.name;
+        }
+    };
+
+    return [...rows].sort((left, right) => {
+        if (left.entry.isDirectory !== right.entry.isDirectory)
+            return left.entry.isDirectory ? -1 : 1;
+
+        const a = value(left.entry);
+        const b = value(right.entry);
+        const order = typeof a === "number" && typeof b === "number"
+            ? a - b
+            : String(a).localeCompare(String(b), undefined, {numeric: true, sensitivity: "base"});
+
+        return descending ? -order : order;
+    });
+}
+
+/** What one list cell shows. */
+function cellValue(column: string, entry: FileEntry, folderSizes: Record<string, number>): string {
+    switch (column) {
+        case "size":
+            return sizeOf(entry, folderSizes);
+        case "modified":
+            return formatDate(entry.modified);
+        case "created":
+            return formatDate(entry.created);
+        case "linkCount":
+            return entry.isDirectory ? "—" : String(entry.linkCount);
+        case "linkStatus":
+            return entry.linkValid === null ? "—" : entry.linkValid ? "OK" : "Broken";
+        default:
+            return "";
+    }
 }
 
 /** The name with every match of the query marked, so a dimmed list still points at the hit. */
@@ -120,29 +268,6 @@ function Highlighted({name, ranges}: { name: string; ranges: [number, number][] 
     return <>{parts}</>;
 }
 
-/**
- * Stand-in rows while the folder is read, so the columns keep their shape and the wait looks like
- * the contents filling in instead of the whole list disappearing.
- */
-function PlaceholderRows() {
-    const widths = [42, 58, 36, 64, 48, 54, 39, 61, 45, 50, 57, 43, 66, 47];
-
-    return (
-        <>
-            {widths.map((width, index) => (
-                <Skeleton key={index}>
-                    <Name>
-                        <Bone style={{flexShrink: 0, height: 18, width: 18}}/>
-                        <Bone style={{width: `${width}%`}}/>
-                    </Name>
-                    <Bone style={{width: 44}}/>
-                    <Bone style={{width: 92}}/>
-                </Skeleton>
-            ))}
-        </>
-    );
-}
-
 /** Folder sizes come from the folder's own index and appear once they have been measured. */
 function sizeOf(entry: FileEntry, folderSizes: Record<string, number>): string {
     if (!entry.isDirectory)
@@ -157,31 +282,66 @@ function sizeOf(entry: FileEntry, folderSizes: Record<string, number>): string {
  * Icon precedence: an icon recorded in the folder's index, then the shell (or the folder's own
  * desktop.ini when that is enabled), then the built-in icon for the file type.
  */
-function EntryIcon({entry}: { entry: FileEntry }) {
+function EntryIcon({entry, size = 18}: { entry: FileEntry; size?: number }) {
     const shellIcon = useIcon(entry.fullPath, entry.isDirectory);
     const customFile = entry.iconSource?.startsWith("file:") ? entry.iconSource.slice(5) : null;
     const customImage = useIconFile(customFile);
 
     return (
-        <IconSlot>
+        <IconSlot $size={size}>
             {entry.iconSource?.startsWith("icon:")
-                ? <BuiltinIcon name={entry.iconSource.slice(5)} size={18}/>
+                ? <BuiltinIcon name={entry.iconSource.slice(5)} size={size}/>
                 : customImage
-                    ? <img alt="" height={18} src={customImage} width={18}/>
+                    ? <img alt="" height={size} src={customImage} width={size}/>
                     : shellIcon
-                        ? <img alt="" height={18} src={shellIcon} width={18}/>
+                        ? <img alt="" height={size} src={shellIcon} width={size}/>
                         : entry.isDirectory
-                            ? <FolderIcon/>
-                            : <BuiltinIcon name={iconForName(entry.name)}/>}
+                            ? <FolderIcon size={size}/>
+                            : <BuiltinIcon name={iconForName(entry.name)} size={size}/>}
         </IconSlot>
     );
 }
 
-const IconSlot = styled.span`
+/** Stand-in rows while the folder is read, so the columns keep their shape. */
+function PlaceholderRows({template, columns}: { template: string; columns: number }) {
+    const widths = [42, 58, 36, 64, 48, 54, 39, 61, 45, 50, 57, 43, 66, 47];
+
+    return (
+        <>
+            {widths.map((width, index) => (
+                <Skeleton key={index} style={{gridTemplateColumns: template}}>
+                    <Name>
+                        <Bone style={{flexShrink: 0, height: 18, width: 18}}/>
+                        <Bone style={{width: `${width}%`}}/>
+                    </Name>
+                    {Array.from({length: columns}, (_, column) => (
+                        <Bone key={column} style={{width: column % 2 === 0 ? 44 : 92}}/>
+                    ))}
+                </Skeleton>
+            ))}
+        </>
+    );
+}
+
+/** Stand-in tiles for a grid that has no listing yet. */
+function PlaceholderTiles({size}: { size: number }) {
+    return (
+        <>
+            {[42, 58, 36, 64, 48, 54, 39, 61, 45, 50, 57, 43].map((width, index) => (
+                <Tile $dim={false} $current={false} key={index}>
+                    <Bone style={{height: size, width: size}}/>
+                    <Bone style={{height: 9, width: `${width}%`}}/>
+                </Tile>
+            ))}
+        </>
+    );
+}
+
+const IconSlot = styled.span<{ $size?: number }>`
     display: grid;
     place-items: center;
-    width: 18px;
-    height: 18px;
+    width: ${({$size = 18}) => $size}px;
+    height: ${({$size = 18}) => $size}px;
     flex-shrink: 0;
 
     svg {
@@ -202,7 +362,6 @@ const Wrapper = styled.div`
 
 const Head = styled.div`
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 110px 170px;
     gap: 16px;
     padding: 10px 22px;
     border-bottom: 1px solid var(--border-color);
@@ -213,17 +372,45 @@ const Head = styled.div`
     color: var(--text-muted);
 `;
 
+const HeaderButton = styled.button`
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    cursor: pointer;
+
+    &:hover {
+        color: var(--text-primary);
+    }
+`;
+
 const Body = styled.div`
     flex: 1;
     min-height: 0;
-    overflow-y: auto;
+    overflow: auto;
     padding: 8px 10px 22px;
 `;
 
-/** A row that mirrors the real one but holds no content, for the moment before the listing lands. */
+const GridBody = styled.div<{ $size: number }>`
+    display: grid;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    grid-template-columns: repeat(auto-fill, minmax(${({$size}) => $size + 70}px, 1fr));
+    grid-auto-rows: auto;
+    gap: 10px;
+    align-content: start;
+    padding: 12px 14px 24px;
+`;
+
 const Skeleton = styled.div`
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 110px 170px;
     gap: 16px;
     align-items: center;
     padding: 9px 12px;
@@ -248,7 +435,6 @@ const Bone = styled.span`
 
 const Row = styled.div<{ $hidden: boolean; $dim: boolean; $current: boolean }>`
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 110px 170px;
     gap: 16px;
     align-items: center;
     padding: 9px 12px;
@@ -275,30 +461,107 @@ const Name = styled.div`
     align-items: center;
     gap: 10px;
     min-width: 0;
+`;
 
-    span {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+const NameText = styled.span`
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
+/** A symlink's destination, shown after the name so the entry itself stays the label. */
+const LinkTo = styled.span`
+    overflow: hidden;
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent-primary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
+const Cell = styled.span`
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
+const Broken = styled.span`
+    color: #fca5a5;
+`;
+
+const Tile = styled.div<{ $dim: boolean; $current: boolean }>`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    padding: 12px 8px 10px;
+    border: 1px solid ${({$current}) => $current ? "rgba(59, 130, 246, 0.5)" : "transparent"};
+    border-radius: var(--radius-md);
+    background: ${({$current}) => $current ? "rgba(59, 130, 246, 0.14)" : "transparent"};
+    opacity: ${({$dim}) => $dim ? 0.3 : 1};
+    cursor: default;
+    user-select: none;
+    transition: background 100ms ease, border-color 100ms ease, opacity 100ms ease;
+
+    &:hover {
+        background: var(--bg-card-hover);
+        border-color: var(--border-color);
     }
 `;
 
-const Size = styled.span`
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-muted);
+const TileGlyph = styled.span`
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+
+    img {
+        display: block;
+        object-fit: contain;
+    }
+
+    svg {
+        color: var(--text-muted);
+    }
 `;
 
-const Modified = styled.span`
+const TileName = styled.span`
+    width: 100%;
+    overflow: hidden;
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
+const TileLink = styled.span`
+    width: 100%;
+    overflow: hidden;
+    padding: 0 2px;
     font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-muted);
+    font-size: 9px;
+    color: var(--accent-primary);
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 `;
 
 const Mark = styled.mark`
     border-radius: 2px;
     background: rgba(59, 130, 246, 0.5);
     color: var(--text-primary);
+`;
+
+const EmptyCell = styled.div`
+    display: grid;
+    grid-column: 1 / -1;
+    place-items: center;
+    padding: 48px 24px;
 `;
 
 const Center = styled.div`
