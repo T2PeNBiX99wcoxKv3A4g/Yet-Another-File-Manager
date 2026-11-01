@@ -258,9 +258,10 @@ export default function App() {
     const stateRef = useRef({tabs, activeId});
     stateRef.current = {tabs, activeId};
 
-    // The tabs from the last launch are restored once, and never over a path the host opened.
+    // The tabs from the last launch are restored once; a path from the host waits until then so it
+    // can be added after them instead of replacing them.
     const restored = useRef(false);
-    const hostNavigated = useRef(false);
+    const pendingStartup = useRef<string[]>([]);
 
     const patch = useCallback((id: string, update: (tab: Tab) => Partial<Tab>) => {
         setTabs((current) => current.map((tab) => tab.id === id ? {...tab, ...update(tab)} : tab));
@@ -475,16 +476,15 @@ export default function App() {
     }, []);
 
     /** Puts back the tabs that were open when the window was closed, the first time settings arrive. */
-    const restoreOpenTabs = useCallback((saved: AppSettings) => {
-        if (hostNavigated.current) return;
-
+    const restoreOpenTabs = useCallback((saved: AppSettings): boolean => {
         const locations = (saved.openTabs ?? [])
             .map(parseLocation)
             .filter((location): location is string => location !== null);
 
-        if (locations.length === 0) return;
+        if (locations.length === 0) return false;
 
-        const opened = locations.map((location) => createTab(location));
+        // These stand for the last session, so a path from the host must not take one of them over.
+        const opened = locations.map((location) => ({...createTab(location), fresh: false}));
         const index = Math.min(Math.max(saved.activeTab ?? 0, 0), opened.length - 1);
 
         setTabs(opened);
@@ -493,7 +493,27 @@ export default function App() {
         // Every files tab reads its folder; a built-in page is ready as it is.
         for (const tab of opened)
             if (kindOf(tab) === "files") void load(tab.id, folderOf(tab), true);
+
+        return true;
     }, [load]);
+
+    /** Opens the paths the host sent at startup, after the restored tabs when there are any. */
+    const flushStartup = useCallback((afterRestored: boolean) => {
+        const paths = pendingStartup.current;
+        pendingStartup.current = [];
+        if (paths.length === 0) return;
+
+        const {tabs: current} = stateRef.current;
+
+        // With nothing restored, the untouched first tab can show the path instead of staying empty.
+        if (!afterRestored && current.length === 1 && current[0].fresh) {
+            openLocation(current[0].id, paths[0]);
+            for (const path of paths.slice(1)) openFiles(path);
+            return;
+        }
+
+        for (const path of paths) openFiles(path);
+    }, [openFiles, openLocation]);
 
     const reloadSettings = useCallback(() => {
         void getSettings().then((settings) => {
@@ -507,10 +527,15 @@ export default function App() {
 
             if (!restored.current) {
                 restored.current = true;
-                if (settings.restoreTabs) restoreOpenTabs(settings);
+                flushStartup(settings.restoreTabs && restoreOpenTabs(settings));
             }
-        }, () => setRecentLimit(10));
-    }, [restoreOpenTabs]);
+        }, () => {
+            // Without settings the tabs are unknown, but a startup path must not be lost.
+            setRecentLimit(10);
+            restored.current = true;
+            flushStartup(false);
+        });
+    }, [flushStartup, restoreOpenTabs]);
 
     const reloadRecent = useCallback(() => {
         void listRecent().then(setRecent, () => setRecent([]));
@@ -570,12 +595,16 @@ export default function App() {
             const event = evt as { type?: string; data?: { path?: unknown; startup?: unknown } };
             if (event.type !== "app.navigate" || typeof event.data?.path !== "string") return;
 
-            // A path from the host wins over the tabs of the last session.
-            hostNavigated.current = true;
-
             const target = event.data.path;
             const {tabs: current} = stateRef.current;
             const isStartup = event.data.startup === true;
+
+            // The settings decide whether there are tabs to restore; until then a startup path
+            // waits here so it can be added after them rather than replacing one.
+            if (isStartup && !restored.current) {
+                pendingStartup.current.push(target);
+                return;
+            }
 
             if (isStartup && current.length === 1 && current[0].fresh)
                 openLocation(current[0].id, target);
