@@ -84,5 +84,8 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(DirectoryRequest))]
 [JsonSerializable(typeof(PathOperationPayload))]
 [JsonSerializable(typeof(ClipboardFilesPayload))]
-[JsonSerializable(typeof(ShellMenuRequest))]
+[JsonSerializable(typeof(ShellVerb))]
+[JsonSerializable(typeof(List<ShellVerb>))]
+[JsonSerializable(typeof(ShellVerbsPayload))]
+[JsonSerializable(typeof(ShellInvokeRequest))]
 internal sealed partial class AppJsonContext : JsonSerializerContext;

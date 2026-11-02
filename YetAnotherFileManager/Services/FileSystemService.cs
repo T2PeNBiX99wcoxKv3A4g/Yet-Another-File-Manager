@@ -214,6 +214,10 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 return context.Reply("fs.operation.newFolder.result",
                     await FileOperations.NewFolderAsync(context.Payload<DirectoryRequest>()?.Directory ?? ""));
 
+            case "fs.operation.compress":
+                return context.Reply("fs.operation.compress.result",
+                    await FileOperations.CompressAsync(context.Payload<PathsPayload>()?.Paths ?? []));
+
             case "fs.operation.properties":
                 await FileOperations.ShowPropertiesAsync(context.Payload<PathsPayload>()?.Paths ?? []);
                 return context.Reply("fs.operation.properties.result", new OkPayload(true));
@@ -222,13 +226,24 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 await FileOperations.OpenWithAsync(context.Payload<PathPayload>()?.Path ?? "");
                 return context.Reply("fs.operation.openWith.result", new OkPayload(true));
 
+            case "fs.operation.terminal":
+                await FileOperations.OpenTerminalAsync(context.Payload<PathPayload>()?.Path ?? "");
+                return context.Reply("fs.operation.terminal.result", new OkPayload(true));
+
             case "fs.operation.showInExplorer":
                 await FileOperations.ShowInExplorerAsync(context.Payload<PathPayload>()?.Path ?? "");
                 return context.Reply("fs.operation.showInExplorer.result", new OkPayload(true));
 
-            case "shell.contextMenu":
-                WindowManager.Instance.ShowShellContextMenu(context.Payload<ShellMenuRequest>()?.Paths ?? []);
-                return context.Reply("shell.contextMenu.result", new OkPayload(true));
+            case "shell.verbs":
+                return context.Reply("shell.verbs.result",
+                    await ShellMenuClient.ReadAsync(context.Payload<PathsPayload>()?.Paths ?? []));
+
+            case "shell.invoke":
+            {
+                var request = context.Payload<ShellInvokeRequest>();
+                ShellMenuClient.Invoke(request?.Paths ?? [], request?.Safe ?? true, request?.Verb, request?.Offset ?? 0);
+                return context.Reply("shell.invoke.result", new OkPayload(true));
+            }
 
             default:
                 return null;

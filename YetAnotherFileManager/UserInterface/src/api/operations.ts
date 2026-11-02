@@ -67,6 +67,13 @@ export async function openWith(path: string): Promise<void> {
     await Native.request("fs.operation.openWith", {path});
 }
 
+/** Opens Windows Terminal in a folder, with a PowerShell fallback. */
+export async function openTerminal(path: string): Promise<void> {
+    if (!Native.available) return;
+
+    await Native.request("fs.operation.terminal", {path});
+}
+
 /** Reveals the path in Explorer, or opens its folder on Linux. */
 export async function showInExplorer(path: string): Promise<void> {
     if (!Native.available) return;
@@ -74,9 +81,55 @@ export async function showInExplorer(path: string): Promise<void> {
     await Native.request("fs.operation.showInExplorer", {path});
 }
 
-/** Shows Explorer's own (legacy) context menu for the paths, with third-party handlers included. */
-export async function showShellMenu(paths: string[]): Promise<void> {
+/** One command read from the shell's own context menu. */
+export interface ShellVerb {
+    label: string;
+    /** The canonical verb when the handler provides one; null means "use the offset". */
+    verb: string | null;
+    /** Offset from the first command id, used when there is no canonical verb. */
+    offset: number;
+    /** A built-in icon name, a PNG data URL, or null for the generic glyph. */
+    icon: string | null;
+    enabled: boolean;
+    checked: boolean;
+    /** The submenu this entry came from, or null for a top-level entry. */
+    group: string | null;
+    /** 0 for a top-level entry, 1 or more inside submenus. */
+    depth: number;
+}
+
+/** What could be read from the shell menu, and whether third-party handlers were included. */
+export interface ShellVerbs {
+    verbs: ShellVerb[];
+    safe: boolean;
+}
+
+/**
+ * Reads the shell's context menu without showing it. The host runs the read in a helper process,
+ * so a misbehaving extension cannot take the window down; a failure falls back to standard verbs.
+ */
+export async function listShellVerbs(paths: string[]): Promise<ShellVerbs> {
+    if (!Native.available || paths.length === 0) return {verbs: [], safe: true};
+
+    return await Native.request<ShellVerbs>("shell.verbs", {paths});
+}
+
+/** Runs one command that `listShellVerbs` returned. The helper process isolates it again. */
+export async function invokeShellVerb(
+    paths: string[],
+    safe: boolean,
+    verb: string | null,
+    offset: number,
+): Promise<void> {
     if (!Native.available || paths.length === 0) return;
 
-    await Native.request("shell.contextMenu", {paths});
+    await Native.request("shell.invoke", {paths, safe, verb, offset});
+}
+
+/** Packs the selection into a ZIP file beside it. */
+export async function compressPaths(paths: string[]): Promise<PathOperation> {
+    if (!Native.available || paths.length === 0)
+        return {ok: false, path: null, error: "Compressing needs the desktop app."};
+
+    return await Native.request<PathOperation>("fs.operation.compress", {paths});
 }

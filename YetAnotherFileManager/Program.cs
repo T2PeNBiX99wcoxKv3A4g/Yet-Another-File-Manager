@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text.Json;
 using PhotinoNetUtils;
@@ -9,6 +10,7 @@ using PhotinoNetUtils.Platform;
 using PhotinoNetUtils.Services;
 using PhotinoNetUtils.Utils;
 using Serilog;
+using YetAnotherFileManager.Interop;
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Services;
 #if !DEBUG
@@ -19,7 +21,7 @@ namespace YetAnotherFileManager;
 //NOTE: To hide the console window, go to the project properties and change the Output Type to Windows Application.
 // Or edit the .csproj file and change the <OutputType> tag from "WinExe" to "Exe".
 
-internal static class Program
+internal static partial class Program
 {
     [STAThread]
     private static void Main(string[] args)
@@ -33,6 +35,20 @@ internal static class Program
         if (args.Contains(Constants.OrphansReportArgument))
         {
             RunOrphansReportAsync(args).GetAwaiter().GetResult();
+            return;
+        }
+
+        // The shell menu is read and invoked in this short-lived helper, so a third-party handler
+        // that crashes can never take the window down with it.
+        if (args.Contains(Constants.ShellVerbsArgument))
+        {
+            RunShellVerbs(args);
+            return;
+        }
+
+        if (args.Contains(Constants.ShellInvokeArgument))
+        {
+            RunShellInvoke(args);
             return;
         }
 
@@ -134,11 +150,71 @@ internal static class Program
         }
     }
 
+    /// <summary>Keeps a crashing helper from showing a Windows Error Reporting dialog.</summary>
+    [LibraryImport("kernel32.dll")]
+    private static partial uint SetErrorMode(uint mode);
+
     /// <summary>Shows every path a second launch forwarded, the way Explorer reuses its window.</summary>
     private static void DispatchPaths(WindowManager manager, IReadOnlyList<string> args)
     {
         foreach (var path in ResolvePaths(args))
             manager.ShowPath(path);
+    }
+
+    /// <summary>Reads the shell menu for the paths and writes the result as JSON, then exits.</summary>
+    private static void RunShellVerbs(string[] args)
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+
+        // A crashing third-party handler must not leave a Windows Error Reporting dialog behind.
+        SetErrorMode(0x0002);
+
+        var index = Array.IndexOf(args, Constants.ShellVerbsArgument);
+        if (index < 0 || index + 1 >= args.Length)
+            return;
+
+        try
+        {
+            var paths = args[(index + 2)..];
+            var verbs = ShellMenu.Read(paths, false);
+
+            File.WriteAllText(args[index + 1],
+                JsonSerializer.Serialize(verbs, AppJsonContext.Default.ListShellVerb));
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex);
+            Environment.ExitCode = 1;
+        }
+    }
+
+    /// <summary>Runs one extracted shell command in this process, then exits.</summary>
+    private static void RunShellInvoke(string[] args)
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+
+        SetErrorMode(0x0002);
+
+        var index = Array.IndexOf(args, Constants.ShellInvokeArgument);
+        if (index < 0 || index + 4 >= args.Length)
+            return;
+
+        try
+        {
+            var safe = args[index + 1] == "1";
+            _ = int.TryParse(args[index + 2], out var offset);
+            var verb = args[index + 3];
+            var paths = args[(index + 4)..];
+
+            ShellMenu.Invoke(paths, safe, verb.Length == 0 ? null : verb, offset);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex);
+            Environment.ExitCode = 1;
+        }
     }
 
     /// <summary>

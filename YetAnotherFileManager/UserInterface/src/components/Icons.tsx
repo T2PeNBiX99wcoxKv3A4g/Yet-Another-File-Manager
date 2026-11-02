@@ -52,6 +52,10 @@ import ServerSvg from "./icons/server.svg?react";
 import PackageSvg from "./icons/package.svg?react";
 import GlobeSvg from "./icons/globe.svg?react";
 import HeartSvg from "./icons/heart.svg?react";
+import CopySvg from "./icons/copy.svg?react";
+import CutSvg from "./icons/cut.svg?react";
+import PasteSvg from "./icons/paste.svg?react";
+import ShareSvg from "./icons/share.svg?react";
 
 interface IconProps extends SVGProps<SVGSVGElement> {
     size?: number;
@@ -117,3 +121,7 @@ export const ServerIcon = sized(ServerSvg, 18);
 export const PackageIcon = sized(PackageSvg, 18);
 export const GlobeIcon = sized(GlobeSvg, 18);
 export const HeartIcon = sized(HeartSvg, 18);
+export const CopyIcon = sized(CopySvg, 16);
+export const CutIcon = sized(CutSvg, 16);
+export const PasteIcon = sized(PasteSvg, 16);
+export const ShareIcon = sized(ShareSvg, 16);

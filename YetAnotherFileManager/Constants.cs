@@ -29,6 +29,12 @@ public static class Constants
     /// <summary>Adds deletion to the elevated report run.</summary>
     public const string OrphansDeleteArgument = "--delete";
 
+    /// <summary>Command line mode that extracts a shell context menu into a JSON file.</summary>
+    public const string ShellVerbsArgument = "--shell-verbs";
+
+    /// <summary>Command line mode that invokes one extracted shell command, isolated from the app.</summary>
+    public const string ShellInvokeArgument = "--shell-invoke";
+
     /// <summary>
     ///     The shared "Core" logger. Resolved from the configured <see cref="Log.Logger" /> on every
     ///     access, so it must not be captured before <see cref="Logging.Initialize" /> has run.

@@ -164,5 +164,23 @@ internal sealed record PathOperationPayload(bool Ok, string? Path, string? Error
 /// <summary>Body for <c>fs.clipboard.hasFiles</c>.</summary>
 internal sealed record ClipboardFilesPayload(bool HasFiles);
 
-/// <summary>Payload for <c>shell.contextMenu</c>: the entries the native menu acts on.</summary>
-internal sealed record ShellMenuRequest(List<string> Paths);
+/// <summary>
+///     One command extracted from the shell's context menu. <paramref name="Group" /> is the
+///     submenu label it came from, and <paramref name="Depth" /> keeps its nesting visible in the
+///     interface's flat menu.
+/// </summary>
+internal sealed record ShellVerb(
+    string Label,
+    string? Verb,
+    int Offset,
+    string? Icon,
+    bool Enabled,
+    bool Checked,
+    string? Group,
+    int Depth);
+
+/// <summary>Body for <c>shell.verbs</c>: everything that could be read without showing a menu.</summary>
+internal sealed record ShellVerbsPayload(List<ShellVerb> Verbs, bool Safe);
+
+/// <summary>Payload for <c>shell.invoke</c>: the command to run for the selected paths.</summary>
+internal sealed record ShellInvokeRequest(List<string> Paths, string? Verb, int Offset, bool Safe);

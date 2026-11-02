@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Text;
 using PhotinoNetUtils.Extensions;
@@ -161,6 +162,73 @@ internal static partial class FileOperations
             }
         });
 
+    /// <summary>Packs the selected files and folders into a ZIP beside the first one.</summary>
+    public static Task<PathOperationPayload> CompressAsync(IReadOnlyList<string> paths) =>
+        Task.Run(() =>
+        {
+            var entries = paths.Where(path => File.Exists(path) || Directory.Exists(path)).ToList();
+            if (entries.Count == 0)
+                return new PathOperationPayload(false, null, "There is nothing to compress.");
+
+            var first = entries[0];
+            var directory = Path.GetDirectoryName(first);
+
+            if (directory is null)
+                return new PathOperationPayload(false, null, "The selection has no parent folder.");
+
+            var baseName = entries.Count == 1
+                ? (Directory.Exists(first) ? new DirectoryInfo(first).Name : Path.GetFileNameWithoutExtension(first))
+                : "Archive";
+
+            var zipPath = UniquePath(directory, baseName, ".zip");
+
+            try
+            {
+                using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+                {
+                    foreach (var path in entries)
+                    {
+                        if (Directory.Exists(path))
+                        {
+                            var parent = Path.GetDirectoryName(path.TrimEnd(Path.DirectorySeparatorChar)) ?? directory;
+                            var files = Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories).ToList();
+
+                            if (files.Count == 0)
+                                archive.CreateEntry($"{new DirectoryInfo(path).Name}/");
+
+                            foreach (var file in files)
+                            {
+                                var name = Path.GetRelativePath(parent, file).Replace('\\', '/');
+                                archive.CreateEntryFromFile(file, name, CompressionLevel.Optimal);
+                            }
+
+                            continue;
+                        }
+
+                        archive.CreateEntryFromFile(path, Path.GetFileName(path), CompressionLevel.Optimal);
+                    }
+                }
+
+                return new PathOperationPayload(true, zipPath, null);
+            }
+            catch (Exception ex)
+            {
+                Try.Run(() => File.Delete(zipPath));
+                Log.Warning(ex, "Could not compress {Count} entries", entries.Count);
+                return new PathOperationPayload(false, null, ex.Message);
+            }
+        });
+
+    private static string UniquePath(string directory, string baseName, string extension)
+    {
+        var path = Path.Combine(directory, baseName + extension);
+
+        for (var attempt = 2; File.Exists(path) || Directory.Exists(path); attempt++)
+            path = Path.Combine(directory, $"{baseName} ({attempt}){extension}");
+
+        return path;
+    }
+
     /// <summary>Opens the shell's properties sheet for the first selected entry.</summary>
     public static Task ShowPropertiesAsync(IReadOnlyList<string> paths) =>
         Task.Run(() =>
@@ -187,6 +255,31 @@ internal static partial class FileOperations
             {
                 UseShellExecute = false
             })).OnFailure(ex => Log.Warning(ex, "Could not open {Path} with another app", path));
+        });
+
+    /// <summary>Opens Windows Terminal in a folder, falling back to PowerShell.</summary>
+    public static Task OpenTerminalAsync(string directory) =>
+        Task.Run(() =>
+        {
+            if (!OperatingSystem.IsWindows() || !Directory.Exists(directory))
+                return;
+
+            var terminal = Try.Run(() => Process.Start(new ProcessStartInfo("wt.exe")
+            {
+                UseShellExecute = true,
+                ArgumentList = { "-d", directory }
+            })).GetOrNull();
+
+            if (terminal is not null)
+                return;
+
+            var quoted = directory.Replace("'", "''");
+
+            Try.Run(() => Process.Start(new ProcessStartInfo("powershell.exe",
+                $"-NoExit -Command Set-Location -LiteralPath '{quoted}'")
+            {
+                UseShellExecute = true
+            })).OnFailure(ex => Log.Warning(ex, "Could not open a terminal in {Directory}", directory));
         });
 
     /// <summary>Reveals a path in Explorer, or opens its folder elsewhere.</summary>

@@ -7,22 +7,46 @@ import {wantsNewTab, isTyping} from "../shortcuts";
 import type {DirectoryListing, FileEntry, Place, ResolvedView} from "../api/files";
 import {useIcon, useIconFile, useThumbnail} from "../api/icons";
 import {
+    compressPaths,
     copyPaths,
     deletePaths,
     hasClipboardFiles,
+    invokeShellVerb,
+    listShellVerbs,
     newFolder,
+    openTerminal,
     openWith,
     pasteInto,
     renamePath,
     showInExplorer,
     showProperties,
-    showShellMenu,
+    type ShellVerb,
 } from "../api/operations";
 import {NoFind, rangesOf, type FindView} from "../find";
 import {canPreview, previewKindOf, PreviewKindLabels} from "../preview";
 import {quickPlace, useQuickAccess} from "../quick";
 import {formatBytes, formatDate} from "../utils/format";
-import {CheckIcon, FolderIcon} from "./Icons";
+import {
+    AppIcon,
+    ArchiveIcon,
+    ArrowRightIcon,
+    CheckIcon,
+    CopyIcon,
+    CutIcon,
+    DocumentIcon,
+    ExecutableIcon,
+    FolderIcon,
+    GearIcon,
+    PasteIcon,
+    PencilIcon,
+    PinIcon,
+    PlusIcon,
+    RefreshIcon,
+    ShareIcon,
+    StarIcon,
+    TerminalIcon,
+    TrashIcon,
+} from "./Icons";
 import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
 import {PlaceIcon} from "./PlaceIcon";
 import {TagPicker, DefaultTagColor, inkFor} from "./TagPicker";
@@ -92,11 +116,17 @@ export function FileList({
     const [selected, setSelected] = useState<Set<string>>(() => new Set());
     const [menu, setMenu] = useState<{ x: number; y: number; paths: string[]; background: boolean } | null>(null);
     const [canPaste, setCanPaste] = useState(false);
+    const shellRequest = useRef(0);
+    const [shell, setShell] = useState<{ verbs: ShellVerb[]; safe: boolean; loading: boolean }>({
+        verbs: [], safe: true, loading: false,
+    });
 
     // A new folder starts with nothing selected; an operation that renamed a path drops it too.
     useEffect(() => {
         setSelected(new Set());
         setMenu(null);
+        setShell({verbs: [], safe: true, loading: false});
+        shellRequest.current += 1;
         anchor.current = null;
     }, [listing?.path]);
 
@@ -225,7 +255,10 @@ export function FileList({
         setSelected(new Set());
     }, []);
 
-    const closeMenu = useCallback(() => setMenu(null), []);
+    const closeMenu = useCallback(() => {
+        shellRequest.current += 1;
+        setMenu(null);
+    }, []);
 
     // Ctrl+A selects everything that is on screen, the way a file manager does.
     useEffect(() => {
@@ -260,15 +293,28 @@ export function FileList({
         if (path)
             anchor.current = path;
 
-        setMenu({
-            x: event.clientX,
-            y: event.clientY,
-            paths: path ? (selected.has(path) ? [...selected] : [path]) : [],
-            background: !path,
-        });
+        const paths = path ? (selected.has(path) ? [...selected] : [path]) : [];
+        const shellPaths = path ? paths : currentDirectory ? [currentDirectory] : [];
+        const request = ++shellRequest.current;
+
+        setMenu({x: event.clientX, y: event.clientY, paths, background: !path});
+        setShell({verbs: [], safe: true, loading: shellPaths.length > 0});
 
         void hasClipboardFiles().then(setCanPaste, () => setCanPaste(false));
-    }, [selected]);
+
+        if (shellPaths.length === 0) return;
+
+        void listShellVerbs(shellPaths).then(
+            (result) => {
+                if (shellRequest.current === request)
+                    setShell({...result, loading: false});
+            },
+            () => {
+                if (shellRequest.current === request)
+                    setShell({verbs: [], safe: true, loading: false});
+            },
+        );
+    }, [currentDirectory, selected]);
 
     const refresh = () => onRefresh?.();
 
@@ -319,28 +365,59 @@ export function FileList({
         }
     };
 
+    const compress = async (paths: string[]) => {
+        const result = await compressPaths(paths);
+
+        if (result.ok)
+            refresh();
+        else
+            window.alert(result.error ?? "Could not create the ZIP file.");
+    };
+
+    const copyAsPath = async (paths: string[]) => {
+        try {
+            await navigator.clipboard.writeText(paths.join("\n"));
+        } catch {
+            // The web view refused the clipboard; nothing sensible to show.
+        }
+    };
+
     const menuItems: ContextMenuItem[] = [];
+    const quickActions: ContextMenuItem[] = [];
     const target = menu?.paths[0];
     const entry = target ? rows.find((row) => row.entry.fullPath === target)?.entry : undefined;
+    const single = menu?.paths.length === 1;
+    const shellPaths = menu?.background ? (currentDirectory ? [currentDirectory] : []) : menu?.paths ?? [];
+    const shellGroup = shell.safe ? "Shell actions (standard)" : "Shell actions";
 
     if (menu?.background) {
-        menuItems.push({label: "New folder", onSelect: () => void createFolder()});
-        menuItems.push({label: "Paste", disabled: !canPaste, onSelect: () => void paste(currentDirectory)});
-        menuItems.push({label: "Refresh", separatorBefore: true, onSelect: refresh});
+        menuItems.push({label: "New folder", icon: <PlusIcon size={14}/>, onSelect: () => void createFolder()});
         menuItems.push({
-            label: "Properties", separatorBefore: true,
+            label: "Paste", icon: <PasteIcon size={14}/>, disabled: !canPaste,
+            onSelect: () => void paste(currentDirectory),
+        });
+        menuItems.push({label: "Refresh", icon: <RefreshIcon size={14}/>, separatorBefore: true, onSelect: refresh});
+        menuItems.push({
+            label: "Properties", icon: <GearIcon size={14}/>, separatorBefore: true,
             onSelect: () => void showProperties([currentDirectory]),
         });
-        menuItems.push({
-            label: "Windows shell menu…", separatorBefore: true,
-            onSelect: () => void showShellMenu([currentDirectory]),
-        });
+
+        quickActions.push(
+            {label: "New folder", icon: <PlusIcon size={16}/>, onSelect: () => void createFolder()},
+            {
+                label: "Paste", icon: <PasteIcon size={16}/>, disabled: !canPaste,
+                onSelect: () => void paste(currentDirectory),
+            },
+            {label: "Refresh", icon: <RefreshIcon size={16}/>, onSelect: refresh},
+            {
+                label: "Properties", icon: <GearIcon size={16}/>,
+                onSelect: () => void showProperties([currentDirectory]),
+            },
+        );
     }
     else if (menu) {
-        const single = menu.paths.length === 1;
-
         menuItems.push({
-            label: "Open", onSelect: () => {
+            label: "Open", icon: <ArrowRightIcon size={14}/>, onSelect: () => {
                 if (!entry) return;
 
                 if (entry.isDirectory) onOpen(entry.fullPath);
@@ -349,33 +426,99 @@ export function FileList({
         });
 
         if (entry?.isDirectory) {
-            menuItems.push({label: "Open in new tab", onSelect: () => onOpen(entry.fullPath, true)});
             menuItems.push({
-                label: "Paste into folder", disabled: !canPaste,
+                label: "Open in new tab", icon: <PlusIcon size={14}/>,
+                onSelect: () => onOpen(entry.fullPath, true),
+            });
+            menuItems.push({
+                label: "Paste into folder", icon: <PasteIcon size={14}/>, disabled: !canPaste,
                 onSelect: () => void paste(entry.fullPath),
+            });
+            menuItems.push({
+                label: "Open in Terminal", icon: <TerminalIcon size={14}/>,
+                onSelect: () => void openTerminal(entry.fullPath),
             });
         }
 
         if (entry && !entry.isDirectory)
-            menuItems.push({label: "Open with…", onSelect: () => void openWith(entry.fullPath)});
+            menuItems.push({
+                label: "Open with…", icon: <AppIcon size={14}/>,
+                onSelect: () => void openWith(entry.fullPath),
+            });
 
-        menuItems.push({label: "Cut", separatorBefore: true, onSelect: () => void copy(menu.paths, true)});
-        menuItems.push({label: "Copy", onSelect: () => void copy(menu.paths, false)});
+        menuItems.push({
+            label: "Cut", icon: <CutIcon size={14}/>, separatorBefore: true,
+            onSelect: () => void copy(menu.paths, true),
+        });
+        menuItems.push({
+            label: "Copy", icon: <CopyIcon size={14}/>,
+            onSelect: () => void copy(menu.paths, false),
+        });
 
         if (single && entry)
-            menuItems.push({label: "Rename", separatorBefore: true, onSelect: () => void rename(entry)});
-
-        menuItems.push({label: "Delete", danger: true, onSelect: () => void remove(menu.paths)});
+            menuItems.push({
+                label: "Rename", icon: <PencilIcon size={14}/>, separatorBefore: true,
+                onSelect: () => void rename(entry),
+            });
 
         menuItems.push({
-            label: "Show in Explorer", separatorBefore: true,
+            label: "Delete", icon: <TrashIcon size={14}/>, danger: true,
+            onSelect: () => void remove(menu.paths),
+        });
+
+        menuItems.push({
+            label: "Compress to ZIP", icon: <ArchiveIcon size={14}/>, separatorBefore: true,
+            onSelect: () => void compress(menu.paths),
+        });
+        menuItems.push({
+            label: "Copy as path", icon: <CopyIcon size={14}/>,
+            onSelect: () => void copyAsPath(menu.paths),
+        });
+
+        menuItems.push({
+            label: "Show in Explorer", icon: <FolderIcon size={14}/>, separatorBefore: true,
             onSelect: () => void showInExplorer(menu.paths[0]),
         });
-        menuItems.push({label: "Properties", onSelect: () => void showProperties(menu.paths)});
         menuItems.push({
-            label: "Windows shell menu…", separatorBefore: true,
-            onSelect: () => void showShellMenu(menu.paths),
+            label: "Properties", icon: <GearIcon size={14}/>,
+            onSelect: () => void showProperties(menu.paths),
         });
+
+        quickActions.push(
+            {label: "Cut", icon: <CutIcon size={16}/>, onSelect: () => void copy(menu.paths, true)},
+            {label: "Copy", icon: <CopyIcon size={16}/>, onSelect: () => void copy(menu.paths, false)},
+        );
+
+        if (single && entry)
+            quickActions.push({label: "Rename", icon: <PencilIcon size={16}/>, onSelect: () => void rename(entry)});
+
+        quickActions.push(
+            {label: "Delete", icon: <TrashIcon size={16}/>, danger: true, onSelect: () => void remove(menu.paths)},
+            {
+                label: "Properties", icon: <GearIcon size={16}/>,
+                onSelect: () => void showProperties(menu.paths),
+            },
+        );
+    }
+
+    if (menu) {
+        if (shell.loading)
+            menuItems.push({
+                label: "Reading shell actions…", group: shellGroup, loading: true, disabled: true,
+                onSelect: () => undefined,
+            });
+        else
+            shell.verbs.forEach((verb) => {
+                menuItems.push({
+                    label: verb.label,
+                    group: verb.group ?? shellGroup,
+                    depth: verb.group ? verb.depth : 0,
+                    icon: <MenuIcon source={verb.icon}/>,
+                    disabled: !verb.enabled,
+                    checked: verb.checked,
+                    onSelect: () => void invokeShellVerb(shellPaths, shell.safe, verb.verb, verb.offset),
+                });
+            });
     }
 
     if (error)
@@ -424,7 +567,7 @@ export function FileList({
                     )}
                 </GridBody>
 
-                {menu && <ContextMenu items={menuItems} onClose={closeMenu} x={menu.x} y={menu.y}/>}
+                {menu && <ContextMenu items={menuItems} onClose={closeMenu} quick={quickActions} x={menu.x} y={menu.y}/>}
             </Wrapper>
         );
 
@@ -603,9 +746,46 @@ export function FileList({
                 />
             )}
 
-            {menu && <ContextMenu items={menuItems} onClose={closeMenu} x={menu.x} y={menu.y}/>}
+            {menu && <ContextMenu items={menuItems} onClose={closeMenu} quick={quickActions} x={menu.x} y={menu.y}/>}
         </Wrapper>
     );
+}
+
+/** Maps an extracted shell icon source to the glyph the menu draws. */
+function MenuIcon({source}: {source: string | null}) {
+    if (!source) return <AppIcon size={14}/>;
+    if (source.startsWith("data:")) return <img alt="" height={14} src={source} width={14}/>;
+
+    switch (source.startsWith("icon:") ? source.slice(5) : source) {
+        case "open":
+            return <ArrowRightIcon size={14}/>;
+        case "document":
+            return <DocumentIcon size={14}/>;
+        case "cut":
+            return <CutIcon size={14}/>;
+        case "copy":
+            return <CopyIcon size={14}/>;
+        case "paste":
+            return <PasteIcon size={14}/>;
+        case "trash":
+            return <TrashIcon size={14}/>;
+        case "pencil":
+            return <PencilIcon size={14}/>;
+        case "gear":
+            return <GearIcon size={14}/>;
+        case "star":
+            return <StarIcon size={14}/>;
+        case "pin":
+            return <PinIcon size={14}/>;
+        case "executable":
+            return <ExecutableIcon size={14}/>;
+        case "share":
+            return <ShareIcon size={14}/>;
+        case "arrow":
+            return <ArrowRightIcon size={14}/>;
+        default:
+            return <AppIcon size={14}/>;
+    }
 }
 
 /** "↑"/"↓" beside the column that is sorted. */
