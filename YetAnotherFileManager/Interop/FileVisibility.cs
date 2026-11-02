@@ -16,12 +16,19 @@ internal static partial class FileVisibility
 
     private static bool? _hiddenOverride;
 
+    /// <summary>How long a registry answer is reused; Explorer can change it while the app runs.</summary>
+    private const long CacheMilliseconds = 2000;
+
+    private static long _readAt = long.MinValue / 2;
+    private static bool _hidden;
+    private static bool _system;
+
     /// <summary>"Hidden" is 1 when hidden items are shown and 2 (the default) when they are not.</summary>
     public static bool ShowHidden => _hiddenOverride ?? FollowsSystemHidden;
 
     /// <summary>What Explorer itself says, regardless of this session's override.</summary>
     public static bool FollowsSystemHidden =>
-        OperatingSystem.IsWindows() && ReadDword("Hidden") == 1;
+        OperatingSystem.IsWindows() && ReadCached().Hidden;
 
     /// <summary>Flip ordinary hidden files for this session; system files are left alone.</summary>
     public static bool ToggleHidden()
@@ -32,7 +39,24 @@ internal static partial class FileVisibility
 
     /// <summary>"ShowSuperHidden" is 1 only when protected operating system files are shown.</summary>
     public static bool ShowSystem =>
-        OperatingSystem.IsWindows() && ReadDword("ShowSuperHidden") == 1;
+        OperatingSystem.IsWindows() && ReadCached().System;
+
+    /// <summary>
+    ///     Two registry reads are enough for every listing that arrives in the same couple of
+    ///     seconds, instead of reading them again for each refresh.
+    /// </summary>
+    private static (bool Hidden, bool System) ReadCached()
+    {
+        var now = Environment.TickCount64;
+        if (now - _readAt < CacheMilliseconds)
+            return (_hidden, _system);
+
+        _hidden = ReadDword("Hidden") == 1;
+        _system = ReadDword("ShowSuperHidden") == 1;
+        _readAt = now;
+
+        return (_hidden, _system);
+    }
 
     [SupportedOSPlatform("windows")]
     private static uint ReadDword(string name)

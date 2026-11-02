@@ -230,14 +230,21 @@ export function FileList({
 
     rowsRef.current = rows;
 
-    const groups = useMemo(() => groupRows(rows, GridRules), [rows]);
+    // Grouping only feeds the grid; a list view would pay for the rule matching and never use it.
+    const gridMode = view.mode === "grid";
+    const groups = useMemo(() => gridMode ? groupRows(rows, GridRules) : [], [rows, gridMode]);
 
     // The panel repeats what the rows already show; only types the shell can preview belong in it.
     const previews = useMemo(
-        () => rows.filter((row) => !row.entry.isDirectory && canPreview(row.entry.name)),
-        [rows]
+        () => showImages
+            ? rows.filter((row) => !row.entry.isDirectory && canPreview(row.entry.name))
+            : [],
+        [rows, showImages]
     );
-    const previewGroups = useMemo(() => groupRows(previews, PreviewKindRules), [previews]);
+    const previewGroups = useMemo(
+        () => showImages ? groupRows(previews, PreviewKindRules) : [],
+        [previews, showImages]
+    );
 
     const allPaths = useMemo(() => rows.map((row) => row.entry.fullPath), [rows]);
     const currentDirectory = listing?.path ?? "";
