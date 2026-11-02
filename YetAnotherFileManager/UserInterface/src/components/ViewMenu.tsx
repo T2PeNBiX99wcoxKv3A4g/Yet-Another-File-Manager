@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
 import type {DirectoryView, ResolvedView} from "../api/files";
+import {GlobalTag} from "./GlobalTag";
 import {ViewColumns} from "./FileList";
 import {GridIcon, ListIcon} from "./Icons";
 
@@ -100,7 +101,7 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
                         <SizeValue>{view.gridSize}px</SizeValue>
                     </SliderRow>
 
-                    <SectionTitle>Columns</SectionTitle>
+                    <SectionTitle>Columns<GlobalTag/></SectionTitle>
                     {ViewColumns.map((column) => (
                         <Check key={column.id}>
                             <input
@@ -120,14 +121,14 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
                         <span>Link target after the name</span>
                     </Check>
 
-                    <SectionTitle>Pictures</SectionTitle>
+                    <SectionTitle>Preview panel<GlobalTag/></SectionTitle>
                     <Check>
                         <input
                             checked={showImages}
                             onChange={() => onShowImages(!showImages)}
                             type="checkbox"
                         />
-                        <span>Images under the list</span>
+                        <span>Preview under the list</span>
                     </Check>
                 </Panel>
             )}
@@ -177,6 +178,9 @@ const Panel = styled.div`
 `;
 
 const SectionTitle = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 6px;
     margin: 10px 0 5px;
     font-size: 10px;
     font-weight: 600;

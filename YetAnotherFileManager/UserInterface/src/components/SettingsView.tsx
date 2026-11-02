@@ -17,6 +17,7 @@ import {CheckIcon, CrossIcon, PlusIcon} from "./Icons";
 import {IconPicker} from "./IconPicker";
 import {comboOf, DefaultShortcuts, prettyShortcut, type ShortcutMap} from "../shortcuts";
 import {BuiltinIcon} from "../icons/fileTypes";
+import {GlobalTag} from "./GlobalTag";
 import {ViewColumns} from "./FileList";
 import {baseName, formatBytes, usageTone} from "../utils/format";
 
@@ -334,10 +335,14 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                     </Row>
                     <Row>
                         <RowText>
-                            <Label>Images under the list</Label>
+                            <LabelRow>
+                                <Label>Preview panel under the list</Label>
+                                <GlobalTag/>
+                            </LabelRow>
                             <Note>
-                                Shows the folder's pictures in a strip below the list. Grid mode already
-                                shows the pictures, so the strip only appears in list mode.
+                                Shows the pictures, videos and documents the shell can preview as grid
+                                tiles below the list. The tiles follow the grid size, and the panel only
+                                appears in list mode.
                             </Note>
                         </RowText>
                         <Toggle
@@ -352,7 +357,10 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                     </Row>
                     <Row>
                         <RowText>
-                            <Label>Columns</Label>
+                            <LabelRow>
+                                <Label>Columns</Label>
+                                <GlobalTag/>
+                            </LabelRow>
                             <Note>Shown in every folder; changing them changes all folders at once.</Note>
                         </RowText>
                     </Row>
@@ -380,8 +388,9 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                     </Row>
                 </Rows>
                 <Footnote>
-                    These are global settings. A folder can still remember its own mode, icon size and
-                    sort order from the title bar.
+                    The default view, list icon size and grid size are only defaults: a folder can still
+                    remember its own from the title bar. Anything marked <GlobalTag/> always applies to
+                    every folder.
                 </Footnote>
             </Section>
 
@@ -858,6 +867,13 @@ const RowEnd = styled.span`
 const Label = styled.span`
     font-size: 13px;
     color: var(--text-secondary);
+`;
+
+/** A label with its always-global marker, kept on one line. */
+const LabelRow = styled.span`
+    display: flex;
+    align-items: center;
+    gap: 6px;
 `;
 
 const Note = styled.span`

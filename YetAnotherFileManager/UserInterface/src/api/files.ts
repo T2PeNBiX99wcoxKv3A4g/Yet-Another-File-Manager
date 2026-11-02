@@ -37,9 +37,9 @@ export interface ViewDefaults {
     iconSize: number;
     gridSize: number;
     columns: string[] | null;
-    /** Show the pictures of a folder in a strip under the list. */
+    /** Show the folder's previewable files (pictures, videos, documents) as tiles under the list. */
     showImages: boolean;
-    /** How tall that strip is, which the divider above it changes. */
+    /** How tall that panel is, which the divider above it changes. */
     imageStripHeight: number;
 }
 

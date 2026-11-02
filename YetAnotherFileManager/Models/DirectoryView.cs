@@ -11,7 +11,11 @@ public sealed record DirectoryView(
     string Sort = "name",
     bool SortDescending = false);
 
-/// <summary>The view a directory falls back to: the window-wide mode, sizes and columns.</summary>
+/// <summary>
+///     The view a directory falls back to: the window-wide mode, sizes, columns and the preview panel
+///     under the list. <c>ShowImages</c> keeps its name so saved settings stay valid; the panel shows
+///     every file type the shell can preview, not only pictures.
+/// </summary>
 public sealed record ViewDefaults(
     string Mode = "list",
     int IconSize = 20,

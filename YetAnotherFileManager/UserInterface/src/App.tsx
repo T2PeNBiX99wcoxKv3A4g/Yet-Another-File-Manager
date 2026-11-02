@@ -224,7 +224,7 @@ export default function App() {
         useIcons: settings?.systemIcons === false,
     }), [quickPlaces, settings?.systemIcons]);
 
-    /** The picture strip under the list is a window-wide setting. */
+    /** The preview panel under the list is a window-wide setting. */
     const showImages = settings?.defaultView?.showImages ?? true;
     const imageStripHeight = settings?.defaultView?.imageStripHeight ?? DefaultViewDefaults.imageStripHeight;
 
@@ -534,7 +534,7 @@ export default function App() {
         void saveSettings(next);
     }, []);
 
-    /** The picture strip under the list is window-wide too. */
+    /** The preview panel under the list is window-wide too. */
     const setShowImages = useCallback((value: boolean) => {
         const current = settingsRef.current;
         if (!current) return;

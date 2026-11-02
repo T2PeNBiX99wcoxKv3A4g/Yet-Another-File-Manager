@@ -7,6 +7,7 @@ import {wantsNewTab} from "../shortcuts";
 import type {DirectoryListing, FileEntry, Place, ResolvedView} from "../api/files";
 import {useIcon, useIconFile, useThumbnail} from "../api/icons";
 import {NoFind, rangesOf, type FindView} from "../find";
+import {canPreview, isImage} from "../preview";
 import {quickPlace, useQuickAccess} from "../quick";
 import {formatBytes, formatDate} from "../utils/format";
 import {FolderIcon} from "./Icons";
@@ -34,9 +35,9 @@ interface FileListProps {
     find?: FindView;
     /** List or grid, the icon size, the visible columns and the sort order. */
     view: ResolvedView;
-    /** Draw a picture strip under the list; a window-wide setting. */
+    /** Draw the preview panel (pictures, videos, documents) under the list; a window-wide setting. */
     showImages: boolean;
-    /** How tall the strip is; the divider above it changes this. */
+    /** How tall the panel is; the divider above it changes this. */
     imageStripHeight?: number;
     onImageStripHeight?: (height: number) => void;
     onSort: (column: string) => void;
@@ -131,9 +132,9 @@ export function FileList({
 
     const groups = useMemo(() => groupRows(rows), [rows]);
 
-    // The strip repeats what the rows already show, so the images stay in the list too.
-    const images = useMemo(
-        () => rows.filter((row) => !row.entry.isDirectory && isImage(row.entry.name)),
+    // The panel repeats what the rows already show; only types the shell can preview belong in it.
+    const previews = useMemo(
+        () => rows.filter((row) => !row.entry.isDirectory && canPreview(row.entry.name)),
         [rows]
     );
 
@@ -161,7 +162,7 @@ export function FileList({
                                         <GridTile
                                             current={searching && row.entry.fullPath === find.currentPath}
                                             dim={searching && row.ranges === null}
-                                            iconSize={Math.max(24, Math.min(view.gridSize - 56, 160))}
+                                            iconSize={gridIconSize(view.gridSize)}
                                             innerRef={currentRow}
                                             itemCount={listing?.counts[row.entry.name]}
                                             key={row.entry.fullPath}
@@ -281,7 +282,7 @@ export function FileList({
                 )}
             </Body>
 
-            {showImages && images.length > 0 && (
+            {showImages && previews.length > 0 && (
                 <>
                     <Splitter
                         onDoubleClick={resetStripHeight}
@@ -292,18 +293,25 @@ export function FileList({
                     />
                     <Strip style={{height: stripHeight}}>
                         <StripHead>
-                            Images
-                            <StripCount>{images.length}</StripCount>
+                            Preview
+                            <StripCount>{previews.length}</StripCount>
                         </StripHead>
-                        <StripRow>
-                            {images.map((row) => (
-                                <ImageCard
-                                    entry={row.entry}
-                                    key={row.entry.fullPath}
-                                    onOpenFile={onOpenFile}
-                                />
-                            ))}
-                        </StripRow>
+                        <GridBody>
+                            <Tiles $size={view.gridSize}>
+                                {previews.map((row) => (
+                                    <GridTile
+                                        current={searching && row.entry.fullPath === find.currentPath}
+                                        dim={searching && row.ranges === null}
+                                        iconSize={gridIconSize(view.gridSize)}
+                                        key={row.entry.fullPath}
+                                        onOpen={onOpen}
+                                        onOpenFile={onOpenFile}
+                                        row={row}
+                                        showTarget={showTarget}
+                                    />
+                                ))}
+                            </Tiles>
+                        </GridBody>
                     </Strip>
                 </>
             )}
@@ -370,12 +378,7 @@ function sortRows(rows: RowModel[], view: ResolvedView, listing: DirectoryListin
     });
 }
 
-/** The picture formats the grid renders as a preview instead of an icon. */
-const ImageExtensions = new Set([
-    ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".avif", ".tif", ".tiff", ".svg", ".ico",
-]);
-
-/** A folder, an image or any other file — the three sections of the grid. */
+/** A folder, a picture or any other file — the three sections of the grid. */
 function groupRows(rows: RowModel[]): { id: string; label: string; rows: RowModel[] }[] {
     const groups = [
         {id: "folders", label: "Folders", rows: [] as RowModel[]},
@@ -392,10 +395,9 @@ function groupRows(rows: RowModel[]): { id: string; label: string; rows: RowMode
     return groups.filter((group) => group.rows.length > 0);
 }
 
-function isImage(name: string): boolean {
-    const dot = name.lastIndexOf(".");
-
-    return dot > 0 && ImageExtensions.has(name.slice(dot).toLowerCase());
+/** The icon inside a grid tile follows the tile height, the same in the grid and the panel. */
+function gridIconSize(gridSize: number): number {
+    return Math.max(24, Math.min(gridSize - 56, 160));
 }
 
 /** Human labels for the file categories the extension map knows. */
@@ -552,7 +554,7 @@ function PlaceholderTiles({size}: { size: number }) {
     );
 }
 
-/** One rectangular grid tile: a picture preview, or the entry's icon, with a caption underneath. */
+/** One rectangular grid tile: a content preview, or the entry's icon, with a caption underneath. */
 const GridTile = memo(function GridTile({
     row, current, dim, iconSize, itemCount, showTarget, innerRef, onOpen, onOpenFile,
 }: {
@@ -562,13 +564,13 @@ const GridTile = memo(function GridTile({
     iconSize: number;
     itemCount?: number;
     showTarget: boolean;
-    innerRef: RefObject<HTMLDivElement | null>;
+    innerRef?: RefObject<HTMLDivElement | null>;
     onOpen: (path: string, newTab?: boolean) => void;
     onOpenFile?: (path: string) => void;
 }) {
     const quick = useQuickAccess();
-    const image = !row.entry.isDirectory && isImage(row.entry.name);
-    const preview = useThumbnail(image ? row.entry.fullPath : null, 192, row.entry.modified);
+    const previewable = !row.entry.isDirectory && canPreview(row.entry.name);
+    const preview = useThumbnail(previewable ? row.entry.fullPath : null, 192, row.entry.modified);
     const [failed, setFailed] = useState(false);
 
     return (
@@ -583,7 +585,7 @@ const GridTile = memo(function GridTile({
             title={row.entry.name}
         >
             <TileMedia>
-                {image && preview && !failed
+                {previewable && preview && !failed
                     ? (
                         <img
                             alt=""
@@ -615,38 +617,6 @@ const GridTile = memo(function GridTile({
                 )}
             </TileCaption>
         </Tile>
-    );
-});
-
-/** One picture in the strip under the list, sized like a small grid tile. */
-const ImageCard = memo(function ImageCard({
-    entry, onOpenFile,
-}: {
-    entry: FileEntry;
-    onOpenFile?: (path: string) => void;
-}) {
-    const preview = useThumbnail(entry.fullPath, 320, entry.modified);
-    const [failed, setFailed] = useState(false);
-
-    return (
-        <ImageCardFrame onDoubleClick={() => onOpenFile?.(entry.fullPath)} title={entry.name}>
-            {preview && !failed
-                ? (
-                    <img
-                        alt=""
-                        decoding="async"
-                        draggable={false}
-                        loading="lazy"
-                        onError={() => setFailed(true)}
-                        src={preview}
-                    />
-                )
-                : <ImageIcon><EntryIcon entry={entry} size={34}/></ImageIcon>}
-            <ImageCaption>
-                <ImageName>{entry.name}</ImageName>
-                <ImageMeta>{`${typeLabel(entry)} · ${formatBytes(entry.size)}`}</ImageMeta>
-            </ImageCaption>
-        </ImageCardFrame>
     );
 });
 
@@ -748,85 +718,6 @@ const StripHead = styled.div`
 const StripCount = styled.span`
     font-family: var(--font-mono);
     font-size: 9px;
-`;
-
-/** The pictures wrap into rows and the strip itself scrolls down, like the grid does. */
-const StripRow = styled.div`
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-    grid-auto-rows: 112px;
-    gap: 10px;
-    align-content: start;
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    padding: 4px 12px 12px;
-`;
-
-/** A picture card styled like a gallery tile: the name and details sit on a scrim. */
-const ImageCardFrame = styled.div`
-    position: relative;
-    overflow: hidden;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    background: var(--bg-primary);
-    cursor: default;
-    transition: border-color 120ms ease;
-
-    img {
-        position: relative;
-        z-index: 1;
-        display: block;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    &:hover {
-        border-color: var(--border-color-hover);
-    }
-`;
-
-const ImageIcon = styled.span`
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-
-    svg {
-        color: var(--text-muted);
-    }
-`;
-
-const ImageCaption = styled.span`
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 2;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 20px 8px 7px;
-    overflow: hidden;
-    background: linear-gradient(to top, rgba(2, 6, 23, 0.92), rgba(2, 6, 23, 0));
-`;
-
-const ImageName = styled.span`
-    overflow: hidden;
-    color: #e5e7eb;
-    font-size: 11px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-`;
-
-const ImageMeta = styled.span`
-    overflow: hidden;
-    color: #9ca3af;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 `;
 
 const GridBody = styled.div`
