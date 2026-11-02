@@ -1,6 +1,5 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
-using Microsoft.Win32.SafeHandles;
 
 namespace YetAnotherFileManager.Interop;
 
@@ -11,28 +10,48 @@ namespace YetAnotherFileManager.Interop;
 [SupportedOSPlatform("windows")]
 internal static partial class FileLinks
 {
+    private const uint GenericRead = 0x80000000;
+    private const uint ShareReadWriteDelete = 0x00000007;
+    private const uint OpenExisting = 3;
+    private const uint FileAttributeNormal = 0x00000080;
+    private static readonly IntPtr InvalidHandle = new(-1);
+
     /// <summary>How many names point at this file. A file that cannot be opened counts as one.</summary>
     public static int Count(string path)
     {
+        // CreateFileW directly is noticeably faster than File.OpenHandle for the one handle per file
+        // that the Links column needs.
+        var handle = CreateFile(path, GenericRead, ShareReadWriteDelete, IntPtr.Zero, OpenExisting,
+            FileAttributeNormal, IntPtr.Zero);
+
+        if (handle == InvalidHandle)
+            return 1;
+
         try
         {
-            using var handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read,
-                FileShare.ReadWrite | FileShare.Delete);
-
             return GetFileInformationByHandle(handle, out var information)
                 ? (int)information.NumberOfLinks
                 : 1;
         }
-        catch
+        finally
         {
-            return 1;
+            CloseHandle(handle);
         }
     }
 
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", StringMarshalling = StringMarshalling.Utf16,
+        SetLastError = true)]
+    private static partial IntPtr CreateFile(string name, uint access, uint share, IntPtr security,
+        uint disposition, uint flags, IntPtr template);
+
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool GetFileInformationByHandle(SafeFileHandle handle,
+    private static partial bool GetFileInformationByHandle(IntPtr handle,
         out ByHandleFileInformation information);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool CloseHandle(IntPtr handle);
 
     /// <summary><c>FILETIME</c>: two 32-bit halves, so the 4-byte alignment of the native struct holds.</summary>
     [StructLayout(LayoutKind.Sequential)]
