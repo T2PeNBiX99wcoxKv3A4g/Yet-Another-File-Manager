@@ -21,6 +21,13 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
     private readonly ConcurrentDictionary<string, bool> _queued = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _signal = new(0);
 
+    /// <summary>Sizes waiting to be sent; one notification per folder instead of one per measurement.</summary>
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, long>> _pending = new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly Lock _flushGate = new();
+    private Timer? _flushTimer;
+    private const int FlushDelay = 150;
+
     private volatile int _generation;
 
     /// <summary>Folders measured at once. One worker leaves a listing of forty folders waiting in line.</summary>
@@ -66,10 +73,37 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
                 continue;
 
             await DirectoryIndex.SetSizeAsync(item.Parent, item.Child, bytes);
+            Queue(item.Parent, item.Child, bytes);
+        }
+    }
+
+    /// <summary>
+    ///     Holds the result until the folder's other workers are done, then sends them together. The
+    ///     interface replaces the listing on every notification, so a burst of single folders would
+    ///     re-sort the whole view once per folder.
+    /// </summary>
+    private void Queue(string parent, string child, long bytes)
+    {
+        _pending.GetOrAdd(parent, _ => new(StringComparer.OrdinalIgnoreCase))[child] = bytes;
+
+        lock (_flushGate)
+        {
+            _flushTimer ??= new Timer(_ => Flush(), null, Timeout.Infinite, Timeout.Infinite);
+            _flushTimer.Change(FlushDelay, Timeout.Infinite);
+        }
+    }
+
+    private void Flush()
+    {
+        foreach (var parent in _pending.Keys.ToList())
+        {
+            if (!_pending.TryRemove(parent, out var sizes) || sizes.IsEmpty)
+                continue;
+
+            var payload = new Dictionary<string, long>(sizes, StringComparer.OrdinalIgnoreCase);
 
             WindowManager.Instance.RunOnMainWindow(() =>
-                WindowManager.Instance.Notify("fs.sizes",
-                    new FsSizesPayload(item.Parent, new Dictionary<string, long> { [item.Child] = bytes })));
+                WindowManager.Instance.Notify("fs.sizes", new FsSizesPayload(parent, payload)));
         }
     }
 

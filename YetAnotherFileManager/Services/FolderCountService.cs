@@ -19,6 +19,13 @@ internal sealed class FolderCountService : Singleton<FolderCountService>
     private readonly ConcurrentDictionary<string, bool> _queued = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _signal = new(0);
 
+    /// <summary>Counts waiting to be sent; one notification per folder instead of one per count.</summary>
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, long>> _pending = new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly Lock _flushGate = new();
+    private Timer? _flushTimer;
+    private const int FlushDelay = 150;
+
     /// <summary>Folders counted at once; the shell is not the bottleneck, disk latency is.</summary>
     private static readonly int Workers = Math.Clamp(Environment.ProcessorCount / 2, 2, 4);
 
@@ -57,10 +64,33 @@ internal sealed class FolderCountService : Singleton<FolderCountService>
             _queued.TryRemove(path, out _);
 
             await DirectoryIndex.SetCountAsync(item.Parent, item.Child, count);
+            Queue(item.Parent, item.Child, count);
+        }
+    }
+
+    /// <summary>Batches the counts of one folder so the interface does not re-sort once per folder.</summary>
+    private void Queue(string parent, string child, long count)
+    {
+        _pending.GetOrAdd(parent, _ => new(StringComparer.OrdinalIgnoreCase))[child] = count;
+
+        lock (_flushGate)
+        {
+            _flushTimer ??= new Timer(_ => Flush(), null, Timeout.Infinite, Timeout.Infinite);
+            _flushTimer.Change(FlushDelay, Timeout.Infinite);
+        }
+    }
+
+    private void Flush()
+    {
+        foreach (var parent in _pending.Keys.ToList())
+        {
+            if (!_pending.TryRemove(parent, out var counts) || counts.IsEmpty)
+                continue;
+
+            var payload = new Dictionary<string, long>(counts, StringComparer.OrdinalIgnoreCase);
 
             WindowManager.Instance.RunOnMainWindow(() =>
-                WindowManager.Instance.Notify("fs.counts",
-                    new FsCountsPayload(item.Parent, new Dictionary<string, long> { [item.Child] = count })));
+                WindowManager.Instance.Notify("fs.counts", new FsCountsPayload(parent, payload)));
         }
     }
 
