@@ -11,7 +11,12 @@ export interface TrayItem {
 }
 
 interface FileTrayProps {
+    /** Entries the user dragged into the tray; these are only handled inside the app. */
     items: TrayItem[];
+    /** A mirror of the system clipboard; replaced whenever its contents change. */
+    clipboardItems: TrayItem[];
+    /** True when the clipboard entries were cut rather than copied. */
+    clipboardMove: boolean;
     visible: boolean;
     position: { x: number; y: number };
     currentDirectory: string;
@@ -20,36 +25,45 @@ interface FileTrayProps {
     onRemove: (paths: string[]) => void;
     onClear: () => void;
     onClose: () => void;
+    /** Writes the selected tray entries to the system clipboard. */
+    onCopyToClipboard: (paths: string[]) => void;
     onTransfer: (paths: string[], target: string, move: boolean) => void;
 }
 
 const DragType = "application/x-yafm-paths";
 
 /** Reads the paths another part of the app put on a drag, or the plain-text fallback. */
-export function readDraggedPaths(event: DragEvent): string[] {
+export function readDraggedPaths(event: DragEvent): { paths: string[]; move: boolean } {
     const custom = event.dataTransfer.getData(DragType);
 
     if (custom) {
         try {
-            const parsed = JSON.parse(custom) as { paths?: unknown };
-            if (Array.isArray(parsed.paths))
-                return parsed.paths.filter((path): path is string => typeof path === "string");
+            const parsed = JSON.parse(custom) as { paths?: unknown; move?: unknown };
+            if (Array.isArray(parsed.paths)) {
+                return {
+                    paths: parsed.paths.filter((path): path is string => typeof path === "string"),
+                    move: parsed.move !== false,
+                };
+            }
         } catch {
             // A malformed drag is ignored; the drop just does nothing.
         }
     }
 
-    return event.dataTransfer.getData("text/plain")
-        .split(/\r?\n/)
-        .map((path) => path.trim())
-        .filter((path) => /^[a-zA-Z]:[\\/]|^\\\\/.test(path));
+    return {
+        paths: event.dataTransfer.getData("text/plain")
+            .split(/\r?\n/)
+            .map((path) => path.trim())
+            .filter((path) => /^[a-zA-Z]:[\\/]|^\\\\/.test(path)),
+        move: true,
+    };
 }
 
 /** Puts the paths on a drag so the tray, the list and any future target can read them. */
-export function writeDraggedPaths(event: DragEvent, paths: string[]) {
-    event.dataTransfer.setData(DragType, JSON.stringify({paths}));
+export function writeDraggedPaths(event: DragEvent, paths: string[], move = true) {
+    event.dataTransfer.setData(DragType, JSON.stringify({paths, move}));
     event.dataTransfer.setData("text/plain", paths.join("\r\n"));
-    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.effectAllowed = move ? "move" : "copy";
 }
 
 /**
@@ -58,7 +72,8 @@ export function writeDraggedPaths(event: DragEvent, paths: string[]) {
  * that live in different folders into one target.
  */
 export function FileTray({
-    items, visible, position, currentDirectory, onPosition, onAdd, onRemove, onClear, onClose, onTransfer,
+    items, clipboardItems, clipboardMove, visible, position, currentDirectory, onPosition, onAdd, onRemove,
+    onClear, onClose, onCopyToClipboard, onTransfer,
 }: FileTrayProps) {
     const [selected, setSelected] = useState<Set<string>>(() => new Set());
     const [dragging, setDragging] = useState(false);
@@ -67,11 +82,17 @@ export function FileTray({
         () => items.filter((item) => selected.has(item.path)),
         [items, selected]
     );
+    const selectedClipboard = useMemo(
+        () => clipboardItems.filter((item) => selected.has(item.path)),
+        [clipboardItems, selected]
+    );
 
     if (!visible)
         return null;
 
-    const allSelected = selected.size === items.length && items.length > 0;
+    const allPaths = new Set([...items, ...clipboardItems].map((item) => item.path));
+    const allSelected = allPaths.size > 0 && [...allPaths].every((path) => selected.has(path));
+    const total = allPaths.size;
 
     const toggle = (path: string) => {
         setSelected((current) => {
@@ -82,7 +103,7 @@ export function FileTray({
     };
 
     const toggleAll = () => {
-        setSelected(allSelected ? new Set() : new Set(items.map((item) => item.path)));
+        setSelected(allSelected ? new Set() : allPaths);
     };
 
     const startDrag = (event: ReactPointerEvent) => {
@@ -118,15 +139,79 @@ export function FileTray({
         if (paths.length === 0) return;
 
         onRemove(paths);
-        setSelected(new Set());
+        setSelected((current) => {
+            const next = new Set(current);
+            paths.forEach((path) => next.delete(path));
+            return next;
+        });
     };
 
-    const moveHere = () => {
+    const copySelectedToClipboard = () => {
         const paths = selectedItems.map((item) => item.path);
         if (paths.length === 0) return;
 
-        onTransfer(paths, currentDirectory, true);
+        onCopyToClipboard(paths);
+    };
+
+    const moveHere = () => {
+        // A path can be in the tray and in the clipboard section at once; move it once, and let the
+        // tray copy win for the direction.
+        const directions = new Map<string, boolean>();
+
+        for (const item of selectedItems)
+            directions.set(item.path, true);
+
+        for (const item of selectedClipboard)
+            if (!directions.has(item.path))
+                directions.set(item.path, clipboardMove);
+
+        const moving = [...directions].filter(([, move]) => move).map(([path]) => path);
+        const copying = [...directions].filter(([, move]) => !move).map(([path]) => path);
+
+        if (moving.length > 0)
+            onTransfer(moving, currentDirectory, true);
+
+        if (copying.length > 0)
+            onTransfer(copying, currentDirectory, false);
+
         setSelected(new Set());
+    };
+
+    const row = (item: TrayItem, move: boolean) => {
+        const checked = selected.has(item.path);
+
+        return (
+            <Item
+                $checked={checked}
+                draggable
+                key={`${move ? "tray" : "clipboard"}:${item.path}`}
+                onClick={() => toggle(item.path)}
+                onDragStart={(event) => {
+                    const paths = checked && selected.size > 0
+                        ? [...new Set([...selectedItems, ...selectedClipboard].map((entry) => entry.path))]
+                        : [item.path];
+
+                    writeDraggedPaths(event, paths, move);
+                }}
+                title={item.path}
+            >
+                <Check
+                    $checked={checked}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        toggle(item.path);
+                    }}
+                    type="button"
+                >
+                    {checked && <CheckIcon size={8}/>}
+                </Check>
+                <PathIcon isDirectory={item.isDirectory} name={item.name} path={item.path} size={16}/>
+                <Names>
+                    <Name>{item.name}</Name>
+                    <Parent>{parentOf(item.path)}</Parent>
+                </Names>
+            </Item>
+        );
     };
 
     return (
@@ -140,7 +225,7 @@ export function FileTray({
                 }
             }}
             onDrop={(event) => {
-                const paths = readDraggedPaths(event);
+                const {paths} = readDraggedPaths(event);
                 if (paths.length > 0) {
                     event.preventDefault();
                     onAdd(paths);
@@ -151,7 +236,7 @@ export function FileTray({
                 <Title>
                     <PackageIcon size={13}/>
                     Tray
-                    <Count>{items.length}</Count>
+                    <Count>{total}</Count>
                 </Title>
                 <HeadActions onPointerDown={(event) => event.stopPropagation()}>
                     <SmallButton onClick={toggleAll} title={allSelected ? "Select none" : "Select all"} type="button">
@@ -167,52 +252,42 @@ export function FileTray({
             </Head>
 
             <List>
+                <SectionHead>
+                    In this app
+                    <Count>{items.length}</Count>
+                </SectionHead>
+
                 {items.length === 0 && <DropHint>Drag files or folders here</DropHint>}
-                {items.map((item) => {
-                    const checked = selected.has(item.path);
+                {items.map((item) => row(item, true))}
 
-                    return (
-                        <Item
-                            $checked={checked}
-                            draggable
-                            key={item.path}
-                            onClick={() => toggle(item.path)}
-                            onDragStart={(event) => {
-                                const paths = checked && selected.size > 0
-                                    ? selectedItems.map((entry) => entry.path)
-                                    : [item.path];
-
-                                writeDraggedPaths(event, paths);
-                            }}
-                            title={item.path}
-                        >
-                            <Check
-                                $checked={checked}
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    toggle(item.path);
-                                }}
-                                type="button"
-                            >
-                                {checked && <CheckIcon size={8}/>}
-                            </Check>
-                            <PathIcon isDirectory={item.isDirectory} name={item.name} path={item.path} size={16}/>
-                            <Names>
-                                <Name>{item.name}</Name>
-                                <Parent>{parentOf(item.path)}</Parent>
-                            </Names>
-                        </Item>
-                    );
-                })}
+                {clipboardItems.length > 0 && (
+                    <>
+                        <SectionHead $clipboard>
+                            Clipboard
+                            <Count>{clipboardItems.length}</Count>
+                            {clipboardMove && <CutTag>cut</CutTag>}
+                        </SectionHead>
+                        {clipboardItems.map((item) => row(item, clipboardMove))}
+                    </>
+                )}
             </List>
 
             <Foot>
                 <FootButton
-                    disabled={selectedItems.length === 0 || !currentDirectory}
+                    $plain
+                    disabled={selectedItems.length === 0}
+                    onClick={copySelectedToClipboard}
+                    title="Write the selected tray entries to the system clipboard"
+                    type="button"
+                >
+                    To clipboard
+                </FootButton>
+                <FootButton
+                    disabled={selected.size === 0 || !currentDirectory}
                     onClick={moveHere}
                     type="button"
                 >
-                    Move {selectedItems.length || ""} here
+                    Move here
                 </FootButton>
                 <FootButton
                     $danger
@@ -334,10 +409,36 @@ const List = styled.div`
 
 const DropHint = styled.p`
     margin: 0;
-    padding: 18px 12px;
+    padding: 14px 12px;
     color: var(--text-muted);
     font-size: 11px;
     text-align: center;
+`;
+
+const SectionHead = styled.div<{ $clipboard?: boolean }>`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: ${({$clipboard}) => $clipboard ? "8px 6px 3px" : "3px 6px"};
+    margin-top: ${({$clipboard}) => $clipboard ? "4px" : "0"};
+    border-top: ${({$clipboard}) => $clipboard ? "1px solid var(--border-color)" : "0"};
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+`;
+
+const CutTag = styled.span`
+    padding: 0 5px;
+    border-radius: 999px;
+    background: rgba(251, 191, 36, 0.16);
+    color: #fcd34d;
+    font-family: var(--font-sans);
+    font-size: 8px;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
 `;
 
 const Item = styled.div<{ $checked: boolean }>`
@@ -399,18 +500,20 @@ const Parent = styled.span`
 
 const Foot = styled.div`
     display: flex;
-    gap: 5px;
+    flex-wrap: wrap;
+    gap: 4px;
     padding: 6px 8px;
     border-top: 1px solid var(--border-color);
 `;
 
-const FootButton = styled.button<{ $danger?: boolean }>`
-    flex: 1;
+const FootButton = styled.button<{ $danger?: boolean; $plain?: boolean }>`
+    flex: 1 1 30%;
+    min-width: 78px;
     padding: 5px 6px;
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    background: ${({$danger}) => $danger ? "transparent" : "var(--accent-primary)"};
-    color: ${({$danger}) => $danger ? "var(--text-secondary)" : "#fff"};
+    background: ${({$danger, $plain}) => $danger || $plain ? "transparent" : "var(--accent-primary)"};
+    color: ${({$danger, $plain}) => $danger || $plain ? "var(--text-secondary)" : "#fff"};
     font: inherit;
     font-size: 10px;
     cursor: pointer;

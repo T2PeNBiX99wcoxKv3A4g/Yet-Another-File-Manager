@@ -30,6 +30,7 @@ import {
     redoFileOperation,
     transferPaths,
     undoFileOperation,
+    type ClipboardFiles,
 } from "./api/operations";
 import {clearTasks, listTasks, type TaskInfo} from "./api/tasks";
 import {FileList} from "./components/FileList";
@@ -197,6 +198,8 @@ export default function App() {
     const [sidebarVisible, setSidebarVisible] = useState(true);
     const [tasks, setTasks] = useState<TaskInfo[]>([]);
     const [trayItems, setTrayItems] = useState<TrayItem[]>([]);
+    const [clipboardItems, setClipboardItems] = useState<TrayItem[]>([]);
+    const [clipboardMove, setClipboardMove] = useState(false);
     const [trayVisible, setTrayVisible] = useState(false);
     const [trayPosition, setTrayPosition] = useState<{ x: number; y: number }>(() => {
         try {
@@ -654,10 +657,8 @@ export default function App() {
         const entries = await inspectPaths(paths);
         if (entries.length === 0) return;
 
-        // Dragging into the tray is also a copy to the system clipboard, so the same items can be
-        // pasted into Explorer or another program.
-        void copyPaths(entries.map((entry) => entry.path), false);
-
+        // Dragging into the tray is an in-app action; it must not replace what the system
+        // clipboard holds. The clipboard section mirrors the clipboard instead.
         addTrayItems(entries.map((entry) => ({
             path: entry.path,
             name: entry.name,
@@ -671,6 +672,41 @@ export default function App() {
     }, []);
 
     const clearTrayItems = useCallback(() => setTrayItems([]), []);
+
+    const clipboardSequence = useRef(-1);
+
+    /** Replaces the clipboard section with exactly what the system clipboard holds now. */
+    const applyClipboard = useCallback((files: ClipboardFiles) => {
+        setClipboardItems(files.entries.map((entry) => ({
+            path: entry.path,
+            name: entry.name,
+            isDirectory: entry.isDirectory,
+        })));
+        setClipboardMove(files.move);
+
+        if (files.entries.length > 0)
+            setTrayVisible(true);
+    }, []);
+
+    const refreshClipboard = useCallback(async () => {
+        if (!Native.available) return;
+
+        try {
+            const files = await getClipboardFiles();
+            clipboardSequence.current = files.sequence;
+            applyClipboard(files);
+        } catch {
+            // Another app may hold the clipboard; the next poll tries again.
+        }
+    }, [applyClipboard]);
+
+    /** Explicitly writes selected tray entries to the system clipboard. */
+    const copyTrayToClipboard = useCallback(async (paths: string[]) => {
+        if (paths.length === 0) return;
+
+        if (await copyPaths(paths, false))
+            await refreshClipboard();
+    }, [refreshClipboard]);
 
     const trayRef = useRef(trayItems);
     trayRef.current = trayItems;
@@ -702,13 +738,16 @@ export default function App() {
     /** Drops tray entries that were moved away by a paste, so a cut does not leave stale rows. */
     const pruneTray = useCallback(async () => {
         const items = trayRef.current;
-        if (items.length === 0) return;
 
-        const entries = await inspectPaths(items.map((item) => item.path));
-        const existing = new Set(entries.filter((entry) => entry.exists).map((entry) => entry.path));
+        if (items.length > 0) {
+            const entries = await inspectPaths(items.map((item) => item.path));
+            const existing = new Set(entries.filter((entry) => entry.exists).map((entry) => entry.path));
 
-        setTrayItems((current) => current.filter((item) => existing.has(item.path)));
-    }, []);
+            setTrayItems((current) => current.filter((item) => existing.has(item.path)));
+        }
+
+        await refreshClipboard();
+    }, [refreshClipboard]);
 
     const moveTray = useCallback((position: { x: number; y: number }) => {
         setTrayPosition(position);
@@ -735,7 +774,8 @@ export default function App() {
 
         setVisibilityVersion((version) => version + 1);
         refreshAll();
-    }, [refreshAll, removeTrayItems]);
+        void refreshClipboard();
+    }, [refreshAll, refreshClipboard, removeTrayItems]);
 
     useEffect(() => {
         if (!Native.available) return;
@@ -754,10 +794,8 @@ export default function App() {
         void clearTasks().then(() => listTasks().then(setTasks, () => undefined));
     }, []);
 
-    const clipboardSequence = useRef(-1);
-
-    // The tray mirrors the system clipboard: copying files in Explorer or in another app puts them
-    // on the shelf without the user having to drag them there.
+    // The clipboard section mirrors the system clipboard: copying files in Explorer or in another
+    // app puts them there without touching the tray's own entries.
     useEffect(() => {
         if (!Native.available) return;
 
@@ -771,13 +809,7 @@ export default function App() {
                 if (!alive || files.sequence === clipboardSequence.current) return;
 
                 clipboardSequence.current = files.sequence;
-
-                if (files.entries.length > 0)
-                    addTrayItems(files.entries.map((entry) => ({
-                        path: entry.path,
-                        name: entry.name,
-                        isDirectory: entry.isDirectory,
-                    })));
+                applyClipboard(files);
             } catch {
                 // Another app may hold the clipboard; the next poll tries again.
             }
@@ -794,7 +826,7 @@ export default function App() {
             window.clearInterval(timer);
             window.removeEventListener("focus", onFocus);
         };
-    }, [addTrayItems]);
+    }, [applyClipboard]);
 
     /** Runs one history step and reloads the folders it touched. */
     const runHistory = useCallback(async (undo: boolean) => {
@@ -1328,7 +1360,7 @@ export default function App() {
                     : (name, tags, colors) => setEntryTagsFor(tab.id, name, tags, colors)}
                 onSort={primary ? sortBy : (column) => sortByFor(tab.id, column)}
                 onPaste={pruneTray}
-                onTray={addTrayItems}
+                onClipboardChanged={() => void refreshClipboard()}
                 onTransfer={transferTo}
                 openOnSingleClick={settings?.openOnSingleClick ?? false}
                 refreshToken={visibilityVersion}
@@ -1549,11 +1581,14 @@ export default function App() {
             </Body>
 
             <FileTray
+                clipboardItems={clipboardItems}
+                clipboardMove={clipboardMove}
                 currentDirectory={kind === "files" ? location : ""}
                 items={trayItems}
                 onAdd={(paths) => void addTrayPaths(paths)}
                 onClear={clearTrayItems}
                 onClose={() => setTrayVisible(false)}
+                onCopyToClipboard={(paths) => void copyTrayToClipboard(paths)}
                 onPosition={moveTray}
                 onRemove={removeTrayItems}
                 onTransfer={transferTo}

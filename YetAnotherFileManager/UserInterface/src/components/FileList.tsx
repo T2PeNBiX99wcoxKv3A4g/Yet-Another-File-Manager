@@ -56,8 +56,7 @@ import {ConfirmDialog} from "./ConfirmDialog";
 import {PlaceIcon} from "./PlaceIcon";
 import {TagPicker, DefaultTagColor, inkFor} from "./TagPicker";
 import {BuiltinIcon, iconForName} from "../icons/fileTypes";
-import {baseName} from "../utils/format";
-import {readDraggedPaths, writeDraggedPaths, type TrayItem} from "./FileTray";
+import {readDraggedPaths, writeDraggedPaths} from "./FileTray";
 
 /** The columns the list can show besides the name. `linkTarget` is drawn inside the name cell. */
 export const ViewColumns: { id: string; label: string; width: number }[] = [
@@ -101,8 +100,8 @@ interface FileListProps {
     refreshToken?: number;
     /** Reloads the folder after an operation changed it. */
     onRefresh?: () => void;
-    /** Adds copied or cut entries to the floating tray. */
-    onTray?: (items: TrayItem[]) => void;
+    /** Called after a copy or cut put files on the system clipboard. */
+    onClipboardChanged?: () => void;
     /** Moves or copies dropped paths into a folder. */
     onTransfer?: (paths: string[], target: string, move: boolean) => void;
     /** Called after a paste, so the tray can drop entries the move consumed. */
@@ -127,7 +126,7 @@ export function FileList({
     listing, loading, error, find = NoFind, view, showImages, imageStripHeight = DefaultStripHeight,
     onImageStripHeight, onSort, onSetTags, onOpen, onOpenFile, showCheckboxes = true,
     openOnSingleClick = false, shortcuts = DefaultShortcuts, enableShortcuts = true, refreshToken = 0, onRefresh,
-    onTray, onTransfer, onPaste, confirmDelete = false,
+    onClipboardChanged, onTransfer, onPaste, confirmDelete = false,
 }: FileListProps) {
     const quick = useQuickAccess();
     const currentRow = useRef<HTMLDivElement | null>(null);
@@ -363,14 +362,14 @@ export function FileList({
     }, [currentDirectory]);
 
     const dropOnList = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
-        const paths = readDraggedPaths(event);
+        const {paths, move} = readDraggedPaths(event);
         const target = dropTarget.current ?? currentDirectory;
         dropTarget.current = null;
 
         if (paths.length === 0 || !onTransfer) return;
 
         event.preventDefault();
-        onTransfer(paths, target, !event.ctrlKey);
+        onTransfer(paths, target, event.ctrlKey ? false : move);
     }, [currentDirectory, onTransfer]);
 
     const openMenu = useCallback((event: ReactMouseEvent, path?: string) => {
@@ -435,18 +434,7 @@ export function FileList({
     const copy = async (paths: string[], cut = false) => {
         if (await copyPaths(paths, cut)) {
             setCanPaste(true);
-
-            const byPath = new Map((listing?.entries ?? []).map((entry) => [entry.fullPath, entry]));
-
-            onTray?.(paths.map((path) => {
-                const entry = byPath.get(path);
-
-                return {
-                    path,
-                    name: entry?.name ?? baseName(path),
-                    isDirectory: entry?.isDirectory ?? false,
-                };
-            }));
+            onClipboardChanged?.();
         }
     };
 
