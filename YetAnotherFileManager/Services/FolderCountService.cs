@@ -24,6 +24,7 @@ internal sealed class FolderCountService : Singleton<FolderCountService>
 
     private readonly Lock _flushGate = new();
     private Timer? _flushTimer;
+    private bool _flushScheduled;
     private const int FlushDelay = 150;
 
     /// <summary>Folders counted at once; the shell is not the bottleneck, disk latency is.</summary>
@@ -75,6 +76,12 @@ internal sealed class FolderCountService : Singleton<FolderCountService>
 
         lock (_flushGate)
         {
+            // A throttle, not a debounce: counts keep arriving while the interface still gets them
+            // every FlushDelay.
+            if (_flushScheduled)
+                return;
+
+            _flushScheduled = true;
             _flushTimer ??= new Timer(_ => Flush(), null, Timeout.Infinite, Timeout.Infinite);
             _flushTimer.Change(FlushDelay, Timeout.Infinite);
         }
@@ -82,6 +89,9 @@ internal sealed class FolderCountService : Singleton<FolderCountService>
 
     private void Flush()
     {
+        lock (_flushGate)
+            _flushScheduled = false;
+
         foreach (var parent in _pending.Keys.ToList())
         {
             if (!_pending.TryRemove(parent, out var counts) || counts.IsEmpty)

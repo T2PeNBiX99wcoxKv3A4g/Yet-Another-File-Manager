@@ -26,6 +26,7 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
 
     private readonly Lock _flushGate = new();
     private Timer? _flushTimer;
+    private bool _flushScheduled;
     private const int FlushDelay = 150;
 
     private volatile int _generation;
@@ -88,6 +89,12 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
 
         lock (_flushGate)
         {
+            // A throttle, not a debounce: a long stream of measurements still reaches the interface
+            // every FlushDelay instead of waiting for the whole listing to finish.
+            if (_flushScheduled)
+                return;
+
+            _flushScheduled = true;
             _flushTimer ??= new Timer(_ => Flush(), null, Timeout.Infinite, Timeout.Infinite);
             _flushTimer.Change(FlushDelay, Timeout.Infinite);
         }
@@ -95,6 +102,9 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
 
     private void Flush()
     {
+        lock (_flushGate)
+            _flushScheduled = false;
+
         foreach (var parent in _pending.Keys.ToList())
         {
             if (!_pending.TryRemove(parent, out var sizes) || sizes.IsEmpty)
