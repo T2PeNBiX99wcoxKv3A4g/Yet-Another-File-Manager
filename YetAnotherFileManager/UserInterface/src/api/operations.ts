@@ -23,6 +23,49 @@ export async function hasClipboardFiles(): Promise<boolean> {
     return data.hasFiles;
 }
 
+export interface ClipboardEntry {
+    path: string;
+    name: string;
+    isDirectory: boolean;
+}
+
+export interface ClipboardFiles {
+    entries: ClipboardEntry[];
+    /** True when the files were cut, so the next paste moves them. */
+    move: boolean;
+    /** The clipboard sequence number; it changes whenever the clipboard contents change. */
+    sequence: number;
+}
+
+/** The files on the clipboard, with enough detail for the tray to draw them. */
+export async function getClipboardFiles(): Promise<ClipboardFiles> {
+    if (!Native.available) return {entries: [], move: false, sequence: 0};
+
+    return await Native.request<ClipboardFiles>("fs.clipboard.files");
+}
+
+export interface TransferResult {
+    ok: boolean;
+    error: string | null;
+    /** The top-level destinations that were created. */
+    created: string[];
+}
+
+/** Copies or moves paths into a folder without going through the shell. */
+export async function transferPaths(paths: string[], target: string, move: boolean): Promise<TransferResult> {
+    if (!Native.available || paths.length === 0) return {ok: false, error: "Nothing to transfer.", created: []};
+
+    return await Native.request<TransferResult>("fs.operation.transfer", {paths, target, move});
+}
+
+/** Describes paths (name, whether it is a folder) for the tray's drop handler. */
+export async function inspectPaths(paths: string[]): Promise<ClipboardEntry[]> {
+    if (!Native.available || paths.length === 0) return [];
+
+    const data = await Native.request<{entries: ClipboardEntry[]}>("fs.paths.info", {paths});
+    return data.entries;
+}
+
 /** Copies or moves the clipboard's files into a folder. */
 export async function pasteInto(directory: string): Promise<boolean> {
     if (!Native.available) return false;

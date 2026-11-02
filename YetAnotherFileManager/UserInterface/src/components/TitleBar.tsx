@@ -4,12 +4,15 @@ import {useWindowControls, useWindowDrag} from "@photino-net-utils/bridge";
 import type {TabInfo} from "../tabs";
 import type {DirectoryView, ResolvedView} from "../api/files";
 import {PlaceIcon} from "./PlaceIcon";
+import {StatusCenter} from "./StatusCenter";
 import {ViewMenu} from "./ViewMenu";
+import type {TaskInfo} from "../api/tasks";
 import {
     AppIcon,
     FolderIcon,
     GearIcon,
     HomeIcon,
+    PackageIcon,
     PlusIcon,
     TrashIcon,
 } from "./Icons";
@@ -32,11 +35,17 @@ interface TitleBarProps {
     onColumns: (columns: string[]) => void;
     showImages: boolean;
     onShowImages: (value: boolean) => void;
+    tasks: TaskInfo[];
+    onClearTasks: () => void;
+    trayCount: number;
+    trayVisible: boolean;
+    onToggleTray: () => void;
 }
 
 export function TitleBar({
     tabs, activeId, onSelect, onClose, onNewTab, onReorder,
-    view, onViewChange, onColumns, showImages, onShowImages,
+    view, onViewChange, onColumns, showImages, onShowImages, tasks, onClearTasks,
+    trayCount, trayVisible, onToggleTray,
 }: TitleBarProps) {
     const controls = useWindowControls();
     const drag = useWindowDrag();
@@ -143,6 +152,17 @@ export function TitleBar({
             <DragArea {...drag}/>
 
             <Controls>
+                <TrayButton
+                    $active={trayVisible}
+                    disabled={trayCount === 0}
+                    onClick={onToggleTray}
+                    title="File tray"
+                    type="button"
+                >
+                    <PackageIcon size={14}/>
+                    {trayCount > 0 && <TrayBadge>{trayCount > 9 ? "9+" : trayCount}</TrayBadge>}
+                </TrayButton>
+                <StatusCenter tasks={tasks} onClear={onClearTasks}/>
                 <ViewMenu
                     disabled={tabs.find((tab) => tab.id === activeId)?.kind !== "files"}
                     onChange={onViewChange}
@@ -360,6 +380,44 @@ const DragArea = styled.div`
 const Controls = styled.div`
     display: flex;
     flex-shrink: 0;
+`;
+
+const TrayButton = styled.button<{ $active: boolean }>`
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 100%;
+    border: 0;
+    background: ${({$active}) => $active ? "rgba(148, 163, 184, 0.14)" : "transparent"};
+    color: var(--text-secondary);
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+        background: rgba(148, 163, 184, 0.14);
+        color: var(--text-primary);
+    }
+
+    &:disabled {
+        opacity: 0.35;
+        cursor: default;
+    }
+`;
+
+const TrayBadge = styled.span`
+    position: absolute;
+    top: 6px;
+    right: 2px;
+    min-width: 13px;
+    height: 13px;
+    padding: 0 3px;
+    border-radius: 999px;
+    background: var(--accent-primary);
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 8px;
+    line-height: 13px;
+    text-align: center;
 `;
 
 const ControlButton = styled.button`

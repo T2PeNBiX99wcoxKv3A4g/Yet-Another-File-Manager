@@ -1,5 +1,6 @@
 import {
-    memo, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent,
+    memo, useCallback, useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent,
+    type MouseEvent as ReactMouseEvent,
     type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject,
 } from "react";
 import styled from "styled-components";
@@ -54,6 +55,8 @@ import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
 import {PlaceIcon} from "./PlaceIcon";
 import {TagPicker, DefaultTagColor, inkFor} from "./TagPicker";
 import {BuiltinIcon, iconForName} from "../icons/fileTypes";
+import {baseName} from "../utils/format";
+import {readDraggedPaths, writeDraggedPaths, type TrayItem} from "./FileTray";
 
 /** The columns the list can show besides the name. `linkTarget` is drawn inside the name cell. */
 export const ViewColumns: { id: string; label: string; width: number }[] = [
@@ -97,6 +100,10 @@ interface FileListProps {
     refreshToken?: number;
     /** Reloads the folder after an operation changed it. */
     onRefresh?: () => void;
+    /** Adds copied or cut entries to the floating tray. */
+    onTray?: (items: TrayItem[]) => void;
+    /** Moves or copies dropped paths into a folder. */
+    onTransfer?: (paths: string[], target: string, move: boolean) => void;
 }
 
 interface RowModel {
@@ -115,6 +122,7 @@ export function FileList({
     listing, loading, error, find = NoFind, view, showImages, imageStripHeight = DefaultStripHeight,
     onImageStripHeight, onSort, onSetTags, onOpen, onOpenFile, showCheckboxes = true,
     openOnSingleClick = false, shortcuts = DefaultShortcuts, enableShortcuts = true, refreshToken = 0, onRefresh,
+    onTray, onTransfer,
 }: FileListProps) {
     const quick = useQuickAccess();
     const currentRow = useRef<HTMLDivElement | null>(null);
@@ -318,6 +326,43 @@ export function FileList({
         setTagTarget({entry, x, y});
     }, []);
 
+    // Drag and drop is delegated to the listing container: every row and tile carries its path, so
+    // the same three handlers work for the list, the grid and the empty background.
+    const dropTarget = useRef<string | null>(null);
+
+    const startListDrag = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
+        const element = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-path]");
+        if (!element?.dataset.path) return;
+
+        const path = element.dataset.path;
+        writeDraggedPaths(event, selected.has(path) ? [...selected] : [path]);
+    }, [selected]);
+
+    const overListDrag = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
+        if (!event.dataTransfer.types.some((type) => type.toLowerCase() === "application/x-yafm-paths"))
+            return;
+
+        event.preventDefault();
+
+        const element = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-path]");
+        dropTarget.current = element?.dataset.directory === "true"
+            ? element.dataset.path ?? currentDirectory
+            : currentDirectory;
+
+        event.dataTransfer.dropEffect = event.ctrlKey ? "copy" : "move";
+    }, [currentDirectory]);
+
+    const dropOnList = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
+        const paths = readDraggedPaths(event);
+        const target = dropTarget.current ?? currentDirectory;
+        dropTarget.current = null;
+
+        if (paths.length === 0 || !onTransfer) return;
+
+        event.preventDefault();
+        onTransfer(paths, target, !event.ctrlKey);
+    }, [currentDirectory, onTransfer]);
+
     const openMenu = useCallback((event: ReactMouseEvent, path?: string) => {
         event.preventDefault();
         event.stopPropagation();
@@ -378,8 +423,21 @@ export function FileList({
     const refresh = () => onRefresh?.();
 
     const copy = async (paths: string[], cut = false) => {
-        if (await copyPaths(paths, cut))
+        if (await copyPaths(paths, cut)) {
             setCanPaste(true);
+
+            const byPath = new Map((listing?.entries ?? []).map((entry) => [entry.fullPath, entry]));
+
+            onTray?.(paths.map((path) => {
+                const entry = byPath.get(path);
+
+                return {
+                    path,
+                    name: entry?.name ?? baseName(path),
+                    isDirectory: entry?.isDirectory ?? false,
+                };
+            }));
+        }
     };
 
     const paste = async (directory: string) => {
@@ -722,6 +780,9 @@ export function FileList({
                         if (event.target === event.currentTarget) clearSelection();
                     }}
                     onContextMenu={(event) => openMenu(event)}
+                    onDragOver={overListDrag}
+                    onDragStart={startListDrag}
+                    onDrop={dropOnList}
                 >
                     {loading && !listing
                         ? <Tiles $size={view.gridSize}><PlaceholderTiles size={view.gridSize}/></Tiles>
@@ -776,6 +837,9 @@ export function FileList({
                     if (event.target === event.currentTarget) clearSelection();
                 }}
                 onContextMenu={(event) => openMenu(event)}
+                onDragOver={overListDrag}
+                onDragStart={startListDrag}
+                onDrop={dropOnList}
             >
                 {loading && !listing
                     ? <PlaceholderRows template={template} columns={visible.length}/>
@@ -1213,6 +1277,9 @@ const GridTile = memo(function GridTile({
             }}
             ref={current ? innerRef : undefined}
             title={row.entry.name}
+            data-directory={row.entry.isDirectory ? "true" : undefined}
+            data-path={path}
+            draggable
         >
             {showCheckboxes && (
                 <TileCheck
@@ -1372,6 +1439,9 @@ const ListRow = memo(function ListRow({
             }}
             ref={current ? innerRef : undefined}
             style={{gridTemplateColumns: template}}
+            data-directory={row.entry.isDirectory ? "true" : undefined}
+            data-path={path}
+            draggable
         >
             <Name>
                 {showCheckboxes && (

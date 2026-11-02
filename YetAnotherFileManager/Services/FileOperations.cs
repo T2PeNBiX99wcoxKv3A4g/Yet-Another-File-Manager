@@ -105,15 +105,67 @@ internal static partial class FileOperations
     private static async Task<(FileHistory.Step Step, List<string> Created)> CopyIntoAsync(
         IReadOnlyList<string> sources, string directory, bool move)
     {
-        var before = Snapshot(directory);
-        var ok = await ShellOperationAsync(move ? FoMove : FoCopy, sources, directory);
+        var (ok, error, created) = await FileTransfer.RunAsync(sources, directory, move);
 
-        if (!ok)
-            return (new FileHistory.Step(false, [directory], "The shell could not copy the files."), []);
-
-        var created = Snapshot(directory).Except(before, StringComparer.OrdinalIgnoreCase).ToList();
-        return (new FileHistory.Step(true, [directory]), created);
+        return ok && error is null
+            ? (new FileHistory.Step(true, [directory]), created)
+            : (new FileHistory.Step(ok, [directory], error ?? "The files could not be copied."), created);
     }
+
+    /// <summary>Copies or moves a set of paths into a folder, for the tray's drag and drop.</summary>
+    public static async Task<TransferResultPayload> TransferAsync(TransferRequest? request)
+    {
+        if (request is null || request.Paths.Count == 0 || string.IsNullOrWhiteSpace(request.Target))
+            return new TransferResultPayload(false, "Nothing to transfer.", []);
+
+        var (ok, error, created) = await FileTransfer.RunAsync(request.Paths, request.Target, request.Move);
+
+        if (created.Count > 0)
+        {
+            var sources = request.Paths.ToList();
+            var current = created;
+            var move = request.Move;
+
+            FileHistory.Instance.Record(move ? $"Move {sources.Count} item(s)" : $"Copy {sources.Count} item(s)",
+                undo: () => move
+                    ? MoveBackAsync(current, sources)
+                    : DeleteCoreAsync(current, false),
+                redo: async () =>
+                {
+                    var (redoOk, redoError, made) = await FileTransfer.RunAsync(sources, request.Target, move);
+                    if (redoOk)
+                        current = made;
+
+                    return new FileHistory.Step(redoOk, ParentsOf(sources),
+                        redoOk ? null : redoError ?? "The transfer could not be repeated.");
+                });
+        }
+
+        return new TransferResultPayload(ok, error, created);
+    }
+
+    /// <summary>The files on the clipboard, with just enough detail for the tray to draw them.</summary>
+    public static ClipboardPathsPayload ReadClipboardPayload()
+    {
+        if (!OperatingSystem.IsWindows())
+            return new ClipboardPathsPayload([], false, 0);
+
+        var (paths, move) = ReadClipboardFiles();
+        return new ClipboardPathsPayload(Describe(paths), move, GetClipboardSequenceNumber());
+    }
+
+    /// <summary>Describes paths for the tray without reading the clipboard.</summary>
+    public static PathsInfoPayload InspectPaths(IReadOnlyList<string> paths) => new(Describe(paths));
+
+    private static List<ClipboardEntry> Describe(IReadOnlyList<string> paths) =>
+        paths
+            .Where(path => path.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(path => new ClipboardEntry(
+                path,
+                Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
+                Directory.Exists(path)))
+            .ToList();
 
     /// <summary>Moves the entries a cut created back to the names they had before.</summary>
     private static Task<FileHistory.Step> MoveBackAsync(IReadOnlyList<string> created, IReadOnlyList<string> sources) =>
@@ -157,9 +209,6 @@ internal static partial class FileOperations
             var paths = ParentsOf(created.Concat(sources).ToList());
             return new FileHistory.Step(moved == created.Count, paths, moved == created.Count ? null : error);
         });
-
-    private static HashSet<string> Snapshot(string directory) =>
-        Directory.EnumerateFileSystemEntries(directory).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     private static string? FindSourceFor(string createdPath, List<string> sources)
     {
@@ -797,6 +846,9 @@ internal static partial class FileOperations
     [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool IsClipboardFormatAvailable(uint format);
+
+    [LibraryImport("user32.dll")]
+    private static partial uint GetClipboardSequenceNumber();
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     private static partial IntPtr GlobalAlloc(uint uFlags, nuint dwBytes);

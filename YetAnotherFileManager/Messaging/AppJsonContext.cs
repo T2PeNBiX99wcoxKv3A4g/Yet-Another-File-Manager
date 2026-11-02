@@ -96,4 +96,13 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(OpenWithProgramRequest))]
 [JsonSerializable(typeof(HistoryStatePayload))]
 [JsonSerializable(typeof(HistoryOperationPayload))]
+[JsonSerializable(typeof(TaskInfo))]
+[JsonSerializable(typeof(List<TaskInfo>))]
+[JsonSerializable(typeof(TasksPayload))]
+[JsonSerializable(typeof(TransferRequest))]
+[JsonSerializable(typeof(TransferResultPayload))]
+[JsonSerializable(typeof(ClipboardEntry))]
+[JsonSerializable(typeof(List<ClipboardEntry>))]
+[JsonSerializable(typeof(ClipboardPathsPayload))]
+[JsonSerializable(typeof(PathsInfoPayload))]
 internal sealed partial class AppJsonContext : JsonSerializerContext;

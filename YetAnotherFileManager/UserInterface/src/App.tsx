@@ -23,8 +23,16 @@ import {
 } from "./api/files";
 import {getSettings, saveOpenTabs, saveSettings, type AppSettings} from "./api/settings";
 import {getAppInfo, type AppInfo} from "./api/system";
-import {redoFileOperation, undoFileOperation} from "./api/operations";
+import {
+    getClipboardFiles,
+    inspectPaths,
+    redoFileOperation,
+    transferPaths,
+    undoFileOperation,
+} from "./api/operations";
+import {clearTasks, listTasks, type TaskInfo} from "./api/tasks";
 import {FileList} from "./components/FileList";
+import {FileTray, type TrayItem} from "./components/FileTray";
 import {FindBar} from "./components/FindBar";
 import {EmptyFind, matchesName, type FindState} from "./find";
 import {QuickAccessProvider, quickName, quickPlace, type QuickAccess} from "./quick";
@@ -186,6 +194,22 @@ export default function App() {
     const [locationFocus, setLocationFocus] = useState(0);
     const [visibilityVersion, setVisibilityVersion] = useState(0);
     const [sidebarVisible, setSidebarVisible] = useState(true);
+    const [tasks, setTasks] = useState<TaskInfo[]>([]);
+    const [trayItems, setTrayItems] = useState<TrayItem[]>([]);
+    const [trayVisible, setTrayVisible] = useState(false);
+    const [trayPosition, setTrayPosition] = useState<{ x: number; y: number }>(() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem("yafm.tray.position") ?? "null") as
+                { x?: number; y?: number } | null;
+
+            if (typeof saved?.x === "number" && typeof saved?.y === "number")
+                return {x: saved.x, y: saved.y};
+        } catch {
+            // A malformed saved position is not worth a warning.
+        }
+
+        return {x: Math.max(20, window.innerWidth - 340), y: 110};
+    });
 
     const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
     const kind = kindOf(active);
@@ -559,6 +583,126 @@ export default function App() {
             if (tab.listing)
                 void load(tab.id, tab.listing.path, true);
     }, [load]);
+
+    const addTrayItems = useCallback((items: TrayItem[]) => {
+        if (items.length === 0) return;
+
+        setTrayItems((current) => {
+            const known = new Set(current.map((item) => item.path));
+            const added = items.filter((item) => {
+                if (known.has(item.path)) return false;
+
+                known.add(item.path);
+                return true;
+            });
+
+            return added.length > 0 ? [...current, ...added] : current;
+        });
+
+        setTrayVisible(true);
+    }, []);
+
+    const addTrayPaths = useCallback(async (paths: string[]) => {
+        const entries = await inspectPaths(paths);
+        addTrayItems(entries.map((entry) => ({
+            path: entry.path,
+            name: entry.name,
+            isDirectory: entry.isDirectory,
+        })));
+    }, [addTrayItems]);
+
+    const removeTrayItems = useCallback((paths: string[]) => {
+        const remove = new Set(paths);
+        setTrayItems((current) => current.filter((item) => !remove.has(item.path)));
+    }, []);
+
+    const clearTrayItems = useCallback(() => setTrayItems([]), []);
+
+    const moveTray = useCallback((position: { x: number; y: number }) => {
+        setTrayPosition(position);
+
+        try {
+            localStorage.setItem("yafm.tray.position", JSON.stringify(position));
+        } catch {
+            // A private web view may refuse storage; the position still works for this run.
+        }
+    }, []);
+
+    const toggleTray = useCallback(() => setTrayVisible((visible) => !visible), []);
+
+    const transferTo = useCallback(async (paths: string[], target: string, move: boolean) => {
+        const result = await transferPaths(paths, target, move);
+
+        if (!result.ok) {
+            window.alert(result.error ?? "The files could not be transferred.");
+            return;
+        }
+
+        if (move)
+            removeTrayItems(paths);
+
+        setVisibilityVersion((version) => version + 1);
+        refreshAll();
+    }, [refreshAll, removeTrayItems]);
+
+    useEffect(() => {
+        if (!Native.available) return;
+
+        void listTasks().then(setTasks, () => undefined);
+
+        return Native.on((evt) => {
+            const event = evt as { type?: string; data?: { tasks?: TaskInfo[] } };
+            if (event.type !== "app.tasks.changed" || !Array.isArray(event.data?.tasks)) return;
+
+            setTasks(event.data.tasks);
+        });
+    }, []);
+
+    const clearFinishedTasks = useCallback(() => {
+        void clearTasks().then(() => listTasks().then(setTasks, () => undefined));
+    }, []);
+
+    const clipboardSequence = useRef(-1);
+
+    // The tray mirrors the system clipboard: copying files in Explorer or in another app puts them
+    // on the shelf without the user having to drag them there.
+    useEffect(() => {
+        if (!Native.available) return;
+
+        let alive = true;
+
+        const poll = async () => {
+            if (!document.hasFocus()) return;
+
+            try {
+                const files = await getClipboardFiles();
+                if (!alive || files.sequence === clipboardSequence.current) return;
+
+                clipboardSequence.current = files.sequence;
+
+                if (files.entries.length > 0)
+                    addTrayItems(files.entries.map((entry) => ({
+                        path: entry.path,
+                        name: entry.name,
+                        isDirectory: entry.isDirectory,
+                    })));
+            } catch {
+                // Another app may hold the clipboard; the next poll tries again.
+            }
+        };
+
+        const onFocus = () => void poll();
+        const timer = window.setInterval(() => void poll(), 1500);
+
+        window.addEventListener("focus", onFocus);
+        void poll();
+
+        return () => {
+            alive = false;
+            window.clearInterval(timer);
+            window.removeEventListener("focus", onFocus);
+        };
+    }, [addTrayItems]);
 
     /** Runs one history step and reloads the folders it touched. */
     const runHistory = useCallback(async (undo: boolean) => {
@@ -1078,6 +1222,8 @@ export default function App() {
                     ? setEntryTags
                     : (name, tags, colors) => setEntryTagsFor(tab.id, name, tags, colors)}
                 onSort={primary ? sortBy : (column) => sortByFor(tab.id, column)}
+                onTray={addTrayItems}
+                onTransfer={transferTo}
                 openOnSingleClick={settings?.openOnSingleClick ?? false}
                 refreshToken={visibilityVersion}
                 shortcuts={shortcuts}
@@ -1123,6 +1269,11 @@ export default function App() {
                 onColumns={setColumns}
                 onShowImages={setShowImages}
                 showImages={showImages}
+                tasks={tasks}
+                onClearTasks={clearFinishedTasks}
+                trayCount={trayItems.length}
+                trayVisible={trayVisible}
+                onToggleTray={toggleTray}
                 view={view}
                 tabs={tabs.map((tab) => {
                     const tabKind = kindOf(tab);
@@ -1290,6 +1441,19 @@ export default function App() {
                     </StatusBar>
                 </Main>
             </Body>
+
+            <FileTray
+                currentDirectory={kind === "files" ? location : ""}
+                items={trayItems}
+                onAdd={(paths) => void addTrayPaths(paths)}
+                onClear={clearTrayItems}
+                onClose={() => setTrayVisible(false)}
+                onPosition={moveTray}
+                onRemove={removeTrayItems}
+                onTransfer={transferTo}
+                position={trayPosition}
+                visible={trayVisible}
+            />
 
             <ResizeHandles/>
         </Root>

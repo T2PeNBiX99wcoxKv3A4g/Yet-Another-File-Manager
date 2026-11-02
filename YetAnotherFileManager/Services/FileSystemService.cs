@@ -205,6 +205,13 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 return context.Reply("fs.clipboard.hasFiles.result",
                     new ClipboardFilesPayload(FileOperations.ClipboardHasFiles()));
 
+            case "fs.clipboard.files":
+                return context.Reply("fs.clipboard.files.result", FileOperations.ReadClipboardPayload());
+
+            case "fs.paths.info":
+                return context.Reply("fs.paths.info.result",
+                    FileOperations.InspectPaths(context.Payload<PathsPayload>()?.Paths ?? []));
+
             case "fs.clipboard.paste":
                 return context.Reply("fs.clipboard.paste.result",
                     new OkPayload(await FileOperations.PasteAsync(context.Payload<DirectoryRequest>()?.Directory ?? "")));
@@ -228,6 +235,17 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             case "fs.operation.compress":
                 return context.Reply("fs.operation.compress.result",
                     await FileOperations.CompressAsync(context.Payload<PathsPayload>()?.Paths ?? []));
+
+            case "fs.operation.transfer":
+                return context.Reply("fs.operation.transfer.result",
+                    await FileOperations.TransferAsync(context.Payload<TransferRequest>()));
+
+            case "app.tasks":
+                return context.Reply("app.tasks.result", new TasksPayload(TaskCenter.Instance.Snapshot()));
+
+            case "app.tasks.clear":
+                TaskCenter.Instance.ClearFinished();
+                return context.Reply("app.tasks.clear.result", new OkPayload());
 
             case "fs.operation.properties":
                 await FileOperations.ShowPropertiesAsync(context.Payload<PathsPayload>()?.Paths ?? []);

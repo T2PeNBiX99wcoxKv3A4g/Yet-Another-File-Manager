@@ -207,3 +207,38 @@ internal sealed record HistoryStatePayload(bool CanUndo, bool CanRedo, string? U
 
 /// <summary>Body for <c>fs.history.undo</c> and <c>fs.history.redo</c>.</summary>
 internal sealed record HistoryOperationPayload(bool Ok, string? Error, List<string> Paths);
+
+/// <summary>One operation the status center shows.</summary>
+internal sealed record TaskInfo(
+    string Id,
+    string Kind,
+    string Label,
+    string State,
+    int Total,
+    int Done,
+    long BytesTotal,
+    long BytesDone,
+    string? Error,
+    long StartedAt,
+    long FinishedAt);
+
+/// <summary>Body for <c>app.tasks</c> and the <c>app.tasks.changed</c> event.</summary>
+internal sealed record TasksPayload(IReadOnlyList<TaskInfo> Tasks);
+
+/// <summary>Payload for <c>fs.operation.transfer</c>: what to move or copy, and where.</summary>
+internal sealed record TransferRequest(List<string> Paths, string Target, bool Move);
+
+/// <summary>Body for <c>fs.operation.transfer</c>: the top-level paths that were created.</summary>
+internal sealed record TransferResultPayload(bool Ok, string? Error, List<string> Created);
+
+/// <summary>One entry the clipboard carries, with enough detail to draw it in the tray.</summary>
+internal sealed record ClipboardEntry(string Path, string Name, bool IsDirectory);
+
+/// <summary>
+///     Body for <c>fs.clipboard.files</c>. <paramref name="Sequence" /> is the clipboard sequence
+///     number, so the interface only reacts when the clipboard actually changed.
+/// </summary>
+internal sealed record ClipboardPathsPayload(List<ClipboardEntry> Entries, bool Move, uint Sequence);
+
+/// <summary>Body for <c>fs.paths.info</c>: what the given paths are, for the tray's drop handler.</summary>
+internal sealed record PathsInfoPayload(List<ClipboardEntry> Entries);
