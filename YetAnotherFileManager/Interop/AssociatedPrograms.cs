@@ -146,7 +146,9 @@ internal static unsafe partial class AssociatedPrograms
 
     private static string? IconFor(string path)
     {
-        if (!path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) || !File.Exists(path))
+        // Handlers are usually executables, but .com/.bat/.cmd and packaged-app shims exist too.
+        // The shell knows how to extract an icon from any real file.
+        if (!File.Exists(path))
             return null;
 
         return Try.Run(() => ShellIcon.DataUrl(path, false, false)).GetOrNull();

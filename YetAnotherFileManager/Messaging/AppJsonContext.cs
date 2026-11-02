@@ -105,4 +105,6 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(List<ClipboardEntry>))]
 [JsonSerializable(typeof(ClipboardPathsPayload))]
 [JsonSerializable(typeof(PathsInfoPayload))]
+[JsonSerializable(typeof(RecycleBatchRequest))]
+[JsonSerializable(typeof(RecycleBatchPayload))]
 internal sealed partial class AppJsonContext : JsonSerializerContext;

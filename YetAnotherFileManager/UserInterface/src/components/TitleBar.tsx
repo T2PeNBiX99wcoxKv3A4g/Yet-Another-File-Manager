@@ -212,7 +212,7 @@ function FilesTabGlyph({place}: { place?: TabInfo["place"] }) {
 const Bar = styled.header`
     display: flex;
     align-items: stretch;
-    height: 38px;
+    height: 42px;
     flex-shrink: 0;
     background: rgba(7, 11, 18, 0.95);
     border-bottom: 1px solid var(--border-color);
@@ -286,8 +286,8 @@ const Tab = styled.button<{ $active: boolean; $dragging: boolean }>`
     display: flex;
     align-items: center;
     gap: 7px;
-    width: 168px;
-    height: 30px;
+    width: 176px;
+    height: 32px;
     flex: 0 0 auto;
     padding: 0 6px 0 10px;
     border: 1px solid ${({$active}) => $active ? "var(--border-color)" : "transparent"};
@@ -296,7 +296,7 @@ const Tab = styled.button<{ $active: boolean; $dragging: boolean }>`
     background: ${({$active}) => $active ? "var(--bg-card-hover)" : "transparent"};
     color: ${({$active}) => $active ? "var(--text-primary)" : "var(--text-muted)"};
     font: inherit;
-    font-size: 11px;
+    font-size: 12px;
     cursor: pointer;
     opacity: ${({$dragging}) => $dragging ? 0.45 : 1};
     transition: background 110ms ease, color 110ms ease, opacity 110ms ease;

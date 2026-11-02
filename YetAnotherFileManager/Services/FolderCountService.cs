@@ -12,8 +12,11 @@ namespace YetAnotherFileManager.Services;
 /// </summary>
 internal sealed class FolderCountService : Singleton<FolderCountService>
 {
-    /// <summary>How many folders of one listing are counted; the rest keeps its cached count.</summary>
-    private const int Burst = 20;
+    /// <summary>
+    ///     Counts are cheap compared with sizes, so a listing queues essentially all of them; the
+    ///     old twenty-folder cap was the same "late names never fill in" problem.
+    /// </summary>
+    private const int Burst = 512;
 
     private readonly ConcurrentQueue<(string Parent, string Child)> _queue = new();
     private readonly ConcurrentDictionary<string, bool> _queued = new(StringComparer.OrdinalIgnoreCase);
@@ -112,6 +115,10 @@ internal sealed class FolderCountService : Singleton<FolderCountService>
     {
         while (_queue.TryDequeue(out var item))
             _queued.TryRemove(Path.Combine(item.Parent, item.Child), out _);
+
+        // Drop the signals that belonged to the removed items; otherwise the workers walk an empty
+        // queue once per dropped folder.
+        while (_signal.Wait(0)) { }
     }
 
     private static readonly EnumerationOptions TopLevel = new()

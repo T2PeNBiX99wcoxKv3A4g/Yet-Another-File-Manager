@@ -611,12 +611,30 @@ internal static partial class FileOperations
             if (!OperatingSystem.IsWindows() || paths.Count == 0)
                 return;
 
-            Try.Run(() => Process.Start(new ProcessStartInfo(paths[0])
+            var path = paths[0];
+
+            // SHObjectProperties is the shell's own entry point and does not depend on a registered
+            // "properties" verb, which Process.Start needs and which several file types lack.
+            var shown = Try.Run(() => StaThread.RunAsync(() =>
+                    SHObjectProperties(WindowManager.Instance.WindowHandle, ShopFilepath, path, null))
+                .GetAwaiter().GetResult()).GetOrElse(_ => false);
+
+            if (shown)
+                return;
+
+            Try.Run(() => Process.Start(new ProcessStartInfo(path)
             {
                 UseShellExecute = true,
                 Verb = "properties"
-            })).OnFailure(ex => Log.Warning(ex, "Could not show properties for {Path}", paths[0]));
+            })).OnFailure(ex => Log.Warning(ex, "Could not show properties for {Path}", path));
         });
+
+    private const uint ShopFilepath = 0x00000002;
+
+    [LibraryImport("shell32.dll", StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SHObjectProperties(IntPtr window, uint objectType, string objectName,
+        string? propertyPage);
 
     /// <summary>Opens Windows' "How do you want to open this file?" dialog.</summary>
     public static Task OpenWithAsync(string path) =>

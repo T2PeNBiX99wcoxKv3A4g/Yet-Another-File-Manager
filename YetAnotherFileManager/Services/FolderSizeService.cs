@@ -14,8 +14,12 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
 {
     private const int Levels = 1;
 
-    /// <summary>How many folders of one listing are measured; the rest keeps its cached size.</summary>
-    private const int Burst = 40;
+    /// <summary>
+    ///     Every folder of one listing is queued; the workers bound how many run at once. The old
+    ///     forty-folder cap left everything after it without a size, which looked like a bug when
+    ///     the names sorted late (for example "~temp" or ".cache").
+    /// </summary>
+    private const int Burst = 4096;
 
     private readonly ConcurrentQueue<(string Parent, string Child)> _queue = new();
     private readonly ConcurrentDictionary<string, bool> _queued = new(StringComparer.OrdinalIgnoreCase);
@@ -191,6 +195,10 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
     {
         while (_queue.TryDequeue(out var item))
             _queued.TryRemove(Path.Combine(item.Parent, item.Child), out _);
+
+        // The dropped items had a signal each; take them back so the workers do not spin on an
+        // empty queue after a navigation.
+        while (_signal.Wait(0)) { }
     }
 
     private static readonly EnumerationOptions TopLevel = new()

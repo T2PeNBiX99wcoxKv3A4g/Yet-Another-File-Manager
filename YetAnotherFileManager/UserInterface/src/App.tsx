@@ -24,6 +24,7 @@ import {
 import {getSettings, saveOpenTabs, saveSettings, type AppSettings} from "./api/settings";
 import {getAppInfo, type AppInfo} from "./api/system";
 import {
+    copyPaths,
     getClipboardFiles,
     inspectPaths,
     redoFileOperation,
@@ -412,7 +413,37 @@ export default function App() {
         } catch (cause) {
             if (!current()) return;
 
-            patch(id, () => ({loading: false, error: message(cause)}));
+            // A missing or unreadable folder still gets a listing so the columns, the address bar
+            // and Up keep working. The body shows the error where an empty folder would show its
+            // "empty" note, instead of dropping the whole file view.
+            const tabBefore = stateRef.current.tabs.find((item) => item.id === id);
+            const requested = path && path.length > 0 ? path : tabBefore ? folderOf(tabBefore) : "";
+            const trimmed = requested.replace(/[\\/]+$/, "");
+            const cut = Math.max(trimmed.lastIndexOf("\\"), trimmed.lastIndexOf("/"));
+            const parent = cut > 0 ? trimmed.slice(0, cut) : null;
+            const failure = message(cause);
+
+            patch(id, (tab) => ({
+                listing: {
+                    path: requested,
+                    parent,
+                    entries: [],
+                    folderSizes: {},
+                    view: null,
+                    tags: {},
+                    tagColors: {},
+                    allTags: [],
+                    counts: {},
+                },
+                loading: false,
+                error: failure,
+                ...(keepFresh
+                    ? {}
+                    : {
+                        history: [...tab.history.slice(0, tab.index + 1), requested],
+                        index: tab.index + 1,
+                    }),
+            }));
         }
     }, [beginLoad, includeLinks, patch, resetFind, showCached]);
 
@@ -464,7 +495,24 @@ export default function App() {
         } catch (cause) {
             if (!current()) return;
 
-            patch(id, () => ({loading: false, error: message(cause)}));
+            const trimmed = target.replace(/[\\/]+$/, "");
+            const cut = Math.max(trimmed.lastIndexOf("\\"), trimmed.lastIndexOf("/"));
+
+            patch(id, () => ({
+                listing: {
+                    path: target,
+                    parent: cut > 0 ? trimmed.slice(0, cut) : null,
+                    entries: [],
+                    folderSizes: {},
+                    view: null,
+                    tags: {},
+                    tagColors: {},
+                    allTags: [],
+                    counts: {},
+                },
+                loading: false,
+                error: message(cause),
+            }));
         }
     }, [beginLoad, includeLinks, patch, resetFind, showCached]);
 
@@ -604,6 +652,12 @@ export default function App() {
 
     const addTrayPaths = useCallback(async (paths: string[]) => {
         const entries = await inspectPaths(paths);
+        if (entries.length === 0) return;
+
+        // Dragging into the tray is also a copy to the system clipboard, so the same items can be
+        // pasted into Explorer or another program.
+        void copyPaths(entries.map((entry) => entry.path), false);
+
         addTrayItems(entries.map((entry) => ({
             path: entry.path,
             name: entry.name,
@@ -620,6 +674,30 @@ export default function App() {
 
     const trayRef = useRef(trayItems);
     trayRef.current = trayItems;
+
+    // The tray is a drop target, so it has to exist while the drag is in flight even when it was
+    // empty. It disappears again after a drag that did not leave anything on it.
+    useEffect(() => {
+        const onDragStart = (event: DragEvent) => {
+            if (event.dataTransfer?.types.some((type) => type.toLowerCase() === "application/x-yafm-paths"))
+                setTrayVisible(true);
+        };
+
+        const onDragEnd = () => {
+            window.setTimeout(() => {
+                if (trayRef.current.length === 0)
+                    setTrayVisible(false);
+            }, 200);
+        };
+
+        window.addEventListener("dragstart", onDragStart);
+        window.addEventListener("dragend", onDragEnd);
+
+        return () => {
+            window.removeEventListener("dragstart", onDragStart);
+            window.removeEventListener("dragend", onDragEnd);
+        };
+    }, []);
 
     /** Drops tray entries that were moved away by a paste, so a cut does not leave stale rows. */
     const pruneTray = useCallback(async () => {
@@ -1200,8 +1278,20 @@ export default function App() {
             if (!tab || kindOf(tab) !== "files" || !samePath(folderOf(tab), event.data.path)) return;
 
             // Only the entries are refreshed; sizes are measured when the folder is entered.
+            // The reply may arrive after the user navigated away, so check the tab again before it
+            // is allowed to paint; otherwise a slow refresh of the old folder jumps the view back.
             void listDirectory(event.data.path, false, includeLinks)
-                .then((listing) => patch(tab.id, () => ({listing})), () => undefined);
+                .then((listing) => {
+                    const latest = stateRef.current.tabs.find((item) => item.id === tab.id);
+
+                    if (!latest || kindOf(latest) !== "files" || latest.loading)
+                        return;
+
+                    if (!samePath(folderOf(latest), listing.path))
+                        return;
+
+                    patch(tab.id, () => ({listing}));
+                }, () => undefined);
         });
     }, [includeLinks, patch]);
 
@@ -1214,6 +1304,7 @@ export default function App() {
 
         return (
             <FileList
+                confirmDelete={settings?.confirmDelete ?? false}
                 enableShortcuts={primary}
                 error={tab.error}
                 find={primary ? {...find, currentPath: findCurrent < 0 ? null : findHits[findCurrent]} : undefined}
@@ -1447,7 +1538,7 @@ export default function App() {
                     ) : kind === "gallery" ? (
                         <GalleryView/>
                     ) : (
-                        <RecycleView/>
+                        <RecycleView onOpenLocation={navigate}/>
                     )}
 
                     <StatusBar>
@@ -1608,7 +1699,7 @@ const StatusBar = styled.footer`
     gap: 16px;
     padding: 8px 22px;
     border-top: 1px solid var(--border-color);
-    font-family: var(--font-mono);
-    font-size: 10px;
+    font-family: var(--font-sans);
+    font-size: 11px;
     color: var(--text-muted);
 `;

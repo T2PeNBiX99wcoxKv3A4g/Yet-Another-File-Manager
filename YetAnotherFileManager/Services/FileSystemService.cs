@@ -137,6 +137,26 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 return context.Reply("fs.recycle.delete.result",
                     new OkPayload(await RecycleBin.DeleteAsync(context.Payload<RecycleRequest>()?.Id ?? "")));
 
+            case "fs.recycle.restoreMany":
+            {
+                var ids = context.Payload<RecycleBatchRequest>()?.Ids ?? [];
+                var done = await RecycleBin.RestoreManyAsync(ids);
+                return context.Reply("fs.recycle.restoreMany.result",
+                    new RecycleBatchPayload(done == ids.Count, done));
+            }
+
+            case "fs.recycle.deleteMany":
+            {
+                var ids = context.Payload<RecycleBatchRequest>()?.Ids ?? [];
+                var done = await RecycleBin.DeleteManyAsync(ids);
+                return context.Reply("fs.recycle.deleteMany.result",
+                    new RecycleBatchPayload(done == ids.Count, done));
+            }
+
+            case "fs.recycle.properties":
+                await RecycleBin.ShowPropertiesAsync(context.Payload<RecycleRequest>()?.Id ?? "");
+                return context.Reply("fs.recycle.properties.result", new OkPayload());
+
             case "fs.recycle.admin.list":
                 return await ListOrphansAsAdmin(context);
 
@@ -307,16 +327,16 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
         var settings = SettingsService.Instance.Current;
 
-        // A folder's own icon (desktop.ini) is a system setting of that folder, so it stays visible
-        // even when the generic system icons are turned off.
-        if (request.Directory && settings.UseCustomFolderIcons && await HasCustomFolderIconAsync(request.Path)
-            && await StaThread.RunAsync(() => request.Large
-                ? ShellIcon.JumboDataUrl(request.Path, true, false)
-                : ShellIcon.DataUrl(request.Path, true, false)) is { } custom)
-            return custom;
-
+        // The setting is a hard off switch: no shell icon of any kind, including a folder's own
+        // desktop.ini icon, is shown while it is off.
         if (!settings.UseSystemIcons)
             return null;
+
+        // A folder's own icon (desktop.ini) is read from its path; the jumbo list is index-based and
+        // can hand back a different image for a custom icon, so folders use the HICON directly.
+        if (request.Directory && settings.UseCustomFolderIcons && await HasCustomFolderIconAsync(request.Path)
+            && await StaThread.RunAsync(() => ShellIcon.DataUrl(request.Path, true, false)) is { } custom)
+            return custom;
 
         // Shortcuts and executables carry their icon in the file itself, so they must be looked up
         // for real; asking by extension would give every .lnk the same picture.
@@ -324,9 +344,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         var byAttributes = !request.Directory && !perFile;
 
         // Per-file icon handlers need an STA caller; the thread pool silently gets a generic glyph.
-        // The grid asks for the jumbo list so a large tile is not an upscaled 32px bitmap.
-        return await StaThread.RunAsync(() => request.Large
-            ? ShellIcon.JumboDataUrl(request.Path, request.Directory, byAttributes)
+        // Only files use the jumbo list; a folder's HICON is always the right one.
+        return await StaThread.RunAsync(() => request.Large && !request.Directory
+            ? ShellIcon.JumboDataUrl(request.Path, false, byAttributes)
             : ShellIcon.DataUrl(request.Path, request.Directory, byAttributes));
     }
 

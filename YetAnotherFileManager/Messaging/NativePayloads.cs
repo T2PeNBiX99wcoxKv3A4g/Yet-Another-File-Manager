@@ -173,7 +173,8 @@ internal sealed record ClipboardFilesPayload(bool HasFiles);
 /// <summary>
 ///     One command extracted from the shell's context menu. <paramref name="Group" /> is the
 ///     submenu label it came from, and <paramref name="Depth" /> keeps its nesting visible in the
-///     interface's flat menu.
+///     interface's flat menu. <paramref name="GroupPath" /> is the whole chain of submenu labels,
+///     so nested submenus can be rebuilt exactly.
 /// </summary>
 internal sealed record ShellVerb(
     string Label,
@@ -183,7 +184,8 @@ internal sealed record ShellVerb(
     bool Enabled,
     bool Checked,
     string? Group,
-    int Depth);
+    int Depth,
+    List<string>? GroupPath = null);
 
 /// <summary>Body for <c>shell.verbs</c>: everything that could be read without showing a menu.</summary>
 internal sealed record ShellVerbsPayload(List<ShellVerb> Verbs, bool Safe);
@@ -240,5 +242,11 @@ internal sealed record ClipboardEntry(string Path, string Name, bool IsDirectory
 /// </summary>
 internal sealed record ClipboardPathsPayload(List<ClipboardEntry> Entries, bool Move, uint Sequence);
 
-/// <summary>Body for <c>fs.paths.info</c>: what the given paths are, for the tray's drop handler.</summary>
+/// <summary>Payload for <c>fs.paths.info</c>: what the given paths are, for the tray's drop handler.</summary>
 internal sealed record PathsInfoPayload(List<ClipboardEntry> Entries);
+
+/// <summary>Payload for the recycle bin's batch restore/delete commands.</summary>
+internal sealed record RecycleBatchRequest(List<string> Ids);
+
+/// <summary>Body for a recycle bin batch command: how many entries were handled.</summary>
+internal sealed record RecycleBatchPayload(bool Ok, int Done);

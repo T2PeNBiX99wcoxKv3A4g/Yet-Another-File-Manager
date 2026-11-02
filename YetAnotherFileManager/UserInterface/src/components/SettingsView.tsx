@@ -400,6 +400,26 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                     <Row>
                         <RowText>
                             <LabelRow>
+                                <Label>Confirm before deleting</Label>
+                                <GlobalTag/>
+                            </LabelRow>
+                            <Note>
+                                Asks before moving items to the recycle bin. Shift+Del always asks,
+                                because that deletes permanently.
+                            </Note>
+                        </RowText>
+                        <Toggle
+                            $on={settings?.confirmDelete ?? false}
+                            disabled={!settings}
+                            onClick={() => void update({confirmDelete: !(settings?.confirmDelete ?? false)})}
+                            type="button"
+                        >
+                            <Knob/>
+                        </Toggle>
+                    </Row>
+                    <Row>
+                        <RowText>
+                            <LabelRow>
                                 <Label>Preview panel under the list</Label>
                                 <GlobalTag/>
                             </LabelRow>

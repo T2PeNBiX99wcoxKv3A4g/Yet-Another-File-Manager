@@ -245,6 +245,27 @@ export async function deleteRecycleEntry(id: string): Promise<void> {
     await Native.request("fs.recycle.delete", {id});
 }
 
+/** Restores several entries at once; `done` is how many actually went back. */
+export async function restoreRecycleEntries(ids: string[]): Promise<{ ok: boolean; done: number }> {
+    if (!Native.available || ids.length === 0) return {ok: false, done: 0};
+
+    return await Native.request<{ ok: boolean; done: number }>("fs.recycle.restoreMany", {ids});
+}
+
+/** Permanently deletes several entries at once. */
+export async function deleteRecycleEntries(ids: string[]): Promise<{ ok: boolean; done: number }> {
+    if (!Native.available || ids.length === 0) return {ok: false, done: 0};
+
+    return await Native.request<{ ok: boolean; done: number }>("fs.recycle.deleteMany", {ids});
+}
+
+/** Shows the shell properties of one stored entry. */
+export async function showRecycleProperties(id: string): Promise<void> {
+    if (!Native.available || !id) return;
+
+    await Native.request("fs.recycle.properties", {id});
+}
+
 /**
  * Asks the elevated helper for every leftover record it can see. Windows shows a UAC prompt; when it
  * is declined the answer is marked cancelled and nothing is returned.

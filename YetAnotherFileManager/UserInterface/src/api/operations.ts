@@ -192,6 +192,8 @@ export interface ShellVerb {
     group: string | null;
     /** 0 for a top-level entry, 1 or more inside submenus. */
     depth: number;
+    /** The whole submenu chain, so nested menus can be rebuilt exactly. */
+    groupPath: string[] | null;
 }
 
 /** What could be read from the shell menu, and whether third-party handlers were included. */

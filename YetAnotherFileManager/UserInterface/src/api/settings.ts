@@ -49,6 +49,8 @@ export interface AppSettings {
     showCheckboxes: boolean;
     /** Open a folder or file with one click instead of two. */
     openOnSingleClick: boolean;
+    /** Ask before moving items to the recycle bin. Shift+Del always asks. */
+    confirmDelete: boolean;
 }
 
 const fallback: AppSettings = {
@@ -77,6 +79,7 @@ const fallback: AppSettings = {
     defaultView: null,
     showCheckboxes: true,
     openOnSingleClick: false,
+    confirmDelete: false,
 };
 
 /** The interface settings, persisted by the host. */
@@ -111,6 +114,7 @@ export async function getSettings(): Promise<AppSettings> {
         defaultView: raw?.defaultView ?? null,
         showCheckboxes: raw?.showCheckboxes ?? true,
         openOnSingleClick: raw?.openOnSingleClick ?? false,
+        confirmDelete: raw?.confirmDelete ?? false,
     };
 }
 
@@ -146,6 +150,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         defaultView: saved?.defaultView ?? settings.defaultView,
         showCheckboxes: saved?.showCheckboxes ?? settings.showCheckboxes,
         openOnSingleClick: saved?.openOnSingleClick ?? settings.openOnSingleClick,
+        confirmDelete: saved?.confirmDelete ?? settings.confirmDelete,
     };
 }
 

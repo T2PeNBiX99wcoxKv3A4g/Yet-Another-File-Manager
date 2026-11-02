@@ -79,7 +79,7 @@ const Segment = styled.button<{ $active: boolean }>`
     background: ${({$active}) => $active ? "rgba(99, 102, 241, 0.22)" : "transparent"};
     color: ${({$active}) => $active ? "var(--text-primary)" : "var(--text-muted)"};
     font: inherit;
-    font-size: 11px;
+    font-size: 12px;
     cursor: pointer;
 `;
 
@@ -93,7 +93,7 @@ const Ghost = styled.button`
     background: transparent;
     color: var(--text-muted);
     font: inherit;
-    font-size: 11px;
+    font-size: 12px;
     cursor: pointer;
 
     &:hover {
@@ -569,7 +569,7 @@ const Notice = styled.p`
     border: 1px solid rgba(251, 191, 36, 0.3);
     border-radius: var(--radius-sm);
     background: rgba(251, 191, 36, 0.08);
-    font-size: 11px;
+    font-size: 12px;
     color: #fcd34d;
 `;
 

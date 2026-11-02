@@ -83,6 +83,20 @@ internal static class RecycleBin
     public static Task<bool> DeleteAsync(string id, CancellationToken cancellationToken = default) =>
         Task.Run(() => Delete(id), cancellationToken);
 
+    /// <summary>Restores several entries, one after the other; answers how many succeeded.</summary>
+    public static Task<int> RestoreManyAsync(IReadOnlyList<string> ids, CancellationToken cancellationToken = default) =>
+        Task.Run(() => ids.Count(Restore), cancellationToken);
+
+    /// <summary>Permanently deletes several entries; answers how many succeeded.</summary>
+    public static Task<int> DeleteManyAsync(IReadOnlyList<string> ids, CancellationToken cancellationToken = default) =>
+        Task.Run(() => ids.Count(Delete), cancellationToken);
+
+    /// <summary>Shows the shell properties of the stored content behind one record.</summary>
+    public static Task ShowPropertiesAsync(string id) =>
+        id.Length == 0
+            ? Task.CompletedTask
+            : FileOperations.ShowPropertiesAsync([ContentPath(id)]);
+
     /// <summary>
     ///     Deletes every leftover record in the given listing, ignoring who owns it. Used by the
     ///     elevated helper, which has the rights the normal window does not.

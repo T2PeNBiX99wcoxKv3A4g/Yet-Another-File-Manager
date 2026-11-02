@@ -1,20 +1,35 @@
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent} from "react";
 import styled from "styled-components";
 import {
-    deleteRecycleEntry,
+    deleteRecycleEntries,
     emptyRecycleBin,
     listOrphansAsAdmin,
     listRecycle,
     purgeOrphansAsAdmin,
-    restoreRecycleEntry,
+    restoreRecycleEntries,
+    showRecycleProperties,
     type RecycleEntry,
 } from "../api/files";
 import {useIcon} from "../api/icons";
 import {formatBytes, formatDate} from "../utils/format";
-import {CheckIcon, CrossIcon, FileIcon, FolderIcon, RefreshIcon, TrashIcon} from "./Icons";
+import {CheckIcon, CopyIcon, CrossIcon, FileIcon, FolderIcon, GearIcon, RefreshIcon, TrashIcon} from "./Icons";
 import RestoreSvg from "./icons/restore.svg?react";
+import {ConfirmDialog} from "./ConfirmDialog";
+import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
 
-export function RecycleView() {
+type SortColumn = "name" | "original" | "deleted" | "size" | "type";
+
+interface RecycleViewProps {
+    /** Navigates to the folder that held the selected entry, when it still exists. */
+    onOpenLocation: (path: string) => void;
+}
+
+/**
+ * The recycle bin, in the same shape as the file browser: sortable columns, multi-selection, a
+ * details strip and a context menu. Windows keeps the records under `$Recycle.Bin`; this view only
+ * presents what the host read and asks it for restore/delete.
+ */
+export function RecycleView({onOpenLocation}: RecycleViewProps) {
     const [entries, setEntries] = useState<RecycleEntry[]>([]);
     const [adminEntries, setAdminEntries] = useState<RecycleEntry[]>([]);
     const [adminLoaded, setAdminLoaded] = useState(false);
@@ -22,8 +37,16 @@ export function RecycleView() {
     const [loading, setLoading] = useState(true);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [confirming, setConfirming] = useState(false);
     const [showOrphans, setShowOrphans] = useState(false);
+    const [selected, setSelected] = useState<Set<string>>(() => new Set());
+    const [anchor, setAnchor] = useState<string | null>(null);
+    const [sort, setSort] = useState<{ column: SortColumn; descending: boolean }>({
+        column: "deleted",
+        descending: true,
+    });
+    const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+    const [confirm, setConfirm] = useState<"delete" | "empty" | "purge" | null>(null);
+    const root = useRef<HTMLDivElement | null>(null);
 
     const reload = useCallback(async () => {
         setLoading(true);
@@ -42,7 +65,6 @@ export function RecycleView() {
         void reload();
     }, [reload]);
 
-    // The elevated snapshot only makes sense while its mode is on.
     useEffect(() => {
         if (!showOrphans) {
             setAdminEntries([]);
@@ -51,23 +73,115 @@ export function RecycleView() {
         }
     }, [showOrphans]);
 
-    const restore = async (id: string) => {
-        await restoreRecycleEntry(id);
-        await reload();
+    // A new listing invalidates ids that no longer exist.
+    useEffect(() => {
+        setSelected((current) => {
+            const known = new Set(entries.map((entry) => entry.id));
+            const next = new Set([...current].filter((id) => known.has(id)));
+            return next.size === current.size ? current : next;
+        });
+    }, [entries]);
+
+    const rows = useMemo(() => {
+        const known = new Set(entries.map((entry) => entry.id));
+        const merged = [
+            ...entries,
+            ...adminEntries.filter((entry) => !known.has(entry.id)).map((entry) => ({...entry, removable: false})),
+        ];
+
+        return merged.sort((left, right) => {
+            const order = compare(left, right, sort.column);
+            return sort.descending ? -order : order;
+        });
+    }, [entries, adminEntries, sort]);
+
+    const selectedEntries = useMemo(
+        () => rows.filter((entry) => selected.has(entry.id)),
+        [rows, selected]
+    );
+    const removable = selectedEntries.filter((entry) => entry.removable && !entry.isOrphan);
+    const deletable = selectedEntries.filter((entry) => entry.removable);
+
+    const select = (entry: RecycleEntry, event: ReactMouseEvent) => {
+        const additive = event.ctrlKey || event.metaKey;
+
+        setSelected((current) => {
+            if (event.shiftKey && anchor) {
+                const from = rows.findIndex((row) => row.id === anchor);
+                const to = rows.findIndex((row) => row.id === entry.id);
+
+                if (from >= 0 && to >= 0) {
+                    const next = additive ? new Set(current) : new Set<string>();
+                    const start = Math.min(from, to);
+                    const end = Math.max(from, to);
+
+                    for (let index = start; index <= end; index++)
+                        next.add(rows[index].id);
+
+                    return next;
+                }
+            }
+
+            if (additive) {
+                const next = new Set(current);
+                if (!next.delete(entry.id)) next.add(entry.id);
+                return next;
+            }
+
+            return new Set([entry.id]);
+        });
+
+        setAnchor(entry.id);
     };
+
+    const selectAll = useCallback(() => setSelected(new Set(rows.map((entry) => entry.id))), [rows]);
+
+    const restoreSelected = useCallback(async () => {
+        const ids = removable.map((entry) => entry.id);
+        if (ids.length === 0) return;
+
+        setBusy(true);
+        try {
+            const result = await restoreRecycleEntries(ids);
+            if (!result.ok)
+                window.alert(`Restored ${result.done} of ${ids.length} item(s).`);
+            setSelected(new Set());
+            await reload();
+        } finally {
+            setBusy(false);
+        }
+    }, [reload, removable]);
+
+    const deleteSelected = useCallback(async () => {
+        const ids = deletable.map((entry) => entry.id);
+        setConfirm(null);
+        if (ids.length === 0) return;
+
+        setBusy(true);
+        try {
+            const result = await deleteRecycleEntries(ids);
+            if (!result.ok)
+                window.alert(`Deleted ${result.done} of ${ids.length} item(s).`);
+            setSelected(new Set());
+            await reload();
+        } finally {
+            setBusy(false);
+        }
+    }, [deletable, reload]);
 
     const empty = async () => {
-        setConfirming(false);
-        await emptyRecycleBin(showOrphans);
-        await reload();
+        setConfirm(null);
+        setBusy(true);
+
+        try {
+            await emptyRecycleBin(showOrphans);
+            setSelected(new Set());
+            await reload();
+        } finally {
+            setBusy(false);
+        }
     };
 
-    const remove = async (id: string) => {
-        await deleteRecycleEntry(id);
-        await reload();
-    };
-
-    /** Asks the elevated copy for everything it can see; this window cannot read those folders. */
     const loadAdmin = async () => {
         setBusy(true);
         setAdminNotice(null);
@@ -92,10 +206,9 @@ export function RecycleView() {
         }
     };
 
-    /** Deletes every leftover record, this profile's and the others'. */
     const purgeAll = async () => {
         setBusy(true);
-        setConfirming(false);
+        setConfirm(null);
 
         try {
             await purgeOrphansAsAdmin();
@@ -108,20 +221,114 @@ export function RecycleView() {
         }
     };
 
-    // The normal listing wins on duplicates: it knows what this account may actually delete.
-    const known = new Set(entries.map((entry) => entry.id));
-    const rows = [
-        ...entries,
-        ...adminEntries.filter((entry) => !known.has(entry.id)).map((entry) => ({...entry, removable: false}))
-    ].sort((left, right) => right.deleted - left.deleted);
+    const openOriginal = (entry: RecycleEntry) => {
+        const cut = Math.max(entry.originalPath.lastIndexOf("\\"), entry.originalPath.lastIndexOf("/"));
+        onOpenLocation(cut > 0 ? entry.originalPath.slice(0, cut) : entry.originalPath);
+    };
+
+    const copyPath = (entry: RecycleEntry) => {
+        void navigator.clipboard.writeText(entry.originalPath);
+    };
+
+    const openMenu = (event: ReactMouseEvent, entry?: RecycleEntry) => {
+        event.preventDefault();
+
+        if (entry && !selected.has(entry.id))
+            setSelected(new Set([entry.id]));
+
+        setMenu({x: event.clientX, y: event.clientY});
+    };
+
+    // Keyboard handling only applies while this view is mounted. Text fields keep their keys.
+    useEffect(() => {
+        const onKey = (event: KeyboardEvent) => {
+            const target = event.target as HTMLElement | null;
+            if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable))
+                return;
+
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
+                event.preventDefault();
+                selectAll();
+            } else if (event.key === "Delete") {
+                event.preventDefault();
+                if (deletable.length > 0) setConfirm("delete");
+            } else if (event.key === "Enter" && removable.length > 0) {
+                event.preventDefault();
+                void restoreSelected();
+            } else if (event.key === "Escape") {
+                setSelected(new Set());
+                setMenu(null);
+            }
+        };
+
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [deletable.length, removable.length, restoreSelected, selectAll]);
+
+    const menuItems: ContextMenuItem[] = [
+        {
+            label: "Restore",
+            icon: <RestoreSvg/>,
+            disabled: removable.length === 0,
+            onSelect: () => void restoreSelected(),
+        },
+        {
+            label: "Delete permanently",
+            icon: <TrashIcon size={14}/>,
+            danger: true,
+            disabled: deletable.length === 0,
+            onSelect: () => setConfirm("delete"),
+        },
+        {
+            label: "Properties",
+            icon: <GearIcon size={14}/>,
+            disabled: selectedEntries.length !== 1,
+            separatorBefore: true,
+            onSelect: () => {
+                const [entry] = selectedEntries;
+                if (entry) void showRecycleProperties(entry.id);
+            },
+        },
+        {
+            label: "Open original location",
+            icon: <FolderIcon size={14}/>,
+            disabled: selectedEntries.length !== 1,
+            onSelect: () => {
+                const [entry] = selectedEntries;
+                if (entry) openOriginal(entry);
+            },
+        },
+        {
+            label: "Copy original path",
+            icon: <CopyIcon size={14}/>,
+            disabled: selectedEntries.length !== 1,
+            onSelect: () => {
+                const [entry] = selectedEntries;
+                if (entry) copyPath(entry);
+            },
+        },
+        {
+            label: "Select all",
+            separatorBefore: true,
+            onSelect: selectAll,
+        },
+        {
+            label: "Refresh",
+            icon: <RefreshIcon size={14}/>,
+            onSelect: () => void reload(),
+        },
+    ];
 
     return (
-        <Page>
+        <Page ref={root} onContextMenu={(event) => openMenu(event)}>
             <Header>
                 <Heading>
                     <TrashIcon size={16}/>
                     <span>Recycle Bin</span>
-                    <Count>{loading ? "…" : `${rows.length} items`}</Count>
+                    <Count>
+                        {loading ? "…" : `${rows.length} item${rows.length === 1 ? "" : "s"}`}
+                        {selected.size > 0 && ` · ${selected.size} selected`}
+                    </Count>
                 </Heading>
 
                 <Actions>
@@ -134,9 +341,9 @@ export function RecycleView() {
                         Orphans
                     </OrphanButton>
 
-                    {showOrphans ? (
+                    {showOrphans && (
                         <>
-                            <EmptyButton
+                            <ActionButton
                                 disabled={busy || adminLoaded}
                                 onClick={() => void loadAdmin()}
                                 title={adminLoaded
@@ -145,46 +352,39 @@ export function RecycleView() {
                                 type="button"
                             >
                                 {busy ? "Working…" : adminLoaded ? "Admin view loaded" : "Show all (admin)…"}
-                            </EmptyButton>
-
-                            {confirming ? (
-                                <>
-                                    <ConfirmButton $danger disabled={busy} onClick={() => void purgeAll()} type="button">
-                                        <CheckIcon size={12}/> Delete every orphan
-                                    </ConfirmButton>
-                                    <IconButton onClick={() => setConfirming(false)} title="Cancel" type="button">
-                                        <CrossIcon size={12}/>
-                                    </IconButton>
-                                </>
-                            ) : (
-                                <EmptyButton
-                                    disabled={busy || rows.length === 0}
-                                    onClick={() => setConfirming(true)}
-                                    title="Runs an elevated copy of the app and deletes every leftover record"
-                                    type="button"
-                                >
-                                    Delete all orphans…
-                                </EmptyButton>
+                            </ActionButton>
+                            {adminLoaded && adminEntries.length > 0 && (
+                                <ActionButton disabled={busy} onClick={() => setConfirm("purge")} type="button">
+                                    Delete every orphan
+                                </ActionButton>
                             )}
                         </>
-                    ) : confirming ? (
-                        <>
-                            <ConfirmButton $danger onClick={() => void empty()} type="button">
-                                <CheckIcon size={12}/> Delete everything
-                            </ConfirmButton>
-                            <IconButton onClick={() => setConfirming(false)} title="Cancel" type="button">
-                                <CrossIcon size={12}/>
-                            </IconButton>
-                        </>
-                    ) : (
-                        <EmptyButton
-                            disabled={rows.length === 0}
-                            onClick={() => setConfirming(true)}
-                            type="button"
-                        >
-                            Empty
-                        </EmptyButton>
                     )}
+
+                    <ActionButton
+                        disabled={busy || removable.length === 0}
+                        onClick={() => void restoreSelected()}
+                        type="button"
+                    >
+                        Restore
+                    </ActionButton>
+
+                    <ActionButton
+                        $danger
+                        disabled={busy || deletable.length === 0}
+                        onClick={() => setConfirm("delete")}
+                        type="button"
+                    >
+                        Delete
+                    </ActionButton>
+
+                    <ActionButton
+                        disabled={busy || rows.length === 0}
+                        onClick={() => setConfirm("empty")}
+                        type="button"
+                    >
+                        Empty
+                    </ActionButton>
 
                     <IconButton onClick={() => void reload()} title="Refresh" type="button">
                         <RefreshIcon size={14}/>
@@ -193,64 +393,175 @@ export function RecycleView() {
             </Header>
 
             {adminNotice && <Notice>{adminNotice}</Notice>}
-
             {error && <Message>{error}</Message>}
-
             {!error && !loading && rows.length === 0 && <Message>The recycle bin is empty.</Message>}
 
             {rows.length > 0 && (
-                <Table>
-                    <Head>
-                        <span>Name</span>
-                        <span>Original location</span>
-                        <span>Deleted</span>
-                        <span>Size</span>
-                        <span/>
-                    </Head>
-                    <Body>
-                        {rows.map((entry) => (
-                            <Row
-                                key={entry.id}
-                                $orphan={entry.isOrphan}
-                                title={entry.owner ? `${entry.originalPath} · ${entry.owner}` : entry.originalPath}
-                            >
-                                <NameCell>
-                                    <EntryIcon entry={entry}/>
-                                    <span>{entry.name}</span>
-                                    {entry.isOrphan && <Tag>metadata only</Tag>}
-                                    {entry.owner && <Tag $other>other profile</Tag>}
-                                </NameCell>
-                                <Origin>{entry.originalPath}</Origin>
-                                <Deleted>{formatDate(entry.deleted)}</Deleted>
-                                <Size>{entry.isDirectory ? "—" : formatBytes(entry.size)}</Size>
-                                <RowActions>
-                                    {!entry.isOrphan && entry.removable && (
-                                        <RowButton
-                                            onClick={() => void restore(entry.id)}
-                                            title="Restore to its original folder"
-                                            type="button"
-                                        >
-                                            <RestoreSvg/>
-                                        </RowButton>
-                                    )}
-                                    {entry.removable && (
-                                        <RowButton
-                                            $danger
-                                            onClick={() => void remove(entry.id)}
-                                            title={entry.isOrphan ? "Remove the leftover record" : "Delete permanently"}
-                                            type="button"
-                                        >
-                                            <TrashIcon size={13}/>
-                                        </RowButton>
-                                    )}
-                                </RowActions>
-                            </Row>
-                        ))}
-                    </Body>
-                </Table>
+                <>
+                    <Table>
+                        <Head>
+                            <span/>
+                            <SortButton onClick={() => toggleSort("name")} type="button">
+                                Name{mark(sort, "name")}
+                            </SortButton>
+                            <SortButton onClick={() => toggleSort("original")} type="button">
+                                Original location{mark(sort, "original")}
+                            </SortButton>
+                            <SortButton onClick={() => toggleSort("deleted")} type="button">
+                                Date deleted{mark(sort, "deleted")}
+                            </SortButton>
+                            <SortButton onClick={() => toggleSort("size")} type="button">
+                                Size{mark(sort, "size")}
+                            </SortButton>
+                            <SortButton onClick={() => toggleSort("type")} type="button">
+                                Type{mark(sort, "type")}
+                            </SortButton>
+                            <span/>
+                        </Head>
+                        <Body>
+                            {rows.map((entry) => (
+                                <Row
+                                    $checked={selected.has(entry.id)}
+                                    $orphan={entry.isOrphan}
+                                    key={entry.id}
+                                    onClick={(event) => select(entry, event)}
+                                    onContextMenu={(event) => openMenu(event, entry)}
+                                    onDoubleClick={() => {
+                                        if (entry.removable && !entry.isOrphan) {
+                                            setSelected(new Set([entry.id]));
+                                            void restoreRecycleEntries([entry.id]).then(reload);
+                                        } else {
+                                            void showRecycleProperties(entry.id);
+                                        }
+                                    }}
+                                    title={entry.owner ? `${entry.originalPath} · ${entry.owner}` : entry.originalPath}
+                                >
+                                    <CheckBox $checked={selected.has(entry.id)}>
+                                        {selected.has(entry.id) && <CheckIcon size={9}/>}
+                                    </CheckBox>
+                                    <NameCell>
+                                        <EntryIcon entry={entry}/>
+                                        <span>{entry.name}</span>
+                                        {entry.isOrphan && <Tag>metadata only</Tag>}
+                                        {entry.owner && <Tag $other>other profile</Tag>}
+                                    </NameCell>
+                                    <Origin>{entry.originalPath}</Origin>
+                                    <Deleted>{formatDate(entry.deleted)}</Deleted>
+                                    <Size>{entry.isDirectory ? "—" : formatBytes(entry.size)}</Size>
+                                    <Type>{typeOf(entry)}</Type>
+                                    <RowActions>
+                                        {entry.removable && !entry.isOrphan && (
+                                            <RowButton
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    void restoreRecycleEntries([entry.id]).then(reload);
+                                                }}
+                                                title="Restore to its original folder"
+                                                type="button"
+                                            >
+                                                <RestoreSvg/>
+                                            </RowButton>
+                                        )}
+                                        {entry.removable && (
+                                            <RowButton
+                                                $danger
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    setSelected(new Set([entry.id]));
+                                                    setConfirm("delete");
+                                                }}
+                                                title={entry.isOrphan ? "Remove the leftover record" : "Delete permanently"}
+                                                type="button"
+                                            >
+                                                <TrashIcon size={13}/>
+                                            </RowButton>
+                                        )}
+                                    </RowActions>
+                                </Row>
+                            ))}
+                        </Body>
+                    </Table>
+
+                    {selectedEntries.length > 0 && (
+                        <Details>
+                            <DetailsHead>
+                                <strong>
+                                    {selectedEntries.length === 1 ? selectedEntries[0].name : `${selectedEntries.length} items selected`}
+                                </strong>
+                                <IconButton onClick={() => setSelected(new Set())} title="Close details" type="button">
+                                    <CrossIcon size={10}/>
+                                </IconButton>
+                            </DetailsHead>
+                            {selectedEntries.length === 1
+                                ? <DetailGrid entry={selectedEntries[0]}/>
+                                : (
+                                    <Summary>
+                                        {removable.length} restorable · {deletable.length} deletable ·{" "}
+                                        {formatBytes(selectedEntries.reduce((total, entry) => total + entry.size, 0))}
+                                    </Summary>
+                                )}
+                        </Details>
+                    )}
+                </>
             )}
+
+            {menu && <ContextMenu items={menuItems} onClose={() => setMenu(null)} x={menu.x} y={menu.y}/>}
+
+            <ConfirmDialog
+                confirmLabel={confirm === "empty"
+                    ? "Empty the bin"
+                    : confirm === "purge" ? "Delete every orphan" : "Delete"}
+                danger
+                message={confirm === "empty"
+                    ? `Permanently delete ${rows.length} item${rows.length === 1 ? "" : "s"}? This cannot be undone.`
+                    : confirm === "purge"
+                        ? "Permanently delete every leftover record, including the ones owned by other profiles? This cannot be undone."
+                        : `Permanently delete ${deletable.length} selected item${deletable.length === 1 ? "" : "s"}? This cannot be undone.`}
+                onCancel={() => setConfirm(null)}
+                onConfirm={() => {
+                    if (confirm === "empty") void empty();
+                    else if (confirm === "purge") void purgeAll();
+                    else void deleteSelected();
+                }}
+                open={confirm !== null}
+                title={confirm === "empty"
+                    ? "Empty the recycle bin"
+                    : confirm === "purge" ? "Delete every orphan" : "Delete permanently"}
+            />
         </Page>
     );
+
+    function toggleSort(column: SortColumn) {
+        setSort((current) => current.column === column
+            ? {column, descending: !current.descending}
+            : {column, descending: column === "deleted"});
+    }
+}
+
+function compare(left: RecycleEntry, right: RecycleEntry, column: SortColumn): number {
+    switch (column) {
+        case "name":
+            return left.name.localeCompare(right.name, undefined, {numeric: true, sensitivity: "base"});
+        case "original":
+            return left.originalPath.localeCompare(right.originalPath, undefined, {numeric: true, sensitivity: "base"});
+        case "deleted":
+            return left.deleted - right.deleted;
+        case "size":
+            return left.size - right.size;
+        case "type":
+            return typeOf(left).localeCompare(typeOf(right), undefined, {sensitivity: "base"});
+    }
+}
+
+function mark(sort: { column: SortColumn; descending: boolean }, column: SortColumn): string {
+    if (sort.column !== column) return "";
+    return sort.descending ? " ↓" : " ↑";
+}
+
+function typeOf(entry: RecycleEntry): string {
+    if (entry.isDirectory) return "Folder";
+    const dot = entry.name.lastIndexOf(".");
+    return dot > 0 && dot < entry.name.length - 1 ? entry.name.slice(dot + 1).toUpperCase() : "File";
 }
 
 function EntryIcon({entry}: { entry: RecycleEntry }) {
@@ -263,6 +574,28 @@ function EntryIcon({entry}: { entry: RecycleEntry }) {
                 ? <img alt="" height={18} src={icon} width={18}/>
                 : entry.isDirectory ? <FolderIcon/> : <FileIcon/>}
         </IconSlot>
+    );
+}
+
+function DetailGrid({entry}: { entry: RecycleEntry }) {
+    return (
+        <Grid>
+            <Field label="Original location" value={entry.originalPath}/>
+            <Field label="Date deleted" value={formatDate(entry.deleted)}/>
+            <Field label="Size" value={entry.isDirectory ? "—" : formatBytes(entry.size)}/>
+            <Field label="Type" value={typeOf(entry)}/>
+            {entry.owner && <Field label="Owner" value={entry.owner}/>}
+            <Field label="Status" value={entry.isOrphan ? "Metadata only" : entry.removable ? "Restorable" : "Other profile"}/>
+        </Grid>
+    );
+}
+
+function Field({label, value}: { label: string; value: string }) {
+    return (
+        <FieldRow>
+            <FieldLabel>{label}</FieldLabel>
+            <FieldValue>{value}</FieldValue>
+        </FieldRow>
     );
 }
 
@@ -308,48 +641,20 @@ const Actions = styled.div`
     gap: 6px;
 `;
 
-const OrphanButton = styled.button<{ $on: boolean }>`
+const ActionButton = styled.button<{ $danger?: boolean }>`
     padding: 5px 10px;
-    border: 1px solid ${({$on}) => $on ? "var(--border-color-hover)" : "var(--border-color)"};
-    border-radius: var(--radius-sm);
-    background: ${({$on}) => $on ? "rgba(99, 102, 241, 0.16)" : "var(--bg-input)"};
-    color: ${({$on}) => $on ? "var(--text-primary)" : "var(--text-secondary)"};
-    font: inherit;
-    font-size: 11px;
-    cursor: pointer;
-
-    &:hover {
-        border-color: var(--border-color-hover);
-        background: var(--bg-card-hover);
-        color: var(--text-primary);
-    }
-`;
-
-const Tag = styled.span<{ $other?: boolean }>`
-    flex-shrink: 0;
-    padding: 1px 6px;
-    border: 1px solid ${({$other}) => $other ? "rgba(148, 163, 184, 0.35)" : "rgba(251, 191, 36, 0.35)"};
-    border-radius: 999px;
-    font-family: var(--font-mono);
-    font-size: 9px;
-    color: ${({$other}) => $other ? "var(--text-muted)" : "#fcd34d"};
-    white-space: nowrap;
-`;
-
-const EmptyButton = styled.button`
-    padding: 5px 10px;
-    border: 1px solid var(--border-color);
+    border: 1px solid ${({$danger}) => $danger ? "rgba(248, 113, 113, 0.35)" : "var(--border-color)"};
     border-radius: var(--radius-sm);
     background: var(--bg-input);
-    color: var(--text-secondary);
+    color: ${({$danger}) => $danger ? "#fca5a5" : "var(--text-secondary)"};
     font: inherit;
     font-size: 11px;
     cursor: pointer;
 
     &:hover:not(:disabled) {
-        border-color: var(--border-color-hover);
+        border-color: ${({$danger}) => $danger ? "rgba(248, 113, 113, 0.6)" : "var(--border-color-hover)"};
         background: var(--bg-card-hover);
-        color: var(--text-primary);
+        color: ${({$danger}) => $danger ? "#fecaca" : "var(--text-primary)"};
     }
 
     &:disabled {
@@ -358,17 +663,10 @@ const EmptyButton = styled.button`
     }
 `;
 
-const ConfirmButton = styled(EmptyButton)<{ $danger?: boolean }>`
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    border-color: ${({$danger}) => $danger ? "rgba(248, 113, 113, 0.5)" : "var(--border-color)"};
-    color: ${({$danger}) => $danger ? "#fca5a5" : "var(--text-secondary)"};
-
-    &:hover:not(:disabled) {
-        background: rgba(248, 113, 113, 0.14);
-        color: #fecaca;
-    }
+const OrphanButton = styled(ActionButton)<{ $on: boolean }>`
+    border-color: ${({$on}) => $on ? "var(--border-color-hover)" : "var(--border-color)"};
+    background: ${({$on}) => $on ? "rgba(99, 102, 241, 0.16)" : "var(--bg-input)"};
+    color: ${({$on}) => $on ? "var(--text-primary)" : "var(--text-secondary)"};
 `;
 
 const IconButton = styled.button`
@@ -396,17 +694,35 @@ const Table = styled.div`
     min-height: 0;
 `;
 
+const Columns = `24px minmax(0, 1.2fr) minmax(0, 1.6fr) 150px 90px 80px 58px`;
+
 const Head = styled.div`
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 170px 100px 56px;
-    gap: 16px;
-    padding: 10px 22px;
+    grid-template-columns: ${Columns};
+    gap: 14px;
+    padding: 8px 22px;
     border-bottom: 1px solid var(--border-color);
     font-size: 10px;
     font-weight: 600;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--text-muted);
+`;
+
+const SortButton = styled.button`
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+        color: var(--text-primary);
+    }
 `;
 
 const Body = styled.div`
@@ -416,17 +732,20 @@ const Body = styled.div`
     padding: 8px 10px 22px;
 `;
 
-const Row = styled.div<{ $orphan: boolean }>`
+const Row = styled.div<{ $orphan: boolean; $checked: boolean }>`
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 170px 100px 56px;
-    gap: 16px;
+    grid-template-columns: ${Columns};
+    gap: 14px;
     align-items: center;
-    padding: 9px 12px;
-    border: 1px solid transparent;
+    padding: 8px 12px;
+    border: 1px solid ${({$checked}) => $checked ? "rgba(59, 130, 246, 0.38)" : "transparent"};
     border-radius: var(--radius-sm);
+    background: ${({$checked}) => $checked ? "rgba(59, 130, 246, 0.1)" : "transparent"};
     font-size: 13px;
     color: var(--text-secondary);
     opacity: ${({$orphan}) => $orphan ? 0.72 : 1};
+    cursor: default;
+    user-select: none;
 
     &:hover {
         border-color: var(--border-color);
@@ -446,10 +765,21 @@ const Cell = styled.span`
     white-space: nowrap;
 `;
 
+const CheckBox = styled.span<{ $checked: boolean }>`
+    display: grid;
+    place-items: center;
+    width: 15px;
+    height: 15px;
+    border: 1px solid ${({$checked}) => $checked ? "var(--border-color-focus)" : "var(--border-color-hover)"};
+    border-radius: 4px;
+    background: ${({$checked}) => $checked ? "var(--accent-primary)" : "transparent"};
+    color: #fff;
+`;
+
 const NameCell = styled(Cell)`
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 9px;
 `;
 
 const IconSlot = styled.span`
@@ -469,19 +799,27 @@ const IconSlot = styled.span`
 `;
 
 const Origin = styled(Cell)`
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
     font-size: 11px;
     color: var(--text-muted);
 `;
 
 const Deleted = styled(Cell)`
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
     font-size: 11px;
+    font-variant-numeric: tabular-nums;
     color: var(--text-muted);
 `;
 
 const Size = styled(Cell)`
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+`;
+
+const Type = styled(Cell)`
+    font-family: var(--font-sans);
     font-size: 11px;
     color: var(--text-muted);
 `;
@@ -489,14 +827,14 @@ const Size = styled(Cell)`
 const RowActions = styled.span`
     display: flex;
     justify-content: flex-end;
-    gap: 4px;
+    gap: 3px;
 `;
 
 const RowButton = styled.button<{ $danger?: boolean }>`
     display: grid;
     place-items: center;
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     border: 0;
     border-radius: 5px;
     background: transparent;
@@ -517,6 +855,69 @@ const RowButton = styled.button<{ $danger?: boolean }>`
         background: ${({$danger}) => $danger ? "rgba(248, 113, 113, 0.2)" : "rgba(148, 163, 184, 0.2)"};
         color: ${({$danger}) => $danger ? "#fca5a5" : "var(--text-primary)"};
     }
+`;
+
+const Tag = styled.span<{ $other?: boolean }>`
+    flex-shrink: 0;
+    padding: 1px 6px;
+    border: 1px solid ${({$other}) => $other ? "rgba(148, 163, 184, 0.35)" : "rgba(251, 191, 36, 0.35)"};
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: ${({$other}) => $other ? "var(--text-muted)" : "#fcd34d"};
+    white-space: nowrap;
+`;
+
+const Details = styled.section`
+    flex-shrink: 0;
+    padding: 10px 22px 14px;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+`;
+
+const DetailsHead = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+    font-size: 12px;
+`;
+
+const Grid = styled.div`
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 5px 18px;
+`;
+
+const FieldRow = styled.div`
+    display: flex;
+    gap: 8px;
+    min-width: 0;
+    font-size: 11px;
+`;
+
+const FieldLabel = styled.span`
+    width: 108px;
+    flex-shrink: 0;
+    color: var(--text-muted);
+`;
+
+const FieldValue = styled.span`
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-secondary);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
+const Summary = styled.p`
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 11px;
 `;
 
 const Notice = styled.p`

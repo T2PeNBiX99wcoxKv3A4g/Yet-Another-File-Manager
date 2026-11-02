@@ -251,9 +251,9 @@ const QuickIcon = styled.span`
 `;
 
 const QuickLabel = styled.span`
-    max-width: 64px;
+    max-width: 66px;
     overflow: hidden;
-    font-size: 9px;
+    font-size: 10px;
     line-height: 1.2;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -270,7 +270,7 @@ const Item = styled.button<{ $danger?: boolean; $depth?: number }>`
     background: transparent;
     color: ${({$danger}) => $danger ? "#fca5a5" : "var(--text-secondary)"};
     font: inherit;
-    font-size: 12px;
+    font-size: 13px;
     text-align: left;
     cursor: pointer;
 
@@ -307,9 +307,9 @@ const ItemLabel = styled.span`
 
 const Group = styled.div`
     padding: 7px 10px 3px;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 600;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--text-muted);
 `;

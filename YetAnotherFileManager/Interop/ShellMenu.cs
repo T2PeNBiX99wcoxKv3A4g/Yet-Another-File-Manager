@@ -105,7 +105,7 @@ internal static unsafe partial class ShellMenu
         }
     }
 
-    private static void Walk(Session session, IntPtr menu, List<ShellVerb> verbs, string? group, int depth)
+    private static void Walk(Session session, IntPtr menu, List<ShellVerb> verbs, List<string>? path, int depth)
     {
         if (depth > MaxDepth)
             return;
@@ -137,7 +137,8 @@ internal static unsafe partial class ShellMenu
             if (info.SubMenu != IntPtr.Zero)
             {
                 session.HandleMenuMessage(WmInitMenuPopup, info.SubMenu, (IntPtr)index);
-                Walk(session, info.SubMenu, verbs, Clean(label), depth + 1);
+                var next = path is null ? [Clean(label)] : new List<string>(path) { Clean(label) };
+                Walk(session, info.SubMenu, verbs, next, depth + 1);
                 continue;
             }
 
@@ -156,8 +157,9 @@ internal static unsafe partial class ShellMenu
                 MenuIcon(info.Bitmap, verb),
                 (info.State & MfsDisabled) == 0,
                 (info.State & MfsChecked) != 0,
-                group,
-                depth));
+                path is { Count: > 0 } ? path[^1] : null,
+                depth,
+                path ?? []));
         }
     }
 
@@ -212,7 +214,8 @@ internal static unsafe partial class ShellMenu
             "runas" => "icon:executable",
             "sendto" => "icon:arrow",
             "share" => "icon:share",
-            _ => "icon:app"
+            // No icon is better than the file manager's own logo on a third-party verb.
+            _ => null
         };
     }
 

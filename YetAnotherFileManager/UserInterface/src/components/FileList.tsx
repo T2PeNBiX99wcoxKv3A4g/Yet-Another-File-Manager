@@ -52,6 +52,7 @@ import {
     TrashIcon,
 } from "./Icons";
 import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
+import {ConfirmDialog} from "./ConfirmDialog";
 import {PlaceIcon} from "./PlaceIcon";
 import {TagPicker, DefaultTagColor, inkFor} from "./TagPicker";
 import {BuiltinIcon, iconForName} from "../icons/fileTypes";
@@ -106,6 +107,8 @@ interface FileListProps {
     onTransfer?: (paths: string[], target: string, move: boolean) => void;
     /** Called after a paste, so the tray can drop entries the move consumed. */
     onPaste?: () => void;
+    /** Ask before moving items to the recycle bin. Shift+Del always asks. */
+    confirmDelete?: boolean;
 }
 
 interface RowModel {
@@ -124,7 +127,7 @@ export function FileList({
     listing, loading, error, find = NoFind, view, showImages, imageStripHeight = DefaultStripHeight,
     onImageStripHeight, onSort, onSetTags, onOpen, onOpenFile, showCheckboxes = true,
     openOnSingleClick = false, shortcuts = DefaultShortcuts, enableShortcuts = true, refreshToken = 0, onRefresh,
-    onTray, onTransfer, onPaste,
+    onTray, onTransfer, onPaste, confirmDelete = false,
 }: FileListProps) {
     const quick = useQuickAccess();
     const currentRow = useRef<HTMLDivElement | null>(null);
@@ -139,6 +142,11 @@ export function FileList({
     const rowsRef = useRef<RowModel[]>([]);
     selectedRef.current = selected;
     const [menu, setMenu] = useState<{ x: number; y: number; paths: string[]; background: boolean } | null>(null);
+    const [pendingConfirm, setPendingConfirm] = useState<{
+        paths: string[];
+        permanent: boolean;
+        resolve: (ok: boolean) => void;
+    } | null>(null);
     const [canPaste, setCanPaste] = useState(false);
     const shellRequest = useRef(0);
     const openWithRequest = useRef(0);
@@ -475,11 +483,7 @@ export function FileList({
     };
 
     const remove = async (paths: string[], permanent = false) => {
-        const question = permanent
-            ? `Permanently delete ${paths.length === 1 ? "this item" : `${paths.length} items`}? This cannot be undone.`
-            : `Move ${paths.length === 1 ? "this item" : `${paths.length} items`} to the recycle bin?`;
-
-        if (!window.confirm(question))
+        if ((permanent || confirmDelete) && !await askDelete(paths, permanent))
             return;
 
         if (!await deletePaths(paths, permanent))
@@ -491,6 +495,16 @@ export function FileList({
             refresh();
         }
     };
+
+    const askDelete = useCallback((paths: string[], permanent: boolean) =>
+        new Promise<boolean>((resolve) => setPendingConfirm({paths, permanent, resolve})), []);
+
+    const settleDelete = useCallback((ok: boolean) => {
+        setPendingConfirm((pending) => {
+            pending?.resolve(ok);
+            return null;
+        });
+    }, []);
 
     const compress = async (paths: string[]) => {
         const result = await compressPaths(paths);
@@ -621,7 +635,6 @@ export function FileList({
     const entry = target ? rows.find((row) => row.entry.fullPath === target)?.entry : undefined;
     const single = menu?.paths.length === 1;
     const shellPaths = menu?.background ? (currentDirectory ? [currentDirectory] : []) : menu?.paths ?? [];
-    const shellGroup = shell.safe ? "Shell actions (standard)" : "Shell actions";
 
     if (menu?.background) {
         menuItems.push({
@@ -683,7 +696,7 @@ export function FileList({
                         group: "Suggested apps",
                         icon: app.icon
                             ? <img alt="" height={14} src={app.icon} width={14}/>
-                            : <AppIcon size={14}/>,
+                            : <ExecutableIcon size={14}/>,
                         onSelect: () => void openWithProgram(entry.fullPath, app.path).then((opened) => {
                             if (!opened) void openWith(entry.fullPath);
                         }),
@@ -696,7 +709,7 @@ export function FileList({
                         group: "Other apps",
                         icon: app.icon
                             ? <img alt="" height={14} src={app.icon} width={14}/>
-                            : <AppIcon size={14}/>,
+                            : <ExecutableIcon size={14}/>,
                         onSelect: () => void openWithProgram(entry.fullPath, app.path).then((opened) => {
                             if (!opened) void openWith(entry.fullPath);
                         }),
@@ -706,14 +719,14 @@ export function FileList({
 
             children.push({
                 label: "Choose another app…",
-                icon: <AppIcon size={14}/>,
+                icon: <ExecutableIcon size={14}/>,
                 separatorBefore: true,
                 onSelect: () => void openWith(entry.fullPath),
             });
 
             menuItems.push({
                 label: "Open with",
-                icon: <AppIcon size={14}/>,
+                icon: <ExecutableIcon size={14}/>,
                 children,
                 onSelect: () => void openWith(entry.fullPath),
             });
@@ -753,24 +766,78 @@ export function FileList({
     if (menu) {
         if (shell.loading)
             menuItems.push({
-                label: "Reading shell actions…", group: shellGroup, loading: true, disabled: true,
+                label: "More actions",
+                icon: <ExecutableIcon size={14}/>,
+                loading: true,
+                disabled: true,
+                separatorBefore: true,
                 onSelect: () => undefined,
             });
-        else
-            shell.verbs.forEach((verb) => {
-                menuItems.push({
+        else if (shell.verbs.length > 0) {
+            type ShellNode = { items: ShellVerb[]; children: Map<string, ShellNode> };
+            const root: ShellNode = {items: [], children: new Map()};
+
+            for (const verb of shell.verbs) {
+                let node = root;
+
+                for (const label of verb.groupPath ?? []) {
+                    let child = node.children.get(label);
+
+                    if (!child) {
+                        child = {items: [], children: new Map()};
+                        node.children.set(label, child);
+                    }
+
+                    node = child;
+                }
+
+                node.items.push(verb);
+            }
+
+            const toItems = (node: ShellNode): ContextMenuItem[] => [
+                ...node.items.map((verb) => ({
                     label: verb.label,
-                    group: verb.group ?? shellGroup,
-                    depth: verb.group ? verb.depth : 0,
                     icon: <MenuIcon source={verb.icon}/>,
                     disabled: !verb.enabled,
                     checked: verb.checked,
                     onSelect: () => void invokeShellVerb(shellPaths, shell.safe, verb.verb, verb.offset),
-                });
+                })),
+                ...[...node.children.entries()].map(([label, child]) => ({
+                    label,
+                    children: toItems(child),
+                    onSelect: () => undefined,
+                })),
+            ];
+
+            menuItems.push({
+                label: shell.safe ? "More actions" : "More actions (extensions)",
+                icon: <ExecutableIcon size={14}/>,
+                separatorBefore: true,
+                children: toItems(root),
+                onSelect: () => undefined,
             });
+        }
     }
 
-    if (error)
+    const confirmDialog = pendingConfirm && (
+        <ConfirmDialog
+            confirmLabel={pendingConfirm.permanent ? "Delete" : "Move"}
+            danger={pendingConfirm.permanent}
+            message={pendingConfirm.permanent
+                ? `Permanently delete ${pendingConfirm.paths.length === 1
+                    ? "this item"
+                    : `${pendingConfirm.paths.length} items`}? This cannot be undone.`
+                : `Move ${pendingConfirm.paths.length === 1
+                    ? "this item"
+                    : `${pendingConfirm.paths.length} items`} to the recycle bin?`}
+            onCancel={() => settleDelete(false)}
+            onConfirm={() => settleDelete(true)}
+            open
+            title={pendingConfirm.permanent ? "Delete permanently" : "Move to the recycle bin"}
+        />
+    );
+
+    if (error && !listing)
         return <Center><ErrorText>{error}</ErrorText></Center>;
 
     if (!listing && !loading)
@@ -811,15 +878,16 @@ export function FileList({
                     {!loading && listing && rows.length === 0 && (
                         <EmptyCell>
                             <Muted>
-                                {searching && find.mode === "hide"
+                                {error ?? (searching && find.mode === "hide"
                                     ? "No entries match the search."
-                                    : "This folder is empty."}
+                                    : "This folder is empty.")}
                             </Muted>
                         </EmptyCell>
                     )}
                 </GridBody>
 
                 {menu && <ContextMenu items={menuItems} onClose={closeMenu} quick={quickActions} x={menu.x} y={menu.y}/>}
+                {confirmDialog}
             </Wrapper>
         );
 
@@ -877,9 +945,9 @@ export function FileList({
                 {!loading && listing && rows.length === 0 && (
                     <Center>
                         <Muted>
-                            {searching && find.mode === "hide"
+                            {error ?? (searching && find.mode === "hide"
                                 ? "No entries match the search."
-                                : "This folder is empty."}
+                                : "This folder is empty.")}
                         </Muted>
                     </Center>
                 )}
@@ -939,13 +1007,14 @@ export function FileList({
             )}
 
             {menu && <ContextMenu items={menuItems} onClose={closeMenu} quick={quickActions} x={menu.x} y={menu.y}/>}
+            {confirmDialog}
         </Wrapper>
     );
 }
 
 /** Maps an extracted shell icon source to the glyph the menu draws. */
 function MenuIcon({source}: {source: string | null}) {
-    if (!source) return <AppIcon size={14}/>;
+    if (!source) return null;
     if (source.startsWith("data:")) return <img alt="" height={14} src={source} width={14}/>;
 
     switch (source.startsWith("icon:") ? source.slice(5) : source) {
@@ -1565,9 +1634,9 @@ const Head = styled.div`
     gap: 16px;
     padding: 10px 22px;
     border-bottom: 1px solid var(--border-color);
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-muted);
 `;
@@ -1753,7 +1822,7 @@ const LinkTo = styled.span`
     overflow: hidden;
     min-width: 0;
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 11px;
     color: var(--accent-primary);
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1761,8 +1830,9 @@ const LinkTo = styled.span`
 
 const Cell = styled.span`
     overflow: hidden;
-    font-family: var(--font-mono);
-    font-size: 11px;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
     color: var(--text-muted);
     text-overflow: ellipsis;
     white-space: nowrap;

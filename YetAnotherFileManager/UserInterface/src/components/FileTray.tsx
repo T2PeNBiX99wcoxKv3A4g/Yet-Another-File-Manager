@@ -68,7 +68,7 @@ export function FileTray({
         [items, selected]
     );
 
-    if (!visible || items.length === 0)
+    if (!visible)
         return null;
 
     const allSelected = selected.size === items.length && items.length > 0;
@@ -167,6 +167,7 @@ export function FileTray({
             </Head>
 
             <List>
+                {items.length === 0 && <DropHint>Drag files or folders here</DropHint>}
                 {items.map((item) => {
                     const checked = selected.has(item.path);
 
@@ -329,6 +330,14 @@ const List = styled.div`
     min-height: 46px;
     overflow-y: auto;
     padding: 4px;
+`;
+
+const DropHint = styled.p`
+    margin: 0;
+    padding: 18px 12px;
+    color: var(--text-muted);
+    font-size: 11px;
+    text-align: center;
 `;
 
 const Item = styled.div<{ $checked: boolean }>`
