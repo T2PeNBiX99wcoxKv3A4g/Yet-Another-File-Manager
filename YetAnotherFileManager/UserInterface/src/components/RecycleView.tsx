@@ -268,7 +268,7 @@ export function RecycleView({onOpenLocation}: RecycleViewProps) {
     const menuItems: ContextMenuItem[] = [
         {
             label: "Restore",
-            icon: <RestoreSvg/>,
+            icon: <RestoreSvg width={14} height={14}/>,
             disabled: removable.length === 0,
             onSelect: () => void restoreSelected(),
         },
