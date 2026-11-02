@@ -36,14 +36,12 @@ interface ContextMenuProps {
  * clip it, and closes the way a native menu does.
  */
 export function ContextMenu({x, y, items, quick = [], onClose}: ContextMenuProps) {
-    const root = useRef<HTMLDivElement | null>(null);
-    const flyoutRoot = useRef<HTMLDivElement | null>(null);
-    const flyoutTimer = useRef<number | undefined>(undefined);
-    const [flyout, setFlyout] = useState<{ items: ContextMenuItem[]; left: number; top: number } | null>(null);
+    const [flyouts, setFlyouts] = useState<{ items: ContextMenuItem[]; left: number; top: number }[]>([]);
+    const closeTimer = useRef<number | undefined>(undefined);
 
     useEffect(() => {
         const inside = (target: EventTarget | null) =>
-            root.current?.contains(target as Node) || flyoutRoot.current?.contains(target as Node);
+            target instanceof Element && target.closest("[data-yafm-menu]") !== null;
 
         const closeOnPointer = (event: PointerEvent) => {
             if (!inside(event.target)) onClose();
@@ -71,29 +69,41 @@ export function ContextMenu({x, y, items, quick = [], onClose}: ContextMenuProps
         };
     }, [onClose]);
 
-    useEffect(() => () => window.clearTimeout(flyoutTimer.current), []);
+    useEffect(() => () => window.clearTimeout(closeTimer.current), []);
 
     if (items.length === 0 && quick.length === 0) return null;
 
     const left = Math.max(8, Math.min(x, window.innerWidth - 280));
     const top = Math.max(8, Math.min(y, window.innerHeight - (items.length * 32 + 76)));
 
-    const cancelFlyoutClose = () => window.clearTimeout(flyoutTimer.current);
+    const cancelClose = () => window.clearTimeout(closeTimer.current);
 
-    const scheduleFlyoutClose = () => {
-        cancelFlyoutClose();
-        flyoutTimer.current = window.setTimeout(() => setFlyout(null), 180);
+    const scheduleClose = (depth: number) => {
+        cancelClose();
+        closeTimer.current = window.setTimeout(
+            () => setFlyouts((current) => current.slice(0, depth)),
+            180,
+        );
     };
 
-    const openFlyout = (event: ReactMouseEvent<HTMLButtonElement>, children: ContextMenuItem[]) => {
-        cancelFlyoutClose();
+    const openFlyout = (
+        event: ReactMouseEvent<HTMLButtonElement>,
+        children: ContextMenuItem[],
+        depth: number,
+    ) => {
+        cancelClose();
 
         const rect = event.currentTarget.getBoundingClientRect();
         const leftSide = rect.right + 248 > window.innerWidth;
         const flyoutLeft = leftSide ? Math.max(8, rect.left - 248) : rect.right + 4;
         const flyoutTop = Math.max(8, Math.min(rect.top, window.innerHeight - 320));
 
-        setFlyout({items: children, left: flyoutLeft, top: flyoutTop});
+        // Keep the parents and replace everything below this level. A nested submenu therefore
+        // stacks beside its parent instead of replacing it.
+        setFlyouts((current) => [
+            ...current.slice(0, depth),
+            {items: children, left: flyoutLeft, top: flyoutTop},
+        ]);
     };
 
     const select = (item: ContextMenuItem) => {
@@ -101,7 +111,7 @@ export function ContextMenu({x, y, items, quick = [], onClose}: ContextMenuProps
         item.onSelect();
     };
 
-    const renderRows = (list: ContextMenuItem[]): ReactNode[] => {
+    const renderRows = (list: ContextMenuItem[], depth: number): ReactNode[] => {
         const nodes: ReactNode[] = [];
         let group: string | undefined;
 
@@ -126,11 +136,13 @@ export function ContextMenu({x, y, items, quick = [], onClose}: ContextMenuProps
                     disabled={item.disabled}
                     key={`${item.label}-${index}`}
                     onClick={(event) => {
-                        if (hasChildren) openFlyout(event, item.children!);
+                        if (hasChildren) openFlyout(event, item.children!, depth);
                         else select(item);
                     }}
-                    onPointerEnter={hasChildren ? (event) => openFlyout(event, item.children!) : undefined}
-                    onPointerLeave={hasChildren ? scheduleFlyoutClose : undefined}
+                    onPointerEnter={hasChildren
+                        ? (event) => openFlyout(event, item.children!, depth)
+                        : undefined}
+                    onPointerLeave={hasChildren ? () => scheduleClose(depth) : undefined}
                     role="menuitem"
                     type="button"
                 >
@@ -147,8 +159,9 @@ export function ContextMenu({x, y, items, quick = [], onClose}: ContextMenuProps
     return createPortal(
         <>
             <Menu
+                data-yafm-menu
                 onContextMenu={(event) => event.preventDefault()}
-                ref={root}
+                onPointerLeave={() => scheduleClose(0)}
                 role="menu"
                 style={{left, top, maxHeight: Math.max(160, window.innerHeight - top - 8)}}
             >
@@ -172,14 +185,15 @@ export function ContextMenu({x, y, items, quick = [], onClose}: ContextMenuProps
                         <Rule/>
                     </>
                 )}
-                {renderRows(items)}
+                {renderRows(items, 0)}
             </Menu>
 
-            {flyout && (
+            {flyouts.map((flyout, index) => (
                 <Menu
-                    onPointerEnter={cancelFlyoutClose}
-                    onPointerLeave={scheduleFlyoutClose}
-                    ref={flyoutRoot}
+                    data-yafm-menu
+                    key={`${index}-${flyout.left}-${flyout.top}`}
+                    onPointerEnter={cancelClose}
+                    onPointerLeave={() => scheduleClose(index)}
                     role="menu"
                     style={{
                         left: flyout.left,
@@ -188,9 +202,9 @@ export function ContextMenu({x, y, items, quick = [], onClose}: ContextMenuProps
                         maxHeight: Math.max(160, window.innerHeight - flyout.top - 8),
                     }}
                 >
-                    {renderRows(flyout.items)}
+                    {renderRows(flyout.items, index + 1)}
                 </Menu>
-            )}
+            ))}
         </>,
         document.body,
     );

@@ -267,6 +267,15 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 TaskCenter.Instance.ClearFinished();
                 return context.Reply("app.tasks.clear.result", new OkPayload());
 
+            case "app.tags":
+                return context.Reply("app.tags.result",
+                    new TagsCatalogPayload(TagCatalog.Instance.List().ToList()));
+
+            case "app.tags.delete":
+                return context.Reply("app.tags.delete.result",
+                    new OkPayload(await TagCatalog.Instance.DeleteAsync(
+                        context.Payload<TagDeleteRequest>()?.Name ?? "")));
+
             case "fs.operation.properties":
                 await FileOperations.ShowPropertiesAsync(context.Payload<PathsPayload>()?.Paths ?? []);
                 return context.Reply("fs.operation.properties.result", new OkPayload(true));
@@ -466,6 +475,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
         if (request.Colors is { } colors)
             await DirectoryIndex.SaveTagColorsAsync(request.Directory, colors);
+
+        if (saved)
+            TagCatalog.Instance.Record(request.Directory, request.Tags, request.Colors);
 
         return saved;
     }
@@ -680,9 +692,19 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         var tags = metadata.Tags;
         var tagColors = metadata.TagColors;
         var counts = metadata.Counts;
+
+        // Tags are per folder, but the catalogue remembers every name and colour so the Settings
+        // manager can list them and the picker can suggest tags from other folders.
+        var catalog = TagCatalog.Instance;
+        catalog.Record(directory.FullName, tags.Values.SelectMany(list => list).Concat(tagColors.Keys), tagColors);
+
+        foreach (var (name, color) in catalog.Colors)
+            tagColors.TryAdd(name, color);
+
         var allTags = tags.Values
             .SelectMany(list => list)
             .Concat(tagColors.Keys)
+            .Concat(catalog.Names)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -751,9 +773,17 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         var tags = metadata.Tags;
         var tagColors = metadata.TagColors;
         var counts = metadata.Counts;
+
+        var catalog = TagCatalog.Instance;
+        catalog.Record(directory.FullName, tags.Values.SelectMany(list => list).Concat(tagColors.Keys), tagColors);
+
+        foreach (var (name, color) in catalog.Colors)
+            tagColors.TryAdd(name, color);
+
         var allTags = tags.Values
             .SelectMany(list => list)
             .Concat(tagColors.Keys)
+            .Concat(catalog.Names)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
             .ToList();

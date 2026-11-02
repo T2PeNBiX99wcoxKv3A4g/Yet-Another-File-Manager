@@ -51,6 +51,8 @@ export interface AppSettings {
     openOnSingleClick: boolean;
     /** Ask before moving items to the recycle bin. Shift+Del always asks. */
     confirmDelete: boolean;
+    /** Play a video preview's audio; off means muted. */
+    previewVideoAudio: boolean;
 }
 
 const fallback: AppSettings = {
@@ -80,6 +82,7 @@ const fallback: AppSettings = {
     showCheckboxes: true,
     openOnSingleClick: false,
     confirmDelete: false,
+    previewVideoAudio: false,
 };
 
 /** The interface settings, persisted by the host. */
@@ -115,6 +118,7 @@ export async function getSettings(): Promise<AppSettings> {
         showCheckboxes: raw?.showCheckboxes ?? true,
         openOnSingleClick: raw?.openOnSingleClick ?? false,
         confirmDelete: raw?.confirmDelete ?? false,
+        previewVideoAudio: raw?.previewVideoAudio ?? false,
     };
 }
 
@@ -151,6 +155,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         showCheckboxes: saved?.showCheckboxes ?? settings.showCheckboxes,
         openOnSingleClick: saved?.openOnSingleClick ?? settings.openOnSingleClick,
         confirmDelete: saved?.confirmDelete ?? settings.confirmDelete,
+        previewVideoAudio: saved?.previewVideoAudio ?? settings.previewVideoAudio,
     };
 }
 

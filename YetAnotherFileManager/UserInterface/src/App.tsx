@@ -1337,6 +1337,7 @@ export default function App() {
         return (
             <FileList
                 confirmDelete={settings?.confirmDelete ?? false}
+                previewVideoAudio={settings?.previewVideoAudio ?? false}
                 enableShortcuts={primary}
                 error={tab.error}
                 find={primary ? {...find, currentPath: findCurrent < 0 ? null : findHits[findCurrent]} : undefined}
@@ -1568,9 +1569,12 @@ export default function App() {
                     ) : kind === "settings" ? (
                         <SettingsView appInfo={appInfo} onSettingsChanged={reloadSettings}/>
                     ) : kind === "gallery" ? (
-                        <GalleryView openOnSingleClick={settings?.openOnSingleClick ?? false}/>
+                        <GalleryView
+                            openOnSingleClick={settings?.openOnSingleClick ?? false}
+                            showCheckboxes={settings?.showCheckboxes ?? true}
+                        />
                     ) : (
-                        <RecycleView onOpenLocation={navigate}/>
+                        <RecycleView onOpenLocation={navigate} videoAudio={settings?.previewVideoAudio ?? false}/>
                     )}
 
                     <StatusBar>

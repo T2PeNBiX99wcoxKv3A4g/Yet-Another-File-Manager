@@ -250,3 +250,20 @@ internal sealed record RecycleBatchRequest(List<string> Ids);
 
 /// <summary>Body for a recycle bin batch command: how many entries were handled.</summary>
 internal sealed record RecycleBatchPayload(bool Ok, int Done);
+
+/// <summary>A tag the app has seen, for the Settings tag manager.</summary>
+internal sealed record TagCatalogEntry(string Name, string? Color, int Folders);
+
+/// <summary>Body for <c>app.tags</c>: every tag the catalogue knows.</summary>
+internal sealed record TagsCatalogPayload(List<TagCatalogEntry> Tags);
+
+/// <summary>Payload for <c>app.tags.delete</c>: the tag to remove everywhere.</summary>
+internal sealed record TagDeleteRequest(string Name);
+
+/// <summary>Persisted tag catalogue record; <c>Directories</c> lets a delete clean the indexes.</summary>
+public sealed class TagRecord
+{
+    public string Name { get; set; } = "";
+    public string? Color { get; set; }
+    public List<string> Directories { get; set; } = [];
+}

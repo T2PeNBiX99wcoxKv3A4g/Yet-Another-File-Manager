@@ -392,6 +392,115 @@ internal static class FolderIndex
                         JsonSerializer.Serialize(tags.ToList(), AppJsonContext.Default.ListString));
             });
 
+    /// <summary>Removes one tag from every entry in a folder's index.</summary>
+    public static async Task<bool> RemoveTagAsync(string directory, string tag)
+    {
+        await WriteGate.WaitAsync();
+
+        try
+        {
+            var result = await Try.Run(async () =>
+            {
+                await using var connection = await OpenAsync(directory, false);
+                if (connection is null)
+                    return false;
+
+                var rows = new List<(string Name, List<string> Tags)>();
+
+                await using (var read = connection.CreateCommand())
+                {
+                    read.CommandText = "SELECT name, tags FROM tags";
+                    await using var reader = await read.ExecuteReaderAsync();
+
+                    while (await reader.ReadAsync())
+                    {
+                        var tags = Try.Run(() => JsonSerializer.Deserialize(reader.GetString(1),
+                            AppJsonContext.Default.ListString)).GetOrNull();
+
+                        if (tags is { Count: > 0 } && tags.Contains(tag, StringComparer.OrdinalIgnoreCase))
+                            rows.Add((reader.GetString(0), tags));
+                    }
+                }
+
+                await using var transaction = await connection.BeginTransactionAsync();
+
+                foreach (var (name, tags) in rows)
+                {
+                    tags.RemoveAll(value => string.Equals(value, tag, StringComparison.OrdinalIgnoreCase));
+
+                    await using var command = connection.CreateCommand();
+                    command.Transaction = (SqliteTransaction)transaction;
+
+                    if (tags.Count == 0)
+                    {
+                        command.CommandText = "DELETE FROM tags WHERE name = $name";
+                    }
+                    else
+                    {
+                        command.CommandText = "UPDATE tags SET tags = $tags WHERE name = $name";
+                        command.Parameters.AddWithValue("$tags",
+                            JsonSerializer.Serialize(tags, AppJsonContext.Default.ListString));
+                    }
+
+                    command.Parameters.AddWithValue("$name", name);
+                    await command.ExecuteNonQueryAsync();
+                }
+
+                // A color left behind would resurrect the deleted tag the next time the folder is
+                // listed, so the settings row is cleaned in the same transaction.
+                await using (var read = connection.CreateCommand())
+                {
+                    read.CommandText = "SELECT value FROM settings WHERE key = 'tag_colors'";
+                    read.Transaction = (SqliteTransaction)transaction;
+
+                    var raw = await read.ExecuteScalarAsync() as string;
+                    var colors = raw is null
+                        ? null
+                        : Try.Run(() => JsonSerializer.Deserialize(raw,
+                            AppJsonContext.Default.DictionaryStringString)).GetOrNull();
+
+                    if (colors is not null)
+                    {
+                        var key = colors.Keys.FirstOrDefault(value =>
+                            string.Equals(value, tag, StringComparison.OrdinalIgnoreCase));
+
+                        if (key is not null)
+                        {
+                            colors.Remove(key);
+
+                            await using var write = connection.CreateCommand();
+                            write.Transaction = (SqliteTransaction)transaction;
+
+                            if (colors.Count == 0)
+                            {
+                                write.CommandText = "DELETE FROM settings WHERE key = 'tag_colors'";
+                            }
+                            else
+                            {
+                                write.CommandText =
+                                    "UPDATE settings SET value = $value WHERE key = 'tag_colors'";
+                                write.Parameters.AddWithValue("$value",
+                                    JsonSerializer.Serialize(colors, AppJsonContext.Default.DictionaryStringString));
+                            }
+
+                            await write.ExecuteNonQueryAsync();
+                        }
+                    }
+                }
+
+                await transaction.CommitAsync();
+                return true;
+            });
+
+            return result.OnFailure(ex => Log.Debug(ex, "Could not remove tag {Tag} from {Directory}", tag, directory))
+                .GetOrElse(_ => false);
+        }
+        finally
+        {
+            WriteGate.Release();
+        }
+    }
+
     /// <summary>The color each tag was given, by tag name.</summary>
     public static async Task<Dictionary<string, string>> TagColorsAsync(string directory) =>
         await ReadAsync(directory, "SELECT value FROM settings WHERE key = 'tag_colors'",

@@ -53,12 +53,17 @@ function cacheKey(path: string, isDirectory: boolean, large: boolean): string {
 }
 
 /** The icon the shell would show, as a data URL, or null while it loads or when unavailable. */
-export function useIcon(path: string, isDirectory: boolean, large = false): string | null {
+export function useIcon(path: string | null, isDirectory: boolean, large = false): string | null {
     const revision = useIconVersion();
-    const id = cacheKey(path, isDirectory, large);
+    const id = path === null ? "" : cacheKey(path, isDirectory, large);
     const [icon, setIcon] = useState<string | null>(() => iconCache.get(id) ?? null);
 
     useEffect(() => {
+        if (path === null) {
+            setIcon(null);
+            return;
+        }
+
         if (!Native.available) return;
 
         if (iconCache.has(id)) {
@@ -162,4 +167,30 @@ export function useThumbnail(path: string | null, size = 128, version = 0): stri
     if (!path || !base) return null;
 
     return `${base}/thumb?path=${encodeURIComponent(path)}&size=${size}&v=${version}`;
+}
+
+/**
+ * A loopback URL for the original media file, for a video or audio element. The server supports
+ * byte ranges, so seeking and progressive playback work without loading the whole file.
+ */
+export function useMediaUrl(path: string | null, version = 0, extension = ""): string | null {
+    const [base, setBase] = useState<string | null>(thumbnailBase);
+
+    useEffect(() => {
+        if (!path || base !== null) return;
+
+        let alive = true;
+        void loadThumbnailBase().then((value) => {
+            if (alive) setBase(value);
+        });
+
+        return () => {
+            alive = false;
+        };
+    }, [path, base]);
+
+    if (!path || !base) return null;
+
+    const ext = extension ? `&ext=${encodeURIComponent(extension)}` : "";
+    return `${base}/media?path=${encodeURIComponent(path)}&v=${version}${ext}`;
 }

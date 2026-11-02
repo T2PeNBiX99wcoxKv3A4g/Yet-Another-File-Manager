@@ -12,16 +12,19 @@ import {
 } from "../api/files";
 import {useIcon} from "../api/icons";
 import {formatBytes, formatDate} from "../utils/format";
-import {CheckIcon, CopyIcon, CrossIcon, FileIcon, FolderIcon, GearIcon, RefreshIcon, TrashIcon} from "./Icons";
+import {CheckIcon, CopyIcon, FileIcon, FolderIcon, GearIcon, RefreshIcon, TrashIcon} from "./Icons";
 import RestoreSvg from "./icons/restore.svg?react";
 import {ConfirmDialog} from "./ConfirmDialog";
 import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
+import {PreviewPane, type PreviewInfo} from "./PreviewPane";
 
 type SortColumn = "name" | "original" | "deleted" | "size" | "type";
 
 interface RecycleViewProps {
     /** Navigates to the folder that held the selected entry, when it still exists. */
     onOpenLocation: (path: string) => void;
+    /** Play audio in video previews; off means muted. */
+    videoAudio?: boolean;
 }
 
 /**
@@ -29,7 +32,7 @@ interface RecycleViewProps {
  * details strip and a context menu. Windows keeps the records under `$Recycle.Bin`; this view only
  * presents what the host read and asks it for restore/delete.
  */
-export function RecycleView({onOpenLocation}: RecycleViewProps) {
+export function RecycleView({onOpenLocation, videoAudio = false}: RecycleViewProps) {
     const [entries, setEntries] = useState<RecycleEntry[]>([]);
     const [adminEntries, setAdminEntries] = useState<RecycleEntry[]>([]);
     const [adminLoaded, setAdminLoaded] = useState(false);
@@ -40,13 +43,36 @@ export function RecycleView({onOpenLocation}: RecycleViewProps) {
     const [showOrphans, setShowOrphans] = useState(false);
     const [selected, setSelected] = useState<Set<string>>(() => new Set());
     const [anchor, setAnchor] = useState<string | null>(null);
-    const [sort, setSort] = useState<{ column: SortColumn; descending: boolean }>({
-        column: "deleted",
-        descending: true,
+    const [sort, setSort] = useState<{ column: SortColumn; descending: boolean }>(() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem("yafm.recycle.sort") ?? "null") as
+                { column?: SortColumn; descending?: boolean } | null;
+
+            if (saved?.column)
+                return {column: saved.column, descending: saved.descending === true};
+        } catch {
+            // A malformed saved sort is not worth a warning.
+        }
+
+        return {column: "name", descending: false};
     });
     const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
     const [confirm, setConfirm] = useState<"delete" | "empty" | "purge" | null>(null);
+    const [previewWidth, setPreviewWidth] = useState(() => {
+        const saved = Number(localStorage.getItem("yafm.recycle.preview.width"));
+        return Number.isFinite(saved) && saved >= 220 ? saved : 320;
+    });
     const root = useRef<HTMLDivElement | null>(null);
+
+    const resizePreview = (width: number) => {
+        setPreviewWidth(width);
+
+        try {
+            localStorage.setItem("yafm.recycle.preview.width", String(width));
+        } catch {
+            // Storage may be unavailable; the width still works for this run.
+        }
+    };
 
     const reload = useCallback(async () => {
         setLoading(true);
@@ -319,6 +345,33 @@ export function RecycleView({onOpenLocation}: RecycleViewProps) {
         },
     ];
 
+    const previewEntry = selectedEntries.length > 0 ? selectedEntries[0] : null;
+    const previewInfo: PreviewInfo | null = previewEntry
+        ? {
+            name: previewEntry.name,
+            path: previewEntry.contentPath || previewEntry.originalPath,
+            isDirectory: previewEntry.isDirectory,
+            size: previewEntry.size,
+            modified: previewEntry.deleted,
+            fields: [
+                {label: "Type", value: typeOf(previewEntry)},
+                {label: "Original location", value: previewEntry.originalPath},
+                {label: "Date deleted", value: formatDate(previewEntry.deleted)},
+                {
+                    label: "Size",
+                    value: previewEntry.isDirectory ? "—" : formatBytes(previewEntry.size),
+                },
+                ...(previewEntry.owner ? [{label: "Owner", value: previewEntry.owner}] : []),
+                {
+                    label: "Status",
+                    value: previewEntry.isOrphan
+                        ? "Metadata only"
+                        : previewEntry.removable ? "Restorable" : "Other profile",
+                },
+            ],
+        }
+        : null;
+
     return (
         <Page ref={root} onContextMenu={(event) => openMenu(event)}>
             <Header>
@@ -397,7 +450,7 @@ export function RecycleView({onOpenLocation}: RecycleViewProps) {
             {!error && !loading && rows.length === 0 && <Message>The recycle bin is empty.</Message>}
 
             {rows.length > 0 && (
-                <>
+                <SplitPane>
                     <Table>
                         <Head>
                             <span/>
@@ -418,7 +471,12 @@ export function RecycleView({onOpenLocation}: RecycleViewProps) {
                             </SortButton>
                             <span/>
                         </Head>
-                        <Body>
+                        <Body
+                            onClick={(event) => {
+                                if (event.target === event.currentTarget)
+                                    setSelected(new Set());
+                            }}
+                        >
                             {rows.map((entry) => (
                                 <Row
                                     $checked={selected.has(entry.id)}
@@ -482,27 +540,16 @@ export function RecycleView({onOpenLocation}: RecycleViewProps) {
                         </Body>
                     </Table>
 
-                    {selectedEntries.length > 0 && (
-                        <Details>
-                            <DetailsHead>
-                                <strong>
-                                    {selectedEntries.length === 1 ? selectedEntries[0].name : `${selectedEntries.length} items selected`}
-                                </strong>
-                                <IconButton onClick={() => setSelected(new Set())} title="Close details" type="button">
-                                    <CrossIcon size={10}/>
-                                </IconButton>
-                            </DetailsHead>
-                            {selectedEntries.length === 1
-                                ? <DetailGrid entry={selectedEntries[0]}/>
-                                : (
-                                    <Summary>
-                                        {removable.length} restorable · {deletable.length} deletable ·{" "}
-                                        {formatBytes(selectedEntries.reduce((total, entry) => total + entry.size, 0))}
-                                    </Summary>
-                                )}
-                        </Details>
-                    )}
-                </>
+                    <PreviewPane
+                        info={previewInfo}
+                        onWidth={resizePreview}
+                        selectionNote={selectedEntries.length > 1
+                            ? `${selectedEntries.length} items selected`
+                            : undefined}
+                        videoAudio={videoAudio}
+                        width={previewWidth}
+                    />
+                </SplitPane>
             )}
 
             {menu && <ContextMenu items={menuItems} onClose={() => setMenu(null)} x={menu.x} y={menu.y}/>}
@@ -532,9 +579,19 @@ export function RecycleView({onOpenLocation}: RecycleViewProps) {
     );
 
     function toggleSort(column: SortColumn) {
-        setSort((current) => current.column === column
-            ? {column, descending: !current.descending}
-            : {column, descending: column === "deleted"});
+        setSort((current) => {
+            const next = current.column === column
+                ? {column, descending: !current.descending}
+                : {column, descending: column === "deleted"};
+
+            try {
+                localStorage.setItem("yafm.recycle.sort", JSON.stringify(next));
+            } catch {
+                // Storage may be unavailable; the sort still works for this run.
+            }
+
+            return next;
+        });
     }
 }
 
@@ -574,28 +631,6 @@ function EntryIcon({entry}: { entry: RecycleEntry }) {
                 ? <img alt="" height={18} src={icon} width={18}/>
                 : entry.isDirectory ? <FolderIcon/> : <FileIcon/>}
         </IconSlot>
-    );
-}
-
-function DetailGrid({entry}: { entry: RecycleEntry }) {
-    return (
-        <Grid>
-            <Field label="Original location" value={entry.originalPath}/>
-            <Field label="Date deleted" value={formatDate(entry.deleted)}/>
-            <Field label="Size" value={entry.isDirectory ? "—" : formatBytes(entry.size)}/>
-            <Field label="Type" value={typeOf(entry)}/>
-            {entry.owner && <Field label="Owner" value={entry.owner}/>}
-            <Field label="Status" value={entry.isOrphan ? "Metadata only" : entry.removable ? "Restorable" : "Other profile"}/>
-        </Grid>
-    );
-}
-
-function Field({label, value}: { label: string; value: string }) {
-    return (
-        <FieldRow>
-            <FieldLabel>{label}</FieldLabel>
-            <FieldValue>{value}</FieldValue>
-        </FieldRow>
     );
 }
 
@@ -868,56 +903,10 @@ const Tag = styled.span<{ $other?: boolean }>`
     white-space: nowrap;
 `;
 
-const Details = styled.section`
-    flex-shrink: 0;
-    padding: 10px 22px 14px;
-    border-top: 1px solid var(--border-color);
-    background: var(--bg-secondary);
-`;
-
-const DetailsHead = styled.div`
+const SplitPane = styled.div`
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 8px;
-    color: var(--text-primary);
-    font-size: 12px;
-`;
-
-const Grid = styled.div`
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 5px 18px;
-`;
-
-const FieldRow = styled.div`
-    display: flex;
-    gap: 8px;
-    min-width: 0;
-    font-size: 11px;
-`;
-
-const FieldLabel = styled.span`
-    width: 108px;
-    flex-shrink: 0;
-    color: var(--text-muted);
-`;
-
-const FieldValue = styled.span`
-    min-width: 0;
-    overflow: hidden;
-    color: var(--text-secondary);
-    font-family: var(--font-sans);
-    font-size: 11px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-`;
-
-const Summary = styled.p`
-    margin: 0;
-    color: var(--text-secondary);
-    font-size: 11px;
+    flex: 1;
+    min-height: 0;
 `;
 
 const Notice = styled.p`

@@ -1,4 +1,6 @@
+using System.Buffers;
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -73,9 +75,15 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
                 if (request is null)
                     return;
 
-                if (!TryReadPath(request, out var path, out var size, out var version))
+                if (!TryReadPath(request, out var path, out var size, out var version, out var media, out var extension))
                 {
                     await RespondAsync(stream, 404, "text/plain", []);
+                    return;
+                }
+
+                if (media)
+                {
+                    await MediaAsync(stream, path, request, extension);
                     return;
                 }
 
@@ -115,11 +123,14 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
     }
 
     /// <summary>Validates the token and reads the file path, size and cache version from the query.</summary>
-    private bool TryReadPath(string request, out string path, out int size, out string version)
+    private bool TryReadPath(string request, out string path, out int size, out string version, out bool media,
+        out string extension)
     {
         path = "";
         size = 128;
         version = "";
+        media = false;
+        extension = "";
 
         var line = request.Split("\r\n", 2)[0];
         var parts = line.Split(' ');
@@ -132,7 +143,9 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
         var route = queryAt >= 0 ? target[..queryAt] : target;
         var query = queryAt >= 0 ? target[(queryAt + 1)..] : "";
 
-        if (!route.Equals($"/{_token}/thumb", StringComparison.Ordinal))
+        media = route.Equals($"/{_token}/media", StringComparison.Ordinal);
+
+        if (!media && !route.Equals($"/{_token}/thumb", StringComparison.Ordinal))
             return false;
 
         foreach (var pair in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
@@ -149,6 +162,8 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
                 size = Math.Clamp(parsed, 32, 512);
             else if (pair[..equals] == "v")
                 version = value;
+            else if (pair[..equals] == "ext")
+                extension = value;
         }
 
         return path.Length > 0;
@@ -180,6 +195,128 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
             _gate.Release();
         }
     }
+
+    /// <summary>Streams a video or audio file with the byte-range support the media element needs.</summary>
+    private static async Task MediaAsync(NetworkStream stream, string path, string request, string extension)
+    {
+        if (!File.Exists(path))
+        {
+            await RespondAsync(stream, 404, "text/plain", []);
+            return;
+        }
+
+        await using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite,
+            64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+        var length = file.Length;
+        var start = 0L;
+        var end = Math.Max(length - 1, 0);
+        var partial = false;
+        var range = HeaderValue(request, "Range");
+
+        if (range is not null && range.StartsWith("bytes=", StringComparison.OrdinalIgnoreCase) && length > 0)
+        {
+            var spec = range["bytes=".Length..].Split(',')[0].Trim();
+            var dash = spec.IndexOf('-');
+
+            if (dash >= 0)
+            {
+                if (long.TryParse(spec[..dash], NumberStyles.Integer, CultureInfo.InvariantCulture, out var from))
+                    start = Math.Clamp(from, 0, length - 1);
+
+                if (long.TryParse(spec[(dash + 1)..], NumberStyles.Integer, CultureInfo.InvariantCulture, out var to))
+                    end = Math.Clamp(to, start, length - 1);
+
+                partial = true;
+            }
+        }
+
+        var count = length == 0 ? 0 : end - start + 1;
+        var header = $"HTTP/1.1 {(partial ? 206 : 200)} {(partial ? "Partial Content" : "OK")}\r\n" +
+                     $"Content-Type: {MediaType(path, extension)}\r\n" +
+                     $"Content-Length: {count}\r\n" +
+                     "Accept-Ranges: bytes\r\n" +
+                     "Cache-Control: public, max-age=86400\r\n" +
+                     "Access-Control-Allow-Origin: *\r\n" +
+                     "Connection: close\r\n" +
+                     (partial ? $"Content-Range: bytes {start}-{end}/{length}\r\n" : "") +
+                     "\r\n";
+
+        await stream.WriteAsync(Encoding.ASCII.GetBytes(header));
+
+        if (count > 0)
+        {
+            file.Seek(start, SeekOrigin.Begin);
+
+            var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
+
+            try
+            {
+                var remaining = count;
+                while (remaining > 0)
+                {
+                    var read = await file.ReadAsync(buffer.AsMemory(0, (int)Math.Min(buffer.Length, remaining)));
+                    if (read == 0)
+                        break;
+
+                    await stream.WriteAsync(buffer.AsMemory(0, read));
+                    remaining -= read;
+                }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
+        }
+
+        await stream.FlushAsync();
+    }
+
+    private static string? HeaderValue(string request, string name)
+    {
+        foreach (var line in request.Split("\r\n").Skip(1))
+        {
+            var colon = line.IndexOf(':');
+            if (colon <= 0)
+                continue;
+
+            if (line[..colon].Trim().Equals(name, StringComparison.OrdinalIgnoreCase))
+                return line[(colon + 1)..].Trim();
+        }
+
+        return null;
+    }
+
+    private static string MediaType(string path, string extension)
+    {
+        var hint = extension.TrimStart('.').ToLowerInvariant();
+        var ext = hint.Length > 0 ? $".{hint}" : Path.GetExtension(path).ToLowerInvariant();
+
+        return TypeOf(ext) ?? "application/octet-stream";
+    }
+
+    private static string? TypeOf(string extension) => extension.ToLowerInvariant() switch
+    {
+        ".mp4" or ".m4v" => "video/mp4",
+        ".webm" => "video/webm",
+        ".mkv" => "video/x-matroska",
+        ".mov" => "video/quicktime",
+        ".avi" => "video/x-msvideo",
+        ".wmv" => "video/x-ms-wmv",
+        ".mp3" => "audio/mpeg",
+        ".m4a" => "audio/mp4",
+        ".wav" => "audio/wav",
+        ".flac" => "audio/flac",
+        ".ogg" or ".oga" => "audio/ogg",
+        ".aac" => "audio/aac",
+        ".png" => "image/png",
+        ".jpg" or ".jpeg" => "image/jpeg",
+        ".gif" => "image/gif",
+        ".webp" => "image/webp",
+        ".bmp" => "image/bmp",
+        ".svg" => "image/svg+xml",
+        _ => null
+    };
 
     private void Remember(string key, byte[] bytes)
     {

@@ -48,4 +48,5 @@ public sealed record RecycleEntry(
     bool IsDirectory,
     bool IsOrphan,
     string? Owner,
-    bool Removable);
+    bool Removable,
+    string ContentPath);

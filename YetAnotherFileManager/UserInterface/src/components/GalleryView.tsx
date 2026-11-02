@@ -9,6 +9,7 @@ import {useThumbnail} from "../api/icons";
 import {appLocale, formatBytes} from "../utils/format";
 import {
     ArrowRightIcon,
+    CheckIcon,
     CopyIcon,
     ExecutableIcon,
     FolderIcon,
@@ -32,16 +33,18 @@ const MoreSpace = 600;
 interface GalleryViewProps {
     /** Open a picture with one click instead of two, following the file browser's setting. */
     openOnSingleClick?: boolean;
+    /** Show the selection checkbox on each picture, following the file browser's setting. */
+    showCheckboxes?: boolean;
 }
 
 /** A wall of thumbnails from the configured folders, newest first, grouped by day. */
-export function GalleryView({openOnSingleClick = false}: GalleryViewProps) {
+export function GalleryView({openOnSingleClick = false, showCheckboxes = true}: GalleryViewProps) {
     const [entries, setEntries] = useState<GalleryEntry[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
-    const [selected, setSelected] = useState<string | null>(null);
+    const [selected, setSelected] = useState<Set<string>>(() => new Set());
     const [menu, setMenu] = useState<{ x: number; y: number; entry: GalleryEntry } | null>(null);
 
     const entriesRef = useRef<GalleryEntry[]>([]);
@@ -51,6 +54,7 @@ export function GalleryView({openOnSingleClick = false}: GalleryViewProps) {
     const sentinel = useRef<HTMLDivElement | null>(null);
     const scroller = useRef<HTMLDivElement | null>(null);
     const scrollTick = useRef(0);
+    const anchor = useRef<string | null>(null);
 
     const load = useCallback(async (refresh: boolean) => {
         const token = ++generation.current;
@@ -194,11 +198,72 @@ export function GalleryView({openOnSingleClick = false}: GalleryViewProps) {
         void openFile(entry.path);
     }, []);
 
-    const select = useCallback((entry: GalleryEntry) => setSelected(entry.path), []);
+    /** Explorer's selection rules, using the loaded order for Shift ranges. */
+    const select = useCallback((event: ReactMouseEvent, entry: GalleryEntry) => {
+        const additive = event.ctrlKey || event.metaKey;
+        const paths = entriesRef.current.map((item) => item.path);
+
+        setSelected((current) => {
+            if (event.shiftKey && anchor.current) {
+                const from = paths.indexOf(anchor.current);
+                const to = paths.indexOf(entry.path);
+
+                if (from >= 0 && to >= 0) {
+                    const next = additive ? new Set(current) : new Set<string>();
+                    const start = Math.min(from, to);
+                    const end = Math.max(from, to);
+
+                    for (let index = start; index <= end; index++)
+                        next.add(paths[index]);
+
+                    return next;
+                }
+            }
+
+            if (additive) {
+                const next = new Set(current);
+                if (!next.delete(entry.path)) next.add(entry.path);
+                return next;
+            }
+
+            return new Set([entry.path]);
+        });
+
+        anchor.current = entry.path;
+    }, []);
+
+    const toggle = useCallback((entry: GalleryEntry) => {
+        setSelected((current) => {
+            const next = new Set(current);
+            if (!next.delete(entry.path)) next.add(entry.path);
+            return next;
+        });
+        anchor.current = entry.path;
+    }, []);
+
+    // Ctrl+A selects the pictures already loaded; Escape clears the selection.
+    useEffect(() => {
+        const onKey = (event: KeyboardEvent) => {
+            const target = event.target as HTMLElement | null;
+            if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable))
+                return;
+
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
+                event.preventDefault();
+                setSelected(new Set(entriesRef.current.map((entry) => entry.path)));
+                anchor.current = entriesRef.current[0]?.path ?? null;
+            } else if (event.key === "Escape") {
+                setSelected(new Set());
+            }
+        };
+
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, []);
 
     const openMenu = useCallback((event: ReactMouseEvent, entry: GalleryEntry) => {
         event.preventDefault();
-        setSelected(entry.path);
+        setSelected((current) => current.has(entry.path) ? current : new Set([entry.path]));
         setMenu({x: event.clientX, y: event.clientY, entry});
     }, []);
 
@@ -221,14 +286,15 @@ export function GalleryView({openOnSingleClick = false}: GalleryViewProps) {
                 onSelect: () => void showInExplorer(menu.entry.path),
             },
             {
-                label: "Copy",
+                label: selected.size > 1 ? `Copy ${selected.size} pictures` : "Copy",
                 icon: <CopyIcon size={14}/>,
-                onSelect: () => void copyPaths([menu.entry.path], false),
+                onSelect: () => void copyPaths(selected.size > 0 ? [...selected] : [menu.entry.path], false),
             },
             {
                 label: "Copy as path",
                 icon: <CopyIcon size={14}/>,
-                onSelect: () => void navigator.clipboard.writeText(menu.entry.path),
+                onSelect: () => void navigator.clipboard.writeText(
+                    (selected.size > 0 ? [...selected] : [menu.entry.path]).join("\n")),
             },
             {
                 label: "Properties",
@@ -241,7 +307,7 @@ export function GalleryView({openOnSingleClick = false}: GalleryViewProps) {
 
     const refresh = () => {
         setBusy(true);
-        setSelected(null);
+        setSelected(new Set());
         void load(true).finally(() => setBusy(false));
     };
 
@@ -261,7 +327,14 @@ export function GalleryView({openOnSingleClick = false}: GalleryViewProps) {
             {error && <Message>{error}</Message>}
             {!error && !loading && total === 0 && <Message>No pictures found.</Message>}
 
-            <Grid onScroll={onScroll} ref={scroller}>
+            <Grid
+                onClick={(event) => {
+                    if (!(event.target instanceof Element) || !event.target.closest("[data-path]"))
+                        setSelected(new Set());
+                }}
+                onScroll={onScroll}
+                ref={scroller}
+            >
                 {groups.map((group) => (
                     <Group key={group.label}>
                         <GroupTitle>{group.label}</GroupTitle>
@@ -273,8 +346,10 @@ export function GalleryView({openOnSingleClick = false}: GalleryViewProps) {
                                     onContextMenu={openMenu}
                                     onOpen={open}
                                     onSelect={select}
+                                    onToggle={toggle}
                                     openOnSingleClick={openOnSingleClick}
-                                    selected={selected === entry.path}
+                                    selected={selected.has(entry.path)}
+                                    showCheckboxes={showCheckboxes}
                                 />
                             ))}
                         </Tiles>
@@ -291,12 +366,14 @@ export function GalleryView({openOnSingleClick = false}: GalleryViewProps) {
 
 /** Thumbnails are fetched by the web view itself; a lazy image is enough to keep the wall fast. */
 const Tile = memo(function Tile({
-    entry, selected, openOnSingleClick, onSelect, onOpen, onContextMenu,
+    entry, selected, showCheckboxes, openOnSingleClick, onSelect, onToggle, onOpen, onContextMenu,
 }: {
     entry: GalleryEntry;
     selected: boolean;
+    showCheckboxes: boolean;
     openOnSingleClick: boolean;
-    onSelect: (entry: GalleryEntry) => void;
+    onSelect: (event: ReactMouseEvent, entry: GalleryEntry) => void;
+    onToggle: (entry: GalleryEntry) => void;
     onOpen: (entry: GalleryEntry) => void;
     onContextMenu: (event: ReactMouseEvent, entry: GalleryEntry) => void;
 }) {
@@ -307,10 +384,10 @@ const Tile = memo(function Tile({
     return (
         <Cell
             $selected={selected}
-            onClick={() => {
-                onSelect(entry);
+            onClick={(event) => {
+                onSelect(event, entry);
 
-                if (openOnSingleClick)
+                if (openOnSingleClick && !event.ctrlKey && !event.metaKey && !event.shiftKey)
                     onOpen(entry);
             }}
             onContextMenu={(event) => onContextMenu(event, entry)}
@@ -319,7 +396,22 @@ const Tile = memo(function Tile({
                     onOpen(entry);
             }}
             title={entry.name}
+            data-path={entry.path}
         >
+            {showCheckboxes && (
+                <GalleryCheck
+                    $checked={selected}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        onToggle(entry);
+                    }}
+                    onDoubleClick={(event) => event.stopPropagation()}
+                    title={selected ? "Deselect" : "Select"}
+                    type="button"
+                >
+                    {selected && <CheckIcon size={9}/>}
+                </GalleryCheck>
+            )}
             {(!thumbnail || !loaded || failed) && <Placeholder/>}
             {thumbnail && !failed && (
                 <img
@@ -514,6 +606,10 @@ const Cell = styled.div<{ $selected: boolean }>`
         border-color: var(--border-color-hover);
     }
 
+    &:hover > button {
+        opacity: 1;
+    }
+
     img {
         position: relative;
         z-index: 1;
@@ -523,6 +619,25 @@ const Cell = styled.div<{ $selected: boolean }>`
         object-fit: cover;
         pointer-events: none;
     }
+`;
+
+const GalleryCheck = styled.button<{ $checked: boolean }>`
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    width: 17px;
+    height: 17px;
+    padding: 0;
+    border: 1px solid ${({$checked}) => $checked ? "var(--border-color-focus)" : "rgba(255, 255, 255, 0.55)"};
+    border-radius: 4px;
+    background: ${({$checked}) => $checked ? "var(--accent-primary)" : "rgba(2, 6, 23, 0.55)"};
+    color: #fff;
+    opacity: ${({$checked}) => $checked ? 1 : 0};
+    cursor: pointer;
+    transition: opacity 100ms ease, background 100ms ease;
 `;
 
 const Placeholder = styled.div`

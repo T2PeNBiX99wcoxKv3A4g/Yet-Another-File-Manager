@@ -199,7 +199,8 @@ internal static class RecycleBin
             isDirectory,
             isOrphan,
             removable ? null : owner,
-            removable);
+            removable,
+            content);
     }
 
     /// <summary>
@@ -376,7 +377,8 @@ internal static class RecycleBin
             isDirectory,
             isOrphan,
             null,
-            true);
+            true,
+            stored);
     }
 
     private static bool RestoreUnix(string infoPath)

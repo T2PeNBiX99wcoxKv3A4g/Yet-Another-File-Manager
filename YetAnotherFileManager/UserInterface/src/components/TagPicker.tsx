@@ -231,7 +231,7 @@ const TagToggle = styled.button<{ $on: boolean; $color: string; $ink: string }>`
     border-radius: 999px;
     background: ${({$on, $color}) => $on ? $color : "transparent"};
     color: ${({$on, $ink}) => $on ? $ink : "var(--text-secondary)"};
-    font-size: 10px;
+    font-size: 11px;
     text-align: left;
     cursor: pointer;
 
@@ -247,7 +247,7 @@ const TagToggle = styled.button<{ $on: boolean; $color: string; $ink: string }>`
 `;
 
 const Empty = styled.span`
-    font-size: 10px;
+    font-size: 11px;
     color: var(--text-muted);
 `;
 

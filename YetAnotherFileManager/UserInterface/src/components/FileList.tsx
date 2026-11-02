@@ -53,6 +53,7 @@ import {
 } from "./Icons";
 import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
 import {ConfirmDialog} from "./ConfirmDialog";
+import {PreviewPane, type PreviewInfo} from "./PreviewPane";
 import {PlaceIcon} from "./PlaceIcon";
 import {TagPicker, DefaultTagColor, inkFor} from "./TagPicker";
 import {BuiltinIcon, iconForName} from "../icons/fileTypes";
@@ -108,6 +109,8 @@ interface FileListProps {
     onPaste?: () => void;
     /** Ask before moving items to the recycle bin. Shift+Del always asks. */
     confirmDelete?: boolean;
+    /** Play audio in video previews; off means muted. */
+    previewVideoAudio?: boolean;
 }
 
 interface RowModel {
@@ -126,7 +129,7 @@ export function FileList({
     listing, loading, error, find = NoFind, view, showImages, imageStripHeight = DefaultStripHeight,
     onImageStripHeight, onSort, onSetTags, onOpen, onOpenFile, showCheckboxes = true,
     openOnSingleClick = false, shortcuts = DefaultShortcuts, enableShortcuts = true, refreshToken = 0, onRefresh,
-    onClipboardChanged, onTransfer, onPaste, confirmDelete = false,
+    onClipboardChanged, onTransfer, onPaste, confirmDelete = false, previewVideoAudio = false,
 }: FileListProps) {
     const quick = useQuickAccess();
     const currentRow = useRef<HTMLDivElement | null>(null);
@@ -146,6 +149,23 @@ export function FileList({
         permanent: boolean;
         resolve: (ok: boolean) => void;
     } | null>(null);
+    const [renaming, setRenaming] = useState<{ path: string; value: string } | null>(null);
+    const renamingRef = useRef(renaming);
+    renamingRef.current = renaming;
+    const [previewWidth, setPreviewWidth] = useState(() => {
+        const saved = Number(localStorage.getItem("yafm.preview.width"));
+        return Number.isFinite(saved) && saved >= 220 ? saved : 320;
+    });
+
+    const resizePreview = useCallback((width: number) => {
+        setPreviewWidth(width);
+
+        try {
+            localStorage.setItem("yafm.preview.width", String(width));
+        } catch {
+            // Storage may be unavailable; the width still works for this run.
+        }
+    }, []);
     const [canPaste, setCanPaste] = useState(false);
     const shellRequest = useRef(0);
     const openWithRequest = useRef(0);
@@ -161,6 +181,7 @@ export function FileList({
     // A new folder starts with nothing selected; an operation that renamed a path drops it too.
     useEffect(() => {
         setSelected(new Set());
+        setRenaming(null);
         setMenu(null);
         setShell({verbs: [], safe: true, loading: false});
         setOpenWithApps({recommended: [], other: [], loading: false});
@@ -176,6 +197,7 @@ export function FileList({
     // An outside operation (undo, hidden files) invalidates the selected paths.
     useEffect(() => {
         setSelected(new Set());
+        setRenaming(null);
         anchor.current = null;
     }, [refreshToken]);
 
@@ -429,7 +451,7 @@ export function FileList({
         );
     }, [currentDirectory]);
 
-    const refresh = () => onRefresh?.();
+    const refresh = useCallback(() => onRefresh?.(), [onRefresh]);
 
     const copy = async (paths: string[], cut = false) => {
         if (await copyPaths(paths, cut)) {
@@ -456,19 +478,41 @@ export function FileList({
             window.alert(result.error ?? "Could not create the folder.");
     };
 
-    const rename = async (entry: FileEntry) => {
-        const name = window.prompt("Rename", entry.name);
-        if (name === null || name.trim().length === 0 || name === entry.name) return;
+    const rename = (entry: FileEntry) => {
+        setSelected(new Set([entry.fullPath]));
+        anchor.current = entry.fullPath;
+        setRenaming({path: entry.fullPath, value: entry.name});
+    };
 
-        const result = await renamePath(entry.fullPath, name);
+    const changeRename = useCallback((value: string) =>
+        setRenaming((current) => current ? {...current, value} : current), []);
+
+    const cancelRename = useCallback(() => setRenaming(null), []);
+
+    const commitRename = useCallback(async () => {
+        const target = renamingRef.current;
+        setRenaming(null);
+
+        if (!target)
+            return;
+
+        const value = target.value.trim();
+        if (value.length === 0)
+            return;
+
+        const entry = rowsRef.current.find((row) => row.entry.fullPath === target.path)?.entry;
+        if (!entry || value === entry.name)
+            return;
+
+        const result = await renamePath(target.path, value);
 
         if (result.ok) {
             clearSelection();
             refresh();
-        }
-        else
+        } else {
             window.alert(result.error ?? "Could not rename the entry.");
-    };
+        }
+    }, [clearSelection, refresh]);
 
     const remove = async (paths: string[], permanent = false) => {
         if ((permanent || confirmDelete) && !await askDelete(paths, permanent))
@@ -528,6 +572,38 @@ export function FileList({
                 event.preventDefault();
                 action();
             };
+
+            // Explorer's arrow-key navigation: move the selection through the visible order and
+            // keep the new row in view. Home/End jump to the ends.
+            if (combo === "arrowup" || combo === "arrowdown" || combo === "home" || combo === "end") {
+                if (allPaths.length === 0)
+                    return;
+
+                event.preventDefault();
+
+                const currentPath = anchor.current && allPaths.includes(anchor.current)
+                    ? anchor.current
+                    : selected.size === 1 ? [...selected][0] : null;
+                const currentIndex = currentPath ? allPaths.indexOf(currentPath) : -1;
+                const nextIndex = combo === "home"
+                    ? 0
+                    : combo === "end"
+                        ? allPaths.length - 1
+                        : Math.max(0, Math.min(allPaths.length - 1,
+                            currentIndex + (combo === "arrowdown" ? 1 : -1)));
+                const next = allPaths[nextIndex];
+
+                setSelected(new Set([next]));
+                anchor.current = next;
+
+                window.requestAnimationFrame(() => {
+                    document
+                        .querySelector<HTMLElement>(`[data-path="${CSS.escape(next)}"]`)
+                        ?.scrollIntoView({block: "nearest"});
+                });
+
+                return;
+            }
 
             if (combo === "ctrl+d" || combo === shortcuts.copy) {
                 run(() => {
@@ -825,6 +901,64 @@ export function FileList({
         />
     );
 
+    const previewEntry = useMemo(() => {
+        if (!listing || selected.size === 0)
+            return null;
+
+        const first = allPaths.find((path) => selected.has(path));
+        return first ? rows.find((row) => row.entry.fullPath === first)?.entry ?? null : null;
+    }, [allPaths, listing, rows, selected]);
+
+    const previewInfo: PreviewInfo | null = previewEntry && listing
+        ? (() => {
+            const folderSize = previewEntry.isDirectory ? listing.folderSizes[previewEntry.name] : undefined;
+
+            return {
+                name: previewEntry.name,
+                path: previewEntry.fullPath,
+                isDirectory: previewEntry.isDirectory,
+                size: previewEntry.size,
+                modified: previewEntry.modified,
+                created: previewEntry.created,
+                fields: [
+                    {label: "Type", value: typeLabel(previewEntry)},
+                    {label: "Location", value: listing.path},
+                    {
+                        label: "Size",
+                        value: previewEntry.isDirectory
+                            ? folderSize === undefined ? "—" : formatBytes(folderSize)
+                            : formatBytes(previewEntry.size),
+                    },
+                    {label: "Modified", value: formatDate(previewEntry.modified)},
+                    {label: "Created", value: formatDate(previewEntry.created)},
+                    ...(previewEntry.linkTarget
+                        ? [{label: "Target", value: previewEntry.linkTarget}]
+                        : []),
+                    ...(previewEntry.linkCount > 1
+                        ? [{label: "Links", value: String(previewEntry.linkCount)}]
+                        : []),
+                    {
+                        label: "Attributes",
+                        value: [
+                            previewEntry.isHidden ? "Hidden" : "",
+                            previewEntry.isSystem ? "System" : "",
+                        ].filter(Boolean).join(", ") || "—",
+                    },
+                ],
+            };
+        })()
+        : null;
+
+    const previewPane = previewInfo && (
+        <PreviewPane
+            info={previewInfo}
+            onWidth={resizePreview}
+            selectionNote={selected.size > 1 ? `${selected.size} items selected` : undefined}
+            videoAudio={previewVideoAudio}
+            width={previewWidth}
+        />
+    );
+
     if (error && !listing)
         return <Center><ErrorText>{error}</ErrorText></Center>;
 
@@ -833,10 +967,12 @@ export function FileList({
 
     if (view.mode === "grid")
         return (
-            <Wrapper>
+            <SplitPane>
+                <Wrapper>
                 <GridBody
                     onClick={(event) => {
-                        if (event.target === event.currentTarget) clearSelection();
+                        if (!(event.target instanceof Element) || !event.target.closest("[data-path]"))
+                            clearSelection();
                     }}
                     onContextMenu={(event) => openMenu(event)}
                     onDragOver={overListDrag}
@@ -854,9 +990,13 @@ export function FileList({
                             onContextMenu={openMenu}
                             onOpen={onOpen}
                             onOpenFile={onOpenFile}
+                            onRenameCancel={cancelRename}
+                            onRenameChange={changeRename}
+                            onRenameCommit={commitRename}
                             onSelect={selectRow}
                             onToggle={toggleRow}
                             openOnSingleClick={openOnSingleClick}
+                            renaming={renaming}
                             searching={searching}
                             selected={selected}
                             showCheckboxes={showCheckboxes}
@@ -876,11 +1016,14 @@ export function FileList({
 
                 {menu && <ContextMenu items={menuItems} onClose={closeMenu} quick={quickActions} x={menu.x} y={menu.y}/>}
                 {confirmDialog}
-            </Wrapper>
+                </Wrapper>
+                {previewPane}
+            </SplitPane>
         );
 
     return (
-        <Wrapper>
+        <SplitPane>
+            <Wrapper>
             <Head style={{gridTemplateColumns: template}}>
                 <HeaderButton onClick={() => onSort("name")} type="button">
                     Name{markOf(view, "name")}
@@ -916,10 +1059,14 @@ export function FileList({
                                 listing={listing!}
                                 onContextMenu={openMenu}
                                 onOpen={openRow}
+                                onRenameCancel={cancelRename}
+                                onRenameChange={changeRename}
+                                onRenameCommit={commitRename}
                                 onSelect={selectRow}
                                 onTagEdit={editTags}
                                 onToggle={toggleRow}
                                 openOnSingleClick={openOnSingleClick}
+                                renaming={renaming?.path === path ? {value: renaming.value} : null}
                                 row={row}
                                 selected={selected.has(path)}
                                 showCheckboxes={showCheckboxes}
@@ -957,7 +1104,8 @@ export function FileList({
                         </StripHead>
                         <GridBody
                             onClick={(event) => {
-                                if (event.target === event.currentTarget) clearSelection();
+                                if (!(event.target instanceof Element) || !event.target.closest("[data-path]"))
+                                    clearSelection();
                             }}
                             onContextMenu={(event) => openMenu(event)}
                         >
@@ -996,7 +1144,9 @@ export function FileList({
 
             {menu && <ContextMenu items={menuItems} onClose={closeMenu} quick={quickActions} x={menu.x} y={menu.y}/>}
             {confirmDialog}
-        </Wrapper>
+            </Wrapper>
+            {previewPane}
+        </SplitPane>
     );
 }
 
@@ -1291,6 +1441,7 @@ function PlaceholderTiles({size}: { size: number }) {
 /** One rectangular grid tile: a content preview, or the entry's icon, with a caption underneath. */
 const GridTile = memo(function GridTile({
     row, current, dim, iconSize, itemCount, showTarget, innerRef, selected, showCheckboxes, openOnSingleClick,
+    renaming, onRenameChange, onRenameCommit, onRenameCancel,
     onSelect, onToggle, onContextMenu, onOpen, onOpenFile,
 }: {
     row: RowModel;
@@ -1303,6 +1454,10 @@ const GridTile = memo(function GridTile({
     selected: boolean;
     showCheckboxes: boolean;
     openOnSingleClick: boolean;
+    renaming?: { value: string } | null;
+    onRenameChange?: (value: string) => void;
+    onRenameCommit?: () => void;
+    onRenameCancel?: () => void;
     onSelect: (event: ReactMouseEvent, path: string) => void;
     onToggle: (path: string) => void;
     onContextMenu: (event: ReactMouseEvent, path: string) => void;
@@ -1340,7 +1495,7 @@ const GridTile = memo(function GridTile({
             title={row.entry.name}
             data-directory={row.entry.isDirectory ? "true" : undefined}
             data-path={path}
-            draggable
+            draggable={!renaming}
         >
             {showCheckboxes && (
                 <TileCheck
@@ -1376,9 +1531,20 @@ const GridTile = memo(function GridTile({
                     )}
             </TileMedia>
             <TileCaption>
-                <TileName $broken={row.entry.linkValid === false}>
-                    <Highlighted name={row.label} ranges={row.ranges}/>
-                </TileName>
+                {renaming
+                    ? (
+                        <RenameInput
+                            onCancel={() => onRenameCancel?.()}
+                            onChange={(value) => onRenameChange?.(value)}
+                            onCommit={() => onRenameCommit?.()}
+                            value={renaming.value}
+                        />
+                    )
+                    : (
+                        <TileName $broken={row.entry.linkValid === false}>
+                            <Highlighted name={row.label} ranges={row.ranges}/>
+                        </TileName>
+                    )}
                 <TileMeta>
                     {row.entry.isDirectory
                         ? (itemCount === undefined ? typeLabel(row.entry) : `${typeLabel(row.entry)} · ${itemCount} items`)
@@ -1395,7 +1561,8 @@ const GridTile = memo(function GridTile({
 /** The sections of tiles, shared by the full grid and the preview panel under the list. */
 function GridContent({
     groups, gridSize, counts, showTarget, searching, currentPath, innerRef, selected, showCheckboxes,
-    openOnSingleClick, onSelect, onToggle, onContextMenu, onOpen, onOpenFile,
+    openOnSingleClick, renaming, onSelect, onToggle, onContextMenu, onOpen, onOpenFile,
+    onRenameChange, onRenameCommit, onRenameCancel,
 }: {
     groups: RowGroup[];
     gridSize: number;
@@ -1407,11 +1574,15 @@ function GridContent({
     selected: Set<string>;
     showCheckboxes: boolean;
     openOnSingleClick: boolean;
+    renaming?: { path: string; value: string } | null;
     onSelect: (event: ReactMouseEvent, path: string) => void;
     onToggle: (path: string) => void;
     onContextMenu: (event: ReactMouseEvent, path: string) => void;
     onOpen: (path: string, newTab?: boolean) => void;
     onOpenFile?: (path: string) => void;
+    onRenameChange?: (value: string) => void;
+    onRenameCommit?: () => void;
+    onRenameCancel?: () => void;
 }) {
     return (
         <>
@@ -1437,6 +1608,10 @@ function GridContent({
                                 onSelect={onSelect}
                                 onToggle={onToggle}
                                 openOnSingleClick={openOnSingleClick}
+                                onRenameCancel={onRenameCancel}
+                                onRenameChange={onRenameChange}
+                                onRenameCommit={onRenameCommit}
+                                renaming={renaming?.path === row.entry.fullPath ? renaming : null}
                                 row={row}
                                 selected={selected.has(row.entry.fullPath)}
                                 showCheckboxes={showCheckboxes}
@@ -1450,6 +1625,51 @@ function GridContent({
     );
 }
 
+/** Explorer-style inline name editor; the base name is selected, the extension is not. */
+function RenameInput({
+    value, onChange, onCommit, onCancel,
+}: {
+    value: string;
+    onChange: (value: string) => void;
+    onCommit: () => void;
+    onCancel: () => void;
+}) {
+    const input = useRef<HTMLInputElement | null>(null);
+
+    useEffect(() => {
+        const element = input.current;
+        if (!element)
+            return;
+
+        element.focus();
+
+        const dot = value.lastIndexOf(".");
+        element.setSelectionRange(0, dot > 0 ? dot : value.length);
+    }, []);
+
+    return (
+        <RenameBox
+            onClick={(event) => event.stopPropagation()}
+            onDoubleClick={(event) => event.stopPropagation()}
+            onChange={(event) => onChange(event.target.value)}
+            onKeyDown={(event) => {
+                event.stopPropagation();
+
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    onCommit();
+                } else if (event.key === "Escape") {
+                    event.preventDefault();
+                    onCancel();
+                }
+            }}
+            onBlur={onCommit}
+            ref={input}
+            value={value}
+        />
+    );
+}
+
 /**
  * One list row, memoized so selecting an entry repaints two rows instead of reconciling every row
  * of a folder with tens of thousands of entries. Props are primitives or references that only change
@@ -1457,8 +1677,9 @@ function GridContent({
  */
 const ListRow = memo(function ListRow({
     row, current, dim, selected, showCheckboxes, showTarget, openOnSingleClick,
-    iconSize, template, visible, listing, innerRef,
+    iconSize, template, visible, listing, innerRef, renaming,
     onSelect, onToggle, onContextMenu, onOpen, onTagEdit,
+    onRenameChange, onRenameCommit, onRenameCancel,
 }: {
     row: RowModel;
     current: boolean;
@@ -1472,11 +1693,15 @@ const ListRow = memo(function ListRow({
     visible: typeof ViewColumns;
     listing: DirectoryListing;
     innerRef?: RefObject<HTMLDivElement | null>;
+    renaming: { value: string } | null;
     onSelect: (event: ReactMouseEvent, path: string) => void;
     onToggle: (path: string) => void;
     onContextMenu: (event: ReactMouseEvent, path: string) => void;
     onOpen: (entry: FileEntry, event: ReactMouseEvent) => void;
     onTagEdit: (entry: FileEntry, x: number, y: number) => void;
+    onRenameChange: (value: string) => void;
+    onRenameCommit: () => void;
+    onRenameCancel: () => void;
 }) {
     const quick = useQuickAccess();
     const path = row.entry.fullPath;
@@ -1502,7 +1727,7 @@ const ListRow = memo(function ListRow({
             style={{gridTemplateColumns: template}}
             data-directory={row.entry.isDirectory ? "true" : undefined}
             data-path={path}
-            draggable
+            draggable={!renaming}
         >
             <Name>
                 {showCheckboxes && (
@@ -1522,9 +1747,20 @@ const ListRow = memo(function ListRow({
                 {row.place && quick.useIcons
                     ? <IconSlot><PlaceIcon place={row.place} size={iconSize}/></IconSlot>
                     : <EntryIcon entry={row.entry} size={iconSize}/>}
-                <NameText $broken={row.entry.linkValid === false} title={row.entry.name}>
-                    <Highlighted name={row.label} ranges={row.ranges}/>
-                </NameText>
+                {renaming
+                    ? (
+                        <RenameInput
+                            onCancel={onRenameCancel}
+                            onChange={onRenameChange}
+                            onCommit={onRenameCommit}
+                            value={renaming.value}
+                        />
+                    )
+                    : (
+                        <NameText $broken={row.entry.linkValid === false} title={row.entry.name}>
+                            <Highlighted name={row.label} ranges={row.ranges}/>
+                        </NameText>
+                    )}
                 {showTarget && row.entry.linkTarget && (
                     <LinkTo title={row.entry.linkTarget}>→ {row.entry.linkTarget}</LinkTo>
                 )}
@@ -1610,10 +1846,18 @@ const TileCheck = styled(SelectionBox)`
     backdrop-filter: blur(4px);
 `;
 
+const SplitPane = styled.div`
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+`;
+
 const Wrapper = styled.div`
     display: flex;
     flex-direction: column;
     min-height: 0;
+    min-width: 0;
     flex: 1;
 `;
 
@@ -1805,6 +2049,20 @@ const NameText = styled.span<{ $broken?: boolean }>`
     white-space: nowrap;
 `;
 
+/** The inline rename editor; it sits exactly where the name was. */
+const RenameBox = styled.input`
+    flex: 1;
+    min-width: 0;
+    padding: 2px 6px;
+    border: 1px solid var(--border-color-focus);
+    border-radius: 4px;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+`;
+
 /** A symlink's destination, shown after the name so the entry itself stays the label. */
 const LinkTo = styled.span`
     overflow: hidden;
@@ -1851,13 +2109,13 @@ const TagsButton = styled.button`
 
 const TagChip = styled.span<{ $color: string; $ink: string }>`
     max-width: 100%;
-    padding: 1px 7px;
+    padding: 2px 8px;
     overflow: hidden;
     border-radius: 999px;
     background: ${({$color}) => $color};
     color: ${({$ink}) => $ink};
     font-family: var(--font-sans);
-    font-size: 9px;
+    font-size: 11px;
     line-height: 1.5;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1865,7 +2123,7 @@ const TagChip = styled.span<{ $color: string; $ink: string }>`
 
 const TagEmpty = styled.span`
     color: var(--text-muted);
-    font-size: 10px;
+    font-size: 11px;
 `;
 
 const Broken = styled.span`

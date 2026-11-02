@@ -135,6 +135,8 @@ export interface RecycleEntry {
     owner: string | null;
     /** False for another profile's record, which this account normally cannot delete. */
     removable: boolean;
+    /** The stored `$R…` content that can be previewed, even though its original path is gone. */
+    contentPath: string;
 }
 
 export interface GalleryEntry {

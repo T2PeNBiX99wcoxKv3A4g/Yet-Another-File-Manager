@@ -32,12 +32,13 @@ public sealed record AppSettings(
     ViewDefaults? DefaultView,
     bool? ShowCheckboxes,
     bool? OpenOnSingleClick,
-    bool? ConfirmDelete)
+    bool? ConfirmDelete,
+    bool? PreviewVideoAudio)
 {
     public static AppSettings Default =>
         new(true, true, true, [], null, 10, null, ["quick", "frequent", "recent", "home", "drives"], null, 1, null,
             null, null, null, null, null, ["quick", "frequent", "recent", "drives"], null, null, true, null, 0, null,
-            true, false, false);
+            true, false, false, false);
 
     // The accessors below are derived, so they are kept out of settings.json entirely; only the
     // fields above are stored, and the JSON stays readable and stable.
@@ -132,4 +133,8 @@ public sealed record AppSettings(
     /// <summary>Ask before moving items to the recycle bin. Shift+Del always asks.</summary>
     [JsonIgnore]
     public bool ConfirmsDelete => ConfirmDelete ?? false;
+
+    /// <summary>Play a video preview's audio; off means the preview is muted.</summary>
+    [JsonIgnore]
+    public bool PlaysPreviewVideoAudio => PreviewVideoAudio ?? false;
 }

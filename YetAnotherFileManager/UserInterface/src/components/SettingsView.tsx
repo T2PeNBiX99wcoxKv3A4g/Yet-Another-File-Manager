@@ -13,8 +13,10 @@ import {
 } from "../api/settings";
 import type {AppInfo} from "../api/system";
 import {getMemory, getScheme, setScheme, trimMemory, type MemoryUsage} from "../api/system";
-import {CheckIcon, CrossIcon, PlusIcon} from "./Icons";
+import {deleteTag, listTags, type TagCatalogEntry} from "../api/tags";
+import {CheckIcon, CrossIcon, PlusIcon, TrashIcon} from "./Icons";
 import {IconPicker} from "./IconPicker";
+import {DefaultTagColor} from "./TagPicker";
 import {comboOf, DefaultShortcuts, prettyShortcut, type ShortcutMap} from "../shortcuts";
 import {BuiltinIcon} from "../icons/fileTypes";
 import {GlobalTag} from "./GlobalTag";
@@ -74,12 +76,14 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
     const [schemeBusy, setSchemeBusy] = useState(false);
     const [schemeError, setSchemeError] = useState<string | null>(null);
     const [capturing, setCapturing] = useState<string | null>(null);
+    const [tags, setTags] = useState<TagCatalogEntry[]>([]);
     const defaultView = settings?.defaultView ?? DefaultViewDefaults;
 
     useEffect(() => {
         void getVisibility().then(setVisibility, () => setVisibility(null));
         void getSettings().then(setSettings, () => setSettings(null));
         void getScheme().then(setSchemeState, () => setSchemeState(false));
+        void listTags().then(setTags, () => setTags([]));
     }, []);
 
     // Usage changes while the page is open, so the numbers refresh themselves.
@@ -100,6 +104,13 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
         setSettings(await saveSettings(next));
         // The window keeps its own copy of the settings; a toggle here has to reach it too.
         onSettingsChanged();
+    };
+
+    const removeTag = async (name: string) => {
+        if (!await deleteTag(name))
+            return;
+
+        setTags(await listTags());
     };
 
     /** Columns are a window-wide setting, so the order stays the same everywhere. */
@@ -286,6 +297,40 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
             </Section>
 
             <Section>
+                <Title>Tags</Title>
+                <Rows>
+                    {tags.length === 0 && (
+                        <Row>
+                            <Note>
+                                No tags yet. Add one from an entry's Tags cell; every tag you use will
+                                appear here.
+                            </Note>
+                        </Row>
+                    )}
+                    {tags.map((tag) => (
+                        <Row key={tag.name}>
+                            <RowText>
+                                <LabelRow>
+                                    <TagDot $color={tag.color ?? DefaultTagColor}/>
+                                    <Label>{tag.name}</Label>
+                                </LabelRow>
+                                <Note>
+                                    Used in {tag.folders} folder{tag.folders === 1 ? "" : "s"}.
+                                    Removing it also removes it from those folders' indexes.
+                                </Note>
+                            </RowText>
+                            <RowEnd>
+                                <DangerButton onClick={() => void removeTag(tag.name)} type="button">
+                                    <TrashIcon size={13}/>
+                                    Remove
+                                </DangerButton>
+                            </RowEnd>
+                        </Row>
+                    ))}
+                </Rows>
+            </Section>
+
+            <Section>
                 <Title>Files view (global)</Title>
                 <Rows>
                     <Row>
@@ -412,6 +457,26 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                             $on={settings?.confirmDelete ?? false}
                             disabled={!settings}
                             onClick={() => void update({confirmDelete: !(settings?.confirmDelete ?? false)})}
+                            type="button"
+                        >
+                            <Knob/>
+                        </Toggle>
+                    </Row>
+                    <Row>
+                        <RowText>
+                            <LabelRow>
+                                <Label>Play audio in video previews</Label>
+                                <GlobalTag/>
+                            </LabelRow>
+                            <Note>
+                                Video previews play muted by default. Turn this on to hear their audio
+                                while the details panel is open.
+                            </Note>
+                        </RowText>
+                        <Toggle
+                            $on={settings?.previewVideoAudio ?? false}
+                            disabled={!settings}
+                            onClick={() => void update({previewVideoAudio: !(settings?.previewVideoAudio ?? false)})}
                             type="button"
                         >
                             <Knob/>
@@ -970,6 +1035,33 @@ const Value = styled.span`
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--text-muted);
+`;
+
+const TagDot = styled.span<{ $color: string }>`
+    width: 10px;
+    height: 10px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: ${({$color}) => $color};
+`;
+
+const DangerButton = styled.button`
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 9px;
+    border: 1px solid rgba(248, 113, 113, 0.35);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: #fca5a5;
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+
+    &:hover {
+        background: rgba(248, 113, 113, 0.14);
+        color: #fecaca;
+    }
 `;
 
 const State = styled.span<{ $on: boolean }>`
