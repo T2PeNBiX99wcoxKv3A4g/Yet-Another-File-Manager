@@ -197,6 +197,8 @@ export default function App() {
     // The directory's own mode/size/sort sit on top of the window-wide defaults; columns are global.
     const viewDefaults = settings?.defaultView ?? DefaultViewDefaults;
     const view: ResolvedView = resolveView(active, viewDefaults);
+    // Hard-link counts open a handle per file, so they are only read while the column is visible.
+    const includeLinks = view.columns.includes("linkCount");
 
     /**
      * Every folder that lives in a Quick access panel, with the name and icon that panel shows.
@@ -330,13 +332,13 @@ export default function App() {
      */
     const showCached = useCallback(async (id: string, path: string | undefined, current: () => boolean) => {
         try {
-            const cached = await listDirectoryCached(path);
+            const cached = await listDirectoryCached(path, includeLinks);
             if (current() && cached.listing)
                 patch(id, () => ({listing: cached.listing, view: cached.listing!.view ?? null}));
         } catch {
             // The cache is best effort; the live listing is still on its way.
         }
-    }, [patch]);
+    }, [includeLinks, patch]);
 
     /** Opens a folder in a tab, recording it in that tab's history. */
     const load = useCallback(async (id: string, path?: string, keepFresh = false) => {
@@ -362,7 +364,7 @@ export default function App() {
                 if (!current()) return;
             }
 
-            const listing = await listDirectory(path);
+            const listing = await listDirectory(path, true, includeLinks);
             if (!current()) return;
 
             patch(id, (tab) => ({
@@ -382,7 +384,7 @@ export default function App() {
 
             patch(id, () => ({loading: false, error: message(cause)}));
         }
-    }, [beginLoad, patch, resetFind, showCached]);
+    }, [beginLoad, includeLinks, patch, resetFind, showCached]);
 
     /** Goes to a location: a folder is listed, a yafm:// page is simply shown. */
     const openLocation = useCallback((id: string, target: string) => {
@@ -425,7 +427,7 @@ export default function App() {
             await showCached(id, target, current);
             if (!current()) return;
 
-            const listing = await listDirectory(target);
+            const listing = await listDirectory(target, true, includeLinks);
             if (!current()) return;
 
             patch(id, () => ({listing, view: listing.view ?? null, loading: false}));
@@ -434,7 +436,7 @@ export default function App() {
 
             patch(id, () => ({loading: false, error: message(cause)}));
         }
-    }, [beginLoad, patch, resetFind, showCached]);
+    }, [beginLoad, includeLinks, patch, resetFind, showCached]);
 
     const openFiles = useCallback((path?: string) => {
         const tab = createTab(path ?? viewLocation("home"));
@@ -566,6 +568,16 @@ export default function App() {
         setVisibilityVersion((version) => version + 1);
         refreshAll();
     }, [refreshAll]);
+
+    // Turning the Links column on or off changes whether the host reads hard-link counts.
+    const lastIncludeLinks = useRef(includeLinks);
+
+    useEffect(() => {
+        if (lastIncludeLinks.current === includeLinks) return;
+
+        lastIncludeLinks.current = includeLinks;
+        refreshAll();
+    }, [includeLinks, refreshAll]);
 
     /** Applies a view change to one directory. Columns are handled separately. */
     const changeViewFor = useCallback((id: string, change: Partial<DirectoryView>) => {
@@ -1024,16 +1036,17 @@ export default function App() {
             if (!tab || kindOf(tab) !== "files" || !samePath(folderOf(tab), event.data.path)) return;
 
             // Only the entries are refreshed; sizes are measured when the folder is entered.
-            void listDirectory(event.data.path, false)
+            void listDirectory(event.data.path, false, includeLinks)
                 .then((listing) => patch(tab.id, () => ({listing})), () => undefined);
         });
-    }, [patch]);
+    }, [includeLinks, patch]);
 
     const canBack = active.index > 0;
     const canForward = active.index < active.history.length - 1;
 
     /** One file pane; the split view renders the same component twice with different tabs. */
-    const filePane = (tab: Tab, primary: boolean) => {        const tabView = primary ? view : resolveView(tab, viewDefaults);
+    const filePane = (tab: Tab, primary: boolean) => {
+        const tabView = primary ? view : resolveView(tab, viewDefaults);
 
         return (
             <FileList

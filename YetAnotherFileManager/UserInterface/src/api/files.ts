@@ -169,8 +169,8 @@ export interface FileVisibility {
 }
 
 /** Lists one directory. Omit the path to start at the user's home directory. */
-export async function listDirectory(path?: string, sizes = true): Promise<DirectoryListing> {
-    return await Native.request<DirectoryListing>("fs.list", {path: path ?? null, sizes});
+export async function listDirectory(path?: string, sizes = true, includeLinks = false): Promise<DirectoryListing> {
+    return await Native.request<DirectoryListing>("fs.list", {path: path ?? null, sizes, includeLinks});
 }
 
 /** Remembers how one directory is shown. */
@@ -204,11 +204,11 @@ export async function saveTags(
  * The listing saved the last time this folder was opened, so the window can paint it before the
  * disk is walked again. `listing` is null when the folder was never cached.
  */
-export async function listDirectoryCached(path?: string): Promise<{ cached: boolean; listing: DirectoryListing | null }> {
+export async function listDirectoryCached(path?: string, includeLinks = false): Promise<{ cached: boolean; listing: DirectoryListing | null }> {
     if (!Native.available) return {cached: false, listing: null};
 
     return await Native.request<{ cached: boolean; listing: DirectoryListing | null }>(
-        "fs.list.cached", {path: path ?? null});
+        "fs.list.cached", {path: path ?? null, includeLinks});
 }
 
 /** The shortcuts shown above the drive list. */

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -176,11 +177,13 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
             case "fs.list":
                 return context.Reply("fs.list.result",
-                    await ListAsync(context.Payload<FsListRequest>()?.Path, context.Payload<FsListRequest>()?.Sizes ?? true));
+                    await ListAsync(context.Payload<FsListRequest>()?.Path, context.Payload<FsListRequest>()?.Sizes ?? true,
+                        context.Payload<FsListRequest>()?.IncludeLinks ?? false));
 
             case "fs.list.cached":
                 return context.Reply("fs.list.cached.result",
-                    await CachedListAsync(context.Payload<FsListRequest>()?.Path));
+                    await CachedListAsync(context.Payload<FsListRequest>()?.Path,
+                        context.Payload<FsListRequest>()?.IncludeLinks ?? false));
 
             case "fs.view.set":
                 return context.Reply("fs.view.set.result",
@@ -618,7 +621,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         Path.Combine(Path.GetTempPath(), $"yafm-orphans-{Guid.NewGuid():N}.json");
 
     /// <summary>Lists a directory. A missing path starts at the user's home directory.</summary>
-    private static async Task<FsListPayload> ListAsync(string? path, bool measure = true)
+    private static async Task<FsListPayload> ListAsync(string? path, bool measure = true, bool includeLinks = false)
     {
         var target = ResolvePath(path);
         var directory = new DirectoryInfo(target);
@@ -655,9 +658,24 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
         // Everything is enumerated, hidden and system entries included, so the cache is complete;
         // the response only carries what the user's settings ask to see.
-        var all = await Task.Run(() => directory.EnumerateFileSystemInfos()
+        var infos = await Task.Run(() => directory.EnumerateFileSystemInfos()
             .Where(info => !DirectoryIndex.IsIndexFile(info.Name))
-            .Select(info => ToEntry(info, icons.GetValueOrDefault(info.Name)))
+            .ToList());
+
+        // A hard-link count opens a handle per file, so only the visible Links column pays for it.
+        // It runs in parallel because the handles are independent and this is the slow part.
+        var links = new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        if (includeLinks)
+            await Task.Run(() => Parallel.ForEach(infos.OfType<FileInfo>(), file =>
+            {
+                var count = FileLinks.Count(file.FullName);
+                if (count > 1)
+                    links[file.FullName] = count;
+            }));
+
+        var all = await Task.Run(() => infos
+            .Select(info => ToEntry(info, icons.GetValueOrDefault(info.Name), links.GetValueOrDefault(info.FullName)))
             .OfType<FileEntry>()
             .OrderByDescending(entry => entry.IsDirectory)
             .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
@@ -684,7 +702,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     ///     The listing saved the last time this folder was opened, so the window can paint it before
     ///     the disk is walked again. It may be stale; the live listing replaces it right after.
     /// </summary>
-    private static async Task<FsCachedListPayload> CachedListAsync(string? path)
+    private static async Task<FsCachedListPayload> CachedListAsync(string? path, bool includeLinks = false)
     {
         var directory = new DirectoryInfo(ResolvePath(path));
 
@@ -869,7 +887,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     ///     One entry, with the creation time and whatever Windows knows about a link. The hard-link
     ///     count needs a handle per file, which is why it only runs for files.
     /// </summary>
-    private static FileEntry? ToEntry(FileSystemInfo info, string? iconSource) =>
+    private static FileEntry? ToEntry(FileSystemInfo info, string? iconSource, int linkCount) =>
         Try.Run(() =>
         {
             var attributes = info.Attributes;
@@ -887,7 +905,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 new DateTimeOffset(info.CreationTimeUtc).ToUnixTimeMilliseconds(),
                 target,
                 valid,
-                info is FileInfo ? FileLinks.Count(info.FullName) : 0);
+                linkCount);
         }).GetOrNull();
 
     /// <summary>

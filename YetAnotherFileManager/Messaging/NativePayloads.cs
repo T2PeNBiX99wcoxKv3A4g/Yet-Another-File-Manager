@@ -12,7 +12,7 @@ internal sealed record OkPayload(bool Ok = true);
 internal sealed record AppInfoPayload(string Version, string Platform, bool Rounded);
 
 /// <summary>Payload for <c>fs.list</c>. An empty path means the user's home directory.</summary>
-internal sealed record FsListRequest(string? Path, bool? Sizes = true);
+internal sealed record FsListRequest(string? Path, bool? Sizes = true, bool? IncludeLinks = false);
 
 /// <summary>
 ///     Body for <c>fs.list</c>: the directory that was listed, its parent (null at the root), its
