@@ -1568,7 +1568,7 @@ export default function App() {
                     ) : kind === "settings" ? (
                         <SettingsView appInfo={appInfo} onSettingsChanged={reloadSettings}/>
                     ) : kind === "gallery" ? (
-                        <GalleryView/>
+                        <GalleryView openOnSingleClick={settings?.openOnSingleClick ?? false}/>
                     ) : (
                         <RecycleView onOpenLocation={navigate}/>
                     )}

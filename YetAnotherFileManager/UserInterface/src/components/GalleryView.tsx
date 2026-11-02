@@ -1,36 +1,78 @@
-import {startTransition, useCallback, useEffect, useMemo, useRef, useState, memo} from "react";
+import {
+    memo, startTransition, useCallback, useEffect, useMemo, useRef, useState,
+    type MouseEvent as ReactMouseEvent,
+} from "react";
 import styled from "styled-components";
-import {listGallery, type GalleryEntry} from "../api/files";
+import {listGallery, openFile, type GalleryEntry} from "../api/files";
+import {copyPaths, openWith, showInExplorer, showProperties} from "../api/operations";
 import {useThumbnail} from "../api/icons";
 import {appLocale, formatBytes} from "../utils/format";
-import {RefreshIcon} from "./Icons";
+import {
+    ArrowRightIcon,
+    CopyIcon,
+    ExecutableIcon,
+    FolderIcon,
+    GearIcon,
+    RefreshIcon,
+} from "./Icons";
+import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
 
-/** How many pictures one request carries; the rest arrive while the user scrolls. */
-const PageSize = 100;
+/** How many pictures one request carries; the rest are prefetched before the bottom is reached. */
+const PageSize = 150;
+
+/** Start asking for more when the scrollbar is still this far from the end. */
+const PrefetchDistance = 2500;
+
+/** How many pages one trigger may pull; a huge burst would render too much at once. */
+const PagesPerBurst = 3;
+
+/** Empty space kept below the last tile while more pages exist; scrolling never hits a hard end. */
+const MoreSpace = 600;
+
+interface GalleryViewProps {
+    /** Open a picture with one click instead of two, following the file browser's setting. */
+    openOnSingleClick?: boolean;
+}
 
 /** A wall of thumbnails from the configured folders, newest first, grouped by day. */
-export function GalleryView() {
+export function GalleryView({openOnSingleClick = false}: GalleryViewProps) {
     const [entries, setEntries] = useState<GalleryEntry[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
+    const [selected, setSelected] = useState<string | null>(null);
+    const [menu, setMenu] = useState<{ x: number; y: number; entry: GalleryEntry } | null>(null);
 
+    const entriesRef = useRef<GalleryEntry[]>([]);
+    const totalRef = useRef(0);
     const loadingMore = useRef(false);
+    const generation = useRef(0);
     const sentinel = useRef<HTMLDivElement | null>(null);
+    const scroller = useRef<HTMLDivElement | null>(null);
+    const scrollTick = useRef(0);
 
     const load = useCallback(async (refresh: boolean) => {
+        const token = ++generation.current;
+
         setLoading(true);
         setError(null);
 
         try {
             const page = await listGallery(0, PageSize, refresh);
+            if (token !== generation.current)
+                return;
+
+            entriesRef.current = page.entries;
+            totalRef.current = page.total;
             setEntries(page.entries);
             setTotal(page.total);
         } catch (cause) {
-            setError(cause instanceof Error ? cause.message : String(cause));
+            if (token === generation.current)
+                setError(cause instanceof Error ? cause.message : String(cause));
         } finally {
-            setLoading(false);
+            if (token === generation.current)
+                setLoading(false);
         }
     }, []);
 
@@ -38,47 +80,168 @@ export function GalleryView() {
         void load(false);
     }, [load]);
 
-    // The next page is asked for before the sentinel is actually visible, so the wall keeps filling
-    // while the user is still looking at the pictures that are already there.
+    /**
+     * Pulls a few pages at once. The scroll handler fires well before the end, so the wall keeps
+     * filling while the user is still looking at pictures that are already there. State is replaced
+     * once per burst, not once per page, which keeps the scroll position stable.
+     */
     const loadMore = useCallback(async () => {
-        if (loadingMore.current) return;
+        if (loadingMore.current || entriesRef.current.length >= totalRef.current)
+            return;
 
+        const token = generation.current;
         loadingMore.current = true;
 
         try {
-            const page = await listGallery(entries.length, PageSize, false);
+            let current = entriesRef.current;
+            let currentTotal = totalRef.current;
 
-            // Appending is not urgent; keeping it a transition lets scrolling stay smooth.
+            for (let page = 0; page < PagesPerBurst && current.length < currentTotal; page++) {
+                const next = await listGallery(current.length, PageSize, false);
+                if (token !== generation.current)
+                    return;
+
+                if (next.entries.length === 0) {
+                    currentTotal = current.length;
+                    break;
+                }
+
+                current = [...current, ...next.entries];
+                currentTotal = next.total;
+
+                if (next.entries.length < PageSize)
+                    break;
+            }
+
+            if (token !== generation.current)
+                return;
+
+            entriesRef.current = current;
+            totalRef.current = currentTotal;
+
+            // Appending is not urgent; a transition keeps the current scroll responsive.
             startTransition(() => {
-                setEntries((current) => [...current, ...page.entries]);
-                setTotal(page.total);
+                setEntries(current);
+                setTotal(currentTotal);
             });
         } catch {
             // A failed page is not worth a banner; scrolling again asks once more.
         } finally {
             loadingMore.current = false;
         }
-    }, [entries.length]);
+    }, []);
 
+    /** Starts loading while the scrollbar still has a few screens to go. */
+    const onScroll = useCallback(() => {
+        if (scrollTick.current)
+            return;
+
+        scrollTick.current = window.requestAnimationFrame(() => {
+            scrollTick.current = 0;
+
+            const element = scroller.current;
+            if (!element)
+                return;
+
+            const remaining = element.scrollHeight - element.scrollTop - element.clientHeight;
+            if (remaining < PrefetchDistance)
+                void loadMore();
+        });
+    }, [loadMore]);
+
+    // The observer covers the case where the whole first page fits on screen and no scroll event
+    // ever happens. The scroll handler above covers fast wheel movement.
     useEffect(() => {
         const target = sentinel.current;
-        if (!target) return;
+        if (!target)
+            return;
 
         const observer = new IntersectionObserver(
             (rows) => {
-                if (rows.some((row) => row.isIntersecting) && entries.length < total)
+                if (rows.some((row) => row.isIntersecting))
                     void loadMore();
             },
-            {rootMargin: "800px"});
+            {root: scroller.current, rootMargin: `${PrefetchDistance}px 0px`},
+        );
 
         observer.observe(target);
         return () => observer.disconnect();
+    }, [loadMore]);
+
+    // If a burst still left the sentinel near the viewport, check again shortly; this keeps the
+    // wall filling without waiting for the user to wiggle the wheel.
+    useEffect(() => {
+        if (entries.length >= total)
+            return;
+
+        const timer = window.setTimeout(() => {
+            const element = scroller.current;
+            if (!element)
+                return;
+
+            const remaining = element.scrollHeight - element.scrollTop - element.clientHeight;
+            if (remaining < PrefetchDistance)
+                void loadMore();
+        }, 200);
+
+        return () => window.clearTimeout(timer);
     }, [entries.length, total, loadMore]);
 
     const groups = useMemo(() => byDay(entries), [entries]);
+    const hasMore = entries.length < total;
+
+    const open = useCallback((entry: GalleryEntry) => {
+        void openFile(entry.path);
+    }, []);
+
+    const select = useCallback((entry: GalleryEntry) => setSelected(entry.path), []);
+
+    const openMenu = useCallback((event: ReactMouseEvent, entry: GalleryEntry) => {
+        event.preventDefault();
+        setSelected(entry.path);
+        setMenu({x: event.clientX, y: event.clientY, entry});
+    }, []);
+
+    const menuItems: ContextMenuItem[] = menu
+        ? [
+            {
+                label: "Open",
+                icon: <ArrowRightIcon size={14}/>,
+                onSelect: () => open(menu.entry),
+            },
+            {
+                label: "Open with…",
+                icon: <ExecutableIcon size={14}/>,
+                onSelect: () => void openWith(menu.entry.path),
+            },
+            {
+                label: "Show in Explorer",
+                icon: <FolderIcon size={14}/>,
+                separatorBefore: true,
+                onSelect: () => void showInExplorer(menu.entry.path),
+            },
+            {
+                label: "Copy",
+                icon: <CopyIcon size={14}/>,
+                onSelect: () => void copyPaths([menu.entry.path], false),
+            },
+            {
+                label: "Copy as path",
+                icon: <CopyIcon size={14}/>,
+                onSelect: () => void navigator.clipboard.writeText(menu.entry.path),
+            },
+            {
+                label: "Properties",
+                icon: <GearIcon size={14}/>,
+                separatorBefore: true,
+                onSelect: () => void showProperties([menu.entry.path]),
+            },
+        ]
+        : [];
 
     const refresh = () => {
         setBusy(true);
+        setSelected(null);
         void load(true).finally(() => setBusy(false));
     };
 
@@ -98,32 +261,65 @@ export function GalleryView() {
             {error && <Message>{error}</Message>}
             {!error && !loading && total === 0 && <Message>No pictures found.</Message>}
 
-            <Grid>
+            <Grid onScroll={onScroll} ref={scroller}>
                 {groups.map((group) => (
                     <Group key={group.label}>
                         <GroupTitle>{group.label}</GroupTitle>
                         <Tiles>
                             {group.entries.map((entry) => (
-                                <Tile key={entry.path} entry={entry}/>
+                                <Tile
+                                    entry={entry}
+                                    key={entry.path}
+                                    onContextMenu={openMenu}
+                                    onOpen={open}
+                                    onSelect={select}
+                                    openOnSingleClick={openOnSingleClick}
+                                    selected={selected === entry.path}
+                                />
                             ))}
                         </Tiles>
                     </Group>
                 ))}
 
-                <Sentinel ref={sentinel}/>
+                <Sentinel $space={hasMore ? MoreSpace : 1} ref={sentinel}/>
             </Grid>
+
+            {menu && <ContextMenu items={menuItems} onClose={() => setMenu(null)} x={menu.x} y={menu.y}/>}
         </Page>
     );
 }
 
 /** Thumbnails are fetched by the web view itself; a lazy image is enough to keep the wall fast. */
-const Tile = memo(function Tile({entry}: { entry: GalleryEntry }) {
+const Tile = memo(function Tile({
+    entry, selected, openOnSingleClick, onSelect, onOpen, onContextMenu,
+}: {
+    entry: GalleryEntry;
+    selected: boolean;
+    openOnSingleClick: boolean;
+    onSelect: (entry: GalleryEntry) => void;
+    onOpen: (entry: GalleryEntry) => void;
+    onContextMenu: (event: ReactMouseEvent, entry: GalleryEntry) => void;
+}) {
     const thumbnail = useThumbnail(entry.path, 128, entry.modified);
     const [loaded, setLoaded] = useState(false);
     const [failed, setFailed] = useState(false);
 
     return (
-        <Cell title={entry.name}>
+        <Cell
+            $selected={selected}
+            onClick={() => {
+                onSelect(entry);
+
+                if (openOnSingleClick)
+                    onOpen(entry);
+            }}
+            onContextMenu={(event) => onContextMenu(event, entry)}
+            onDoubleClick={() => {
+                if (!openOnSingleClick)
+                    onOpen(entry);
+            }}
+            title={entry.name}
+        >
             {(!thumbnail || !loaded || failed) && <Placeholder/>}
             {thumbnail && !failed && (
                 <img
@@ -298,18 +494,21 @@ const Tiles = styled.div`
     align-content: start;
 `;
 
-const Cell = styled.div`
+const Cell = styled.div<{ $selected: boolean }>`
     position: relative;
-    border: 1px solid var(--border-color);
+    border: 1px solid ${({$selected}) => $selected ? "var(--border-color-focus)" : "var(--border-color)"};
     border-radius: var(--radius-md);
     /* Transparent pictures show the app's own background, not a black box. */
     background: var(--bg-primary);
+    box-shadow: ${({$selected}) => $selected ? "inset 0 0 0 2px var(--border-color-focus)" : "none"};
     overflow: hidden;
+    cursor: pointer;
+    user-select: none;
     /* Tiles far below the viewport are laid out but not painted, which is what keeps a long
        scroll smooth. The intrinsic size matches the real cell so the scrollbar does not jump. */
     content-visibility: auto;
     contain-intrinsic-size: 200px 124px;
-    transition: border-color 120ms ease;
+    transition: border-color 120ms ease, box-shadow 120ms ease;
 
     &:hover {
         border-color: var(--border-color-hover);
@@ -322,6 +521,7 @@ const Cell = styled.div`
         width: 100%;
         height: 100%;
         object-fit: cover;
+        pointer-events: none;
     }
 `;
 
@@ -365,8 +565,8 @@ const CaptionMeta = styled.span`
     white-space: nowrap;
 `;
 
-const Sentinel = styled.div`
-    height: 1px;
+const Sentinel = styled.div<{ $space: number }>`
+    height: ${({$space}) => $space}px;
 `;
 
 const Message = styled.p`
