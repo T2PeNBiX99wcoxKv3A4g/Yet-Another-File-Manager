@@ -70,7 +70,8 @@
         <RustLibraryName Condition="$([MSBuild]::IsOSPlatform('OSX'))">libyafm_native.dylib</RustLibraryName>
     </PropertyGroup>
 
-    <Target Name="BuildRustNative" BeforeTargets="Build" Condition="Exists('$(RustManifest)')">
+    <Target Name="BuildRustNative" BeforeTargets="Build"
+            Condition="Exists('$(RustManifest)') AND '$(SkipRustNative)' != 'true'">
         <Exec Command="cargo build --release --manifest-path &quot;$(RustManifest)&quot;"
               ContinueOnError="WarnAndContinue" />
     </Target>
