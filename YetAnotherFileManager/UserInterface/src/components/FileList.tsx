@@ -93,6 +93,8 @@ interface FileListProps {
     shortcuts?: ShortcutMap;
     /** Whether this list owns the global file-manager shortcuts. */
     enableShortcuts?: boolean;
+    /** Bumped when an outside operation changed the listing, so stale selection is dropped. */
+    refreshToken?: number;
     /** Reloads the folder after an operation changed it. */
     onRefresh?: () => void;
 }
@@ -112,7 +114,7 @@ const MinStripHeight = 120;
 export function FileList({
     listing, loading, error, find = NoFind, view, showImages, imageStripHeight = DefaultStripHeight,
     onImageStripHeight, onSort, onSetTags, onOpen, onOpenFile, showCheckboxes = true,
-    openOnSingleClick = false, shortcuts = DefaultShortcuts, enableShortcuts = true, onRefresh,
+    openOnSingleClick = false, shortcuts = DefaultShortcuts, enableShortcuts = true, refreshToken = 0, onRefresh,
 }: FileListProps) {
     const quick = useQuickAccess();
     const currentRow = useRef<HTMLDivElement | null>(null);
@@ -148,6 +150,12 @@ export function FileList({
     useEffect(() => {
         setStripHeight(imageStripHeight);
     }, [imageStripHeight]);
+
+    // An outside operation (undo, hidden files) invalidates the selected paths.
+    useEffect(() => {
+        setSelected(new Set());
+        anchor.current = null;
+    }, [refreshToken]);
 
     const startStripDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
         stripDrag.current = {y: event.clientY, height: stripHeight};

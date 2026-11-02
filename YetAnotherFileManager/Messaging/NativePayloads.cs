@@ -201,3 +201,9 @@ internal sealed record OpenWithProgramsPayload(
 
 /// <summary>Payload for <c>fs.openWith.program</c>: the file and the application chosen for it.</summary>
 internal sealed record OpenWithProgramRequest(string FilePath, string ProgramPath);
+
+/// <summary>Body for <c>fs.history.state</c>: what undo and redo would do next.</summary>
+internal sealed record HistoryStatePayload(bool CanUndo, bool CanRedo, string? UndoLabel, string? RedoLabel);
+
+/// <summary>Body for <c>fs.history.undo</c> and <c>fs.history.redo</c>.</summary>
+internal sealed record HistoryOperationPayload(bool Ok, string? Error, List<string> Paths);

@@ -245,6 +245,15 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                     new OkPayload(AssociatedPrograms.Open(request?.FilePath ?? "", request?.ProgramPath ?? "")));
             }
 
+            case "fs.history.state":
+                return context.Reply("fs.history.state.result", FileHistory.Instance.State());
+
+            case "fs.history.undo":
+                return context.Reply("fs.history.undo.result", await FileHistory.Instance.UndoAsync());
+
+            case "fs.history.redo":
+                return context.Reply("fs.history.redo.result", await FileHistory.Instance.RedoAsync());
+
             case "fs.operation.terminal":
                 await FileOperations.OpenTerminalAsync(context.Payload<PathPayload>()?.Path ?? "");
                 return context.Reply("fs.operation.terminal.result", new OkPayload(true));

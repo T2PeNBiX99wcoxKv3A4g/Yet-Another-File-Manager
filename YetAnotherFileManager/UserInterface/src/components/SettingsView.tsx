@@ -41,6 +41,8 @@ const ShortcutRows: { id: keyof ShortcutMap; label: string; note: string }[] = [
     {id: "copy", label: "Copy", note: "Ctrl+D copies too, following KDE's file manager."},
     {id: "cut", label: "Cut", note: "Moves the selection on the next paste."},
     {id: "paste", label: "Paste", note: "Copies or moves the clipboard's files into the current folder."},
+    {id: "undo", label: "Undo", note: "Undoes the last file operation in this session."},
+    {id: "redo", label: "Redo", note: "Repeats the operation that was just undone."},
     {id: "delete", label: "Move to recycle bin", note: "Delete is Del by default, not Ctrl+D."},
     {id: "deletePermanently", label: "Delete permanently", note: "Bypasses the recycle bin; Dolphin uses Shift+Delete."},
     {id: "rename", label: "Rename", note: "Renames the single selected entry."},

@@ -103,6 +103,28 @@ export async function openWithProgram(filePath: string, programPath: string): Pr
     return data.ok;
 }
 
+/** The result of undoing or redoing one file operation. */
+export interface HistoryOperation {
+    ok: boolean;
+    error: string | null;
+    /** Directories that should be read again. */
+    paths: string[];
+}
+
+/** Undoes the last recorded file operation. */
+export async function undoFileOperation(): Promise<HistoryOperation> {
+    if (!Native.available) return {ok: false, error: "Undo needs the desktop app.", paths: []};
+
+    return await Native.request<HistoryOperation>("fs.history.undo");
+}
+
+/** Redoes the next recorded file operation. */
+export async function redoFileOperation(): Promise<HistoryOperation> {
+    if (!Native.available) return {ok: false, error: "Redo needs the desktop app.", paths: []};
+
+    return await Native.request<HistoryOperation>("fs.history.redo");
+}
+
 /** Reveals the path in Explorer, or opens its folder on Linux. */
 export async function showInExplorer(path: string): Promise<void> {
     if (!Native.available) return;

@@ -23,6 +23,7 @@ import {
 } from "./api/files";
 import {getSettings, saveOpenTabs, saveSettings, type AppSettings} from "./api/settings";
 import {getAppInfo, type AppInfo} from "./api/system";
+import {redoFileOperation, undoFileOperation} from "./api/operations";
 import {FileList} from "./components/FileList";
 import {FindBar} from "./components/FindBar";
 import {EmptyFind, matchesName, type FindState} from "./find";
@@ -551,6 +552,21 @@ export default function App() {
                 void load(tab.id, tab.listing.path, true);
     }, [load]);
 
+    /** Runs one history step and reloads the folders it touched. */
+    const runHistory = useCallback(async (undo: boolean) => {
+        const result = undo ? await undoFileOperation() : await redoFileOperation();
+
+        if (!result.ok) {
+            if (result.error && !result.error.startsWith("Nothing to"))
+                window.alert(result.error);
+
+            return;
+        }
+
+        setVisibilityVersion((version) => version + 1);
+        refreshAll();
+    }, [refreshAll]);
+
     /** Applies a view change to one directory. Columns are handled separately. */
     const changeViewFor = useCallback((id: string, change: Partial<DirectoryView>) => {
         const {tabs} = stateRef.current;
@@ -932,6 +948,12 @@ export default function App() {
                     setVisibilityVersion((version) => version + 1);
                     refreshAll();
                 });
+            } else if (combo === shortcuts.undo) {
+                event.preventDefault();
+                void runHistory(true);
+            } else if (combo === shortcuts.redo) {
+                event.preventDefault();
+                void runHistory(false);
             } else if (combo === shortcuts.splitView) {
                 event.preventDefault();
                 toggleSplit();
@@ -949,7 +971,7 @@ export default function App() {
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
     }, [shortcuts, kind, find.open, closeTab, openFiles, goBack, goForward, goUp, openFind, resetFind, startFind,
-        changeView, cycleTab, navigate, places, refreshAll, toggleSplit]);
+        changeView, cycleTab, navigate, places, refreshAll, runHistory, toggleSplit]);
 
     // Back and forward on the mouse: WebView2 would otherwise walk its own history and reload the app.
     useEffect(() => {
@@ -1038,6 +1060,7 @@ export default function App() {
                     : (name, tags, colors) => setEntryTagsFor(tab.id, name, tags, colors)}
                 onSort={primary ? sortBy : (column) => sortByFor(tab.id, column)}
                 openOnSingleClick={settings?.openOnSingleClick ?? false}
+                refreshToken={visibilityVersion}
                 shortcuts={shortcuts}
                 showCheckboxes={settings?.showCheckboxes ?? true}
                 showImages={primary ? showImages : false}

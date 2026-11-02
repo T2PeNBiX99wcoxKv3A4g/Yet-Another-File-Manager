@@ -71,14 +71,131 @@ internal static partial class FileOperations
         if (paths.Count == 0 || !Directory.Exists(directory))
             return false;
 
-        var pasted = await ShellOperationAsync(move ? FoMove : FoCopy, paths, directory);
+        var (step, created) = await CopyIntoAsync(paths, directory, move);
+        if (!step.Ok)
+            return false;
 
         // A move consumes the clipboard; a copy stays so the same files can be pasted again.
-        if (pasted && move)
+        if (move)
             ClearClipboard();
 
-        return pasted;
+        if (created.Count == 0)
+            return true;
+
+        var current = created;
+        var sources = paths.ToList();
+
+        FileHistory.Instance.Record(move ? $"Move {sources.Count} item(s)" : $"Copy {sources.Count} item(s)",
+            undo: () => move
+                ? MoveBackAsync(current, sources)
+                : DeleteCoreAsync(current, false),
+            redo: async () =>
+            {
+                var (redoStep, made) = await CopyIntoAsync(sources, directory, move);
+                if (redoStep.Ok)
+                    current = made;
+
+                return redoStep;
+            });
+
+        return true;
     }
+
+    /// <summary>Runs a paste and reports the paths it actually created.</summary>
+    private static async Task<(FileHistory.Step Step, List<string> Created)> CopyIntoAsync(
+        IReadOnlyList<string> sources, string directory, bool move)
+    {
+        var before = Snapshot(directory);
+        var ok = await ShellOperationAsync(move ? FoMove : FoCopy, sources, directory);
+
+        if (!ok)
+            return (new FileHistory.Step(false, [directory], "The shell could not copy the files."), []);
+
+        var created = Snapshot(directory).Except(before, StringComparer.OrdinalIgnoreCase).ToList();
+        return (new FileHistory.Step(true, [directory]), created);
+    }
+
+    /// <summary>Moves the entries a cut created back to the names they had before.</summary>
+    private static Task<FileHistory.Step> MoveBackAsync(IReadOnlyList<string> created, IReadOnlyList<string> sources) =>
+        Task.Run(() =>
+        {
+            var remaining = sources.ToList();
+            var moved = 0;
+            string? error = null;
+
+            foreach (var entry in created)
+            {
+                var source = FindSourceFor(entry, remaining);
+
+                if (source is null)
+                {
+                    error = "Could not match a moved entry with its original path.";
+                    continue;
+                }
+
+                remaining.Remove(source);
+
+                try
+                {
+                    if (File.Exists(source) || Directory.Exists(source))
+                        throw new IOException($"'{source}' already exists.");
+
+                    if (Directory.Exists(entry))
+                        Directory.Move(entry, source);
+                    else
+                        File.Move(entry, source);
+
+                    moved++;
+                }
+                catch (Exception ex)
+                {
+                    error = ex.Message;
+                    Log.Warning(ex, "Could not move {Path} back to {Source}", entry, source);
+                }
+            }
+
+            var paths = ParentsOf(created.Concat(sources).ToList());
+            return new FileHistory.Step(moved == created.Count, paths, moved == created.Count ? null : error);
+        });
+
+    private static HashSet<string> Snapshot(string directory) =>
+        Directory.EnumerateFileSystemEntries(directory).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    private static string? FindSourceFor(string createdPath, List<string> sources)
+    {
+        var name = Path.GetFileName(createdPath);
+        var exact = sources.FirstOrDefault(source =>
+            string.Equals(Path.GetFileName(source), name, StringComparison.OrdinalIgnoreCase));
+
+        return exact ?? sources.FirstOrDefault(source => SameName(name, Path.GetFileName(source)));
+    }
+
+    /** Whether a shell-renamed copy ("file (2).txt") still names the original entry. */
+    private static bool SameName(string candidate, string source)
+    {
+        if (string.Equals(candidate, source, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var dot = candidate.LastIndexOf('.');
+        var stem = dot > 0 ? candidate[..dot] : candidate;
+        var extension = dot > 0 ? candidate[dot..] : "";
+        var open = stem.LastIndexOf(" (", StringComparison.Ordinal);
+
+        if (open <= 0 || !stem.EndsWith(')'))
+            return false;
+
+        var number = stem[(open + 2)..^1];
+
+        return number.Length > 0 && number.All(char.IsDigit)
+            && string.Equals(stem[..open] + extension, source, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static List<string> ParentsOf(IEnumerable<string> paths) =>
+        paths.Select(path => Path.GetDirectoryName(path))
+            .Where(path => !string.IsNullOrEmpty(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Cast<string>()
+            .ToList();
 
     private static void ClearClipboard()
     {
@@ -90,81 +207,210 @@ internal static partial class FileOperations
     }
 
     /// <summary>Sends the paths to the recycle bin, or deletes them permanently when asked.</summary>
-    public static Task<bool> DeleteAsync(IReadOnlyList<string> paths, bool permanent = false) =>
-        OperatingSystem.IsWindows()
-            ? ShellOperationAsync(FoDelete, paths, null,
-                (ushort)(permanent ? FofNoConfirmation : FofAllowUndo | FofNoConfirmation))
-            : Task.FromResult(false);
+    public static async Task<bool> DeleteAsync(IReadOnlyList<string> paths, bool permanent = false)
+    {
+        var deletedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var step = await DeleteCoreAsync(paths, permanent);
+
+        if (!step.Ok || permanent || paths.Count == 0)
+            return step.Ok;
+
+        var deleted = paths.ToList();
+        FileHistory.Instance.Record($"Delete {deleted.Count} item(s)",
+            undo: () => RestoreFromRecycleAsync(deleted, deletedAt),
+            redo: () => DeleteCoreAsync(deleted, false));
+
+        return true;
+    }
+
+    private static async Task<FileHistory.Step> DeleteCoreAsync(IReadOnlyList<string> paths, bool permanent)
+    {
+        if (!OperatingSystem.IsWindows())
+            return new FileHistory.Step(false, ParentsOf(paths), "Deleting needs Windows.");
+
+        var ok = await ShellOperationAsync(FoDelete, paths, null,
+            (ushort)(permanent ? FofNoConfirmation : FofAllowUndo | FofNoConfirmation));
+
+        return new FileHistory.Step(ok, ParentsOf(paths),
+            ok ? null : "The shell could not delete the selection.");
+    }
+
+    /// <summary>Finds the records a delete just created and restores them.</summary>
+    private static async Task<FileHistory.Step> RestoreFromRecycleAsync(IReadOnlyList<string> paths, long deletedAt)
+    {
+        var entries = await RecycleBin.ListAsync(false);
+        var wanted = paths.Select(Normalize).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var matches = entries
+            .Where(entry => entry.Deleted >= deletedAt - 5000 && wanted.Contains(Normalize(entry.OriginalPath)))
+            .OrderByDescending(entry => entry.Deleted)
+            .ToList();
+
+        if (matches.Count == 0)
+            return new FileHistory.Step(false, ParentsOf(paths),
+                "The deleted items are no longer in the recycle bin.");
+
+        var restored = 0;
+
+        foreach (var entry in matches)
+            if (await RecycleBin.RestoreAsync(entry.Id))
+                restored++;
+
+        return new FileHistory.Step(restored > 0, ParentsOf(paths),
+            restored > 0 ? null : "Windows could not restore the deleted items.");
+    }
+
+    private static string Normalize(string path) =>
+        path.TrimEnd('\\', '/').ToLowerInvariant();
 
     /// <summary>Renames one entry in place.</summary>
-    public static Task<PathOperationPayload> RenameAsync(string path, string name) =>
+    public static async Task<PathOperationPayload> RenameAsync(string path, string name)
+    {
+        var trimmed = name.Trim();
+
+        if (trimmed.Length == 0 || trimmed is "." or ".." || trimmed.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            return new PathOperationPayload(false, null, "That name is not valid.");
+
+        var directory = Path.GetDirectoryName(path);
+        if (directory is null)
+            return new PathOperationPayload(false, null, "The entry has no parent folder.");
+
+        var target = Path.Combine(directory, trimmed);
+
+        if (string.Equals(path, target, StringComparison.OrdinalIgnoreCase))
+            return new PathOperationPayload(true, path, null);
+
+        var step = await RenameCoreAsync(path, target);
+
+        if (step.Ok)
+            FileHistory.Instance.Record($"Rename {Path.GetFileName(path)}",
+                undo: () => RenameCoreAsync(target, path),
+                redo: () => RenameCoreAsync(path, target));
+
+        return new PathOperationPayload(step.Ok, step.Ok ? target : null, step.Error);
+    }
+
+    private static Task<FileHistory.Step> RenameCoreAsync(string source, string target) =>
         Task.Run(() =>
         {
-            var trimmed = name.Trim();
-
-            if (trimmed.Length == 0 || trimmed is "." or ".." || trimmed.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-                return new PathOperationPayload(false, null, "That name is not valid.");
-
-            var directory = Path.GetDirectoryName(path);
-            if (directory is null)
-                return new PathOperationPayload(false, null, "The entry has no parent folder.");
-
-            var target = Path.Combine(directory, trimmed);
-
-            if (string.Equals(path, target, StringComparison.OrdinalIgnoreCase))
-                return new PathOperationPayload(true, path, null);
-
             if (File.Exists(target) || Directory.Exists(target))
-                return new PathOperationPayload(false, null, "An entry with that name already exists.");
+                return new FileHistory.Step(false, ParentsOf([source]), "An entry with that name already exists.");
 
             try
             {
-                if (Directory.Exists(path))
-                    Directory.Move(path, target);
+                if (Directory.Exists(source))
+                    Directory.Move(source, target);
+                else if (File.Exists(source))
+                    File.Move(source, target);
                 else
-                    File.Move(path, target);
+                    return new FileHistory.Step(false, ParentsOf([source]), "The entry is no longer there.");
 
-                return new PathOperationPayload(true, target, null);
+                return new FileHistory.Step(true, ParentsOf([source]));
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "Could not rename {Path}", path);
-                return new PathOperationPayload(false, null, ex.Message);
+                Log.Warning(ex, "Could not rename {Path}", source);
+                return new FileHistory.Step(false, ParentsOf([source]), ex.Message);
             }
         });
 
     /// <summary>Creates the next free "New folder" name in a directory.</summary>
-    public static Task<PathOperationPayload> NewFolderAsync(string directory) =>
+    public static async Task<PathOperationPayload> NewFolderAsync(string directory)
+    {
+        if (!Directory.Exists(directory))
+            return new PathOperationPayload(false, null, "The folder is no longer there.");
+
+        try
+        {
+            for (var attempt = 1; attempt < 1000; attempt++)
+            {
+                var name = attempt == 1 ? "New folder" : $"New folder ({attempt})";
+                var path = Path.Combine(directory, name);
+
+                if (Directory.Exists(path) || File.Exists(path))
+                    continue;
+
+                Directory.CreateDirectory(path);
+                FileHistory.Instance.Record("New folder",
+                    undo: () => DeleteEmptyFolderAsync(path),
+                    redo: () => CreateFolderAsync(path));
+
+                return new PathOperationPayload(true, path, null);
+            }
+
+            return new PathOperationPayload(false, null, "Could not find a free name for the new folder.");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Could not create a folder in {Directory}", directory);
+            return new PathOperationPayload(false, null, ex.Message);
+        }
+    }
+
+    private static Task<FileHistory.Step> DeleteEmptyFolderAsync(string path) =>
         Task.Run(() =>
         {
-            if (!Directory.Exists(directory))
-                return new PathOperationPayload(false, null, "The folder is no longer there.");
-
             try
             {
-                for (var attempt = 1; attempt < 1000; attempt++)
-                {
-                    var name = attempt == 1 ? "New folder" : $"New folder ({attempt})";
-                    var path = Path.Combine(directory, name);
+                if (!Directory.Exists(path))
+                    return new FileHistory.Step(false, ParentsOf([path]), "The folder is no longer there.");
 
-                    if (Directory.Exists(path) || File.Exists(path))
-                        continue;
+                if (Directory.EnumerateFileSystemEntries(path).Any())
+                    return new FileHistory.Step(false, ParentsOf([path]),
+                        "The folder is no longer empty, so it was left in place.");
 
-                    Directory.CreateDirectory(path);
-                    return new PathOperationPayload(true, path, null);
-                }
-
-                return new PathOperationPayload(false, null, "Could not find a free name for the new folder.");
+                Directory.Delete(path);
+                return new FileHistory.Step(true, ParentsOf([path]));
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "Could not create a folder in {Directory}", directory);
-                return new PathOperationPayload(false, null, ex.Message);
+                Log.Warning(ex, "Could not remove the new folder {Path}", path);
+                return new FileHistory.Step(false, ParentsOf([path]), ex.Message);
+            }
+        });
+
+    private static Task<FileHistory.Step> CreateFolderAsync(string path) =>
+        Task.Run(() =>
+        {
+            try
+            {
+                Directory.CreateDirectory(path);
+                return new FileHistory.Step(true, ParentsOf([path]));
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Could not recreate the folder {Path}", path);
+                return new FileHistory.Step(false, ParentsOf([path]), ex.Message);
             }
         });
 
     /// <summary>Packs the selected files and folders into a ZIP beside the first one.</summary>
-    public static Task<PathOperationPayload> CompressAsync(IReadOnlyList<string> paths) =>
+    public static async Task<PathOperationPayload> CompressAsync(IReadOnlyList<string> paths)
+    {
+        var result = await CompressCoreAsync(paths);
+
+        if (!result.Ok || result.Path is not { } zipPath)
+            return result;
+
+        var sources = paths.Where(path => File.Exists(path) || Directory.Exists(path)).ToList();
+        var currentZip = zipPath;
+
+        FileHistory.Instance.Record($"Compress {Path.GetFileName(zipPath)}",
+            undo: () => DeleteFileStepAsync(currentZip),
+            redo: async () =>
+            {
+                var redo = await CompressCoreAsync(sources);
+
+                if (redo.Ok && redo.Path is { } newZip)
+                    currentZip = newZip;
+
+                return new FileHistory.Step(redo.Ok, ParentsOf(sources), redo.Error);
+            });
+
+        return result;
+    }
+
+    private static Task<PathOperationPayload> CompressCoreAsync(IReadOnlyList<string> paths) =>
         Task.Run(() =>
         {
             var entries = paths.Where(path => File.Exists(path) || Directory.Exists(path)).ToList();
@@ -217,6 +463,24 @@ internal static partial class FileOperations
                 Try.Run(() => File.Delete(zipPath));
                 Log.Warning(ex, "Could not compress {Count} entries", entries.Count);
                 return new PathOperationPayload(false, null, ex.Message);
+            }
+        });
+
+    private static Task<FileHistory.Step> DeleteFileStepAsync(string path) =>
+        Task.Run(() =>
+        {
+            try
+            {
+                if (!File.Exists(path))
+                    return new FileHistory.Step(false, ParentsOf([path]), "The file is no longer there.");
+
+                File.Delete(path);
+                return new FileHistory.Step(true, ParentsOf([path]));
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Could not remove {Path}", path);
+                return new FileHistory.Step(false, ParentsOf([path]), ex.Message);
             }
         });
 

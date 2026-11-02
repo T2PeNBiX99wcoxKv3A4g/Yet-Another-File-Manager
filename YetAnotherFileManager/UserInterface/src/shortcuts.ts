@@ -9,6 +9,8 @@ export interface ShortcutMap {
     copy: string;
     cut: string;
     paste: string;
+    undo: string;
+    redo: string;
     delete: string;
     deletePermanently: string;
     rename: string;
@@ -42,6 +44,8 @@ export const DefaultShortcuts: ShortcutMap = {
     copy: "ctrl+c",
     cut: "ctrl+x",
     paste: "ctrl+v",
+    undo: "ctrl+z",
+    redo: "ctrl+shift+z",
     delete: "delete",
     deletePermanently: "shift+delete",
     rename: "f2",
