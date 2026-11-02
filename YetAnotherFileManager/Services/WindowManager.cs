@@ -4,6 +4,7 @@ using PhotinoNetUtils.Interop;
 using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Platform;
 using PhotinoNetUtils.Utils;
+using YetAnotherFileManager.Interop;
 using YetAnotherFileManager.Messaging;
 
 namespace YetAnotherFileManager.Services;
@@ -273,6 +274,13 @@ internal sealed class WindowManager : Singleton<WindowManager>
 
     /// <summary>Runs an action on the UI thread, once the message loop is running.</summary>
     public void RunOnMainWindow(Action action) => _mainWindow?.Invoke(action);
+
+    /// <summary>The main window's native handle, or zero before the window exists.</summary>
+    public IntPtr WindowHandle => _mainWindow?.WindowHandle ?? IntPtr.Zero;
+
+    /// <summary>Shows the shell's own context menu for the paths, on the UI thread.</summary>
+    public void ShowShellContextMenu(IReadOnlyList<string> paths) =>
+        RunOnMainWindow(() => ShellContextMenu.Show(WindowHandle, paths));
 
     public void Exit()
     {

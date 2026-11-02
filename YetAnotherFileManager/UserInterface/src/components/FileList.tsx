@@ -1,16 +1,29 @@
 import {
-    memo, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode,
-    type RefObject,
+    memo, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent,
+    type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject,
 } from "react";
 import styled from "styled-components";
-import {wantsNewTab} from "../shortcuts";
+import {wantsNewTab, isTyping} from "../shortcuts";
 import type {DirectoryListing, FileEntry, Place, ResolvedView} from "../api/files";
 import {useIcon, useIconFile, useThumbnail} from "../api/icons";
+import {
+    copyPaths,
+    deletePaths,
+    hasClipboardFiles,
+    newFolder,
+    openWith,
+    pasteInto,
+    renamePath,
+    showInExplorer,
+    showProperties,
+    showShellMenu,
+} from "../api/operations";
 import {NoFind, rangesOf, type FindView} from "../find";
 import {canPreview, previewKindOf, PreviewKindLabels} from "../preview";
 import {quickPlace, useQuickAccess} from "../quick";
 import {formatBytes, formatDate} from "../utils/format";
-import {FolderIcon} from "./Icons";
+import {CheckIcon, FolderIcon} from "./Icons";
+import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
 import {PlaceIcon} from "./PlaceIcon";
 import {TagPicker, DefaultTagColor, inkFor} from "./TagPicker";
 import {BuiltinIcon, iconForName} from "../icons/fileTypes";
@@ -45,6 +58,12 @@ interface FileListProps {
     onOpen: (path: string, newTab?: boolean) => void;
     /** Double-clicking a file hands it to the system; without this, files are inert. */
     onOpenFile?: (path: string) => void;
+    /** Show a checkbox in front of every entry. */
+    showCheckboxes?: boolean;
+    /** Open entries with one click instead of two. */
+    openOnSingleClick?: boolean;
+    /** Reloads the folder after an operation changed it. */
+    onRefresh?: () => void;
 }
 
 interface RowModel {
@@ -61,13 +80,25 @@ const MinStripHeight = 120;
 
 export function FileList({
     listing, loading, error, find = NoFind, view, showImages, imageStripHeight = DefaultStripHeight,
-    onImageStripHeight, onSort, onSetTags, onOpen, onOpenFile,
+    onImageStripHeight, onSort, onSetTags, onOpen, onOpenFile, showCheckboxes = true,
+    openOnSingleClick = false, onRefresh,
 }: FileListProps) {
     const quick = useQuickAccess();
     const currentRow = useRef<HTMLDivElement | null>(null);
     const stripDrag = useRef<{ y: number; height: number } | null>(null);
+    const anchor = useRef<string | null>(null);
     const [tagTarget, setTagTarget] = useState<{ entry: FileEntry; x: number; y: number } | null>(null);
     const [stripHeight, setStripHeight] = useState(imageStripHeight);
+    const [selected, setSelected] = useState<Set<string>>(() => new Set());
+    const [menu, setMenu] = useState<{ x: number; y: number; paths: string[]; background: boolean } | null>(null);
+    const [canPaste, setCanPaste] = useState(false);
+
+    // A new folder starts with nothing selected; an operation that renamed a path drops it too.
+    useEffect(() => {
+        setSelected(new Set());
+        setMenu(null);
+        anchor.current = null;
+    }, [listing?.path]);
 
     useEffect(() => {
         setStripHeight(imageStripHeight);
@@ -139,6 +170,214 @@ export function FileList({
     );
     const previewGroups = useMemo(() => groupRows(previews, PreviewKindRules), [previews]);
 
+    const allPaths = useMemo(() => rows.map((row) => row.entry.fullPath), [rows]);
+    const currentDirectory = listing?.path ?? "";
+
+    /** Applies Explorer's plain, Ctrl and Shift selection rules to one click. */
+    const selectRow = useCallback((event: ReactMouseEvent, path: string) => {
+        const additive = event.ctrlKey || event.metaKey;
+
+        setSelected((current) => {
+            if (event.shiftKey && anchor.current !== null) {
+                const from = allPaths.indexOf(anchor.current);
+                const to = allPaths.indexOf(path);
+
+                if (from >= 0 && to >= 0) {
+                    const start = Math.min(from, to);
+                    const end = Math.max(from, to);
+                    const next = additive ? new Set(current) : new Set<string>();
+
+                    for (let index = start; index <= end; index++)
+                        next.add(allPaths[index]);
+
+                    return next;
+                }
+            }
+
+            if (additive) {
+                const next = new Set(current);
+
+                if (!next.delete(path)) next.add(path);
+
+                anchor.current = path;
+                return next;
+            }
+
+            anchor.current = path;
+            return new Set([path]);
+        });
+    }, [allPaths]);
+
+    /** The checkbox toggles one path without disturbing the rest of the selection. */
+    const toggleRow = useCallback((path: string) => {
+        anchor.current = path;
+        setSelected((current) => {
+            const next = new Set(current);
+
+            if (!next.delete(path)) next.add(path);
+
+            return next;
+        });
+    }, []);
+
+    const clearSelection = useCallback(() => {
+        anchor.current = null;
+        setSelected(new Set());
+    }, []);
+
+    const closeMenu = useCallback(() => setMenu(null), []);
+
+    // Ctrl+A selects everything that is on screen, the way a file manager does.
+    useEffect(() => {
+        const onKey = (event: KeyboardEvent) => {
+            if (isTyping(event.target)) return;
+
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
+                event.preventDefault();
+                setSelected(new Set(allPaths));
+                anchor.current = allPaths[0] ?? null;
+            }
+        };
+
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [allPaths]);
+
+    const openRow = useCallback((entry: FileEntry, event: ReactMouseEvent) => {
+        if (entry.isDirectory)
+            onOpen(entry.fullPath, wantsNewTab(event));
+        else
+            onOpenFile?.(entry.fullPath);
+    }, [onOpen, onOpenFile]);
+
+    const openMenu = useCallback((event: ReactMouseEvent, path?: string) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (path && !selected.has(path))
+            setSelected(new Set([path]));
+
+        if (path)
+            anchor.current = path;
+
+        setMenu({
+            x: event.clientX,
+            y: event.clientY,
+            paths: path ? (selected.has(path) ? [...selected] : [path]) : [],
+            background: !path,
+        });
+
+        void hasClipboardFiles().then(setCanPaste, () => setCanPaste(false));
+    }, [selected]);
+
+    const refresh = () => onRefresh?.();
+
+    const copy = async (paths: string[], cut = false) => {
+        if (await copyPaths(paths, cut))
+            setCanPaste(true);
+    };
+
+    const paste = async (directory: string) => {
+        if (!await pasteInto(directory))
+            window.alert("Nothing on the clipboard could be pasted here.");
+        else
+            refresh();
+    };
+
+    const createFolder = async () => {
+        const result = await newFolder(currentDirectory);
+
+        if (result.ok)
+            refresh();
+        else
+            window.alert(result.error ?? "Could not create the folder.");
+    };
+
+    const rename = async (entry: FileEntry) => {
+        const name = window.prompt("Rename", entry.name);
+        if (name === null || name.trim().length === 0 || name === entry.name) return;
+
+        const result = await renamePath(entry.fullPath, name);
+
+        if (result.ok) {
+            clearSelection();
+            refresh();
+        }
+        else
+            window.alert(result.error ?? "Could not rename the entry.");
+    };
+
+    const remove = async (paths: string[]) => {
+        if (!window.confirm(`Move ${paths.length === 1 ? "this item" : `${paths.length} items`} to the recycle bin?`))
+            return;
+
+        if (!await deletePaths(paths))
+            window.alert("The shell could not move the selection to the recycle bin.");
+        else {
+            clearSelection();
+            refresh();
+        }
+    };
+
+    const menuItems: ContextMenuItem[] = [];
+    const target = menu?.paths[0];
+    const entry = target ? rows.find((row) => row.entry.fullPath === target)?.entry : undefined;
+
+    if (menu?.background) {
+        menuItems.push({label: "New folder", onSelect: () => void createFolder()});
+        menuItems.push({label: "Paste", disabled: !canPaste, onSelect: () => void paste(currentDirectory)});
+        menuItems.push({label: "Refresh", separatorBefore: true, onSelect: refresh});
+        menuItems.push({
+            label: "Properties", separatorBefore: true,
+            onSelect: () => void showProperties([currentDirectory]),
+        });
+        menuItems.push({
+            label: "Windows shell menu…", separatorBefore: true,
+            onSelect: () => void showShellMenu([currentDirectory]),
+        });
+    }
+    else if (menu) {
+        const single = menu.paths.length === 1;
+
+        menuItems.push({
+            label: "Open", onSelect: () => {
+                if (!entry) return;
+
+                if (entry.isDirectory) onOpen(entry.fullPath);
+                else onOpenFile?.(entry.fullPath);
+            },
+        });
+
+        if (entry?.isDirectory) {
+            menuItems.push({label: "Open in new tab", onSelect: () => onOpen(entry.fullPath, true)});
+            menuItems.push({
+                label: "Paste into folder", disabled: !canPaste,
+                onSelect: () => void paste(entry.fullPath),
+            });
+        }
+
+        if (entry && !entry.isDirectory)
+            menuItems.push({label: "Open with…", onSelect: () => void openWith(entry.fullPath)});
+
+        menuItems.push({label: "Cut", separatorBefore: true, onSelect: () => void copy(menu.paths, true)});
+        menuItems.push({label: "Copy", onSelect: () => void copy(menu.paths, false)});
+
+        if (single && entry)
+            menuItems.push({label: "Rename", separatorBefore: true, onSelect: () => void rename(entry)});
+
+        menuItems.push({label: "Delete", danger: true, onSelect: () => void remove(menu.paths)});
+
+        menuItems.push({
+            label: "Show in Explorer", separatorBefore: true,
+            onSelect: () => void showInExplorer(menu.paths[0]),
+        });
+        menuItems.push({label: "Properties", onSelect: () => void showProperties(menu.paths)});
+        menuItems.push({
+            label: "Windows shell menu…", separatorBefore: true,
+            onSelect: () => void showShellMenu(menu.paths),
+        });
+    }
+
     if (error)
         return <Center><ErrorText>{error}</ErrorText></Center>;
 
@@ -148,7 +387,12 @@ export function FileList({
     if (view.mode === "grid")
         return (
             <Wrapper>
-                <GridBody>
+                <GridBody
+                    onClick={(event) => {
+                        if (event.target === event.currentTarget) clearSelection();
+                    }}
+                    onContextMenu={(event) => openMenu(event)}
+                >
                     {loading && !listing
                         ? <Tiles $size={view.gridSize}><PlaceholderTiles size={view.gridSize}/></Tiles>
                         : <GridContent
@@ -157,9 +401,15 @@ export function FileList({
                             groups={groups}
                             gridSize={view.gridSize}
                             innerRef={currentRow}
+                            onContextMenu={openMenu}
                             onOpen={onOpen}
                             onOpenFile={onOpenFile}
+                            onSelect={selectRow}
+                            onToggle={toggleRow}
+                            openOnSingleClick={openOnSingleClick}
                             searching={searching}
+                            selected={selected}
+                            showCheckboxes={showCheckboxes}
                             showTarget={showTarget}
                         />}
 
@@ -173,6 +423,8 @@ export function FileList({
                         </EmptyCell>
                     )}
                 </GridBody>
+
+                {menu && <ContextMenu items={menuItems} onClose={closeMenu} x={menu.x} y={menu.y}/>}
             </Wrapper>
         );
 
@@ -189,27 +441,56 @@ export function FileList({
                 ))}
             </Head>
 
-            <Body>
+            <Body
+                onClick={(event) => {
+                    if (event.target === event.currentTarget) clearSelection();
+                }}
+                onContextMenu={(event) => openMenu(event)}
+            >
                 {loading && !listing
                     ? <PlaceholderRows template={template} columns={visible.length}/>
                     : rows.map((row) => {
                         const dim = searching && row.ranges === null;
                         const current = searching && row.entry.fullPath === find.currentPath;
+                        const path = row.entry.fullPath;
+                        const checked = selected.has(path);
 
                         return (
                             <Row
-                                key={row.entry.fullPath}
+                                key={path}
                                 $current={current}
                                 $dim={dim}
                                 $hidden={row.entry.isHidden}
-                                onClick={(event) => row.entry.isDirectory && wantsNewTab(event) && onOpen(row.entry.fullPath, true)}
-                                onDoubleClick={(event) => row.entry.isDirectory
-                                    ? onOpen(row.entry.fullPath, wantsNewTab(event))
-                                    : onOpenFile?.(row.entry.fullPath)}
+                                $selected={checked}
+                                onClick={(event) => {
+                                    selectRow(event, path);
+
+                                    if (openOnSingleClick)
+                                        openRow(row.entry, event);
+                                }}
+                                onContextMenu={(event) => openMenu(event, path)}
+                                onDoubleClick={(event) => {
+                                    if (!openOnSingleClick)
+                                        openRow(row.entry, event);
+                                }}
                                 ref={current ? currentRow : undefined}
                                 style={{gridTemplateColumns: template}}
                             >
                                 <Name>
+                                    {showCheckboxes && (
+                                        <SelectionBox
+                                            $checked={checked}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                toggleRow(path);
+                                            }}
+                                            onDoubleClick={(event) => event.stopPropagation()}
+                                            title={checked ? "Deselect" : "Select"}
+                                            type="button"
+                                        >
+                                            {checked && <CheckIcon size={10}/>}
+                                        </SelectionBox>
+                                    )}
                                     {row.place && quick.useIcons
                                         ? <IconSlot><PlaceIcon place={row.place} size={view.iconSize}/></IconSlot>
                                         : <EntryIcon entry={row.entry} size={view.iconSize}/>}
@@ -283,15 +564,26 @@ export function FileList({
                             Preview
                             <StripCount>{previews.length}</StripCount>
                         </StripHead>
-                        <GridBody>
+                        <GridBody
+                            onClick={(event) => {
+                                if (event.target === event.currentTarget) clearSelection();
+                            }}
+                            onContextMenu={(event) => openMenu(event)}
+                        >
                             <GridContent
                                 counts={listing?.counts}
                                 currentPath={searching ? find.currentPath : null}
                                 groups={previewGroups}
                                 gridSize={view.gridSize}
+                                onContextMenu={openMenu}
                                 onOpen={onOpen}
                                 onOpenFile={onOpenFile}
+                                onSelect={selectRow}
+                                onToggle={toggleRow}
+                                openOnSingleClick={openOnSingleClick}
                                 searching={searching}
+                                selected={selected}
+                                showCheckboxes={showCheckboxes}
                                 showTarget={showTarget}
                             />
                         </GridBody>
@@ -310,6 +602,8 @@ export function FileList({
                     y={tagTarget.y}
                 />
             )}
+
+            {menu && <ContextMenu items={menuItems} onClose={closeMenu} x={menu.x} y={menu.y}/>}
         </Wrapper>
     );
 }
@@ -545,7 +839,7 @@ function PlaceholderTiles({size}: { size: number }) {
     return (
         <>
             {[42, 58, 36, 64, 48, 54, 39, 61, 45, 50, 57, 43].map((width, index) => (
-                <Tile $dim={false} $current={false} key={index}>
+                <Tile $dim={false} $current={false} $selected={false} key={index}>
                     <TileMedia>
                         <Bone style={{height: size, width: size}}/>
                     </TileMedia>
@@ -560,7 +854,8 @@ function PlaceholderTiles({size}: { size: number }) {
 
 /** One rectangular grid tile: a content preview, or the entry's icon, with a caption underneath. */
 const GridTile = memo(function GridTile({
-    row, current, dim, iconSize, itemCount, showTarget, innerRef, onOpen, onOpenFile,
+    row, current, dim, iconSize, itemCount, showTarget, innerRef, selected, showCheckboxes, openOnSingleClick,
+    onSelect, onToggle, onContextMenu, onOpen, onOpenFile,
 }: {
     row: RowModel;
     current: boolean;
@@ -569,6 +864,12 @@ const GridTile = memo(function GridTile({
     itemCount?: number;
     showTarget: boolean;
     innerRef?: RefObject<HTMLDivElement | null>;
+    selected: boolean;
+    showCheckboxes: boolean;
+    openOnSingleClick: boolean;
+    onSelect: (event: ReactMouseEvent, path: string) => void;
+    onToggle: (path: string) => void;
+    onContextMenu: (event: ReactMouseEvent, path: string) => void;
     onOpen: (path: string, newTab?: boolean) => void;
     onOpenFile?: (path: string) => void;
 }) {
@@ -576,18 +877,46 @@ const GridTile = memo(function GridTile({
     const previewable = !row.entry.isDirectory && canPreview(row.entry.name);
     const preview = useThumbnail(previewable ? row.entry.fullPath : null, 192, row.entry.modified);
     const [failed, setFailed] = useState(false);
+    const path = row.entry.fullPath;
+
+    const open = (event: ReactMouseEvent) => {
+        if (row.entry.isDirectory) onOpen(path, wantsNewTab(event));
+        else onOpenFile?.(path);
+    };
 
     return (
         <Tile
             $current={current}
             $dim={dim}
-            onClick={(event) => row.entry.isDirectory && wantsNewTab(event) && onOpen(row.entry.fullPath, true)}
-            onDoubleClick={(event) => row.entry.isDirectory
-                ? onOpen(row.entry.fullPath, wantsNewTab(event))
-                : onOpenFile?.(row.entry.fullPath)}
+            $selected={selected}
+            onClick={(event) => {
+                onSelect(event, path);
+
+                if (openOnSingleClick)
+                    open(event);
+            }}
+            onContextMenu={(event) => onContextMenu(event, path)}
+            onDoubleClick={(event) => {
+                if (!openOnSingleClick)
+                    open(event);
+            }}
             ref={current ? innerRef : undefined}
             title={row.entry.name}
         >
+            {showCheckboxes && (
+                <TileCheck
+                    $checked={selected}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        onToggle(path);
+                    }}
+                    onDoubleClick={(event) => event.stopPropagation()}
+                    title={selected ? "Deselect" : "Select"}
+                    type="button"
+                >
+                    {selected && <CheckIcon size={10}/>}
+                </TileCheck>
+            )}
             <TileMedia>
                 {previewable && preview && !failed
                     ? (
@@ -626,7 +955,8 @@ const GridTile = memo(function GridTile({
 
 /** The sections of tiles, shared by the full grid and the preview panel under the list. */
 function GridContent({
-    groups, gridSize, counts, showTarget, searching, currentPath, innerRef, onOpen, onOpenFile,
+    groups, gridSize, counts, showTarget, searching, currentPath, innerRef, selected, showCheckboxes,
+    openOnSingleClick, onSelect, onToggle, onContextMenu, onOpen, onOpenFile,
 }: {
     groups: RowGroup[];
     gridSize: number;
@@ -635,6 +965,12 @@ function GridContent({
     searching: boolean;
     currentPath: string | null;
     innerRef?: RefObject<HTMLDivElement | null>;
+    selected: Set<string>;
+    showCheckboxes: boolean;
+    openOnSingleClick: boolean;
+    onSelect: (event: ReactMouseEvent, path: string) => void;
+    onToggle: (path: string) => void;
+    onContextMenu: (event: ReactMouseEvent, path: string) => void;
     onOpen: (path: string, newTab?: boolean) => void;
     onOpenFile?: (path: string) => void;
 }) {
@@ -656,9 +992,15 @@ function GridContent({
                                 innerRef={innerRef}
                                 itemCount={counts?.[row.entry.name]}
                                 key={row.entry.fullPath}
+                                onContextMenu={onContextMenu}
                                 onOpen={onOpen}
                                 onOpenFile={onOpenFile}
+                                onSelect={onSelect}
+                                onToggle={onToggle}
+                                openOnSingleClick={openOnSingleClick}
                                 row={row}
+                                selected={selected.has(row.entry.fullPath)}
+                                showCheckboxes={showCheckboxes}
                                 showTarget={showTarget}
                             />
                         ))}
@@ -683,6 +1025,37 @@ const IconSlot = styled.span<{ $size?: number }>`
     img {
         display: block;
     }
+`;
+
+/** The Explorer-style selection box in front of a name. */
+const SelectionBox = styled.button<{ $checked: boolean }>`
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    padding: 0;
+    border: 1px solid ${({$checked}) => $checked ? "var(--border-color-focus)" : "var(--border-color-hover)"};
+    border-radius: 4px;
+    background: ${({$checked}) => $checked ? "rgba(59, 130, 246, 0.8)" : "transparent"};
+    color: #fff;
+    cursor: pointer;
+    transition: background 100ms ease, border-color 100ms ease;
+
+    &:hover {
+        border-color: var(--border-color-focus);
+        background: ${({$checked}) => $checked ? "rgba(59, 130, 246, 0.9)" : "rgba(148, 163, 184, 0.16)"};
+    }
+`;
+
+/** The same box, floated over the top-left corner of a grid tile. */
+const TileCheck = styled(SelectionBox)`
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    z-index: 3;
+    background: ${({$checked}) => $checked ? "rgba(59, 130, 246, 0.9)" : "rgba(15, 23, 42, 0.6)"};
+    backdrop-filter: blur(4px);
 `;
 
 const Wrapper = styled.div`
@@ -838,14 +1211,16 @@ const Bone = styled.span`
     }
 `;
 
-const Row = styled.div<{ $hidden: boolean; $dim: boolean; $current: boolean }>`
+const Row = styled.div<{ $hidden: boolean; $dim: boolean; $current: boolean; $selected: boolean }>`
     display: grid;
     gap: 16px;
     align-items: center;
     padding: 9px 12px;
-    border: 1px solid transparent;
+    border: 1px solid ${({$selected}) => $selected ? "rgba(59, 130, 246, 0.35)" : "transparent"};
     border-radius: var(--radius-sm);
-    background: ${({$current}) => $current ? "rgba(59, 130, 246, 0.14)" : "transparent"};
+    background: ${({$current, $selected}) => $current
+        ? "rgba(59, 130, 246, 0.14)"
+        : $selected ? "rgba(59, 130, 246, 0.09)" : "transparent"};
     box-shadow: ${({$current}) => $current ? "inset 0 0 0 1px rgba(59, 130, 246, 0.5)" : "none"};
     font-size: 13px;
     color: var(--text-secondary);
@@ -942,15 +1317,19 @@ const Broken = styled.span`
     color: #fca5a5;
 `;
 
-const Tile = styled.div<{ $dim: boolean; $current: boolean }>`
+const Tile = styled.div<{ $dim: boolean; $current: boolean; $selected: boolean }>`
     position: relative;
     display: flex;
     flex-direction: column;
     min-width: 0;
     overflow: hidden;
-    border: 1px solid ${({$current}) => $current ? "rgba(59, 130, 246, 0.5)" : "var(--border-color)"};
+    border: 1px solid ${({$current, $selected}) => $current
+        ? "rgba(59, 130, 246, 0.5)"
+        : $selected ? "rgba(59, 130, 246, 0.4)" : "var(--border-color)"};
     border-radius: var(--radius-md);
-    background: ${({$current}) => $current ? "rgba(59, 130, 246, 0.14)" : "var(--bg-primary)"};
+    background: ${({$current, $selected}) => $current
+        ? "rgba(59, 130, 246, 0.14)"
+        : $selected ? "rgba(59, 130, 246, 0.1)" : "var(--bg-primary)"};
     opacity: ${({$dim}) => $dim ? 0.3 : 1};
     cursor: default;
     user-select: none;

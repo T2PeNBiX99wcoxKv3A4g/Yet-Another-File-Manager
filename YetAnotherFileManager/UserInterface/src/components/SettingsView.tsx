@@ -336,6 +336,46 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                     <Row>
                         <RowText>
                             <LabelRow>
+                                <Label>Selection checkboxes</Label>
+                                <GlobalTag/>
+                            </LabelRow>
+                            <Note>
+                                Show a checkbox before every name, the way Explorer does. Checked entries
+                                can be copied, cut or deleted together.
+                            </Note>
+                        </RowText>
+                        <Toggle
+                            $on={settings?.showCheckboxes ?? true}
+                            disabled={!settings}
+                            onClick={() => void update({showCheckboxes: !(settings?.showCheckboxes ?? true)})}
+                            type="button"
+                        >
+                            <Knob/>
+                        </Toggle>
+                    </Row>
+                    <Row>
+                        <RowText>
+                            <LabelRow>
+                                <Label>Open with a single click</Label>
+                                <GlobalTag/>
+                            </LabelRow>
+                            <Note>
+                                Off means double-click, like Explorer's default. The checkbox still
+                                only selects, so a click on it never opens the entry.
+                            </Note>
+                        </RowText>
+                        <Toggle
+                            $on={settings?.openOnSingleClick ?? false}
+                            disabled={!settings}
+                            onClick={() => void update({openOnSingleClick: !(settings?.openOnSingleClick ?? false)})}
+                            type="button"
+                        >
+                            <Knob/>
+                        </Toggle>
+                    </Row>
+                    <Row>
+                        <RowText>
+                            <LabelRow>
                                 <Label>Preview panel under the list</Label>
                                 <GlobalTag/>
                             </LabelRow>

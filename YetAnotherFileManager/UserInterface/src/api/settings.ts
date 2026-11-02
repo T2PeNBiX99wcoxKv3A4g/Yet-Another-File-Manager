@@ -45,6 +45,10 @@ export interface AppSettings {
     activeTab: number | null;
     /** The view directories use when they have no settings of their own. */
     defaultView: ViewDefaults | null;
+    /** Show a selection checkbox in front of every name. */
+    showCheckboxes: boolean;
+    /** Open a folder or file with one click instead of two. */
+    openOnSingleClick: boolean;
 }
 
 const fallback: AppSettings = {
@@ -71,6 +75,8 @@ const fallback: AppSettings = {
     openTabs: null,
     activeTab: 0,
     defaultView: null,
+    showCheckboxes: true,
+    openOnSingleClick: false,
 };
 
 /** The interface settings, persisted by the host. */
@@ -103,6 +109,8 @@ export async function getSettings(): Promise<AppSettings> {
         openTabs: raw?.openTabs ?? null,
         activeTab: raw?.activeTab ?? 0,
         defaultView: raw?.defaultView ?? null,
+        showCheckboxes: raw?.showCheckboxes ?? true,
+        openOnSingleClick: raw?.openOnSingleClick ?? false,
     };
 }
 
@@ -136,6 +144,8 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         openTabs: saved?.openTabs ?? settings.openTabs,
         activeTab: saved?.activeTab ?? settings.activeTab,
         defaultView: saved?.defaultView ?? settings.defaultView,
+        showCheckboxes: saved?.showCheckboxes ?? settings.showCheckboxes,
+        openOnSingleClick: saved?.openOnSingleClick ?? settings.openOnSingleClick,
     };
 }
 

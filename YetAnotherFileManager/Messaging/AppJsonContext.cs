@@ -79,4 +79,10 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(NavigatePayload))]
 [JsonSerializable(typeof(WindowStatePayload))]
 [JsonSerializable(typeof(WindowResizeRequest))]
+[JsonSerializable(typeof(PathsPayload))]
+[JsonSerializable(typeof(RenamePathRequest))]
+[JsonSerializable(typeof(DirectoryRequest))]
+[JsonSerializable(typeof(PathOperationPayload))]
+[JsonSerializable(typeof(ClipboardFilesPayload))]
+[JsonSerializable(typeof(ShellMenuRequest))]
 internal sealed partial class AppJsonContext : JsonSerializerContext;

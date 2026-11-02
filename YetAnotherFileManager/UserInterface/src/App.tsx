@@ -8,6 +8,7 @@ import {
     listDrives,
     listPlaces,
     listRecent,
+    openFile,
     recordVisit,
     saveDirectoryView,
     saveTags,
@@ -492,6 +493,15 @@ export default function App() {
     }, [navigate]);
 
     const viewSave = useRef<number | null>(null);
+
+    /** Reloads the folder the active tab shows, keeping what is already on screen. */
+    const refreshActive = useCallback(() => {
+        const {tabs, activeId} = stateRef.current;
+        const tab = tabs.find((item) => item.id === activeId);
+
+        if (tab?.listing)
+            void load(tab.id, tab.listing.path, true);
+    }, [load]);
 
     /** Applies a view change to the current directory. Columns are handled separately. */
     const changeView = useCallback((change: Partial<DirectoryView>) => {
@@ -983,8 +993,12 @@ export default function App() {
                                 loading={active.loading}
                                 onImageStripHeight={setImageStripHeight}
                                 onOpen={navigate}
+                                onOpenFile={(file) => void openFile(file)}
+                                onRefresh={refreshActive}
                                 onSetTags={setEntryTags}
                                 onSort={sortBy}
+                                openOnSingleClick={settings?.openOnSingleClick ?? false}
+                                showCheckboxes={settings?.showCheckboxes ?? true}
                                 showImages={showImages}
                                 view={view}
                             />

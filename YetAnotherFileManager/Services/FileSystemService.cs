@@ -185,6 +185,51 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 return context.Reply("fs.tags.set.result",
                     new OkPayload(await SaveTagsAsync(context.Payload<TagsRequest>())));
 
+            case "fs.clipboard.copy":
+                return context.Reply("fs.clipboard.copy.result",
+                    new OkPayload(FileOperations.CopyToClipboard(context.Payload<PathsPayload>()?.Paths, false)));
+
+            case "fs.clipboard.cut":
+                return context.Reply("fs.clipboard.cut.result",
+                    new OkPayload(FileOperations.CopyToClipboard(context.Payload<PathsPayload>()?.Paths, true)));
+
+            case "fs.clipboard.hasFiles":
+                return context.Reply("fs.clipboard.hasFiles.result",
+                    new ClipboardFilesPayload(FileOperations.ClipboardHasFiles()));
+
+            case "fs.clipboard.paste":
+                return context.Reply("fs.clipboard.paste.result",
+                    new OkPayload(await FileOperations.PasteAsync(context.Payload<DirectoryRequest>()?.Directory ?? "")));
+
+            case "fs.operation.delete":
+                return context.Reply("fs.operation.delete.result",
+                    new OkPayload(await FileOperations.DeleteAsync(context.Payload<PathsPayload>()?.Paths ?? [])));
+
+            case "fs.operation.rename":
+                return context.Reply("fs.operation.rename.result",
+                    await FileOperations.RenameAsync(context.Payload<RenamePathRequest>()?.Path ?? "",
+                        context.Payload<RenamePathRequest>()?.Name ?? ""));
+
+            case "fs.operation.newFolder":
+                return context.Reply("fs.operation.newFolder.result",
+                    await FileOperations.NewFolderAsync(context.Payload<DirectoryRequest>()?.Directory ?? ""));
+
+            case "fs.operation.properties":
+                await FileOperations.ShowPropertiesAsync(context.Payload<PathsPayload>()?.Paths ?? []);
+                return context.Reply("fs.operation.properties.result", new OkPayload(true));
+
+            case "fs.operation.openWith":
+                await FileOperations.OpenWithAsync(context.Payload<PathPayload>()?.Path ?? "");
+                return context.Reply("fs.operation.openWith.result", new OkPayload(true));
+
+            case "fs.operation.showInExplorer":
+                await FileOperations.ShowInExplorerAsync(context.Payload<PathPayload>()?.Path ?? "");
+                return context.Reply("fs.operation.showInExplorer.result", new OkPayload(true));
+
+            case "shell.contextMenu":
+                WindowManager.Instance.ShowShellContextMenu(context.Payload<ShellMenuRequest>()?.Paths ?? []);
+                return context.Reply("shell.contextMenu.result", new OkPayload(true));
+
             default:
                 return null;
         }

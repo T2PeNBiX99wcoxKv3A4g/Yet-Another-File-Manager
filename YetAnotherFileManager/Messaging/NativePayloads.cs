@@ -148,3 +148,21 @@ internal sealed record WindowStatePayload(bool Maximized);
 
 /// <summary>Payload for <c>window.resize</c>: the edge being dragged.</summary>
 internal sealed record WindowResizeRequest(string Direction);
+
+/// <summary>Payload for the clipboard and file-operation messages: the paths they act on.</summary>
+internal sealed record PathsPayload(List<string> Paths);
+
+/// <summary>Payload for <c>fs.operation.rename</c>: the entry and its new name.</summary>
+internal sealed record RenamePathRequest(string Path, string Name);
+
+/// <summary>Payload for <c>fs.operation.newFolder</c> and <c>fs.clipboard.paste</c>.</summary>
+internal sealed record DirectoryRequest(string Directory);
+
+/// <summary>Body for <c>fs.operation.rename</c> and <c>fs.operation.newFolder</c>.</summary>
+internal sealed record PathOperationPayload(bool Ok, string? Path, string? Error);
+
+/// <summary>Body for <c>fs.clipboard.hasFiles</c>.</summary>
+internal sealed record ClipboardFilesPayload(bool HasFiles);
+
+/// <summary>Payload for <c>shell.contextMenu</c>: the entries the native menu acts on.</summary>
+internal sealed record ShellMenuRequest(List<string> Paths);

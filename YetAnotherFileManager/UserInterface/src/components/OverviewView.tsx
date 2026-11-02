@@ -1198,7 +1198,15 @@ export function OverviewView({
                 return renderDrives(panel);
 
             default:
-                return <FolderBody mode={panel.view} onOpen={onOpen} path={panel.path ?? homePath}/>;
+                return (
+                    <FolderBody
+                        mode={panel.view}
+                        onOpen={onOpen}
+                        openOnSingleClick={settings?.openOnSingleClick ?? false}
+                        path={panel.path ?? homePath}
+                        showCheckboxes={settings?.showCheckboxes ?? true}
+                    />
+                );
         }
     };
 
@@ -1518,7 +1526,13 @@ function FrequentBody({mode, onOpen, version}: {
 }
 
 /** One folder rendered as a panel: a table or a grid of its entries. */
-function FolderBody({path, mode, onOpen}: { path: string; mode: ViewMode; onOpen: (path: string, newTab?: boolean) => void }) {
+function FolderBody({path, mode, onOpen, showCheckboxes, openOnSingleClick}: {
+    path: string;
+    mode: ViewMode;
+    onOpen: (path: string, newTab?: boolean) => void;
+    showCheckboxes: boolean;
+    openOnSingleClick: boolean;
+}) {
     const [listing, setListing] = useState<DirectoryListing | null>(null);
     const quick = useQuickAccess();
 
@@ -1556,6 +1570,8 @@ function FolderBody({path, mode, onOpen}: { path: string; mode: ViewMode; onOpen
                     onOpen={onOpen}
                     onOpenFile={(file) => void openFile(file)}
                     onSort={() => undefined}
+                    openOnSingleClick={openOnSingleClick}
+                    showCheckboxes={showCheckboxes}
                     showImages={false}
                     view={{...DefaultView, columns: DefaultViewDefaults.columns ?? []}}
                 />
