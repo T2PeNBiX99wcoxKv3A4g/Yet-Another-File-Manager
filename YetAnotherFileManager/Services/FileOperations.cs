@@ -173,10 +173,16 @@ internal static partial class FileOperations
         paths
             .Where(path => path.Length > 0)
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Select(path => new ClipboardEntry(
-                path,
-                Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
-                Directory.Exists(path)))
+            .Select(path =>
+            {
+                var isDirectory = Directory.Exists(path);
+
+                return new ClipboardEntry(
+                    path,
+                    Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
+                    isDirectory,
+                    isDirectory || File.Exists(path));
+            })
             .ToList();
 
     /// <summary>Moves the entries a cut created back to the names they had before.</summary>

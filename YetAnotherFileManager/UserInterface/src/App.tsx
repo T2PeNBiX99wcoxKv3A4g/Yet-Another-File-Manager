@@ -618,6 +618,20 @@ export default function App() {
 
     const clearTrayItems = useCallback(() => setTrayItems([]), []);
 
+    const trayRef = useRef(trayItems);
+    trayRef.current = trayItems;
+
+    /** Drops tray entries that were moved away by a paste, so a cut does not leave stale rows. */
+    const pruneTray = useCallback(async () => {
+        const items = trayRef.current;
+        if (items.length === 0) return;
+
+        const entries = await inspectPaths(items.map((item) => item.path));
+        const existing = new Set(entries.filter((entry) => entry.exists).map((entry) => entry.path));
+
+        setTrayItems((current) => current.filter((item) => existing.has(item.path)));
+    }, []);
+
     const moveTray = useCallback((position: { x: number; y: number }) => {
         setTrayPosition(position);
 
@@ -1222,6 +1236,7 @@ export default function App() {
                     ? setEntryTags
                     : (name, tags, colors) => setEntryTagsFor(tab.id, name, tags, colors)}
                 onSort={primary ? sortBy : (column) => sortByFor(tab.id, column)}
+                onPaste={pruneTray}
                 onTray={addTrayItems}
                 onTransfer={transferTo}
                 openOnSingleClick={settings?.openOnSingleClick ?? false}

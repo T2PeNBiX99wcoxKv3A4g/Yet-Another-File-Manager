@@ -232,7 +232,7 @@ internal sealed record TransferRequest(List<string> Paths, string Target, bool M
 internal sealed record TransferResultPayload(bool Ok, string? Error, List<string> Created);
 
 /// <summary>One entry the clipboard carries, with enough detail to draw it in the tray.</summary>
-internal sealed record ClipboardEntry(string Path, string Name, bool IsDirectory);
+internal sealed record ClipboardEntry(string Path, string Name, bool IsDirectory, bool Exists);
 
 /// <summary>
 ///     Body for <c>fs.clipboard.files</c>. <paramref name="Sequence" /> is the clipboard sequence

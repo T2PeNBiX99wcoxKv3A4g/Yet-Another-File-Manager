@@ -27,6 +27,8 @@ export interface ClipboardEntry {
     path: string;
     name: string;
     isDirectory: boolean;
+    /** False when the entry was moved or deleted after it was put on the clipboard. */
+    exists: boolean;
 }
 
 export interface ClipboardFiles {

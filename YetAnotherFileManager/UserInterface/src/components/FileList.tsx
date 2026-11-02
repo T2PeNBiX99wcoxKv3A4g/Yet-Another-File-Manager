@@ -104,6 +104,8 @@ interface FileListProps {
     onTray?: (items: TrayItem[]) => void;
     /** Moves or copies dropped paths into a folder. */
     onTransfer?: (paths: string[], target: string, move: boolean) => void;
+    /** Called after a paste, so the tray can drop entries the move consumed. */
+    onPaste?: () => void;
 }
 
 interface RowModel {
@@ -122,7 +124,7 @@ export function FileList({
     listing, loading, error, find = NoFind, view, showImages, imageStripHeight = DefaultStripHeight,
     onImageStripHeight, onSort, onSetTags, onOpen, onOpenFile, showCheckboxes = true,
     openOnSingleClick = false, shortcuts = DefaultShortcuts, enableShortcuts = true, refreshToken = 0, onRefresh,
-    onTray, onTransfer,
+    onTray, onTransfer, onPaste,
 }: FileListProps) {
     const quick = useQuickAccess();
     const currentRow = useRef<HTMLDivElement | null>(null);
@@ -443,8 +445,10 @@ export function FileList({
     const paste = async (directory: string) => {
         if (!await pasteInto(directory))
             window.alert("Nothing on the clipboard could be pasted here.");
-        else
+        else {
             refresh();
+            onPaste?.();
+        }
     };
 
     const createFolder = async () => {
