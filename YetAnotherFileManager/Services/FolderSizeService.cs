@@ -23,7 +23,14 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
 
     private volatile int _generation;
 
-    public FolderSizeService() => _ = Task.Run(WorkAsync);
+    /// <summary>Folders measured at once. One worker leaves a listing of forty folders waiting in line.</summary>
+    private static readonly int Workers = Math.Clamp(Environment.ProcessorCount / 2, 2, 4);
+
+    public FolderSizeService()
+    {
+        for (var index = 0; index < Workers; index++)
+            _ = Task.Run(WorkAsync);
+    }
 
     public void Request(string directory, IEnumerable<string> children)
     {
@@ -88,7 +95,18 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
                 if (DirectoryIndex.IsIndexFile(file.Name))
                     continue;
 
-                total += Try.Run(() => file.Length).GetOrElse(_ => 0L);
+                // A single locked file must not abort the walk, but a Result per file is too much
+                // allocation for a folder with thousands of them.
+                try
+                {
+                    total += file.Length;
+                }
+                catch (IOException)
+                {
+                }
+                catch (UnauthorizedAccessException)
+                {
+                }
             }
 
             if (depth > 0)
@@ -116,7 +134,8 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
                     total += size;
                 }
 
-            await DirectoryIndex.SetSizesAsync(path, measured);
+            if (measured.Count > 0)
+                await DirectoryIndex.SetSizesAsync(path, measured);
 
             return total;
         });

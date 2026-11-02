@@ -19,7 +19,14 @@ internal sealed class FolderCountService : Singleton<FolderCountService>
     private readonly ConcurrentDictionary<string, bool> _queued = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _signal = new(0);
 
-    public FolderCountService() => _ = Task.Run(WorkAsync);
+    /// <summary>Folders counted at once; the shell is not the bottleneck, disk latency is.</summary>
+    private static readonly int Workers = Math.Clamp(Environment.ProcessorCount / 2, 2, 4);
+
+    public FolderCountService()
+    {
+        for (var index = 0; index < Workers; index++)
+            _ = Task.Run(WorkAsync);
+    }
 
     public void Request(string directory, IEnumerable<string> children)
     {

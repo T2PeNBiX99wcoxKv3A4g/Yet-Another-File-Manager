@@ -910,6 +910,9 @@ function markOf(view: ResolvedView, column: string): string {
     return view.sortDescending ? " ↓" : " ↑";
 }
 
+/** One collator for every listing: `localeCompare` with options allocates per comparison. */
+const NameCollator = new Intl.Collator(undefined, {numeric: true, sensitivity: "base"});
+
 /** Folders stay first, the way Explorer keeps them, and the chosen column orders the rest. */
 function sortRows(rows: RowModel[], view: ResolvedView, listing: DirectoryListing): RowModel[] {
     const value = (entry: FileEntry): string | number => {
@@ -936,15 +939,19 @@ function sortRows(rows: RowModel[], view: ResolvedView, listing: DirectoryListin
         }
     };
 
+    // Sort keys are computed once per row instead of on every comparison; a column like Type or
+    // Tags would otherwise be rebuilt tens of thousands of times for one listing.
+    const keys = new Map(rows.map((row) => [row, value(row.entry)]));
+
     return [...rows].sort((left, right) => {
         if (left.entry.isDirectory !== right.entry.isDirectory)
             return left.entry.isDirectory ? -1 : 1;
 
-        const a = value(left.entry);
-        const b = value(right.entry);
+        const a = keys.get(left)!;
+        const b = keys.get(right)!;
         const order = typeof a === "number" && typeof b === "number"
             ? a - b
-            : String(a).localeCompare(String(b), undefined, {numeric: true, sensitivity: "base"});
+            : NameCollator.compare(String(a), String(b));
 
         return view.sortDescending ? -order : order;
     });

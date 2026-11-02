@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Security.Principal;
 using System.Text;
@@ -126,13 +127,22 @@ internal static class RecycleBin
                 ? bin.EnumerateDirectories("*", Readable).ToList()
                 : [new(Path.Combine(bin.FullName, sid))];
 
-            return folders
+            // Each record is its own file; a bin with thousands of them reads them in parallel.
+            var records = folders
                 .Where(folder => folder.Exists)
-                .SelectMany(folder => folder.EnumerateFiles("$I*", Readable)
-                    .Select(info => Try.Run(() => ReadWindowsRecord(info.FullName, includeOrphans, sid))
-                        .GetOrNull()))
-                .OfType<RecycleEntry>()
+                .SelectMany(folder => folder.EnumerateFiles("$I*", Readable))
                 .ToList();
+
+            var entries = new ConcurrentBag<RecycleEntry>();
+
+            Parallel.ForEach(records, info =>
+            {
+                var entry = Try.Run(() => ReadWindowsRecord(info.FullName, includeOrphans, sid)).GetOrNull();
+                if (entry is not null)
+                    entries.Add(entry);
+            });
+
+            return entries.ToList();
         }).GetOrElse(_ => []);
 
     private static RecycleEntry? ReadWindowsRecord(string infoPath, bool includeOrphans, string currentSid)

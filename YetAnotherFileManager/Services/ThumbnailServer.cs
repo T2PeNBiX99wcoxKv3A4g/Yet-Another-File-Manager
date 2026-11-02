@@ -22,7 +22,7 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
     private readonly string _token = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
     private readonly ConcurrentDictionary<string, byte[]> _cache = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentQueue<string> _order = new();
-    private readonly SemaphoreSlim _gate = new(Math.Clamp(Environment.ProcessorCount / 2, 2, 4));
+    private readonly SemaphoreSlim _gate = new(Math.Clamp(Environment.ProcessorCount, 4, 8));
     private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
 
     public ThumbnailServer()

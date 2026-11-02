@@ -9,7 +9,7 @@ namespace YetAnotherFileManager.Services;
 /// </summary>
 internal static class StaThread
 {
-    private const int Workers = 2;
+    private const int Workers = 6;
 
     private static readonly BlockingCollection<Action> Work = new();
 

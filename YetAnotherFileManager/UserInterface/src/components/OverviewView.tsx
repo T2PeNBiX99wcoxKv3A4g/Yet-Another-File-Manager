@@ -423,6 +423,8 @@ const Tile = styled.button`
     font-size: 12px;
     text-align: left;
     cursor: pointer;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 35px;
 
     span {
         overflow: hidden;

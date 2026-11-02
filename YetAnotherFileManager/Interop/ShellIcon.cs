@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using PhotinoNetUtils.Extensions;
@@ -29,6 +30,17 @@ internal static unsafe partial class ShellIcon
 
     private const int ReleaseSlot = 2;
 
+    /// <summary>How many encoded icons are kept. Ordinary folders all share one system image.</summary>
+    private const int CacheLimit = 1024;
+
+    /// <summary>
+    ///     Encoded PNGs by system image-list index. Most folders resolve to the same index, so the
+    ///     encode and the base64 conversion happen once instead of once per folder.
+    /// </summary>
+    private static readonly ConcurrentDictionary<long, string> IconCache = new();
+
+    private static readonly ConcurrentQueue<long> IconOrder = new();
+
     /// <summary>
     ///     <c>IImageList::GetIcon</c>. The vtable is Add, ReplaceIcon, SetOverlayImage, Replace,
     ///     AddMasked, Draw, <b>Remove</b>, GetIcon — the Remove slot is easy to miss.
@@ -55,7 +67,14 @@ internal static unsafe partial class ShellIcon
 
         try
         {
-            return Try.Run(() => ToDataUrl(info.Icon)).GetOrNull();
+            var key = KeyOf(info.IconIndex, 0);
+            if (IconCache.TryGetValue(key, out var cached))
+                return cached;
+
+            var url = Try.Run(() => ToDataUrl(info.Icon)).GetOrNull();
+            Remember(key, url);
+
+            return url;
         }
         finally
         {
@@ -81,6 +100,10 @@ internal static unsafe partial class ShellIcon
             if (ShellGetFileInfo(path, attributes, ref info, (uint)Marshal.SizeOf<ShellFileInfo>(), flags) == IntPtr.Zero)
                 return DataUrl(path, directory, useFileAttributes);
 
+            var key = KeyOf(info.IconIndex, 1);
+            if (IconCache.TryGetValue(key, out var cached))
+                return cached;
+
             if (SHGetImageList(ShilJumbo, in ImageListId, out var list) != 0 || list == IntPtr.Zero)
                 return DataUrl(path, directory, useFileAttributes);
 
@@ -96,7 +119,9 @@ internal static unsafe partial class ShellIcon
 
                 try
                 {
-                    return ToDataUrl(icon);
+                    var url = ToDataUrl(icon);
+                    Remember(key, url);
+                    return url;
                 }
                 finally
                 {
@@ -113,6 +138,21 @@ internal static unsafe partial class ShellIcon
             Serilog.Log.Debug(ex, "Could not read a jumbo icon for {Path}", path);
             return DataUrl(path, directory, useFileAttributes);
         }
+    }
+
+    /// <summary>Identifies one encoded icon: an image-list index plus which list it came from.</summary>
+    private static long KeyOf(int index, int size) => ((long)index << 1) | (uint)size;
+
+    /// <summary>Keeps a successfully encoded icon, evicting the oldest once the cache is full.</summary>
+    private static void Remember(long key, string? url)
+    {
+        if (url is null || !IconCache.TryAdd(key, url))
+            return;
+
+        IconOrder.Enqueue(key);
+
+        while (IconOrder.Count > CacheLimit && IconOrder.TryDequeue(out var oldest))
+            IconCache.TryRemove(oldest, out _);
     }
 
     private static string? ToDataUrl(IntPtr icon)
