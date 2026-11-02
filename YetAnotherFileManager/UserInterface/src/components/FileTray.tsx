@@ -1,7 +1,7 @@
 import {useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent} from "react";
 import styled from "styled-components";
 import {PathIcon} from "./PathIcon";
-import {CrossIcon, PackageIcon} from "./Icons";
+import {CheckIcon, CrossIcon, PackageIcon} from "./Icons";
 
 /** One entry the tray holds; it can come from an in-app copy, a cut, or the system clipboard. */
 export interface TrayItem {
@@ -191,7 +191,7 @@ export function FileTray({
                                 }}
                                 type="button"
                             >
-                                {checked && <CrossIcon size={8}/>}
+                                {checked && <CheckIcon size={8}/>}
                             </Check>
                             <PathIcon isDirectory={item.isDirectory} name={item.name} path={item.path} size={16}/>
                             <Names>
