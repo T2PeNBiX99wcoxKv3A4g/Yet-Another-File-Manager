@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
+using YetAnotherFileManager.Interop;
 using YetAnotherFileManager.Models;
 
 namespace YetAnotherFileManager.Services;
@@ -26,6 +27,8 @@ internal sealed class Gallery : Singleton<Gallery>
         ".tif",
         ".tiff"
     };
+
+    private static readonly string ExtensionList = string.Join(';', Extensions);
 
     private static readonly EnumerationOptions Options = new()
     {
@@ -98,7 +101,7 @@ internal sealed class Gallery : Singleton<Gallery>
     }
 
     private static IEnumerable<GalleryEntry> Read(string root) =>
-        Try.Run(() => Walk(root)).GetOrElse(_ => []);
+        Try.Run(() => RustNative.ScanImages(root, Depth, ExtensionList) ?? Walk(root)).GetOrElse(_ => []);
 
     /// <summary>
     ///     Walks one root with a bounded set of workers. A recursive <c>EnumerateFiles</c> visits one

@@ -59,4 +59,32 @@
         <EmbeddedResource Include="Resources\**" />
     </ItemGroup>
 
+    <!-- Rust handles bulk filesystem work (the gallery scan today). These targets build the library
+         when cargo is present and copy it beside the executable; the managed walk is the fallback
+         when the file is missing, so a checkout without the toolchain still builds and runs. -->
+    <PropertyGroup>
+        <RustManifest>$(MSBuildProjectDirectory)/Native/yafm-native/Cargo.toml</RustManifest>
+        <RustReleaseDir>$(MSBuildProjectDirectory)/Native/yafm-native/target/release</RustReleaseDir>
+        <RustLibraryName Condition="$([MSBuild]::IsOSPlatform('Windows'))">yafm_native.dll</RustLibraryName>
+        <RustLibraryName Condition="$([MSBuild]::IsOSPlatform('Linux'))">libyafm_native.so</RustLibraryName>
+        <RustLibraryName Condition="$([MSBuild]::IsOSPlatform('OSX'))">libyafm_native.dylib</RustLibraryName>
+    </PropertyGroup>
+
+    <Target Name="BuildRustNative" BeforeTargets="Build" Condition="Exists('$(RustManifest)')">
+        <Exec Command="cargo build --release --manifest-path &quot;$(RustManifest)&quot;"
+              ContinueOnError="WarnAndContinue" />
+    </Target>
+
+    <Target Name="CopyRustNative" AfterTargets="Build"
+            Condition="Exists('$(RustReleaseDir)/$(RustLibraryName)')">
+        <Copy SourceFiles="$(RustReleaseDir)/$(RustLibraryName)" DestinationFolder="$(OutDir)"
+              SkipUnchangedFiles="true" />
+    </Target>
+
+    <Target Name="CopyRustNativeOnPublish" AfterTargets="Publish"
+            Condition="Exists('$(RustReleaseDir)/$(RustLibraryName)')">
+        <Copy SourceFiles="$(RustReleaseDir)/$(RustLibraryName)" DestinationFolder="$(PublishDir)"
+              SkipUnchangedFiles="true" />
+    </Target>
+
 </Project>

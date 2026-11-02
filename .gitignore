@@ -32,3 +32,5 @@ nul
 opencode.json
 .opencode/
 AGENTS.md
+# Rust build output
+**/Native/**/target/
