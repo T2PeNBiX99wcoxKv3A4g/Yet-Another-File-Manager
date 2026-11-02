@@ -130,7 +130,23 @@ export function FileTray({
     };
 
     return (
-        <Panel $dragging={dragging} style={{left: position.x, top: position.y}}>
+        <Panel
+            $dragging={dragging}
+            style={{left: position.x, top: position.y}}
+            onDragOver={(event) => {
+                if (event.dataTransfer.types.some((type) => type.toLowerCase() === DragType)) {
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = "copy";
+                }
+            }}
+            onDrop={(event) => {
+                const paths = readDraggedPaths(event);
+                if (paths.length > 0) {
+                    event.preventDefault();
+                    onAdd(paths);
+                }
+            }}
+        >
             <Head onPointerDown={startDrag} onPointerMove={movePanel} onPointerUp={endDrag}>
                 <Title>
                     <PackageIcon size={13}/>
@@ -150,21 +166,7 @@ export function FileTray({
                 </HeadActions>
             </Head>
 
-            <List
-                onDragOver={(event) => {
-                    if (event.dataTransfer.types.some((type) => type.toLowerCase() === DragType)) {
-                        event.preventDefault();
-                        event.dataTransfer.dropEffect = "copy";
-                    }
-                }}
-                onDrop={(event) => {
-                    const paths = readDraggedPaths(event);
-                    if (paths.length > 0) {
-                        event.preventDefault();
-                        onAdd(paths);
-                    }
-                }}
-            >
+            <List>
                 {items.map((item) => {
                     const checked = selected.has(item.path);
 
