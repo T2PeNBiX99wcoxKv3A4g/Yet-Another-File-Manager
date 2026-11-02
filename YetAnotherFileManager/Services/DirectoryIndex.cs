@@ -17,6 +17,18 @@ internal static class DirectoryIndex
 {
     public const string FileName = FolderIndex.FileName;
 
+    /// <summary>Everything one listing reads from the index, gathered over one connection.</summary>
+    internal sealed record MetadataSnapshot(
+        Dictionary<string, string> Icons,
+        Dictionary<string, long> Sizes,
+        DirectoryView? View,
+        Dictionary<string, List<string>> Tags,
+        Dictionary<string, string> TagColors,
+        Dictionary<string, long> Counts)
+    {
+        public static MetadataSnapshot Empty => new([], [], null, [], [], []);
+    }
+
     /// <summary>Directories whose own index could not be created this session.</summary>
     private static readonly ConcurrentDictionary<string, bool> CentralOnly = new(StringComparer.OrdinalIgnoreCase);
 
@@ -43,6 +55,31 @@ internal static class DirectoryIndex
     /// <summary>Icons recorded for the entries of a directory, by entry name.</summary>
     public static Task<Dictionary<string, string>> IconsAsync(string directory) =>
         ReadsOwnIndex(directory) ? FolderIndex.IconsAsync(directory) : CentralIndex.Instance.IconsAsync(directory);
+
+    /// <summary>
+    ///     Everything a listing needs from the index. The per-folder database is opened once instead of
+    ///     six times; the central database does the same.
+    /// </summary>
+    public static async Task<MetadataSnapshot> ReadMetadataAsync(string directory)
+    {
+        if (ReadsOwnIndex(directory))
+            return await FolderIndex.ReadMetadataAsync(directory) ?? MetadataSnapshot.Empty;
+
+        var central = await CentralIndex.Instance.ReadMetadataAsync(directory);
+
+        // Tags, tag colors and child counts always stay with the folder's own index when it exists.
+        var local = File.Exists(FolderIndex.PathFor(directory))
+            ? await FolderIndex.ReadMetadataAsync(directory)
+            : null;
+
+        return new MetadataSnapshot(
+            central.Icons,
+            central.Sizes,
+            central.View,
+            local?.Tags ?? [],
+            local?.TagColors ?? [],
+            local?.Counts ?? []);
+    }
 
     /// <summary>Cached sizes of the entries of a directory, by entry name.</summary>
     public static Task<Dictionary<string, long>> SizesAsync(string directory) =>

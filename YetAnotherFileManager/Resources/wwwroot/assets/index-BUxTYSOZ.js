@@ -420,6 +420,8 @@ Error generating stack: `+e.message+`
     opacity: ${({$hidden:e,$dim:t})=>t?.3:e?.55:1};
     cursor: default;
     user-select: none;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 40px;
     transition: background 100ms ease, border-color 100ms ease, opacity 100ms ease;
 
     &:hover {
@@ -502,6 +504,7 @@ Error generating stack: `+e.message+`
     opacity: ${({$dim:e})=>e?.3:1};
     cursor: default;
     user-select: none;
+    content-visibility: auto;
     transition: background 100ms ease, border-color 100ms ease, opacity 100ms ease;
 
     &:hover {

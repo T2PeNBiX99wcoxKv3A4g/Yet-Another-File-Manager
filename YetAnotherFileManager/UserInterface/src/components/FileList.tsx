@@ -1565,6 +1565,8 @@ const Row = styled.div<{ $hidden: boolean; $dim: boolean; $current: boolean; $se
     opacity: ${({$hidden, $dim}) => $dim ? 0.3 : $hidden ? 0.55 : 1};
     cursor: default;
     user-select: none;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 40px;
     transition: background 100ms ease, border-color 100ms ease, opacity 100ms ease;
 
     &:hover {
@@ -1671,6 +1673,7 @@ const Tile = styled.div<{ $dim: boolean; $current: boolean; $selected: boolean }
     opacity: ${({$dim}) => $dim ? 0.3 : 1};
     cursor: default;
     user-select: none;
+    content-visibility: auto;
     transition: background 100ms ease, border-color 100ms ease, opacity 100ms ease;
 
     &:hover {

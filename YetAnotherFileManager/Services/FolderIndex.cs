@@ -113,6 +113,81 @@ internal static class FolderIndex
             return icons;
         }) ?? new Dictionary<string, string>();
 
+    /// <summary>Every piece a listing reads from this folder, over a single connection.</summary>
+    public static async Task<DirectoryIndex.MetadataSnapshot?> ReadMetadataAsync(string directory)
+    {
+        var result = await Try.Run(async () =>
+        {
+            await using var connection = await OpenAsync(directory, false);
+            if (connection is null)
+                return null;
+
+            var icons = await ReadOnConnectionAsync(connection, "SELECT name, source FROM icons", async reader =>
+            {
+                var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                while (await reader.ReadAsync())
+                    values[reader.GetString(0)] = reader.GetString(1);
+
+                return values;
+            });
+
+            var sizes = await ReadOnConnectionAsync(connection, "SELECT name, bytes FROM sizes", async reader =>
+            {
+                var values = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+
+                while (await reader.ReadAsync())
+                    values[reader.GetString(0)] = reader.GetInt64(1);
+
+                return values;
+            });
+
+            var view = await ReadOnConnectionAsync(connection, "SELECT value FROM settings WHERE key = 'view'",
+                async reader => await reader.ReadAsync()
+                    ? Try.Run(() => JsonSerializer.Deserialize(reader.GetString(0),
+                        AppJsonContext.Default.DirectoryView)).GetOrNull()
+                    : null);
+
+            var tags = await ReadOnConnectionAsync(connection, "SELECT name, tags FROM tags", async reader =>
+            {
+                var values = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+                while (await reader.ReadAsync())
+                {
+                    var list = Try.Run(() => JsonSerializer.Deserialize(reader.GetString(1),
+                        AppJsonContext.Default.ListString)).GetOrNull();
+
+                    if (list is { Count: > 0 })
+                        values[reader.GetString(0)] = list;
+                }
+
+                return values;
+            });
+
+            var tagColors = await ReadOnConnectionAsync(connection,
+                "SELECT value FROM settings WHERE key = 'tag_colors'",
+                async reader => await reader.ReadAsync()
+                    ? Try.Run(() => JsonSerializer.Deserialize(reader.GetString(0),
+                        AppJsonContext.Default.DictionaryStringString)).GetOrNull()
+                    : null);
+
+            var counts = await ReadOnConnectionAsync(connection, "SELECT name, count FROM counts", async reader =>
+            {
+                var values = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+
+                while (await reader.ReadAsync())
+                    values[reader.GetString(0)] = reader.GetInt64(1);
+
+                return values;
+            });
+
+            return new DirectoryIndex.MetadataSnapshot(icons, sizes, view, tags, tagColors ?? [], counts);
+        });
+
+        return result.OnFailure(ex => Log.Debug(ex, "Could not read the index of {Directory}", directory))
+            .GetOrNull();
+    }
+
     /// <summary>Cached sizes of the entries of a directory, by entry name.</summary>
     public static async Task<Dictionary<string, long>> SizesAsync(string directory) =>
         await ReadAsync(directory, "SELECT name, bytes FROM sizes", async reader =>
@@ -199,6 +274,8 @@ internal static class FolderIndex
                     var target = insert.Parameters.Add("$target", SqliteType.Text);
                     var valid = insert.Parameters.Add("$valid", SqliteType.Integer);
                     var links = insert.Parameters.Add("$links", SqliteType.Integer);
+
+                    insert.Prepare();
 
                     foreach (var entry in entries)
                     {
@@ -492,16 +569,22 @@ internal static class FolderIndex
             if (connection is null)
                 return null;
 
-            await using var command = connection.CreateCommand();
-            command.CommandText = sql;
-            bind?.Invoke(command);
-
-            await using var reader = await command.ExecuteReaderAsync();
-            return await read(reader);
+            return await ReadOnConnectionAsync(connection, sql, read, bind);
         });
 
         return result.OnFailure(ex => Log.Debug(ex, "Could not read {Directory} from the index", directory))
             .GetOrNull();
+    }
+
+    private static async Task<T> ReadOnConnectionAsync<T>(SqliteConnection connection, string sql,
+        Func<SqliteDataReader, Task<T>> read, Action<SqliteCommand>? bind = null)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        bind?.Invoke(command);
+
+        await using var reader = await command.ExecuteReaderAsync();
+        return await read(reader);
     }
 
     private static async Task<bool> WriteAsync(string directory, string sql, Action<SqliteCommand> bind)

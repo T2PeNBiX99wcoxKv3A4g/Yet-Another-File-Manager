@@ -204,6 +204,56 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
             .GetOrNull();
     }
 
+    /// <summary>Icons, sizes and view for one directory over a single connection.</summary>
+    public async Task<DirectoryIndex.MetadataSnapshot> ReadMetadataAsync(string directory)
+    {
+        await _ready.Value;
+
+        var result = await Try.Run(async () =>
+        {
+            await using var connection = await OpenAsync();
+            var key = KeyFor(directory);
+
+            var icons = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            await using (var command = connection.CreateCommand())
+            {
+                command.CommandText = "SELECT Name, Source FROM Icons WHERE DirectoryKey = $key";
+                command.Parameters.AddWithValue("$key", key);
+
+                await using var reader = await command.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                    icons[reader.GetString(0)] = reader.GetString(1);
+            }
+
+            var sizes = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+            await using (var command = connection.CreateCommand())
+            {
+                command.CommandText = "SELECT Name, Bytes FROM Sizes WHERE DirectoryKey = $key";
+                command.Parameters.AddWithValue("$key", key);
+
+                await using var reader = await command.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                    sizes[reader.GetString(0)] = reader.GetInt64(1);
+            }
+
+            await using (var command = connection.CreateCommand())
+            {
+                command.CommandText = "SELECT Value FROM Settings WHERE DirectoryKey = $key AND Key = 'view'";
+                command.Parameters.AddWithValue("$key", key);
+
+                var value = await command.ExecuteScalarAsync();
+                var view = value is string json
+                    ? Try.Run(() => JsonSerializer.Deserialize(json, AppJsonContext.Default.DirectoryView)).GetOrNull()
+                    : null;
+
+                return new DirectoryIndex.MetadataSnapshot(icons, sizes, view, [], [], []);
+            }
+        });
+
+        return result.OnFailure(ex => Log.Debug(ex, "Could not read the index of {Directory}", directory))
+            .GetOrElse(_ => DirectoryIndex.MetadataSnapshot.Empty);
+    }
+
     /// <summary>Stores this directory's own view settings, so it opens the same way next time.</summary>
     public async Task<bool> SaveViewAsync(string directory, DirectoryView view)
     {
@@ -408,6 +458,8 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
             var target = insert.Parameters.Add("$target", SqliteType.Text);
             var valid = insert.Parameters.Add("$valid", SqliteType.Integer);
             var links = insert.Parameters.Add("$links", SqliteType.Integer);
+
+            insert.Prepare();
 
             for (var index = 0; index < entries.Count; index++)
             {

@@ -635,20 +635,13 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         // The index is best effort: reading it must never be able to fail a listing.
         await DirectoryIndex.EnsureHiddenAsync(directory.FullName);
 
-        var iconsTask = DirectoryIndex.IconsAsync(directory.FullName);
-        var sizesTask = DirectoryIndex.SizesAsync(directory.FullName);
-        var viewTask = DirectoryIndex.ViewAsync(directory.FullName);
-        var tagsTask = DirectoryIndex.TagsAsync(directory.FullName);
-        var tagColorsTask = DirectoryIndex.TagColorsAsync(directory.FullName);
-        var countsTask = DirectoryIndex.CountsAsync(directory.FullName);
-        await Task.WhenAll(iconsTask, sizesTask, viewTask, tagsTask, tagColorsTask, countsTask);
-
-        var icons = await iconsTask;
-        var sizes = await sizesTask;
-        var view = await viewTask;
-        var tags = await tagsTask;
-        var tagColors = await tagColorsTask;
-        var counts = await countsTask;
+        var metadata = await DirectoryIndex.ReadMetadataAsync(directory.FullName);
+        var icons = metadata.Icons;
+        var sizes = metadata.Sizes;
+        var view = metadata.View;
+        var tags = metadata.Tags;
+        var tagColors = metadata.TagColors;
+        var counts = metadata.Counts;
         var allTags = tags.Values
             .SelectMany(list => list)
             .Concat(tagColors.Keys)
@@ -713,12 +706,13 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         var (showHidden, showSystem) = await Task.Run(() => (FileVisibility.ShowHidden, FileVisibility.ShowSystem));
 
         // The saved rows carry the icon of the last scan; the icon table may be newer.
-        var icons = await DirectoryIndex.IconsAsync(directory.FullName);
-        var sizes = await DirectoryIndex.SizesAsync(directory.FullName);
-        var view = await DirectoryIndex.ViewAsync(directory.FullName);
-        var tags = await DirectoryIndex.TagsAsync(directory.FullName);
-        var tagColors = await DirectoryIndex.TagColorsAsync(directory.FullName);
-        var counts = await DirectoryIndex.CountsAsync(directory.FullName);
+        var metadata = await DirectoryIndex.ReadMetadataAsync(directory.FullName);
+        var icons = metadata.Icons;
+        var sizes = metadata.Sizes;
+        var view = metadata.View;
+        var tags = metadata.Tags;
+        var tagColors = metadata.TagColors;
+        var counts = metadata.Counts;
         var allTags = tags.Values
             .SelectMany(list => list)
             .Concat(tagColors.Keys)
