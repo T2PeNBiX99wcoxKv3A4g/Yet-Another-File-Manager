@@ -7,7 +7,7 @@ import {wantsNewTab} from "../shortcuts";
 import type {DirectoryListing, FileEntry, Place, ResolvedView} from "../api/files";
 import {useIcon, useIconFile, useThumbnail} from "../api/icons";
 import {NoFind, rangesOf, type FindView} from "../find";
-import {canPreview, isImage} from "../preview";
+import {canPreview, previewKindOf, PreviewKindLabels} from "../preview";
 import {quickPlace, useQuickAccess} from "../quick";
 import {formatBytes, formatDate} from "../utils/format";
 import {FolderIcon} from "./Icons";
@@ -130,13 +130,14 @@ export function FileList({
         return sortRows(matched, view, listing);
     }, [listing, searching, find, quick, view.sort, view.sortDescending]);
 
-    const groups = useMemo(() => groupRows(rows), [rows]);
+    const groups = useMemo(() => groupRows(rows, GridRules), [rows]);
 
     // The panel repeats what the rows already show; only types the shell can preview belong in it.
     const previews = useMemo(
         () => rows.filter((row) => !row.entry.isDirectory && canPreview(row.entry.name)),
         [rows]
     );
+    const previewGroups = useMemo(() => groupRows(previews, PreviewKindRules), [previews]);
 
     if (error)
         return <Center><ErrorText>{error}</ErrorText></Center>;
@@ -150,31 +151,17 @@ export function FileList({
                 <GridBody>
                     {loading && !listing
                         ? <Tiles $size={view.gridSize}><PlaceholderTiles size={view.gridSize}/></Tiles>
-                        : groups.map((group) => (
-                            <GridSection key={group.id}>
-                                <GridHeader>
-                                    {group.label}
-                                    <GridCount>{group.rows.length}</GridCount>
-                                    <GridRule/>
-                                </GridHeader>
-                                <Tiles $size={view.gridSize}>
-                                    {group.rows.map((row) => (
-                                        <GridTile
-                                            current={searching && row.entry.fullPath === find.currentPath}
-                                            dim={searching && row.ranges === null}
-                                            iconSize={gridIconSize(view.gridSize)}
-                                            innerRef={currentRow}
-                                            itemCount={listing?.counts[row.entry.name]}
-                                            key={row.entry.fullPath}
-                                            onOpen={onOpen}
-                                            onOpenFile={onOpenFile}
-                                            row={row}
-                                            showTarget={showTarget}
-                                        />
-                                    ))}
-                                </Tiles>
-                            </GridSection>
-                        ))}
+                        : <GridContent
+                            counts={listing?.counts}
+                            currentPath={searching ? find.currentPath : null}
+                            groups={groups}
+                            gridSize={view.gridSize}
+                            innerRef={currentRow}
+                            onOpen={onOpen}
+                            onOpenFile={onOpenFile}
+                            searching={searching}
+                            showTarget={showTarget}
+                        />}
 
                     {!loading && listing && rows.length === 0 && (
                         <EmptyCell>
@@ -297,20 +284,16 @@ export function FileList({
                             <StripCount>{previews.length}</StripCount>
                         </StripHead>
                         <GridBody>
-                            <Tiles $size={view.gridSize}>
-                                {previews.map((row) => (
-                                    <GridTile
-                                        current={searching && row.entry.fullPath === find.currentPath}
-                                        dim={searching && row.ranges === null}
-                                        iconSize={gridIconSize(view.gridSize)}
-                                        key={row.entry.fullPath}
-                                        onOpen={onOpen}
-                                        onOpenFile={onOpenFile}
-                                        row={row}
-                                        showTarget={showTarget}
-                                    />
-                                ))}
-                            </Tiles>
+                            <GridContent
+                                counts={listing?.counts}
+                                currentPath={searching ? find.currentPath : null}
+                                groups={previewGroups}
+                                gridSize={view.gridSize}
+                                onOpen={onOpen}
+                                onOpenFile={onOpenFile}
+                                searching={searching}
+                                showTarget={showTarget}
+                            />
                         </GridBody>
                     </Strip>
                 </>
@@ -378,18 +361,39 @@ function sortRows(rows: RowModel[], view: ResolvedView, listing: DirectoryListin
     });
 }
 
-/** A folder, a picture or any other file — the three sections of the grid. */
-function groupRows(rows: RowModel[]): { id: string; label: string; rows: RowModel[] }[] {
-    const groups = [
-        {id: "folders", label: "Folders", rows: [] as RowModel[]},
-        {id: "images", label: "Images", rows: [] as RowModel[]},
-        {id: "files", label: "Other files", rows: [] as RowModel[]},
-    ];
+interface RowGroup {
+    id: string;
+    label: string;
+    rows: RowModel[];
+}
+
+interface GroupRule {
+    id: string;
+    label: string;
+    match: (row: RowModel) => boolean;
+}
+
+/** One rule per preview kind, shared by the grid and the panel below the list. */
+const PreviewKindRules: GroupRule[] = PreviewKindLabels.map(({kind, label}) => ({
+    id: kind,
+    label,
+    match: (row) => !row.entry.isDirectory && previewKindOf(row.entry.name) === kind,
+}));
+
+/** The grid keeps folders first, then pictures and videos, and everything else last. */
+const GridRules: GroupRule[] = [
+    {id: "folders", label: "Folders", match: (row) => row.entry.isDirectory},
+    ...PreviewKindRules.filter((rule) => rule.id === "image" || rule.id === "video"),
+    {id: "files", label: "Other files", match: () => true},
+];
+
+/** Splits rows into the first matching section, dropping the sections that stay empty. */
+function groupRows(rows: RowModel[], rules: GroupRule[]): RowGroup[] {
+    const groups = rules.map((rule) => ({id: rule.id, label: rule.label, rows: [] as RowModel[]}));
 
     for (const row of rows) {
-        if (row.entry.isDirectory) groups[0].rows.push(row);
-        else if (isImage(row.entry.name)) groups[1].rows.push(row);
-        else groups[2].rows.push(row);
+        const index = rules.findIndex((rule) => rule.match(row));
+        if (index >= 0) groups[index].rows.push(row);
     }
 
     return groups.filter((group) => group.rows.length > 0);
@@ -619,6 +623,51 @@ const GridTile = memo(function GridTile({
         </Tile>
     );
 });
+
+/** The sections of tiles, shared by the full grid and the preview panel under the list. */
+function GridContent({
+    groups, gridSize, counts, showTarget, searching, currentPath, innerRef, onOpen, onOpenFile,
+}: {
+    groups: RowGroup[];
+    gridSize: number;
+    counts?: Record<string, number>;
+    showTarget: boolean;
+    searching: boolean;
+    currentPath: string | null;
+    innerRef?: RefObject<HTMLDivElement | null>;
+    onOpen: (path: string, newTab?: boolean) => void;
+    onOpenFile?: (path: string) => void;
+}) {
+    return (
+        <>
+            {groups.map((group) => (
+                <GridSection key={group.id}>
+                    <GridHeader>
+                        {group.label}
+                        <GridCount>{group.rows.length}</GridCount>
+                        <GridRule/>
+                    </GridHeader>
+                    <Tiles $size={gridSize}>
+                        {group.rows.map((row) => (
+                            <GridTile
+                                current={searching && row.entry.fullPath === currentPath}
+                                dim={searching && row.ranges === null}
+                                iconSize={gridIconSize(gridSize)}
+                                innerRef={innerRef}
+                                itemCount={counts?.[row.entry.name]}
+                                key={row.entry.fullPath}
+                                onOpen={onOpen}
+                                onOpenFile={onOpenFile}
+                                row={row}
+                                showTarget={showTarget}
+                            />
+                        ))}
+                    </Tiles>
+                </GridSection>
+            ))}
+        </>
+    );
+}
 
 const IconSlot = styled.span<{ $size?: number }>`
     display: grid;
