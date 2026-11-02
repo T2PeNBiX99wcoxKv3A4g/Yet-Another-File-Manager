@@ -6,6 +6,7 @@ using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Interop;
 using PhotinoNetUtils.Utils;
 using Serilog;
+using YetAnotherFileManager.Interop;
 using YetAnotherFileManager.Messaging;
 
 namespace YetAnotherFileManager.Services;
@@ -25,6 +26,12 @@ internal static partial class FileOperations
     private const ushort FofAllowUndo = 0x0040;
     private const ushort FofNoConfirmation = 0x0010;
     private const ushort FofNoConfirmMkdir = 0x0200;
+
+    /// <summary>
+    ///     Above this many files the Rust writer is tried first. Below it the managed writer is
+    ///     already fast enough, and the extra measurement walk would only add work.
+    /// </summary>
+    private const int RustCompressThreshold = 32;
 
     private static readonly string PreferredDropEffect = "Preferred DropEffect";
 
@@ -67,8 +74,8 @@ internal static partial class FileOperations
     {
         if (!OperatingSystem.IsWindows()) return false;
 
-        var (paths, move) = ReadClipboardFiles();
-        if (paths.Count == 0 || !Directory.Exists(directory))
+        var (paths, move, read) = ReadClipboardFiles();
+        if (!read || paths.Count == 0 || !Directory.Exists(directory))
             return false;
 
         var (step, created) = await CopyIntoAsync(paths, directory, move);
@@ -150,8 +157,13 @@ internal static partial class FileOperations
         if (!OperatingSystem.IsWindows())
             return new ClipboardPathsPayload([], false, 0);
 
-        var (paths, move) = ReadClipboardFiles();
-        return new ClipboardPathsPayload(Describe(paths), move, GetClipboardSequenceNumber());
+        var (paths, move, read) = ReadClipboardFiles();
+
+        // A clipboard another app is holding is not "empty": leave the sequence alone so the next
+        // poll retries instead of remembering a sequence that never carried the files.
+        return read
+            ? new ClipboardPathsPayload(Describe(paths), move, GetClipboardSequenceNumber())
+            : new ClipboardPathsPayload([], false, 0);
     }
 
     /// <summary>Describes paths for the tray without reading the clipboard.</summary>
@@ -477,9 +489,24 @@ internal static partial class FileOperations
                 : "Archive";
 
             var zipPath = UniquePath(directory, baseName, ".zip");
+            var taskId = TaskCenter.Instance.Start("compress", $"Compress {Path.GetFileName(zipPath)}");
+            var fileCount = CountFiles(entries);
+            TaskCenter.Instance.UpdateTotal(taskId, fileCount, 0);
+
+            // The managed writer is excellent for a handful of files; the native writer is there
+            // for the batches where its parallel deflate beats a single stream.
+            if (fileCount >= RustCompressThreshold && RustNative.TryCompress(entries, zipPath))
+            {
+                TaskCenter.Instance.Complete(taskId);
+                return new PathOperationPayload(true, zipPath, null);
+            }
+
+            Try.Run(() => File.Delete(zipPath));
 
             try
             {
+                var done = 0;
+
                 using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
                 {
                     foreach (var path in entries)
@@ -496,24 +523,52 @@ internal static partial class FileOperations
                             {
                                 var name = Path.GetRelativePath(parent, file).Replace('\\', '/');
                                 archive.CreateEntryFromFile(file, name, CompressionLevel.Optimal);
+                                TaskCenter.Instance.Progress(taskId, ++done, 0);
                             }
 
                             continue;
                         }
 
                         archive.CreateEntryFromFile(path, Path.GetFileName(path), CompressionLevel.Optimal);
+                        TaskCenter.Instance.Progress(taskId, ++done, 0);
                     }
                 }
 
+                TaskCenter.Instance.Complete(taskId);
                 return new PathOperationPayload(true, zipPath, null);
             }
             catch (Exception ex)
             {
                 Try.Run(() => File.Delete(zipPath));
+                TaskCenter.Instance.Fail(taskId, ex.Message);
                 Log.Warning(ex, "Could not compress {Count} entries", entries.Count);
                 return new PathOperationPayload(false, null, ex.Message);
             }
         });
+
+    /// <summary>Counts files until the threshold is reached; the walk stops early for huge trees.</summary>
+    private static int CountFiles(IReadOnlyList<string> entries) =>
+        Try.Run(() =>
+        {
+            var count = 0;
+
+            foreach (var path in entries)
+            {
+                if (Directory.Exists(path))
+                {
+                    foreach (var _ in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+                        if (++count >= RustCompressThreshold)
+                            return count;
+                }
+                else if (File.Exists(path))
+                {
+                    if (++count >= RustCompressThreshold)
+                        return count;
+                }
+            }
+
+            return count;
+        }).GetOrElse(_ => entries.Count);
 
     private static Task<FileHistory.Step> DeleteFileStepAsync(string path) =>
         Task.Run(() =>
@@ -741,16 +796,16 @@ internal static partial class FileOperations
         return true;
     }
 
-    private static (List<string> Paths, bool Move) ReadClipboardFiles()
+    private static (List<string> Paths, bool Move, bool Read) ReadClipboardFiles()
     {
         if (!OpenClipboard())
-            return ([], false);
+            return ([], false, false);
 
         try
         {
             var handle = NativeMethods.GetClipboardData(CfHDrop);
             if (handle == IntPtr.Zero)
-                return ([], false);
+                return ([], false, true);
 
             var count = DragQueryFile(handle, uint.MaxValue, IntPtr.Zero, 0);
             var paths = new List<string>((int)count);
@@ -775,7 +830,7 @@ internal static partial class FileOperations
             }
 
             var move = ReadDropEffect() == 2;
-            return (paths, move);
+            return (paths, move, true);
         }
         finally
         {

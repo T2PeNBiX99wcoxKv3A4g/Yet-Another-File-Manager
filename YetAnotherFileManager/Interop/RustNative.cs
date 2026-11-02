@@ -24,6 +24,7 @@ internal static unsafe class RustNative
 
     private static ScanImagesDelegate? _scanImages;
     private static FreeBufferDelegate? _freeBuffer;
+    private static CompressDelegate? _compress;
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate int ScanImagesDelegate(ushort* root, nuint rootLength, uint depth, uint threads,
@@ -31,6 +32,10 @@ internal static unsafe class RustNative
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void FreeBufferDelegate(byte* pointer, nuint length);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int CompressDelegate(ushort* paths, nuint pathsLength, ushort* output,
+        nuint outputLength, uint threads);
 
     /// <summary>
     ///     Pictures under <paramref name="root"/>, or null when the library is missing or the scan
@@ -71,6 +76,24 @@ internal static unsafe class RustNative
         {
             _freeBuffer(result, length);
         }
+    }
+
+    /// <summary>
+    ///     Compresses the paths into a ZIP with the native writer. False when the library is missing
+    ///     or the archive could not be written; the managed writer then takes over.
+    /// </summary>
+    public static bool TryCompress(IReadOnlyList<string> paths, string output)
+    {
+        if (!Ready.Value || _compress is null || paths.Count == 0)
+            return false;
+
+        var joined = string.Join('\0', paths);
+
+        fixed (char* pathsPointer = joined)
+        fixed (char* outputPointer = output)
+            return _compress((ushort*)pathsPointer, (nuint)joined.Length,
+                (ushort*)outputPointer, (nuint)output.Length,
+                (uint)Math.Clamp(Environment.ProcessorCount, 1, 64)) == 0;
     }
 
     private static List<GalleryEntry> Parse(byte* data, nuint length)
@@ -135,6 +158,8 @@ internal static unsafe class RustNative
                 NativeLibrary.GetExport(handle, "yafm_scan_images"));
             _freeBuffer = Marshal.GetDelegateForFunctionPointer<FreeBufferDelegate>(
                 NativeLibrary.GetExport(handle, "yafm_free"));
+            _compress = Marshal.GetDelegateForFunctionPointer<CompressDelegate>(
+                NativeLibrary.GetExport(handle, "yafm_compress"));
 
             Log.Information("The Rust filesystem helper is available");
             return true;

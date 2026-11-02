@@ -137,7 +137,7 @@ export function FileTray({
                     Tray
                     <Count>{items.length}</Count>
                 </Title>
-                <HeadActions>
+                <HeadActions onPointerDown={(event) => event.stopPropagation()}>
                     <SmallButton onClick={toggleAll} title={allSelected ? "Select none" : "Select all"} type="button">
                         {allSelected ? "None" : "All"}
                     </SmallButton>
