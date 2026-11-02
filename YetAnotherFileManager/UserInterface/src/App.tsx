@@ -335,8 +335,12 @@ export default function App() {
     const showCached = useCallback(async (id: string, path: string | undefined, current: () => boolean) => {
         try {
             const cached = await listDirectoryCached(path, includeLinks);
-            if (current() && cached.listing)
-                patch(id, () => ({listing: cached.listing, view: cached.listing!.view ?? null}));
+            if (!current() || !cached.listing) return;
+
+            // The live listing may have arrived while the cache was being read; never paint over it.
+            patch(id, (tab) => tab.loading
+                ? {listing: cached.listing, view: cached.listing!.view ?? null}
+                : {});
         } catch {
             // The cache is best effort; the live listing is still on its way.
         }
@@ -361,10 +365,10 @@ export default function App() {
         }));
 
         try {
-            if (paintCache) {
-                await showCached(id, path, current);
-                if (!current()) return;
-            }
+            // The cached read and the disk walk are independent; starting both at once means the
+            // live listing no longer waits for the cache to be read and serialized.
+            if (paintCache)
+                void showCached(id, path, current);
 
             const listing = await listDirectory(path, true, includeLinks);
             if (!current()) return;
