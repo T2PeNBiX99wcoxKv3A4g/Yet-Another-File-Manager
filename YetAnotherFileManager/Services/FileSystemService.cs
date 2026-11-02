@@ -226,6 +226,17 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 await FileOperations.OpenWithAsync(context.Payload<PathPayload>()?.Path ?? "");
                 return context.Reply("fs.operation.openWith.result", new OkPayload(true));
 
+            case "fs.openWith.programs":
+                return context.Reply("fs.openWith.programs.result",
+                    await StaThread.RunAsync(() => AssociatedPrograms.Read(context.Payload<PathPayload>()?.Path ?? "")));
+
+            case "fs.openWith.program":
+            {
+                var request = context.Payload<OpenWithProgramRequest>();
+                return context.Reply("fs.openWith.program.result",
+                    new OkPayload(AssociatedPrograms.Open(request?.FilePath ?? "", request?.ProgramPath ?? "")));
+            }
+
             case "fs.operation.terminal":
                 await FileOperations.OpenTerminalAsync(context.Payload<PathPayload>()?.Path ?? "");
                 return context.Reply("fs.operation.terminal.result", new OkPayload(true));

@@ -74,6 +74,35 @@ export async function openTerminal(path: string): Promise<void> {
     await Native.request("fs.operation.terminal", {path});
 }
 
+/** One application offered by the shell's Open with list. */
+export interface OpenWithProgram {
+    name: string;
+    path: string;
+    /** A PNG data URL for the application's icon, or null. */
+    icon: string | null;
+}
+
+/** The applications Windows offers for a file, split into recommended and additional ones. */
+export interface OpenWithPrograms {
+    recommended: OpenWithProgram[];
+    other: OpenWithProgram[];
+}
+
+/** Reads the shell's associated applications for a file. */
+export async function listOpenWith(path: string): Promise<OpenWithPrograms> {
+    if (!Native.available) return {recommended: [], other: []};
+
+    return await Native.request<OpenWithPrograms>("fs.openWith.programs", {path});
+}
+
+/** Opens one file with a specific application from the Open with list. */
+export async function openWithProgram(filePath: string, programPath: string): Promise<boolean> {
+    if (!Native.available) return false;
+
+    const data = await Native.request<{ ok: boolean }>("fs.openWith.program", {filePath, programPath});
+    return data.ok;
+}
+
 /** Reveals the path in Explorer, or opens its folder on Linux. */
 export async function showInExplorer(path: string): Promise<void> {
     if (!Native.available) return;

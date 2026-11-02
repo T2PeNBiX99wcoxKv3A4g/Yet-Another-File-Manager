@@ -12,14 +12,17 @@ import {
     deletePaths,
     hasClipboardFiles,
     invokeShellVerb,
+    listOpenWith,
     listShellVerbs,
     newFolder,
     openTerminal,
     openWith,
+    openWithProgram,
     pasteInto,
     renamePath,
     showInExplorer,
     showProperties,
+    type OpenWithProgram,
     type ShellVerb,
 } from "../api/operations";
 import {NoFind, rangesOf, type FindView} from "../find";
@@ -117,16 +120,24 @@ export function FileList({
     const [menu, setMenu] = useState<{ x: number; y: number; paths: string[]; background: boolean } | null>(null);
     const [canPaste, setCanPaste] = useState(false);
     const shellRequest = useRef(0);
+    const openWithRequest = useRef(0);
     const [shell, setShell] = useState<{ verbs: ShellVerb[]; safe: boolean; loading: boolean }>({
         verbs: [], safe: true, loading: false,
     });
+    const [openWithApps, setOpenWithApps] = useState<{
+        recommended: OpenWithProgram[];
+        other: OpenWithProgram[];
+        loading: boolean;
+    }>({recommended: [], other: [], loading: false});
 
     // A new folder starts with nothing selected; an operation that renamed a path drops it too.
     useEffect(() => {
         setSelected(new Set());
         setMenu(null);
         setShell({verbs: [], safe: true, loading: false});
+        setOpenWithApps({recommended: [], other: [], loading: false});
         shellRequest.current += 1;
+        openWithRequest.current += 1;
         anchor.current = null;
     }, [listing?.path]);
 
@@ -257,6 +268,7 @@ export function FileList({
 
     const closeMenu = useCallback(() => {
         shellRequest.current += 1;
+        openWithRequest.current += 1;
         setMenu(null);
     }, []);
 
@@ -296,9 +308,31 @@ export function FileList({
         const paths = path ? (selected.has(path) ? [...selected] : [path]) : [];
         const shellPaths = path ? paths : currentDirectory ? [currentDirectory] : [];
         const request = ++shellRequest.current;
+        const targetRow = path ? rows.find((row) => row.entry.fullPath === path) : undefined;
+        const openWithTarget = targetRow && !targetRow.entry.isDirectory && paths.length === 1
+            ? targetRow.entry.fullPath
+            : null;
+        const openWithToken = ++openWithRequest.current;
 
         setMenu({x: event.clientX, y: event.clientY, paths, background: !path});
         setShell({verbs: [], safe: true, loading: shellPaths.length > 0});
+
+        if (openWithTarget) {
+            setOpenWithApps({recommended: [], other: [], loading: true});
+
+            void listOpenWith(openWithTarget).then(
+                (result) => {
+                    if (openWithRequest.current === openWithToken)
+                        setOpenWithApps({...result, loading: false});
+                },
+                () => {
+                    if (openWithRequest.current === openWithToken)
+                        setOpenWithApps({recommended: [], other: [], loading: false});
+                },
+            );
+        }
+        else
+            setOpenWithApps({recommended: [], other: [], loading: false});
 
         void hasClipboardFiles().then(setCanPaste, () => setCanPaste(false));
 
@@ -314,7 +348,7 @@ export function FileList({
                     setShell({verbs: [], safe: true, loading: false});
             },
         );
-    }, [currentDirectory, selected]);
+    }, [currentDirectory, rows, selected]);
 
     const refresh = () => onRefresh?.();
 
@@ -438,11 +472,53 @@ export function FileList({
             });
         }
 
-        if (single && entry && !entry.isDirectory)
-            menuItems.push({
-                label: "Open with…", icon: <AppIcon size={14}/>,
+        if (single && entry && !entry.isDirectory) {
+            const children: ContextMenuItem[] = [];
+
+            if (openWithApps.loading)
+                children.push({label: "Loading apps…", loading: true, disabled: true, onSelect: () => undefined});
+            else {
+                openWithApps.recommended.forEach((app) => {
+                    children.push({
+                        label: app.name,
+                        group: "Suggested apps",
+                        icon: app.icon
+                            ? <img alt="" height={14} src={app.icon} width={14}/>
+                            : <AppIcon size={14}/>,
+                        onSelect: () => void openWithProgram(entry.fullPath, app.path).then((opened) => {
+                            if (!opened) void openWith(entry.fullPath);
+                        }),
+                    });
+                });
+
+                openWithApps.other.forEach((app) => {
+                    children.push({
+                        label: app.name,
+                        group: "Other apps",
+                        icon: app.icon
+                            ? <img alt="" height={14} src={app.icon} width={14}/>
+                            : <AppIcon size={14}/>,
+                        onSelect: () => void openWithProgram(entry.fullPath, app.path).then((opened) => {
+                            if (!opened) void openWith(entry.fullPath);
+                        }),
+                    });
+                });
+            }
+
+            children.push({
+                label: "Choose another app…",
+                icon: <AppIcon size={14}/>,
+                separatorBefore: true,
                 onSelect: () => void openWith(entry.fullPath),
             });
+
+            menuItems.push({
+                label: "Open with",
+                icon: <AppIcon size={14}/>,
+                children,
+                onSelect: () => void openWith(entry.fullPath),
+            });
+        }
 
         menuItems.push({
             label: "Compress to ZIP", icon: <ArchiveIcon size={14}/>, separatorBefore: true,

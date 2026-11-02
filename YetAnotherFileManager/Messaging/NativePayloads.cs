@@ -184,3 +184,14 @@ internal sealed record ShellVerbsPayload(List<ShellVerb> Verbs, bool Safe);
 
 /// <summary>Payload for <c>shell.invoke</c>: the command to run for the selected paths.</summary>
 internal sealed record ShellInvokeRequest(List<string> Paths, string? Verb, int Offset, bool Safe);
+
+/// <summary>One application that can open a file, for the Open with submenu.</summary>
+internal sealed record OpenWithProgram(string Name, string Path, string? Icon);
+
+/// <summary>Body for <c>fs.openWith.programs</c>: recommended and additional applications.</summary>
+internal sealed record OpenWithProgramsPayload(
+    IReadOnlyList<OpenWithProgram> Recommended,
+    IReadOnlyList<OpenWithProgram> Other);
+
+/// <summary>Payload for <c>fs.openWith.program</c>: the file and the application chosen for it.</summary>
+internal sealed record OpenWithProgramRequest(string FilePath, string ProgramPath);

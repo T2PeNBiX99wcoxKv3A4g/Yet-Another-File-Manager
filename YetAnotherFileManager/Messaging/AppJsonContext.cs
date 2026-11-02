@@ -88,4 +88,8 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(List<ShellVerb>))]
 [JsonSerializable(typeof(ShellVerbsPayload))]
 [JsonSerializable(typeof(ShellInvokeRequest))]
+[JsonSerializable(typeof(OpenWithProgram))]
+[JsonSerializable(typeof(List<OpenWithProgram>))]
+[JsonSerializable(typeof(OpenWithProgramsPayload))]
+[JsonSerializable(typeof(OpenWithProgramRequest))]
 internal sealed partial class AppJsonContext : JsonSerializerContext;

@@ -265,11 +265,11 @@ internal static unsafe partial class ShellMenu
             {
                 var iid = ContextMenuId;
                 var getUiObject =
-                    (delegate* unmanaged[Stdcall]<IntPtr, IntPtr, uint, IntPtr*, Guid*, uint, IntPtr*, int>)
+                    (delegate* unmanaged[Stdcall]<IntPtr, IntPtr, uint, IntPtr*, Guid*, uint*, IntPtr*, int>)
                     (*(IntPtr**)_folder)[GetUiObjectOfSlot];
 
                 IntPtr context;
-                if (getUiObject(_folder, IntPtr.Zero, (uint)children.Length, childPointer, &iid, 0, &context) != 0
+                if (getUiObject(_folder, IntPtr.Zero, (uint)children.Length, childPointer, &iid, null, &context) != 0
                     || context == IntPtr.Zero)
                     return false;
 
@@ -285,8 +285,8 @@ internal static unsafe partial class ShellMenu
             _menu = NativeMethods.CreatePopupMenu();
 
             var flags = _safe
-                ? CmfNormal | CmfNoverbs | CmfExplore | CmfExtendedVerbs
-                : CmfNormal | CmfExplore | CmfExtendedVerbs;
+                ? CmfNormal | CmfNoverbs | CmfExplore
+                : CmfNormal | CmfExplore;
 
             var query = (delegate* unmanaged[Stdcall]<IntPtr, IntPtr, uint, uint, uint, uint, int>)
                 (*(IntPtr**)_context)[QueryContextMenuSlot];

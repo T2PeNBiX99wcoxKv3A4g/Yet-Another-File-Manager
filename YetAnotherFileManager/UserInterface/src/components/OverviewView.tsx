@@ -1,4 +1,4 @@
-import {useEffect, useState, type MouseEvent} from "react";
+import {useEffect, useState, type DragEvent, type MouseEvent} from "react";
 import styled from "styled-components";
 import {
     clearFrequent,
@@ -842,6 +842,49 @@ export function OverviewView({
         });
     };
 
+    /** Moves one folder in a Quick access panel; dragging is only armed while the overview is edited. */
+    const reorderPlace = async (panel: Panel, from: string, to: string) => {
+        if (samePath(from, to)) return;
+
+        const paths = panel.id === "quick" ? places.map((place) => place.path) : panel.places ?? [];
+        const fromIndex = paths.findIndex((path) => samePath(path, from));
+        const toIndex = paths.findIndex((path) => samePath(path, to));
+
+        if (fromIndex < 0 || toIndex < 0) return;
+
+        const next = [...paths];
+        const [moved] = next.splice(fromIndex, 1);
+        next.splice(toIndex, 0, moved);
+
+        if (panel.id === "quick") {
+            await save({quickAccess: next});
+            onPlacesChanged(await listPlaces());
+            return;
+        }
+
+        await save({panelPlaces: {...settings?.panelPlaces, [panel.id]: next}});
+    };
+
+    /** The drag handlers every folder in a Quick access panel shares. */
+    const placeDrop = (panel: Panel, target: string) => ({
+        draggable: editing,
+        onDragOver: (event: DragEvent) => {
+            if (!editing) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+        },
+        onDragStart: (event: DragEvent) => {
+            if (!editing) return;
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", target);
+        },
+        onDrop: (event: DragEvent) => {
+            if (!editing) return;
+            event.preventDefault();
+            void reorderPlace(panel, event.dataTransfer.getData("text/plain"), target);
+        },
+    });
+
     /** The folders one Quick access panel shows: the factory panel uses the global places. */
     const quickItems = (panel: Panel): Place[] => {
         if (panel.id === "quick")
@@ -1015,6 +1058,7 @@ export function OverviewView({
                                 <Card
                                     key={place.path}
                                     $plain={editing}
+                                    {...placeDrop(panel, place.path)}
                                     onClick={(event) => !editing && onOpen(place.path, wantsNewTab(event))}
                                     title={place.path}
                                 >
@@ -1102,6 +1146,7 @@ export function OverviewView({
                             {items.map((place) => (
                                 <Row
                                     key={place.path}
+                                    {...placeDrop(panel, place.path)}
                                     onClick={(event) => !editing && onOpen(place.path, wantsNewTab(event))}
                                     title={place.path}
                                     type="button"

@@ -177,6 +177,7 @@ internal static partial class Program
         try
         {
             var paths = args[(index + 2)..];
+            using var block = ShellExtensionBlock.Enter();
             var verbs = ShellMenu.Read(paths, false);
 
             File.WriteAllText(args[index + 1],
@@ -208,6 +209,7 @@ internal static partial class Program
             var verb = args[index + 3];
             var paths = args[(index + 4)..];
 
+            using var block = safe ? null : ShellExtensionBlock.Enter();
             ShellMenu.Invoke(paths, safe, verb.Length == 0 ? null : verb, offset);
         }
         catch (Exception ex)
