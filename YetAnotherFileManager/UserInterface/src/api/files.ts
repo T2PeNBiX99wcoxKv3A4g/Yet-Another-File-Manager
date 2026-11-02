@@ -39,6 +39,8 @@ export interface ViewDefaults {
     columns: string[] | null;
     /** Show the pictures of a folder in a strip under the list. */
     showImages: boolean;
+    /** How tall that strip is, which the divider above it changes. */
+    imageStripHeight: number;
 }
 
 export const DefaultView: DirectoryView = {
@@ -55,6 +57,7 @@ export const DefaultViewDefaults: ViewDefaults = {
     gridSize: 148,
     columns: ["type", "size", "modified"],
     showImages: true,
+    imageStripHeight: 190,
 };
 
 /** The effective view: the directory's own settings over the window-wide defaults. */

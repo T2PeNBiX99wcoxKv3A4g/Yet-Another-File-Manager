@@ -17,4 +17,5 @@ public sealed record ViewDefaults(
     int IconSize = 20,
     int GridSize = 148,
     List<string>? Columns = null,
-    bool ShowImages = true);
+    bool ShowImages = true,
+    int ImageStripHeight = 190);

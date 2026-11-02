@@ -2,7 +2,7 @@ import {startTransition, useCallback, useEffect, useMemo, useRef, useState, memo
 import styled from "styled-components";
 import {listGallery, type GalleryEntry} from "../api/files";
 import {useThumbnail} from "../api/icons";
-import {formatBytes} from "../utils/format";
+import {appLocale, formatBytes} from "../utils/format";
 import {RefreshIcon} from "./Icons";
 
 /** How many pictures one request carries; the rest arrive while the user scrolls. */
@@ -175,9 +175,9 @@ function dayLabel(unixMilliseconds: number): string {
 
     if (days === 0) return "Today";
     if (days === 1) return "Yesterday";
-    if (days < 7) return date.toLocaleDateString(undefined, {weekday: "long"});
+    if (days < 7) return date.toLocaleDateString(appLocale(), {weekday: "long"});
 
-    return date.toLocaleDateString(undefined, {year: "numeric", month: "long", day: "numeric"});
+    return date.toLocaleDateString(appLocale(), {year: "numeric", month: "long", day: "numeric"});
 }
 
 const Page = styled.div`

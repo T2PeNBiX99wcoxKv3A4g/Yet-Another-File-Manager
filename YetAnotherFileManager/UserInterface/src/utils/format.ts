@@ -10,11 +10,18 @@ export function formatBytes(bytes: number): string {
     return `${value.toFixed(exponent === 0 ? 0 : 1)} ${units[exponent]}`;
 }
 
-/** Local date and time, in a compact table-friendly form. */
+/** The language the interface is shown in, so dates match it rather than the machine's locale. */
+export function appLocale(): string | undefined {
+    const lang = document.documentElement.lang.trim();
+
+    return lang.length > 0 ? lang : undefined;
+}
+
+/** Date and time in a compact table-friendly form, using the interface's language. */
 export function formatDate(unixMilliseconds: number): string {
     if (unixMilliseconds <= 0) return "—";
 
-    return new Date(unixMilliseconds).toLocaleString(undefined, {
+    return new Date(unixMilliseconds).toLocaleString(appLocale(), {
         year: "numeric",
         month: "2-digit",
         day: "2-digit",

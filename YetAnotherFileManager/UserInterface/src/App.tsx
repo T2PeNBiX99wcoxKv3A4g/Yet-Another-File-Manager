@@ -226,6 +226,7 @@ export default function App() {
 
     /** The picture strip under the list is a window-wide setting. */
     const showImages = settings?.defaultView?.showImages ?? true;
+    const imageStripHeight = settings?.defaultView?.imageStripHeight ?? DefaultViewDefaults.imageStripHeight;
 
     const viewIcon = kind === "home" ? <OverviewIcon size={13}/>
         : kind === "settings" ? <GearIcon size={13}/>
@@ -541,6 +542,20 @@ export default function App() {
         const next = {
             ...current,
             defaultView: {...(current.defaultView ?? DefaultViewDefaults), showImages: value},
+        };
+
+        setSettings(next);
+        void saveSettings(next);
+    }, []);
+
+    /** The height of that strip, kept after the divider above it is dragged. */
+    const setImageStripHeight = useCallback((height: number) => {
+        const current = settingsRef.current;
+        if (!current) return;
+
+        const next = {
+            ...current,
+            defaultView: {...(current.defaultView ?? DefaultViewDefaults), imageStripHeight: height},
         };
 
         setSettings(next);
@@ -964,7 +979,9 @@ export default function App() {
                                 error={active.error}
                                 find={{...find, currentPath: findCurrent < 0 ? null : findHits[findCurrent]}}
                                 listing={active.listing}
+                                imageStripHeight={imageStripHeight}
                                 loading={active.loading}
+                                onImageStripHeight={setImageStripHeight}
                                 onOpen={navigate}
                                 onSetTags={setEntryTags}
                                 onSort={sortBy}

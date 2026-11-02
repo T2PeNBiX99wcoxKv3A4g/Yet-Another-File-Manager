@@ -1,4 +1,7 @@
-import {memo, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject} from "react";
+import {
+    memo, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode,
+    type RefObject,
+} from "react";
 import styled from "styled-components";
 import {wantsNewTab} from "../shortcuts";
 import type {DirectoryListing, FileEntry, Place, ResolvedView} from "../api/files";
@@ -33,6 +36,9 @@ interface FileListProps {
     view: ResolvedView;
     /** Draw a picture strip under the list; a window-wide setting. */
     showImages: boolean;
+    /** How tall the strip is; the divider above it changes this. */
+    imageStripHeight?: number;
+    onImageStripHeight?: (height: number) => void;
     onSort: (column: string) => void;
     onSetTags?: (name: string, tags: string[], colors?: Record<string, string>) => void;
     onOpen: (path: string, newTab?: boolean) => void;
@@ -48,12 +54,49 @@ interface RowModel {
     tags: string[];
 }
 
+/** The height the strip starts at, and the one a double-click on the divider brings back. */
+const DefaultStripHeight = 190;
+const MinStripHeight = 120;
+
 export function FileList({
-    listing, loading, error, find = NoFind, view, showImages, onSort, onSetTags, onOpen, onOpenFile,
+    listing, loading, error, find = NoFind, view, showImages, imageStripHeight = DefaultStripHeight,
+    onImageStripHeight, onSort, onSetTags, onOpen, onOpenFile,
 }: FileListProps) {
     const quick = useQuickAccess();
     const currentRow = useRef<HTMLDivElement | null>(null);
+    const stripDrag = useRef<{ y: number; height: number } | null>(null);
     const [tagTarget, setTagTarget] = useState<{ entry: FileEntry; x: number; y: number } | null>(null);
+    const [stripHeight, setStripHeight] = useState(imageStripHeight);
+
+    useEffect(() => {
+        setStripHeight(imageStripHeight);
+    }, [imageStripHeight]);
+
+    const startStripDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+        stripDrag.current = {y: event.clientY, height: stripHeight};
+        event.currentTarget.setPointerCapture(event.pointerId);
+    };
+
+    const dragStrip = (event: ReactPointerEvent<HTMLDivElement>) => {
+        const start = stripDrag.current;
+        if (!start) return;
+
+        const tallest = Math.max(MinStripHeight, Math.round(window.innerHeight * 0.7));
+        setStripHeight(Math.min(tallest, Math.max(MinStripHeight, start.height + start.y - event.clientY)));
+    };
+
+    const endStripDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+        if (!stripDrag.current) return;
+
+        stripDrag.current = null;
+        event.currentTarget.releasePointerCapture(event.pointerId);
+        onImageStripHeight?.(stripHeight);
+    };
+
+    const resetStripHeight = () => {
+        setStripHeight(DefaultStripHeight);
+        onImageStripHeight?.(DefaultStripHeight);
+    };
 
     // Typing a letter jumps to the first match; the row has to be brought into view with it.
     useEffect(() => {
@@ -239,21 +282,30 @@ export function FileList({
             </Body>
 
             {showImages && images.length > 0 && (
-                <Strip>
-                    <StripHead>
-                        Images
-                        <StripCount>{images.length}</StripCount>
-                    </StripHead>
-                    <StripRow>
-                        {images.map((row) => (
-                            <ImageCard
-                                entry={row.entry}
-                                key={row.entry.fullPath}
-                                onOpenFile={onOpenFile}
-                            />
-                        ))}
-                    </StripRow>
-                </Strip>
+                <>
+                    <Splitter
+                        onDoubleClick={resetStripHeight}
+                        onPointerDown={startStripDrag}
+                        onPointerMove={dragStrip}
+                        onPointerUp={endStripDrag}
+                        title="Drag to resize; double-click to reset"
+                    />
+                    <Strip style={{height: stripHeight}}>
+                        <StripHead>
+                            Images
+                            <StripCount>{images.length}</StripCount>
+                        </StripHead>
+                        <StripRow>
+                            {images.map((row) => (
+                                <ImageCard
+                                    entry={row.entry}
+                                    key={row.entry.fullPath}
+                                    onOpenFile={onOpenFile}
+                                />
+                            ))}
+                        </StripRow>
+                    </Strip>
+                </>
             )}
 
             {tagTarget && listing && (
@@ -590,7 +642,10 @@ const ImageCard = memo(function ImageCard({
                     />
                 )
                 : <ImageIcon><EntryIcon entry={entry} size={34}/></ImageIcon>}
-            <ImageLabel>{entry.name}</ImageLabel>
+            <ImageCaption>
+                <ImageName>{entry.name}</ImageName>
+                <ImageMeta>{`${typeLabel(entry)} · ${formatBytes(entry.size)}`}</ImageMeta>
+            </ImageCaption>
         </ImageCardFrame>
     );
 });
@@ -655,11 +710,24 @@ const Body = styled.div`
     padding: 8px 10px 22px;
 `;
 
-/** The picture strip under the list: a fixed height so the rows keep most of the window. */
-const Strip = styled.div`
+/** The strip is resized by dragging the divider above it; the height is remembered by settings. */
+const Splitter = styled.div`
+    height: 6px;
     flex-shrink: 0;
-    padding: 7px 12px 10px;
     border-top: 1px solid var(--border-color);
+    cursor: row-resize;
+    transition: background 120ms ease;
+
+    &:hover {
+        background: rgba(59, 130, 246, 0.35);
+    }
+`;
+
+const Strip = styled.div`
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    min-height: 0;
     background: var(--bg-secondary);
 `;
 
@@ -667,7 +735,9 @@ const StripHead = styled.div`
     display: flex;
     align-items: center;
     gap: 7px;
-    margin-bottom: 6px;
+    padding: 6px 12px 0;
+    margin-bottom: 5px;
+    flex-shrink: 0;
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.08em;
@@ -680,26 +750,32 @@ const StripCount = styled.span`
     font-size: 9px;
 `;
 
+/** The pictures wrap into rows and the strip itself scrolls down, like the grid does. */
 const StripRow = styled.div`
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding-bottom: 2px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    grid-auto-rows: 112px;
+    gap: 10px;
+    align-content: start;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 4px 12px 12px;
 `;
 
+/** A picture card styled like a gallery tile: the name and details sit on a scrim. */
 const ImageCardFrame = styled.div`
     position: relative;
-    flex: 0 0 auto;
-    width: 148px;
-    height: 104px;
     overflow: hidden;
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     background: var(--bg-primary);
     cursor: default;
+    transition: border-color 120ms ease;
 
     img {
+        position: relative;
+        z-index: 1;
         display: block;
         width: 100%;
         height: 100%;
@@ -712,25 +788,42 @@ const ImageCardFrame = styled.div`
 `;
 
 const ImageIcon = styled.span`
+    position: absolute;
+    inset: 0;
     display: grid;
     place-items: center;
-    width: 100%;
-    height: 100%;
 
     svg {
         color: var(--text-muted);
     }
 `;
 
-const ImageLabel = styled.span`
+const ImageCaption = styled.span`
     position: absolute;
     right: 0;
     bottom: 0;
     left: 0;
-    padding: 12px 6px 4px;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 20px 8px 7px;
     overflow: hidden;
     background: linear-gradient(to top, rgba(2, 6, 23, 0.92), rgba(2, 6, 23, 0));
-    color: var(--text-secondary);
+`;
+
+const ImageName = styled.span`
+    overflow: hidden;
+    color: #e5e7eb;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
+const ImageMeta = styled.span`
+    overflow: hidden;
+    color: #9ca3af;
+    font-family: var(--font-mono);
     font-size: 10px;
     text-overflow: ellipsis;
     white-space: nowrap;
