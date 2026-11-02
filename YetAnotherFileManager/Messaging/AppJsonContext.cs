@@ -80,6 +80,7 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(WindowStatePayload))]
 [JsonSerializable(typeof(WindowResizeRequest))]
 [JsonSerializable(typeof(PathsPayload))]
+[JsonSerializable(typeof(DeleteRequest))]
 [JsonSerializable(typeof(RenamePathRequest))]
 [JsonSerializable(typeof(DirectoryRequest))]
 [JsonSerializable(typeof(PathOperationPayload))]

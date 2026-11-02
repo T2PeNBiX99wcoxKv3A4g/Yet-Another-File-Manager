@@ -89,10 +89,11 @@ internal static partial class FileOperations
         NativeMethods.CloseClipboard();
     }
 
-    /// <summary>Sends the paths to the recycle bin, with the shell's own undo record.</summary>
-    public static Task<bool> DeleteAsync(IReadOnlyList<string> paths) =>
+    /// <summary>Sends the paths to the recycle bin, or deletes them permanently when asked.</summary>
+    public static Task<bool> DeleteAsync(IReadOnlyList<string> paths, bool permanent = false) =>
         OperatingSystem.IsWindows()
-            ? ShellOperationAsync(FoDelete, paths, null, FofAllowUndo | FofNoConfirmation)
+            ? ShellOperationAsync(FoDelete, paths, null,
+                (ushort)(permanent ? FofNoConfirmation : FofAllowUndo | FofNoConfirmation))
             : Task.FromResult(false);
 
     /// <summary>Renames one entry in place.</summary>

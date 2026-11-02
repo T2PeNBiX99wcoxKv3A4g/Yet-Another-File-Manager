@@ -31,11 +31,11 @@ export async function pasteInto(directory: string): Promise<boolean> {
     return data.ok;
 }
 
-/** Sends the paths to the recycle bin. */
-export async function deletePaths(paths: string[]): Promise<boolean> {
+/** Sends the paths to the recycle bin, or deletes them permanently when asked. */
+export async function deletePaths(paths: string[], permanent = false): Promise<boolean> {
     if (!Native.available || paths.length === 0) return false;
 
-    const data = await Native.request<{ ok: boolean }>("fs.operation.delete", {paths});
+    const data = await Native.request<{ ok: boolean }>("fs.operation.delete", {paths, permanent});
     return data.ok;
 }
 

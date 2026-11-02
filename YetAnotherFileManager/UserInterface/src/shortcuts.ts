@@ -10,12 +10,21 @@ export interface ShortcutMap {
     cut: string;
     paste: string;
     delete: string;
+    deletePermanently: string;
     rename: string;
     selectAll: string;
+    invertSelection: string;
     open: string;
     newFolder: string;
     properties: string;
     refresh: string;
+    home: string;
+    location: string;
+    iconsView: string;
+    detailsView: string;
+    nextTab: string;
+    previousTab: string;
+    terminal: string;
     /** Modifier held while clicking to open something in a new tab. */
     openInNewTab: string;
 }
@@ -31,12 +40,21 @@ export const DefaultShortcuts: ShortcutMap = {
     cut: "ctrl+x",
     paste: "ctrl+v",
     delete: "delete",
+    deletePermanently: "shift+delete",
     rename: "f2",
     selectAll: "ctrl+a",
+    invertSelection: "ctrl+shift+a",
     open: "enter",
     newFolder: "ctrl+shift+n",
     properties: "alt+enter",
     refresh: "f5",
+    home: "alt+home",
+    location: "ctrl+l",
+    iconsView: "ctrl+1",
+    detailsView: "ctrl+2",
+    nextTab: "ctrl+tab",
+    previousTab: "ctrl+shift+tab",
+    terminal: "f4",
     openInNewTab: "ctrl",
 };
 

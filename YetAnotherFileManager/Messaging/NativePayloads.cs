@@ -152,6 +152,9 @@ internal sealed record WindowResizeRequest(string Direction);
 /// <summary>Payload for the clipboard and file-operation messages: the paths they act on.</summary>
 internal sealed record PathsPayload(List<string> Paths);
 
+/// <summary>Payload for <c>fs.operation.delete</c>: the paths and whether they bypass the recycle bin.</summary>
+internal sealed record DeleteRequest(List<string> Paths, bool Permanent);
+
 /// <summary>Payload for <c>fs.operation.rename</c>: the entry and its new name.</summary>
 internal sealed record RenamePathRequest(string Path, string Name);
 

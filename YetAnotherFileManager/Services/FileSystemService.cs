@@ -202,8 +202,11 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                     new OkPayload(await FileOperations.PasteAsync(context.Payload<DirectoryRequest>()?.Directory ?? "")));
 
             case "fs.operation.delete":
+            {
+                var request = context.Payload<DeleteRequest>();
                 return context.Reply("fs.operation.delete.result",
-                    new OkPayload(await FileOperations.DeleteAsync(context.Payload<PathsPayload>()?.Paths ?? [])));
+                    new OkPayload(await FileOperations.DeleteAsync(request?.Paths ?? [], request?.Permanent ?? false)));
+            }
 
             case "fs.operation.rename":
                 return context.Reply("fs.operation.rename.result",

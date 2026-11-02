@@ -375,12 +375,18 @@ export function FileList({
             window.alert(result.error ?? "Could not rename the entry.");
     };
 
-    const remove = async (paths: string[]) => {
-        if (!window.confirm(`Move ${paths.length === 1 ? "this item" : `${paths.length} items`} to the recycle bin?`))
+    const remove = async (paths: string[], permanent = false) => {
+        const question = permanent
+            ? `Permanently delete ${paths.length === 1 ? "this item" : `${paths.length} items`}? This cannot be undone.`
+            : `Move ${paths.length === 1 ? "this item" : `${paths.length} items`} to the recycle bin?`;
+
+        if (!window.confirm(question))
             return;
 
-        if (!await deletePaths(paths))
-            window.alert("The shell could not move the selection to the recycle bin.");
+        if (!await deletePaths(paths, permanent))
+            window.alert(permanent
+                ? "The shell could not delete the selection."
+                : "The shell could not move the selection to the recycle bin.");
         else {
             clearSelection();
             refresh();
@@ -448,9 +454,24 @@ export function FileList({
                 return;
             }
 
+            if (combo === shortcuts.deletePermanently) {
+                run(() => {
+                    if (paths.length > 0) void remove(paths, true);
+                });
+                return;
+            }
+
             if (combo === shortcuts.selectAll) {
                 run(() => {
                     setSelected(new Set(allPaths));
+                    anchor.current = allPaths[0] ?? null;
+                });
+                return;
+            }
+
+            if (combo === shortcuts.invertSelection) {
+                run(() => {
+                    setSelected(new Set(allPaths.filter((path) => !selected.has(path))));
                     anchor.current = allPaths[0] ?? null;
                 });
                 return;
@@ -469,8 +490,13 @@ export function FileList({
                 return;
             }
 
-            if (combo === shortcuts.newFolder) {
+            if (combo === shortcuts.newFolder || combo === "f10") {
                 run(() => void createFolder());
+                return;
+            }
+
+            if (combo === shortcuts.terminal) {
+                run(() => void openTerminal(currentDirectory));
                 return;
             }
 

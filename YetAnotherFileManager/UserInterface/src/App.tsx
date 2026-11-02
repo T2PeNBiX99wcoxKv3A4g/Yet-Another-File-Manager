@@ -167,6 +167,7 @@ export default function App() {
     const [historyVersion, setHistoryVersion] = useState(0);
     const [shortcuts, setShortcuts] = useState<ShortcutMap>(DefaultShortcuts);
     const [settingsVersion, setSettingsVersion] = useState(0);
+    const [locationFocus, setLocationFocus] = useState(0);
 
     const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
     const kind = kindOf(active);
@@ -462,6 +463,16 @@ export default function App() {
 
         openLocation(stateRef.current.activeId, target ?? viewLocation("home"));
     }, [openLocation, openFiles]);
+
+    /** Moves the focus to the next or previous tab, like Ctrl+Tab in Dolphin. */
+    const cycleTab = useCallback((delta: number) => {
+        const {tabs, activeId} = stateRef.current;
+        if (tabs.length < 2) return;
+
+        const index = tabs.findIndex((tab) => tab.id === activeId);
+        const next = (index + delta + tabs.length) % tabs.length;
+        setActiveId(tabs[next].id);
+    }, []);
 
     /**
      * Steps through the active tab's history. These read the tab from the ref so the keyboard
@@ -840,6 +851,27 @@ export default function App() {
             } else if (combo === shortcuts.find) {
                 event.preventDefault();
                 openFind();
+            } else if (combo === shortcuts.location) {
+                event.preventDefault();
+                setLocationFocus((token) => token + 1);
+            } else if (combo === shortcuts.home) {
+                event.preventDefault();
+
+                const home = places.find((place) => place.kind === "home")?.path;
+                if (home)
+                    navigate(home);
+            } else if (combo === shortcuts.iconsView) {
+                event.preventDefault();
+                if (kind === "files") changeView({mode: "grid"});
+            } else if (combo === shortcuts.detailsView) {
+                event.preventDefault();
+                if (kind === "files") changeView({mode: "list"});
+            } else if (combo === shortcuts.nextTab) {
+                event.preventDefault();
+                cycleTab(1);
+            } else if (combo === shortcuts.previousTab) {
+                event.preventDefault();
+                cycleTab(-1);
             } else if (kind === "files" && event.key.length === 1 && event.key !== " "
                 && !event.ctrlKey && !event.altKey && !event.metaKey) {
                 // Typing anywhere in a folder starts a search with that letter; the first hit jumps.
@@ -850,7 +882,8 @@ export default function App() {
 
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [shortcuts, kind, find.open, closeTab, openFiles, goBack, goForward, goUp, openFind, resetFind, startFind]);
+    }, [shortcuts, kind, find.open, closeTab, openFiles, goBack, goForward, goUp, openFind, resetFind, startFind,
+        changeView, cycleTab, navigate, places]);
 
     // Back and forward on the mouse: WebView2 would otherwise walk its own history and reload the app.
     useEffect(() => {
@@ -976,6 +1009,7 @@ export default function App() {
                         </IconButton>
 
                         <PathBar
+                            focusToken={locationFocus}
                             icon={viewIcon}
                             label={kind === "files" ? undefined : viewTitles[kind]}
                             onNavigate={navigate}

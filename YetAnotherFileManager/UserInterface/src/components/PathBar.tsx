@@ -11,6 +11,8 @@ interface PathBarProps {
     label?: string;
     /** The built-in page's icon, shown beside its label. */
     icon?: ReactNode;
+    /** A bump opens the editor, which is how Ctrl+L replaces the location. */
+    focusToken?: number;
     onNavigate: (path: string) => void;
 }
 
@@ -28,15 +30,24 @@ interface Crumb {
  * platform and the text box always uses forward slashes, which every supported OS accepts.
  * A folder that has a Quick access name shows that name and its icon instead of its real ones.
  */
-export function PathBar({path, label, icon, onNavigate}: PathBarProps) {
+export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProps) {
     const quick = useQuickAccess();
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState("");
     const input = useRef<HTMLInputElement | null>(null);
+    const lastFocus = useRef(0);
 
     useEffect(() => {
         if (!editing) setDraft(path.replace(/\\/g, "/"));
     }, [path, editing]);
+
+    useEffect(() => {
+        if (!focusToken || focusToken === lastFocus.current) return;
+
+        lastFocus.current = focusToken;
+        setDraft(path.replace(/\\/g, "/"));
+        setEditing(true);
+    }, [focusToken, path]);
 
     useEffect(() => {
         if (editing) input.current?.select();
