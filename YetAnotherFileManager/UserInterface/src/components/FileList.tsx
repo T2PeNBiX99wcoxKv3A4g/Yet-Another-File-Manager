@@ -189,9 +189,16 @@ export function FileList({
     }, [find.currentPath]);
 
     const searching = find.query.length > 0;
-    const visible = ViewColumns.filter((column) => view.columns?.includes(column.id));
+    // Kept stable so a memoized row only re-renders when the columns themselves change.
+    const visible = useMemo(
+        () => ViewColumns.filter((column) => view.columns?.includes(column.id)),
+        [view.columns],
+    );
     const showTarget = view.columns?.includes("linkTarget") ?? false;
-    const template = `minmax(160px, 1fr) ${visible.map((column) => `${column.width}px`).join(" ")}`.trim();
+    const template = useMemo(
+        () => `minmax(160px, 1fr) ${visible.map((column) => `${column.width}px`).join(" ")}`.trim(),
+        [visible],
+    );
 
     const rows = useMemo(() => {
         if (!listing) return [];
@@ -290,6 +297,10 @@ export function FileList({
         else
             onOpenFile?.(entry.fullPath);
     }, [onOpen, onOpenFile]);
+
+    const editTags = useCallback((entry: FileEntry, x: number, y: number) => {
+        setTagTarget({entry, x, y});
+    }, []);
 
     const openMenu = useCallback((event: ReactMouseEvent, path?: string) => {
         event.preventDefault();
@@ -751,92 +762,29 @@ export function FileList({
                 {loading && !listing
                     ? <PlaceholderRows template={template} columns={visible.length}/>
                     : rows.map((row) => {
-                        const dim = searching && row.ranges === null;
-                        const current = searching && row.entry.fullPath === find.currentPath;
                         const path = row.entry.fullPath;
-                        const checked = selected.has(path);
 
                         return (
-                            <Row
+                            <ListRow
+                                current={searching && path === find.currentPath}
+                                dim={searching && row.ranges === null}
+                                iconSize={view.iconSize}
+                                innerRef={currentRow}
                                 key={path}
-                                $current={current}
-                                $dim={dim}
-                                $hidden={row.entry.isHidden}
-                                $selected={checked}
-                                onClick={(event) => {
-                                    selectRow(event, path);
-
-                                    if (openOnSingleClick)
-                                        openRow(row.entry, event);
-                                }}
-                                onContextMenu={(event) => openMenu(event, path)}
-                                onDoubleClick={(event) => {
-                                    if (!openOnSingleClick)
-                                        openRow(row.entry, event);
-                                }}
-                                ref={current ? currentRow : undefined}
-                                style={{gridTemplateColumns: template}}
-                            >
-                                <Name>
-                                    {showCheckboxes && (
-                                        <SelectionBox
-                                            $checked={checked}
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                toggleRow(path);
-                                            }}
-                                            onDoubleClick={(event) => event.stopPropagation()}
-                                            title={checked ? "Deselect" : "Select"}
-                                            type="button"
-                                        >
-                                            {checked && <CheckIcon size={10}/>}
-                                        </SelectionBox>
-                                    )}
-                                    {row.place && quick.useIcons
-                                        ? <IconSlot><PlaceIcon place={row.place} size={view.iconSize}/></IconSlot>
-                                        : <EntryIcon entry={row.entry} size={view.iconSize}/>}
-                                    <NameText $broken={row.entry.linkValid === false} title={row.entry.name}>
-                                        <Highlighted name={row.label} ranges={row.ranges}/>
-                                    </NameText>
-                                    {showTarget && row.entry.linkTarget && (
-                                        <LinkTo title={row.entry.linkTarget}>→ {row.entry.linkTarget}</LinkTo>
-                                    )}
-                                </Name>
-                                {visible.map((column) => (
-                                    <Cell key={column.id}>
-                                        {column.id === "tags"
-                                            ? (
-                                                <TagsButton
-                                                    onClick={(event) => {
-                                                        event.stopPropagation();
-                                                        setTagTarget({
-                                                            entry: row.entry,
-                                                            x: event.clientX,
-                                                            y: event.clientY,
-                                                        });
-                                                    }}
-                                                    title="Edit tags"
-                                                    type="button"
-                                                >
-                                                    {row.tags.length > 0
-                                                        ? row.tags.map((tag) => {
-                                                            const color = listing!.tagColors?.[tag] ?? DefaultTagColor;
-
-                                                            return (
-                                                                <TagChip $color={color} $ink={inkFor(color)} key={tag}>
-                                                                    {tag}
-                                                                </TagChip>
-                                                            );
-                                                        })
-                                                        : <TagEmpty>+</TagEmpty>}
-                                                </TagsButton>
-                                            )
-                                            : column.id === "linkStatus" && row.entry.linkValid === false
-                                                ? <Broken>Broken</Broken>
-                                                : cellValue(column.id, row.entry, listing!)}
-                                    </Cell>
-                                ))}
-                            </Row>
+                                listing={listing!}
+                                onContextMenu={openMenu}
+                                onOpen={openRow}
+                                onSelect={selectRow}
+                                onTagEdit={editTags}
+                                onToggle={toggleRow}
+                                openOnSingleClick={openOnSingleClick}
+                                row={row}
+                                selected={selected.has(path)}
+                                showCheckboxes={showCheckboxes}
+                                showTarget={showTarget}
+                                template={template}
+                                visible={visible}
+                            />
                         );
                     })}
 
@@ -1348,6 +1296,116 @@ function GridContent({
         </>
     );
 }
+
+/**
+ * One list row, memoized so selecting an entry repaints two rows instead of reconciling every row
+ * of a folder with tens of thousands of entries. Props are primitives or references that only change
+ * when the listing, the columns or the selection do.
+ */
+const ListRow = memo(function ListRow({
+    row, current, dim, selected, showCheckboxes, showTarget, openOnSingleClick,
+    iconSize, template, visible, listing, innerRef,
+    onSelect, onToggle, onContextMenu, onOpen, onTagEdit,
+}: {
+    row: RowModel;
+    current: boolean;
+    dim: boolean;
+    selected: boolean;
+    showCheckboxes: boolean;
+    showTarget: boolean;
+    openOnSingleClick: boolean;
+    iconSize: number;
+    template: string;
+    visible: typeof ViewColumns;
+    listing: DirectoryListing;
+    innerRef?: RefObject<HTMLDivElement | null>;
+    onSelect: (event: ReactMouseEvent, path: string) => void;
+    onToggle: (path: string) => void;
+    onContextMenu: (event: ReactMouseEvent, path: string) => void;
+    onOpen: (entry: FileEntry, event: ReactMouseEvent) => void;
+    onTagEdit: (entry: FileEntry, x: number, y: number) => void;
+}) {
+    const quick = useQuickAccess();
+    const path = row.entry.fullPath;
+
+    return (
+        <Row
+            $current={current}
+            $dim={dim}
+            $hidden={row.entry.isHidden}
+            $selected={selected}
+            onClick={(event) => {
+                onSelect(event, path);
+
+                if (openOnSingleClick)
+                    onOpen(row.entry, event);
+            }}
+            onContextMenu={(event) => onContextMenu(event, path)}
+            onDoubleClick={(event) => {
+                if (!openOnSingleClick)
+                    onOpen(row.entry, event);
+            }}
+            ref={current ? innerRef : undefined}
+            style={{gridTemplateColumns: template}}
+        >
+            <Name>
+                {showCheckboxes && (
+                    <SelectionBox
+                        $checked={selected}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onToggle(path);
+                        }}
+                        onDoubleClick={(event) => event.stopPropagation()}
+                        title={selected ? "Deselect" : "Select"}
+                        type="button"
+                    >
+                        {selected && <CheckIcon size={10}/>}
+                    </SelectionBox>
+                )}
+                {row.place && quick.useIcons
+                    ? <IconSlot><PlaceIcon place={row.place} size={iconSize}/></IconSlot>
+                    : <EntryIcon entry={row.entry} size={iconSize}/>}
+                <NameText $broken={row.entry.linkValid === false} title={row.entry.name}>
+                    <Highlighted name={row.label} ranges={row.ranges}/>
+                </NameText>
+                {showTarget && row.entry.linkTarget && (
+                    <LinkTo title={row.entry.linkTarget}>→ {row.entry.linkTarget}</LinkTo>
+                )}
+            </Name>
+            {visible.map((column) => (
+                <Cell key={column.id}>
+                    {column.id === "tags"
+                        ? (
+                            <TagsButton
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    onTagEdit(row.entry, event.clientX, event.clientY);
+                                }}
+                                title="Edit tags"
+                                type="button"
+                            >
+                                {row.tags.length > 0
+                                    ? row.tags.map((tag) => {
+                                        const color = listing.tagColors?.[tag] ?? DefaultTagColor;
+
+                                        return (
+                                            <TagChip $color={color} $ink={inkFor(color)} key={tag}>
+                                                {tag}
+                                            </TagChip>
+                                        );
+                                    })
+                                    : <TagEmpty>+</TagEmpty>}
+                            </TagsButton>
+                        )
+                        : column.id === "linkStatus" && row.entry.linkValid === false
+                            ? <Broken>Broken</Broken>
+                            : cellValue(column.id, row.entry, listing)}
+                </Cell>
+            ))}
+        </Row>
+    );
+});
 
 const IconSlot = styled.span<{ $size?: number }>`
     display: grid;
