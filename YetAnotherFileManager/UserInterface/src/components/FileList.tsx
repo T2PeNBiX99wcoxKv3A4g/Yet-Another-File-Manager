@@ -391,15 +391,13 @@ export function FileList({
     const shellGroup = shell.safe ? "Shell actions (standard)" : "Shell actions";
 
     if (menu?.background) {
-        menuItems.push({label: "New folder", icon: <PlusIcon size={14}/>, onSelect: () => void createFolder()});
         menuItems.push({
-            label: "Paste", icon: <PasteIcon size={14}/>, disabled: !canPaste,
-            onSelect: () => void paste(currentDirectory),
+            label: "Open in Terminal", icon: <TerminalIcon size={14}/>,
+            onSelect: () => void openTerminal(currentDirectory),
         });
-        menuItems.push({label: "Refresh", icon: <RefreshIcon size={14}/>, separatorBefore: true, onSelect: refresh});
         menuItems.push({
-            label: "Properties", icon: <GearIcon size={14}/>, separatorBefore: true,
-            onSelect: () => void showProperties([currentDirectory]),
+            label: "Show in Explorer", icon: <FolderIcon size={14}/>, separatorBefore: true,
+            onSelect: () => void showInExplorer(currentDirectory),
         });
 
         quickActions.push(
@@ -440,31 +438,11 @@ export function FileList({
             });
         }
 
-        if (entry && !entry.isDirectory)
+        if (single && entry && !entry.isDirectory)
             menuItems.push({
                 label: "Open with…", icon: <AppIcon size={14}/>,
                 onSelect: () => void openWith(entry.fullPath),
             });
-
-        menuItems.push({
-            label: "Cut", icon: <CutIcon size={14}/>, separatorBefore: true,
-            onSelect: () => void copy(menu.paths, true),
-        });
-        menuItems.push({
-            label: "Copy", icon: <CopyIcon size={14}/>,
-            onSelect: () => void copy(menu.paths, false),
-        });
-
-        if (single && entry)
-            menuItems.push({
-                label: "Rename", icon: <PencilIcon size={14}/>, separatorBefore: true,
-                onSelect: () => void rename(entry),
-            });
-
-        menuItems.push({
-            label: "Delete", icon: <TrashIcon size={14}/>, danger: true,
-            onSelect: () => void remove(menu.paths),
-        });
 
         menuItems.push({
             label: "Compress to ZIP", icon: <ArchiveIcon size={14}/>, separatorBefore: true,
@@ -478,10 +456,6 @@ export function FileList({
         menuItems.push({
             label: "Show in Explorer", icon: <FolderIcon size={14}/>, separatorBefore: true,
             onSelect: () => void showInExplorer(menu.paths[0]),
-        });
-        menuItems.push({
-            label: "Properties", icon: <GearIcon size={14}/>,
-            onSelect: () => void showProperties(menu.paths),
         });
 
         quickActions.push(

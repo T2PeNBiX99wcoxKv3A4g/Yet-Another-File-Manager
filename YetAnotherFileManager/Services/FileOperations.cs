@@ -250,11 +250,18 @@ internal static partial class FileOperations
             if (!OperatingSystem.IsWindows() || !File.Exists(path))
                 return;
 
-            Try.Run(() => Process.Start(new ProcessStartInfo("rundll32.exe",
-                $"shell32.dll,OpenAs_RunDLL \"{path}\"")
+            // The path must be its own argument. Passing one quoted command line to rundll32 makes
+            // OpenWith.exe receive the quotes as part of the file name, and Windows shows nothing.
+            var startInfo = new ProcessStartInfo("rundll32.exe")
             {
                 UseShellExecute = false
-            })).OnFailure(ex => Log.Warning(ex, "Could not open {Path} with another app", path));
+            };
+
+            startInfo.ArgumentList.Add("shell32.dll,OpenAs_RunDLL");
+            startInfo.ArgumentList.Add(path);
+
+            Try.Run(() => Process.Start(startInfo))
+                .OnFailure(ex => Log.Warning(ex, "Could not open {Path} with another app", path));
         });
 
     /// <summary>Opens Windows Terminal in a folder, falling back to PowerShell.</summary>

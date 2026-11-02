@@ -124,7 +124,8 @@ export function ContextMenu({x, y, items, quick = [], onClose}: ContextMenuProps
                                 title={item.label}
                                 type="button"
                             >
-                                {item.icon}
+                                <QuickIcon>{item.icon}</QuickIcon>
+                                <QuickLabel>{item.label}</QuickLabel>
                             </QuickButton>
                         ))}
                     </QuickRow>
@@ -142,7 +143,7 @@ const Menu = styled.div`
     z-index: 2000;
     display: flex;
     flex-direction: column;
-    min-width: 230px;
+    min-width: 280px;
     max-height: calc(100vh - 16px);
     overflow-y: auto;
     padding: 5px;
@@ -154,15 +155,19 @@ const Menu = styled.div`
 
 const QuickRow = styled.div`
     display: flex;
-    gap: 4px;
+    gap: 2px;
     padding: 3px;
 `;
 
 const QuickButton = styled.button<{ $danger?: boolean }>`
-    display: grid;
-    place-items: center;
-    width: 32px;
-    height: 32px;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-width: 48px;
+    padding: 5px 4px;
     border: 0;
     border-radius: var(--radius-sm);
     background: transparent;
@@ -178,6 +183,22 @@ const QuickButton = styled.button<{ $danger?: boolean }>`
         opacity: 0.35;
         cursor: default;
     }
+`;
+
+const QuickIcon = styled.span`
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+`;
+
+const QuickLabel = styled.span`
+    max-width: 64px;
+    overflow: hidden;
+    font-size: 9px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 `;
 
 const Item = styled.button<{ $danger?: boolean; $depth?: number }>`
