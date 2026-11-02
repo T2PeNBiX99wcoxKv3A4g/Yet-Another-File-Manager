@@ -210,7 +210,9 @@ export function FileList({
 
         const matched = listing.entries
             .map((entry): RowModel => {
-                const place = quickPlace(quick, entry.fullPath);
+                // Quick access places are folders; looking them up for every file would normalize
+                // two paths per file on each sort or search.
+                const place = entry.isDirectory ? quickPlace(quick, entry.fullPath) : undefined;
                 const label = place?.name || entry.name;
 
                 return {

@@ -51,7 +51,15 @@ export function baseName(path: string): string {
 
 /** A path with one separator style, no trailing separator and folded case, for map lookups. */
 export function normalizePath(path: string): string {
-    return path.replace(/[\\/]+/g, "\\").replace(/\\$/, "").toLowerCase();
+    // Most Windows paths already use single backslashes, so the regex only runs when needed.
+    let value = path.includes("/") || path.includes("\\\\")
+        ? path.replace(/[\\/]+/g, "\\")
+        : path;
+
+    if (value.endsWith("\\"))
+        value = value.slice(0, -1);
+
+    return value.toLowerCase();
 }
 
 /** " (C:)" — the letter Windows uses, or nothing for a volume mounted at a path. */

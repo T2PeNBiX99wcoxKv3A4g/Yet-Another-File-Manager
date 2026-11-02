@@ -49,7 +49,7 @@ export function rangesOf(name: string, find: FindQuery): [number, number][] | nu
 
     if (!find.regex) {
         const haystack = find.matchCase ? name : name.toLowerCase();
-        const needle = find.matchCase ? find.query : find.query.toLowerCase();
+        const needle = lowerNeedle(find);
         const ranges: [number, number][] = [];
 
         let from = 0;
@@ -64,22 +64,53 @@ export function rangesOf(name: string, find: FindQuery): [number, number][] | nu
         return ranges.length > 0 ? ranges : null;
     }
 
+    const pattern = patternFor(find);
+    if (pattern === null) return null;
+
+    const ranges: [number, number][] = [];
+
+    // `matchAll` clones the expression, so the cached one keeps an untouched `lastIndex`.
+    for (const match of name.matchAll(pattern)) {
+        // A pattern that can match nothing would otherwise spin forever.
+        if (match[0].length === 0 || match.index === undefined) continue;
+
+        ranges.push([match.index, match.index + match[0].length]);
+    }
+
+    return ranges.length > 0 ? ranges : null;
+}
+
+/** The lowercased query, rebuilt only when the query changes rather than once per entry. */
+let lastQuery = "\0";
+let lastLowerNeedle = "";
+
+function lowerNeedle(find: FindQuery): string {
+    if (find.query !== lastQuery) {
+        lastQuery = find.query;
+        lastLowerNeedle = find.query.toLowerCase();
+    }
+
+    return lastLowerNeedle;
+}
+
+/** The compiled expression, rebuilt only when the query or its case flag changes. */
+let lastPatternKey = "\0";
+let lastPattern: RegExp | null = null;
+
+function patternFor(find: FindQuery): RegExp | null {
+    const key = `${find.matchCase ? "1" : "0"}\0${find.query}`;
+    if (key === lastPatternKey) return lastPattern;
+
+    lastPatternKey = key;
+
     try {
-        const pattern = new RegExp(find.query, find.matchCase ? "g" : "gi");
-        const ranges: [number, number][] = [];
-
-        for (const match of name.matchAll(pattern)) {
-            // A pattern that can match nothing would otherwise spin forever.
-            if (match[0].length === 0 || match.index === undefined) continue;
-
-            ranges.push([match.index, match.index + match[0].length]);
-        }
-
-        return ranges.length > 0 ? ranges : null;
+        lastPattern = new RegExp(find.query, find.matchCase ? "g" : "gi");
     } catch {
         // A half-typed expression is not an error the user needs to see; nothing matches yet.
-        return null;
+        lastPattern = null;
     }
+
+    return lastPattern;
 }
 
 export function matchesName(name: string, find: FindQuery): boolean {

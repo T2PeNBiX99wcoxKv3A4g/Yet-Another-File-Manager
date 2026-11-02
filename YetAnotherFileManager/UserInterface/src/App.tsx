@@ -260,7 +260,9 @@ export default function App() {
     const findHits = useMemo(
         () => searching && active.listing
             ? active.listing.entries
-                .filter((entry) => matchesName(quickName(quickAccess, entry.fullPath, entry.name), find))
+                .filter((entry) => matchesName(
+                    entry.isDirectory ? quickName(quickAccess, entry.fullPath, entry.name) : entry.name,
+                    find))
                 .map((entry) => entry.fullPath)
             : [],
         [searching, find, active.listing, quickAccess],
