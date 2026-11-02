@@ -123,6 +123,11 @@ export function FileList({
     const [tagTarget, setTagTarget] = useState<{ entry: FileEntry; x: number; y: number } | null>(null);
     const [stripHeight, setStripHeight] = useState(imageStripHeight);
     const [selected, setSelected] = useState<Set<string>>(() => new Set());
+    // The context menu reads these through refs so its handler stays stable; otherwise every
+    // selection change would hand new props to every memoized row.
+    const selectedRef = useRef(selected);
+    const rowsRef = useRef<RowModel[]>([]);
+    selectedRef.current = selected;
     const [menu, setMenu] = useState<{ x: number; y: number; paths: string[]; background: boolean } | null>(null);
     const [canPaste, setCanPaste] = useState(false);
     const shellRequest = useRef(0);
@@ -221,6 +226,8 @@ export function FileList({
         return sortRows(matched, view, listing);
     }, [listing, searching, find, quick, view.sort, view.sortDescending]);
 
+    rowsRef.current = rows;
+
     const groups = useMemo(() => groupRows(rows, GridRules), [rows]);
 
     // The panel repeats what the rows already show; only types the shell can preview belong in it.
@@ -306,16 +313,18 @@ export function FileList({
         event.preventDefault();
         event.stopPropagation();
 
-        if (path && !selected.has(path))
+        const selectedNow = selectedRef.current;
+
+        if (path && !selectedNow.has(path))
             setSelected(new Set([path]));
 
         if (path)
             anchor.current = path;
 
-        const paths = path ? (selected.has(path) ? [...selected] : [path]) : [];
+        const paths = path ? (selectedNow.has(path) ? [...selectedNow] : [path]) : [];
         const shellPaths = path ? paths : currentDirectory ? [currentDirectory] : [];
         const request = ++shellRequest.current;
-        const targetRow = path ? rows.find((row) => row.entry.fullPath === path) : undefined;
+        const targetRow = path ? rowsRef.current.find((row) => row.entry.fullPath === path) : undefined;
         const openWithTarget = targetRow && !targetRow.entry.isDirectory && paths.length === 1
             ? targetRow.entry.fullPath
             : null;
@@ -355,7 +364,7 @@ export function FileList({
                     setShell({verbs: [], safe: true, loading: false});
             },
         );
-    }, [currentDirectory, rows, selected]);
+    }, [currentDirectory]);
 
     const refresh = () => onRefresh?.();
 
