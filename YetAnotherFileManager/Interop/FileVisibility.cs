@@ -5,7 +5,8 @@ namespace YetAnotherFileManager.Interop;
 
 /// <summary>
 ///     Explorer's "hidden items" and "protected operating system files" options, so a listing shows
-///     what the user's file manager shows. Read on every listing: both can change while the app runs.
+///     what the user's file manager shows. The hidden flag can be overridden for this session without
+///     touching the system setting; system files always follow Explorer.
 /// </summary>
 internal static partial class FileVisibility
 {
@@ -13,9 +14,21 @@ internal static partial class FileVisibility
     private const string AdvancedKey = @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced";
     private static readonly IntPtr HkeyCurrentUser = new(0x80000001);
 
+    private static bool? _hiddenOverride;
+
     /// <summary>"Hidden" is 1 when hidden items are shown and 2 (the default) when they are not.</summary>
-    public static bool ShowHidden =>
+    public static bool ShowHidden => _hiddenOverride ?? FollowsSystemHidden;
+
+    /// <summary>What Explorer itself says, regardless of this session's override.</summary>
+    public static bool FollowsSystemHidden =>
         OperatingSystem.IsWindows() && ReadDword("Hidden") == 1;
+
+    /// <summary>Flip ordinary hidden files for this session; system files are left alone.</summary>
+    public static bool ToggleHidden()
+    {
+        _hiddenOverride = !ShowHidden;
+        return ShowHidden;
+    }
 
     /// <summary>"ShowSuperHidden" is 1 only when protected operating system files are shown.</summary>
     public static bool ShowSystem =>

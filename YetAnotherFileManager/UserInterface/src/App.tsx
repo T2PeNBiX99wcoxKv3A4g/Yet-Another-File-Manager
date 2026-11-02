@@ -12,12 +12,14 @@ import {
     recordVisit,
     saveDirectoryView,
     saveTags,
+    toggleHiddenFiles,
     type DirectoryListing,
     type DirectoryView,
     type Drive,
     type Place,
     type RecentEntry,
     type ResolvedView,
+    type ViewDefaults,
 } from "./api/files";
 import {getSettings, saveOpenTabs, saveSettings, type AppSettings} from "./api/settings";
 import {getAppInfo, type AppInfo} from "./api/system";
@@ -25,7 +27,7 @@ import {FileList} from "./components/FileList";
 import {FindBar} from "./components/FindBar";
 import {EmptyFind, matchesName, type FindState} from "./find";
 import {QuickAccessProvider, quickName, quickPlace, type QuickAccess} from "./quick";
-import {ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, GearIcon, ImageIcon, OverviewIcon, TrashIcon} from "./components/Icons";
+import {ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, CrossIcon, GearIcon, ImageIcon, OverviewIcon, TrashIcon} from "./components/Icons";
 import {OverviewView} from "./components/OverviewView";
 import {PathBar} from "./components/PathBar";
 import {RecycleView} from "./components/RecycleView";
@@ -117,6 +119,18 @@ function folderOf(tab: Tab): string {
     return viewKind(location) ? "" : tab.listing?.path || location;
 }
 
+/** The directory's own mode/size/sort sit on top of the window-wide defaults; columns are global. */
+function resolveView(tab: Tab, defaults: ViewDefaults): ResolvedView {
+    return {
+        mode: tab.view?.mode ?? defaults.mode,
+        iconSize: tab.view?.iconSize || defaults.iconSize || DefaultView.iconSize,
+        gridSize: tab.view?.gridSize || defaults.gridSize || DefaultView.gridSize,
+        sort: tab.view?.sort ?? DefaultView.sort,
+        sortDescending: tab.view?.sortDescending ?? DefaultView.sortDescending,
+        columns: defaults.columns ?? DefaultViewDefaults.columns ?? [],
+    };
+}
+
 function createTab(location = viewLocation("home")): Tab {
     nextTabId += 1;
 
@@ -154,6 +168,7 @@ function statusLine(listing: DirectoryListing): string {    const total = listin
 export default function App() {
     const [tabs, setTabs] = useState<Tab[]>(() => [createTab()]);
     const [activeId, setActiveId] = useState(() => tabs[0].id);
+    const [split, setSplit] = useState(false);
     const [places, setPlaces] = useState<Place[]>([]);
     const [drives, setDrives] = useState<Drive[]>([]);
     const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
@@ -168,21 +183,19 @@ export default function App() {
     const [shortcuts, setShortcuts] = useState<ShortcutMap>(DefaultShortcuts);
     const [settingsVersion, setSettingsVersion] = useState(0);
     const [locationFocus, setLocationFocus] = useState(0);
+    const [visibilityVersion, setVisibilityVersion] = useState(0);
+    const [sidebarVisible, setSidebarVisible] = useState(true);
 
     const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
     const kind = kindOf(active);
     const location = locationOf(active);
+    const activeTabIndex = Math.max(tabs.findIndex((tab) => tab.id === activeId), 0);
+    const secondary = tabs.find((tab, index) => index !== activeTabIndex && kindOf(tab) === "files");
+    const splitActive = kind === "files" && split && secondary !== undefined;
 
     // The directory's own mode/size/sort sit on top of the window-wide defaults; columns are global.
     const viewDefaults = settings?.defaultView ?? DefaultViewDefaults;
-    const view: ResolvedView = {
-        mode: active.view?.mode ?? viewDefaults.mode,
-        iconSize: active.view?.iconSize || viewDefaults.iconSize || DefaultView.iconSize,
-        gridSize: active.view?.gridSize || viewDefaults.gridSize || DefaultView.gridSize,
-        sort: active.view?.sort ?? DefaultView.sort,
-        sortDescending: active.view?.sortDescending ?? DefaultView.sortDescending,
-        columns: viewDefaults.columns ?? DefaultViewDefaults.columns ?? [],
-    };
+    const view: ResolvedView = resolveView(active, viewDefaults);
 
     /**
      * Every folder that lives in a Quick access panel, with the name and icon that panel shows.
@@ -474,6 +487,23 @@ export default function App() {
         setActiveId(tabs[next].id);
     }, []);
 
+    /** Toggles the Dolphin-style split view; the right pane is the next file tab. */
+    const toggleSplit = useCallback(() => {
+        if (split) {
+            setSplit(false);
+            return;
+        }
+
+        const {tabs, activeId} = stateRef.current;
+        const tab = tabs.find((item) => item.id === activeId);
+        if (!tab || kindOf(tab) !== "files") return;
+
+        if (!tabs.some((item) => item.id !== activeId && kindOf(item) === "files"))
+            openFiles(folderOf(tab));
+
+        setSplit(true);
+    }, [openFiles, split]);
+
     /**
      * Steps through the active tab's history. These read the tab from the ref so the keyboard
      * shortcuts stay stable, and so a long list of them does not re-register on every render.
@@ -514,10 +544,17 @@ export default function App() {
             void load(tab.id, tab.listing.path, true);
     }, [load]);
 
-    /** Applies a view change to the current directory. Columns are handled separately. */
-    const changeView = useCallback((change: Partial<DirectoryView>) => {
-        const {tabs, activeId} = stateRef.current;
-        const tab = tabs.find((item) => item.id === activeId);
+    /** Reloads every file tab, which is what a hidden-files change affects. */
+    const refreshAll = useCallback(() => {
+        for (const tab of stateRef.current.tabs)
+            if (tab.listing)
+                void load(tab.id, tab.listing.path, true);
+    }, [load]);
+
+    /** Applies a view change to one directory. Columns are handled separately. */
+    const changeViewFor = useCallback((id: string, change: Partial<DirectoryView>) => {
+        const {tabs} = stateRef.current;
+        const tab = tabs.find((item) => item.id === id);
         if (!tab || kindOf(tab) !== "files") return;
 
         const folder = folderOf(tab);
@@ -531,7 +568,7 @@ export default function App() {
         };
         const next = {...base, ...change};
 
-        patch(tab.id, () => ({view: next}));
+        patch(id, () => ({view: next}));
 
         // Dragging the size slider would otherwise write the database on every pixel.
         if (viewSave.current !== null) window.clearTimeout(viewSave.current);
@@ -540,6 +577,11 @@ export default function App() {
             void saveDirectoryView(folder, next);
         }, 250);
     }, [patch]);
+
+    /** The active tab's view; the split pane calls the id-based version directly. */
+    const changeView = useCallback((change: Partial<DirectoryView>) => {
+        changeViewFor(stateRef.current.activeId, change);
+    }, [changeViewFor]);
 
     /** Columns are window-wide, so every folder changes together. */
     const setColumns = useCallback((columns: string[]) => {
@@ -584,9 +626,9 @@ export default function App() {
     }, []);
 
     /** Adds or removes one entry's tags; the folder index keeps them, so this stays optimistic. */
-    const setEntryTags = useCallback((name: string, tags: string[], colors?: Record<string, string>) => {
-        const {tabs, activeId} = stateRef.current;
-        const tab = tabs.find((item) => item.id === activeId);
+    const setEntryTagsFor = useCallback((id: string, name: string, tags: string[],
+        colors?: Record<string, string>) => {
+        const tab = stateRef.current.tabs.find((item) => item.id === id);
         if (!tab || kindOf(tab) !== "files" || !tab.listing) return;
 
         const folder = folderOf(tab);
@@ -594,7 +636,7 @@ export default function App() {
         const allTags = [...new Set([...tab.listing.allTags, ...tags, ...Object.keys(tagColors)])]
             .sort((left, right) => left.localeCompare(right));
 
-        patch(tab.id, (current) => current.listing
+        patch(id, (current) => current.listing
             ? {
                 listing: {
                     ...current.listing,
@@ -608,13 +650,25 @@ export default function App() {
         void saveTags(folder, name, tags, colors);
     }, [patch]);
 
+    const setEntryTags = useCallback((name: string, tags: string[], colors?: Record<string, string>) => {
+        setEntryTagsFor(stateRef.current.activeId, name, tags, colors);
+    }, [setEntryTagsFor]);
+
     /** A header click sorts by that column, and a second click flips the direction. */
-    const sortBy = useCallback((column: string) => {
-        changeView({
+    const sortByFor = useCallback((id: string, column: string) => {
+        const tab = stateRef.current.tabs.find((item) => item.id === id);
+        if (!tab) return;
+
+        const current = resolveView(tab, settingsRef.current?.defaultView ?? DefaultViewDefaults);
+        changeViewFor(id, {
             sort: column,
-            sortDescending: view.sort === column ? !view.sortDescending : false,
+            sortDescending: current.sort === column ? !current.sortDescending : false,
         });
-    }, [changeView, view.sort, view.sortDescending]);
+    }, [changeViewFor]);
+
+    const sortBy = useCallback((column: string) => {
+        sortByFor(stateRef.current.activeId, column);
+    }, [sortByFor]);
 
     /** Moves a tab next to another one, which is what dragging a tab does. */
     const moveTab = useCallback((id: string, beforeId: string) => {
@@ -872,6 +926,18 @@ export default function App() {
             } else if (combo === shortcuts.previousTab) {
                 event.preventDefault();
                 cycleTab(-1);
+            } else if (combo === shortcuts.hidden || combo === "alt+.") {
+                event.preventDefault();
+                void toggleHiddenFiles().then(() => {
+                    setVisibilityVersion((version) => version + 1);
+                    refreshAll();
+                });
+            } else if (combo === shortcuts.splitView) {
+                event.preventDefault();
+                toggleSplit();
+            } else if (combo === shortcuts.placesPanel) {
+                event.preventDefault();
+                setSidebarVisible((visible) => !visible);
             } else if (kind === "files" && event.key.length === 1 && event.key !== " "
                 && !event.ctrlKey && !event.altKey && !event.metaKey) {
                 // Typing anywhere in a folder starts a search with that letter; the first hit jumps.
@@ -883,7 +949,7 @@ export default function App() {
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
     }, [shortcuts, kind, find.open, closeTab, openFiles, goBack, goForward, goUp, openFind, resetFind, startFind,
-        changeView, cycleTab, navigate, places]);
+        changeView, cycleTab, navigate, places, refreshAll, toggleSplit]);
 
     // Back and forward on the mouse: WebView2 would otherwise walk its own history and reload the app.
     useEffect(() => {
@@ -944,6 +1010,64 @@ export default function App() {
     const canBack = active.index > 0;
     const canForward = active.index < active.history.length - 1;
 
+    /** One file pane; the split view renders the same component twice with different tabs. */
+    const filePane = (tab: Tab, primary: boolean) => {        const tabView = primary ? view : resolveView(tab, viewDefaults);
+
+        return (
+            <FileList
+                enableShortcuts={primary}
+                error={tab.error}
+                find={primary ? {...find, currentPath: findCurrent < 0 ? null : findHits[findCurrent]} : undefined}
+                imageStripHeight={imageStripHeight}
+                listing={tab.listing}
+                loading={tab.loading}
+                onImageStripHeight={setImageStripHeight}
+                onOpen={(path, newTab) => {
+                    if (newTab) openFiles(path);
+                    else if (primary) navigate(path);
+                    else void load(tab.id, path);
+                }}
+                onOpenFile={(file) => void openFile(file)}
+                onRefresh={primary
+                    ? refreshActive
+                    : () => {
+                        if (tab.listing) void load(tab.id, tab.listing.path, true);
+                    }}
+                onSetTags={primary
+                    ? setEntryTags
+                    : (name, tags, colors) => setEntryTagsFor(tab.id, name, tags, colors)}
+                onSort={primary ? sortBy : (column) => sortByFor(tab.id, column)}
+                openOnSingleClick={settings?.openOnSingleClick ?? false}
+                shortcuts={shortcuts}
+                showCheckboxes={settings?.showCheckboxes ?? true}
+                showImages={primary ? showImages : false}
+                view={tabView}
+            />
+        );
+    };
+
+    const findBar = find.open && (
+        <FindBar
+            current={findCurrent}
+            focusToken={findFocus}
+            matchCase={find.matchCase}
+            mode={find.mode}
+            onClose={resetFind}
+            onMatchCase={() => setFind((current) => ({...current, matchCase: !current.matchCase}))}
+            onMode={() => setFind((current) => ({
+                ...current,
+                mode: current.mode === "dim" ? "hide" : "dim",
+            }))}
+            onNext={() => stepFind(1)}
+            onPrevious={() => stepFind(-1)}
+            onQuery={(query) => setFind((current) => ({...current, query}))}
+            onRegex={() => setFind((current) => ({...current, regex: !current.regex}))}
+            query={find.query}
+            regex={find.regex}
+            total={findHits.length}
+        />
+    );
+
     return (
         <QuickAccessProvider value={quickAccess}>
         <Root $rounded={corners}>
@@ -975,21 +1099,23 @@ export default function App() {
             />
 
             <Body>
-                <Sidebar
-                    activeKind={kind}
-                    currentPath={kind === "files" ? location : ""}
-                    drives={drives}
-                    historyVersion={historyVersion}
-                    onNavigate={(path) => navigate(path)}
-                    onOpenView={openView}
-                    homePath={places.find((place) => place.kind === "home")?.path ?? ""}
-                    places={places}
-                    recent={recent}
-                    recentLimit={recentLimit}
-                    version={settingsVersion}
-                />
+                {sidebarVisible && (
+                    <Sidebar
+                        activeKind={kind}
+                        currentPath={kind === "files" ? location : ""}
+                        drives={drives}
+                        historyVersion={historyVersion}
+                        onNavigate={(path) => navigate(path)}
+                        onOpenView={openView}
+                        homePath={places.find((place) => place.kind === "home")?.path ?? ""}
+                        places={places}
+                        recent={recent}
+                        recentLimit={recentLimit}
+                        version={settingsVersion}
+                    />
+                )}
 
-                <Main>
+                <Main $sidebar={sidebarVisible}>
                     <Toolbar>
                         <IconButton disabled={!canBack} onClick={goBack} title="Back" type="button">
                             <ArrowLeftIcon/>
@@ -1008,58 +1134,90 @@ export default function App() {
                             <ArrowUpIcon/>
                         </IconButton>
 
-                        <PathBar
-                            focusToken={locationFocus}
-                            icon={viewIcon}
-                            label={kind === "files" ? undefined : viewTitles[kind]}
-                            onNavigate={navigate}
-                            path={kind === "files" ? folderOf(active) : location}
-                        />
+                        {!splitActive && (
+                            <PathBar
+                                focusToken={locationFocus}
+                                icon={viewIcon}
+                                label={kind === "files" ? undefined : viewTitles[kind]}
+                                onNavigate={navigate}
+                                path={kind === "files" ? folderOf(active) : location}
+                            />
+                        )}
                     </Toolbar>
 
                     {kind === "files" ? (
-                        <Files>
-                            <FileList
-                                error={active.error}
-                                find={{...find, currentPath: findCurrent < 0 ? null : findHits[findCurrent]}}
-                                listing={active.listing}
-                                imageStripHeight={imageStripHeight}
-                                loading={active.loading}
-                                onImageStripHeight={setImageStripHeight}
-                                onOpen={navigate}
-                                onOpenFile={(file) => void openFile(file)}
-                                onRefresh={refreshActive}
-                                onSetTags={setEntryTags}
-                                onSort={sortBy}
-                                openOnSingleClick={settings?.openOnSingleClick ?? false}
-                                shortcuts={shortcuts}
-                                showCheckboxes={settings?.showCheckboxes ?? true}
-                                showImages={showImages}
-                                view={view}
-                            />
-
-                            {find.open && (
-                                <FindBar
-                                    current={findCurrent}
-                                    focusToken={findFocus}
-                                    matchCase={find.matchCase}
-                                    mode={find.mode}
-                                    onClose={resetFind}
-                                    onMatchCase={() => setFind((current) => ({...current, matchCase: !current.matchCase}))}
-                                    onMode={() => setFind((current) => ({
-                                        ...current,
-                                        mode: current.mode === "dim" ? "hide" : "dim",
-                                    }))}
-                                    onNext={() => stepFind(1)}
-                                    onPrevious={() => stepFind(-1)}
-                                    onQuery={(query) => setFind((current) => ({...current, query}))}
-                                    onRegex={() => setFind((current) => ({...current, regex: !current.regex}))}
-                                    query={find.query}
-                                    regex={find.regex}
-                                    total={findHits.length}
-                                />
-                            )}
-                        </Files>
+                        splitActive && secondary ? (
+                            <Split>
+                                <Pane>
+                                    <PaneHeader>
+                                        <PathBar
+                                            focusToken={locationFocus}
+                                            onNavigate={navigate}
+                                            path={folderOf(active)}
+                                        />
+                                    </PaneHeader>
+                                    {filePane(active, true)}
+                                    {findBar}
+                                </Pane>
+                                <SplitDivider/>
+                                <Pane>
+                                    <PaneHeader>
+                                        <PaneClose
+                                            disabled={secondary.index <= 0}
+                                            onClick={() => {
+                                                const index = secondary.index - 1;
+                                                if (index >= 0)
+                                                    void goTo(secondary.id, secondary.history[index], index);
+                                            }}
+                                            title="Back"
+                                            type="button"
+                                        >
+                                            <ArrowLeftIcon size={12}/>
+                                        </PaneClose>
+                                        <PaneClose
+                                            disabled={secondary.index >= secondary.history.length - 1}
+                                            onClick={() => {
+                                                const index = secondary.index + 1;
+                                                if (index < secondary.history.length)
+                                                    void goTo(secondary.id, secondary.history[index], index);
+                                            }}
+                                            title="Forward"
+                                            type="button"
+                                        >
+                                            <ArrowRightIcon size={12}/>
+                                        </PaneClose>
+                                        <PaneClose
+                                            disabled={!secondary.listing?.parent}
+                                            onClick={() => {
+                                                if (secondary.listing?.parent)
+                                                    void load(secondary.id, secondary.listing.parent);
+                                            }}
+                                            title="Up one level"
+                                            type="button"
+                                        >
+                                            <ArrowUpIcon size={12}/>
+                                        </PaneClose>
+                                        <PathBar
+                                            onNavigate={(path) => void load(secondary.id, path)}
+                                            path={folderOf(secondary)}
+                                        />
+                                        <PaneClose
+                                            onClick={() => setSplit(false)}
+                                            title="Close split view"
+                                            type="button"
+                                        >
+                                            <CrossIcon size={12}/>
+                                        </PaneClose>
+                                    </PaneHeader>
+                                    {filePane(secondary, false)}
+                                </Pane>
+                            </Split>
+                        ) : (
+                            <Files>
+                                {filePane(active, true)}
+                                {findBar}
+                            </Files>
+                        )
                     ) : kind === "home" ? (
                         <OverviewView
                             drives={drives}
@@ -1074,6 +1232,7 @@ export default function App() {
                             places={places}
                             recent={recent}
                             recentLimit={recentLimit}
+                            visibilityVersion={visibilityVersion}
                         />
                     ) : kind === "settings" ? (
                         <SettingsView appInfo={appInfo} onSettingsChanged={reloadSettings}/>
@@ -1119,12 +1278,12 @@ const Body = styled.div`
         var(--bg-primary);
 `;
 
-const Main = styled.main`
+const Main = styled.main<{ $sidebar: boolean }>`
     display: flex;
     flex-direction: column;
     flex: 1;
     min-width: 0;
-    margin-left: 56px;
+    margin-left: ${({$sidebar}) => $sidebar ? "56px" : "0"};
 `;
 
 const Toolbar = styled.header`
@@ -1164,6 +1323,53 @@ const IconButton = styled.button`
     &:focus-visible {
         outline: 2px solid var(--border-color-focus);
         outline-offset: 1px;
+    }
+`;
+
+const Split = styled.div`
+    display: flex;
+    flex: 1;
+    min-height: 0;
+`;
+
+const Pane = styled.div`
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+`;
+
+const SplitDivider = styled.div`
+    width: 1px;
+    flex-shrink: 0;
+    background: var(--border-color);
+`;
+
+const PaneHeader = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color);
+`;
+
+const PaneClose = styled.button`
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+
+    &:hover {
+        background: var(--bg-card-hover);
+        color: var(--text-primary);
     }
 `;
 

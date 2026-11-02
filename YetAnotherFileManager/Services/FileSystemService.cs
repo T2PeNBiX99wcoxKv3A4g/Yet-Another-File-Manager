@@ -62,6 +62,11 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 return context.Reply("fs.visibility.result", visibility);
             }
 
+            case "fs.hidden.toggle":
+                return context.Reply("fs.hidden.toggle.result", await Task.Run(() =>
+                    new HiddenFilesPayload(FileVisibility.ToggleHidden(), FileVisibility.ShowSystem,
+                        FileVisibility.ShowHidden != FileVisibility.FollowsSystemHidden)));
+
             case "fs.gallery":
                 return context.Reply("fs.gallery.result", await GalleryPageAsync(context.Payload<GalleryRequest>()));
 

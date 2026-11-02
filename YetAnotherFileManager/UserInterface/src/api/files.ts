@@ -322,3 +322,16 @@ export async function setPlaces(paths: string[]): Promise<Place[]> {
 export async function getVisibility(): Promise<FileVisibility> {
     return await Native.request<FileVisibility>("fs.visibility");
 }
+
+/** Flips ordinary hidden files for this session, leaving protected system files alone. */
+export async function toggleHiddenFiles(): Promise<{
+    showHidden: boolean;
+    showSystem: boolean;
+    overridden: boolean;
+}> {
+    return await Native.request<{
+        showHidden: boolean;
+        showSystem: boolean;
+        overridden: boolean;
+    }>("fs.hidden.toggle");
+}

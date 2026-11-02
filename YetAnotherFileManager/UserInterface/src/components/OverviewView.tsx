@@ -43,6 +43,8 @@ interface OverviewViewProps {
     onHistoryChanged?: () => void;
     /** Called after a volume label was written, so the drive lists show the new name. */
     onDrivesChanged?: () => void;
+    /** Bumped when the hidden-files override changes, so folder panels read again. */
+    visibilityVersion?: number;
 }
 
 const Page = styled.div`
@@ -591,6 +593,7 @@ export function OverviewView({
     onLayoutChanged,
     onHistoryChanged,
     onDrivesChanged,
+    visibilityVersion = 0,
 }: OverviewViewProps) {
     const quick = useQuickAccess();
     const [editing, setEditing] = useState(false);
@@ -1250,6 +1253,7 @@ export function OverviewView({
                         openOnSingleClick={settings?.openOnSingleClick ?? false}
                         path={panel.path ?? homePath}
                         showCheckboxes={settings?.showCheckboxes ?? true}
+                        visibilityVersion={visibilityVersion}
                     />
                 );
         }
@@ -1571,12 +1575,13 @@ function FrequentBody({mode, onOpen, version}: {
 }
 
 /** One folder rendered as a panel: a table or a grid of its entries. */
-function FolderBody({path, mode, onOpen, showCheckboxes, openOnSingleClick}: {
+function FolderBody({path, mode, onOpen, showCheckboxes, openOnSingleClick, visibilityVersion}: {
     path: string;
     mode: ViewMode;
     onOpen: (path: string, newTab?: boolean) => void;
     showCheckboxes: boolean;
     openOnSingleClick: boolean;
+    visibilityVersion: number;
 }) {
     const [listing, setListing] = useState<DirectoryListing | null>(null);
     const quick = useQuickAccess();
@@ -1587,7 +1592,7 @@ function FolderBody({path, mode, onOpen, showCheckboxes, openOnSingleClick}: {
         // Sizes are measured once, when the overview is entered; refreshing never re-measures.
         setListing(null);
         listDirectory(path).then(setListing, () => setListing(null));
-    }, [path]);
+    }, [path, visibilityVersion]);
 
     // The folder is one of the ones the overview watches, so it keeps itself current.
     useEffect(() => {

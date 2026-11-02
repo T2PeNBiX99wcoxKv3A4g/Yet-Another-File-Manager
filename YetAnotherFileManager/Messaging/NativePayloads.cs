@@ -137,6 +137,9 @@ internal sealed record SchemePayload(bool Registered);
 /// <summary>Body for <c>fs.visibility</c>: the shell's hidden-item options.</summary>
 internal sealed record FsVisibilityPayload(bool ShowHidden, bool ShowSystem);
 
+/// <summary>Body for <c>fs.hidden.toggle</c>: the session's ordinary-hidden state.</summary>
+internal sealed record HiddenFilesPayload(bool ShowHidden, bool ShowSystem, bool Overridden);
+
 /// <summary>
 ///     Body for the <c>app.navigate</c> event: the folder the window should show, and whether it came
 ///     from this launch's command line (which may take over the untouched first tab).

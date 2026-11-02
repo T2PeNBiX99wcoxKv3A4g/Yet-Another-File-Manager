@@ -25,6 +25,9 @@ export interface ShortcutMap {
     nextTab: string;
     previousTab: string;
     terminal: string;
+    hidden: string;
+    splitView: string;
+    placesPanel: string;
     /** Modifier held while clicking to open something in a new tab. */
     openInNewTab: string;
 }
@@ -55,6 +58,9 @@ export const DefaultShortcuts: ShortcutMap = {
     nextTab: "ctrl+tab",
     previousTab: "ctrl+shift+tab",
     terminal: "f4",
+    hidden: "ctrl+h",
+    splitView: "f3",
+    placesPanel: "f9",
     openInNewTab: "ctrl",
 };
 

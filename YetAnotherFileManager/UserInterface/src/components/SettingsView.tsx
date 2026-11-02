@@ -53,6 +53,9 @@ const ShortcutRows: { id: keyof ShortcutMap; label: string; note: string }[] = [
     {id: "iconsView", label: "Icons view", note: "Switches the folder to the grid view."},
     {id: "detailsView", label: "Details view", note: "Switches the folder to the list view."},
     {id: "terminal", label: "Open terminal", note: "Opens Windows Terminal in the current folder; Dolphin uses F4 for its terminal panel."},
+    {id: "hidden", label: "Show hidden files", note: "Toggles ordinary hidden files for this session. Alt+. also works; system files still follow Explorer."},
+    {id: "splitView", label: "Split view", note: "Shows the next file tab beside the current one; F3 in Dolphin."},
+    {id: "placesPanel", label: "Toggle sidebar", note: "Shows or hides the Places-style sidebar; F9 in Dolphin."},
     {id: "openInNewTab", label: "Open in a new tab", note: "Hold this while clicking a folder."},
 ];
 
