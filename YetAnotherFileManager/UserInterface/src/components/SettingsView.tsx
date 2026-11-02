@@ -34,6 +34,16 @@ const ShortcutRows: { id: keyof ShortcutMap; label: string; note: string }[] = [
     {id: "find", label: "Search", note: "Opens the floating search box. Typing a letter in a folder opens it too."},
     {id: "closeTab", label: "Close tab", note: "Closes the tab that is open."},
     {id: "newTab", label: "New tab", note: "Opens the overview in a new tab."},
+    {id: "copy", label: "Copy", note: "Ctrl+D copies too, following KDE's file manager."},
+    {id: "cut", label: "Cut", note: "Moves the selection on the next paste."},
+    {id: "paste", label: "Paste", note: "Copies or moves the clipboard's files into the current folder."},
+    {id: "delete", label: "Move to recycle bin", note: "Delete is Del by default, not Ctrl+D."},
+    {id: "rename", label: "Rename", note: "Renames the single selected entry."},
+    {id: "selectAll", label: "Select all", note: "Selects every entry in the current folder."},
+    {id: "open", label: "Open", note: "Opens the selected folder or file."},
+    {id: "newFolder", label: "New folder", note: "Creates a folder in the current directory."},
+    {id: "properties", label: "Properties", note: "Opens the shell properties sheet."},
+    {id: "refresh", label: "Refresh", note: "Reads the current folder again."},
     {id: "openInNewTab", label: "Open in a new tab", note: "Hold this while clicking a folder."},
 ];
 

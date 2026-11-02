@@ -1616,6 +1616,7 @@ function FolderBody({path, mode, onOpen, showCheckboxes, openOnSingleClick}: {
                     onOpenFile={(file) => void openFile(file)}
                     onSort={() => undefined}
                     openOnSingleClick={openOnSingleClick}
+                    enableShortcuts={false}
                     showCheckboxes={showCheckboxes}
                     showImages={false}
                     view={{...DefaultView, columns: DefaultViewDefaults.columns ?? []}}

@@ -6,6 +6,16 @@ export interface ShortcutMap {
     find: string;
     closeTab: string;
     newTab: string;
+    copy: string;
+    cut: string;
+    paste: string;
+    delete: string;
+    rename: string;
+    selectAll: string;
+    open: string;
+    newFolder: string;
+    properties: string;
+    refresh: string;
     /** Modifier held while clicking to open something in a new tab. */
     openInNewTab: string;
 }
@@ -17,6 +27,16 @@ export const DefaultShortcuts: ShortcutMap = {
     find: "ctrl+f",
     closeTab: "ctrl+w",
     newTab: "ctrl+t",
+    copy: "ctrl+c",
+    cut: "ctrl+x",
+    paste: "ctrl+v",
+    delete: "delete",
+    rename: "f2",
+    selectAll: "ctrl+a",
+    open: "enter",
+    newFolder: "ctrl+shift+n",
+    properties: "alt+enter",
+    refresh: "f5",
     openInNewTab: "ctrl",
 };
 

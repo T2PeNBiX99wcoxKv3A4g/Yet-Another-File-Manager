@@ -3,7 +3,7 @@ import {
     type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject,
 } from "react";
 import styled from "styled-components";
-import {wantsNewTab, isTyping} from "../shortcuts";
+import {wantsNewTab, isTyping, comboOf, DefaultShortcuts, type ShortcutMap} from "../shortcuts";
 import type {DirectoryListing, FileEntry, Place, ResolvedView} from "../api/files";
 import {useIcon, useIconFile, useThumbnail} from "../api/icons";
 import {
@@ -89,6 +89,10 @@ interface FileListProps {
     showCheckboxes?: boolean;
     /** Open entries with one click instead of two. */
     openOnSingleClick?: boolean;
+    /** Key bindings; the defaults are used when the overview does not pass them. */
+    shortcuts?: ShortcutMap;
+    /** Whether this list owns the global file-manager shortcuts. */
+    enableShortcuts?: boolean;
     /** Reloads the folder after an operation changed it. */
     onRefresh?: () => void;
 }
@@ -108,7 +112,7 @@ const MinStripHeight = 120;
 export function FileList({
     listing, loading, error, find = NoFind, view, showImages, imageStripHeight = DefaultStripHeight,
     onImageStripHeight, onSort, onSetTags, onOpen, onOpenFile, showCheckboxes = true,
-    openOnSingleClick = false, onRefresh,
+    openOnSingleClick = false, shortcuts = DefaultShortcuts, enableShortcuts = true, onRefresh,
 }: FileListProps) {
     const quick = useQuickAccess();
     const currentRow = useRef<HTMLDivElement | null>(null);
@@ -272,22 +276,6 @@ export function FileList({
         setMenu(null);
     }, []);
 
-    // Ctrl+A selects everything that is on screen, the way a file manager does.
-    useEffect(() => {
-        const onKey = (event: KeyboardEvent) => {
-            if (isTyping(event.target)) return;
-
-            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
-                event.preventDefault();
-                setSelected(new Set(allPaths));
-                anchor.current = allPaths[0] ?? null;
-            }
-        };
-
-        window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
-    }, [allPaths]);
-
     const openRow = useCallback((entry: FileEntry, event: ReactMouseEvent) => {
         if (entry.isDirectory)
             onOpen(entry.fullPath, wantsNewTab(event));
@@ -415,6 +403,92 @@ export function FileList({
             // The web view refused the clipboard; nothing sensible to show.
         }
     };
+
+    // File-manager shortcuts. Ctrl+D copies as KDE's file manager does; Ctrl+C also copies.
+    useEffect(() => {
+        if (!enableShortcuts || menu) return;
+
+        const onKey = (event: KeyboardEvent) => {
+            if (isTyping(event.target)) return;
+
+            const combo = comboOf(event);
+            const paths = [...selected];
+            const selectedEntry = paths.length === 1
+                ? rows.find((row) => row.entry.fullPath === paths[0])?.entry
+                : undefined;
+
+            const run = (action: () => void) => {
+                event.preventDefault();
+                action();
+            };
+
+            if (combo === "ctrl+d" || combo === shortcuts.copy) {
+                run(() => {
+                    if (paths.length > 0) void copy(paths);
+                });
+                return;
+            }
+
+            if (combo === shortcuts.cut) {
+                run(() => {
+                    if (paths.length > 0) void copy(paths, true);
+                });
+                return;
+            }
+
+            if (combo === shortcuts.paste) {
+                run(() => void paste(currentDirectory));
+                return;
+            }
+
+            if (combo === shortcuts.delete) {
+                run(() => {
+                    if (paths.length > 0) void remove(paths);
+                });
+                return;
+            }
+
+            if (combo === shortcuts.selectAll) {
+                run(() => {
+                    setSelected(new Set(allPaths));
+                    anchor.current = allPaths[0] ?? null;
+                });
+                return;
+            }
+
+            if (combo === shortcuts.rename && selectedEntry) {
+                run(() => void rename(selectedEntry));
+                return;
+            }
+
+            if (combo === shortcuts.open && selectedEntry) {
+                run(() => {
+                    if (selectedEntry.isDirectory) onOpen(selectedEntry.fullPath);
+                    else onOpenFile?.(selectedEntry.fullPath);
+                });
+                return;
+            }
+
+            if (combo === shortcuts.newFolder) {
+                run(() => void createFolder());
+                return;
+            }
+
+            if (combo === shortcuts.properties) {
+                run(() => void showProperties(paths.length > 0
+                    ? paths
+                    : currentDirectory ? [currentDirectory] : []));
+                return;
+            }
+
+            if (combo === shortcuts.refresh)
+                run(refresh);
+        };
+
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [allPaths, copy, createFolder, currentDirectory, enableShortcuts, menu, onOpen, onOpenFile, paste, refresh,
+        remove, rename, rows, selected, shortcuts]);
 
     const menuItems: ContextMenuItem[] = [];
     const quickActions: ContextMenuItem[] = [];

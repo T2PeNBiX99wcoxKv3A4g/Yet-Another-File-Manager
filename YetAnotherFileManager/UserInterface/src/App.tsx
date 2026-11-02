@@ -998,6 +998,7 @@ export default function App() {
                                 onSetTags={setEntryTags}
                                 onSort={sortBy}
                                 openOnSingleClick={settings?.openOnSingleClick ?? false}
+                                shortcuts={shortcuts}
                                 showCheckboxes={settings?.showCheckboxes ?? true}
                                 showImages={showImages}
                                 view={view}

@@ -150,7 +150,7 @@ export function ContextMenu({x, y, items, quick = [], onClose}: ContextMenuProps
                 onContextMenu={(event) => event.preventDefault()}
                 ref={root}
                 role="menu"
-                style={{left, top}}
+                style={{left, top, maxHeight: Math.max(160, window.innerHeight - top - 8)}}
             >
                 {quick.length > 0 && (
                     <>
@@ -181,7 +181,12 @@ export function ContextMenu({x, y, items, quick = [], onClose}: ContextMenuProps
                     onPointerLeave={scheduleFlyoutClose}
                     ref={flyoutRoot}
                     role="menu"
-                    style={{left: flyout.left, minWidth: 240, top: flyout.top}}
+                    style={{
+                        left: flyout.left,
+                        minWidth: 240,
+                        top: flyout.top,
+                        maxHeight: Math.max(160, window.innerHeight - flyout.top - 8),
+                    }}
                 >
                     {renderRows(flyout.items)}
                 </Menu>
