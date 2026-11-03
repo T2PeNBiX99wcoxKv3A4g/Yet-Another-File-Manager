@@ -119,6 +119,14 @@ interface FileListProps {
     onPreviewInfo?: (info: PreviewInfo | null) => void;
     /** Called when the user interacts with this pane, so a shared pane knows which side is active. */
     onActivate?: () => void;
+    /** Gallery pages group by a label instead of the file browser's type sections. */
+    groupOf?: (entry: FileEntry) => { id: string; label: string };
+    /** Called as the grid scrolls; the gallery uses it to load the next page. */
+    onGridScroll?: (element: HTMLDivElement) => void;
+    /** Rendered after the tiles, such as the gallery's load-more sentinel. */
+    gridFooter?: ReactNode;
+    /** The gallery has no folder of its own, so a right click on blank space does nothing. */
+    allowBackgroundMenu?: boolean;
 }
 
 interface RowModel {
@@ -139,6 +147,7 @@ export function FileList({
     openOnSingleClick = false, shortcuts = DefaultShortcuts, enableShortcuts = true, refreshToken = 0, onRefresh,
     onClipboardChanged, onTransfer, onPaste, confirmDelete = false, previewVideoAudio = false,
     previewVideoAutoplay = false, showDetails = true, onPreviewInfo, onActivate,
+    groupOf, onGridScroll, gridFooter, allowBackgroundMenu = true,
 }: FileListProps) {
     const quick = useQuickAccess();
     const currentRow = useRef<HTMLDivElement | null>(null);
@@ -282,7 +291,31 @@ export function FileList({
 
     // Grouping only feeds the grid; a list view would pay for the rule matching and never use it.
     const gridMode = view.mode === "grid";
-    const groups = useMemo(() => gridMode ? groupRows(rows, GridRules) : [], [rows, gridMode]);
+    const groups = useMemo(() => {
+        if (!gridMode)
+            return [];
+
+        if (!groupOf)
+            return groupRows(rows, GridRules);
+
+        const order: string[] = [];
+        const sections = new Map<string, RowGroup>();
+
+        for (const row of rows) {
+            const label = groupOf(row.entry);
+            let section = sections.get(label.id);
+
+            if (!section) {
+                section = {id: label.id, label: label.label, rows: []};
+                sections.set(label.id, section);
+                order.push(label.id);
+            }
+
+            section.rows.push(row);
+        }
+
+        return order.map((id) => sections.get(id)!);
+    }, [rows, gridMode, groupOf]);
 
     // The panel repeats what the rows already show; only types the shell can preview belong in it.
     const previews = useMemo(
@@ -409,6 +442,9 @@ export function FileList({
         event.preventDefault();
         event.stopPropagation();
 
+        if (!path && !allowBackgroundMenu)
+            return;
+
         const selectedNow = selectedRef.current;
 
         if (path && !selectedNow.has(path))
@@ -460,7 +496,7 @@ export function FileList({
                     setShell({verbs: [], safe: true, loading: false});
             },
         );
-    }, [currentDirectory]);
+    }, [allowBackgroundMenu, currentDirectory]);
 
     const refresh = useCallback(() => onRefresh?.(), [onRefresh]);
 
@@ -472,6 +508,9 @@ export function FileList({
     };
 
     const paste = async (directory: string) => {
+        if (!directory)
+            return;
+
         if (!await pasteInto(directory))
             window.alert("Nothing on the clipboard could be pasted here.");
         else {
@@ -481,6 +520,9 @@ export function FileList({
     };
 
     const createFolder = async () => {
+        if (!currentDirectory)
+            return;
+
         const result = await newFolder(currentDirectory);
 
         if (result.ok)
@@ -1049,6 +1091,7 @@ export function FileList({
                     onDragOver={overListDrag}
                     onDragStart={startListDrag}
                     onDrop={dropOnList}
+                    onScroll={(event) => onGridScroll?.(event.currentTarget)}
                 >
                     {loading && !listing
                         ? <Tiles $size={view.gridSize}><PlaceholderTiles size={view.gridSize}/></Tiles>
@@ -1083,6 +1126,8 @@ export function FileList({
                             </Muted>
                         </EmptyCell>
                     )}
+
+                    {gridFooter}
                 </GridBody>
 
                 {menu && <ContextMenu items={menuItems} onClose={closeMenu} quick={quickActions} x={menu.x} y={menu.y}/>}

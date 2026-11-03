@@ -1621,8 +1621,11 @@ export default function App() {
                         <SettingsView appInfo={appInfo} onSettingsChanged={reloadSettings}/>
                     ) : kind === "gallery" ? (
                         <GalleryView
+                            confirmDelete={settings?.confirmDelete ?? false}
                             openOnSingleClick={settings?.openOnSingleClick ?? false}
+                            shortcuts={shortcuts}
                             showCheckboxes={settings?.showCheckboxes ?? true}
+                            view={view}
                         />
                     ) : (
                         <RecycleView
