@@ -1,13 +1,13 @@
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useLayoutEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
 
 interface TooltipState {
     text: string;
     shortcut: string;
-    left: number;
+    center: number;
     top: number;
-    width: number;
+    bottom: number;
 }
 
 /**
@@ -89,15 +89,14 @@ export function TooltipLayer() {
                     return;
 
                 const rect = element.getBoundingClientRect();
-                const width = Math.min(360, Math.max(180, window.innerWidth - 16));
-                const left = Math.max(8, Math.min(
-                    rect.left + rect.width / 2 - width / 2,
-                    window.innerWidth - width - 8,
-                ));
-                const below = rect.bottom + 8;
-                const top = below + 80 > window.innerHeight ? Math.max(8, rect.top - 8) : below;
 
-                setTooltip({text, shortcut, left, top, width});
+                setTooltip({
+                    text,
+                    shortcut,
+                    center: rect.left + rect.width / 2,
+                    top: rect.top,
+                    bottom: rect.bottom,
+                });
             };
 
             clearTimer();
@@ -167,19 +166,38 @@ export function TooltipLayer() {
     if (!tooltip)
         return null;
 
-    return createPortal(
+    return createPortal(<TooltipPanel tooltip={tooltip}/>, document.body);
+}
+
+function TooltipPanel({tooltip}: { tooltip: TooltipState }) {
+    const panel = useRef<HTMLDivElement | null>(null);
+    const [left, setLeft] = useState(() => Math.max(8, tooltip.center - 120));
+    const [top, setTop] = useState(() => tooltip.bottom + 6);
+
+    useLayoutEffect(() => {
+        const element = panel.current;
+        if (!element)
+            return;
+
+        const rect = element.getBoundingClientRect();
+        const maxLeft = Math.max(8, window.innerWidth - rect.width - 8);
+        const below = tooltip.bottom + 6;
+
+        setLeft(Math.max(8, Math.min(tooltip.center - rect.width / 2, maxLeft)));
+        setTop(below + rect.height <= window.innerHeight - 8
+            ? below
+            : Math.max(8, tooltip.top - rect.height - 6));
+    }, [tooltip]);
+
+    return (
         <Panel
+            ref={panel}
             role="tooltip"
-            style={{
-                left: tooltip.left,
-                maxWidth: tooltip.width,
-                top: tooltip.top,
-            }}
+            style={{left, top}}
         >
             <Text>{tooltip.text}</Text>
             {tooltip.shortcut && <Shortcut>{tooltip.shortcut}</Shortcut>}
-        </Panel>,
-        document.body,
+        </Panel>
     );
 }
 
@@ -189,7 +207,7 @@ const Panel = styled.div`
     display: flex;
     align-items: center;
     gap: 10px;
-    max-width: calc(100vw - 16px);
+    max-width: min(360px, calc(100vw - 16px));
     padding: 6px 9px;
     border: 1px solid var(--border-color-hover);
     border-radius: var(--radius-sm);
