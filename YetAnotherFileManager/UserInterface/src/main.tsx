@@ -10,11 +10,14 @@ import "@fontsource/inter/latin-700.css";
 import "@fontsource/jetbrains-mono/latin-400.css";
 import "@fontsource/jetbrains-mono/latin-500.css";
 import App from "./App";
+import {LocalizationProvider} from "@photino-net-utils/bridge";
 
 const rootElement = document.getElementById("root");
 if (rootElement)
     createRoot(rootElement).render(
         <StrictMode>
-            <App/>
+            <LocalizationProvider>
+                <App/>
+            </LocalizationProvider>
         </StrictMode>
     );

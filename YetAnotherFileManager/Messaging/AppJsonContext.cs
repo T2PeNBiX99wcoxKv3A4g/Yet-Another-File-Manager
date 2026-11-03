@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Messaging;
 using YetAnotherFileManager.Models;
 
@@ -21,6 +22,8 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(NativeResponse))]
 [JsonSerializable(typeof(NativeEvent))]
 [JsonSerializable(typeof(OkPayload))]
+[JsonSerializable(typeof(LocaleRequest))]
+[JsonSerializable(typeof(LocalePayload))]
 [JsonSerializable(typeof(MemoryPayload))]
 [JsonSerializable(typeof(SchemeRequest))]
 [JsonSerializable(typeof(SchemePayload))]

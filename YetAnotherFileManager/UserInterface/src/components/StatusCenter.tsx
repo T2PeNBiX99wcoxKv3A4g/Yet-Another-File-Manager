@@ -1,7 +1,8 @@
 import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
+import {useTranslation} from "@photino-net-utils/bridge";
 import type {TaskInfo} from "../api/tasks";
-import {formatBytes} from "../utils/format";
+import {formatBytes, plural} from "../utils/format";
 import {CheckIcon, ClockIcon, CrossIcon} from "./Icons";
 import {elevatedPanel} from "../ui/panel";
 
@@ -12,6 +13,7 @@ interface StatusCenterProps {
 
 /** The title bar's activity button and the floating list of running and finished operations. */
 export function StatusCenter({tasks, onClear}: StatusCenterProps) {
+    const t = useTranslation();
     const [open, setOpen] = useState(false);
     const root = useRef<HTMLDivElement | null>(null);
     const running = tasks.filter((task) => task.state === "running").length;
@@ -32,7 +34,7 @@ export function StatusCenter({tasks, onClear}: StatusCenterProps) {
             <ActivityButton
                 $active={open}
                 onClick={() => setOpen((value) => !value)}
-                title={running > 0 ? `${running} operation(s) running` : "Activity"}
+                title={running > 0 ? plural(t, running, "1 operation running", "{count} operations running") : t("Activity")}
                 type="button"
             >
                 <ClockIcon size={13}/>
@@ -42,23 +44,23 @@ export function StatusCenter({tasks, onClear}: StatusCenterProps) {
             {open && (
                 <Panel>
                     <PanelHead>
-                        <PanelTitle>Activity</PanelTitle>
+                        <PanelTitle>{t("Activity")}</PanelTitle>
                         <PanelActions>
                             <TextButton
                                 disabled={tasks.every((task) => task.state === "running")}
                                 onClick={onClear}
                                 type="button"
                             >
-                                Clear finished
+                                {t("Clear finished")}
                             </TextButton>
-                            <ClosePanel onClick={() => setOpen(false)} title="Close" type="button">
+                            <ClosePanel onClick={() => setOpen(false)} title={t("Close")} type="button">
                                 <CrossIcon size={10}/>
                             </ClosePanel>
                         </PanelActions>
                     </PanelHead>
 
                     {tasks.length === 0
-                        ? <Empty>No operations yet.</Empty>
+                        ? <Empty>{t("No operations yet.")}</Empty>
                         : (
                             <List>
                                 {tasks.map((task) => <TaskRow key={task.id} task={task}/>)}

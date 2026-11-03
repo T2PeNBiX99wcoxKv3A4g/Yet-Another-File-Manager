@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
+import {useTranslation} from "@photino-net-utils/bridge";
 import {CheckIcon, CrossIcon} from "./Icons";
 
 /** The color a tag gets until the user picks one. */
@@ -35,6 +36,7 @@ interface TagPickerProps {
 
 /** A floating panel for choosing existing tags, creating one, and giving each its own color. */
 export function TagPicker({x, y, tags, allTags, colors, onChange, onClose}: TagPickerProps) {
+    const t = useTranslation();
     const [draft, setDraft] = useState("");
     const [draftColor, setDraftColor] = useState("#2dd4bf");
     const root = useRef<HTMLDivElement | null>(null);
@@ -85,14 +87,14 @@ export function TagPicker({x, y, tags, allTags, colors, onChange, onClose}: TagP
     return createPortal(
         <Panel data-tag-menu="true" ref={root} style={{left, top}}>
             <Header>
-                <span>Tags</span>
-                <Close onClick={onClose} title="Close" type="button">
+                <span>{t("Tags")}</span>
+                <Close onClick={onClose} title={t("Close")} type="button">
                     <CrossIcon size={11}/>
                 </Close>
             </Header>
 
             <List>
-                {known.length === 0 && <Empty>No tags yet.</Empty>}
+                {known.length === 0 && <Empty>{t("No tags yet.")}</Empty>}
                 {known.map((tag) => {
                     const color = colorOf(tag);
                     const on = tags.includes(tag);
@@ -100,9 +102,9 @@ export function TagPicker({x, y, tags, allTags, colors, onChange, onClose}: TagP
                     return (
                         <TagRow key={tag}>
                             <ColorInput
-                                aria-label={`Color of ${tag}`}
+                                aria-label={t("Color of {tag}", {tag})}
                                 onChange={(event) => recolor(tag, event.target.value)}
-                                title="Change this tag's color"
+                                title={t("Change this tag's color")}
                                 type="color"
                                 value={color}
                             />
@@ -123,9 +125,9 @@ export function TagPicker({x, y, tags, allTags, colors, onChange, onClose}: TagP
 
             <NewRow>
                 <ColorInput
-                    aria-label="Color of the new tag"
+                    aria-label={t("Color of the new tag")}
                     onChange={(event) => setDraftColor(event.target.value)}
-                    title="Color of the new tag"
+                    title={t("Color of the new tag")}
                     type="color"
                     value={draftColor}
                 />
@@ -137,11 +139,11 @@ export function TagPicker({x, y, tags, allTags, colors, onChange, onClose}: TagP
                             add();
                         }
                     }}
-                    placeholder="New tag"
+                    placeholder={t("New tag")}
                     spellCheck={false}
                     value={draft}
                 />
-                <Add onClick={add} type="button">Add</Add>
+                <Add onClick={add} type="button">{t("Add")}</Add>
             </NewRow>
         </Panel>,
         document.body

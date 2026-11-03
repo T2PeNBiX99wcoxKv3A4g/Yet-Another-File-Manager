@@ -1,5 +1,6 @@
 import {useEffect, useRef, useState, type ReactNode} from "react";
 import styled from "styled-components";
+import {useTranslation} from "@photino-net-utils/bridge";
 import type {Place} from "../api/files";
 import {useQuickAccess} from "../quick";
 import {CheckIcon, ChevronRightIcon, CrossIcon} from "./Icons";
@@ -31,6 +32,7 @@ interface Crumb {
  * A folder that has a Quick access name shows that name and its icon instead of its real ones.
  */
 export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProps) {
+    const t = useTranslation();
     const quick = useQuickAccess();
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState("");
@@ -86,14 +88,14 @@ export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProp
                     spellCheck={false}
                     value={draft}
                 />
-                <EditorButton onClick={() => setEditing(false)} title="Cancel" type="button">
+                <EditorButton onClick={() => setEditing(false)} title={t("Cancel")} type="button">
                     <CrossIcon size={12}/>
                 </EditorButton>
                 <EditorButton
                     $apply
                     onClick={commit}
                     onPointerDown={(event) => event.stopPropagation()}
-                    title="Open this path"
+                    title={t("Open this path")}
                     type="button"
                 >
                     <CheckIcon size={14}/>
@@ -106,7 +108,7 @@ export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProp
         : crumbsFor(path, quick.places);
 
     return (
-        <Trail onClick={start} title="Click to type a path">
+        <Trail onClick={start} title={t("Click to type a path")}>
             {crumbs.map((crumb, index) => (
                 <Crumb key={crumb.path} $last={index === crumbs.length - 1}>
                     {index > 0 && <Chevron><ChevronRightIcon size={9}/></Chevron>}

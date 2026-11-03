@@ -1,5 +1,6 @@
 import {useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent} from "react";
 import styled from "styled-components";
+import {useTranslation} from "@photino-net-utils/bridge";
 import {PathIcon} from "./PathIcon";
 import {CheckIcon, CrossIcon, PackageIcon} from "./Icons";
 import {elevatedPanel} from "../ui/panel";
@@ -81,6 +82,7 @@ export function FileTray({
     items, clipboardItems, clipboardMove, visible, position, currentDirectory, onPosition, onAdd, onRemove,
     onClear, onClose, onCopyToClipboard, onTransfer,
 }: FileTrayProps) {
+    const t = useTranslation();
     const [selected, setSelected] = useState<Set<string>>(() => new Set());
     const [dragging, setDragging] = useState(false);
     const dragStart = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
@@ -284,17 +286,17 @@ export function FileTray({
             <Head onPointerDown={startDrag} onPointerMove={movePanel} onPointerUp={endDrag}>
                 <Title>
                     <PackageIcon size={13}/>
-                    Tray
+                    {t("Tray")}
                     <Count>{total}</Count>
                 </Title>
                 <HeadActions onPointerDown={(event) => event.stopPropagation()}>
-                    <SmallButton onClick={toggleAll} title={allSelected ? "Select none" : "Select all"} type="button">
-                        {allSelected ? "None" : "All"}
+                    <SmallButton onClick={toggleAll} title={allSelected ? t("Select none") : t("Select all")} type="button">
+                        {allSelected ? t("None") : t("All")}
                     </SmallButton>
-                    <SmallButton onClick={onClear} title="Remove everything from the tray" type="button">
-                        Clear
+                    <SmallButton onClick={onClear} title={t("Remove everything from the tray")} type="button">
+                        {t("Clear")}
                     </SmallButton>
-                    <IconButton onClick={onClose} title="Hide the tray" type="button">
+                    <IconButton onClick={onClose} title={t("Hide the tray")} type="button">
                         <CrossIcon size={10}/>
                     </IconButton>
                 </HeadActions>
@@ -302,19 +304,19 @@ export function FileTray({
 
             <List>
                 <SectionHead>
-                    In this app
+                    {t("In this app")}
                     <Count>{items.length}</Count>
                 </SectionHead>
 
-                {items.length === 0 && <DropHint>Drag files or folders here</DropHint>}
+                {items.length === 0 && <DropHint>{t("Drag files or folders here")}</DropHint>}
                 {items.map((item) => row(item, true))}
 
                 {clipboardItems.length > 0 && (
                     <>
                         <SectionHead $clipboard>
-                            Clipboard
+                            {t("Clipboard")}
                             <Count>{clipboardItems.length}</Count>
-                            {clipboardMove && <CutTag>cut</CutTag>}
+                            {clipboardMove && <CutTag>{t("cut")}</CutTag>}
                         </SectionHead>
                         {clipboardItems.map((item) => row(item, clipboardMove))}
                     </>
@@ -326,17 +328,17 @@ export function FileTray({
                     $plain
                     disabled={selectedItems.length === 0}
                     onClick={copySelectedToClipboard}
-                    title="Write the selected tray entries to the system clipboard"
+                    title={t("Write the selected tray entries to the system clipboard")}
                     type="button"
                 >
-                    To clipboard
+                    {t("To clipboard")}
                 </FootButton>
                 <FootButton
                     disabled={selected.size === 0 || !currentDirectory}
                     onClick={moveHere}
                     type="button"
                 >
-                    Move here
+                    {t("Move here")}
                 </FootButton>
                 <FootButton
                     $danger
@@ -344,7 +346,7 @@ export function FileTray({
                     onClick={removeSelected}
                     type="button"
                 >
-                    Remove
+                    {t("Remove")}
                 </FootButton>
             </Foot>
         </Panel>

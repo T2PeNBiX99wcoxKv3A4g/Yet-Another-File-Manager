@@ -65,8 +65,8 @@ import {TitleBar} from "./components/TitleBar";
 import {TooltipLayer} from "./components/TooltipLayer";
 import {viewTitles, type TabKind} from "./tabs";
 import {buildPanels} from "./panels";
-import {Native, ResizeHandles, useWindowCorners} from "@photino-net-utils/bridge";
-import {baseName, formatBytes, normalizePath} from "./utils/format";
+import {Native, ResizeHandles, useTranslation, useWindowCorners, type Translate} from "@photino-net-utils/bridge";
+import {baseName, formatBytes, normalizePath, plural} from "./utils/format";
 import {applyTheme} from "./theme";
 import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "./storage";
 import {
@@ -228,14 +228,16 @@ function parentOf(path: string): string | null {
 }
 
 /** What the folder adds up to: files right away, folders once their size has been measured. */
-function statusLine(listing: DirectoryListing): string {    const total = listing.entries.reduce((sum, entry) => sum + (entry.isDirectory
+function statusLine(t: Translate, listing: DirectoryListing): string {    const total = listing.entries.reduce((sum, entry) => sum + (entry.isDirectory
         ? listing.folderSizes[entry.name] ?? 0
         : Math.max(entry.size, 0)), 0);
 
-    return `${listing.entries.length} items · ${formatBytes(total)}`;
+    return plural(t, listing.entries.length, "1 item · {size}", "{count} items · {size}",
+        {size: formatBytes(total)});
 }
 
 export default function App() {
+    const t = useTranslation();
     const [tabs, setTabs] = useState<Tab[]>(() => [createTab()]);
     const [activeId, setActiveId] = useState(() => tabs[0].id);
     const [splitRatio, setSplitRatio] = useState(() => {
@@ -779,13 +781,13 @@ export default function App() {
     const createMenuItems: ContextMenuItem[] = createMenu
         ? [
             {
-                label: "New folder",
+                label: t("New folder"),
                 icon: <FolderIcon size={14}/>,
                 shortcut: prettyShortcut(shortcuts.newFolder),
                 onSelect: () => void createItem(false),
             },
             {
-                label: "New file",
+                label: t("New file"),
                 icon: <FileIcon size={14}/>,
                 onSelect: () => void createItem(true),
             },
@@ -960,7 +962,7 @@ export default function App() {
         const result = await transferPaths(paths, target, move);
 
         if (!result.ok) {
-            window.alert(result.error ?? "The files could not be transferred.");
+            window.alert(result.error ?? t("The files could not be transferred."));
             return;
         }
 
@@ -1611,7 +1613,7 @@ export default function App() {
                 data-shortcut={prettyShortcut(shortcuts.goBack)}
                 disabled={!canBack}
                 onClick={goBack}
-                title="Back"
+                title={t("Back")}
                 type="button"
             >
                 <ArrowLeftIcon/>
@@ -1621,7 +1623,7 @@ export default function App() {
                 data-shortcut={prettyShortcut(shortcuts.goForward)}
                 disabled={!canForward}
                 onClick={goForward}
-                title="Forward"
+                title={t("Forward")}
                 type="button"
             >
                 <ArrowRightIcon/>
@@ -1631,7 +1633,7 @@ export default function App() {
                 data-shortcut={prettyShortcut(shortcuts.goUp)}
                 disabled={kind !== "files" || !activeParent}
                 onClick={() => activeParent && navigate(activeParent)}
-                title="Up one level"
+                title={t("Up one level")}
                 type="button"
             >
                 <ArrowUpIcon/>
@@ -1640,7 +1642,7 @@ export default function App() {
             <PathBar
                 focusToken={locationFocus}
                 icon={viewIcon}
-                label={kind === "files" ? undefined : viewTitles[kind]}
+                label={kind === "files" ? undefined : t(viewTitles[kind])}
                 onNavigate={navigate}
                 path={kind === "files" ? activeFolder : location}
             />
@@ -1653,7 +1655,7 @@ export default function App() {
                             activeFolder,
                             () => void load(active.id, activeFolder, true),
                         )}
-                        title="New folder or file"
+                        title={t("New folder or file")}
                         type="button"
                     >
                         <PlusIcon/>
@@ -1661,7 +1663,7 @@ export default function App() {
                     <IconButton
                         data-shortcut={prettyShortcut(shortcuts.find)}
                         onClick={openFind}
-                        title="Search"
+                        title={t("Search")}
                         type="button"
                     >
                         <SearchIcon/>
@@ -1712,11 +1714,11 @@ export default function App() {
                         place: tabKind === "files" ? quickPlace(quickAccess, folder) : undefined,
                         split: Boolean(partner),
                         title: tabKind === "files"
-                            ? quickName(quickAccess, folder, baseName(folder) || "Files")
-                            : viewTitles[tabKind],
+                            ? quickName(quickAccess, folder, baseName(folder) || t("Files"))
+                            : t(viewTitles[tabKind]),
                         partner: partner
                             ? {
-                                title: quickName(quickAccess, partnerFolder, baseName(partnerFolder) || "Files"),
+                                title: quickName(quickAccess, partnerFolder, baseName(partnerFolder) || t("Files")),
                                 place: quickPlace(quickAccess, partnerFolder),
                             }
                             : undefined,
@@ -1758,7 +1760,7 @@ export default function App() {
                                                 if (index >= 0)
                                                     void goTo(active.id, active.history[index], index);
                                             }}
-                                            title="Back"
+                                            title={t("Back")}
                                             type="button"
                                         >
                                             <ArrowLeftIcon/>
@@ -1771,7 +1773,7 @@ export default function App() {
                                                 if (index < active.history.length)
                                                     void goTo(active.id, active.history[index], index);
                                             }}
-                                            title="Forward"
+                                            title={t("Forward")}
                                             type="button"
                                         >
                                             <ArrowRightIcon/>
@@ -1780,7 +1782,7 @@ export default function App() {
                                             data-shortcut={prettyShortcut(shortcuts.goUp)}
                                             disabled={!activeParent}
                                             onClick={() => activeParent && void load(active.id, activeParent)}
-                                            title="Up one level"
+                                            title={t("Up one level")}
                                             type="button"
                                         >
                                             <ArrowUpIcon/>
@@ -1796,7 +1798,7 @@ export default function App() {
                                                 activeFolder,
                                                 () => void load(active.id, activeFolder, true),
                                             )}
-                                            title="New folder or file"
+                                            title={t("New folder or file")}
                                             type="button"
                                         >
                                             <PlusIcon/>
@@ -1804,7 +1806,7 @@ export default function App() {
                                         <IconButton
                                             data-shortcut={prettyShortcut(shortcuts.find)}
                                             onClick={openFind}
-                                            title="Search"
+                                            title={t("Search")}
                                             type="button"
                                         >
                                             <SearchIcon/>
@@ -1816,7 +1818,7 @@ export default function App() {
                                 <SplitDivider
                                     onDoubleClick={() => setSplitRatio(0.5)}
                                     onPointerDown={startSplitDrag}
-                                    title="Drag to resize; double-click to reset"
+                                    title={t("Drag to resize; double-click to reset")}
                                 />
                                 <Pane style={{flex: 1 - splitRatio}}>
                                     <PaneToolbar
@@ -1831,7 +1833,7 @@ export default function App() {
                                                 if (index >= 0)
                                                     void goTo(secondary.id, secondary.history[index], index);
                                             }}
-                                            title="Back"
+                                            title={t("Back")}
                                             type="button"
                                         >
                                             <ArrowLeftIcon/>
@@ -1844,7 +1846,7 @@ export default function App() {
                                                 if (index < secondary.history.length)
                                                     void goTo(secondary.id, secondary.history[index], index);
                                             }}
-                                            title="Forward"
+                                            title={t("Forward")}
                                             type="button"
                                         >
                                             <ArrowRightIcon/>
@@ -1856,7 +1858,7 @@ export default function App() {
                                                 if (secondaryParent)
                                                     void load(secondary.id, secondaryParent);
                                             }}
-                                            title="Up one level"
+                                            title={t("Up one level")}
                                             type="button"
                                         >
                                             <ArrowUpIcon/>
@@ -1872,7 +1874,7 @@ export default function App() {
                                                 secondaryFolder,
                                                 () => void load(secondary.id, secondaryFolder, true),
                                             )}
-                                            title="New folder or file"
+                                            title={t("New folder or file")}
                                             type="button"
                                         >
                                             <PlusIcon/>
@@ -1880,7 +1882,7 @@ export default function App() {
                                         <IconButton
                                             data-shortcut={prettyShortcut(shortcuts.find)}
                                             onClick={openFind}
-                                            title="Search"
+                                            title={t("Search")}
                                             type="button"
                                         >
                                             <SearchIcon/>
@@ -1956,7 +1958,7 @@ export default function App() {
                     )}
 
                     <StatusBar>
-                        <span>{kind === "files" && active.listing ? statusLine(active.listing) : ""}</span>
+                        <span>{kind === "files" && active.listing ? statusLine(t, active.listing) : ""}</span>
                         <span>{appInfo ? `v${appInfo.version} · ${appInfo.platform}` : "browser preview"}</span>
                     </StatusBar>
                 </Main>

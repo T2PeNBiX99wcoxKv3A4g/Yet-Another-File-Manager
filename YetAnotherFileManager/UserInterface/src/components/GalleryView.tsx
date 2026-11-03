@@ -1,5 +1,6 @@
 import {startTransition, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import styled from "styled-components";
+import {useTranslation} from "@photino-net-utils/bridge";
 import {
     listGallery,
     openFile,
@@ -49,6 +50,7 @@ export function GalleryView({
     shortcuts,
     view,
 }: GalleryViewProps) {
+    const t = useTranslation();
     const [entries, setEntries] = useState<GalleryEntry[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -237,17 +239,17 @@ export function GalleryView({
         <Page>
             <Header>
                 <Heading>
-                    <span>Gallery</span>
-                    <Count>{loading ? "scanning…" : `${entries.length} of ${total} pictures`}</Count>
+                    <span>{t("Gallery")}</span>
+                    <Count>{loading ? t("scanning…") : t("{shown} of {total} pictures", {shown: entries.length, total})}</Count>
                 </Heading>
 
-                <IconButton onClick={refresh} title="Scan the folders again" type="button">
+                <IconButton onClick={refresh} title={t("Scan the folders again")} type="button">
                     <Spin $spinning={busy}><RefreshIcon size={14}/></Spin>
                 </IconButton>
             </Header>
 
             {error && <Message>{error}</Message>}
-            {!error && !loading && total === 0 && <Message>No pictures found.</Message>}
+            {!error && !loading && total === 0 && <Message>{t("No pictures found.")}</Message>}
 
             {!error && (loading || total > 0) && (
                 <FileList

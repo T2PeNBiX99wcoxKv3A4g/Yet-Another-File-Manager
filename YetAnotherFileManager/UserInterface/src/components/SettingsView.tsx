@@ -1,4 +1,6 @@
 import {useEffect, useRef, useState} from "react";
+import {createPortal} from "react-dom";
+import {loadStrings, useTranslation, type Translate} from "@photino-net-utils/bridge";
 import styled, {css} from "styled-components";
 import {getVisibility, type FileVisibility} from "../api/files";
 import {DefaultViewDefaults} from "../api/files";
@@ -14,7 +16,7 @@ import {
 import type {AppInfo} from "../api/system";
 import {getMemory, getScheme, setScheme, trimMemory, type MemoryUsage} from "../api/system";
 import {deleteTag, listTags, renameTag, type TagCatalogEntry} from "../api/tags";
-import {CheckIcon, CrossIcon, PlusIcon, TrashIcon} from "./Icons";
+import {CheckIcon, ChevronRightIcon, CrossIcon, PlusIcon, TrashIcon} from "./Icons";
 import {IconPicker} from "./IconPicker";
 import {DefaultTagColor} from "./TagPicker";
 import {DefaultAccentColor, DefaultSecondaryColor, normalizeColor} from "../theme";
@@ -22,7 +24,7 @@ import {comboOf, DefaultShortcuts, prettyShortcut, type ShortcutMap} from "../sh
 import {BuiltinIcon} from "../icons/fileTypes";
 import {GlobalTag} from "./GlobalTag";
 import {ViewColumns} from "./FileList";
-import {baseName, formatBytes, usageTone} from "../utils/format";
+import {baseName, formatBytes, plural, usageTone} from "../utils/format";
 import {readStoredJson, writeStoredJson} from "../storage";
 
 interface SettingsViewProps {
@@ -76,6 +78,20 @@ const ThemePresets: { name: string; accent: string; secondary: string }[] = [
     {name: "Slate", accent: "#64748b", secondary: "#94a3b8"},
 ];
 
+/** The language a fresh install uses until the picker changes it. */
+const DefaultLanguage = "en";
+
+/** A stored value that means "whatever the operating system asks for". */
+const AutoLanguage = "auto";
+
+/** Endonyms, so the picker reads the same whichever language is active. */
+const LocaleNames: Record<string, string> = {
+    en: "English",
+    "zh-CN": "简体中文",
+    "zh-TW": "繁體中文",
+    ja: "日本語",
+};
+
 /** The sections the table of contents jumps to; the ids are what the list shows. */
 const SettingSections: { id: string; label: string }[] = [
     {id: "application", label: "Application"},
@@ -110,6 +126,8 @@ function readRecentColors(): RecentColors {
 }
 
 export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
+    const t = useTranslation();
+    const [languages, setLanguages] = useState<string[]>([]);
     const [visibility, setVisibility] = useState<FileVisibility | null>(null);
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const [folderIcon, setFolderIcon] = useState<{ folder: string; icon: string } | null>(null);
@@ -177,6 +195,11 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
         sectionRefs.current[id]?.scrollIntoView({behavior: "smooth", block: "start"});
         setActiveSection(id);
     };
+
+    // The translation files that exist, for the language picker; the list does not change at runtime.
+    useEffect(() => {
+        void loadStrings().then((payload) => setLanguages(payload.available), () => setLanguages([]));
+    }, []);
 
     useEffect(() => {
         void getVisibility().then(setVisibility, () => setVisibility(null));
@@ -431,29 +454,42 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                     />
                     <Rows>
                         <Row>
-                            <Label>Version</Label>
+                            <Label>{t("Version")}</Label>
                             <Value>{appInfo ? `v${appInfo.version}` : "—"}</Value>
                         </Row>
                         <Row>
-                            <Label>Platform</Label>
+                            <Label>{t("Platform")}</Label>
                             <Value>{appInfo?.platform ?? "—"}</Value>
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>Open yafm:// links</Label>
+                                <Label>{t("Language")}</Label>
+                                <Note>{t("The language the interface uses. English is the default; the system option follows the operating system.")}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <LanguagePicker
+                                    disabled={!settings}
+                                    onChange={(code) => void update({language: code})}
+                                    options={["auto", ...(languages.length > 0 ? languages : [DefaultLanguage])]}
+                                    value={settings?.language ?? DefaultLanguage}
+                                />
+                            </RowEnd>
+                        </Row>
+                        <Row>
+                            <RowText>
+                                <Label>{t("Open yafm:// links")}</Label>
                                 <Note>
-                                    Registers this app for yafm:// links, for the current user only.
-                                    While this is on, the app repairs the entry at every launch.
+                                    {t("Registers this app for yafm:// links, for the current user only. While this is on, the app repairs the entry at every launch.")}
                                 </Note>
                                 {schemeError && <TagError>{schemeError}</TagError>}
                             </RowText>
                             <RowEnd>
-                                <State $on={scheme}>{scheme ? "Active" : "Off"}</State>
+                                <State $on={scheme}>{scheme ? t("Active") : t("Off")}</State>
                                 <Toggle
                                     $on={scheme}
                                     disabled={schemeBusy}
                                     onClick={() => void toggleScheme()}
-                                    title={scheme ? "Stop opening yafm:// links" : "Open yafm:// links with this app"}
+                                    title={scheme ? t("Stop opening yafm:// links") : t("Open yafm:// links with this app")}
                                     type="button"
                                 >
                                     <Knob/>
@@ -462,10 +498,9 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>Reopen the tabs that were open</Label>
+                                <Label>{t("Reopen the tabs that were open")}</Label>
                                 <Note>
-                                    Keeps the tabs and the folder each one shows, so they come back after a
-                                    restart. A folder passed on the command line takes over instead.
+                                    {t("Keeps the tabs and the folder each one shows, so they come back after a restart. A folder passed on the command line takes over instead.")}
                                 </Note>
                             </RowText>
                             <Toggle
@@ -488,8 +523,8 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                     <Rows>
                         <Block>
                             <BlockHead>
-                                <Label>Presets</Label>
-                                <Note>One click changes the accent and the highlight together.</Note>
+                                <Label>{t("Presets")}</Label>
+                                <Note>{t("One click changes the accent and the highlight together.")}</Note>
                             </BlockHead>
                             <PresetGrid>
                                 {ThemePresets.map((preset) => (
@@ -498,22 +533,22 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                             && secondaryNow.toLowerCase() === preset.secondary}
                                         key={preset.name}
                                         onClick={() => applyPreset(preset.accent, preset.secondary)}
-                                        title={`${preset.name} · ${preset.accent} / ${preset.secondary}`}
+                                        title={`${t(preset.name)} · ${preset.accent} / ${preset.secondary}`}
                                         type="button"
                                     >
                                         <PresetDots>
                                             <i style={{background: preset.accent}}/>
                                             <i style={{background: preset.secondary}}/>
                                         </PresetDots>
-                                        {preset.name}
+                                        {t(preset.name)}
                                     </Preset>
                                 ))}
                             </PresetGrid>
                         </Block>
                         <Row>
                             <RowText>
-                                <Label>Accent color</Label>
-                                <Note>Buttons, selections, focus rings, and active navigation.</Note>
+                                <Label>{t("Accent color")}</Label>
+                                <Note>{t("Buttons, selections, focus rings, and active navigation.")}</Note>
                             </RowText>
                             <RowEnd>
                                 <RecentSwatches
@@ -522,7 +557,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                     onApply={(color) => applyColor("accent", color)}
                                 />
                                 <ColorWell
-                                    aria-label="Accent color"
+                                    aria-label={t("Accent color")}
                                     disabled={!settings}
                                     onBlur={() => finishColor("accent")}
                                     onChange={(event) => void update({accentColor: event.target.value})}
@@ -535,8 +570,8 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>Secondary color</Label>
-                                <Note>Gradients, highlights, and the second end of the accent ramp.</Note>
+                                <Label>{t("Secondary color")}</Label>
+                                <Note>{t("Gradients, highlights, and the second end of the accent ramp.")}</Note>
                             </RowText>
                             <RowEnd>
                                 <RecentSwatches
@@ -545,7 +580,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                     onApply={(color) => applyColor("secondary", color)}
                                 />
                                 <ColorWell
-                                    aria-label="Secondary color"
+                                    aria-label={t("Secondary color")}
                                     disabled={!settings}
                                     onBlur={() => finishColor("secondary")}
                                     onChange={(event) => void update({secondaryColor: event.target.value})}
@@ -558,8 +593,8 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>Reset colors</Label>
-                                <Note>Returns the interface to the default blue and indigo theme.</Note>
+                                <Label>{t("Reset colors")}</Label>
+                                <Note>{t("Returns the interface to the default blue and indigo theme.")}</Note>
                             </RowText>
                             <RowEnd>
                                 <SmallButton
@@ -571,7 +606,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                     }}
                                     type="button"
                                 >
-                                    Reset
+                                    {t("Reset")}
                                 </SmallButton>
                             </RowEnd>
                         </Row>
@@ -592,8 +627,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         {tags.length === 0 && (
                             <Row>
                                 <Note>
-                                    No tags yet. Add one from an entry's Tags cell; every tag you use will
-                                    appear here.
+                                    {t("No tags yet. Add one from an entry's Tags cell; every tag you use will appear here.")}
                                 </Note>
                             </Row>
                         )}
@@ -624,14 +658,14 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                                         value={editingTag.value}
                                                     />
                                                 </LabelRow>
-                                                <Note>Press Enter to save, Escape to cancel.</Note>
+                                                <Note>{t("Press Enter to save, Escape to cancel.")}</Note>
                                             </RowText>
                                             <RowEnd>
                                                 <SmallButton disabled={tagBusy} onClick={() => void saveTagName()} type="button">
-                                                    Save
+                                                    {t("Save")}
                                                 </SmallButton>
                                                 <SmallButton disabled={tagBusy} onClick={() => setEditingTag(null)} type="button">
-                                                    Cancel
+                                                    {t("Cancel")}
                                                 </SmallButton>
                                             </RowEnd>
                                         </>
@@ -644,8 +678,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                                     <Label>{tag.name}</Label>
                                                 </LabelRow>
                                                 <Note>
-                                                    Used in {tag.folders} folder{tag.folders === 1 ? "" : "s"}.
-                                                    Renaming or removing it updates those folders' indexes.
+                                                    {plural(t, tag.folders, "Used in 1 folder. Renaming or removing it updates that folder's index.", "Used in {count} folders. Renaming or removing it updates those folders' indexes.")}
                                                 </Note>
                                             </RowText>
                                             <RowEnd>
@@ -654,7 +687,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                                     onClick={() => setEditingTag({name: tag.name, value: tag.name})}
                                                     type="button"
                                                 >
-                                                    Edit
+                                                    {t("Edit")}
                                                 </SmallButton>
                                                 <DangerButton
                                                     disabled={tagBusy}
@@ -662,7 +695,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                                     type="button"
                                                 >
                                                     <TrashIcon size={13}/>
-                                                    Remove
+                                                    {t("Remove")}
                                                 </DangerButton>
                                             </RowEnd>
                                         </>
@@ -680,10 +713,9 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                     <Rows>
                         <Row>
                             <RowText>
-                                <Label>Default view</Label>
+                                <Label>{t("Default view")}</Label>
                                 <Note>
-                                    The mode every folder starts with. A folder can still remember its own
-                                    list or grid mode from the title bar.
+                                    {t("The mode every folder starts with. A folder can still remember its own list or grid mode from the title bar.")}
                                 </Note>
                             </RowText>
                             <RowEnd>
@@ -695,7 +727,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                         })}
                                         type="button"
                                     >
-                                        List
+                                        {t("List")}
                                     </Segment>
                                     <Segment
                                         $on={defaultView.mode === "grid"}
@@ -704,15 +736,15 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                         })}
                                         type="button"
                                     >
-                                        Grid
+                                        {t("Grid")}
                                     </Segment>
                                 </Segmented>
                             </RowEnd>
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>List icon size</Label>
-                                <Note>The icon in the list rows.</Note>
+                                <Label>{t("List icon size")}</Label>
+                                <Note>{t("The icon in the list rows.")}</Note>
                             </RowText>
                             <RowEnd>
                                 <RangeInput
@@ -730,8 +762,8 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>Grid size</Label>
-                                <Note>The height of a grid tile; the icon inside follows it.</Note>
+                                <Label>{t("Grid size")}</Label>
+                                <Note>{t("The height of a grid tile; the icon inside follows it.")}</Note>
                             </RowText>
                             <RowEnd>
                                 <RangeInput
@@ -750,12 +782,11 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         <Row>
                             <RowText>
                                 <LabelRow>
-                                    <Label>Selection checkboxes</Label>
+                                    <Label>{t("Selection checkboxes")}</Label>
                                     <GlobalTag/>
                                 </LabelRow>
                                 <Note>
-                                    Show a checkbox before every name, the way Explorer does. Checked entries
-                                    can be copied, cut or deleted together.
+                                    {t("Show a checkbox before every name, the way Explorer does. Checked entries can be copied, cut or deleted together.")}
                                 </Note>
                             </RowText>
                             <Toggle
@@ -770,12 +801,11 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         <Row>
                             <RowText>
                                 <LabelRow>
-                                    <Label>Open with a single click</Label>
+                                    <Label>{t("Open with a single click")}</Label>
                                     <GlobalTag/>
                                 </LabelRow>
                                 <Note>
-                                    Off means double-click, like Explorer's default. The checkbox still
-                                    only selects, so a click on it never opens the entry.
+                                    {t("Off means double-click, like Explorer's default. The checkbox still only selects, so a click on it never opens the entry.")}
                                 </Note>
                             </RowText>
                             <Toggle
@@ -790,12 +820,11 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         <Row>
                             <RowText>
                                 <LabelRow>
-                                    <Label>Confirm before deleting</Label>
+                                    <Label>{t("Confirm before deleting")}</Label>
                                     <GlobalTag/>
                                 </LabelRow>
                                 <Note>
-                                    Asks before moving items to the recycle bin. Shift+Del always asks,
-                                    because that deletes permanently.
+                                    {t("Asks before moving items to the recycle bin. Shift+Del always asks, because that deletes permanently.")}
                                 </Note>
                             </RowText>
                             <Toggle
@@ -810,12 +839,11 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         <Row>
                             <RowText>
                                 <LabelRow>
-                                    <Label>Play audio in video previews</Label>
+                                    <Label>{t("Play audio in video previews")}</Label>
                                     <GlobalTag/>
                                 </LabelRow>
                                 <Note>
-                                    Video previews play muted by default. Turn this on to hear their audio
-                                    while the details panel is open.
+                                    {t("Video previews play muted by default. Turn this on to hear their audio while the details panel is open.")}
                                 </Note>
                             </RowText>
                             <Toggle
@@ -830,12 +858,11 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         <Row>
                             <RowText>
                                 <LabelRow>
-                                    <Label>Autoplay video previews</Label>
+                                    <Label>{t("Autoplay video previews")}</Label>
                                     <GlobalTag/>
                                 </LabelRow>
                                 <Note>
-                                    Off by default. Turn this on to start a video as soon as its details
-                                    panel opens; the play button still works when it is off.
+                                    {t("Off by default. Turn this on to start a video as soon as its details panel opens; the play button still works when it is off.")}
                                 </Note>
                             </RowText>
                             <Toggle
@@ -852,13 +879,11 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         <Row>
                             <RowText>
                                 <LabelRow>
-                                    <Label>Preview panel under the list</Label>
+                                    <Label>{t("Preview panel under the list")}</Label>
                                     <GlobalTag/>
                                 </LabelRow>
                                 <Note>
-                                    Shows the pictures, videos and documents the shell can preview as grid
-                                    tiles below the list. The tiles follow the grid size, and the panel only
-                                    appears in list mode.
+                                    {t("Shows the pictures, videos and documents the shell can preview as grid tiles below the list. The tiles follow the grid size, and the panel only appears in list mode.")}
                                 </Note>
                             </RowText>
                             <Toggle
@@ -874,10 +899,10 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         <Row>
                             <RowText>
                                 <LabelRow>
-                                    <Label>Columns</Label>
+                                    <Label>{t("Columns")}</Label>
                                     <GlobalTag/>
                                 </LabelRow>
-                                <Note>Shown in every folder; changing them changes all folders at once.</Note>
+                                <Note>{t("Shown in every folder; changing them changes all folders at once.")}</Note>
                             </RowText>
                         </Row>
                         <Row>
@@ -889,7 +914,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                             onChange={() => void toggleColumn(column.id)}
                                             type="checkbox"
                                         />
-                                        <span>{column.label}</span>
+                                        <span>{t(column.label)}</span>
                                     </ColumnCheck>
                                 ))}
                                 <ColumnCheck>
@@ -898,15 +923,14 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                         onChange={() => void toggleColumn("linkTarget")}
                                         type="checkbox"
                                     />
-                                    <span>Link target after the name</span>
+                                    <span>{t("Link target after the name")}</span>
                                 </ColumnCheck>
                             </ColumnGrid>
                         </Row>
                     </Rows>
                     <Footnote>
-                        The default view, list icon size and grid size are only defaults: a folder can still
-                        remember its own from the title bar. Anything marked <GlobalTag/> always applies to
-                        every folder.
+                        {t("The default view, list icon size and grid size are only defaults: a folder can still remember its own from the title bar.")}{" "}
+                        <GlobalTag/> {t("Anything marked as global always applies to every folder.")}
                     </Footnote>
                 </Section>
 
@@ -919,8 +943,8 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         {ShortcutRows.map(({id, label, note}) => (
                             <Row key={id}>
                                 <RowText>
-                                    <Label>{label}</Label>
-                                    <Note>{note}</Note>
+                                    <Label>{t(label)}</Label>
+                                    <Note>{t(note)}</Note>
                                 </RowText>
                                 <RowEnd>
                                     <KeyButton
@@ -928,22 +952,22 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                         onClick={() => setCapturing(id)}
                                         type="button"
                                     >
-                                        {capturing === id ? "Press a key…" : prettyShortcut(keys[id])}
+                                        {capturing === id ? t("Press a key…") : prettyShortcut(keys[id])}
                                     </KeyButton>
                                 </RowEnd>
                             </Row>
                         ))}
                         <Row>
                             <RowText>
-                                <Label>Reset</Label>
-                                <Note>Back to the default combination for every action.</Note>
+                                <Label>{t("Reset")}</Label>
+                                <Note>{t("Back to the default combination for every action.")}</Note>
                             </RowText>
                             <RowEnd>
                                 <ActionButton
                                     onClick={() => void update({shortcuts: {...DefaultShortcuts}})}
                                     type="button"
                                 >
-                                    Reset
+                                    {t("Reset")}
                                 </ActionButton>
                             </RowEnd>
                         </Row>
@@ -958,7 +982,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                     <Rows>
                         <Gauge>
                             <GaugeHead>
-                                <Label>Process memory</Label>
+                                <Label>{t("Process memory")}</Label>
                                 <Value>
                                     {memory ? `${formatBytes(memory.private)} · ${percent(memory.private, memory.available)}` : "—"}
                                 </Value>
@@ -971,14 +995,15 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                             </Track>
                             <Note>
                                 {memory
-                                    ? `Committed of ${formatBytes(memory.available)} the runtime can use; ${formatBytes(memory.workingSet)} is resident. The webview runs in its own process.`
-                                    : "Reading the current usage…"}
+                                    ? t("Committed of {available} the runtime can use; {resident} is resident. The webview runs in its own process.",
+                                        {available: formatBytes(memory.available), resident: formatBytes(memory.workingSet)})
+                                    : t("Reading the current usage…")}
                             </Note>
                         </Gauge>
 
                         <Gauge>
                             <GaugeHead>
-                                <Label>Managed heap</Label>
+                                <Label>{t("Managed heap")}</Label>
                                 <Value>
                                     {memory ? `${formatBytes(memory.managed)} · ${percent(memory.managed, memory.private)}` : "—"}
                                 </Value>
@@ -990,20 +1015,18 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                 />
                             </Track>
                             <Note>
-                                Share of this process that the .NET heap holds; thumbnails and folder
-                                size walks live here. The runtime grows it on demand and gives it back
-                                after a collection.
+                                {t("Share of this process that the .NET heap holds; thumbnails and folder size walks live here. The runtime grows it on demand and gives it back after a collection.")}
                             </Note>
                         </Gauge>
 
                         <Row>
                             <RowText>
-                                <Label>Free memory</Label>
-                                <Note>Compacts the heap and returns unused pages to the system. Always safe.</Note>
+                                <Label>{t("Free memory")}</Label>
+                                <Note>{t("Compacts the heap and returns unused pages to the system. Always safe.")}</Note>
                             </RowText>
                             <RowEnd>
                                 <ActionButton onClick={() => void trimMemory().then(setMemory)} type="button">
-                                    Trim now
+                                    {t("Trim now")}
                                 </ActionButton>
                             </RowEnd>
                         </Row>
@@ -1018,8 +1041,8 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                     <Rows>
                         <Row>
                             <RowText>
-                                <Label>Recent items</Label>
-                                <Note>How many recently opened folders the overview lists. 0 hides the section.</Note>
+                                <Label>{t("Recent items")}</Label>
+                                <Note>{t("How many recently opened folders the overview lists. 0 hides the section.")}</Note>
                             </RowText>
                             <RowEnd>
                                 <Input
@@ -1048,7 +1071,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                 <RowEnd>
                                     <IconButton
                                         onClick={() => void saveGallery((settings?.galleryRoots ?? []).filter((item) => item !== path))}
-                                        title="Stop scanning this folder"
+                                        title={t("Stop scanning this folder")}
                                         type="button"
                                     >
                                         <CrossIcon size={12}/>
@@ -1059,16 +1082,16 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
 
                         <Row>
                             <RowText>
-                                <Label>Scan folders</Label>
+                                <Label>{t("Scan folders")}</Label>
                                 <Note>
                                     {(settings?.galleryRoots ?? []).length === 0
-                                        ? "Nothing added yet, so the gallery reads the Pictures folder."
-                                        : "Only these folders are scanned, three levels deep."}
+                                        ? t("Nothing added yet, so the gallery reads the Pictures folder.")
+                                        : t("Only these folders are scanned, three levels deep.")}
                                 </Note>
                             </RowText>
                             <RowEnd>
                                 <ActionButton onClick={() => void addGalleryRoot()} type="button">
-                                    Choose folder…
+                                    {t("Choose folder…")}
                                 </ActionButton>
                             </RowEnd>
                         </Row>
@@ -1083,8 +1106,8 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                     <Rows>
                         <Row>
                             <RowText>
-                                <Label>Use system file icons</Label>
-                                <Note>Ask the shell for the icon of each file type instead of the built-in glyphs.</Note>
+                                <Label>{t("Use system file icons")}</Label>
+                                <Note>{t("Ask the shell for the icon of each file type instead of the built-in glyphs.")}</Note>
                             </RowText>
                             <Toggle
                                 $on={settings?.systemIcons ?? false}
@@ -1097,10 +1120,9 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>Use custom folder icons</Label>
+                                <Label>{t("Use custom folder icons")}</Label>
                                 <Note>
-                                    Folders that define an icon (desktop.ini) keep showing it even when system
-                                    icons are off.
+                                    {t("Folders that define an icon (desktop.ini) keep showing it even when system icons are off.")}
                                 </Note>
                             </RowText>
                             <Toggle
@@ -1127,13 +1149,13 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                 <Row key={extension}>
                                     <RowText>
                                         <Label>{extension}</Label>
-                                        <Note>{describeSource(source)}</Note>
+                                        <Note>{describeSource(t, source)}</Note>
                                     </RowText>
                                     <RowEnd>
                                         <Preview source={source}/>
                                         <IconButton
                                             onClick={() => void setOverride(extension, null)}
-                                            title="Remove this rule"
+                                            title={t("Remove this rule")}
                                             type="button"
                                         >
                                             <CrossIcon size={12}/>
@@ -1144,8 +1166,8 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
 
                         <Row>
                             <RowText>
-                                <Label>Add a rule</Label>
-                                <Note>Extension and the icon to draw for it.</Note>
+                                <Label>{t("Add a rule")}</Label>
+                                <Note>{t("Extension and the icon to draw for it.")}</Note>
                             </RowText>
                             <RowEnd>
                                 <Input
@@ -1157,7 +1179,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                 <IconTrigger>
                                     <IconButton
                                         onClick={() => setPickingIcon((current) => !current)}
-                                        title="Choose the icon"
+                                        title={t("Choose the icon")}
                                         type="button"
                                     >
                                         <Preview source={newIcon}/>
@@ -1174,7 +1196,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                         />
                                     )}
                                 </IconTrigger>
-                                <IconButton onClick={() => void addRule()} title="Add the rule" type="button">
+                                <IconButton onClick={() => void addRule()} title={t("Add the rule")} type="button">
                                     <PlusIcon size={13}/>
                                 </IconButton>
                             </RowEnd>
@@ -1190,16 +1212,15 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                     <Rows>
                         <Row>
                             <RowText>
-                                <Label>Give a folder its own icon</Label>
+                                <Label>{t("Give a folder its own icon")}</Label>
                                 <Note>
-                                    Stored in the folder's parent <Index>.yafm-index.db</Index>, so it stays with
-                                    the files.
+                                    {t("Stored in the folder's parent {index}, so it stays with the files.", {index: ".yafm-index.db"})}
                                 </Note>
                             </RowText>
                             <RowEnd>
                                 {folderIcon && <Thumb src={folderIcon.icon}/>}
                                 <ActionButton disabled={busy} onClick={() => void assignFolderIcon()} type="button">
-                                    {busy ? "Choosing…" : "Choose folder and icon…"}
+                                    {busy ? t("Choosing…") : t("Choose folder and icon…")}
                                 </ActionButton>
                             </RowEnd>
                         </Row>
@@ -1210,7 +1231,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                     <Note>{folderIcon.folder}</Note>
                                 </RowText>
                                 <RowEnd>
-                                    <Badge><CheckIcon size={11}/> Saved</Badge>
+                                    <Badge><CheckIcon size={11}/> {t("Saved")}</Badge>
                                 </RowEnd>
                             </Row>
                         )}
@@ -1225,11 +1246,9 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                     <Rows>
                         <Row>
                             <RowText>
-                                <Label>Keep a <Index>.yafm-index.db</Index> in every folder</Label>
+                                <Label>{t("Keep a {index} in every folder", {index: ".yafm-index.db"})}</Label>
                                 <Note>
-                                    Holds icons, cached folder sizes and the folder's last listing, so it opens
-                                    instantly next time. Hidden and marked as a system file on Windows; skipped
-                                    where the folder is read-only.
+                                    {t("Holds icons, cached folder sizes and the folder's last listing, so it opens instantly next time. Hidden and marked as a system file on Windows; skipped where the folder is read-only.")}
                                 </Note>
                             </RowText>
                             <Toggle
@@ -1243,7 +1262,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         </Row>
                     </Rows>
                     {!(settings?.writeDirectoryIndex ?? true) && (
-                        <Notice>{folderIndexNotice(appInfo?.platform)}</Notice>
+                        <Notice>{folderIndexNotice(t, appInfo?.platform)}</Notice>
                     )}
                 </Section>
 
@@ -1254,23 +1273,22 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                     />
                     <Rows>
                         <Row>
-                            <Label>Hidden items</Label>
-                            <Value>{describe(visibility?.showHidden)}</Value>
+                            <Label>{t("Hidden items")}</Label>
+                            <Value>{describe(t, visibility?.showHidden)}</Value>
                         </Row>
                         <Row>
-                            <Label>Protected operating system files</Label>
-                            <Value>{describe(visibility?.showSystem)}</Value>
+                            <Label>{t("Protected operating system files")}</Label>
+                            <Value>{describe(t, visibility?.showSystem)}</Value>
                         </Row>
                     </Rows>
                     <Footnote>
-                        Listings follow the file manager's own settings: hidden and protected items are only
-                        shown when the operating system is set to show them.
+                        {t("Listings follow the file manager's own settings: hidden and protected items are only shown when the operating system is set to show them.")}
                     </Footnote>
                 </Section>
             </Main>
 
-            <Toc aria-label="Settings sections">
-                <TocLabel>Sections</TocLabel>
+            <Toc aria-label={t("Settings sections")}>
+                <TocLabel>{t("Sections")}</TocLabel>
                 <TocList>
                     {SettingSections.map(({id, label}) => (
                         <TocItem
@@ -1279,36 +1297,37 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                             onClick={() => jumpTo(id)}
                             type="button"
                         >
-                            <span>{label}</span>
+                            <span>{t(label)}</span>
                         </TocItem>
                     ))}
                 </TocList>
-                <TocNote>Changes are saved as you make them.</TocNote>
+                <TocNote>{t("Changes are saved as you make them.")}</TocNote>
             </Toc>
         </Page>
     );
 }
 
-function describe(value: boolean | undefined): string {
-    if (value === undefined) return "Reading…";
+function describe(t: Translate, value: boolean | undefined): string {
+    if (value === undefined) return t("Reading…");
 
-    return value ? "Shown" : "Hidden";
+    return value ? t("Shown") : t("Hidden");
 }
 
 /**
  * Shown only while per-folder indexes are off, and names the drive the central database grows on.
  * Windows and Linux keep the settings in different places, and only the user knows where that is.
  */
-function folderIndexNotice(platform: string | undefined): string {
-    const place = platform === "windows" ? "%APPDATA%, which sits on the system drive (usually C:)"
+function folderIndexNotice(t: Translate, platform: string | undefined): string {
+    const place = t(platform === "windows" ? "%APPDATA%, which sits on the system drive (usually C:)"
         : platform === "linux" ? "your home folder, which often shares a partition with the system"
-            : "the app's settings folder, which usually sits on the system drive";
+            : "the app's settings folder, which usually sits on the system drive");
 
-    return `Indexes are off. Every folder's icons, sizes and cached listing now live in one database in ${place}, so that drive grows with every folder you open — that is the cost of keeping folders free of extra files.`;
+    return t("Indexes are off. Every folder's icons, sizes and cached listing now live in one database in {place}, so that drive grows with every folder you open — that is the cost of keeping folders free of extra files.",
+        {place});
 }
 
-function describeSource(source: string): string {
-    return source.startsWith("file:") ? source.slice(5) : `built-in: ${source}`;
+function describeSource(t: Translate, source: string): string {
+    return source.startsWith("file:") ? source.slice(5) : t("built-in: {source}", {source});
 }
 
 function Preview({source}: { source: string }) {
@@ -1327,12 +1346,116 @@ function Thumb({src}: { src: string }) {
     return <PreviewSlot>{image && <img alt="" height={18} src={image} width={18}/>}</PreviewSlot>;
 }
 
+/**
+ * The language menu is drawn by the app rather than the browser, so it follows the theme and the
+ * CJK fonts the rest of the interface uses. It renders in a portal because the settings column
+ * scrolls and would clip an inline popup.
+ */
+function LanguagePicker({value, options, onChange, disabled}: {
+    value: string;
+    options: string[];
+    onChange: (code: string) => void;
+    disabled?: boolean;
+}) {
+    const t = useTranslation();
+    const [anchor, setAnchor] = useState<{ left: number; top: number; width: number } | null>(null);
+    const button = useRef<HTMLButtonElement | null>(null);
+
+    useEffect(() => {
+        if (!anchor) return;
+
+        const close = () => setAnchor(null);
+        const onPointerDown = (event: PointerEvent) => {
+            const target = event.target;
+            if (target instanceof Node && button.current?.contains(target)) return;
+            if (target instanceof Element && target.closest("[data-language-menu]")) return;
+
+            close();
+        };
+        const onKey = (event: KeyboardEvent) => {
+            if (event.key === "Escape") close();
+        };
+
+        window.addEventListener("pointerdown", onPointerDown, true);
+        window.addEventListener("keydown", onKey, true);
+        window.addEventListener("scroll", close, true);
+        window.addEventListener("resize", close);
+
+        return () => {
+            window.removeEventListener("pointerdown", onPointerDown, true);
+            window.removeEventListener("keydown", onKey, true);
+            window.removeEventListener("scroll", close, true);
+            window.removeEventListener("resize", close);
+        };
+    }, [anchor]);
+
+    const toggle = () => {
+        if (anchor) {
+            setAnchor(null);
+            return;
+        }
+
+        const rect = button.current?.getBoundingClientRect();
+        if (rect) setAnchor({left: rect.left, top: rect.bottom + 4, width: rect.width});
+    };
+
+    return (
+        <>
+            <PickerButton
+                aria-expanded={anchor !== null}
+                aria-haspopup="listbox"
+                disabled={disabled}
+                onClick={toggle}
+                ref={button}
+                type="button"
+            >
+                <span>{labelOf(t, value)}</span>
+                <PickerChevron><ChevronRightIcon size={11}/></PickerChevron>
+            </PickerButton>
+            {anchor && createPortal(
+                <PickerMenu
+                    data-language-menu="true"
+                    role="listbox"
+                    style={{left: anchor.left, minWidth: anchor.width, top: anchor.top}}
+                >
+                    {options.map((code) => (
+                        <PickerOption
+                            $active={code === value}
+                            aria-selected={code === value}
+                            key={code}
+                            onClick={() => {
+                                onChange(code);
+                                setAnchor(null);
+                            }}
+                            role="option"
+                            type="button"
+                        >
+                            <span>{labelOf(t, code)}</span>
+                            {code === value && <CheckIcon size={11}/>}
+                        </PickerOption>
+                    ))}
+                </PickerMenu>,
+                document.body,
+            )}
+        </>
+    );
+}
+
+/** What the picker shows for a stored value: an endonym, or the auto option. */
+function labelOf(t: Translate, code: string): string {
+    if (code === AutoLanguage) return t("System default");
+
+    return LocaleNames[code] ?? code;
+}
+
 /** The colour that was applied before, then the rest of the recent ones. */
 function RecentSwatches({colors, current, onApply}: {
     colors: string[];
     current: string;
     onApply: (color: string) => void;
 }) {
+    const t = useTranslation();
+
     if (colors.length === 0)
         return null;
 
@@ -1343,18 +1466,18 @@ function RecentSwatches({colors, current, onApply}: {
             <PreviousColor
                 $color={previous}
                 onClick={() => onApply(previous)}
-                title={`Previous colour · ${previous}`}
+                title={t("Previous colour · {colour}", {colour: previous})}
                 type="button"
             >
                 <i/>
-                Previous
+                {t("Previous")}
             </PreviousColor>
             {rest.map((color) => (
                 <Swatch
                     $color={color}
                     key={color}
                     onClick={() => onApply(color)}
-                    title={`Use ${color}`}
+                    title={t("Use {colour}", {colour: color})}
                     type="button"
                 >
                     {color.toLowerCase() === current.toLowerCase() && <CheckIcon size={9}/>}
@@ -1366,10 +1489,12 @@ function RecentSwatches({colors, current, onApply}: {
 
 /** The title block above a card; every section explains itself in one line. */
 function Head({title, note}: { title: string; note: string }) {
+    const t = useTranslation();
+
     return (
         <SectionHead>
-            <h2>{title}</h2>
-            <p>{note}</p>
+            <h2>{t(title)}</h2>
+            <p>{t(note)}</p>
         </SectionHead>
     );
 }
@@ -1866,12 +1991,6 @@ const State = styled.span<{ $on: boolean }>`
     color: ${({$on}) => $on ? "#34d399" : "var(--text-muted)"};
 `;
 
-const Index = styled.code`
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--text-secondary);
-`;
-
 const Toggle = styled.button<{ $on: boolean }>`
     position: relative;
     width: 38px;
@@ -1922,6 +2041,81 @@ const Input = styled.input`
 
     &:focus {
         border-color: var(--border-color-focus);
+    }
+`;
+
+const PickerButton = styled.button`
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 150px;
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+
+    &:hover {
+        border-color: var(--border-color-hover);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--border-color-focus);
+        outline-offset: 1px;
+    }
+
+    &:disabled {
+        opacity: 0.55;
+        cursor: default;
+    }
+`;
+
+const PickerChevron = styled.span`
+    display: inline-flex;
+    color: var(--text-muted);
+    transform: rotate(90deg);
+`;
+
+const PickerMenu = styled.div`
+    position: fixed;
+    z-index: 2600;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    box-shadow: 0 18px 44px rgba(2, 6, 23, 0.55);
+`;
+
+const PickerOption = styled.button<{ $active: boolean }>`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 6px 9px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: ${({$active}) => $active ? "rgba(var(--accent-rgb), 0.16)" : "transparent"};
+    color: ${({$active}) => $active ? "var(--text-primary)" : "var(--text-secondary)"};
+    font: inherit;
+    font-size: 11px;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+        background: rgba(var(--accent-rgb), 0.12);
+        color: var(--text-primary);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--border-color-focus);
+        outline-offset: -1px;
     }
 `;
 

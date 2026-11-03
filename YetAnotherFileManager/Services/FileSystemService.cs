@@ -168,15 +168,20 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
             case "app.settings.set":
                 if (context.Payload<AppSettings>() is { } settings)
-                    return context.Reply("app.settings.result", await SettingsService.Instance.UpdateAsync(current =>
-                        settings with
-                        {
-                            // The settings page never edits tabs; the window owns them through app.tabs.set.
-                            OpenTabs = current.OpenTabs,
-                            ActiveTab = current.ActiveTab,
-                            // Only app.scheme.set changes the link registration.
-                            LinksEnabled = current.LinksEnabled
-                        }));
+                {
+                    var saved = await SettingsService.Instance.UpdateAsync(current => settings with
+                    {
+                        // The settings page never edits tabs; the window owns them through app.tabs.set.
+                        OpenTabs = current.OpenTabs,
+                        ActiveTab = current.ActiveTab,
+                        // Only app.scheme.set changes the link registration.
+                        LinksEnabled = current.LinksEnabled
+                    });
+
+                    // The localization provider reloads the string table when the language changes.
+                    WindowManager.Instance.Notify("settings.changed", new OkPayload());
+                    return context.Reply("app.settings.result", saved);
+                }
 
                 return context.Reply("app.settings.result", SettingsService.Instance.Current);
 

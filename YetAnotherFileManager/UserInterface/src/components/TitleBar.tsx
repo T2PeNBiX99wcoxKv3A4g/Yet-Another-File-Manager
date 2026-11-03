@@ -1,5 +1,6 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import styled from "styled-components";
+import {useTranslation} from "@photino-net-utils/bridge";
 import {useWindowControls, useWindowDrag} from "@photino-net-utils/bridge";
 import type {TabInfo} from "../tabs";
 import type {DirectoryView, ResolvedView} from "../api/files";
@@ -58,6 +59,7 @@ export function TitleBar({
     trayCount, trayVisible, onToggleTray,
     split, canSplit, onToggleSplit, details, canDetails, onToggleDetails, shortcuts,
 }: TitleBarProps) {
+    const t = useTranslation();
     const controls = useWindowControls();
     const drag = useWindowDrag();
     const [overflow, setOverflow] = useState({left: false, right: false});
@@ -98,7 +100,7 @@ export function TitleBar({
 
             <Tabs>
                 {overflow.left && (
-                    <ScrollButton onClick={() => scrollBy(-180)} title="Scroll tabs left" type="button">
+                    <ScrollButton onClick={() => scrollBy(-180)} title={t("Scroll tabs left")} type="button">
                         <ChevronLeftSmallSvg/>
                     </ScrollButton>
                 )}
@@ -150,7 +152,7 @@ export function TitleBar({
                                     event.stopPropagation();
                                     onClose(tab.id);
                                 }}
-                                title="Close tab"
+                                title={t("Close tab")}
                             >
                                 <CloseSmallSvg/>
                             </TabClose>
@@ -159,7 +161,7 @@ export function TitleBar({
                 </Scroller>
 
                 {overflow.right && (
-                    <ScrollButton onClick={() => scrollBy(180)} title="Scroll tabs right" type="button">
+                    <ScrollButton onClick={() => scrollBy(180)} title={t("Scroll tabs right")} type="button">
                         <ChevronRightSmallSvg/>
                     </ScrollButton>
                 )}
@@ -167,7 +169,7 @@ export function TitleBar({
                 <NewTab
                     data-shortcut={prettyShortcut(shortcuts.newTab)}
                     onClick={onNewTab}
-                    title="New tab"
+                    title={t("New tab")}
                     type="button"
                 >
                     <PlusIcon size={13}/>
@@ -182,7 +184,7 @@ export function TitleBar({
                     data-shortcut={prettyShortcut(shortcuts.splitView)}
                     disabled={!canSplit}
                     onClick={onToggleSplit}
-                    title={split ? "Close split view" : "Split view"}
+                    title={split ? t("Close split view") : t("Split view")}
                     type="button"
                 >
                     <SplitIcon size={15}/>
@@ -191,7 +193,7 @@ export function TitleBar({
                     $active={details}
                     disabled={!canDetails}
                     onClick={onToggleDetails}
-                    title={details ? "Hide details panel" : "Show details panel"}
+                    title={details ? t("Hide details panel") : t("Show details panel")}
                     type="button"
                 >
                     <PanelIcon size={15}/>
@@ -199,7 +201,7 @@ export function TitleBar({
                 <TrayButton
                     $active={trayVisible}
                     onClick={onToggleTray}
-                    title={trayVisible ? "Hide file tray" : "Show file tray"}
+                    title={trayVisible ? t("Hide file tray") : t("Show file tray")}
                     type="button"
                 >
                     <PackageIcon size={14}/>
@@ -214,19 +216,19 @@ export function TitleBar({
                     showImages={showImages}
                     view={view}
                 />
-                <ControlButton onClick={controls.minimize} title="Minimize" type="button">
+                <ControlButton onClick={controls.minimize} title={t("Minimize")} type="button">
                     <MinimizeSvg/>
                 </ControlButton>
                 <ControlButton
                     onClick={controls.toggleMaximize}
-                    title={controls.maximized ? "Restore" : "Maximize"}
+                    title={controls.maximized ? t("Restore") : t("Maximize")}
                     type="button"
                 >
                     {controls.maximized
                         ? <RestoreSmallSvg/>
                         : <MaximizeSvg/>}
                 </ControlButton>
-                <CloseButton onClick={controls.close} title="Close" type="button">
+                <CloseButton onClick={controls.close} title={t("Close")} type="button">
                     <CloseSmallSvg/>
                 </CloseButton>
             </Controls>

@@ -29,8 +29,9 @@ import {
 import {NoFind, rangesOf, type FindView} from "../find";
 import {canPreview, previewKindOf, PreviewKindLabels} from "../preview";
 import {quickPlace, useQuickAccess} from "../quick";
-import {baseName, formatBytes, formatDate} from "../utils/format";
+import {baseName, formatBytes, formatDate, plural} from "../utils/format";
 import {readStoredNumber, writeStoredNumber} from "../storage";
+import {useTranslation, type Translate} from "@photino-net-utils/bridge";
 import {
     AppIcon,
     ArchiveIcon,
@@ -156,6 +157,7 @@ export function FileList({
     previewVideoAutoplay = false, showDetails = true, onPreviewInfo, onActivate,
     groupOf, onGridScroll, gridFooter, allowBackgroundMenu = true,
 }: FileListProps) {
+    const t = useTranslation();
     const quick = useQuickAccess();
     const currentRow = useRef<HTMLDivElement | null>(null);
     const head = useRef<HTMLDivElement | null>(null);
@@ -286,12 +288,12 @@ export function FileList({
             })
             .filter((row) => !searching || find.mode === "dim" || row.ranges !== null);
 
-        return sortRows(matched, view, listing);
+        return sortRows(matched, view, listing, t);
     }, [
         listing?.entries, listing?.tags,
         view.sort === "size" || view.sort === "items" ? listing?.folderSizes : null,
         view.sort === "size" || view.sort === "items" ? listing?.counts : null,
-        searching, find, quick, view.sort, view.sortDescending,
+        searching, find, quick, view.sort, view.sortDescending, t,
     ]);
 
     rowsRef.current = rows;
@@ -585,7 +587,7 @@ export function FileList({
             return;
 
         if (!await pasteInto(directory))
-            window.alert("Nothing on the clipboard could be pasted here.");
+            window.alert(t("Nothing on the clipboard could be pasted here."));
         else {
             refresh();
             onPaste?.();
@@ -601,7 +603,7 @@ export function FileList({
         if (result.ok)
             refresh();
         else
-            window.alert(result.error ?? "Could not create the folder.");
+            window.alert(result.error ?? t("Could not create the folder."));
     };
 
     const rename = (entry: FileEntry) => {
@@ -636,9 +638,9 @@ export function FileList({
             clearSelection();
             refresh();
         } else {
-            window.alert(result.error ?? "Could not rename the entry.");
+            window.alert(result.error ?? t("Could not rename the entry."));
         }
-    }, [clearSelection, refresh]);
+    }, [clearSelection, refresh, t]);
 
     const remove = async (paths: string[], permanent = false) => {
         if ((permanent || confirmDelete) && !await askDelete(paths, permanent))
@@ -646,8 +648,8 @@ export function FileList({
 
         if (!await deletePaths(paths, permanent))
             window.alert(permanent
-                ? "The shell could not delete the selection."
-                : "The shell could not move the selection to the recycle bin.");
+                ? t("The shell could not delete the selection.")
+                : t("The shell could not move the selection to the recycle bin."));
         else {
             clearSelection();
             refresh();
@@ -670,7 +672,7 @@ export function FileList({
         if (result.ok)
             refresh();
         else
-            window.alert(result.error ?? "Could not create the ZIP file.");
+            window.alert(result.error ?? t("Could not create the ZIP file."));
     };
 
     const copyAsPath = async (paths: string[]) => {
@@ -830,30 +832,30 @@ export function FileList({
 
     if (menu?.background) {
         menuItems.push({
-            label: "Open in Terminal", icon: <TerminalIcon size={14}/>,
+            label: t("Open in Terminal"), icon: <TerminalIcon size={14}/>,
             onSelect: () => void openTerminal(currentDirectory),
         });
         menuItems.push({
-            label: "Show in Explorer", icon: <FolderIcon size={14}/>, separatorBefore: true,
+            label: t("Show in Explorer"), icon: <FolderIcon size={14}/>, separatorBefore: true,
             onSelect: () => void showInExplorer(currentDirectory),
         });
 
         quickActions.push(
             {
-                label: "New folder", icon: <PlusIcon size={16}/>, shortcut: prettyShortcut(shortcuts.newFolder),
+                label: t("New folder"), icon: <PlusIcon size={16}/>, shortcut: prettyShortcut(shortcuts.newFolder),
                 onSelect: () => void createFolder(),
             },
             {
-                label: "Paste", icon: <PasteIcon size={16}/>, disabled: !canPaste,
+                label: t("Paste"), icon: <PasteIcon size={16}/>, disabled: !canPaste,
                 shortcut: prettyShortcut(shortcuts.paste),
                 onSelect: () => void paste(currentDirectory),
             },
             {
-                label: "Refresh", icon: <RefreshIcon size={16}/>, shortcut: prettyShortcut(shortcuts.refresh),
+                label: t("Refresh"), icon: <RefreshIcon size={16}/>, shortcut: prettyShortcut(shortcuts.refresh),
                 onSelect: refresh,
             },
             {
-                label: "Properties", icon: <GearIcon size={16}/>,
+                label: t("Properties"), icon: <GearIcon size={16}/>,
                 shortcut: prettyShortcut(shortcuts.properties),
                 onSelect: () => void showProperties([currentDirectory]),
             },
@@ -861,7 +863,7 @@ export function FileList({
     }
     else if (menu) {
         menuItems.push({
-            label: "Open", icon: <ArrowRightIcon size={14}/>, onSelect: () => {
+            label: t("Open"), icon: <ArrowRightIcon size={14}/>, onSelect: () => {
                 if (!entry) return;
 
                 if (entry.isDirectory) onOpen(entry.fullPath);
@@ -871,15 +873,15 @@ export function FileList({
 
         if (entry?.isDirectory) {
             menuItems.push({
-                label: "Open in new tab", icon: <PlusIcon size={14}/>,
+                label: t("Open in new tab"), icon: <PlusIcon size={14}/>,
                 onSelect: () => onOpen(entry.fullPath, true),
             });
             menuItems.push({
-                label: "Paste into folder", icon: <PasteIcon size={14}/>, disabled: !canPaste,
+                label: t("Paste into folder"), icon: <PasteIcon size={14}/>, disabled: !canPaste,
                 onSelect: () => void paste(entry.fullPath),
             });
             menuItems.push({
-                label: "Open in Terminal", icon: <TerminalIcon size={14}/>,
+                label: t("Open in Terminal"), icon: <TerminalIcon size={14}/>,
                 onSelect: () => void openTerminal(entry.fullPath),
             });
         }
@@ -888,12 +890,12 @@ export function FileList({
             const children: ContextMenuItem[] = [];
 
             if (openWithApps.loading)
-                children.push({label: "Loading apps…", loading: true, disabled: true, onSelect: () => undefined});
+                children.push({label: t("Loading apps…"), loading: true, disabled: true, onSelect: () => undefined});
             else {
                 openWithApps.recommended.forEach((app) => {
                     children.push({
                         label: app.name,
-                        group: "Suggested apps",
+                        group: t("Suggested apps"),
                         icon: app.icon
                             ? <img alt="" height={14} src={app.icon} width={14}/>
                             : <ExecutableIcon size={14}/>,
@@ -906,7 +908,7 @@ export function FileList({
                 openWithApps.other.forEach((app) => {
                     children.push({
                         label: app.name,
-                        group: "Other apps",
+                        group: t("Other apps"),
                         icon: app.icon
                             ? <img alt="" height={14} src={app.icon} width={14}/>
                             : <ExecutableIcon size={14}/>,
@@ -918,14 +920,14 @@ export function FileList({
             }
 
             children.push({
-                label: "Choose another app…",
+                label: t("Choose another app…"),
                 icon: <ExecutableIcon size={14}/>,
                 separatorBefore: true,
                 onSelect: () => void openWith(entry.fullPath),
             });
 
             menuItems.push({
-                label: "Open with",
+                label: t("Open with"),
                 icon: <ExecutableIcon size={14}/>,
                 children,
                 onSelect: () => void openWith(entry.fullPath),
@@ -933,44 +935,44 @@ export function FileList({
         }
 
         menuItems.push({
-            label: "Compress to ZIP", icon: <ArchiveIcon size={14}/>, separatorBefore: true,
+            label: t("Compress to ZIP"), icon: <ArchiveIcon size={14}/>, separatorBefore: true,
             onSelect: () => void compress(menu.paths),
         });
         menuItems.push({
-            label: "Copy as path", icon: <CopyIcon size={14}/>,
+            label: t("Copy as path"), icon: <CopyIcon size={14}/>,
             onSelect: () => void copyAsPath(menu.paths),
         });
 
         menuItems.push({
-            label: "Show in Explorer", icon: <FolderIcon size={14}/>, separatorBefore: true,
+            label: t("Show in Explorer"), icon: <FolderIcon size={14}/>, separatorBefore: true,
             onSelect: () => void showInExplorer(menu.paths[0]),
         });
 
         quickActions.push(
             {
-                label: "Cut", icon: <CutIcon size={16}/>, shortcut: prettyShortcut(shortcuts.cut),
+                label: t("Cut"), icon: <CutIcon size={16}/>, shortcut: prettyShortcut(shortcuts.cut),
                 onSelect: () => void copy(menu.paths, true),
             },
             {
-                label: "Copy", icon: <CopyIcon size={16}/>, shortcut: prettyShortcut(shortcuts.copy),
+                label: t("Copy"), icon: <CopyIcon size={16}/>, shortcut: prettyShortcut(shortcuts.copy),
                 onSelect: () => void copy(menu.paths, false),
             },
         );
 
         if (single && entry)
             quickActions.push({
-                label: "Rename", icon: <PencilIcon size={16}/>, shortcut: prettyShortcut(shortcuts.rename),
+                label: t("Rename"), icon: <PencilIcon size={16}/>, shortcut: prettyShortcut(shortcuts.rename),
                 onSelect: () => void rename(entry),
             });
 
         quickActions.push(
             {
-                label: "Delete", icon: <TrashIcon size={16}/>, danger: true,
+                label: t("Delete"), icon: <TrashIcon size={16}/>, danger: true,
                 shortcut: prettyShortcut(shortcuts.delete),
                 onSelect: () => void remove(menu.paths),
             },
             {
-                label: "Properties", icon: <GearIcon size={16}/>,
+                label: t("Properties"), icon: <GearIcon size={16}/>,
                 shortcut: prettyShortcut(shortcuts.properties),
                 onSelect: () => void showProperties(menu.paths),
             },
@@ -980,7 +982,7 @@ export function FileList({
     if (menu) {
         if (shell.loading)
             menuItems.push({
-                label: "More actions",
+                label: t("More actions"),
                 icon: <ExecutableIcon size={14}/>,
                 loading: true,
                 disabled: true,
@@ -1035,19 +1037,17 @@ export function FileList({
 
     const confirmDialog = pendingConfirm && (
         <ConfirmDialog
-            confirmLabel={pendingConfirm.permanent ? "Delete" : "Move"}
+            confirmLabel={pendingConfirm.permanent ? t("Delete") : t("Move")}
             danger={pendingConfirm.permanent}
             message={pendingConfirm.permanent
-                ? `Permanently delete ${pendingConfirm.paths.length === 1
-                    ? "this item"
-                    : `${pendingConfirm.paths.length} items`}? This cannot be undone.`
-                : `Move ${pendingConfirm.paths.length === 1
-                    ? "this item"
-                    : `${pendingConfirm.paths.length} items`} to the recycle bin?`}
+                ? t("Permanently delete {target}? This cannot be undone.",
+                    {target: pendingConfirm.paths.length === 1 ? t("this item") : t("{count} items", {count: pendingConfirm.paths.length})})
+                : t("Move {target} to the recycle bin?",
+                    {target: pendingConfirm.paths.length === 1 ? t("this item") : t("{count} items", {count: pendingConfirm.paths.length})})}
             onCancel={() => settleDelete(false)}
             onConfirm={() => settleDelete(true)}
             open
-            title={pendingConfirm.permanent ? "Delete permanently" : "Move to the recycle bin"}
+            title={pendingConfirm.permanent ? t("Delete permanently") : t("Move to the recycle bin")}
         />
     );
 
@@ -1075,17 +1075,17 @@ export function FileList({
             size: total,
             modified: 0,
             fields: [
-                {label: "Type", value: "Folder"},
-                {label: "Location", value: listing.parent ?? "—"},
-                {label: "Path", value: listing.path},
-                {label: "Size", value: formatBytes(total)},
-                {label: "Items", value: `${count} item${count === 1 ? "" : "s"}`},
-                {label: "Modified", value: "—"},
-                {label: "Created", value: "—"},
-                {label: "Attributes", value: "—"},
+                {label: t("Type"), value: t("Folder")},
+                {label: t("Location"), value: listing.parent ?? "—"},
+                {label: t("Path"), value: listing.path},
+                {label: t("Size"), value: formatBytes(total)},
+                {label: t("Items"), value: plural(t, count, "1 item", "{count} items")},
+                {label: t("Modified"), value: "—"},
+                {label: t("Created"), value: "—"},
+                {label: t("Attributes"), value: "—"},
             ],
         };
-    }, [listing]);
+    }, [listing, t]);
 
     const selectionInfo = useMemo<PreviewInfo | null>(() => {
         if (!previewEntry || !listing)
@@ -1106,47 +1106,47 @@ export function FileList({
             modified: previewEntry.modified,
             created: previewEntry.created,
             fields: [
-                {label: "Type", value: typeLabel(previewEntry)},
-                {label: "Extension", value: previewEntry.isDirectory ? "—" : extension},
-                {label: "Location", value: listing.path},
-                {label: "Full path", value: previewEntry.fullPath},
+                {label: t("Type"), value: typeLabel(previewEntry, t)},
+                {label: t("Extension"), value: previewEntry.isDirectory ? "—" : extension},
+                {label: t("Location"), value: listing.path},
+                {label: t("Full path"), value: previewEntry.fullPath},
                 {
-                    label: "Size",
+                    label: t("Size"),
                     value: previewEntry.isDirectory
                         ? folderSize === undefined ? "—" : formatBytes(folderSize)
                         : formatBytes(previewEntry.size),
                 },
                 ...(previewEntry.isDirectory
                     ? [{
-                        label: "Items",
+                        label: t("Items"),
                         value: `${listing.counts[previewEntry.name] ?? "—"}`,
                     }]
                     : []),
-                {label: "Modified", value: formatDate(previewEntry.modified)},
-                {label: "Created", value: formatDate(previewEntry.created)},
+                {label: t("Modified"), value: formatDate(previewEntry.modified)},
+                {label: t("Created"), value: formatDate(previewEntry.created)},
                 {
-                    label: "Link status",
+                    label: t("Link status"),
                     value: previewEntry.linkTarget != null
-                        ? previewEntry.linkValid ? "OK" : "Broken"
-                        : previewEntry.linkCount > 1 ? "Hard link" : "—",
+                        ? previewEntry.linkValid ? "OK" : t("Broken")
+                        : previewEntry.linkCount > 1 ? t("Hard link") : "—",
                 },
                 ...(previewEntry.linkTarget
-                    ? [{label: "Target", value: previewEntry.linkTarget}]
+                    ? [{label: t("Target"), value: previewEntry.linkTarget}]
                     : []),
                 ...(previewEntry.linkCount > 1
-                    ? [{label: "Links", value: String(previewEntry.linkCount)}]
+                    ? [{label: t("Links"), value: String(previewEntry.linkCount)}]
                     : []),
                 {
-                    label: "Attributes",
+                    label: t("Attributes"),
                     value: [
-                        previewEntry.isHidden ? "Hidden" : "",
-                        previewEntry.isSystem ? "System" : "",
+                        previewEntry.isHidden ? t("Hidden") : "",
+                        previewEntry.isSystem ? t("System") : "",
                     ].filter(Boolean).join(", ") || "—",
                 },
-                ...(tags.length > 0 ? [{label: "Tags", value: tags.join(", ")}] : []),
+                ...(tags.length > 0 ? [{label: t("Tags"), value: tags.join(", ")}] : []),
             ],
         };
-    }, [listing, previewEntry]);
+    }, [listing, previewEntry, t]);
 
     const previewInfo = selectionInfo ?? directoryInfo;
     const previewInfoRef = useRef(onPreviewInfo);
@@ -1160,7 +1160,7 @@ export function FileList({
         <PreviewPane
             info={previewInfo}
             onWidth={resizePreview}
-            selectionNote={selected.size > 1 ? `${selected.size} items selected` : undefined}
+            selectionNote={selected.size > 1 ? plural(t, selected.size, "1 item selected", "{count} items selected") : undefined}
             videoAudio={previewVideoAudio}
             videoAutoplay={previewVideoAutoplay}
             width={previewWidth}
@@ -1171,7 +1171,7 @@ export function FileList({
         return <Center><ErrorText>{error}</ErrorText></Center>;
 
     if (!listing && !loading)
-        return <Center><Muted>Nothing selected.</Muted></Center>;
+        return <Center><Muted>{t("Nothing selected.")}</Muted></Center>;
 
     if (view.mode === "grid")
         return (
@@ -1219,8 +1219,8 @@ export function FileList({
                         <EmptyCell>
                             <Muted>
                                 {error ?? (searching && find.mode === "hide"
-                                    ? "No entries match the search."
-                                    : "This folder is empty.")}
+                                    ? t("No entries match the search.")
+                                    : t("This folder is empty."))}
                             </Muted>
                         </EmptyCell>
                     )}
@@ -1247,11 +1247,11 @@ export function FileList({
                 style={{gridTemplateColumns: template}}
             >
                 <HeaderButton onClick={() => onSort("name")} type="button">
-                    Name{markOf(view, "name")}
+                    {t("Name")}{markOf(view, "name")}
                 </HeaderButton>
                 {visible.map((column) => (
                     <HeaderButton key={column.id} onClick={() => onSort(column.id)} type="button">
-                        {column.label}{markOf(view, column.id)}
+                        {t(column.label)}{markOf(view, column.id)}
                     </HeaderButton>
                 ))}
             </Head>
@@ -1319,8 +1319,8 @@ export function FileList({
                     <Center>
                         <Muted>
                             {error ?? (searching && find.mode === "hide"
-                                ? "No entries match the search."
-                                : "This folder is empty.")}
+                                ? t("No entries match the search.")
+                                : t("This folder is empty."))}
                         </Muted>
                     </Center>
                 )}
@@ -1333,11 +1333,11 @@ export function FileList({
                         onPointerDown={startStripDrag}
                         onPointerMove={dragStrip}
                         onPointerUp={endStripDrag}
-                        title="Drag to resize; double-click to reset"
+                        title={t("Drag to resize; double-click to reset")}
                     />
                     <Strip style={{height: stripHeight}}>
                         <StripHead>
-                            Preview
+                            {t("Preview")}
                             <StripCount>
                                 {previewTotal > PreviewLimit
                                     ? `${shownPreviews.length} / ${previewTotal}`
@@ -1440,11 +1440,11 @@ function markOf(view: ResolvedView, column: string): string {
 const NameCollator = new Intl.Collator(undefined, {numeric: true, sensitivity: "base"});
 
 /** Folders stay first, the way Explorer keeps them, and the chosen column orders the rest. */
-function sortRows(rows: RowModel[], view: ResolvedView, listing: DirectoryListing): RowModel[] {
+function sortRows(rows: RowModel[], view: ResolvedView, listing: DirectoryListing, t: Translate): RowModel[] {
     const value = (entry: FileEntry): string | number => {
         switch (view.sort) {
             case "type":
-                return typeLabel(entry);
+                return typeLabel(entry, t);
             case "size":
                 return entry.isDirectory ? listing.folderSizes[entry.name] ?? 0 : entry.size;
             case "modified":
@@ -1547,30 +1547,30 @@ const TypeLabels: Record<string, string> = {
 };
 
 /** What the Type column says: a shortcut and a symbolic link must not look the same. */
-function typeLabel(entry: FileEntry): string {
+function typeLabel(entry: FileEntry, t: Translate): string {
     const lower = entry.name.toLowerCase();
 
     if (lower.endsWith(".lnk"))
-        return "Shortcut";
+        return t("Shortcut");
     if (lower.endsWith(".url") || lower.endsWith(".website"))
-        return "Internet shortcut";
+        return t("Internet shortcut");
     if (entry.linkTarget != null)
-        return entry.isDirectory ? "Folder link" : "Symbolic link";
+        return entry.isDirectory ? t("Folder link") : t("Symbolic link");
     if (entry.isDirectory)
-        return "Folder";
+        return t("Folder");
 
     const dot = entry.name.lastIndexOf(".");
     const extension = dot > 0 && dot < entry.name.length - 1 ? entry.name.slice(dot + 1).toUpperCase() : "";
-    const kind = TypeLabels[iconForName(entry.name)] ?? "file";
+    const kind = t(TypeLabels[iconForName(entry.name)] ?? "file");
 
-    return extension.length > 0 ? `${extension} ${kind}` : "File";
+    return extension.length > 0 ? `${extension} ${kind}` : t("File");
 }
 
 /** What one list cell shows. */
-function cellValue(column: string, entry: FileEntry, listing: DirectoryListing): string {
+function cellValue(column: string, entry: FileEntry, listing: DirectoryListing, t: Translate): string {
     switch (column) {
         case "type":
-            return typeLabel(entry);
+            return typeLabel(entry, t);
         case "size":
             return sizeOf(entry, listing.folderSizes);
         case "modified":
@@ -1582,7 +1582,7 @@ function cellValue(column: string, entry: FileEntry, listing: DirectoryListing):
         case "linkCount":
             return entry.linkCount > 1 ? String(entry.linkCount) : "—";
         case "linkStatus":
-            if (entry.linkTarget != null) return entry.linkValid ? "OK" : "Broken";
+            if (entry.linkTarget != null) return entry.linkValid ? "OK" : t("Broken");
             return entry.linkCount > 1 ? "OK" : "—";
         default:
             return "";
@@ -1732,6 +1732,7 @@ const GridTile = memo(function GridTile({
     onOpen: (path: string, newTab?: boolean) => void;
     onOpenFile?: (path: string) => void;
 }) {
+    const t = useTranslation();
     const quick = useQuickAccess();
     const previewable = !row.entry.isDirectory && canPreview(row.entry.name);
     const tileRef = useRef<HTMLDivElement | null>(null);
@@ -1802,7 +1803,7 @@ const GridTile = memo(function GridTile({
                         onToggle(path);
                     }}
                     onDoubleClick={(event) => event.stopPropagation()}
-                    title={selected ? "Deselect" : "Select"}
+                    title={selected ? t("Deselect") : t("Select")}
                     type="button"
                 >
                     {selected && <CheckIcon size={10}/>}
@@ -1844,8 +1845,10 @@ const GridTile = memo(function GridTile({
                     )}
                 <TileMeta>
                     {row.entry.isDirectory
-                        ? (itemCount === undefined ? typeLabel(row.entry) : `${typeLabel(row.entry)} · ${itemCount} items`)
-                        : `${typeLabel(row.entry)} · ${formatBytes(row.entry.size)}`}
+                        ? (itemCount === undefined
+                            ? typeLabel(row.entry, t)
+                            : t("{type} · {count} items", {type: typeLabel(row.entry, t), count: itemCount}))
+                        : t("{type} · {size}", {type: typeLabel(row.entry, t), size: formatBytes(row.entry.size)})}
                 </TileMeta>
                 {showTarget && row.entry.linkTarget && (
                     <TileLink title={row.entry.linkTarget}>→ {row.entry.linkTarget}</TileLink>
@@ -1881,12 +1884,14 @@ function GridContent({
     onRenameCommit?: () => void;
     onRenameCancel?: () => void;
 }) {
+    const t = useTranslation();
+
     return (
         <>
             {groups.map((group) => (
                 <GridSection key={group.id}>
                     <GridHeader>
-                        {group.label}
+                        {t(group.label)}
                         <GridCount>{group.rows.length}</GridCount>
                         <GridRule/>
                     </GridHeader>
@@ -2001,6 +2006,7 @@ const ListRow = memo(function ListRow({
     onRenameCommit: () => void;
     onRenameCancel: () => void;
 }) {
+    const t = useTranslation();
     const quick = useQuickAccess();
     const path = row.entry.fullPath;
 
@@ -2037,7 +2043,7 @@ const ListRow = memo(function ListRow({
                             onToggle(path);
                         }}
                         onDoubleClick={(event) => event.stopPropagation()}
-                        title={selected ? "Deselect" : "Select"}
+                        title={selected ? t("Deselect") : t("Select")}
                         type="button"
                     >
                         {selected && <CheckIcon size={10}/>}
@@ -2073,7 +2079,7 @@ const ListRow = memo(function ListRow({
                                     event.stopPropagation();
                                     onTagEdit(row.entry, event.clientX, event.clientY);
                                 }}
-                                title="Edit tags"
+                                title={t("Edit tags")}
                                 type="button"
                             >
                                 {row.tags.length > 0
@@ -2090,8 +2096,8 @@ const ListRow = memo(function ListRow({
                             </TagsButton>
                         )
                         : column.id === "linkStatus" && row.entry.linkValid === false
-                            ? <Broken>Broken</Broken>
-                            : cellValue(column.id, row.entry, listing)}
+                            ? <Broken>{t("Broken")}</Broken>
+                            : cellValue(column.id, row.entry, listing, t)}
                 </Cell>
             ))}
         </Row>

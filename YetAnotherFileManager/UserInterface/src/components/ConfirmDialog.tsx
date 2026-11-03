@@ -1,6 +1,7 @@
 import {useEffect, useRef} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
+import {useTranslation} from "@photino-net-utils/bridge";
 
 interface ConfirmDialogProps {
     open: boolean;
@@ -19,6 +20,7 @@ interface ConfirmDialogProps {
 export function ConfirmDialog({
     open, title, message, confirmLabel, danger = false, onConfirm, onCancel,
 }: ConfirmDialogProps) {
+    const t = useTranslation();
     const confirm = useRef<HTMLButtonElement | null>(null);
 
     useEffect(() => {
@@ -57,7 +59,7 @@ export function ConfirmDialog({
                 <Title>{title}</Title>
                 <Message>{message}</Message>
                 <Actions>
-                    <Button onClick={onCancel} type="button">Cancel</Button>
+                    <Button onClick={onCancel} type="button">{t("Cancel")}</Button>
                     <Button $danger={danger} onClick={onConfirm} ref={confirm} type="button">
                         {confirmLabel}
                     </Button>

@@ -59,6 +59,8 @@ export interface AppSettings {
     accentColor: string | null;
     /** The gradient/highlight colour, or null for the default indigo. */
     secondaryColor: string | null;
+    /** UI language such as "en" or "zh-TW"; null means English, "auto" follows the OS. */
+    language: string | null;
 }
 
 const fallback: AppSettings = {
@@ -92,6 +94,7 @@ const fallback: AppSettings = {
     previewVideoAutoplay: false,
     accentColor: null,
     secondaryColor: null,
+    language: null,
 };
 
 /** The interface settings, persisted by the host. */
@@ -131,6 +134,7 @@ export async function getSettings(): Promise<AppSettings> {
         previewVideoAutoplay: raw?.previewVideoAutoplay ?? false,
         accentColor: raw?.accentColor ?? null,
         secondaryColor: raw?.secondaryColor ?? null,
+        language: raw?.language ?? null,
     };
 }
 
@@ -171,6 +175,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         previewVideoAutoplay: saved?.previewVideoAutoplay ?? settings.previewVideoAutoplay,
         accentColor: saved?.accentColor ?? settings.accentColor,
         secondaryColor: saved?.secondaryColor ?? settings.secondaryColor,
+        language: saved?.language ?? settings.language,
     };
 }
 

@@ -1,8 +1,11 @@
 import styled from "styled-components";
+import {useTranslation} from "@photino-net-utils/bridge";
 
 /** Marks a view setting that applies to every folder, not only the one on screen. */
 export function GlobalTag() {
-    return <Tag title="Always applies to every folder">Global</Tag>;
+    const t = useTranslation();
+
+    return <Tag title={t("Always applies to every folder")}>{t("Global")}</Tag>;
 }
 
 const Tag = styled.span`

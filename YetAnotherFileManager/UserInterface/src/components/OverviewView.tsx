@@ -17,13 +17,13 @@ import {
     type RecentEntry,
 } from "../api/files";
 import {getSettings, pickFolder, saveSettings, type AppSettings} from "../api/settings";
-import {Native} from "@photino-net-utils/bridge";
+import {Native, useTranslation} from "@photino-net-utils/bridge";
 import {FileList} from "./FileList";
 import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, GridIcon, ListIcon, PencilIcon, PinIcon, PlusIcon} from "./Icons";
 import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
 import {quickPlace, useQuickAccess} from "../quick";
-import {baseName, driveLetter, driveName, formatBytes, usageTone} from "../utils/format";
+import {baseName, driveLetter, driveName, formatBytes, plural, usageTone} from "../utils/format";
 import {wantsNewTab} from "../shortcuts";
 import {buildPanels, PanelGlyph, type Panel, type PanelKind, type ViewMode} from "../panels";
 import {IconPicker} from "./IconPicker";
@@ -597,6 +597,7 @@ export function OverviewView({
     onDrivesChanged,
     visibilityVersion = 0,
 }: OverviewViewProps) {
+    const t = useTranslation();
     const quick = useQuickAccess();
     const [editing, setEditing] = useState(false);
     const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -910,7 +911,7 @@ export function OverviewView({
     /** Recent is one kind: the same entries, shown as cards or rows, with one empty state. */
     const renderRecent = (panel: Panel) => {
         if (recent.length === 0)
-            return <Empty>Files and folders you open show up here.</Empty>;
+            return <Empty>{t("Files and folders you open show up here.")}</Empty>;
 
         const entries = recent.slice(0, recentLimit);
 
@@ -974,7 +975,7 @@ export function OverviewView({
     /** Drives are one kind: the same volumes, shown as cards or rows, with one empty state. */
     const renderDrives = (panel: Panel) => {
         if (drives.length === 0)
-            return <Empty>No drives are available.</Empty>;
+            return <Empty>{t("No drives are available.")}</Empty>;
 
         const items = drives.map((drive) => {
             const used = drive.totalSize > 0 ? 1 - drive.freeSpace / drive.totalSize : 0;
@@ -996,13 +997,13 @@ export function OverviewView({
                         event.stopPropagation();
                         startDriveRename(drive);
                     }}
-                    title="Rename volume"
+                    title={t("Rename volume")}
                     type="button"
                 >
                     <PencilIcon size={11}/>
                 </RenameButton>
             );
-            const meta = <Meta>{formatBytes(drive.freeSpace)} free of {formatBytes(drive.totalSize)}</Meta>;
+            const meta = <Meta>{t("{free} free of {total}", {free: formatBytes(drive.freeSpace), total: formatBytes(drive.totalSize)})}</Meta>;
 
             return panel.view === "grid"
                 ? (
@@ -1054,7 +1055,7 @@ export function OverviewView({
                 const items = quickItems(panel);
 
                 if (!editing && items.length === 0)
-                    return <Empty>No folders in this Quick access panel yet.</Empty>;
+                    return <Empty>{t("No folders in this Quick access panel yet.")}</Empty>;
 
                 return panel.view === "grid"
                     ? (
@@ -1073,7 +1074,7 @@ export function OverviewView({
                                                 event.stopPropagation();
                                                 void removePlace(panel, place.path);
                                             }}
-                                            title="Remove from Quick access"
+                                            title={t("Remove from Quick access")}
                                             type="button"
                                         >
                                             <CrossIcon size={11}/>
@@ -1087,7 +1088,7 @@ export function OverviewView({
                                                     setIconEditor(isPlaceIconOpen(place.path) ? null : {kind: "place", id: place.path});
                                                 }}
                                                 onPointerDown={(event) => event.stopPropagation()}
-                                                title="Change icon"
+                                                title={t("Change icon")}
                                                 type="button"
                                             >
                                                 <Glyph><PlaceIcon place={place}/></Glyph>
@@ -1122,7 +1123,7 @@ export function OverviewView({
                                                             setIconEditor(null);
                                                             setPlaceRename({path: place.path, name: place.name});
                                                         }}
-                                                        title="Rename folder"
+                                                        title={t("Rename folder")}
                                                         type="button"
                                                     >
                                                         <PencilIcon size={11}/>
@@ -1136,11 +1137,11 @@ export function OverviewView({
                             ))}
 
                             {editing && (
-                                <AddFolder onClick={() => void addPlace(panel)} title="Pin a folder here" type="button">
+                                <AddFolder onClick={() => void addPlace(panel)} title={t("Pin a folder here")} type="button">
                                     <Glyph><PlusIcon size={15}/></Glyph>
                                     <CardText>
-                                        <strong>Add folder</strong>
-                                        <Meta>Pin a directory here</Meta>
+                                        <strong>{t("Add folder")}</strong>
+                                        <Meta>{t("Pin a directory here")}</Meta>
                                     </CardText>
                                 </AddFolder>
                             )}
@@ -1164,7 +1165,7 @@ export function OverviewView({
                                                     setIconEditor(isPlaceIconOpen(place.path) ? null : {kind: "place", id: place.path});
                                                 }}
                                                 onPointerDown={(event) => event.stopPropagation()}
-                                                title="Change icon"
+                                                title={t("Change icon")}
                                                 type="button"
                                             >
                                                 <PlaceIcon place={place} size={15}/>
@@ -1199,7 +1200,7 @@ export function OverviewView({
                                                             setIconEditor(null);
                                                             setPlaceRename({path: place.path, name: place.name});
                                                         }}
-                                                        title="Rename folder"
+                                                        title={t("Rename folder")}
                                                         type="button"
                                                     >
                                                         <PencilIcon size={11}/>
@@ -1216,7 +1217,7 @@ export function OverviewView({
                                                 event.stopPropagation();
                                                 void removePlace(panel, place.path);
                                             }}
-                                            title="Remove from Quick access"
+                                            title={t("Remove from Quick access")}
                                             type="button"
                                         >
                                             <CrossIcon size={11}/>
@@ -1226,11 +1227,11 @@ export function OverviewView({
                             ))}
 
                             {editing && (
-                                <AddFolder $row onClick={() => void addPlace(panel)} title="Pin a folder here" type="button">
+                                <AddFolder $row onClick={() => void addPlace(panel)} title={t("Pin a folder here")} type="button">
                                     <PlusIcon size={15}/>
                                     <RowText>
-                                        <strong>Add folder</strong>
-                                        <Meta>Pin a directory here</Meta>
+                                        <strong>{t("Add folder")}</strong>
+                                        <Meta>{t("Pin a directory here")}</Meta>
                                     </RowText>
                                 </AddFolder>
                             )}
@@ -1264,13 +1265,13 @@ export function OverviewView({
     return (
         <Page>
             <Toolbar>
-                <Segmented role="group" title="Columns">
+                <Segmented role="group" title={t("Columns")}>
                     {[1, 2, 3, 4, 5].map((count) => (
                         <Segment
                             key={count}
                             $active={columns === count}
                             onClick={() => void save({overviewColumns: count})}
-                            title={`${count} column${count > 1 ? "s" : ""}`}
+                            title={plural(t, count, "1 column", "{count} columns")}
                             type="button"
                         >
                             {count}
@@ -1283,11 +1284,11 @@ export function OverviewView({
                         <Ghost
                             onClick={() => setAddOpen((current) => !current)}
                             onPointerDown={(event) => event.stopPropagation()}
-                            title="Add a panel"
+                            title={t("Add a panel")}
                             type="button"
                         >
                             <PlusIcon size={12}/>
-                            Add panel ▾
+                            {t("Add panel ▾")}
                         </Ghost>
                         {addOpen && (
                             <PanelMenu onPointerDown={(event) => event.stopPropagation()}>
@@ -1300,11 +1301,11 @@ export function OverviewView({
                                         }}
                                         type="button"
                                     >
-                                        {kind === "quick" ? "Quick access"
-                                            : kind === "recent" ? "Recent"
-                                                : kind === "frequent" ? "Frequent"
-                                                    : kind === "home" ? "Home"
-                                                        : kind === "drives" ? "This PC" : "Folder…"}
+                                        {kind === "quick" ? t("Quick access")
+                                            : kind === "recent" ? t("Recent")
+                                                : kind === "frequent" ? t("Frequent")
+                                                    : kind === "home" ? t("Home")
+                                                        : kind === "drives" ? t("This PC") : t("Folder…")}
                                     </PanelMenuItem>
                                 ))}
                             </PanelMenu>
@@ -1320,11 +1321,11 @@ export function OverviewView({
                         setPlaceRename(null);
                         setDriveRename(null);
                     }}
-                    title={editing ? "Done" : "Edit"}
+                    title={editing ? t("Done") : t("Edit")}
                     type="button"
                 >
                     {editing ? <CheckIcon size={13}/> : <PencilIcon size={13}/>}
-                    {editing ? "Done" : "Edit"}
+                    {editing ? t("Done") : t("Edit")}
                 </Ghost>
             </Toolbar>
 
@@ -1344,7 +1345,7 @@ export function OverviewView({
                                                 <IconTrigger
                                                     onClick={() => setIconEditor(isPanelIconOpen(panel.id) ? null : {kind: "panel", id: panel.id})}
                                                     onPointerDown={(event) => event.stopPropagation()}
-                                                    title="Change icon"
+                                                    title={t("Change icon")}
                                                     type="button"
                                                 >
                                                     <PanelGlyph panel={panel} size={15}/>
@@ -1370,29 +1371,29 @@ export function OverviewView({
                                                     }}
                                                 />
                                             )
-                                            : <Title>{panel.title}</Title>}
+                                            : <Title>{t(panel.title)}</Title>}
                                     </HeadStart>
 
                                     <HeadEnd>
                                         {!editing && panel.kind === "recent" && (
-                                            <Ghost onClick={() => void clearRecent().then(onRecentCleared)} title="Clear" type="button">
-                                                Clear
+                                            <Ghost onClick={() => void clearRecent().then(onRecentCleared)} title={t("Clear")} type="button">
+                                                {t("Clear")}
                                             </Ghost>
                                         )}
 
                                         {!editing && panel.kind === "frequent" && (
                                             <Ghost
                                                 onClick={() => void clearFrequent().then(() => onHistoryChanged?.())}
-                                                title="Clear the frequent list"
+                                                title={t("Clear the frequent list")}
                                                 type="button"
                                             >
-                                                Clear
+                                                {t("Clear")}
                                             </Ghost>
                                         )}
 
                                         {!editing && (panel.kind === "home" || panel.kind === "folder") && (
-                                            <Ghost onClick={() => onOpen(panel.path ?? homePath)} title="Open folder" type="button">
-                                                Open
+                                            <Ghost onClick={() => onOpen(panel.path ?? homePath)} title={t("Open folder")} type="button">
+                                                {t("Open")}
                                             </Ghost>
                                         )}
 
@@ -1401,7 +1402,7 @@ export function OverviewView({
                                                 <IconButton
                                                     $active={panel.pinned}
                                                     onClick={() => togglePin(panel.id)}
-                                                    title={panel.pinned ? "Unpin from the sidebar" : "Pin to the sidebar"}
+                                                    title={panel.pinned ? t("Unpin from the sidebar") : t("Pin to the sidebar")}
                                                     type="button"
                                                 >
                                                     <PinIcon size={12}/>
@@ -1409,7 +1410,7 @@ export function OverviewView({
                                                 <IconButton
                                                     $active={panel.view === "list"}
                                                     onClick={() => setView(panel.id, "list")}
-                                                    title="List"
+                                                    title={t("List")}
                                                     type="button"
                                                 >
                                                     <ListIcon size={13}/>
@@ -1417,7 +1418,7 @@ export function OverviewView({
                                                 <IconButton
                                                     $active={panel.view === "grid"}
                                                     onClick={() => setView(panel.id, "grid")}
-                                                    title="Grid"
+                                                    title={t("Grid")}
                                                     type="button"
                                                 >
                                                     <GridIcon size={13}/>
@@ -1425,7 +1426,7 @@ export function OverviewView({
                                                 <IconButton
                                                     disabled={index === 0}
                                                     onClick={() => move(panel.id, -1)}
-                                                    title="Move up"
+                                                    title={t("Move up")}
                                                     type="button"
                                                 >
                                                     <ArrowUpIcon size={12}/>
@@ -1433,14 +1434,14 @@ export function OverviewView({
                                                 <IconButton
                                                     disabled={index === ids.length - 1}
                                                     onClick={() => move(panel.id, 1)}
-                                                    title="Move down"
+                                                    title={t("Move down")}
                                                     type="button"
                                                 >
                                                     <ArrowUpIcon size={12}/>
                                                 </IconButton>
                                                 <IconButton
                                                     onClick={() => remove(panel.id)}
-                                                    title="Remove panel"
+                                                    title={t("Remove panel")}
                                                     type="button"
                                                 >
                                                     <CrossIcon size={12}/>
@@ -1469,6 +1470,8 @@ function InlineEditor({value, onChange, onCommit, onCancel, maxLength = 120}: {
     onCancel: () => void;
     maxLength?: number;
 }) {
+    const t = useTranslation();
+
     return (
         <InlineEditorBox onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
             <input
@@ -1484,10 +1487,10 @@ function InlineEditor({value, onChange, onCommit, onCancel, maxLength = 120}: {
                 style={{width: `${Math.max(value.length + 1, 8)}ch`}}
                 value={value}
             />
-            <EditorButton onClick={onCancel} title="Cancel" type="button">
+            <EditorButton onClick={onCancel} title={t("Cancel")} type="button">
                 <CrossIcon size={11}/>
             </EditorButton>
-            <EditorButton $apply onClick={onCommit} title="Rename volume" type="button">
+            <EditorButton $apply onClick={onCommit} title={t("Rename volume")} type="button">
                 <CheckIcon size={12}/>
             </EditorButton>
         </InlineEditorBox>
@@ -1507,6 +1510,7 @@ function FrequentBody({mode, onOpen, version}: {
     onOpen: (path: string, newTab?: boolean) => void;
     version: number;
 }) {
+    const t = useTranslation();
     const [entries, setEntries] = useState<FrequentEntry[] | null>(null);
     const quick = useQuickAccess();
 
@@ -1515,12 +1519,13 @@ function FrequentBody({mode, onOpen, version}: {
     }, [version]);
 
     if (!entries)
-        return <Empty>Reading…</Empty>;
+        return <Empty>{t("Reading…")}</Empty>;
 
     if (entries.length === 0)
-        return <Empty>Folders you open often show up here.</Empty>;
+        return <Empty>{t("Folders you open often show up here.")}</Empty>;
 
-    const subtitle = (entry: FrequentEntry) => `${entry.count} ${entry.count === 1 ? "visit" : "visits"} · ${entry.path}`;
+    const subtitle = (entry: FrequentEntry) =>
+        plural(t, entry.count, "1 visit · {path}", "{count} visits · {path}", {path: entry.path});
 
     if (mode === "grid")
         return (
@@ -1585,6 +1590,7 @@ function FolderBody({path, mode, onOpen, showCheckboxes, openOnSingleClick, visi
     openOnSingleClick: boolean;
     visibilityVersion: number;
 }) {
+    const t = useTranslation();
     const [listing, setListing] = useState<DirectoryListing | null>(null);
     const quick = useQuickAccess();
 
@@ -1610,7 +1616,7 @@ function FolderBody({path, mode, onOpen, showCheckboxes, openOnSingleClick, visi
     }, [path]);
 
     if (!listing)
-        return <Empty>Reading…</Empty>;
+        return <Empty>{t("Reading…")}</Empty>;
 
     if (mode === "list")
         return (
@@ -1635,7 +1641,7 @@ function FolderBody({path, mode, onOpen, showCheckboxes, openOnSingleClick, visi
     return (
         <Scroller>
             {listing.entries.length === 0
-                ? <Empty>This folder is empty.</Empty>
+                ? <Empty>{t("This folder is empty.")}</Empty>
                 : (
                     <Tiles>
                         {listing.entries.map((entry) => {

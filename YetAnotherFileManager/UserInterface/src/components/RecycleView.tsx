@@ -1,5 +1,6 @@
 import {useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent} from "react";
 import styled from "styled-components";
+import {useTranslation} from "@photino-net-utils/bridge";
 import {
     deleteRecycleEntries,
     emptyRecycleBin,
@@ -11,7 +12,7 @@ import {
     type RecycleEntry,
 } from "../api/files";
 import {useIcon} from "../api/icons";
-import {formatBytes, formatDate} from "../utils/format";
+import {formatBytes, formatDate, plural} from "../utils/format";
 import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "../storage";
 import {CheckIcon, CopyIcon, FileIcon, FolderIcon, GearIcon, RefreshIcon, TrashIcon} from "./Icons";
 import RestoreSvg from "./icons/restore.svg?react";
@@ -42,6 +43,7 @@ interface RecycleViewProps {
 export function RecycleView({
     onOpenLocation, showDetails = true, onShowDetails, videoAudio = false, videoAutoplay = false,
 }: RecycleViewProps) {
+    const t = useTranslation();
     const [entries, setEntries] = useState<RecycleEntry[]>([]);
     const [adminEntries, setAdminEntries] = useState<RecycleEntry[]>([]);
     const [adminLoaded, setAdminLoaded] = useState(false);
@@ -169,13 +171,13 @@ export function RecycleView({
         try {
             const result = await restoreRecycleEntries(ids);
             if (!result.ok)
-                window.alert(`Restored ${result.done} of ${ids.length} item(s).`);
+                window.alert(plural(t, ids.length, "Restored {done} of 1 item.", "Restored {done} of {total} items.", {done: result.done, total: ids.length}));
             setSelected(new Set());
             await reload();
         } finally {
             setBusy(false);
         }
-    }, [reload, removable]);
+    }, [reload, removable, t]);
 
     const deleteSelected = useCallback(async () => {
         const ids = deletable.map((entry) => entry.id);
@@ -186,13 +188,13 @@ export function RecycleView({
         try {
             const result = await deleteRecycleEntries(ids);
             if (!result.ok)
-                window.alert(`Deleted ${result.done} of ${ids.length} item(s).`);
+                window.alert(plural(t, ids.length, "Deleted {done} of 1 item.", "Deleted {done} of {total} items.", {done: result.done, total: ids.length}));
             setSelected(new Set());
             await reload();
         } finally {
             setBusy(false);
         }
-    }, [deletable, reload]);
+    }, [deletable, reload, t]);
 
     const empty = async () => {
         setConfirm(null);
@@ -292,20 +294,20 @@ export function RecycleView({
 
     const menuItems: ContextMenuItem[] = [
         {
-            label: "Restore",
+            label: t("Restore"),
             icon: <RestoreSvg width={14} height={14}/>,
             disabled: removable.length === 0,
             onSelect: () => void restoreSelected(),
         },
         {
-            label: "Delete permanently",
+            label: t("Delete permanently"),
             icon: <TrashIcon size={14}/>,
             danger: true,
             disabled: deletable.length === 0,
             onSelect: () => setConfirm("delete"),
         },
         {
-            label: "Properties",
+            label: t("Properties"),
             icon: <GearIcon size={14}/>,
             disabled: selectedEntries.length !== 1,
             separatorBefore: true,
@@ -315,7 +317,7 @@ export function RecycleView({
             },
         },
         {
-            label: "Open original location",
+            label: t("Open original location"),
             icon: <FolderIcon size={14}/>,
             disabled: selectedEntries.length !== 1,
             onSelect: () => {
@@ -324,7 +326,7 @@ export function RecycleView({
             },
         },
         {
-            label: "Copy original path",
+            label: t("Copy original path"),
             icon: <CopyIcon size={14}/>,
             disabled: selectedEntries.length !== 1,
             onSelect: () => {
@@ -333,12 +335,12 @@ export function RecycleView({
             },
         },
         {
-            label: "Select all",
+            label: t("Select all"),
             separatorBefore: true,
             onSelect: selectAll,
         },
         {
-            label: "Refresh",
+            label: t("Refresh"),
             icon: <RefreshIcon size={14}/>,
             onSelect: () => void reload(),
         },
@@ -353,19 +355,19 @@ export function RecycleView({
             size: previewEntry.size,
             modified: previewEntry.deleted,
             fields: [
-                {label: "Type", value: typeOf(previewEntry)},
-                {label: "Original location", value: previewEntry.originalPath},
-                {label: "Date deleted", value: formatDate(previewEntry.deleted)},
+                {label: t("Type"), value: t(typeOf(previewEntry))},
+                {label: t("Original location"), value: previewEntry.originalPath},
+                {label: t("Date deleted"), value: formatDate(previewEntry.deleted)},
                 {
-                    label: "Size",
+                    label: t("Size"),
                     value: previewEntry.isDirectory ? "—" : formatBytes(previewEntry.size),
                 },
-                ...(previewEntry.owner ? [{label: "Owner", value: previewEntry.owner}] : []),
+                ...(previewEntry.owner ? [{label: t("Owner"), value: previewEntry.owner}] : []),
                 {
-                    label: "Status",
+                    label: t("Status"),
                     value: previewEntry.isOrphan
-                        ? "Metadata only"
-                        : previewEntry.removable ? "Restorable" : "Other profile",
+                        ? t("Metadata only")
+                        : previewEntry.removable ? t("Restorable") : t("Other profile"),
                 },
             ],
         }
@@ -376,10 +378,10 @@ export function RecycleView({
             <Header>
                 <Heading>
                     <TrashIcon size={16}/>
-                    <span>Recycle Bin</span>
+                    <span>{t("Recycle Bin")}</span>
                     <Count>
-                        {loading ? "…" : `${rows.length} item${rows.length === 1 ? "" : "s"}`}
-                        {selected.size > 0 && ` · ${selected.size} selected`}
+                        {loading ? "…" : plural(t, rows.length, "1 item", "{count} items")}
+                        {selected.size > 0 && ` · ${t("{count} selected", {count: selected.size})}`}
                     </Count>
                 </Heading>
 
@@ -387,10 +389,10 @@ export function RecycleView({
                     <OrphanButton
                         $on={showOrphans}
                         onClick={() => setShowOrphans((current) => !current)}
-                        title="Show metadata records whose content is already gone"
+                        title={t("Show metadata records whose content is already gone")}
                         type="button"
                     >
-                        Orphans
+                        {t("Orphans")}
                     </OrphanButton>
 
                     {showOrphans && (
@@ -399,15 +401,15 @@ export function RecycleView({
                                 disabled={busy || adminLoaded}
                                 onClick={() => void loadAdmin()}
                                 title={adminLoaded
-                                    ? "The administrator view is already loaded"
-                                    : "Ask for administrator rights and list every profile's leftovers"}
+                                    ? t("The administrator view is already loaded")
+                                    : t("Ask for administrator rights and list every profile's leftovers")}
                                 type="button"
                             >
-                                {busy ? "Working…" : adminLoaded ? "Admin view loaded" : "Show all (admin)…"}
+                                {busy ? t("Working…") : adminLoaded ? t("Admin view loaded") : t("Show all (admin)…")}
                             </ActionButton>
                             {adminLoaded && adminEntries.length > 0 && (
                                 <ActionButton disabled={busy} onClick={() => setConfirm("purge")} type="button">
-                                    Delete every orphan
+                                    {t("Delete every orphan")}
                                 </ActionButton>
                             )}
                         </>
@@ -418,7 +420,7 @@ export function RecycleView({
                         onClick={() => void restoreSelected()}
                         type="button"
                     >
-                        Restore
+                        {t("Restore")}
                     </ActionButton>
 
                     <ActionButton
@@ -427,7 +429,7 @@ export function RecycleView({
                         onClick={() => setConfirm("delete")}
                         type="button"
                     >
-                        Delete
+                        {t("Delete")}
                     </ActionButton>
 
                     <ActionButton
@@ -435,10 +437,10 @@ export function RecycleView({
                         onClick={() => setConfirm("empty")}
                         type="button"
                     >
-                        Empty
+                        {t("Empty")}
                     </ActionButton>
 
-                    <IconButton onClick={() => void reload()} title="Refresh" type="button">
+                    <IconButton onClick={() => void reload()} title={t("Refresh")} type="button">
                         <RefreshIcon size={14}/>
                     </IconButton>
                 </Actions>
@@ -446,7 +448,7 @@ export function RecycleView({
 
             {adminNotice && <Notice>{adminNotice}</Notice>}
             {error && <Message>{error}</Message>}
-            {!error && !loading && rows.length === 0 && <Message>The recycle bin is empty.</Message>}
+            {!error && !loading && rows.length === 0 && <Message>{t("The recycle bin is empty.")}</Message>}
 
             {rows.length > 0 && (
                 <SplitPane>
@@ -454,19 +456,19 @@ export function RecycleView({
                         <Head>
                             <span/>
                             <SortButton onClick={() => toggleSort("name")} type="button">
-                                Name{mark(sort, "name")}
+                                {t("Name")}{mark(sort, "name")}
                             </SortButton>
                             <SortButton onClick={() => toggleSort("original")} type="button">
-                                Original location{mark(sort, "original")}
+                                {t("Original location")}{mark(sort, "original")}
                             </SortButton>
                             <SortButton onClick={() => toggleSort("deleted")} type="button">
-                                Date deleted{mark(sort, "deleted")}
+                                {t("Date deleted")}{mark(sort, "deleted")}
                             </SortButton>
                             <SortButton onClick={() => toggleSort("size")} type="button">
-                                Size{mark(sort, "size")}
+                                {t("Size")}{mark(sort, "size")}
                             </SortButton>
                             <SortButton onClick={() => toggleSort("type")} type="button">
-                                Type{mark(sort, "type")}
+                                {t("Type")}{mark(sort, "type")}
                             </SortButton>
                             <span/>
                         </Head>
@@ -498,13 +500,13 @@ export function RecycleView({
                                     <NameCell>
                                         <EntryIcon entry={entry}/>
                                         <span>{entry.name}</span>
-                                        {entry.isOrphan && <Tag>metadata only</Tag>}
-                                        {entry.owner && <Tag $other>other profile</Tag>}
+                                        {entry.isOrphan && <Tag>{t("metadata only")}</Tag>}
+                                        {entry.owner && <Tag $other>{t("other profile")}</Tag>}
                                     </NameCell>
                                     <Origin>{entry.originalPath}</Origin>
                                     <Deleted>{formatDate(entry.deleted)}</Deleted>
                                     <Size>{entry.isDirectory ? "—" : formatBytes(entry.size)}</Size>
-                                    <Type>{typeOf(entry)}</Type>
+                                    <Type>{t(typeOf(entry))}</Type>
                                     <RowActions>
                                         {entry.removable && !entry.isOrphan && (
                                             <RowButton
@@ -512,7 +514,7 @@ export function RecycleView({
                                                     event.stopPropagation();
                                                     void restoreRecycleEntries([entry.id]).then(reload);
                                                 }}
-                                                title="Restore to its original folder"
+                                                title={t("Restore to its original folder")}
                                                 type="button"
                                             >
                                                 <RestoreSvg/>
@@ -526,7 +528,7 @@ export function RecycleView({
                                                     setSelected(new Set([entry.id]));
                                                     setConfirm("delete");
                                                 }}
-                                                title={entry.isOrphan ? "Remove the leftover record" : "Delete permanently"}
+                                                title={entry.isOrphan ? t("Remove the leftover record") : t("Delete permanently")}
                                                 type="button"
                                             >
                                                 <TrashIcon size={13}/>
@@ -543,7 +545,7 @@ export function RecycleView({
                             info={previewInfo}
                             onWidth={resizePreview}
                             selectionNote={selectedEntries.length > 1
-                                ? `${selectedEntries.length} items selected`
+                                ? plural(t, selectedEntries.length, "1 item selected", "{count} items selected")
                                 : undefined}
                             videoAudio={videoAudio}
                             videoAutoplay={videoAutoplay}
@@ -557,14 +559,14 @@ export function RecycleView({
 
             <ConfirmDialog
                 confirmLabel={confirm === "empty"
-                    ? "Empty the bin"
-                    : confirm === "purge" ? "Delete every orphan" : "Delete"}
+                    ? t("Empty the bin")
+                    : confirm === "purge" ? t("Delete every orphan") : t("Delete")}
                 danger
                 message={confirm === "empty"
-                    ? `Permanently delete ${rows.length} item${rows.length === 1 ? "" : "s"}? This cannot be undone.`
+                    ? plural(t, rows.length, "Permanently delete 1 item? This cannot be undone.", "Permanently delete {count} items? This cannot be undone.")
                     : confirm === "purge"
-                        ? "Permanently delete every leftover record, including the ones owned by other profiles? This cannot be undone."
-                        : `Permanently delete ${deletable.length} selected item${deletable.length === 1 ? "" : "s"}? This cannot be undone.`}
+                        ? t("Permanently delete every leftover record, including the ones owned by other profiles? This cannot be undone.")
+                        : plural(t, deletable.length, "Permanently delete 1 selected item? This cannot be undone.", "Permanently delete {count} selected items? This cannot be undone.")}
                 onCancel={() => setConfirm(null)}
                 onConfirm={() => {
                     if (confirm === "empty") void empty();
@@ -573,8 +575,8 @@ export function RecycleView({
                 }}
                 open={confirm !== null}
                 title={confirm === "empty"
-                    ? "Empty the recycle bin"
-                    : confirm === "purge" ? "Delete every orphan" : "Delete permanently"}
+                    ? t("Empty the recycle bin")
+                    : confirm === "purge" ? t("Delete every orphan") : t("Delete permanently")}
             />
         </Page>
     );

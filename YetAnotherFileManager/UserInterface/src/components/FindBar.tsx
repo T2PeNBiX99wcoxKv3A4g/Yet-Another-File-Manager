@@ -1,5 +1,6 @@
 import {useEffect, useRef} from "react";
 import styled from "styled-components";
+import {useTranslation} from "@photino-net-utils/bridge";
 import type {FindMode} from "../find";
 import {ChevronRightIcon, CrossIcon, SearchIcon} from "./Icons";
 
@@ -30,6 +31,7 @@ export function FindBar({
     query, mode, matchCase, regex, total, current, focusToken,
     onQuery, onPrevious, onNext, onMatchCase, onRegex, onMode, onClose,
 }: FindBarProps) {
+    const t = useTranslation();
     const input = useRef<HTMLInputElement | null>(null);
 
     useEffect(() => {
@@ -51,7 +53,7 @@ export function FindBar({
             <SearchIcon/>
 
             <Input
-                aria-label="Search this folder"
+                aria-label={t("Search this folder")}
                 onChange={(event) => onQuery(event.target.value)}
                 onKeyDown={(event) => {
                     if (event.key === "Enter") {
@@ -65,7 +67,7 @@ export function FindBar({
                         onClose();
                     }
                 }}
-                placeholder="Search this folder"
+                placeholder={t("Search this folder")}
                 ref={input}
                 spellCheck={false}
                 value={query}
@@ -73,32 +75,32 @@ export function FindBar({
 
             <Counter>{total === 0 ? "0/0" : `${current + 1}/${total}`}</Counter>
 
-            <Tool onClick={() => toggle(onPrevious)} title="Previous match (Shift+Enter)" type="button">
+            <Tool onClick={() => toggle(onPrevious)} title={t("Previous match (Shift+Enter)")} type="button">
                 <ChevronRightIcon size={12}/>
             </Tool>
 
-            <Tool $down onClick={() => toggle(onNext)} title="Next match (Enter)" type="button">
+            <Tool $down onClick={() => toggle(onNext)} title={t("Next match (Enter)")} type="button">
                 <ChevronRightIcon size={12}/>
             </Tool>
 
-            <Toggle $on={matchCase} onClick={() => toggle(onMatchCase)} title="Match case" type="button">
+            <Toggle $on={matchCase} onClick={() => toggle(onMatchCase)} title={t("Match case")} type="button">
                 Aa
             </Toggle>
 
-            <Toggle $on={regex} onClick={() => toggle(onRegex)} title="Regular expression" type="button">
+            <Toggle $on={regex} onClick={() => toggle(onRegex)} title={t("Regular expression")} type="button">
                 .*
             </Toggle>
 
             <Mode
                 $on={mode === "hide"}
                 onClick={() => toggle(onMode)}
-                title={mode === "hide" ? "Non-matching entries are hidden" : "Non-matching entries are dimmed"}
+                title={mode === "hide" ? t("Non-matching entries are hidden") : t("Non-matching entries are dimmed")}
                 type="button"
             >
-                {mode === "hide" ? "Hide" : "Dim"}
+                {mode === "hide" ? t("Hide") : t("Dim")}
             </Mode>
 
-            <Tool onClick={onClose} title="Close search (Esc)" type="button">
+            <Tool onClick={onClose} title={t("Close search (Esc)")} type="button">
                 <CrossIcon size={12}/>
             </Tool>
         </Bar>

@@ -1,5 +1,6 @@
 import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
+import {useTranslation} from "@photino-net-utils/bridge";
 import type {DirectoryView, ResolvedView} from "../api/files";
 import {GlobalTag} from "./GlobalTag";
 import {elevatedPanel} from "../ui/panel";
@@ -17,6 +18,7 @@ interface ViewMenuProps {
 
 /** The capture-style view button that sits with the window controls, and the panel it opens. */
 export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, disabled}: ViewMenuProps) {
+    const t = useTranslation();
     const [open, setOpen] = useState(false);
     const root = useRef<HTMLDivElement | null>(null);
 
@@ -62,7 +64,7 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
                 $active={open}
                 disabled={disabled}
                 onClick={() => setOpen((current) => !current)}
-                title="View"
+                title={t("View")}
                 type="button"
             >
                 {view.mode === "grid" ? <GridIcon size={14}/> : <ListIcon size={14}/>}
@@ -70,20 +72,20 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
 
             {open && (
                 <Panel>
-                    <SectionTitle>View</SectionTitle>
+                    <SectionTitle>{t("View")}</SectionTitle>
                     <Segmented>
                         <Choice $on={view.mode === "list"} onClick={() => onChange({mode: "list"})} type="button">
-                            <ListIcon size={12}/> List
+                            <ListIcon size={12}/> {t("List")}
                         </Choice>
                         <Choice $on={view.mode === "grid"} onClick={() => onChange({mode: "grid"})} type="button">
-                            <GridIcon size={12}/> Grid
+                            <GridIcon size={12}/> {t("Grid")}
                         </Choice>
                     </Segmented>
 
-                    <SectionTitle>List icon size</SectionTitle>
+                    <SectionTitle>{t("List icon size")}</SectionTitle>
                     <SliderRow>
                         <input
-                            aria-label="List icon size"
+                            aria-label={t("List icon size")}
                             max={48}
                             min={16}
                             onChange={(event) => onChange({iconSize: Number(event.target.value)})}
@@ -94,10 +96,10 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
                         <SizeValue>{view.iconSize}px</SizeValue>
                     </SliderRow>
 
-                    <SectionTitle>Grid size</SectionTitle>
+                    <SectionTitle>{t("Grid size")}</SectionTitle>
                     <SliderRow>
                         <input
-                            aria-label="Grid size"
+                            aria-label={t("Grid size")}
                             max={260}
                             min={100}
                             onChange={(event) => onChange({gridSize: Number(event.target.value)})}
@@ -108,7 +110,7 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
                         <SizeValue>{view.gridSize}px</SizeValue>
                     </SliderRow>
 
-                    <SectionTitle>Columns<GlobalTag/></SectionTitle>
+                    <SectionTitle>{t("Columns")}<GlobalTag/></SectionTitle>
                     {ViewColumns.map((column) => (
                         <Check key={column.id}>
                             <input
@@ -125,17 +127,17 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
                             onChange={() => toggleColumn("linkTarget")}
                             type="checkbox"
                         />
-                        <span>Link target after the name</span>
+                        <span>{t("Link target after the name")}</span>
                     </Check>
 
-                    <SectionTitle>Preview panel<GlobalTag/></SectionTitle>
+                    <SectionTitle>{t("Preview panel")}<GlobalTag/></SectionTitle>
                     <Check>
                         <input
                             checked={showImages}
                             onChange={() => onShowImages(!showImages)}
                             type="checkbox"
                         />
-                        <span>Preview under the list</span>
+                        <span>{t("Preview under the list")}</span>
                     </Check>
                 </Panel>
             )}

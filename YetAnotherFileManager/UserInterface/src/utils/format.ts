@@ -1,3 +1,14 @@
+import type {Translate} from "@photino-net-utils/bridge";
+
+/**
+ * Picks the singular or plural English key, so a sentence reads naturally in English instead of
+ * carrying a "(s)" marker. Languages without plural forms translate both keys the same way.
+ */
+export function plural(t: Translate, count: number, one: string, many: string,
+    params: Record<string, string | number> = {}): string {
+    return t(count === 1 ? one : many, {count, ...params});
+}
+
 /** Human-readable file size. An empty file is "0 B", an unknown size is "—". */
 export function formatBytes(bytes: number): string {
     if (bytes < 0) return "—";

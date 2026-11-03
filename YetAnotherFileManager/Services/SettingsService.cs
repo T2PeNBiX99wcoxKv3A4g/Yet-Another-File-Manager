@@ -1,5 +1,6 @@
 using System.Text.Json;
 using PhotinoNetUtils.Extensions;
+using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Utils;
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
@@ -16,6 +17,20 @@ internal sealed class SettingsService : Singleton<SettingsService>
     private readonly SemaphoreSlim _writeGate = new(1, 1);
 
     public AppSettings Current => _current;
+
+    /// <summary>The stored value that means "follow the operating system" rather than one language.</summary>
+    public const string AutoLanguage = "auto";
+
+    /// <summary>
+    ///     The language the interface uses. A fresh install starts in English; <see cref="AutoLanguage" />
+    ///     is the explicit opt-in to the operating system's language.
+    /// </summary>
+    public string Language => _current.Language switch
+    {
+        null or "" => Localization.DefaultLocale,
+        AutoLanguage => Localization.ResolveSystemLocale(),
+        var language => language
+    };
 
     /// <summary>Reads the settings once at startup, before any service asks for <see cref="Current" />.</summary>
     public async Task InitializeAsync()

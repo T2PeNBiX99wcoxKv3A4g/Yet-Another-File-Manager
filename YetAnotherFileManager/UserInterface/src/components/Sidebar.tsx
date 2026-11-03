@@ -1,4 +1,5 @@
 import {useEffect, useState} from "react";
+import {useTranslation} from "@photino-net-utils/bridge";
 import styled from "styled-components";
 import {listDirectory, listFrequent, openFile, type DirectoryListing, type Drive, type FileEntry, type FrequentEntry, type Place, type RecentEntry} from "../api/files";
 import {getSettings, type AppSettings} from "../api/settings";
@@ -9,7 +10,7 @@ import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
 import {quickPlace, useQuickAccess} from "../quick";
 import {Native} from "@photino-net-utils/bridge";
-import {baseName, driveName, formatBytes, usageTone} from "../utils/format";
+import {baseName, driveName, formatBytes, plural, usageTone} from "../utils/format";
 import {wantsNewTab} from "../shortcuts";
 
 interface SidebarProps {
@@ -46,6 +47,7 @@ export function Sidebar({
     onOpenView,
 }: SidebarProps) {
     const [pinned, setPinned] = useState<Panel[]>([]);
+    const t = useTranslation();
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const quick = useQuickAccess();
 
@@ -80,17 +82,17 @@ export function Sidebar({
     return (
         <Aside>
             <List>
-                <Item $active={activeKind === "home"} onClick={() => onOpenView("home")} title="Overview" type="button">
+                <Item $active={activeKind === "home"} onClick={() => onOpenView("home")} title={t("Overview")} type="button">
                     <OverviewIcon/>
-                    <Label>Overview</Label>
+                    <Label>{t("Overview")}</Label>
                 </Item>
-                <Item $active={activeKind === "recycle"} onClick={() => onOpenView("recycle")} title="Recycle Bin" type="button">
+                <Item $active={activeKind === "recycle"} onClick={() => onOpenView("recycle")} title={t("Recycle Bin")} type="button">
                     <TrashIcon/>
-                    <Label>Recycle Bin</Label>
+                    <Label>{t("Recycle Bin")}</Label>
                 </Item>
-                <Item $active={activeKind === "gallery"} onClick={() => onOpenView("gallery")} title="Gallery" type="button">
+                <Item $active={activeKind === "gallery"} onClick={() => onOpenView("gallery")} title={t("Gallery")} type="button">
                     <ImageIcon/>
-                    <Label>Gallery</Label>
+                    <Label>{t("Gallery")}</Label>
                 </Item>
             </List>
 
@@ -98,7 +100,7 @@ export function Sidebar({
                 <Menu key={panel.id}>
                     <Item as="div" $active={false}>
                         <Glyph><PanelGlyph panel={panel} size={16}/></Glyph>
-                        <Label>{panel.title}</Label>
+                        <Label>{t(panel.title)}</Label>
                     </Item>
                     <Sub>
                         <Inner>
@@ -178,9 +180,9 @@ export function Sidebar({
             ))}
 
             <Bottom>
-                <Item $active={activeKind === "settings"} onClick={() => onOpenView("settings")} title="Settings" type="button">
+                <Item $active={activeKind === "settings"} onClick={() => onOpenView("settings")} title={t("Settings")} type="button">
                     <GearIcon/>
-                    <Label>Settings</Label>
+                    <Label>{t("Settings")}</Label>
                 </Item>
             </Bottom>
         </Aside>
@@ -196,6 +198,7 @@ function FrequentItems({historyVersion = 0, onNavigate}: {
     historyVersion?: number;
     onNavigate: (path: string, newTab?: boolean) => void;
 }) {
+    const t = useTranslation();
     const [entries, setEntries] = useState<FrequentEntry[] | null>(null);
     const quick = useQuickAccess();
 
@@ -211,7 +214,7 @@ function FrequentItems({historyVersion = 0, onNavigate}: {
                 key={entry.path}
                 $active={false}
                 onClick={(event) => onNavigate(entry.path, wantsNewTab(event))}
-                title={`${entry.count} ${entry.count === 1 ? "visit" : "visits"} · ${entry.path}`}
+                title={plural(t, entry.count, "1 visit · {path}", "{count} visits · {path}", {path: entry.path})}
                 type="button"
             >
                 {place && quick.useIcons

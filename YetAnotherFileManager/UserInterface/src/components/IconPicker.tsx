@@ -1,6 +1,7 @@
 import {useEffect, useLayoutEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
+import {useTranslation} from "@photino-net-utils/bridge";
 import {pickIconFile} from "../api/settings";
 import {PanelIcons} from "../panels";
 import {CrossIcon, PlusIcon} from "./Icons";
@@ -19,6 +20,7 @@ interface IconPickerProps {
  * itself under its parent element, which is why the owner renders it next to the trigger.
  */
 export function IconPicker({value, onPick, onClose, allowDefault = true}: IconPickerProps) {
+    const t = useTranslation();
     const anchor = useRef<HTMLSpanElement>(null);
     const menu = useRef<HTMLDivElement>(null);
     const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
@@ -94,13 +96,13 @@ export function IconPicker({value, onPick, onClose, allowDefault = true}: IconPi
                             const file = await pickIconFile();
                             if (file) onPick(`file:${file}`);
                         }}
-                        title="Choose an image"
+                        title={t("Choose an image")}
                         type="button"
                     >
                         <PlusIcon size={13}/>
                     </IconChoice>
                     {allowDefault && (
-                        <IconChoice $active={!value} onClick={() => onPick(null)} title="Default" type="button">
+                        <IconChoice $active={!value} onClick={() => onPick(null)} title={t("Default")} type="button">
                             <CrossIcon size={12}/>
                         </IconChoice>
                     )}

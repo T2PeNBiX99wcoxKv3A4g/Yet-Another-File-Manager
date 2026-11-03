@@ -5,6 +5,7 @@ using System.Text.Json;
 using PhotinoNetUtils;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Interop;
+using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Platform;
 using PhotinoNetUtils.Services;
@@ -70,6 +71,10 @@ internal static partial class Program
         // values as soon as the window is up. Main must stay synchronous on its STA thread, so this
         // single startup read waits here instead of racing the services.
         SettingsService.Instance.InitializeAsync().GetAwaiter().GetResult();
+
+        // UI strings come from Resources/i18n; the settings select the language.
+        Localization.Initialize(typeof(Program).Assembly, "YetAnotherFileManager.Resources.i18n.",
+            () => SettingsService.Instance.Language);
 
         if (OperatingSystem.IsLinux())
         {

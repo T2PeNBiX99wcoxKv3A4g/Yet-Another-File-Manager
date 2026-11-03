@@ -1,5 +1,6 @@
 import {useEffect, useRef, useState, type PointerEvent as ReactPointerEvent} from "react";
 import styled from "styled-components";
+import {useTranslation} from "@photino-net-utils/bridge";
 import {previewText, type TextPreview} from "../api/files";
 import {useIcon, useMediaUrl, usePdfPreview, useThumbnail} from "../api/icons";
 import {FileIcon, FolderIcon, PlayIcon} from "./Icons";
@@ -45,6 +46,7 @@ const TextExtensions = new Set([
  * an image, a playable video/audio file, or the entry's icon; the splitter on its left resizes it.
  */
 export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, selectionNote}: PreviewPaneProps) {
+    const t = useTranslation();
     const [videoFailed, setVideoFailed] = useState(false);
     const [playing, setPlaying] = useState(false);
     const [videoHover, setVideoHover] = useState(false);
@@ -145,7 +147,7 @@ export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, se
                 onPointerMove={move}
                 onPointerUp={end}
                 onDoubleClick={() => onWidth(320)}
-                title="Drag to resize; double-click to reset"
+                title={t("Drag to resize; double-click to reset")}
             />
 
             <Panel style={{width}}>
@@ -178,7 +180,7 @@ export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, se
                                 />
 
                                 {!playing && (
-                                    <CenterPlay onClick={toggleVideo} title="Play" type="button">
+                                    <CenterPlay onClick={toggleVideo} title={t("Play")} type="button">
                                         <PlayIcon size={28}/>
                                     </CenterPlay>
                                 )}
@@ -190,7 +192,7 @@ export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, se
                                             <span>{formatTime(duration)}</span>
                                         </Times>
                                         <Range
-                                            aria-label="Seek"
+                                            aria-label={t("Seek")}
                                             max={duration || 0}
                                             min={0}
                                             onChange={(event) => {
@@ -230,14 +232,14 @@ export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, se
                                             ? (
                                         <TextBox>
                                             {textLoading || !textPreview
-                                                ? <TextNote>Loading…</TextNote>
+                                                ? <TextNote>{t("Loading…")}</TextNote>
                                                 : textPreview.error
                                                     ? <TextNote>{textPreview.error}</TextNote>
                                                     : (
                                                         <>
                                                             <Pre>{textPreview.text}</Pre>
                                                             {textPreview.truncated && (
-                                                                <TextNote>Showing the first 256 KB.</TextNote>
+                                                                <TextNote>{t("Showing the first 256 KB.")}</TextNote>
                                                             )}
                                                         </>
                                                     )}
