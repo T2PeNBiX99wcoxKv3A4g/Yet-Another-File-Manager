@@ -36,9 +36,9 @@ export function TooltipLayer() {
             if (title === null)
                 return;
 
-            if (!element.hasAttribute("data-tooltip"))
-                element.setAttribute("data-tooltip", title);
-
+            // A render can change the title; the panel has to follow, or the split button keeps
+            // claiming "Split view" while the window is already split.
+            element.setAttribute("data-tooltip", title);
             element.removeAttribute("title");
         };
 

@@ -137,6 +137,13 @@ export function TitleBar({
                         >
                             <TabGlyph tab={tab}/>
                             <TabName>{tab.title}</TabName>
+                            {tab.partner && (
+                                <>
+                                    <TabDivider>|</TabDivider>
+                                    <FilesTabGlyph place={tab.partner.place}/>
+                                    <TabName>{tab.partner.title}</TabName>
+                                </>
+                            )}
                             <TabClose
                                 data-shortcut={prettyShortcut(shortcuts.closeTab)}
                                 onClick={(event) => {
@@ -327,7 +334,7 @@ const Tab = styled.button<{ $active: boolean; $dragging: boolean; $split: boolea
     display: flex;
     align-items: center;
     gap: 7px;
-    width: ${({$split}) => $split ? "214px" : "176px"};
+    width: ${({$split}) => $split ? "300px" : "176px"};
     height: 32px;
     flex: 0 0 auto;
     padding: 0 6px 0 10px;
@@ -370,6 +377,14 @@ const TabName = styled.span`
     text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
+`;
+
+const TabDivider = styled.span`
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    opacity: 0.7;
 `;
 
 const TabClose = styled.span`

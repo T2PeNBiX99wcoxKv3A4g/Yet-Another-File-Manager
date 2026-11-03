@@ -12,6 +12,8 @@ export interface TabInfo {
     place?: Place;
     /** This tab is showing two folders, one in each pane. */
     split?: boolean;
+    /** The second folder of a split tab, drawn after the separator. */
+    partner?: { title: string; place?: Place };
 }
 
 /** Titles for the pages that are not a folder. */

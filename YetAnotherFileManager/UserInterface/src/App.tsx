@@ -95,8 +95,10 @@ interface Tab {
     fresh: boolean;
     /** This directory's own view settings; null inherits the app's default. */
     view: DirectoryView | null;
-    /** Whether this tab shows a second pane; the partner is the next file tab. */
-    split?: boolean;
+    /** The hidden tab that supplies the right pane while this tab is split. */
+    splitWith?: string;
+    /** Removed from the tab bar; it only exists as the second pane of another tab. */
+    hidden?: boolean;
 }
 
 const ViewScheme = "yafm://";
@@ -154,11 +156,11 @@ function folderOf(tab: Tab): string {
 /** The tab a window-level action should use: the focused pane in split view, else the active tab. */
 function focusedTabIdOf(state: { tabs: Tab[]; activeId: string; activePane: "primary" | "secondary" }): string {
     const active = state.tabs.find((tab) => tab.id === state.activeId);
-    if (!active?.split || state.activePane !== "secondary" || kindOf(active) !== "files")
+    if (state.activePane !== "secondary" || !active?.splitWith || kindOf(active) !== "files")
         return state.activeId;
 
-    const other = state.tabs.find((tab) => tab.id !== state.activeId && kindOf(tab) === "files");
-    return other?.id ?? state.activeId;
+    const pane = state.tabs.find((tab) => tab.id === active.splitWith);
+    return pane?.id ?? state.activeId;
 }
 
 /** The directory's own mode/size/sort sit on top of the window-wide defaults; columns are global. */
@@ -185,7 +187,6 @@ function createTab(location = viewLocation("home")): Tab {
         index: 0,
         fresh: true,
         view: null,
-        split: false,
     };
 }
 
@@ -287,11 +288,12 @@ export default function App() {
     const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
     const kind = kindOf(active);
     const location = locationOf(active);
-    const activeTabIndex = Math.max(tabs.findIndex((tab) => tab.id === activeId), 0);
-    const secondary = tabs.find((tab, index) => index !== activeTabIndex && kindOf(tab) === "files");
-    const splitActive = kind === "files" && (active.split ?? false) && secondary !== undefined;
     const activeFolder = folderOf(active);
     const activeParent = kind === "files" ? active.listing?.parent ?? parentOf(activeFolder) : null;
+    const secondary = active.splitWith
+        ? tabs.find((tab) => tab.id === active.splitWith)
+        : undefined;
+    const splitActive = kind === "files" && secondary !== undefined;
     const secondaryFolder = secondary ? folderOf(secondary) : "";
     const secondaryParent = secondary ? secondary.listing?.parent ?? parentOf(secondaryFolder) : null;
 
@@ -642,8 +644,10 @@ export default function App() {
 
     const closeTab = useCallback((id: string) => {
         const {tabs: current, activeId: currentActive} = stateRef.current;
+        const closing = current.find((tab) => tab.id === id);
+        const remaining = current.filter((tab) => tab.id !== id && tab.id !== closing?.splitWith);
 
-        if (current.length === 1) {
+        if (remaining.length === 0) {
             // A window always keeps one tab; closing the last one starts over at the overview.
             const replacement = createTab();
 
@@ -653,7 +657,6 @@ export default function App() {
         }
 
         const index = current.findIndex((tab) => tab.id === id);
-        const remaining = current.filter((tab) => tab.id !== id);
 
         setTabs(remaining);
         if (currentActive === id)
@@ -672,29 +675,39 @@ export default function App() {
     /** Moves the focus to the next or previous tab, like Ctrl+Tab in Dolphin. */
     const cycleTab = useCallback((delta: number) => {
         const {tabs, activeId} = stateRef.current;
-        if (tabs.length < 2) return;
+        // Hidden pane tabs are not part of the tab order.
+        const visible = tabs.filter((tab) => !tab.hidden);
+        if (visible.length < 2) return;
 
-        const index = tabs.findIndex((tab) => tab.id === activeId);
-        const next = (index + delta + tabs.length) % tabs.length;
-        setActiveId(tabs[next].id);
+        const index = Math.max(visible.findIndex((tab) => tab.id === activeId), 0);
+        const next = (index + delta + visible.length) % visible.length;
+        setActiveId(visible[next].id);
     }, []);
 
-    /** Toggles the split view of the tab that has the focus. */
+    /** Toggles the split view of the focused tab; both panes stay inside that one tab. */
     const toggleSplit = useCallback(() => {
         const {tabs, activeId} = stateRef.current;
         const tab = tabs.find((item) => item.id === activeId);
         if (!tab || kindOf(tab) !== "files") return;
 
-        const other = tabs.find((item) => item.id !== activeId && kindOf(item) === "files");
-        const next = !((tab.split ?? false) && other);
+        const pane = tab.splitWith ? tabs.find((item) => item.id === tab.splitWith) : undefined;
 
-        // A split needs a second file tab; opening one is what the button does the first time.
-        if (next && !other)
-            openFiles(folderOf(tab), false);
+        if (pane) {
+            setTabs((current) => current.filter((item) => item.id !== pane.id));
+            patch(activeId, () => ({splitWith: undefined}));
+            setActivePane("primary");
+            return;
+        }
 
-        patch(activeId, () => ({split: next}));
+        // The second pane is a hidden tab, so the tab bar keeps showing one tab for both.
+        const folder = folderOf(tab);
+        const second = {...createTab(folder), hidden: true};
+
+        setTabs((current) => [...current, second]);
+        patch(activeId, () => ({splitWith: second.id}));
+        void load(second.id, folder);
         setActivePane("primary");
-    }, [openFiles, patch]);
+    }, [load, patch]);
 
     const resizeDetails = useCallback((width: number) => {
         setDetailsWidth(width);
@@ -1237,9 +1250,10 @@ export default function App() {
     }, []);
 
     // The host keeps the tab locations, so the next launch can put the same tabs back.
-    const openLocations = tabs.map(locationOf);
+    const visibleTabs = tabs.filter((tab) => !tab.hidden);
+    const openLocations = visibleTabs.map(locationOf);
     const openLocationsKey = openLocations.join("\n");
-    const activeIndex = Math.max(tabs.findIndex((tab) => tab.id === activeId), 0);
+    const activeIndex = Math.max(visibleTabs.findIndex((tab) => tab.id === activeId), 0);
 
     useEffect(() => {
         if (!settings?.restoreTabs) return;
@@ -1685,19 +1699,13 @@ export default function App() {
                 onToggleDetails={() => setDetailsVisible((visible) => !visible)}
                 shortcuts={shortcuts}
                 view={view}
-                tabs={tabs.map((tab) => {
+                tabs={tabs.filter((tab) => !tab.hidden).map((tab) => {
                     const tabKind = kindOf(tab);
                     const folder = folderOf(tab);
-                    const partner = tabKind === "files" && tab.split
-                        ? tabs.find((item) => item.id !== tab.id && kindOf(item) === "files")
+                    const partner = tab.splitWith
+                        ? tabs.find((item) => item.id === tab.splitWith)
                         : undefined;
                     const partnerFolder = partner ? folderOf(partner) : "";
-                    const title = tabKind === "files"
-                        ? quickName(quickAccess, folder, baseName(folder) || "Files")
-                        : viewTitles[tabKind];
-                    const partnerTitle = partner
-                        ? quickName(quickAccess, partnerFolder, baseName(partnerFolder) || "Files")
-                        : "";
 
                     return {
                         id: tab.id,
@@ -1705,7 +1713,15 @@ export default function App() {
                         path: partner ? `${folder}  |  ${partnerFolder}` : folder,
                         place: tabKind === "files" ? quickPlace(quickAccess, folder) : undefined,
                         split: Boolean(partner),
-                        title: partner ? `${title}  |  ${partnerTitle}` : title,
+                        title: tabKind === "files"
+                            ? quickName(quickAccess, folder, baseName(folder) || "Files")
+                            : viewTitles[tabKind],
+                        partner: partner
+                            ? {
+                                title: quickName(quickAccess, partnerFolder, baseName(partnerFolder) || "Files"),
+                                place: quickPlace(quickAccess, partnerFolder),
+                            }
+                            : undefined,
                     };
                 })}
             />
