@@ -142,6 +142,51 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
         return true;
     }
 
+    /// <summary>Renames a tag in every index the catalogue knows, merging with an existing name.</summary>
+    public async Task<bool> RenameAsync(string name, string next)
+    {
+        next = next.Trim();
+
+        if (string.IsNullOrWhiteSpace(name) || next.Length == 0 || string.Equals(name, next, StringComparison.Ordinal))
+            return false;
+
+        string[] directories;
+
+        lock (_gate)
+        {
+            EnsureLoaded();
+
+            if (!_tags.Remove(name, out var record))
+                return false;
+
+            if (_tags.TryGetValue(next, out var existing))
+            {
+                foreach (var directory in record.Directories)
+                    if (!existing.Directories.Contains(directory, StringComparer.OrdinalIgnoreCase))
+                        existing.Directories.Add(directory);
+
+                existing.Color ??= record.Color;
+            }
+            else
+            {
+                record.Name = next;
+                _tags[next] = record;
+            }
+
+            directories = [.. record.Directories];
+            ScheduleSave();
+        }
+
+        foreach (var directory in directories)
+        {
+            var renamed = await Try.Run(() => FolderIndex.RenameTagAsync(directory, name, next));
+            if (!renamed.GetOrElse(_ => false))
+                Log.Debug("Could not rename tag {Tag} in {Directory}", name, directory);
+        }
+
+        return true;
+    }
+
     private void EnsureLoaded()
     {
         if (_loaded)

@@ -23,8 +23,14 @@ type SortColumn = "name" | "original" | "deleted" | "size" | "type";
 interface RecycleViewProps {
     /** Navigates to the folder that held the selected entry, when it still exists. */
     onOpenLocation: (path: string) => void;
+    /** Draw the right-side details pane. */
+    showDetails?: boolean;
+    /** Called when a double click should reveal the details pane. */
+    onShowDetails?: () => void;
     /** Play audio in video previews; off means muted. */
     videoAudio?: boolean;
+    /** Start a video preview automatically; off means the user presses play. */
+    videoAutoplay?: boolean;
 }
 
 /**
@@ -32,7 +38,9 @@ interface RecycleViewProps {
  * details strip and a context menu. Windows keeps the records under `$Recycle.Bin`; this view only
  * presents what the host read and asks it for restore/delete.
  */
-export function RecycleView({onOpenLocation, videoAudio = false}: RecycleViewProps) {
+export function RecycleView({
+    onOpenLocation, showDetails = true, onShowDetails, videoAudio = false, videoAutoplay = false,
+}: RecycleViewProps) {
     const [entries, setEntries] = useState<RecycleEntry[]>([]);
     const [adminEntries, setAdminEntries] = useState<RecycleEntry[]>([]);
     const [adminLoaded, setAdminLoaded] = useState(false);
@@ -485,12 +493,11 @@ export function RecycleView({onOpenLocation, videoAudio = false}: RecycleViewPro
                                     onClick={(event) => select(entry, event)}
                                     onContextMenu={(event) => openMenu(event, entry)}
                                     onDoubleClick={() => {
-                                        if (entry.removable && !entry.isOrphan) {
-                                            setSelected(new Set([entry.id]));
-                                            void restoreRecycleEntries([entry.id]).then(reload);
-                                        } else {
-                                            void showRecycleProperties(entry.id);
-                                        }
+                                        // A double click only reveals the details pane; restoring
+                                        // stays on the Restore button now.
+                                        setSelected(new Set([entry.id]));
+                                        setAnchor(entry.id);
+                                        onShowDetails?.();
                                     }}
                                     title={entry.owner ? `${entry.originalPath} · ${entry.owner}` : entry.originalPath}
                                 >
@@ -540,15 +547,18 @@ export function RecycleView({onOpenLocation, videoAudio = false}: RecycleViewPro
                         </Body>
                     </Table>
 
-                    <PreviewPane
-                        info={previewInfo}
-                        onWidth={resizePreview}
-                        selectionNote={selectedEntries.length > 1
-                            ? `${selectedEntries.length} items selected`
-                            : undefined}
-                        videoAudio={videoAudio}
-                        width={previewWidth}
-                    />
+                    {showDetails && previewInfo && (
+                        <PreviewPane
+                            info={previewInfo}
+                            onWidth={resizePreview}
+                            selectionNote={selectedEntries.length > 1
+                                ? `${selectedEntries.length} items selected`
+                                : undefined}
+                            videoAudio={videoAudio}
+                            videoAutoplay={videoAutoplay}
+                            width={previewWidth}
+                        />
+                    )}
                 </SplitPane>
             )}
 

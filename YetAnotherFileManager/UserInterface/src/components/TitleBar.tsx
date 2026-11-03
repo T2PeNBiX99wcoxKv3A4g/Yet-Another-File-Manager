@@ -13,7 +13,9 @@ import {
     GearIcon,
     HomeIcon,
     PackageIcon,
+    PanelIcon,
     PlusIcon,
+    SplitIcon,
     TrashIcon,
 } from "./Icons";
 import ChevronLeftSmallSvg from "./icons/chevron-left-small.svg?react";
@@ -40,12 +42,19 @@ interface TitleBarProps {
     trayCount: number;
     trayVisible: boolean;
     onToggleTray: () => void;
+    split: boolean;
+    canSplit: boolean;
+    onToggleSplit: () => void;
+    details: boolean;
+    canDetails: boolean;
+    onToggleDetails: () => void;
 }
 
 export function TitleBar({
     tabs, activeId, onSelect, onClose, onNewTab, onReorder,
     view, onViewChange, onColumns, showImages, onShowImages, tasks, onClearTasks,
     trayCount, trayVisible, onToggleTray,
+    split, canSplit, onToggleSplit, details, canDetails, onToggleDetails,
 }: TitleBarProps) {
     const controls = useWindowControls();
     const drag = useWindowDrag();
@@ -152,6 +161,24 @@ export function TitleBar({
             <DragArea {...drag}/>
 
             <Controls>
+                <UtilityButton
+                    $active={split}
+                    disabled={!canSplit}
+                    onClick={onToggleSplit}
+                    title={split ? "Close split view" : "Split view"}
+                    type="button"
+                >
+                    <SplitIcon size={15}/>
+                </UtilityButton>
+                <UtilityButton
+                    $active={details}
+                    disabled={!canDetails}
+                    onClick={onToggleDetails}
+                    title={details ? "Hide details panel" : "Show details panel"}
+                    type="button"
+                >
+                    <PanelIcon size={15}/>
+                </UtilityButton>
                 <TrayButton
                     $active={trayVisible}
                     disabled={trayCount === 0}
@@ -391,6 +418,27 @@ const TrayButton = styled.button<{ $active: boolean }>`
     border: 0;
     background: ${({$active}) => $active ? "rgba(148, 163, 184, 0.14)" : "transparent"};
     color: var(--text-secondary);
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+        background: rgba(148, 163, 184, 0.14);
+        color: var(--text-primary);
+    }
+
+    &:disabled {
+        opacity: 0.35;
+        cursor: default;
+    }
+`;
+
+const UtilityButton = styled.button<{ $active: boolean }>`
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 100%;
+    border: 0;
+    background: ${({$active}) => $active ? "rgba(148, 163, 184, 0.14)" : "transparent"};
+    color: ${({$active}) => $active ? "var(--text-primary)" : "var(--text-secondary)"};
     cursor: pointer;
 
     &:hover:not(:disabled) {

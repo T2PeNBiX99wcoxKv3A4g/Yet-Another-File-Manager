@@ -260,6 +260,9 @@ internal sealed record TagsCatalogPayload(List<TagCatalogEntry> Tags);
 /// <summary>Payload for <c>app.tags.delete</c>: the tag to remove everywhere.</summary>
 internal sealed record TagDeleteRequest(string Name);
 
+/// <summary>Payload for <c>app.tags.rename</c>: the tag's old and new names.</summary>
+internal sealed record TagRenameRequest(string OldName, string NewName);
+
 /// <summary>Persisted tag catalogue record; <c>Directories</c> lets a delete clean the indexes.</summary>
 public sealed class TagRecord
 {

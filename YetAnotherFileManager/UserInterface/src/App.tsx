@@ -34,11 +34,12 @@ import {
 } from "./api/operations";
 import {clearTasks, listTasks, type TaskInfo} from "./api/tasks";
 import {FileList} from "./components/FileList";
+import {PreviewPane, type PreviewInfo} from "./components/PreviewPane";
 import {FileTray, type TrayItem} from "./components/FileTray";
 import {FindBar} from "./components/FindBar";
 import {EmptyFind, matchesName, type FindState} from "./find";
 import {QuickAccessProvider, quickName, quickPlace, type QuickAccess} from "./quick";
-import {ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, CrossIcon, GearIcon, ImageIcon, OverviewIcon, TrashIcon} from "./components/Icons";
+import {ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, GearIcon, ImageIcon, OverviewIcon, TrashIcon} from "./components/Icons";
 import {OverviewView} from "./components/OverviewView";
 import {PathBar} from "./components/PathBar";
 import {RecycleView} from "./components/RecycleView";
@@ -195,7 +196,14 @@ export default function App() {
     const [settingsVersion, setSettingsVersion] = useState(0);
     const [locationFocus, setLocationFocus] = useState(0);
     const [visibilityVersion, setVisibilityVersion] = useState(0);
-    const [sidebarVisible, setSidebarVisible] = useState(true);
+    const [detailsVisible, setDetailsVisible] = useState(true);
+    const [detailsWidth, setDetailsWidth] = useState(() => {
+        const saved = Number(localStorage.getItem("yafm.preview.width"));
+        return Number.isFinite(saved) && saved >= 220 ? saved : 320;
+    });
+    const [primaryPreview, setPrimaryPreview] = useState<PreviewInfo | null>(null);
+    const [secondaryPreview, setSecondaryPreview] = useState<PreviewInfo | null>(null);
+    const [activePane, setActivePane] = useState<"primary" | "secondary">("primary");
     const [tasks, setTasks] = useState<TaskInfo[]>([]);
     const [trayItems, setTrayItems] = useState<TrayItem[]>([]);
     const [clipboardItems, setClipboardItems] = useState<TrayItem[]>([]);
@@ -519,11 +527,11 @@ export default function App() {
         }
     }, [beginLoad, includeLinks, patch, resetFind, showCached]);
 
-    const openFiles = useCallback((path?: string) => {
+    const openFiles = useCallback((path?: string, activate = true) => {
         const tab = createTab(path ?? viewLocation("home"));
 
         setTabs((current) => [...current, tab]);
-        setActiveId(tab.id);
+        if (activate) setActiveId(tab.id);
         if (path) void load(tab.id, path);
     }, [load]);
 
@@ -571,10 +579,11 @@ export default function App() {
         setActiveId(tabs[next].id);
     }, []);
 
-    /** Toggles the Dolphin-style split view; the right pane is the next file tab. */
+    /** Toggles the split view; the right pane is the next file tab. */
     const toggleSplit = useCallback(() => {
         if (split) {
             setSplit(false);
+            setActivePane("primary");
             return;
         }
 
@@ -583,10 +592,26 @@ export default function App() {
         if (!tab || kindOf(tab) !== "files") return;
 
         if (!tabs.some((item) => item.id !== activeId && kindOf(item) === "files"))
-            openFiles(folderOf(tab));
+            openFiles(folderOf(tab), false);
 
+        setActivePane("primary");
         setSplit(true);
     }, [openFiles, split]);
+
+    const resizeDetails = useCallback((width: number) => {
+        setDetailsWidth(width);
+
+        try {
+            localStorage.setItem("yafm.preview.width", String(width));
+        } catch {
+            // Storage may be unavailable; the width still works for this run.
+        }
+    }, []);
+
+    /** The pane whose selection the shared details panel follows; the other side is the fallback. */
+    const detailsInfo = activePane === "secondary"
+        ? secondaryPreview ?? primaryPreview
+        : primaryPreview ?? secondaryPreview;
 
     /**
      * Steps through the active tab's history. These read the tab from the ref so the keyboard
@@ -1243,9 +1268,6 @@ export default function App() {
             } else if (combo === shortcuts.splitView) {
                 event.preventDefault();
                 toggleSplit();
-            } else if (combo === shortcuts.placesPanel) {
-                event.preventDefault();
-                setSidebarVisible((visible) => !visible);
             } else if (kind === "files" && event.key.length === 1 && event.key !== " "
                 && !event.ctrlKey && !event.altKey && !event.metaKey) {
                 // Typing anywhere in a folder starts a search with that letter; the first hit jumps.
@@ -1338,7 +1360,11 @@ export default function App() {
             <FileList
                 confirmDelete={settings?.confirmDelete ?? false}
                 previewVideoAudio={settings?.previewVideoAudio ?? false}
-                enableShortcuts={primary}
+                previewVideoAutoplay={settings?.previewVideoAutoplay ?? false}
+                showDetails={detailsVisible && !splitActive}
+                onPreviewInfo={splitActive ? (primary ? setPrimaryPreview : setSecondaryPreview) : undefined}
+                onActivate={splitActive ? () => setActivePane(primary ? "primary" : "secondary") : undefined}
+                enableShortcuts={!splitActive || (primary ? activePane === "primary" : activePane === "secondary")}
                 error={tab.error}
                 find={primary ? {...find, currentPath: findCurrent < 0 ? null : findHits[findCurrent]} : undefined}
                 imageStripHeight={imageStripHeight}
@@ -1413,6 +1439,12 @@ export default function App() {
                 trayCount={trayItems.length}
                 trayVisible={trayVisible}
                 onToggleTray={toggleTray}
+                split={splitActive}
+                canSplit={kind === "files"}
+                onToggleSplit={toggleSplit}
+                details={detailsVisible}
+                canDetails={kind === "files" || kind === "recycle"}
+                onToggleDetails={() => setDetailsVisible((visible) => !visible)}
                 view={view}
                 tabs={tabs.map((tab) => {
                     const tabKind = kindOf(tab);
@@ -1431,42 +1463,40 @@ export default function App() {
             />
 
             <Body>
-                {sidebarVisible && (
-                    <Sidebar
-                        activeKind={kind}
-                        currentPath={kind === "files" ? location : ""}
-                        drives={drives}
-                        historyVersion={historyVersion}
-                        onNavigate={(path) => navigate(path)}
-                        onOpenView={openView}
-                        homePath={places.find((place) => place.kind === "home")?.path ?? ""}
-                        places={places}
-                        recent={recent}
-                        recentLimit={recentLimit}
-                        version={settingsVersion}
-                    />
-                )}
+                <Sidebar
+                    activeKind={kind}
+                    currentPath={kind === "files" ? location : ""}
+                    drives={drives}
+                    historyVersion={historyVersion}
+                    onNavigate={(path) => navigate(path)}
+                    onOpenView={openView}
+                    homePath={places.find((place) => place.kind === "home")?.path ?? ""}
+                    places={places}
+                    recent={recent}
+                    recentLimit={recentLimit}
+                    version={settingsVersion}
+                />
 
-                <Main $sidebar={sidebarVisible}>
-                    <Toolbar>
-                        <IconButton disabled={!canBack} onClick={goBack} title="Back" type="button">
-                            <ArrowLeftIcon/>
-                        </IconButton>
+                <Main>
+                    {!splitActive && (
+                        <Toolbar>
+                            <IconButton disabled={!canBack} onClick={goBack} title="Back" type="button">
+                                <ArrowLeftIcon/>
+                            </IconButton>
 
-                        <IconButton disabled={!canForward} onClick={goForward} title="Forward" type="button">
-                            <ArrowRightIcon/>
-                        </IconButton>
+                            <IconButton disabled={!canForward} onClick={goForward} title="Forward" type="button">
+                                <ArrowRightIcon/>
+                            </IconButton>
 
-                        <IconButton
-                            disabled={kind !== "files" || !active.listing?.parent}
-                            onClick={() => active.listing?.parent && navigate(active.listing.parent)}
-                            title="Up one level"
-                            type="button"
-                        >
-                            <ArrowUpIcon/>
-                        </IconButton>
+                            <IconButton
+                                disabled={kind !== "files" || !active.listing?.parent}
+                                onClick={() => active.listing?.parent && navigate(active.listing.parent)}
+                                title="Up one level"
+                                type="button"
+                            >
+                                <ArrowUpIcon/>
+                            </IconButton>
 
-                        {!splitActive && (
                             <PathBar
                                 focusToken={locationFocus}
                                 icon={viewIcon}
@@ -1474,27 +1504,46 @@ export default function App() {
                                 onNavigate={navigate}
                                 path={kind === "files" ? folderOf(active) : location}
                             />
-                        )}
-                    </Toolbar>
+                        </Toolbar>
+                    )}
 
                     {kind === "files" ? (
                         splitActive && secondary ? (
                             <Split>
                                 <Pane>
-                                    <PaneHeader>
+                                    <PaneToolbar>
+                                        <IconButton disabled={!canBack} onClick={goBack} title="Back" type="button">
+                                            <ArrowLeftIcon/>
+                                        </IconButton>
+                                        <IconButton
+                                            disabled={!canForward}
+                                            onClick={goForward}
+                                            title="Forward"
+                                            type="button"
+                                        >
+                                            <ArrowRightIcon/>
+                                        </IconButton>
+                                        <IconButton
+                                            disabled={!active.listing?.parent}
+                                            onClick={() => active.listing?.parent && navigate(active.listing.parent)}
+                                            title="Up one level"
+                                            type="button"
+                                        >
+                                            <ArrowUpIcon/>
+                                        </IconButton>
                                         <PathBar
                                             focusToken={locationFocus}
                                             onNavigate={navigate}
                                             path={folderOf(active)}
                                         />
-                                    </PaneHeader>
+                                    </PaneToolbar>
                                     {filePane(active, true)}
                                     {findBar}
                                 </Pane>
                                 <SplitDivider/>
                                 <Pane>
-                                    <PaneHeader>
-                                        <PaneClose
+                                    <PaneToolbar>
+                                        <IconButton
                                             disabled={secondary.index <= 0}
                                             onClick={() => {
                                                 const index = secondary.index - 1;
@@ -1504,9 +1553,9 @@ export default function App() {
                                             title="Back"
                                             type="button"
                                         >
-                                            <ArrowLeftIcon size={12}/>
-                                        </PaneClose>
-                                        <PaneClose
+                                            <ArrowLeftIcon/>
+                                        </IconButton>
+                                        <IconButton
                                             disabled={secondary.index >= secondary.history.length - 1}
                                             onClick={() => {
                                                 const index = secondary.index + 1;
@@ -1516,9 +1565,9 @@ export default function App() {
                                             title="Forward"
                                             type="button"
                                         >
-                                            <ArrowRightIcon size={12}/>
-                                        </PaneClose>
-                                        <PaneClose
+                                            <ArrowRightIcon/>
+                                        </IconButton>
+                                        <IconButton
                                             disabled={!secondary.listing?.parent}
                                             onClick={() => {
                                                 if (secondary.listing?.parent)
@@ -1527,22 +1576,24 @@ export default function App() {
                                             title="Up one level"
                                             type="button"
                                         >
-                                            <ArrowUpIcon size={12}/>
-                                        </PaneClose>
+                                            <ArrowUpIcon/>
+                                        </IconButton>
                                         <PathBar
                                             onNavigate={(path) => void load(secondary.id, path)}
                                             path={folderOf(secondary)}
                                         />
-                                        <PaneClose
-                                            onClick={() => setSplit(false)}
-                                            title="Close split view"
-                                            type="button"
-                                        >
-                                            <CrossIcon size={12}/>
-                                        </PaneClose>
-                                    </PaneHeader>
+                                    </PaneToolbar>
                                     {filePane(secondary, false)}
                                 </Pane>
+                                {detailsVisible && (
+                                    <PreviewPane
+                                        info={detailsInfo}
+                                        onWidth={resizeDetails}
+                                        videoAudio={settings?.previewVideoAudio ?? false}
+                                        videoAutoplay={settings?.previewVideoAutoplay ?? false}
+                                        width={detailsWidth}
+                                    />
+                                )}
                             </Split>
                         ) : (
                             <Files>
@@ -1574,7 +1625,13 @@ export default function App() {
                             showCheckboxes={settings?.showCheckboxes ?? true}
                         />
                     ) : (
-                        <RecycleView onOpenLocation={navigate} videoAudio={settings?.previewVideoAudio ?? false}/>
+                        <RecycleView
+                            onOpenLocation={navigate}
+                            onShowDetails={() => setDetailsVisible(true)}
+                            showDetails={detailsVisible}
+                            videoAudio={settings?.previewVideoAudio ?? false}
+                            videoAutoplay={settings?.previewVideoAutoplay ?? false}
+                        />
                     )}
 
                     <StatusBar>
@@ -1629,12 +1686,12 @@ const Body = styled.div`
         var(--bg-primary);
 `;
 
-const Main = styled.main<{ $sidebar: boolean }>`
+const Main = styled.main`
     display: flex;
     flex-direction: column;
     flex: 1;
     min-width: 0;
-    margin-left: ${({$sidebar}) => $sidebar ? "56px" : "0"};
+    margin-left: 56px;
 `;
 
 const Toolbar = styled.header`
@@ -1677,6 +1734,16 @@ const IconButton = styled.button`
     }
 `;
 
+const PaneToolbar = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(11, 15, 25, 0.55);
+    backdrop-filter: blur(8px);
+`;
+
 const Split = styled.div`
     display: flex;
     flex: 1;
@@ -1696,32 +1763,6 @@ const SplitDivider = styled.div`
     width: 1px;
     flex-shrink: 0;
     background: var(--border-color);
-`;
-
-const PaneHeader = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--border-color);
-`;
-
-const PaneClose = styled.button`
-    display: grid;
-    place-items: center;
-    width: 24px;
-    height: 24px;
-    flex-shrink: 0;
-    border: 0;
-    border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--text-muted);
-    cursor: pointer;
-
-    &:hover {
-        background: var(--bg-card-hover);
-        color: var(--text-primary);
-    }
 `;
 
 const Files = styled.div`

@@ -22,3 +22,11 @@ export async function deleteTag(name: string): Promise<boolean> {
     const data = await Native.request<{ ok: boolean }>("app.tags.delete", { name });
     return data.ok;
 }
+
+/** Renames a tag in every folder index the catalogue knows. */
+export async function renameTag(name: string, next: string): Promise<boolean> {
+    if (!Native.available || !name || !next) return false;
+
+    const data = await Native.request<{ ok: boolean }>("app.tags.rename", { oldName: name, newName: next });
+    return data.ok;
+}

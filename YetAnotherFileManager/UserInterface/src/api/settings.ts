@@ -53,6 +53,8 @@ export interface AppSettings {
     confirmDelete: boolean;
     /** Play a video preview's audio; off means muted. */
     previewVideoAudio: boolean;
+    /** Start a video preview automatically; off means the user presses play. */
+    previewVideoAutoplay: boolean;
 }
 
 const fallback: AppSettings = {
@@ -83,6 +85,7 @@ const fallback: AppSettings = {
     openOnSingleClick: false,
     confirmDelete: false,
     previewVideoAudio: false,
+    previewVideoAutoplay: false,
 };
 
 /** The interface settings, persisted by the host. */
@@ -119,6 +122,7 @@ export async function getSettings(): Promise<AppSettings> {
         openOnSingleClick: raw?.openOnSingleClick ?? false,
         confirmDelete: raw?.confirmDelete ?? false,
         previewVideoAudio: raw?.previewVideoAudio ?? false,
+        previewVideoAutoplay: raw?.previewVideoAutoplay ?? false,
     };
 }
 
@@ -156,6 +160,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         openOnSingleClick: saved?.openOnSingleClick ?? settings.openOnSingleClick,
         confirmDelete: saved?.confirmDelete ?? settings.confirmDelete,
         previewVideoAudio: saved?.previewVideoAudio ?? settings.previewVideoAudio,
+        previewVideoAutoplay: saved?.previewVideoAutoplay ?? settings.previewVideoAutoplay,
     };
 }
 

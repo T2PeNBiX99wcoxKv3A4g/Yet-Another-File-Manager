@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState, type PointerEvent as ReactPointerEvent} from "react";
 import styled from "styled-components";
 import {useIcon, useMediaUrl, useThumbnail} from "../api/icons";
-import {FileIcon, FolderIcon} from "./Icons";
+import {FileIcon, FolderIcon, PauseIcon, PlayIcon} from "./Icons";
 
 export interface PreviewInfo {
     name: string;
@@ -20,6 +20,8 @@ interface PreviewPaneProps {
     onWidth: (width: number) => void;
     /** Play video previews with sound; off means muted. */
     videoAudio: boolean;
+    /** Start a video preview automatically; off means the user presses play. */
+    videoAutoplay: boolean;
     /** A note such as "3 items selected". */
     selectionNote?: string;
 }
@@ -34,8 +36,10 @@ const ImageExtensions = new Set([
  * The right-side details pane shared by the file browser and the recycle bin. The media area shows
  * an image, a playable video/audio file, or the entry's icon; the splitter on its left resizes it.
  */
-export function PreviewPane({info, width, onWidth, videoAudio, selectionNote}: PreviewPaneProps) {
+export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, selectionNote}: PreviewPaneProps) {
     const [videoFailed, setVideoFailed] = useState(false);
+    const [playing, setPlaying] = useState(false);
+    const videoRef = useRef<HTMLVideoElement | null>(null);
     const drag = useRef<{ x: number; width: number } | null>(null);
     const path = info?.path ?? null;
     const extension = info ? extensionOf(info.name) : "";
@@ -50,6 +54,7 @@ export function PreviewPane({info, width, onWidth, videoAudio, selectionNote}: P
 
     useEffect(() => {
         setVideoFailed(false);
+        setPlaying(false);
     }, [path]);
 
     if (!info)
@@ -73,6 +78,17 @@ export function PreviewPane({info, width, onWidth, videoAudio, selectionNote}: P
         event.currentTarget.releasePointerCapture(event.pointerId);
     };
 
+    const toggleVideo = () => {
+        const element = videoRef.current;
+        if (!element)
+            return;
+
+        if (element.paused)
+            void element.play().catch(() => undefined);
+        else
+            element.pause();
+    };
+
     return (
         <Root>
             <Splitter
@@ -87,16 +103,30 @@ export function PreviewPane({info, width, onWidth, videoAudio, selectionNote}: P
                 <Media>
                     {video && media && !videoFailed
                         ? (
-                            <video
-                                autoPlay={!videoAudio}
-                                controls
-                                muted={!videoAudio}
-                                onError={() => setVideoFailed(true)}
-                                playsInline
-                                poster={poster ?? undefined}
-                                preload="metadata"
-                                src={media}
-                            />
+                            <>
+                                <video
+                                    autoPlay={videoAutoplay}
+                                    controls
+                                    muted={!videoAudio}
+                                    onError={() => setVideoFailed(true)}
+                                    onPause={() => setPlaying(false)}
+                                    onPlay={() => setPlaying(true)}
+                                    playsInline
+                                    poster={poster ?? undefined}
+                                    preload="metadata"
+                                    ref={videoRef}
+                                    src={media}
+                                />
+                                <VideoToggle
+                                    $playing={playing}
+                                    onClick={toggleVideo}
+                                    title={playing ? "Pause" : "Play"}
+                                    type="button"
+                                >
+                                    {playing ? <PauseIcon size={13}/> : <PlayIcon size={13}/>}
+                                    {playing ? "Pause" : "Play"}
+                                </VideoToggle>
+                            </>
                         )
                         : audio && media
                             ? <audio controls src={media}/>
@@ -163,6 +193,7 @@ const Panel = styled.aside`
 `;
 
 const Media = styled.div`
+    position: relative;
     display: grid;
     place-items: center;
     height: 210px;
@@ -184,6 +215,29 @@ const Media = styled.div`
 
     svg {
         color: var(--text-muted);
+    }
+`;
+
+const VideoToggle = styled.button<{ $playing: boolean }>`
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    border: 1px solid ${({$playing}) => $playing ? "var(--border-color-focus)" : "rgba(148, 163, 184, 0.35)"};
+    border-radius: 999px;
+    background: rgba(2, 6, 23, 0.72);
+    color: #e2e8f0;
+    font: inherit;
+    font-size: 10px;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+
+    &:hover {
+        border-color: var(--border-color-focus);
+        background: rgba(15, 23, 42, 0.9);
     }
 `;
 

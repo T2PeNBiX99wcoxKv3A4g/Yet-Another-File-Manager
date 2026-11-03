@@ -29,7 +29,7 @@ import {
 import {NoFind, rangesOf, type FindView} from "../find";
 import {canPreview, previewKindOf, PreviewKindLabels} from "../preview";
 import {quickPlace, useQuickAccess} from "../quick";
-import {formatBytes, formatDate} from "../utils/format";
+import {baseName, formatBytes, formatDate} from "../utils/format";
 import {
     AppIcon,
     ArchiveIcon,
@@ -111,6 +111,14 @@ interface FileListProps {
     confirmDelete?: boolean;
     /** Play audio in video previews; off means muted. */
     previewVideoAudio?: boolean;
+    /** Start a video preview automatically; off means the user presses play. */
+    previewVideoAutoplay?: boolean;
+    /** Draw the right-side details pane for this list. */
+    showDetails?: boolean;
+    /** Reports the entry (or current folder) the details pane should show. */
+    onPreviewInfo?: (info: PreviewInfo | null) => void;
+    /** Called when the user interacts with this pane, so a shared pane knows which side is active. */
+    onActivate?: () => void;
 }
 
 interface RowModel {
@@ -130,6 +138,7 @@ export function FileList({
     onImageStripHeight, onSort, onSetTags, onOpen, onOpenFile, showCheckboxes = true,
     openOnSingleClick = false, shortcuts = DefaultShortcuts, enableShortcuts = true, refreshToken = 0, onRefresh,
     onClipboardChanged, onTransfer, onPaste, confirmDelete = false, previewVideoAudio = false,
+    previewVideoAutoplay = false, showDetails = true, onPreviewInfo, onActivate,
 }: FileListProps) {
     const quick = useQuickAccess();
     const currentRow = useRef<HTMLDivElement | null>(null);
@@ -152,6 +161,8 @@ export function FileList({
     const [renaming, setRenaming] = useState<{ path: string; value: string } | null>(null);
     const renamingRef = useRef(renaming);
     renamingRef.current = renaming;
+    const activateRef = useRef(onActivate);
+    activateRef.current = onActivate;
     const [previewWidth, setPreviewWidth] = useState(() => {
         const saved = Number(localStorage.getItem("yafm.preview.width"));
         return Number.isFinite(saved) && saved >= 220 ? saved : 320;
@@ -562,6 +573,8 @@ export function FileList({
         const onKey = (event: KeyboardEvent) => {
             if (isTyping(event.target)) return;
 
+            activateRef.current?.();
+
             const combo = comboOf(event);
             const paths = [...selected];
             const selectedEntry = paths.length === 1
@@ -909,52 +922,110 @@ export function FileList({
         return first ? rows.find((row) => row.entry.fullPath === first)?.entry ?? null : null;
     }, [allPaths, listing, rows, selected]);
 
-    const previewInfo: PreviewInfo | null = previewEntry && listing
-        ? (() => {
-            const folderSize = previewEntry.isDirectory ? listing.folderSizes[previewEntry.name] : undefined;
+    const directoryInfo = useMemo<PreviewInfo | null>(() => {
+        if (!listing)
+            return null;
 
-            return {
-                name: previewEntry.name,
-                path: previewEntry.fullPath,
-                isDirectory: previewEntry.isDirectory,
-                size: previewEntry.size,
-                modified: previewEntry.modified,
-                created: previewEntry.created,
-                fields: [
-                    {label: "Type", value: typeLabel(previewEntry)},
-                    {label: "Location", value: listing.path},
-                    {
-                        label: "Size",
-                        value: previewEntry.isDirectory
-                            ? folderSize === undefined ? "—" : formatBytes(folderSize)
-                            : formatBytes(previewEntry.size),
-                    },
-                    {label: "Modified", value: formatDate(previewEntry.modified)},
-                    {label: "Created", value: formatDate(previewEntry.created)},
-                    ...(previewEntry.linkTarget
-                        ? [{label: "Target", value: previewEntry.linkTarget}]
-                        : []),
-                    ...(previewEntry.linkCount > 1
-                        ? [{label: "Links", value: String(previewEntry.linkCount)}]
-                        : []),
-                    {
-                        label: "Attributes",
-                        value: [
-                            previewEntry.isHidden ? "Hidden" : "",
-                            previewEntry.isSystem ? "System" : "",
-                        ].filter(Boolean).join(", ") || "—",
-                    },
-                ],
-            };
-        })()
-        : null;
+        const total = listing.entries.reduce((sum, entry) => sum + (entry.isDirectory
+            ? listing.folderSizes[entry.name] ?? 0
+            : Math.max(entry.size, 0)), 0);
+        const count = listing.entries.length;
 
-    const previewPane = previewInfo && (
+        return {
+            name: baseName(listing.path) || listing.path,
+            path: listing.path,
+            isDirectory: true,
+            size: total,
+            modified: 0,
+            fields: [
+                {label: "Type", value: "Folder"},
+                {label: "Location", value: listing.parent ?? "—"},
+                {label: "Path", value: listing.path},
+                {label: "Size", value: formatBytes(total)},
+                {label: "Items", value: `${count} item${count === 1 ? "" : "s"}`},
+                {label: "Modified", value: "—"},
+                {label: "Created", value: "—"},
+                {label: "Attributes", value: "—"},
+            ],
+        };
+    }, [listing]);
+
+    const selectionInfo = useMemo<PreviewInfo | null>(() => {
+        if (!previewEntry || !listing)
+            return null;
+
+        const folderSize = previewEntry.isDirectory ? listing.folderSizes[previewEntry.name] : undefined;
+        const tags = listing.tags[previewEntry.name] ?? [];
+        const dot = previewEntry.name.lastIndexOf(".");
+        const extension = dot > 0 && dot < previewEntry.name.length - 1
+            ? previewEntry.name.slice(dot + 1).toUpperCase()
+            : "—";
+
+        return {
+            name: previewEntry.name,
+            path: previewEntry.fullPath,
+            isDirectory: previewEntry.isDirectory,
+            size: previewEntry.size,
+            modified: previewEntry.modified,
+            created: previewEntry.created,
+            fields: [
+                {label: "Type", value: typeLabel(previewEntry)},
+                {label: "Extension", value: previewEntry.isDirectory ? "—" : extension},
+                {label: "Location", value: listing.path},
+                {label: "Full path", value: previewEntry.fullPath},
+                {
+                    label: "Size",
+                    value: previewEntry.isDirectory
+                        ? folderSize === undefined ? "—" : formatBytes(folderSize)
+                        : formatBytes(previewEntry.size),
+                },
+                ...(previewEntry.isDirectory
+                    ? [{
+                        label: "Items",
+                        value: `${listing.counts[previewEntry.name] ?? "—"}`,
+                    }]
+                    : []),
+                {label: "Modified", value: formatDate(previewEntry.modified)},
+                {label: "Created", value: formatDate(previewEntry.created)},
+                {
+                    label: "Link status",
+                    value: previewEntry.linkTarget != null
+                        ? previewEntry.linkValid ? "OK" : "Broken"
+                        : previewEntry.linkCount > 1 ? "Hard link" : "—",
+                },
+                ...(previewEntry.linkTarget
+                    ? [{label: "Target", value: previewEntry.linkTarget}]
+                    : []),
+                ...(previewEntry.linkCount > 1
+                    ? [{label: "Links", value: String(previewEntry.linkCount)}]
+                    : []),
+                {
+                    label: "Attributes",
+                    value: [
+                        previewEntry.isHidden ? "Hidden" : "",
+                        previewEntry.isSystem ? "System" : "",
+                    ].filter(Boolean).join(", ") || "—",
+                },
+                ...(tags.length > 0 ? [{label: "Tags", value: tags.join(", ")}] : []),
+            ],
+        };
+    }, [listing, previewEntry]);
+
+    const previewInfo = selectionInfo ?? directoryInfo;
+    const previewInfoRef = useRef(onPreviewInfo);
+    previewInfoRef.current = onPreviewInfo;
+
+    useEffect(() => {
+        previewInfoRef.current?.(previewInfo);
+    }, [onPreviewInfo, previewInfo]);
+
+    const previewPane = showDetails && previewInfo && (
         <PreviewPane
             info={previewInfo}
             onWidth={resizePreview}
             selectionNote={selected.size > 1 ? `${selected.size} items selected` : undefined}
             videoAudio={previewVideoAudio}
+            videoAutoplay={previewVideoAutoplay}
             width={previewWidth}
         />
     );
@@ -967,7 +1038,7 @@ export function FileList({
 
     if (view.mode === "grid")
         return (
-            <SplitPane>
+            <SplitPane onPointerDown={onActivate}>
                 <Wrapper>
                 <GridBody
                     onClick={(event) => {
@@ -1022,7 +1093,7 @@ export function FileList({
         );
 
     return (
-        <SplitPane>
+        <SplitPane onPointerDown={onActivate}>
             <Wrapper>
             <Head style={{gridTemplateColumns: template}}>
                 <HeaderButton onClick={() => onSort("name")} type="button">

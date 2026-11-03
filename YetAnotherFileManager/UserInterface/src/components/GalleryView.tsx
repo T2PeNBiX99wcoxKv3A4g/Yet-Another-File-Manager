@@ -4,18 +4,22 @@ import {
 } from "react";
 import styled from "styled-components";
 import {listGallery, openFile, type GalleryEntry} from "../api/files";
-import {copyPaths, openWith, showInExplorer, showProperties} from "../api/operations";
+import {compressPaths, copyPaths, deletePaths, openWith, showInExplorer, showProperties} from "../api/operations";
 import {useThumbnail} from "../api/icons";
 import {appLocale, formatBytes} from "../utils/format";
 import {
+    ArchiveIcon,
     ArrowRightIcon,
     CheckIcon,
     CopyIcon,
+    CutIcon,
     ExecutableIcon,
     FolderIcon,
     GearIcon,
     RefreshIcon,
+    TrashIcon,
 } from "./Icons";
+import {ConfirmDialog} from "./ConfirmDialog";
 import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
 
 /** How many pictures one request carries; the rest are prefetched before the bottom is reached. */
@@ -46,6 +50,7 @@ export function GalleryView({openOnSingleClick = false, showCheckboxes = true}: 
     const [busy, setBusy] = useState(false);
     const [selected, setSelected] = useState<Set<string>>(() => new Set());
     const [menu, setMenu] = useState<{ x: number; y: number; entry: GalleryEntry } | null>(null);
+    const [confirmDelete, setConfirmDelete] = useState(false);
 
     const entriesRef = useRef<GalleryEntry[]>([]);
     const totalRef = useRef(0);
@@ -264,9 +269,17 @@ export function GalleryView({openOnSingleClick = false, showCheckboxes = true}: 
     const openMenu = useCallback((event: ReactMouseEvent, entry: GalleryEntry) => {
         event.preventDefault();
         setSelected((current) => current.has(entry.path) ? current : new Set([entry.path]));
+        anchor.current = entry.path;
         setMenu({x: event.clientX, y: event.clientY, entry});
     }, []);
 
+    const refresh = () => {
+        setBusy(true);
+        setSelected(new Set());
+        void load(true).finally(() => setBusy(false));
+    };
+
+    const menuPaths = selected.size > 0 ? [...selected] : menu ? [menu.entry.path] : [];
     const menuItems: ContextMenuItem[] = menu
         ? [
             {
@@ -280,43 +293,82 @@ export function GalleryView({openOnSingleClick = false, showCheckboxes = true}: 
                 onSelect: () => void openWith(menu.entry.path),
             },
             {
+                label: "Compress to ZIP",
+                icon: <ArchiveIcon size={14}/>,
+                separatorBefore: true,
+                onSelect: () => void compressPaths(menuPaths).then(() => refresh()),
+            },
+            {
+                label: "Copy as path",
+                icon: <CopyIcon size={14}/>,
+                onSelect: () => void navigator.clipboard.writeText(menuPaths.join("\n")),
+            },
+            {
                 label: "Show in Explorer",
                 icon: <FolderIcon size={14}/>,
                 separatorBefore: true,
                 onSelect: () => void showInExplorer(menu.entry.path),
             },
             {
-                label: selected.size > 1 ? `Copy ${selected.size} pictures` : "Copy",
-                icon: <CopyIcon size={14}/>,
-                onSelect: () => void copyPaths(selected.size > 0 ? [...selected] : [menu.entry.path], false),
-            },
-            {
-                label: "Copy as path",
-                icon: <CopyIcon size={14}/>,
-                onSelect: () => void navigator.clipboard.writeText(
-                    (selected.size > 0 ? [...selected] : [menu.entry.path]).join("\n")),
+                label: menuPaths.length > 1 ? `Delete ${menuPaths.length} pictures` : "Delete",
+                icon: <TrashIcon size={14}/>,
+                danger: true,
+                onSelect: () => setConfirmDelete(true),
             },
             {
                 label: "Properties",
                 icon: <GearIcon size={14}/>,
                 separatorBefore: true,
-                onSelect: () => void showProperties([menu.entry.path]),
+                onSelect: () => void showProperties(menuPaths),
+            },
+            {
+                label: "Select all",
+                separatorBefore: true,
+                onSelect: () => setSelected(new Set(entriesRef.current.map((entry) => entry.path))),
+            },
+            {
+                label: "Refresh",
+                icon: <RefreshIcon size={14}/>,
+                onSelect: refresh,
             },
         ]
         : [];
 
-    const refresh = () => {
-        setBusy(true);
-        setSelected(new Set());
-        void load(true).finally(() => setBusy(false));
-    };
+    const quickActions: ContextMenuItem[] = menu
+        ? [
+            {
+                label: "Cut",
+                icon: <CutIcon size={16}/>,
+                onSelect: () => void copyPaths(menuPaths, true),
+            },
+            {
+                label: "Copy",
+                icon: <CopyIcon size={16}/>,
+                onSelect: () => void copyPaths(menuPaths, false),
+            },
+            {
+                label: "Delete",
+                icon: <TrashIcon size={16}/>,
+                danger: true,
+                onSelect: () => setConfirmDelete(true),
+            },
+            {
+                label: "Properties",
+                icon: <GearIcon size={16}/>,
+                onSelect: () => void showProperties(menuPaths),
+            },
+        ]
+        : [];
 
     return (
         <Page>
             <Header>
                 <Heading>
                     <span>Gallery</span>
-                    <Count>{loading ? "scanning…" : `${entries.length} of ${total} pictures`}</Count>
+                    <Count>
+                        {loading ? "scanning…" : `${entries.length} of ${total} pictures`}
+                        {selected.size > 0 && ` · ${selected.size} selected`}
+                    </Count>
                 </Heading>
 
                 <IconButton onClick={refresh} title="Scan the folders again" type="button">
@@ -359,7 +411,28 @@ export function GalleryView({openOnSingleClick = false, showCheckboxes = true}: 
                 <Sentinel $space={hasMore ? MoreSpace : 1} ref={sentinel}/>
             </Grid>
 
-            {menu && <ContextMenu items={menuItems} onClose={() => setMenu(null)} x={menu.x} y={menu.y}/>}
+            {menu && (
+                <ContextMenu
+                    items={menuItems}
+                    onClose={() => setMenu(null)}
+                    quick={quickActions}
+                    x={menu.x}
+                    y={menu.y}
+                />
+            )}
+
+            <ConfirmDialog
+                confirmLabel="Delete"
+                danger
+                message={`Move ${menuPaths.length} selected picture${menuPaths.length === 1 ? "" : "s"} to the recycle bin?`}
+                onCancel={() => setConfirmDelete(false)}
+                onConfirm={() => {
+                    setConfirmDelete(false);
+                    void deletePaths(menuPaths).then(() => refresh());
+                }}
+                open={confirmDelete}
+                title="Move to the recycle bin"
+            />
         </Page>
     );
 }
@@ -635,7 +708,7 @@ const GalleryCheck = styled.button<{ $checked: boolean }>`
     border-radius: 4px;
     background: ${({$checked}) => $checked ? "var(--accent-primary)" : "rgba(2, 6, 23, 0.55)"};
     color: #fff;
-    opacity: ${({$checked}) => $checked ? 1 : 0};
+    opacity: ${({$checked}) => $checked ? 1 : 0.55};
     cursor: pointer;
     transition: opacity 100ms ease, background 100ms ease;
 `;

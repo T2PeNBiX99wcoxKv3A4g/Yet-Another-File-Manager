@@ -276,6 +276,12 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                     new OkPayload(await TagCatalog.Instance.DeleteAsync(
                         context.Payload<TagDeleteRequest>()?.Name ?? "")));
 
+            case "app.tags.rename":
+                var renameTag = context.Payload<TagRenameRequest>();
+                return context.Reply("app.tags.rename.result",
+                    new OkPayload(await TagCatalog.Instance.RenameAsync(
+                        renameTag?.OldName ?? "", renameTag?.NewName ?? "")));
+
             case "fs.operation.properties":
                 await FileOperations.ShowPropertiesAsync(context.Payload<PathsPayload>()?.Paths ?? []);
                 return context.Reply("fs.operation.properties.result", new OkPayload(true));

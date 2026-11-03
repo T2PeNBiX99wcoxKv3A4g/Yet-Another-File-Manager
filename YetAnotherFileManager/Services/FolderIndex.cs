@@ -501,6 +501,105 @@ internal static class FolderIndex
         }
     }
 
+    /// <summary>Renames one tag in every entry and color in a folder's index.</summary>
+    public static async Task<bool> RenameTagAsync(string directory, string tag, string next)
+    {
+        await WriteGate.WaitAsync();
+
+        try
+        {
+            var result = await Try.Run(async () =>
+            {
+                await using var connection = await OpenAsync(directory, false);
+                if (connection is null)
+                    return false;
+
+                var rows = new List<(string Name, List<string> Tags)>();
+
+                await using (var read = connection.CreateCommand())
+                {
+                    read.CommandText = "SELECT name, tags FROM tags";
+                    await using var reader = await read.ExecuteReaderAsync();
+
+                    while (await reader.ReadAsync())
+                    {
+                        var tags = Try.Run(() => JsonSerializer.Deserialize(reader.GetString(1),
+                            AppJsonContext.Default.ListString)).GetOrNull();
+
+                        if (tags is { Count: > 0 } && tags.Contains(tag, StringComparer.OrdinalIgnoreCase))
+                            rows.Add((reader.GetString(0), tags));
+                    }
+                }
+
+                await using var transaction = await connection.BeginTransactionAsync();
+
+                foreach (var (name, tags) in rows)
+                {
+                    var renamed = new List<string>(tags.Count);
+
+                    foreach (var value in tags)
+                    {
+                        var text = string.Equals(value, tag, StringComparison.OrdinalIgnoreCase) ? next : value;
+
+                        if (!renamed.Contains(text, StringComparer.OrdinalIgnoreCase))
+                            renamed.Add(text);
+                    }
+
+                    await using var command = connection.CreateCommand();
+                    command.Transaction = (SqliteTransaction)transaction;
+                    command.CommandText = "UPDATE tags SET tags = $tags WHERE name = $name";
+                    command.Parameters.AddWithValue("$tags",
+                        JsonSerializer.Serialize(renamed, AppJsonContext.Default.ListString));
+                    command.Parameters.AddWithValue("$name", name);
+                    await command.ExecuteNonQueryAsync();
+                }
+
+                // The color is a separate settings row; move its key with the tag so the picker
+                // keeps showing the same color under the new name.
+                await using (var read = connection.CreateCommand())
+                {
+                    read.CommandText = "SELECT value FROM settings WHERE key = 'tag_colors'";
+                    read.Transaction = (SqliteTransaction)transaction;
+
+                    var raw = await read.ExecuteScalarAsync() as string;
+                    var colors = raw is null
+                        ? null
+                        : Try.Run(() => JsonSerializer.Deserialize(raw,
+                            AppJsonContext.Default.DictionaryStringString)).GetOrNull();
+
+                    var key = colors?.Keys.FirstOrDefault(value =>
+                        string.Equals(value, tag, StringComparison.OrdinalIgnoreCase));
+
+                    if (colors is not null && key is not null)
+                    {
+                        var color = colors[key];
+                        colors.Remove(key);
+
+                        if (!colors.Keys.Any(value => string.Equals(value, next, StringComparison.OrdinalIgnoreCase)))
+                            colors[next] = color;
+
+                        await using var write = connection.CreateCommand();
+                        write.Transaction = (SqliteTransaction)transaction;
+                        write.CommandText = "UPDATE settings SET value = $value WHERE key = 'tag_colors'";
+                        write.Parameters.AddWithValue("$value",
+                            JsonSerializer.Serialize(colors, AppJsonContext.Default.DictionaryStringString));
+                        await write.ExecuteNonQueryAsync();
+                    }
+                }
+
+                await transaction.CommitAsync();
+                return true;
+            });
+
+            return result.OnFailure(ex => Log.Debug(ex, "Could not rename tag {Tag} in {Directory}", tag, directory))
+                .GetOrElse(_ => false);
+        }
+        finally
+        {
+            WriteGate.Release();
+        }
+    }
+
     /// <summary>The color each tag was given, by tag name.</summary>
     public static async Task<Dictionary<string, string>> TagColorsAsync(string directory) =>
         await ReadAsync(directory, "SELECT value FROM settings WHERE key = 'tag_colors'",

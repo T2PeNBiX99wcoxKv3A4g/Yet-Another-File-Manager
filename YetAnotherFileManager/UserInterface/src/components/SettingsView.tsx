@@ -13,7 +13,7 @@ import {
 } from "../api/settings";
 import type {AppInfo} from "../api/system";
 import {getMemory, getScheme, setScheme, trimMemory, type MemoryUsage} from "../api/system";
-import {deleteTag, listTags, type TagCatalogEntry} from "../api/tags";
+import {deleteTag, listTags, renameTag, type TagCatalogEntry} from "../api/tags";
 import {CheckIcon, CrossIcon, PlusIcon, TrashIcon} from "./Icons";
 import {IconPicker} from "./IconPicker";
 import {DefaultTagColor} from "./TagPicker";
@@ -59,7 +59,6 @@ const ShortcutRows: { id: keyof ShortcutMap; label: string; note: string }[] = [
     {id: "terminal", label: "Open terminal", note: "Opens Windows Terminal in the current folder; Dolphin uses F4 for its terminal panel."},
     {id: "hidden", label: "Show hidden files", note: "Toggles ordinary hidden files for this session. Alt+. also works; system files still follow Explorer."},
     {id: "splitView", label: "Split view", note: "Shows the next file tab beside the current one; F3 in Dolphin."},
-    {id: "placesPanel", label: "Toggle sidebar", note: "Shows or hides the Places-style sidebar; F9 in Dolphin."},
     {id: "openInNewTab", label: "Open in a new tab", note: "Hold this while clicking a folder."},
 ];
 
@@ -77,6 +76,8 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
     const [schemeError, setSchemeError] = useState<string | null>(null);
     const [capturing, setCapturing] = useState<string | null>(null);
     const [tags, setTags] = useState<TagCatalogEntry[]>([]);
+    const [editingTag, setEditingTag] = useState<{ name: string; value: string } | null>(null);
+    const [tagBusy, setTagBusy] = useState(false);
     const defaultView = settings?.defaultView ?? DefaultViewDefaults;
 
     useEffect(() => {
@@ -111,6 +112,28 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
             return;
 
         setTags(await listTags());
+    };
+
+    const saveTagName = async () => {
+        const edit = editingTag;
+        if (!edit || tagBusy)
+            return;
+
+        const value = edit.value.trim();
+
+        if (value.length === 0 || value === edit.name) {
+            setEditingTag(null);
+            return;
+        }
+
+        setTagBusy(true);
+
+        if (await renameTag(edit.name, value)) {
+            setTags(await listTags());
+            setEditingTag(null);
+        }
+
+        setTagBusy(false);
     };
 
     /** Columns are a window-wide setting, so the order stays the same everywhere. */
@@ -309,22 +332,69 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                     )}
                     {tags.map((tag) => (
                         <Row key={tag.name}>
-                            <RowText>
-                                <LabelRow>
-                                    <TagDot $color={tag.color ?? DefaultTagColor}/>
-                                    <Label>{tag.name}</Label>
-                                </LabelRow>
-                                <Note>
-                                    Used in {tag.folders} folder{tag.folders === 1 ? "" : "s"}.
-                                    Removing it also removes it from those folders' indexes.
-                                </Note>
-                            </RowText>
-                            <RowEnd>
-                                <DangerButton onClick={() => void removeTag(tag.name)} type="button">
-                                    <TrashIcon size={13}/>
-                                    Remove
-                                </DangerButton>
-                            </RowEnd>
+                            {editingTag?.name === tag.name
+                                ? (
+                                    <>
+                                        <RowText>
+                                            <LabelRow>
+                                                <TagDot $color={tag.color ?? DefaultTagColor}/>
+                                                <RenameTagInput
+                                                    autoFocus
+                                                    disabled={tagBusy}
+                                                    onChange={(event) => setEditingTag({
+                                                        name: tag.name,
+                                                        value: event.target.value,
+                                                    })}
+                                                    onKeyDown={(event) => {
+                                                        if (event.key === "Enter") {
+                                                            event.preventDefault();
+                                                            void saveTagName();
+                                                        } else if (event.key === "Escape") {
+                                                            event.preventDefault();
+                                                            setEditingTag(null);
+                                                        }
+                                                    }}
+                                                    value={editingTag.value}
+                                                />
+                                            </LabelRow>
+                                            <Note>Press Enter to save, Escape to cancel.</Note>
+                                        </RowText>
+                                        <RowEnd>
+                                            <SmallButton disabled={tagBusy} onClick={() => void saveTagName()} type="button">
+                                                Save
+                                            </SmallButton>
+                                            <SmallButton disabled={tagBusy} onClick={() => setEditingTag(null)} type="button">
+                                                Cancel
+                                            </SmallButton>
+                                        </RowEnd>
+                                    </>
+                                )
+                                : (
+                                    <>
+                                        <RowText>
+                                            <LabelRow>
+                                                <TagDot $color={tag.color ?? DefaultTagColor}/>
+                                                <Label>{tag.name}</Label>
+                                            </LabelRow>
+                                            <Note>
+                                                Used in {tag.folders} folder{tag.folders === 1 ? "" : "s"}.
+                                                Renaming or removing it updates those folders' indexes.
+                                            </Note>
+                                        </RowText>
+                                        <RowEnd>
+                                            <SmallButton
+                                                onClick={() => setEditingTag({name: tag.name, value: tag.name})}
+                                                type="button"
+                                            >
+                                                Edit
+                                            </SmallButton>
+                                            <DangerButton onClick={() => void removeTag(tag.name)} type="button">
+                                                <TrashIcon size={13}/>
+                                                Remove
+                                            </DangerButton>
+                                        </RowEnd>
+                                    </>
+                                )}
                         </Row>
                     ))}
                 </Rows>
@@ -477,6 +547,28 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                             $on={settings?.previewVideoAudio ?? false}
                             disabled={!settings}
                             onClick={() => void update({previewVideoAudio: !(settings?.previewVideoAudio ?? false)})}
+                            type="button"
+                        >
+                            <Knob/>
+                        </Toggle>
+                    </Row>
+                    <Row>
+                        <RowText>
+                            <LabelRow>
+                                <Label>Autoplay video previews</Label>
+                                <GlobalTag/>
+                            </LabelRow>
+                            <Note>
+                                Off by default. Turn this on to start a video as soon as its details
+                                panel opens; the play button still works when it is off.
+                            </Note>
+                        </RowText>
+                        <Toggle
+                            $on={settings?.previewVideoAutoplay ?? false}
+                            disabled={!settings}
+                            onClick={() => void update({
+                                previewVideoAutoplay: !(settings?.previewVideoAutoplay ?? false),
+                            })}
                             type="button"
                         >
                             <Knob/>
@@ -1043,6 +1135,41 @@ const TagDot = styled.span<{ $color: string }>`
     flex-shrink: 0;
     border-radius: 50%;
     background: ${({$color}) => $color};
+`;
+
+const RenameTagInput = styled.input`
+    min-width: 0;
+    flex: 1;
+    padding: 3px 8px;
+    border: 1px solid var(--border-color-focus);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+`;
+
+const SmallButton = styled.button`
+    padding: 5px 9px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+        border-color: var(--border-color-hover);
+        background: var(--bg-card-hover);
+        color: var(--text-primary);
+    }
+
+    &:disabled {
+        opacity: 0.45;
+        cursor: default;
+    }
 `;
 
 const DangerButton = styled.button`

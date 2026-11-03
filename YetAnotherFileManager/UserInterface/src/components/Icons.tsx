@@ -56,6 +56,10 @@ import CopySvg from "./icons/copy.svg?react";
 import CutSvg from "./icons/cut.svg?react";
 import PasteSvg from "./icons/paste.svg?react";
 import ShareSvg from "./icons/share.svg?react";
+import PlaySvg from "./icons/play.svg?react";
+import PauseSvg from "./icons/pause.svg?react";
+import SplitSvg from "./icons/split.svg?react";
+import PanelSvg from "./icons/panel.svg?react";
 
 interface IconProps extends SVGProps<SVGSVGElement> {
     size?: number;
@@ -125,3 +129,7 @@ export const CopyIcon = sized(CopySvg, 16);
 export const CutIcon = sized(CutSvg, 16);
 export const PasteIcon = sized(PasteSvg, 16);
 export const ShareIcon = sized(ShareSvg, 16);
+export const PlayIcon = sized(PlaySvg, 16);
+export const PauseIcon = sized(PauseSvg, 16);
+export const SplitIcon = sized(SplitSvg, 16);
+export const PanelIcon = sized(PanelSvg, 16);
