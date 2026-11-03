@@ -308,7 +308,7 @@ const Aside = styled.aside`
     width: 52px;
     padding: 10px 9px;
     overflow: hidden;
-    background: rgba(9, 13, 22, 0.78);
+    background: rgba(var(--bg-rgb), 0.78);
     border-right: 1px solid var(--border-color);
     backdrop-filter: blur(16px) saturate(115%);
     -webkit-backdrop-filter: blur(16px) saturate(115%);
@@ -321,7 +321,7 @@ const Aside = styled.aside`
     &:hover {
         width: 224px;
         padding: 10px 10px;
-        background: rgba(9, 13, 22, 0.90);
+        background: rgba(var(--bg-rgb), 0.90);
         box-shadow: 14px 0 36px rgba(0, 0, 0, 0.45), 0 0 28px rgba(var(--accent-secondary-rgb), 0.06);
         overflow-y: auto;
         scrollbar-width: none;

@@ -250,7 +250,7 @@ const Bar = styled.header`
     align-items: stretch;
     height: 44px;
     flex-shrink: 0;
-    background: rgba(7, 11, 18, 0.96);
+    background: rgba(var(--bg-rgb), 0.96);
     border-bottom: 1px solid var(--border-color);
     user-select: none;
     -webkit-user-select: none;

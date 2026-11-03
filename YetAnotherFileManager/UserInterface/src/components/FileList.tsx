@@ -1980,7 +1980,7 @@ const TileCheck = styled(SelectionBox)`
     top: 6px;
     left: 6px;
     z-index: 3;
-    background: ${({$checked}) => $checked ? "rgba(var(--accent-rgb), 0.9)" : "rgba(15, 23, 42, 0.6)"};
+    background: ${({$checked}) => $checked ? "rgba(var(--accent-rgb), 0.9)" : "rgba(var(--bg-rgb), 0.6)"};
     backdrop-filter: blur(4px);
 `;
 
@@ -2337,7 +2337,7 @@ const TileCaption = styled.div`
     flex-direction: column;
     gap: 1px;
     padding: 18px 8px 6px;
-    background: linear-gradient(to top, rgba(2, 6, 23, 0.92), rgba(2, 6, 23, 0));
+    background: linear-gradient(to top, rgba(var(--bg-rgb), 0.92), rgba(var(--bg-rgb), 0));
     overflow: hidden;
 `;
 

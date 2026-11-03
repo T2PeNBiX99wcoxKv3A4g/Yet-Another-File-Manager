@@ -149,6 +149,16 @@ function folderOf(tab: Tab): string {
     return viewKind(location) ? "" : tab.listing?.path || location;
 }
 
+/** The tab a window-level action should use: the focused pane in split view, else the active tab. */
+function focusedTabIdOf(state: { tabs: Tab[]; activeId: string; split: boolean; activePane: "primary" | "secondary" }): string {
+    const active = state.tabs.find((tab) => tab.id === state.activeId);
+    if (!state.split || state.activePane !== "secondary" || !active || kindOf(active) !== "files")
+        return state.activeId;
+
+    const other = state.tabs.find((tab) => tab.id !== state.activeId && kindOf(tab) === "files");
+    return other?.id ?? state.activeId;
+}
+
 /** The directory's own mode/size/sort sit on top of the window-wide defaults; columns are global. */
 function resolveView(tab: Tab, defaults: ViewDefaults): ResolvedView {
     return {
@@ -275,13 +285,21 @@ export default function App() {
     const secondaryFolder = secondary ? folderOf(secondary) : "";
     const secondaryParent = secondary ? secondary.listing?.parent ?? parentOf(secondaryFolder) : null;
 
+    /** The pane the window-level actions target: while split, the one that was clicked last. */
+    const focusedTab = splitActive && secondary && activePane === "secondary" ? secondary : active;
+
     // The directory's own mode/size/sort sit on top of the window-wide defaults; columns are global.
     const viewDefaults = settings?.defaultView ?? DefaultViewDefaults;
-    const view: ResolvedView = resolveView(active, viewDefaults);
+    const view: ResolvedView = resolveView(focusedTab, viewDefaults);
 
     useEffect(() => {
         applyTheme(settings?.accentColor, settings?.secondaryColor);
     }, [settings?.accentColor, settings?.secondaryColor]);
+
+    // Choosing a tab in the title bar puts the focus back on the left pane.
+    useEffect(() => {
+        setActivePane("primary");
+    }, [activeId]);
     // Hard-link counts open a handle per file, so they are only read while the column is visible.
     const includeLinks = view.columns.includes("linkCount");
 
@@ -343,20 +361,20 @@ export default function App() {
 
     /** The entries the current query matches, in list order; the find bar walks this. */
     const findHits = useMemo(
-        () => searching && active.listing
-            ? active.listing.entries
+        () => searching && focusedTab.listing
+            ? focusedTab.listing.entries
                 .filter((entry) => matchesName(
                     entry.isDirectory ? quickName(quickAccess, entry.fullPath, entry.name) : entry.name,
                     find))
                 .map((entry) => entry.fullPath)
             : [],
-        [searching, find, active.listing, quickAccess],
+        [searching, find, focusedTab.listing, quickAccess],
     );
 
     // A new query starts again at the first hit; stepping through them leaves the query alone.
     useEffect(() => {
         setFindIndex(0);
-    }, [find.query, find.matchCase, find.regex, active.listing?.path]);
+    }, [find.query, find.matchCase, find.regex, focusedTab.listing?.path]);
 
     const findCurrent = findHits.length === 0 ? -1 : Math.min(findIndex, findHits.length - 1);
 
@@ -389,8 +407,8 @@ export default function App() {
     }, [findHits.length]);
 
     // Handlers that outlive a render (the native event subscription) read the latest state here.
-    const stateRef = useRef({tabs, activeId});
-    stateRef.current = {tabs, activeId};
+    const stateRef = useRef({tabs, activeId, split, activePane});
+    stateRef.current = {tabs, activeId, split, activePane};
 
     const settingsRef = useRef(settings);
     settingsRef.current = settings;
@@ -638,7 +656,7 @@ export default function App() {
             return;
         }
 
-        openLocation(stateRef.current.activeId, target ?? viewLocation("home"));
+        openLocation(focusedTabIdOf(stateRef.current), target ?? viewLocation("home"));
     }, [openLocation, openFiles]);
 
     /** Moves the focus to the next or previous tab, like Ctrl+Tab in Dolphin. */
@@ -728,16 +746,16 @@ export default function App() {
      * shortcuts stay stable, and so a long list of them does not re-register on every render.
      */
     const goBack = useCallback(() => {
-        const {tabs, activeId} = stateRef.current;
-        const tab = tabs.find((item) => item.id === activeId);
+        const {tabs} = stateRef.current;
+        const tab = tabs.find((item) => item.id === focusedTabIdOf(stateRef.current));
 
         if (tab && tab.index > 0)
             void goTo(tab.id, tab.history[tab.index - 1], tab.index - 1);
     }, [goTo]);
 
     const goForward = useCallback(() => {
-        const {tabs, activeId} = stateRef.current;
-        const tab = tabs.find((item) => item.id === activeId);
+        const {tabs} = stateRef.current;
+        const tab = tabs.find((item) => item.id === focusedTabIdOf(stateRef.current));
 
         if (tab && tab.index < tab.history.length - 1)
             void goTo(tab.id, tab.history[tab.index + 1], tab.index + 1);
@@ -745,23 +763,14 @@ export default function App() {
 
     /** Goes to the folder above the one on screen, the way the toolbar's Up button does. */
     const goUp = useCallback(() => {
-        const {tabs, activeId} = stateRef.current;
-        const tab = tabs.find((item) => item.id === activeId);
+        const {tabs} = stateRef.current;
+        const tab = tabs.find((item) => item.id === focusedTabIdOf(stateRef.current));
 
         if (tab && kindOf(tab) === "files" && tab.listing?.parent)
             navigate(tab.listing.parent);
     }, [navigate]);
 
     const viewSave = useRef<number | null>(null);
-
-    /** Reloads the folder the active tab shows, keeping what is already on screen. */
-    const refreshActive = useCallback(() => {
-        const {tabs, activeId} = stateRef.current;
-        const tab = tabs.find((item) => item.id === activeId);
-
-        if (tab?.listing)
-            void load(tab.id, tab.listing.path, true);
-    }, [load]);
 
     /** Reloads every file tab, which is what a hidden-files change affects. */
     const refreshAll = useCallback(() => {
@@ -1015,9 +1024,9 @@ export default function App() {
         }, 250);
     }, [patch]);
 
-    /** The active tab's view; the split pane calls the id-based version directly. */
+    /** The focused pane's view; the split panes keep their own mode and sizes. */
     const changeView = useCallback((change: Partial<DirectoryView>) => {
-        changeViewFor(stateRef.current.activeId, change);
+        changeViewFor(focusedTabIdOf(stateRef.current), change);
     }, [changeViewFor]);
 
     /** Columns are window-wide, so every folder changes together. */
@@ -1087,10 +1096,6 @@ export default function App() {
         void saveTags(folder, name, tags, colors);
     }, [patch]);
 
-    const setEntryTags = useCallback((name: string, tags: string[], colors?: Record<string, string>) => {
-        setEntryTagsFor(stateRef.current.activeId, name, tags, colors);
-    }, [setEntryTagsFor]);
-
     /** A header click sorts by that column, and a second click flips the direction. */
     const sortByFor = useCallback((id: string, column: string) => {
         const tab = stateRef.current.tabs.find((item) => item.id === id);
@@ -1102,10 +1107,6 @@ export default function App() {
             sortDescending: current.sort === column ? !current.sortDescending : false,
         });
     }, [changeViewFor]);
-
-    const sortBy = useCallback((column: string) => {
-        sortByFor(stateRef.current.activeId, column);
-    }, [sortByFor]);
 
     /** Moves a tab next to another one, which is what dragging a tab does. */
     const moveTab = useCallback((id: string, beforeId: string) => {
@@ -1348,7 +1349,7 @@ export default function App() {
 
             if (combo === shortcuts.closeTab) {
                 event.preventDefault();
-                closeTab(stateRef.current.activeId);
+                closeTab(focusedTabIdOf(stateRef.current));
             } else if (combo === shortcuts.newTab) {
                 event.preventDefault();
                 openFiles();
@@ -1486,7 +1487,8 @@ export default function App() {
 
     /** One file pane; the split view renders the same component twice with different tabs. */
     const filePane = (tab: Tab, primary: boolean) => {
-        const tabView = primary ? view : resolveView(tab, viewDefaults);
+        // Each pane keeps its own mode, sizes and sort; columns stay window-wide.
+        const tabView = resolveView(tab, viewDefaults);
 
         return (
             <FileList
@@ -1498,26 +1500,23 @@ export default function App() {
                 onActivate={() => setActivePane(primary ? "primary" : "secondary")}
                 enableShortcuts={!splitActive || (primary ? activePane === "primary" : activePane === "secondary")}
                 error={tab.error}
-                find={primary ? {...find, currentPath: findCurrent < 0 ? null : findHits[findCurrent]} : undefined}
+                find={tab.id === focusedTab.id
+                    ? {...find, currentPath: findCurrent < 0 ? null : findHits[findCurrent]}
+                    : undefined}
                 imageStripHeight={imageStripHeight}
                 listing={tab.listing}
                 loading={tab.loading}
                 onImageStripHeight={setImageStripHeight}
                 onOpen={(path, newTab) => {
                     if (newTab) openFiles(path);
-                    else if (primary) navigate(path);
                     else void load(tab.id, path);
                 }}
                 onOpenFile={(file) => void openFile(file)}
-                onRefresh={primary
-                    ? refreshActive
-                    : () => {
-                        if (tab.listing) void load(tab.id, tab.listing.path, true);
-                    }}
-                onSetTags={primary
-                    ? setEntryTags
-                    : (name, tags, colors) => setEntryTagsFor(tab.id, name, tags, colors)}
-                onSort={primary ? sortBy : (column) => sortByFor(tab.id, column)}
+                onRefresh={() => {
+                    if (tab.listing) void load(tab.id, tab.listing.path, true);
+                }}
+                onSetTags={(name, tags, colors) => setEntryTagsFor(tab.id, name, tags, colors)}
+                onSort={(column) => sortByFor(tab.id, column)}
                 onPaste={pruneTray}
                 onClipboardChanged={() => void refreshClipboard()}
                 onTransfer={transferTo}
@@ -1683,12 +1682,16 @@ export default function App() {
                     {kind === "files" ? (
                         splitActive && secondary ? (
                             <Split>
-                                <Pane>
-                                    <PaneToolbar>
+                                <Pane $active={activePane === "primary"}>
+                                    <PaneToolbar onPointerDown={() => setActivePane("primary")}>
                                         <IconButton
                                             data-shortcut={prettyShortcut(shortcuts.goBack)}
                                             disabled={!canBack}
-                                            onClick={goBack}
+                                            onClick={() => {
+                                                const index = active.index - 1;
+                                                if (index >= 0)
+                                                    void goTo(active.id, active.history[index], index);
+                                            }}
                                             title="Back"
                                             type="button"
                                         >
@@ -1697,7 +1700,11 @@ export default function App() {
                                         <IconButton
                                             data-shortcut={prettyShortcut(shortcuts.goForward)}
                                             disabled={!canForward}
-                                            onClick={goForward}
+                                            onClick={() => {
+                                                const index = active.index + 1;
+                                                if (index < active.history.length)
+                                                    void goTo(active.id, active.history[index], index);
+                                            }}
                                             title="Forward"
                                             type="button"
                                         >
@@ -1706,15 +1713,15 @@ export default function App() {
                                         <IconButton
                                             data-shortcut={prettyShortcut(shortcuts.goUp)}
                                             disabled={!activeParent}
-                                            onClick={() => activeParent && navigate(activeParent)}
+                                            onClick={() => activeParent && void load(active.id, activeParent)}
                                             title="Up one level"
                                             type="button"
                                         >
                                             <ArrowUpIcon/>
                                         </IconButton>
                                         <PathBar
-                                            focusToken={locationFocus}
-                                            onNavigate={navigate}
+                                            focusToken={activePane === "primary" ? locationFocus : undefined}
+                                            onNavigate={(path) => void load(active.id, path)}
                                             path={activeFolder}
                                         />
                                         <IconButton
@@ -1738,11 +1745,11 @@ export default function App() {
                                         </IconButton>
                                     </PaneToolbar>
                                     {filePane(active, true)}
-                                    {findBar}
+                                    {activePane === "primary" && findBar}
                                 </Pane>
                                 <SplitDivider/>
-                                <Pane>
-                                    <PaneToolbar>
+                                <Pane $active={activePane === "secondary"}>
+                                    <PaneToolbar onPointerDown={() => setActivePane("secondary")}>
                                         <IconButton
                                             data-shortcut={prettyShortcut(shortcuts.goBack)}
                                             disabled={secondary.index <= 0}
@@ -1782,6 +1789,7 @@ export default function App() {
                                             <ArrowUpIcon/>
                                         </IconButton>
                                         <PathBar
+                                            focusToken={activePane === "secondary" ? locationFocus : undefined}
                                             onNavigate={(path) => void load(secondary.id, path)}
                                             path={secondaryFolder}
                                         />
@@ -1806,6 +1814,7 @@ export default function App() {
                                         </IconButton>
                                     </PaneToolbar>
                                     {filePane(secondary, false)}
+                                    {activePane === "secondary" && findBar}
                                 </Pane>
                                 {detailsVisible && (
                                     <PreviewPane
@@ -1934,7 +1943,7 @@ const Body = styled.div`
     background:
         radial-gradient(1200px 650px at 12% -10%, rgba(var(--accent-secondary-rgb), 0.12), transparent 60%),
         radial-gradient(900px 520px at 110% 18%, rgba(var(--accent-rgb), 0.09), transparent 55%),
-        linear-gradient(180deg, #0b0f19 0%, #090d17 100%);
+        linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-media) 100%);
 `;
 
 const Main = styled.main`
@@ -1951,7 +1960,7 @@ const Toolbar = styled.header`
     gap: 7px;
     padding: 12px 18px;
     border-bottom: 1px solid var(--border-color);
-    background: rgba(11, 15, 25, 0.58);
+    background: rgba(var(--bg-rgb), 0.58);
     backdrop-filter: blur(10px);
 `;
 
@@ -1996,7 +2005,7 @@ const PaneToolbar = styled.div`
     gap: 7px;
     padding: 12px 18px;
     border-bottom: 1px solid var(--border-color);
-    background: rgba(11, 15, 25, 0.58);
+    background: rgba(var(--bg-rgb), 0.58);
     backdrop-filter: blur(10px);
 `;
 
@@ -2006,13 +2015,17 @@ const Split = styled.div`
     min-height: 0;
 `;
 
-const Pane = styled.div`
+const Pane = styled.div<{ $active: boolean }>`
     position: relative;
     display: flex;
     flex-direction: column;
     flex: 1;
     min-width: 0;
     min-height: 0;
+    box-shadow: ${({$active}) => $active
+        ? "inset 0 0 0 1px rgba(var(--accent-rgb), 0.20)"
+        : "none"};
+    transition: box-shadow 140ms ease;
 `;
 
 const SplitDivider = styled.div`
@@ -2051,7 +2064,7 @@ const StatusBar = styled.footer`
     gap: 16px;
     padding: 7px 20px;
     border-top: 1px solid var(--border-color);
-    background: rgba(8, 12, 21, 0.58);
+    background: rgba(var(--bg-rgb), 0.58);
     font-family: var(--font-sans);
     font-size: 11px;
     color: var(--text-muted);

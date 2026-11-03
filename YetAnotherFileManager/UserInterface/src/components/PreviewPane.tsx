@@ -325,7 +325,7 @@ const Media = styled.div`
     height: 210px;
     flex-shrink: 0;
     overflow: hidden;
-    background: #05080f;
+    background: var(--bg-media);
 
     img,
     video {
@@ -367,7 +367,7 @@ const CenterPlay = styled.button`
     padding: 0;
     border: 1px solid rgba(255, 255, 255, 0.35);
     border-radius: 50%;
-    background: rgba(2, 6, 23, 0.62);
+    background: rgba(var(--bg-rgb), 0.62);
     color: #fff;
     cursor: pointer;
     backdrop-filter: blur(4px);
@@ -380,7 +380,7 @@ const CenterPlay = styled.button`
 
     &:hover {
         border-color: var(--border-color-focus);
-        background: rgba(15, 23, 42, 0.86);
+        background: rgba(var(--bg-rgb), 0.86);
     }
 `;
 
@@ -393,7 +393,7 @@ const VideoControls = styled.div`
     flex-direction: column;
     gap: 4px;
     padding: 24px 10px 8px;
-    background: linear-gradient(to top, rgba(2, 6, 23, 0.92), rgba(2, 6, 23, 0));
+    background: linear-gradient(to top, rgba(var(--bg-rgb), 0.92), rgba(var(--bg-rgb), 0));
 `;
 
 const Times = styled.div`

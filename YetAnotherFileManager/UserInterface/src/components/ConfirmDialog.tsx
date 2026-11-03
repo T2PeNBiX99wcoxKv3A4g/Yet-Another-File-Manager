@@ -75,7 +75,7 @@ const Overlay = styled.div`
     display: grid;
     place-items: center;
     padding: 24px;
-    background: rgba(2, 6, 23, 0.72);
+    background: rgba(var(--bg-rgb), 0.72);
     backdrop-filter: blur(3px);
 `;
 

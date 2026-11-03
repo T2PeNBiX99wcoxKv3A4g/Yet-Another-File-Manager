@@ -22,6 +22,8 @@ html {
   --bg-card-hover: rgba(31, 41, 55, 0.85);
   --bg-input: rgba(15, 23, 42, 0.75);
   --bg-elevated: rgba(10, 15, 26, 0.96);
+  --bg-media: #05080f;
+  --bg-rgb: 11, 15, 25;
 
   --text-primary: #f9fafb;
   --text-secondary: #aab4c5;
@@ -96,7 +98,7 @@ body {
 }
 
 ::selection {
-  background: rgba(59, 130, 246, 0.3);
+  background: rgba(var(--accent-rgb), 0.3);
   color: var(--text-primary);
 }
 
@@ -130,10 +132,10 @@ html.window-rounded body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.22);
+  background: rgba(var(--accent-rgb), 0.22);
   border-radius: 4px;
 
   &:hover {
-    background: rgba(99, 102, 241, 0.38);
+    background: rgba(var(--accent-rgb), 0.38);
   }
 }
