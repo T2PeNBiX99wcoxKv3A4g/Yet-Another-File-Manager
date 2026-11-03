@@ -63,7 +63,7 @@ import {readDraggedPaths, writeDraggedPaths} from "./FileTray";
 const PreviewLimit = 60;
 
 /** Rows appended per scroll page; a huge cache folder would otherwise create thousands at once. */
-const RowPage = 500;
+const RowPage = 300;
 
 /** The columns the list can show besides the name. `linkTarget` is drawn inside the name cell. */
 export const ViewColumns: { id: string; label: string; width: number }[] = [
@@ -1570,7 +1570,9 @@ function sizeOf(entry: FileEntry, folderSizes: Record<string, number>): string {
  * desktop.ini when that is enabled), then the built-in icon for the file type.
  */
 function EntryIcon({entry, size = 18}: { entry: FileEntry; size?: number }) {
-    const shellIcon = useIcon(entry.fullPath, entry.isDirectory, size > 32);
+    // Folders all share the built-in glyph. Asking the shell per folder made a cache directory
+    // with a thousand subfolders pay for a thousand icon lookups.
+    const shellIcon = useIcon(entry.isDirectory ? null : entry.fullPath, false, size > 32);
     const customFile = entry.iconSource?.startsWith("file:") ? entry.iconSource.slice(5) : null;
     const customImage = useIconFile(customFile);
 

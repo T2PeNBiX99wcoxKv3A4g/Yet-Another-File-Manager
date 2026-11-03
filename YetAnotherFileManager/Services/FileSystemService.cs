@@ -40,6 +40,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         ".contact", ".diagcpl", ".diagpkg", ".diagcab", ".theme", ".themepack"
     };
 
+    /// <summary>Above this many child folders, background size/count walks would fight navigation.</summary>
+    private const int BackgroundFolderLimit = 128;
+
     public FileSystemService() => NativeBridge.MessageReceived += HandleMessageAsync;
 
     private static async Task<NativeResponse?> HandleMessageAsync(NativeContext context)
@@ -841,8 +844,12 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             .Select(entry => entry.Name)
             .ToList();
 
-        if (children.Count > 0)
-            FolderSizeService.Instance.Request(directory, children);
+        // A cache folder with hundreds of children would spend the whole session walking them and
+        // compete with navigation; the Size column simply stays empty there.
+        if (children.Count is 0 or > BackgroundFolderLimit)
+            return;
+
+        FolderSizeService.Instance.Request(directory, children);
     }
 
     /// <summary>Queues the child directories whose item count is stale; counts stay with the folder.</summary>
@@ -861,8 +868,10 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             .Select(entry => entry.Name)
             .ToList();
 
-        if (children.Count > 0)
-            FolderCountService.Instance.Request(directory, children);
+        if (children.Count is 0 or > BackgroundFolderLimit)
+            return;
+
+        FolderCountService.Instance.Request(directory, children);
     }
 
     private static Task<List<PlaceEntry>> GetPlacesAsync() => Task.Run(GetPlaces);
