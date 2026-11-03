@@ -18,19 +18,13 @@ internal sealed class SettingsService : Singleton<SettingsService>
 
     public AppSettings Current => _current;
 
-    /// <summary>The stored value that means "follow the operating system" rather than one language.</summary>
-    public const string AutoLanguage = "auto";
-
     /// <summary>
-    ///     The language the interface uses. A fresh install starts in English; <see cref="AutoLanguage" />
-    ///     is the explicit opt-in to the operating system's language.
+    ///     The stored language setting: a locale code, or <see cref="Localization.SystemLocale" /> to follow
+    ///     the operating system. A fresh install starts in English.
     /// </summary>
-    public string Language => _current.Language switch
-    {
-        null or "" => Localization.DefaultLocale,
-        AutoLanguage => Localization.ResolveSystemLocale(),
-        var language => language
-    };
+    public string Language => _current.Language is { Length: > 0 } language
+        ? language
+        : Localization.DefaultLocale;
 
     /// <summary>Reads the settings once at startup, before any service asks for <see cref="Current" />.</summary>
     public async Task InitializeAsync()

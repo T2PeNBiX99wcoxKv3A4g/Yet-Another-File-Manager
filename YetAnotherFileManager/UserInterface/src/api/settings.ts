@@ -59,7 +59,7 @@ export interface AppSettings {
     accentColor: string | null;
     /** The gradient/highlight colour, or null for the default indigo. */
     secondaryColor: string | null;
-    /** UI language such as "en" or "zh-TW"; null means English, "auto" follows the OS. */
+    /** UI language such as "en" or "zh-TW"; null means English, "system" follows the OS. */
     language: string | null;
 }
 

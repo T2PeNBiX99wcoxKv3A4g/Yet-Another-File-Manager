@@ -81,8 +81,8 @@ const ThemePresets: { name: string; accent: string; secondary: string }[] = [
 /** The language a fresh install uses until the picker changes it. */
 const DefaultLanguage = "en";
 
-/** A stored value that means "whatever the operating system asks for". */
-const AutoLanguage = "auto";
+/** The stored value the shared localization library reads as "follow the operating system". */
+const SystemLanguage = "system";
 
 /** Endonyms, so the picker reads the same whichever language is active. */
 const LocaleNames: Record<string, string> = {
@@ -470,7 +470,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                 <LanguagePicker
                                     disabled={!settings}
                                     onChange={(code) => void update({language: code})}
-                                    options={["auto", ...(languages.length > 0 ? languages : [DefaultLanguage])]}
+                                    options={[SystemLanguage, ...(languages.length > 0 ? languages : [DefaultLanguage])]}
                                     value={settings?.language ?? DefaultLanguage}
                                 />
                             </RowEnd>
@@ -1443,7 +1443,7 @@ function LanguagePicker({value, options, onChange, disabled}: {
 
 /** What the picker shows for a stored value: an endonym, or the auto option. */
 function labelOf(t: Translate, code: string): string {
-    if (code === AutoLanguage) return t("System default");
+    if (code === SystemLanguage) return t("System default");
 
     return LocaleNames[code] ?? code;
 }
