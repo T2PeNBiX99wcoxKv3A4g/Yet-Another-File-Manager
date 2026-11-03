@@ -2,6 +2,7 @@ import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
 import type {DirectoryView, ResolvedView} from "../api/files";
 import {GlobalTag} from "./GlobalTag";
+import {elevatedPanel} from "../ui/panel";
 import {ViewColumns} from "./FileList";
 import {GridIcon, ListIcon} from "./Icons";
 
@@ -178,12 +179,7 @@ const Panel = styled.div`
     z-index: 60;
     width: 244px;
     padding: 12px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
-    background: var(--bg-elevated);
-    backdrop-filter: blur(18px) saturate(120%);
-    -webkit-backdrop-filter: blur(18px) saturate(120%);
-    box-shadow: var(--shadow-panel);
+    ${elevatedPanel}
     animation: yafm-view-in 150ms cubic-bezier(0.22, 1, 0.36, 1);
 
     @keyframes yafm-view-in {

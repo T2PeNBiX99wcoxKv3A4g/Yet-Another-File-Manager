@@ -2,6 +2,8 @@ import {useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent 
 import styled from "styled-components";
 import {PathIcon} from "./PathIcon";
 import {CheckIcon, CrossIcon, PackageIcon} from "./Icons";
+import {elevatedPanel} from "../ui/panel";
+import {parentPath} from "../utils/format";
 
 /** One entry the tray holds; it can come from an in-app copy, a cut, or the system clipboard. */
 export interface TrayItem {
@@ -249,7 +251,7 @@ export function FileTray({
                 <PathIcon isDirectory={item.isDirectory} name={item.name} path={item.path} size={16}/>
                 <Names>
                     <Name>{item.name}</Name>
-                    <Parent>{parentOf(item.path)}</Parent>
+                    <Parent>{parentPath(item.path)}</Parent>
                 </Names>
             </Item>
         );
@@ -349,14 +351,6 @@ export function FileTray({
     );
 }
 
-/** The folder that holds a path, shortened for the second line of a tray row. */
-function parentOf(path: string): string {
-    const trimmed = path.replace(/[\\/]+$/, "");
-    const cut = Math.max(trimmed.lastIndexOf("\\"), trimmed.lastIndexOf("/"));
-
-    return cut > 0 ? trimmed.slice(0, cut) : trimmed;
-}
-
 const Panel = styled.div<{ $dragging: boolean }>`
     position: fixed;
     z-index: 55;
@@ -364,12 +358,7 @@ const Panel = styled.div<{ $dragging: boolean }>`
     flex-direction: column;
     width: 300px;
     max-height: 380px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
-    background: var(--bg-elevated);
-    backdrop-filter: blur(18px) saturate(120%);
-    -webkit-backdrop-filter: blur(18px) saturate(120%);
-    box-shadow: var(--shadow-panel);
+    ${elevatedPanel}
     overflow: hidden;
     user-select: none;
     cursor: ${({$dragging}) => $dragging ? "grabbing" : "default"};

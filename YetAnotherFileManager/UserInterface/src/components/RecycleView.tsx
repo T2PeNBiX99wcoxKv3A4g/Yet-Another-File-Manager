@@ -12,6 +12,7 @@ import {
 } from "../api/files";
 import {useIcon} from "../api/icons";
 import {formatBytes, formatDate} from "../utils/format";
+import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "../storage";
 import {CheckIcon, CopyIcon, FileIcon, FolderIcon, GearIcon, RefreshIcon, TrashIcon} from "./Icons";
 import RestoreSvg from "./icons/restore.svg?react";
 import {ConfirmDialog} from "./ConfirmDialog";
@@ -52,34 +53,24 @@ export function RecycleView({
     const [selected, setSelected] = useState<Set<string>>(() => new Set());
     const [anchor, setAnchor] = useState<string | null>(null);
     const [sort, setSort] = useState<{ column: SortColumn; descending: boolean }>(() => {
-        try {
-            const saved = JSON.parse(localStorage.getItem("yafm.recycle.sort") ?? "null") as
-                { column?: SortColumn; descending?: boolean } | null;
+        const saved = readStoredJson<{ column?: SortColumn; descending?: boolean }>("yafm.recycle.sort");
 
-            if (saved?.column)
-                return {column: saved.column, descending: saved.descending === true};
-        } catch {
-            // A malformed saved sort is not worth a warning.
-        }
+        if (saved?.column)
+            return {column: saved.column, descending: saved.descending === true};
 
         return {column: "name", descending: false};
     });
     const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
     const [confirm, setConfirm] = useState<"delete" | "empty" | "purge" | null>(null);
     const [previewWidth, setPreviewWidth] = useState(() => {
-        const saved = Number(localStorage.getItem("yafm.recycle.preview.width"));
-        return Number.isFinite(saved) && saved >= 220 ? saved : 320;
+        const saved = readStoredNumber("yafm.recycle.preview.width", 320);
+        return saved >= 220 ? saved : 320;
     });
     const root = useRef<HTMLDivElement | null>(null);
 
     const resizePreview = (width: number) => {
         setPreviewWidth(width);
-
-        try {
-            localStorage.setItem("yafm.recycle.preview.width", String(width));
-        } catch {
-            // Storage may be unavailable; the width still works for this run.
-        }
+        writeStoredNumber("yafm.recycle.preview.width", width);
     };
 
     const reload = useCallback(async () => {
@@ -594,12 +585,7 @@ export function RecycleView({
                 ? {column, descending: !current.descending}
                 : {column, descending: column === "deleted"};
 
-            try {
-                localStorage.setItem("yafm.recycle.sort", JSON.stringify(next));
-            } catch {
-                // Storage may be unavailable; the sort still works for this run.
-            }
-
+            writeStoredJson("yafm.recycle.sort", next);
             return next;
         });
     }

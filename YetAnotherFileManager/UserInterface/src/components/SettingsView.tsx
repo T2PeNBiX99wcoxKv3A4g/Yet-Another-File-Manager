@@ -23,6 +23,7 @@ import {BuiltinIcon} from "../icons/fileTypes";
 import {GlobalTag} from "./GlobalTag";
 import {ViewColumns} from "./FileList";
 import {baseName, formatBytes, usageTone} from "../utils/format";
+import {readStoredJson, writeStoredJson} from "../storage";
 
 interface SettingsViewProps {
     appInfo: AppInfo | null;
@@ -100,17 +101,12 @@ type RecentColors = Record<ColorRole, string[]>;
 const RecentColorsKey = "yafm.colors.recent";
 
 function readRecentColors(): RecentColors {
-    try {
-        const saved = JSON.parse(localStorage.getItem(RecentColorsKey) ?? "null") as
-            Partial<Record<ColorRole, string[]>> | null;
+    const saved = readStoredJson<Partial<Record<ColorRole, string[]>>>(RecentColorsKey);
 
-        return {
-            accent: (saved?.accent ?? []).filter((color) => typeof color === "string").slice(0, 8),
-            secondary: (saved?.secondary ?? []).filter((color) => typeof color === "string").slice(0, 8),
-        };
-    } catch {
-        return {accent: [], secondary: []};
-    }
+    return {
+        accent: (saved?.accent ?? []).filter((color) => typeof color === "string").slice(0, 8),
+        secondary: (saved?.secondary ?? []).filter((color) => typeof color === "string").slice(0, 8),
+    };
 }
 
 export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
@@ -218,13 +214,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
             ].slice(0, 8);
 
             const next = {...current, [role]: list};
-
-            try {
-                localStorage.setItem(RecentColorsKey, JSON.stringify(next));
-            } catch {
-                // Storage may be unavailable; the chips still work for this run.
-            }
-
+            writeStoredJson(RecentColorsKey, next);
             return next;
         });
     };

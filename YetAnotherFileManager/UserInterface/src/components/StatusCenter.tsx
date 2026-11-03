@@ -3,6 +3,7 @@ import styled from "styled-components";
 import type {TaskInfo} from "../api/tasks";
 import {formatBytes} from "../utils/format";
 import {CheckIcon, ClockIcon, CrossIcon} from "./Icons";
+import {elevatedPanel} from "../ui/panel";
 
 interface StatusCenterProps {
     tasks: TaskInfo[];
@@ -150,12 +151,7 @@ const Panel = styled.div`
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
-    background: var(--bg-elevated);
-    backdrop-filter: blur(18px) saturate(120%);
-    -webkit-backdrop-filter: blur(18px) saturate(120%);
-    box-shadow: var(--shadow-panel);
+    ${elevatedPanel}
     animation: yafm-activity-in 150ms cubic-bezier(0.22, 1, 0.36, 1);
 
     @keyframes yafm-activity-in {

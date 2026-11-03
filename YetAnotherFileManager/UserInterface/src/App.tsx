@@ -68,6 +68,7 @@ import {buildPanels} from "./panels";
 import {Native, ResizeHandles, useWindowCorners} from "@photino-net-utils/bridge";
 import {baseName, formatBytes, normalizePath} from "./utils/format";
 import {applyTheme} from "./theme";
+import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "./storage";
 import {
     comboOf,
     DefaultShortcuts,
@@ -238,12 +239,8 @@ export default function App() {
     const [tabs, setTabs] = useState<Tab[]>(() => [createTab()]);
     const [activeId, setActiveId] = useState(() => tabs[0].id);
     const [splitRatio, setSplitRatio] = useState(() => {
-        try {
-            const saved = Number(localStorage.getItem("yafm.split.ratio"));
-            return Number.isFinite(saved) && saved >= 0.2 && saved <= 0.8 ? saved : 0.5;
-        } catch {
-            return 0.5;
-        }
+        const saved = readStoredNumber("yafm.split.ratio", 0.5);
+        return saved >= 0.2 && saved <= 0.8 ? saved : 0.5;
     });
     const [places, setPlaces] = useState<Place[]>([]);
     const [drives, setDrives] = useState<Drive[]>([]);
@@ -262,8 +259,8 @@ export default function App() {
     const [visibilityVersion, setVisibilityVersion] = useState(0);
     const [detailsVisible, setDetailsVisible] = useState(true);
     const [detailsWidth, setDetailsWidth] = useState(() => {
-        const saved = Number(localStorage.getItem("yafm.preview.width"));
-        return Number.isFinite(saved) && saved >= 220 ? saved : 320;
+        const saved = readStoredNumber("yafm.preview.width", 320);
+        return saved >= 220 ? saved : 320;
     });
     const [primaryPreview, setPrimaryPreview] = useState<PreviewInfo | null>(null);
     const [secondaryPreview, setSecondaryPreview] = useState<PreviewInfo | null>(null);
@@ -280,15 +277,10 @@ export default function App() {
     const [clipboardMove, setClipboardMove] = useState(false);
     const [trayVisible, setTrayVisible] = useState(false);
     const [trayPosition, setTrayPosition] = useState<{ x: number; y: number }>(() => {
-        try {
-            const saved = JSON.parse(localStorage.getItem("yafm.tray.position") ?? "null") as
-                { x?: number; y?: number } | null;
+        const saved = readStoredJson<{ x?: number; y?: number }>("yafm.tray.position");
 
-            if (typeof saved?.x === "number" && typeof saved?.y === "number")
-                return clampTrayPosition({x: saved.x, y: saved.y});
-        } catch {
-            // A malformed saved position is not worth a warning.
-        }
+        if (typeof saved?.x === "number" && typeof saved?.y === "number")
+            return clampTrayPosition({x: saved.x, y: saved.y});
 
         return clampTrayPosition({x: Math.max(20, window.innerWidth - 340), y: 110});
     });
@@ -726,11 +718,7 @@ export default function App() {
     const resizeDetails = useCallback((width: number) => {
         setDetailsWidth(width);
 
-        try {
-            localStorage.setItem("yafm.preview.width", String(width));
-        } catch {
-            // Storage may be unavailable; the width still works for this run.
-        }
+        writeStoredNumber("yafm.preview.width", width);
     }, []);
 
     /** The pane whose selection the shared details panel follows; the other side is the fallback. */
@@ -755,11 +743,7 @@ export default function App() {
             const ratio = Math.min(Math.max((moveEvent.clientX - bounds.left) / paneWidth, 0.2), 0.8);
             setSplitRatio(ratio);
 
-            try {
-                localStorage.setItem("yafm.split.ratio", String(ratio));
-            } catch {
-                // Storage may be unavailable; the ratio still works for this run.
-            }
+            writeStoredNumber("yafm.split.ratio", ratio);
         };
         const stop = () => {
             window.removeEventListener("pointermove", move);
@@ -960,11 +944,7 @@ export default function App() {
         const next = clampTrayPosition(position);
         setTrayPosition(next);
 
-        try {
-            localStorage.setItem("yafm.tray.position", JSON.stringify(next));
-        } catch {
-            // A private web view may refuse storage; the position still works for this run.
-        }
+        writeStoredJson("yafm.tray.position", next);
     }, []);
 
     const toggleTray = useCallback(() => {

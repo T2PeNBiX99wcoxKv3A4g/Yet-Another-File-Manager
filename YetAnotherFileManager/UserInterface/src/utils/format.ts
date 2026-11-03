@@ -49,6 +49,14 @@ export function baseName(path: string): string {
     return parts.at(-1) || path;
 }
 
+/** The folder that holds a path, without a trailing separator. */
+export function parentPath(path: string): string {
+    const trimmed = path.replace(/[\\/]+$/, "");
+    const cut = Math.max(trimmed.lastIndexOf("\\"), trimmed.lastIndexOf("/"));
+
+    return cut > 0 ? trimmed.slice(0, cut) : trimmed;
+}
+
 /** A path with one separator style, no trailing separator and folded case, for map lookups. */
 export function normalizePath(path: string): string {
     // Most Windows paths already use single backslashes, so the regex only runs when needed.

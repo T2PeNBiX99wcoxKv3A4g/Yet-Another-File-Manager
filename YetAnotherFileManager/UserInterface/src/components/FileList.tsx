@@ -30,6 +30,7 @@ import {NoFind, rangesOf, type FindView} from "../find";
 import {canPreview, previewKindOf, PreviewKindLabels} from "../preview";
 import {quickPlace, useQuickAccess} from "../quick";
 import {baseName, formatBytes, formatDate} from "../utils/format";
+import {readStoredNumber, writeStoredNumber} from "../storage";
 import {
     AppIcon,
     ArchiveIcon,
@@ -183,18 +184,13 @@ export function FileList({
     const activateRef = useRef(onActivate);
     activateRef.current = onActivate;
     const [previewWidth, setPreviewWidth] = useState(() => {
-        const saved = Number(localStorage.getItem("yafm.preview.width"));
-        return Number.isFinite(saved) && saved >= 220 ? saved : 320;
+        const saved = readStoredNumber("yafm.preview.width", 320);
+        return saved >= 220 ? saved : 320;
     });
 
     const resizePreview = useCallback((width: number) => {
         setPreviewWidth(width);
-
-        try {
-            localStorage.setItem("yafm.preview.width", String(width));
-        } catch {
-            // Storage may be unavailable; the width still works for this run.
-        }
+        writeStoredNumber("yafm.preview.width", width);
     }, []);
     const [canPaste, setCanPaste] = useState(false);
     const shellRequest = useRef(0);

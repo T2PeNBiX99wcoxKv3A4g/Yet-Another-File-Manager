@@ -780,8 +780,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             ? all
             : all.Where(entry => (showSystem || !entry.IsSystem) && (showHidden || !entry.IsHidden)).ToList();
 
-        if (measure) RequestSizes(directory.FullName, entries);
-        RequestCounts(directory.FullName, entries);
+        RequestMeasurements(directory.FullName, entries, measure);
         _ = HistoryService.Instance.RecordRecentAsync(directory.FullName);
 
         return new(directory.FullName, directory.Parent?.FullName, entries, sizes, view, tags, tagColors, allTags, counts);
@@ -833,27 +832,15 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             tags, tagColors, allTags, counts));
     }
 
-    /// <summary>Queues the folders of the listing that have no fresh measurement.</summary>
-    private static void RequestSizes(string directory, List<FileEntry> entries)
-    {
-        var children = entries
-            .Where(entry => entry.IsDirectory)
-            .Select(entry => entry.Name)
-            .ToList();
-
-        if (children.Count > 0)
-            FolderSizeService.Instance.Request(directory, children);
-    }
-
-    /// <summary>Queues the child directories whose item count is stale; counts stay with the folder.</summary>
-    private static void RequestCounts(string directory, List<FileEntry> entries)
+    /// <summary>Queues the child folders whose size or item count is stale.</summary>
+    private static void RequestMeasurements(string directory, List<FileEntry> entries, bool sizes)
     {
         var settings = SettingsService.Instance.Current;
-        if (!settings.ShouldWriteDirectoryIndex)
-            return;
-
         var columns = settings.DefaultView?.Columns;
-        if (columns is not null && !columns.Contains("items", StringComparer.OrdinalIgnoreCase))
+        var counts = settings.ShouldWriteDirectoryIndex
+                     && (columns is null || columns.Contains("items", StringComparer.OrdinalIgnoreCase));
+
+        if (!sizes && !counts)
             return;
 
         var children = entries
@@ -862,7 +849,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             .ToList();
 
         if (children.Count > 0)
-            FolderCountService.Instance.Request(directory, children);
+            FolderMeasureService.Instance.Request(directory, children, counts);
     }
 
     private static Task<List<PlaceEntry>> GetPlacesAsync() => Task.Run(GetPlaces);

@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
+import {elevatedPanel} from "../ui/panel";
 import {CheckIcon, ChevronRightIcon} from "./Icons";
 
 export interface ContextMenuItem {
@@ -225,12 +226,7 @@ const Menu = styled.div`
     max-height: calc(100vh - 16px);
     overflow-y: auto;
     padding: 6px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
-    background: var(--bg-elevated);
-    backdrop-filter: blur(18px) saturate(120%);
-    -webkit-backdrop-filter: blur(18px) saturate(120%);
-    box-shadow: var(--shadow-panel);
+    ${elevatedPanel}
 `;
 
 const QuickRow = styled.div`
