@@ -11,8 +11,8 @@ interface TooltipState {
 }
 
 /**
- * One hover panel for every `title` or `data-tooltip` element. The native title is taken away while
- * the panel is open, so the browser's own black box never appears next to it.
+ * One hover panel for every `title` or `data-tooltip` element. Titles are moved to `data-tooltip`
+ * as soon as they appear, so the browser's own black box can never race the custom panel.
  */
 export function TooltipLayer() {
     const [tooltip, setTooltip] = useState<TooltipState | null>(null);
@@ -25,42 +25,63 @@ export function TooltipLayer() {
             timer.current = undefined;
         };
 
-        const restoreTitle = (element: HTMLElement | null) => {
-            if (!element)
-                return;
-
-            const stored = element.dataset.nativeTitle;
-
-            if (stored !== undefined) {
-                element.setAttribute("title", stored);
-                delete element.dataset.nativeTitle;
-            }
-        };
-
         const hide = () => {
             clearTimer();
-            restoreTitle(hovered.current);
             hovered.current = null;
             setTooltip(null);
         };
 
+        const convert = (element: Element) => {
+            const title = element.getAttribute("title");
+            if (title === null)
+                return;
+
+            if (!element.hasAttribute("data-tooltip"))
+                element.setAttribute("data-tooltip", title);
+
+            element.removeAttribute("title");
+        };
+
+        const convertTree = (root: Element) => {
+            convert(root);
+            root.querySelectorAll("[title]").forEach(convert);
+        };
+
+        const observer = new MutationObserver((records) => {
+            for (const record of records) {
+                if (record.type === "attributes") {
+                    if (record.target instanceof Element)
+                        convert(record.target);
+                    continue;
+                }
+
+                record.addedNodes.forEach((node) => {
+                    if (node instanceof Element)
+                        convertTree(node);
+                });
+            }
+        });
+
+        observer.observe(document.body, {
+            subtree: true,
+            attributes: true,
+            attributeFilter: ["title"],
+            childList: true,
+        });
+
+        document.querySelectorAll("[title]").forEach(convert);
+
         const targetOf = (target: EventTarget | null): HTMLElement | null =>
             target instanceof Element
-                ? target.closest<HTMLElement>("[data-tooltip], [title]")
+                ? target.closest<HTMLElement>("[data-tooltip]")
                 : null;
 
         const show = (element: HTMLElement, immediate: boolean) => {
-            const text = element.dataset.tooltip ?? element.getAttribute("title") ?? "";
+            const text = element.getAttribute("data-tooltip") ?? "";
             if (text.length === 0)
                 return;
 
             const shortcut = element.dataset.shortcut ?? "";
-
-            if (element.hasAttribute("title")) {
-                element.dataset.nativeTitle = element.getAttribute("title") ?? "";
-                element.removeAttribute("title");
-            }
-
             hovered.current = element;
 
             const place = () => {
@@ -131,6 +152,7 @@ export function TooltipLayer() {
         window.addEventListener("resize", hide);
 
         return () => {
+            observer.disconnect();
             hide();
             window.removeEventListener("pointerover", onPointerOver);
             window.removeEventListener("pointerout", onPointerOut);

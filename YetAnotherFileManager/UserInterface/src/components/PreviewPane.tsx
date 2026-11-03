@@ -2,7 +2,7 @@ import {useEffect, useRef, useState, type PointerEvent as ReactPointerEvent} fro
 import styled from "styled-components";
 import {previewText, type TextPreview} from "../api/files";
 import {useIcon, useMediaUrl, usePdfPreview, useThumbnail} from "../api/icons";
-import {FileIcon, FolderIcon, PauseIcon, PlayIcon} from "./Icons";
+import {FileIcon, FolderIcon, PlayIcon} from "./Icons";
 
 export interface PreviewInfo {
     name: string;
@@ -181,12 +181,6 @@ export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, se
                                     <CenterPlay onClick={toggleVideo} title="Play" type="button">
                                         <PlayIcon size={28}/>
                                     </CenterPlay>
-                                )}
-
-                                {playing && (
-                                    <MiniPause onClick={toggleVideo} title="Pause" type="button">
-                                        <PauseIcon size={14}/>
-                                    </MiniPause>
                                 )}
 
                                 {videoHover && (
@@ -387,28 +381,6 @@ const CenterPlay = styled.button`
     &:hover {
         border-color: var(--border-color-focus);
         background: rgba(15, 23, 42, 0.86);
-    }
-`;
-
-const MiniPause = styled.button`
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    display: grid;
-    place-items: center;
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    border-radius: 50%;
-    background: rgba(2, 6, 23, 0.72);
-    color: #e2e8f0;
-    cursor: pointer;
-    backdrop-filter: blur(4px);
-
-    &:hover {
-        border-color: var(--border-color-focus);
-        background: rgba(15, 23, 42, 0.9);
     }
 `;
 
