@@ -738,10 +738,12 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             .ToList());
 
         // A hard-link count opens a handle per file, so only the visible Links column pays for it.
-        // It runs in parallel because the handles are independent and this is the slow part.
+        // On a slow volume thousands of handles can take longer than the whole listing; the column
+        // stays empty there instead of blocking navigation.
+        const int LinkLimit = 512;
         var links = new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-        if (includeLinks)
+        if (includeLinks && infos.Count <= LinkLimit)
             await Task.Run(() => Parallel.ForEach(infos.OfType<FileInfo>(), file =>
             {
                 var count = FileLinks.Count(file.FullName);

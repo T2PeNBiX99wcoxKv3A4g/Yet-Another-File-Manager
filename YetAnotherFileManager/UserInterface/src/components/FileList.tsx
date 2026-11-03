@@ -59,6 +59,12 @@ import {TagPicker, DefaultTagColor, inkFor} from "./TagPicker";
 import {BuiltinIcon, iconForName} from "../icons/fileTypes";
 import {readDraggedPaths, writeDraggedPaths} from "./FileTray";
 
+/** The strip is a glance, not a gallery; thousands of thumbnails would stall the window. */
+const PreviewLimit = 60;
+
+/** Rows appended per scroll page; a huge cache folder would otherwise create thousands at once. */
+const RowPage = 500;
+
 /** The columns the list can show besides the name. `linkTarget` is drawn inside the name cell. */
 export const ViewColumns: { id: string; label: string; width: number }[] = [
     {id: "type", label: "Type", width: 150},
@@ -153,6 +159,7 @@ export function FileList({
     const currentRow = useRef<HTMLDivElement | null>(null);
     const head = useRef<HTMLDivElement | null>(null);
     const body = useRef<HTMLDivElement | null>(null);
+    const [rowLimit, setRowLimit] = useState(RowPage);
     const stripDrag = useRef<{ y: number; height: number } | null>(null);
     const anchor = useRef<string | null>(null);
     const [tagTarget, setTagTarget] = useState<{ entry: FileEntry; x: number; y: number } | null>(null);
@@ -291,6 +298,27 @@ export function FileList({
 
     rowsRef.current = rows;
 
+    const visibleRows = useMemo(() => rows.slice(0, rowLimit), [rows, rowLimit]);
+
+    // A new folder starts at the first page; scrolling appends more.
+    useEffect(() => {
+        setRowLimit(RowPage);
+    }, [listing?.path]);
+
+    // A search hit can land past the rendered page; make sure its row exists.
+    useEffect(() => {
+        if (!find.currentPath) return;
+
+        const index = rows.findIndex((row) => row.entry.fullPath === find.currentPath);
+        if (index >= 0)
+            setRowLimit((limit) => Math.max(limit, index + RowPage));
+    }, [find.currentPath, rows]);
+
+    const growRows = useCallback((element: HTMLElement) => {
+        if (element.scrollTop + element.clientHeight >= element.scrollHeight - 600)
+            setRowLimit((limit) => Math.min(rows.length, limit + RowPage));
+    }, [rows.length]);
+
     // Grouping only feeds the grid; a list view would pay for the rule matching and never use it.
     const gridMode = view.mode === "grid";
     const groups = useMemo(() => {
@@ -298,12 +326,12 @@ export function FileList({
             return [];
 
         if (!groupOf)
-            return groupRows(rows, GridRules);
+            return groupRows(visibleRows, GridRules);
 
         const order: string[] = [];
         const sections = new Map<string, RowGroup>();
 
-        for (const row of rows) {
+        for (const row of visibleRows) {
             const label = groupOf(row.entry);
             let section = sections.get(label.id);
 
@@ -317,7 +345,7 @@ export function FileList({
         }
 
         return order.map((id) => sections.get(id)!);
-    }, [rows, gridMode, groupOf]);
+    }, [visibleRows, gridMode, groupOf]);
 
     // The panel repeats what the rows already show; only types the shell can preview belong in it.
     const previews = useMemo(
@@ -326,9 +354,11 @@ export function FileList({
             : [],
         [rows, showImages]
     );
+    const previewTotal = previews.length;
+    const shownPreviews = useMemo(() => previews.slice(0, PreviewLimit), [previews]);
     const previewGroups = useMemo(
-        () => showImages ? groupRows(previews, PreviewKindRules) : [],
-        [previews, showImages]
+        () => showImages ? groupRows(shownPreviews, PreviewKindRules) : [],
+        [shownPreviews, showImages]
     );
 
     const allPaths = useMemo(() => rows.map((row) => row.entry.fullPath), [rows]);
@@ -1115,7 +1145,10 @@ export function FileList({
                     onDragOver={overListDrag}
                     onDragStart={startListDrag}
                     onDrop={dropOnList}
-                    onScroll={(event) => onGridScroll?.(event.currentTarget)}
+                    onScroll={(event) => {
+                        onGridScroll?.(event.currentTarget);
+                        growRows(event.currentTarget);
+                    }}
                 >
                     {loading && !listing
                         ? <Tiles $size={view.gridSize}><PlaceholderTiles size={view.gridSize}/></Tiles>
@@ -1193,12 +1226,13 @@ export function FileList({
                 onScroll={(event) => {
                     if (head.current && head.current.scrollLeft !== event.currentTarget.scrollLeft)
                         head.current.scrollLeft = event.currentTarget.scrollLeft;
+                    growRows(event.currentTarget);
                 }}
                 ref={body}
             >
                 {loading && !listing
                     ? <PlaceholderRows template={template} columns={visible.length}/>
-                    : rows.map((row) => {
+                    : visibleRows.map((row) => {
                         const path = row.entry.fullPath;
 
                         return (
@@ -1252,7 +1286,11 @@ export function FileList({
                     <Strip style={{height: stripHeight}}>
                         <StripHead>
                             Preview
-                            <StripCount>{previews.length}</StripCount>
+                            <StripCount>
+                                {previewTotal > PreviewLimit
+                                    ? `${shownPreviews.length} / ${previewTotal}`
+                                    : previewTotal}
+                            </StripCount>
                         </StripHead>
                         <GridBody
                             onClick={(event) => {
@@ -1618,7 +1656,33 @@ const GridTile = memo(function GridTile({
 }) {
     const quick = useQuickAccess();
     const previewable = !row.entry.isDirectory && canPreview(row.entry.name);
-    const preview = useThumbnail(previewable ? row.entry.fullPath : null, 192, row.entry.modified);
+    const tileRef = useRef<HTMLDivElement | null>(null);
+    const [onScreen, setOnScreen] = useState(false);
+
+    // Thousands of cache images must not each ask the shell for a thumbnail up front.
+    useEffect(() => {
+        if (!previewable || onScreen) return;
+
+        const node = tileRef.current;
+        if (!node) return;
+
+        if (!("IntersectionObserver" in window)) {
+            setOnScreen(true);
+            return;
+        }
+
+        const observer = new IntersectionObserver((entries) => {
+            if (entries.some((entry) => entry.isIntersecting)) {
+                setOnScreen(true);
+                observer.disconnect();
+            }
+        }, {rootMargin: "300px"});
+
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [previewable, onScreen]);
+
+    const preview = useThumbnail(previewable && onScreen ? row.entry.fullPath : null, 192, row.entry.modified);
     const [failed, setFailed] = useState(false);
     const path = row.entry.fullPath;
 
@@ -1643,7 +1707,10 @@ const GridTile = memo(function GridTile({
                 if (!openOnSingleClick)
                     open(event);
             }}
-            ref={current ? innerRef : undefined}
+            ref={(node) => {
+                tileRef.current = node;
+                if (current && innerRef) innerRef.current = node;
+            }}
             title={row.entry.name}
             data-directory={row.entry.isDirectory ? "true" : undefined}
             data-path={path}

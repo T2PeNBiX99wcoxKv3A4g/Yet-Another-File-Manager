@@ -293,6 +293,12 @@ export default function App() {
         return clampTrayPosition({x: Math.max(20, window.innerWidth - 340), y: 110});
     });
 
+    /** Opens the tray where it can actually be reached, even after the window shrank. */
+    const showTray = useCallback(() => {
+        setTrayPosition((current) => clampTrayPosition(current));
+        setTrayVisible(true);
+    }, []);
+
     const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
     const kind = kindOf(active);
     const location = locationOf(active);
@@ -855,8 +861,8 @@ export default function App() {
             return added.length > 0 ? [...current, ...added] : current;
         });
 
-        setTrayVisible(true);
-    }, []);
+        showTray();
+    }, [showTray]);
 
     const addTrayPaths = useCallback(async (paths: string[]) => {
         const entries = await inspectPaths(paths);
@@ -890,8 +896,8 @@ export default function App() {
         setClipboardMove(files.move);
 
         if (files.entries.length > 0)
-            setTrayVisible(true);
-    }, []);
+            showTray();
+    }, [showTray]);
 
     const refreshClipboard = useCallback(async () => {
         if (!Native.available) return;
@@ -916,28 +922,24 @@ export default function App() {
     const trayRef = useRef(trayItems);
     trayRef.current = trayItems;
 
-    // The tray is a drop target, so it has to exist while the drag is in flight even when it was
-    // empty. It disappears again after a drag that did not leave anything on it.
+    // The tray is a drop target, so it shows up (at a reachable spot) as soon as an in-app drag
+    // starts. It stays open until the user closes it.
     useEffect(() => {
         const onDragStart = (event: DragEvent) => {
             if (event.dataTransfer?.types.some((type) => type.toLowerCase() === "application/x-yafm-paths"))
-                setTrayVisible(true);
-        };
-
-        const onDragEnd = () => {
-            window.setTimeout(() => {
-                if (trayRef.current.length === 0)
-                    setTrayVisible(false);
-            }, 200);
+                showTray();
         };
 
         window.addEventListener("dragstart", onDragStart);
-        window.addEventListener("dragend", onDragEnd);
+        return () => window.removeEventListener("dragstart", onDragStart);
+    }, [showTray]);
 
-        return () => {
-            window.removeEventListener("dragstart", onDragStart);
-            window.removeEventListener("dragend", onDragEnd);
-        };
+    // Keep the floating tray inside the window when it is resized.
+    useEffect(() => {
+        const onResize = () => setTrayPosition((current) => clampTrayPosition(current));
+
+        window.addEventListener("resize", onResize);
+        return () => window.removeEventListener("resize", onResize);
     }, []);
 
     /** Drops tray entries that were moved away by a paste, so a cut does not leave stale rows. */
@@ -971,9 +973,8 @@ export default function App() {
             return;
         }
 
-        setTrayPosition((current) => clampTrayPosition(current));
-        setTrayVisible(true);
-    }, [trayVisible]);
+        showTray();
+    }, [showTray, trayVisible]);
 
     const transferTo = useCallback(async (paths: string[], target: string, move: boolean) => {
         const result = await transferPaths(paths, target, move);

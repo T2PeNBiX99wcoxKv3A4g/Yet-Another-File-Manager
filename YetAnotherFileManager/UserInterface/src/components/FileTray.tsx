@@ -1,4 +1,4 @@
-import {useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent} from "react";
+import {useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent} from "react";
 import styled from "styled-components";
 import {PathIcon} from "./PathIcon";
 import {CheckIcon, CrossIcon, PackageIcon} from "./Icons";
@@ -33,8 +33,12 @@ interface FileTrayProps {
 const DragType = "application/x-yafm-paths";
 
 /** Reads the paths another part of the app put on a drag, or the plain-text fallback. */
-export function readDraggedPaths(event: DragEvent): { paths: string[]; move: boolean } {
-    const custom = event.dataTransfer.getData(DragType);
+export function readDraggedPaths(event: { dataTransfer: DataTransfer | null }): { paths: string[]; move: boolean } {
+    const transfer = event.dataTransfer;
+    if (!transfer)
+        return {paths: [], move: true};
+
+    const custom = transfer.getData(DragType);
 
     if (custom) {
         try {
@@ -51,7 +55,7 @@ export function readDraggedPaths(event: DragEvent): { paths: string[]; move: boo
     }
 
     return {
-        paths: event.dataTransfer.getData("text/plain")
+        paths: transfer.getData("text/plain")
             .split(/\r?\n/)
             .map((path) => path.trim())
             .filter((path) => /^[a-zA-Z]:[\\/]|^\\\\/.test(path)),
@@ -60,7 +64,7 @@ export function readDraggedPaths(event: DragEvent): { paths: string[]; move: boo
 }
 
 /** Puts the paths on a drag so the tray, the list and any future target can read them. */
-export function writeDraggedPaths(event: DragEvent, paths: string[], move = true) {
+export function writeDraggedPaths(event: { dataTransfer: DataTransfer }, paths: string[], move = true) {
     event.dataTransfer.setData(DragType, JSON.stringify({paths, move}));
     event.dataTransfer.setData("text/plain", paths.join("\r\n"));
     event.dataTransfer.effectAllowed = move ? "move" : "copy";
@@ -86,6 +90,43 @@ export function FileTray({
         () => clipboardItems.filter((item) => selected.has(item.path)),
         [clipboardItems, selected]
     );
+    const panelRef = useRef<HTMLDivElement | null>(null);
+
+    // The panel can appear during a drag; hit-testing then misses it. A window listener over the
+    // same rectangle keeps the tray a reliable drop target.
+    useEffect(() => {
+        if (!visible) return;
+
+        const inside = (x: number, y: number) => {
+            const rect = panelRef.current?.getBoundingClientRect();
+            return rect !== undefined && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+        };
+        const over = (event: globalThis.DragEvent) => {
+            const transfer = event.dataTransfer;
+            if (!transfer || !transfer.types.some((type) => type.toLowerCase() === DragType)
+                || !inside(event.clientX, event.clientY))
+                return;
+
+            event.preventDefault();
+            transfer.dropEffect = "copy";
+        };
+        const drop = (event: globalThis.DragEvent) => {
+            if (event.defaultPrevented || !inside(event.clientX, event.clientY)) return;
+
+            const {paths} = readDraggedPaths(event);
+            if (paths.length === 0) return;
+
+            event.preventDefault();
+            onAdd(paths);
+        };
+
+        window.addEventListener("dragover", over, true);
+        window.addEventListener("drop", drop, true);
+        return () => {
+            window.removeEventListener("dragover", over, true);
+            window.removeEventListener("drop", drop, true);
+        };
+    }, [visible, onAdd]);
 
     if (!visible)
         return null;
@@ -214,16 +255,22 @@ export function FileTray({
         );
     };
 
+    const acceptDrag = (event: DragEvent<HTMLDivElement>) => {
+        if (!event.dataTransfer.types.some((type) => type.toLowerCase() === DragType))
+            return;
+
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+    };
+
     return (
         <Panel
             $dragging={dragging}
+            data-tray="true"
+            ref={panelRef}
             style={{left: position.x, top: position.y}}
-            onDragOver={(event) => {
-                if (event.dataTransfer.types.some((type) => type.toLowerCase() === DragType)) {
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = "copy";
-                }
-            }}
+            onDragEnter={acceptDrag}
+            onDragOver={acceptDrag}
             onDrop={(event) => {
                 const {paths} = readDraggedPaths(event);
                 if (paths.length > 0) {
