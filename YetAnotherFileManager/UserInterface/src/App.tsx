@@ -1525,7 +1525,7 @@ export default function App() {
                 refreshToken={visibilityVersion}
                 shortcuts={shortcuts}
                 showCheckboxes={settings?.showCheckboxes ?? true}
-                showImages={primary ? showImages : false}
+                showImages={showImages}
                 view={tabView}
             />
         );
