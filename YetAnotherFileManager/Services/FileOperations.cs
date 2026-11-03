@@ -414,6 +414,76 @@ internal static partial class FileOperations
         }
     }
 
+    /// <summary>Creates the next free "New file.txt" name in a directory.</summary>
+    public static async Task<PathOperationPayload> NewFileAsync(string directory)
+    {
+        if (!Directory.Exists(directory))
+            return new PathOperationPayload(false, null, "The folder is no longer there.");
+
+        try
+        {
+            for (var attempt = 1; attempt < 1000; attempt++)
+            {
+                var name = attempt == 1 ? "New file.txt" : $"New file ({attempt}).txt";
+                var path = Path.Combine(directory, name);
+
+                if (Directory.Exists(path) || File.Exists(path))
+                    continue;
+
+                await File.WriteAllTextAsync(path, "");
+                FileHistory.Instance.Record("New file",
+                    undo: () => DeleteFileAsync(path),
+                    redo: () => CreateEmptyFileAsync(path));
+
+                return new PathOperationPayload(true, path, null);
+            }
+
+            return new PathOperationPayload(false, null, "Could not find a free name for the new file.");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Could not create a file in {Directory}", directory);
+            return new PathOperationPayload(false, null, ex.Message);
+        }
+    }
+
+    private static Task<FileHistory.Step> DeleteFileAsync(string path) =>
+        Task.Run(() =>
+        {
+            try
+            {
+                if (!File.Exists(path))
+                    return new FileHistory.Step(false, ParentsOf([path]), "The file is no longer there.");
+
+                File.Delete(path);
+                return new FileHistory.Step(true, ParentsOf([path]));
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Could not remove the new file {Path}", path);
+                return new FileHistory.Step(false, ParentsOf([path]), ex.Message);
+            }
+        });
+
+    private static Task<FileHistory.Step> CreateEmptyFileAsync(string path) =>
+        Task.Run(() =>
+        {
+            try
+            {
+                using (File.Create(path))
+                {
+                    // An empty placeholder; the user renames and fills it in.
+                }
+
+                return new FileHistory.Step(true, ParentsOf([path]));
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Could not recreate the file {Path}", path);
+                return new FileHistory.Step(false, ParentsOf([path]), ex.Message);
+            }
+        });
+
     private static Task<FileHistory.Step> DeleteEmptyFolderAsync(string path) =>
         Task.Run(() =>
         {

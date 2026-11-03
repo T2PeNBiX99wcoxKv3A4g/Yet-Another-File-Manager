@@ -98,6 +98,13 @@ export async function newFolder(directory: string): Promise<PathOperation> {
     return await Native.request<PathOperation>("fs.operation.newFolder", {directory});
 }
 
+/** Creates the next free "New file.txt" in a directory. */
+export async function newFile(directory: string): Promise<PathOperation> {
+    if (!Native.available) return {ok: false, path: null, error: "Creating files needs the desktop app."};
+
+    return await Native.request<PathOperation>("fs.operation.newFile", {directory});
+}
+
 /** Opens the shell's properties sheet for the selected entries. */
 export async function showProperties(paths: string[]): Promise<void> {
     if (!Native.available || paths.length === 0) return;

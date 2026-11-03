@@ -27,6 +27,8 @@ import {
     copyPaths,
     getClipboardFiles,
     inspectPaths,
+    newFile,
+    newFolder,
     redoFileOperation,
     transferPaths,
     undoFileOperation,
@@ -34,12 +36,25 @@ import {
 } from "./api/operations";
 import {clearTasks, listTasks, type TaskInfo} from "./api/tasks";
 import {FileList} from "./components/FileList";
+import {ContextMenu, type ContextMenuItem} from "./components/ContextMenu";
 import {PreviewPane, type PreviewInfo} from "./components/PreviewPane";
 import {FileTray, type TrayItem} from "./components/FileTray";
 import {FindBar} from "./components/FindBar";
 import {EmptyFind, matchesName, type FindState} from "./find";
 import {QuickAccessProvider, quickName, quickPlace, type QuickAccess} from "./quick";
-import {ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, GearIcon, ImageIcon, OverviewIcon, TrashIcon} from "./components/Icons";
+import {
+    ArrowLeftIcon,
+    ArrowRightIcon,
+    ArrowUpIcon,
+    FileIcon,
+    FolderIcon,
+    GearIcon,
+    ImageIcon,
+    OverviewIcon,
+    PlusIcon,
+    SearchIcon,
+    TrashIcon,
+} from "./components/Icons";
 import {OverviewView} from "./components/OverviewView";
 import {PathBar} from "./components/PathBar";
 import {RecycleView} from "./components/RecycleView";
@@ -204,6 +219,12 @@ export default function App() {
     const [primaryPreview, setPrimaryPreview] = useState<PreviewInfo | null>(null);
     const [secondaryPreview, setSecondaryPreview] = useState<PreviewInfo | null>(null);
     const [activePane, setActivePane] = useState<"primary" | "secondary">("primary");
+    const [createMenu, setCreateMenu] = useState<{
+        x: number;
+        y: number;
+        directory: string;
+        refresh: () => void;
+    } | null>(null);
     const [tasks, setTasks] = useState<TaskInfo[]>([]);
     const [trayItems, setTrayItems] = useState<TrayItem[]>([]);
     const [clipboardItems, setClipboardItems] = useState<TrayItem[]>([]);
@@ -609,9 +630,46 @@ export default function App() {
     }, []);
 
     /** The pane whose selection the shared details panel follows; the other side is the fallback. */
-    const detailsInfo = activePane === "secondary"
-        ? secondaryPreview ?? primaryPreview
-        : primaryPreview ?? secondaryPreview;
+    const detailsInfo = splitActive
+        ? activePane === "secondary" ? secondaryPreview ?? primaryPreview : primaryPreview ?? secondaryPreview
+        : primaryPreview;
+
+    const openCreateMenu = (event: { clientX: number; clientY: number }, directory: string, refresh: () => void) => {
+        if (!directory)
+            return;
+
+        setCreateMenu({x: event.clientX, y: event.clientY, directory, refresh});
+    };
+
+    const createItem = async (file: boolean) => {
+        const menu = createMenu;
+        setCreateMenu(null);
+
+        if (!menu)
+            return;
+
+        const result = file
+            ? await newFile(menu.directory)
+            : await newFolder(menu.directory);
+
+        if (result.ok)
+            menu.refresh();
+    };
+
+    const createMenuItems: ContextMenuItem[] = createMenu
+        ? [
+            {
+                label: "New folder",
+                icon: <FolderIcon size={14}/>,
+                onSelect: () => void createItem(false),
+            },
+            {
+                label: "New file",
+                icon: <FileIcon size={14}/>,
+                onSelect: () => void createItem(true),
+            },
+        ]
+        : [];
 
     /**
      * Steps through the active tab's history. These read the tab from the ref so the keyboard
@@ -1361,9 +1419,9 @@ export default function App() {
                 confirmDelete={settings?.confirmDelete ?? false}
                 previewVideoAudio={settings?.previewVideoAudio ?? false}
                 previewVideoAutoplay={settings?.previewVideoAutoplay ?? false}
-                showDetails={detailsVisible && !splitActive}
-                onPreviewInfo={splitActive ? (primary ? setPrimaryPreview : setSecondaryPreview) : undefined}
-                onActivate={splitActive ? () => setActivePane(primary ? "primary" : "secondary") : undefined}
+                showDetails={false}
+                onPreviewInfo={primary ? setPrimaryPreview : setSecondaryPreview}
+                onActivate={() => setActivePane(primary ? "primary" : "secondary")}
                 enableShortcuts={!splitActive || (primary ? activePane === "primary" : activePane === "secondary")}
                 error={tab.error}
                 find={primary ? {...find, currentPath: findCurrent < 0 ? null : findHits[findCurrent]} : undefined}
@@ -1419,6 +1477,51 @@ export default function App() {
             regex={find.regex}
             total={findHits.length}
         />
+    );
+
+    /** The normal toolbar; a file tab also gets the create and search buttons at its right edge. */
+    const mainToolbar = (
+        <Toolbar>
+            <IconButton disabled={!canBack} onClick={goBack} title="Back" type="button">
+                <ArrowLeftIcon/>
+            </IconButton>
+
+            <IconButton disabled={!canForward} onClick={goForward} title="Forward" type="button">
+                <ArrowRightIcon/>
+            </IconButton>
+
+            <IconButton
+                disabled={kind !== "files" || !active.listing?.parent}
+                onClick={() => active.listing?.parent && navigate(active.listing.parent)}
+                title="Up one level"
+                type="button"
+            >
+                <ArrowUpIcon/>
+            </IconButton>
+
+            <PathBar
+                focusToken={locationFocus}
+                icon={viewIcon}
+                label={kind === "files" ? undefined : viewTitles[kind]}
+                onNavigate={navigate}
+                path={kind === "files" ? folderOf(active) : location}
+            />
+
+            {kind === "files" && (
+                <>
+                    <IconButton
+                        onClick={(event) => openCreateMenu(event, folderOf(active), refreshActive)}
+                        title="New folder or file"
+                        type="button"
+                    >
+                        <PlusIcon/>
+                    </IconButton>
+                    <IconButton onClick={openFind} title="Search (Ctrl+F)" type="button">
+                        <SearchIcon/>
+                    </IconButton>
+                </>
+            )}
+        </Toolbar>
     );
 
     return (
@@ -1478,34 +1581,7 @@ export default function App() {
                 />
 
                 <Main>
-                    {!splitActive && (
-                        <Toolbar>
-                            <IconButton disabled={!canBack} onClick={goBack} title="Back" type="button">
-                                <ArrowLeftIcon/>
-                            </IconButton>
-
-                            <IconButton disabled={!canForward} onClick={goForward} title="Forward" type="button">
-                                <ArrowRightIcon/>
-                            </IconButton>
-
-                            <IconButton
-                                disabled={kind !== "files" || !active.listing?.parent}
-                                onClick={() => active.listing?.parent && navigate(active.listing.parent)}
-                                title="Up one level"
-                                type="button"
-                            >
-                                <ArrowUpIcon/>
-                            </IconButton>
-
-                            <PathBar
-                                focusToken={locationFocus}
-                                icon={viewIcon}
-                                label={kind === "files" ? undefined : viewTitles[kind]}
-                                onNavigate={navigate}
-                                path={kind === "files" ? folderOf(active) : location}
-                            />
-                        </Toolbar>
-                    )}
+                    {kind !== "files" && mainToolbar}
 
                     {kind === "files" ? (
                         splitActive && secondary ? (
@@ -1536,6 +1612,16 @@ export default function App() {
                                             onNavigate={navigate}
                                             path={folderOf(active)}
                                         />
+                                        <IconButton
+                                            onClick={(event) => openCreateMenu(event, folderOf(active), refreshActive)}
+                                            title="New folder or file"
+                                            type="button"
+                                        >
+                                            <PlusIcon/>
+                                        </IconButton>
+                                        <IconButton onClick={openFind} title="Search (Ctrl+F)" type="button">
+                                            <SearchIcon/>
+                                        </IconButton>
                                     </PaneToolbar>
                                     {filePane(active, true)}
                                     {findBar}
@@ -1582,6 +1668,23 @@ export default function App() {
                                             onNavigate={(path) => void load(secondary.id, path)}
                                             path={folderOf(secondary)}
                                         />
+                                        <IconButton
+                                            onClick={(event) => openCreateMenu(
+                                                event,
+                                                folderOf(secondary),
+                                                () => {
+                                                    if (secondary.listing)
+                                                        void load(secondary.id, secondary.listing.path, true);
+                                                },
+                                            )}
+                                            title="New folder or file"
+                                            type="button"
+                                        >
+                                            <PlusIcon/>
+                                        </IconButton>
+                                        <IconButton onClick={openFind} title="Search (Ctrl+F)" type="button">
+                                            <SearchIcon/>
+                                        </IconButton>
                                     </PaneToolbar>
                                     {filePane(secondary, false)}
                                 </Pane>
@@ -1596,10 +1699,24 @@ export default function App() {
                                 )}
                             </Split>
                         ) : (
-                            <Files>
-                                {filePane(active, true)}
-                                {findBar}
-                            </Files>
+                            <FileArea>
+                                <FileColumn>
+                                    {mainToolbar}
+                                    <Files>
+                                        {filePane(active, true)}
+                                        {findBar}
+                                    </Files>
+                                </FileColumn>
+                                {detailsVisible && (
+                                    <PreviewPane
+                                        info={primaryPreview}
+                                        onWidth={resizeDetails}
+                                        videoAudio={settings?.previewVideoAudio ?? false}
+                                        videoAutoplay={settings?.previewVideoAutoplay ?? false}
+                                        width={detailsWidth}
+                                    />
+                                )}
+                            </FileArea>
                         )
                     ) : kind === "home" ? (
                         <OverviewView
@@ -1659,6 +1776,15 @@ export default function App() {
                 position={trayPosition}
                 visible={trayVisible}
             />
+
+            {createMenu && (
+                <ContextMenu
+                    items={createMenuItems}
+                    onClose={() => setCreateMenu(null)}
+                    x={createMenu.x}
+                    y={createMenu.y}
+                />
+            )}
 
             <ResizeHandles/>
         </Root>
@@ -1773,6 +1899,22 @@ const Files = styled.div`
     display: flex;
     flex-direction: column;
     flex: 1;
+    min-height: 0;
+`;
+
+/** The single-view file page: the toolbar and list share the width left of the details pane. */
+const FileArea = styled.div`
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+`;
+
+const FileColumn = styled.div`
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
     min-height: 0;
 `;
 

@@ -1625,6 +1625,7 @@ function FolderBody({path, mode, onOpen, showCheckboxes, openOnSingleClick, visi
                     openOnSingleClick={openOnSingleClick}
                     enableShortcuts={false}
                     showCheckboxes={showCheckboxes}
+                    showDetails={false}
                     showImages={false}
                     view={{...DefaultView, columns: DefaultViewDefaults.columns ?? []}}
                 />

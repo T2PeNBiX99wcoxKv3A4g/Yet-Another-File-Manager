@@ -252,6 +252,10 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 return context.Reply("fs.operation.newFolder.result",
                     await FileOperations.NewFolderAsync(context.Payload<DirectoryRequest>()?.Directory ?? ""));
 
+            case "fs.operation.newFile":
+                return context.Reply("fs.operation.newFile.result",
+                    await FileOperations.NewFileAsync(context.Payload<DirectoryRequest>()?.Directory ?? ""));
+
             case "fs.operation.compress":
                 return context.Reply("fs.operation.compress.result",
                     await FileOperations.CompressAsync(context.Payload<PathsPayload>()?.Paths ?? []));
