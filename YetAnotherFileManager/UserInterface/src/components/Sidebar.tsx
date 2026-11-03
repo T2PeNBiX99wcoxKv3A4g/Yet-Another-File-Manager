@@ -308,9 +308,11 @@ const Aside = styled.aside`
     width: 52px;
     padding: 10px 9px;
     overflow: hidden;
-    background: rgba(5, 12, 17, 0.92);
+    background: rgba(9, 13, 22, 0.78);
     border-right: 1px solid var(--border-color);
-    transition: width 150ms ease, padding 150ms ease, box-shadow 150ms ease;
+    backdrop-filter: blur(16px) saturate(115%);
+    -webkit-backdrop-filter: blur(16px) saturate(115%);
+    transition: width 150ms ease, padding 150ms ease, box-shadow 150ms ease, background 150ms ease;
 
     &::-webkit-scrollbar {
         display: none;
@@ -319,7 +321,8 @@ const Aside = styled.aside`
     &:hover {
         width: 224px;
         padding: 10px 10px;
-        box-shadow: 14px 0 36px rgba(0, 0, 0, 0.45), 0 0 28px rgba(var(--accent-rgb), 0.05);
+        background: rgba(9, 13, 22, 0.90);
+        box-shadow: 14px 0 36px rgba(0, 0, 0, 0.45), 0 0 28px rgba(var(--accent-secondary-rgb), 0.06);
         overflow-y: auto;
         scrollbar-width: none;
     }
@@ -473,7 +476,7 @@ const Bar = styled.span`
     height: 3px;
     margin-top: 1px;
     border-radius: 2px;
-    background: rgba(147, 182, 193, 0.18);
+    background: rgba(148, 163, 184, 0.18);
     overflow: hidden;
 `;
 

@@ -17,6 +17,7 @@ import {deleteTag, listTags, renameTag, type TagCatalogEntry} from "../api/tags"
 import {CheckIcon, CrossIcon, PlusIcon, TrashIcon} from "./Icons";
 import {IconPicker} from "./IconPicker";
 import {DefaultTagColor} from "./TagPicker";
+import {DefaultAccentColor, DefaultSecondaryColor, normalizeColor} from "../theme";
 import {comboOf, DefaultShortcuts, prettyShortcut, type ShortcutMap} from "../shortcuts";
 import {BuiltinIcon} from "../icons/fileTypes";
 import {GlobalTag} from "./GlobalTag";
@@ -315,6 +316,67 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                         >
                             <Knob/>
                         </Toggle>
+                    </Row>
+                </Rows>
+            </Section>
+
+            <Section>
+                <Title>Colors</Title>
+                <Rows>
+                    <Row>
+                        <RowText>
+                            <Label>Accent color</Label>
+                            <Note>
+                                Used for buttons, selections, focus rings, and active navigation.
+                            </Note>
+                        </RowText>
+                        <RowEnd>
+                            <ColorWell
+                                aria-label="Accent color"
+                                disabled={!settings}
+                                onChange={(event) => void update({accentColor: event.target.value})}
+                                type="color"
+                                value={normalizeColor(settings?.accentColor, DefaultAccentColor)}
+                            />
+                            <ColorCode>
+                                {normalizeColor(settings?.accentColor, DefaultAccentColor).toUpperCase()}
+                            </ColorCode>
+                        </RowEnd>
+                    </Row>
+                    <Row>
+                        <RowText>
+                            <Label>Secondary color</Label>
+                            <Note>
+                                Used for gradients, highlights, and the second end of the accent ramp.
+                            </Note>
+                        </RowText>
+                        <RowEnd>
+                            <ColorWell
+                                aria-label="Secondary color"
+                                disabled={!settings}
+                                onChange={(event) => void update({secondaryColor: event.target.value})}
+                                type="color"
+                                value={normalizeColor(settings?.secondaryColor, DefaultSecondaryColor)}
+                            />
+                            <ColorCode>
+                                {normalizeColor(settings?.secondaryColor, DefaultSecondaryColor).toUpperCase()}
+                            </ColorCode>
+                        </RowEnd>
+                    </Row>
+                    <Row>
+                        <RowText>
+                            <Label>Reset colors</Label>
+                            <Note>Returns the interface to the default blue and indigo theme.</Note>
+                        </RowText>
+                        <RowEnd>
+                            <SmallButton
+                                disabled={!settings}
+                                onClick={() => void update({accentColor: null, secondaryColor: null})}
+                                type="button"
+                            >
+                                Reset
+                            </SmallButton>
+                        </RowEnd>
                     </Row>
                 </Rows>
             </Section>
@@ -1185,6 +1247,32 @@ const SmallButton = styled.button`
         opacity: 0.45;
         cursor: default;
     }
+`;
+
+const ColorWell = styled.input`
+    width: 42px;
+    height: 30px;
+    padding: 2px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    cursor: pointer;
+
+    &::-webkit-color-swatch-wrapper {
+        padding: 0;
+    }
+
+    &::-webkit-color-swatch {
+        border: 0;
+        border-radius: 4px;
+    }
+`;
+
+const ColorCode = styled.span`
+    min-width: 66px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
 `;
 
 const DangerButton = styled.button`

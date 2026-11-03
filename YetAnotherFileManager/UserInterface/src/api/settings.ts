@@ -55,6 +55,10 @@ export interface AppSettings {
     previewVideoAudio: boolean;
     /** Start a video preview automatically; off means the user presses play. */
     previewVideoAutoplay: boolean;
+    /** The main interactive colour, or null for the default blue. */
+    accentColor: string | null;
+    /** The gradient/highlight colour, or null for the default indigo. */
+    secondaryColor: string | null;
 }
 
 const fallback: AppSettings = {
@@ -86,6 +90,8 @@ const fallback: AppSettings = {
     confirmDelete: false,
     previewVideoAudio: false,
     previewVideoAutoplay: false,
+    accentColor: null,
+    secondaryColor: null,
 };
 
 /** The interface settings, persisted by the host. */
@@ -123,6 +129,8 @@ export async function getSettings(): Promise<AppSettings> {
         confirmDelete: raw?.confirmDelete ?? false,
         previewVideoAudio: raw?.previewVideoAudio ?? false,
         previewVideoAutoplay: raw?.previewVideoAutoplay ?? false,
+        accentColor: raw?.accentColor ?? null,
+        secondaryColor: raw?.secondaryColor ?? null,
     };
 }
 
@@ -161,6 +169,8 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         confirmDelete: saved?.confirmDelete ?? settings.confirmDelete,
         previewVideoAudio: saved?.previewVideoAudio ?? settings.previewVideoAudio,
         previewVideoAutoplay: saved?.previewVideoAutoplay ?? settings.previewVideoAutoplay,
+        accentColor: saved?.accentColor ?? settings.accentColor,
+        secondaryColor: saved?.secondaryColor ?? settings.secondaryColor,
     };
 }
 

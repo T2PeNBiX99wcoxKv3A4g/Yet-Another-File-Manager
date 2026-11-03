@@ -34,12 +34,14 @@ public sealed record AppSettings(
     bool? OpenOnSingleClick,
     bool? ConfirmDelete,
     bool? PreviewVideoAudio,
-    bool? PreviewVideoAutoplay)
+    bool? PreviewVideoAutoplay,
+    string? AccentColor,
+    string? SecondaryColor)
 {
     public static AppSettings Default =>
         new(true, true, true, [], null, 10, null, ["quick", "frequent", "recent", "home", "drives"], null, 1, null,
             null, null, null, null, null, ["quick", "frequent", "recent", "drives"], null, null, true, null, 0, null,
-            true, false, false, false, false);
+            true, false, false, false, false, null, null);
 
     // The accessors below are derived, so they are kept out of settings.json entirely; only the
     // fields above are stored, and the JSON stays readable and stable.

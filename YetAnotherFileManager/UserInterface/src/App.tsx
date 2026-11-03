@@ -67,6 +67,7 @@ import {viewTitles, type TabKind} from "./tabs";
 import {buildPanels} from "./panels";
 import {Native, ResizeHandles, useWindowCorners} from "@photino-net-utils/bridge";
 import {baseName, formatBytes, normalizePath} from "./utils/format";
+import {applyTheme} from "./theme";
 import {
     comboOf,
     DefaultShortcuts,
@@ -277,6 +278,10 @@ export default function App() {
     // The directory's own mode/size/sort sit on top of the window-wide defaults; columns are global.
     const viewDefaults = settings?.defaultView ?? DefaultViewDefaults;
     const view: ResolvedView = resolveView(active, viewDefaults);
+
+    useEffect(() => {
+        applyTheme(settings?.accentColor, settings?.secondaryColor);
+    }, [settings?.accentColor, settings?.secondaryColor]);
     // Hard-link counts open a handle per file, so they are only read while the column is visible.
     const includeLinks = view.columns.includes("linkCount");
 
@@ -1927,9 +1932,9 @@ const Body = styled.div`
     flex: 1;
     min-height: 0;
     background:
-        radial-gradient(1200px 650px at 12% -10%, rgba(var(--accent-rgb), 0.12), transparent 60%),
-        radial-gradient(900px 520px at 110% 18%, rgba(var(--accent-secondary-rgb), 0.10), transparent 55%),
-        linear-gradient(180deg, #060b10 0%, #05090d 100%);
+        radial-gradient(1200px 650px at 12% -10%, rgba(var(--accent-secondary-rgb), 0.12), transparent 60%),
+        radial-gradient(900px 520px at 110% 18%, rgba(var(--accent-rgb), 0.09), transparent 55%),
+        linear-gradient(180deg, #0b0f19 0%, #090d17 100%);
 `;
 
 const Main = styled.main`
@@ -1946,7 +1951,7 @@ const Toolbar = styled.header`
     gap: 7px;
     padding: 12px 18px;
     border-bottom: 1px solid var(--border-color);
-    background: rgba(6, 16, 22, 0.62);
+    background: rgba(11, 15, 25, 0.58);
     backdrop-filter: blur(10px);
 `;
 
@@ -1991,7 +1996,7 @@ const PaneToolbar = styled.div`
     gap: 7px;
     padding: 12px 18px;
     border-bottom: 1px solid var(--border-color);
-    background: rgba(6, 16, 22, 0.62);
+    background: rgba(11, 15, 25, 0.58);
     backdrop-filter: blur(10px);
 `;
 
@@ -2046,7 +2051,7 @@ const StatusBar = styled.footer`
     gap: 16px;
     padding: 7px 20px;
     border-top: 1px solid var(--border-color);
-    background: rgba(4, 10, 14, 0.58);
+    background: rgba(8, 12, 21, 0.58);
     font-family: var(--font-sans);
     font-size: 11px;
     color: var(--text-muted);

@@ -95,7 +95,6 @@ export function TitleBar({
     return (
         <Bar>
             <Mark><AppIcon size={19}/></Mark>
-            <BrandWord>YAFM</BrandWord>
 
             <Tabs>
                 {overflow.left && (
@@ -251,7 +250,7 @@ const Bar = styled.header`
     align-items: stretch;
     height: 44px;
     flex-shrink: 0;
-    background: rgba(4, 10, 14, 0.96);
+    background: rgba(7, 11, 18, 0.96);
     border-bottom: 1px solid var(--border-color);
     user-select: none;
     -webkit-user-select: none;
@@ -269,15 +268,6 @@ const Mark = styled.span`
     border-radius: 8px;
     background: rgba(var(--accent-rgb), 0.08);
     box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.12);
-`;
-
-const BrandWord = styled.strong`
-    align-self: center;
-    margin-left: 8px;
-    color: var(--text-primary);
-    font-size: 12.5px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
 `;
 
 const Tabs = styled.div`
