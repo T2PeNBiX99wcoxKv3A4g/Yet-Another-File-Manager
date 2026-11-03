@@ -224,11 +224,13 @@ const Menu = styled.div`
     min-width: 280px;
     max-height: calc(100vh - 16px);
     overflow-y: auto;
-    padding: 5px;
+    padding: 6px;
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    background: var(--bg-secondary);
-    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+    border-radius: var(--radius-lg);
+    background: var(--bg-elevated);
+    backdrop-filter: blur(18px) saturate(120%);
+    -webkit-backdrop-filter: blur(18px) saturate(120%);
+    box-shadow: var(--shadow-panel);
 `;
 
 const QuickRow = styled.div`

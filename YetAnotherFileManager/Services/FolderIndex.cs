@@ -401,7 +401,8 @@ internal static class FolderIndex
         {
             var result = await Try.Run(async () =>
             {
-                await using var connection = await OpenAsync(directory, false);
+                // Reading and writing happen in one pass, so the index must be opened writable.
+                await using var connection = await OpenAsync(directory, true);
                 if (connection is null)
                     return false;
 
@@ -510,7 +511,8 @@ internal static class FolderIndex
         {
             var result = await Try.Run(async () =>
             {
-                await using var connection = await OpenAsync(directory, false);
+                // Reading and writing happen in one pass, so the index must be opened writable.
+                await using var connection = await OpenAsync(directory, true);
                 if (connection is null)
                     return false;
 

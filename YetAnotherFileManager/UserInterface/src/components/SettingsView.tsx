@@ -79,6 +79,7 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
     const [tags, setTags] = useState<TagCatalogEntry[]>([]);
     const [editingTag, setEditingTag] = useState<{ name: string; value: string } | null>(null);
     const [tagBusy, setTagBusy] = useState(false);
+    const [tagError, setTagError] = useState<string | null>(null);
     const defaultView = settings?.defaultView ?? DefaultViewDefaults;
 
     useEffect(() => {
@@ -109,10 +110,18 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
     };
 
     const removeTag = async (name: string) => {
-        if (!await deleteTag(name))
-            return;
+        if (tagBusy) return;
 
+        setTagBusy(true);
+        setTagError(null);
+
+        const removed = await deleteTag(name);
         setTags(await listTags());
+
+        if (!removed)
+            setTagError(`"${name}" is still used by a folder whose index could not be updated.`);
+
+        setTagBusy(false);
     };
 
     const saveTagName = async () => {
@@ -128,10 +137,13 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
         }
 
         setTagBusy(true);
+        setTagError(null);
 
         if (await renameTag(edit.name, value)) {
             setTags(await listTags());
             setEditingTag(null);
+        } else {
+            setTagError(`Could not rename "${edit.name}".`);
         }
 
         setTagBusy(false);
@@ -384,6 +396,11 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
             <Section>
                 <Title>Tags</Title>
                 <Rows>
+                    {tagError && (
+                        <Row>
+                            <TagError>{tagError}</TagError>
+                        </Row>
+                    )}
                     {tags.length === 0 && (
                         <Row>
                             <Note>
@@ -445,12 +462,17 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                         </RowText>
                                         <RowEnd>
                                             <SmallButton
+                                                disabled={tagBusy}
                                                 onClick={() => setEditingTag({name: tag.name, value: tag.name})}
                                                 type="button"
                                             >
                                                 Edit
                                             </SmallButton>
-                                            <DangerButton onClick={() => void removeTag(tag.name)} type="button">
+                                            <DangerButton
+                                                disabled={tagBusy}
+                                                onClick={() => void removeTag(tag.name)}
+                                                type="button"
+                                            >
                                                 <TrashIcon size={13}/>
                                                 Remove
                                             </DangerButton>
@@ -1199,6 +1221,24 @@ const Note = styled.span`
     color: var(--text-muted);
 `;
 
+const TagError = styled.span`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 0;
+    font-size: 11px;
+    color: var(--danger);
+
+    &::before {
+        content: "";
+        width: 5px;
+        height: 5px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        background: currentColor;
+    }
+`;
+
 const Value = styled.span`
     flex-shrink: 0;
     font-family: var(--font-mono);
@@ -1288,9 +1328,14 @@ const DangerButton = styled.button`
     font-size: 11px;
     cursor: pointer;
 
-    &:hover {
+    &:hover:not(:disabled) {
         background: rgba(248, 113, 113, 0.14);
         color: #fecaca;
+    }
+
+    &:disabled {
+        opacity: 0.45;
+        cursor: default;
     }
 `;
 

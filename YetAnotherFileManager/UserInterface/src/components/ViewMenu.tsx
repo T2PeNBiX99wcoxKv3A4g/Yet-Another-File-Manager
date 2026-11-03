@@ -57,7 +57,13 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
 
     return (
         <Root ref={root}>
-            <Trigger disabled={disabled} onClick={() => setOpen((current) => !current)} title="View" type="button">
+            <Trigger
+                $active={open}
+                disabled={disabled}
+                onClick={() => setOpen((current) => !current)}
+                title="View"
+                type="button"
+            >
                 {view.mode === "grid" ? <GridIcon size={14}/> : <ListIcon size={14}/>}
             </Trigger>
 
@@ -142,18 +148,19 @@ const Root = styled.div`
     height: 100%;
 `;
 
-const Trigger = styled.button`
+const Trigger = styled.button<{ $active: boolean }>`
     display: grid;
     place-items: center;
     width: 42px;
     height: 100%;
     border: 0;
-    background: transparent;
-    color: var(--text-secondary);
+    background: ${({$active}) => $active ? "rgba(var(--accent-rgb), 0.12)" : "transparent"};
+    color: ${({$active}) => $active ? "var(--accent-primary)" : "var(--text-secondary)"};
     cursor: pointer;
+    transition: background 130ms ease, color 130ms ease;
 
     &:hover {
-        background: rgba(148, 163, 184, 0.14);
+        background: rgba(var(--accent-rgb), 0.10);
         color: var(--text-primary);
     }
 
@@ -166,27 +173,50 @@ const Trigger = styled.button`
 
 const Panel = styled.div`
     position: absolute;
-    top: 100%;
+    top: calc(100% + 8px);
     right: 0;
     z-index: 60;
-    width: 232px;
-    padding: 10px;
+    width: 244px;
+    padding: 12px;
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    background: var(--bg-secondary);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+    border-radius: var(--radius-lg);
+    background: var(--bg-elevated);
+    backdrop-filter: blur(18px) saturate(120%);
+    -webkit-backdrop-filter: blur(18px) saturate(120%);
+    box-shadow: var(--shadow-panel);
+    animation: yafm-view-in 150ms cubic-bezier(0.22, 1, 0.36, 1);
+
+    @keyframes yafm-view-in {
+        from {
+            opacity: 0;
+            transform: translateY(-6px) scale(0.985);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
 `;
 
 const SectionTitle = styled.div`
     display: flex;
     align-items: center;
     gap: 6px;
-    margin: 10px 0 5px;
+    margin: 12px 0 6px;
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-muted);
+
+    &::before {
+        content: "";
+        width: 2px;
+        height: 9px;
+        flex-shrink: 0;
+        border-radius: 2px;
+        background: var(--accent-gradient);
+    }
 
     &:first-child {
         margin-top: 2px;
@@ -196,6 +226,10 @@ const SectionTitle = styled.div`
 const Segmented = styled.div`
     display: flex;
     gap: 4px;
+    padding: 3px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
 `;
 
 const Choice = styled.button<{ $on: boolean }>`
@@ -205,13 +239,20 @@ const Choice = styled.button<{ $on: boolean }>`
     gap: 4px;
     flex: 1;
     padding: 5px 6px;
-    border: 1px solid ${({$on}) => $on ? "var(--border-color-focus)" : "var(--border-color)"};
+    border: 1px solid ${({$on}) => $on ? "rgba(var(--accent-rgb), 0.55)" : "transparent"};
     border-radius: var(--radius-sm);
-    background: ${({$on}) => $on ? "rgba(var(--accent-rgb), 0.18)" : "var(--bg-input)"};
+    background: ${({$on}) => $on ? "rgba(var(--accent-rgb), 0.16)" : "transparent"};
     color: ${({$on}) => $on ? "var(--text-primary)" : "var(--text-secondary)"};
     font: inherit;
     font-size: 11px;
+    font-weight: ${({$on}) => $on ? 600 : 500};
     cursor: pointer;
+    transition: background 130ms ease, border-color 130ms ease, color 130ms ease;
+
+    &:hover {
+        border-color: var(--border-color-hover);
+        color: var(--text-primary);
+    }
 `;
 
 const SliderRow = styled.div`
@@ -237,12 +278,21 @@ const Check = styled.label`
     display: flex;
     align-items: center;
     gap: 7px;
-    padding: 3px 0;
+    padding: 4px 6px;
+    margin: 0 -6px;
+    border-radius: var(--radius-sm);
     font-size: 11px;
     color: var(--text-secondary);
     cursor: pointer;
+    transition: background 130ms ease, color 130ms ease;
 
     input {
+        margin: 0;
         accent-color: var(--accent-primary);
+    }
+
+    &:hover {
+        background: rgba(var(--accent-rgb), 0.08);
+        color: var(--text-primary);
     }
 `;

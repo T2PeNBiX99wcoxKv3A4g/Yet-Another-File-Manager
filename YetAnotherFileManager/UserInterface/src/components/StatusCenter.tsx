@@ -112,12 +112,13 @@ const ActivityButton = styled.button<{ $active: boolean }>`
     width: 38px;
     height: 100%;
     border: 0;
-    background: ${({$active}) => $active ? "rgba(148, 163, 184, 0.14)" : "transparent"};
-    color: var(--text-secondary);
+    background: ${({$active}) => $active ? "rgba(var(--accent-rgb), 0.12)" : "transparent"};
+    color: ${({$active}) => $active ? "var(--accent-primary)" : "var(--text-secondary)"};
     cursor: pointer;
+    transition: background 130ms ease, color 130ms ease;
 
     &:hover {
-        background: rgba(148, 163, 184, 0.14);
+        background: rgba(var(--accent-rgb), 0.10);
         color: var(--text-primary);
     }
 `;
@@ -130,7 +131,8 @@ const Badge = styled.span`
     height: 13px;
     padding: 0 3px;
     border-radius: 999px;
-    background: var(--accent-primary);
+    background: var(--accent-gradient);
+    box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.5);
     color: #fff;
     font-family: var(--font-mono);
     font-size: 8px;
@@ -140,18 +142,32 @@ const Badge = styled.span`
 
 const Panel = styled.div`
     position: absolute;
-    top: calc(100% + 6px);
+    top: calc(100% + 8px);
     right: 0;
     z-index: 60;
-    width: 340px;
-    max-height: 380px;
+    width: 348px;
+    max-height: 396px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    background: var(--bg-secondary);
-    box-shadow: 0 18px 40px rgba(2, 6, 23, 0.55);
+    border-radius: var(--radius-lg);
+    background: var(--bg-elevated);
+    backdrop-filter: blur(18px) saturate(120%);
+    -webkit-backdrop-filter: blur(18px) saturate(120%);
+    box-shadow: var(--shadow-panel);
+    animation: yafm-activity-in 150ms cubic-bezier(0.22, 1, 0.36, 1);
+
+    @keyframes yafm-activity-in {
+        from {
+            opacity: 0;
+            transform: translateY(-6px) scale(0.985);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
 `;
 
 const PanelHead = styled.div`
@@ -159,16 +175,28 @@ const PanelHead = styled.div`
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    padding: 9px 10px;
+    padding: 11px 12px;
     border-bottom: 1px solid var(--border-color);
+    background: rgba(var(--accent-rgb), 0.05);
 `;
 
 const PanelTitle = styled.span`
-    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 10px;
     font-weight: 600;
-    color: var(--text-primary);
-    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    letter-spacing: 0.1em;
     text-transform: uppercase;
+
+    &::before {
+        content: "";
+        width: 2px;
+        height: 10px;
+        border-radius: 2px;
+        background: var(--accent-gradient);
+    }
 `;
 
 const PanelActions = styled.div`
@@ -178,17 +206,19 @@ const PanelActions = styled.div`
 `;
 
 const TextButton = styled.button`
-    padding: 3px 6px;
-    border: 0;
-    border-radius: 5px;
+    padding: 4px 7px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
     background: transparent;
     color: var(--text-muted);
     font: inherit;
     font-size: 10px;
     cursor: pointer;
+    transition: background 130ms ease, border-color 130ms ease, color 130ms ease;
 
     &:hover:not(:disabled) {
-        background: var(--bg-card-hover);
+        border-color: var(--border-color);
+        background: rgba(var(--accent-rgb), 0.10);
         color: var(--text-primary);
     }
 
@@ -201,16 +231,18 @@ const TextButton = styled.button`
 const ClosePanel = styled.button`
     display: grid;
     place-items: center;
-    width: 20px;
-    height: 20px;
-    border: 0;
-    border-radius: 5px;
+    width: 22px;
+    height: 22px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
     background: transparent;
     color: var(--text-muted);
     cursor: pointer;
+    transition: background 130ms ease, border-color 130ms ease, color 130ms ease;
 
     &:hover {
-        background: var(--bg-card-hover);
+        border-color: var(--border-color);
+        background: rgba(var(--accent-rgb), 0.10);
         color: var(--text-primary);
     }
 `;
@@ -231,11 +263,16 @@ const Empty = styled.p`
 `;
 
 const Row = styled.div`
-    padding: 7px 8px;
-    border-radius: var(--radius-sm);
+    padding: 8px;
+    border-radius: var(--radius-md);
+    transition: background 130ms ease;
 
     & + & {
-        border-top: 1px solid rgba(148, 163, 184, 0.08);
+        border-top: 1px solid var(--border-color);
+    }
+
+    &:hover {
+        background: rgba(var(--accent-rgb), 0.05);
     }
 `;
 
@@ -295,10 +332,10 @@ const RowMeta = styled.span`
 
 const Bar = styled.div`
     height: 4px;
-    margin: 6px 0 0 26px;
+    margin: 7px 0 0 26px;
     overflow: hidden;
     border-radius: 999px;
-    background: rgba(148, 163, 184, 0.16);
+    background: rgba(var(--accent-rgb), 0.14);
 `;
 
 const Fill = styled.div<{ $percent: number; $indeterminate: boolean }>`

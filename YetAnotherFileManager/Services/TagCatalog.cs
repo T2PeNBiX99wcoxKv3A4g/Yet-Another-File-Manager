@@ -132,14 +132,30 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
             ScheduleSave();
         }
 
+        var failed = new List<string>();
+
         foreach (var directory in directories)
         {
             var removed = await Try.Run(() => FolderIndex.RemoveTagAsync(directory, name));
             if (!removed.GetOrElse(_ => false))
+            {
+                failed.Add(directory);
                 Log.Debug("Could not remove tag {Tag} from {Directory}", name, directory);
+            }
         }
 
-        return true;
+        if (failed.Count == 0)
+            return true;
+
+        // A folder that could not be cleaned still shows the tag, so the record goes back. Reporting a
+        // success here would only be undone by the next listing of that folder.
+        lock (_gate)
+        {
+            _tags[name] = new TagRecord {Name = name, Directories = failed};
+            ScheduleSave();
+        }
+
+        return false;
     }
 
     /// <summary>Renames a tag in every index the catalogue knows, merging with an existing name.</summary>
