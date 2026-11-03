@@ -324,7 +324,10 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
             const registered = await setScheme(wanted);
 
             setSchemeState(registered);
-            setSettings((current) => current ? {...current, linksEnabled: wanted} : current);
+            setSettings((current) => current ? {...current, linksEnabled: registered} : current);
+            // The window keeps its own copy of the settings; a save from elsewhere would otherwise
+            // write the old link choice back.
+            onSettingsChanged();
 
             if (registered !== wanted)
                 setSchemeError(wanted
@@ -451,8 +454,8 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                 <Note>
                                     Registers this app for yafm:// links, for the current user only.
                                     While this is on, the app repairs the entry at every launch.
-                                    {schemeError ? ` ${schemeError}` : ""}
                                 </Note>
+                                {schemeError && <TagError>{schemeError}</TagError>}
                             </RowText>
                             <RowEnd>
                                 <State $on={scheme}>{scheme ? "Active" : "Off"}</State>

@@ -173,7 +173,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                         {
                             // The settings page never edits tabs; the window owns them through app.tabs.set.
                             OpenTabs = current.OpenTabs,
-                            ActiveTab = current.ActiveTab
+                            ActiveTab = current.ActiveTab,
+                            // Only app.scheme.set changes the link registration.
+                            LinksEnabled = current.LinksEnabled
                         }));
 
                 return context.Reply("app.settings.result", SettingsService.Instance.Current);
@@ -559,12 +561,18 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     /// </summary>
     private static async Task<bool> SetSchemeAsync(bool enabled)
     {
+        // Report what the registry actually ended up with, not what was asked for: Windows can
+        // refuse the change, and a toggle that lies is worse than one that stays put.
+        var effective = await Task.Run(() => enabled
+            ? UrlScheme.Register() && UrlScheme.IsRegistered()
+            : !UrlScheme.Unregister());
+
         await SettingsService.Instance.UpdateAsync(settings => settings with
         {
-            LinksEnabled = enabled
+            LinksEnabled = effective
         });
 
-        return await Task.Run(() => enabled ? UrlScheme.Register() : UrlScheme.Unregister());
+        return effective;
     }
 
     /// <summary>Hands a file to the shell, which opens it with whatever the user made its default.</summary>

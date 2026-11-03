@@ -151,6 +151,8 @@ export function FileList({
 }: FileListProps) {
     const quick = useQuickAccess();
     const currentRow = useRef<HTMLDivElement | null>(null);
+    const head = useRef<HTMLDivElement | null>(null);
+    const body = useRef<HTMLDivElement | null>(null);
     const stripDrag = useRef<{ y: number; height: number } | null>(null);
     const anchor = useRef<string | null>(null);
     const [tagTarget, setTagTarget] = useState<{ entry: FileEntry; x: number; y: number } | null>(null);
@@ -1162,7 +1164,14 @@ export function FileList({
     return (
         <SplitPane onPointerDown={onActivate}>
             <Wrapper>
-            <Head style={{gridTemplateColumns: template}}>
+            <Head
+                onScroll={(event) => {
+                    if (body.current && body.current.scrollLeft !== event.currentTarget.scrollLeft)
+                        body.current.scrollLeft = event.currentTarget.scrollLeft;
+                }}
+                ref={head}
+                style={{gridTemplateColumns: template}}
+            >
                 <HeaderButton onClick={() => onSort("name")} type="button">
                     Name{markOf(view, "name")}
                 </HeaderButton>
@@ -1181,6 +1190,11 @@ export function FileList({
                 onDragOver={overListDrag}
                 onDragStart={startListDrag}
                 onDrop={dropOnList}
+                onScroll={(event) => {
+                    if (head.current && head.current.scrollLeft !== event.currentTarget.scrollLeft)
+                        head.current.scrollLeft = event.currentTarget.scrollLeft;
+                }}
+                ref={body}
             >
                 {loading && !listing
                     ? <PlaceholderRows template={template} columns={visible.length}/>
@@ -2005,6 +2019,14 @@ const Head = styled.div`
     padding: 10px 22px;
     border-bottom: 1px solid var(--border-color);
     font-size: 11px;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+        height: 0;
+    }
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -2032,6 +2054,7 @@ const HeaderButton = styled.button`
 const Body = styled.div`
     flex: 1;
     min-height: 0;
+    min-width: 0;
     overflow: auto;
     padding: 8px 10px 22px;
 `;

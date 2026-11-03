@@ -118,6 +118,7 @@ export function TitleBar({
                             key={tab.id}
                             $active={tab.id === activeId}
                             $dragging={dragging === tab.id}
+                            $split={Boolean(tab.split)}
                             draggable
                             onDragEnd={() => setDragging(null)}
                             onDragOver={(event) => {
@@ -322,11 +323,11 @@ const ScrollButton = styled.button`
     }
 `;
 
-const Tab = styled.button<{ $active: boolean; $dragging: boolean }>`
+const Tab = styled.button<{ $active: boolean; $dragging: boolean; $split: boolean }>`
     display: flex;
     align-items: center;
     gap: 7px;
-    width: 176px;
+    width: ${({$split}) => $split ? "214px" : "176px"};
     height: 32px;
     flex: 0 0 auto;
     padding: 0 6px 0 10px;

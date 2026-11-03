@@ -10,6 +10,8 @@ export interface TabInfo {
     path: string;
     /** The Quick access entry of a files tab, so its glyph matches the rest of the window. */
     place?: Place;
+    /** This tab is showing two folders, one in each pane. */
+    split?: boolean;
 }
 
 /** Titles for the pages that are not a folder. */

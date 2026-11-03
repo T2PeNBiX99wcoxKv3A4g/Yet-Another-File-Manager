@@ -95,6 +95,8 @@ interface Tab {
     fresh: boolean;
     /** This directory's own view settings; null inherits the app's default. */
     view: DirectoryView | null;
+    /** Whether this tab shows a second pane; the partner is the next file tab. */
+    split?: boolean;
 }
 
 const ViewScheme = "yafm://";
@@ -150,9 +152,9 @@ function folderOf(tab: Tab): string {
 }
 
 /** The tab a window-level action should use: the focused pane in split view, else the active tab. */
-function focusedTabIdOf(state: { tabs: Tab[]; activeId: string; split: boolean; activePane: "primary" | "secondary" }): string {
+function focusedTabIdOf(state: { tabs: Tab[]; activeId: string; activePane: "primary" | "secondary" }): string {
     const active = state.tabs.find((tab) => tab.id === state.activeId);
-    if (!state.split || state.activePane !== "secondary" || !active || kindOf(active) !== "files")
+    if (!active?.split || state.activePane !== "secondary" || kindOf(active) !== "files")
         return state.activeId;
 
     const other = state.tabs.find((tab) => tab.id !== state.activeId && kindOf(tab) === "files");
@@ -183,6 +185,7 @@ function createTab(location = viewLocation("home")): Tab {
         index: 0,
         fresh: true,
         view: null,
+        split: false,
     };
 }
 
@@ -225,7 +228,14 @@ function statusLine(listing: DirectoryListing): string {    const total = listin
 export default function App() {
     const [tabs, setTabs] = useState<Tab[]>(() => [createTab()]);
     const [activeId, setActiveId] = useState(() => tabs[0].id);
-    const [split, setSplit] = useState(false);
+    const [splitRatio, setSplitRatio] = useState(() => {
+        try {
+            const saved = Number(localStorage.getItem("yafm.split.ratio"));
+            return Number.isFinite(saved) && saved >= 0.2 && saved <= 0.8 ? saved : 0.5;
+        } catch {
+            return 0.5;
+        }
+    });
     const [places, setPlaces] = useState<Place[]>([]);
     const [drives, setDrives] = useState<Drive[]>([]);
     const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
@@ -279,7 +289,7 @@ export default function App() {
     const location = locationOf(active);
     const activeTabIndex = Math.max(tabs.findIndex((tab) => tab.id === activeId), 0);
     const secondary = tabs.find((tab, index) => index !== activeTabIndex && kindOf(tab) === "files");
-    const splitActive = kind === "files" && split && secondary !== undefined;
+    const splitActive = kind === "files" && (active.split ?? false) && secondary !== undefined;
     const activeFolder = folderOf(active);
     const activeParent = kind === "files" ? active.listing?.parent ?? parentOf(activeFolder) : null;
     const secondaryFolder = secondary ? folderOf(secondary) : "";
@@ -407,8 +417,8 @@ export default function App() {
     }, [findHits.length]);
 
     // Handlers that outlive a render (the native event subscription) read the latest state here.
-    const stateRef = useRef({tabs, activeId, split, activePane});
-    stateRef.current = {tabs, activeId, split, activePane};
+    const stateRef = useRef({tabs, activeId, activePane});
+    stateRef.current = {tabs, activeId, activePane};
 
     const settingsRef = useRef(settings);
     settingsRef.current = settings;
@@ -669,24 +679,22 @@ export default function App() {
         setActiveId(tabs[next].id);
     }, []);
 
-    /** Toggles the split view; the right pane is the next file tab. */
+    /** Toggles the split view of the tab that has the focus. */
     const toggleSplit = useCallback(() => {
-        if (split) {
-            setSplit(false);
-            setActivePane("primary");
-            return;
-        }
-
         const {tabs, activeId} = stateRef.current;
         const tab = tabs.find((item) => item.id === activeId);
         if (!tab || kindOf(tab) !== "files") return;
 
-        if (!tabs.some((item) => item.id !== activeId && kindOf(item) === "files"))
+        const other = tabs.find((item) => item.id !== activeId && kindOf(item) === "files");
+        const next = !((tab.split ?? false) && other);
+
+        // A split needs a second file tab; opening one is what the button does the first time.
+        if (next && !other)
             openFiles(folderOf(tab), false);
 
+        patch(activeId, () => ({split: next}));
         setActivePane("primary");
-        setSplit(true);
-    }, [openFiles, split]);
+    }, [openFiles, patch]);
 
     const resizeDetails = useCallback((width: number) => {
         setDetailsWidth(width);
@@ -702,6 +710,38 @@ export default function App() {
     const detailsInfo = splitActive
         ? activePane === "secondary" ? secondaryPreview ?? primaryPreview : primaryPreview ?? secondaryPreview
         : primaryPreview;
+
+    const splitRef = useRef<HTMLDivElement | null>(null);
+
+    /** Drags the divider between the two panes; a usable slice stays on each side. */
+    const startSplitDrag = (event: { preventDefault: () => void; clientX: number }) => {
+        event.preventDefault();
+
+        const bounds = splitRef.current?.getBoundingClientRect();
+        if (!bounds) return;
+
+        // The details panel takes its own width; the divider only splits what is left of it.
+        const reserved = detailsVisible ? detailsWidth : 0;
+        const paneWidth = Math.max(bounds.width - reserved - 7, 1);
+
+        const move = (moveEvent: PointerEvent) => {
+            const ratio = Math.min(Math.max((moveEvent.clientX - bounds.left) / paneWidth, 0.2), 0.8);
+            setSplitRatio(ratio);
+
+            try {
+                localStorage.setItem("yafm.split.ratio", String(ratio));
+            } catch {
+                // Storage may be unavailable; the ratio still works for this run.
+            }
+        };
+        const stop = () => {
+            window.removeEventListener("pointermove", move);
+            window.removeEventListener("pointerup", stop);
+        };
+
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", stop);
+    };
 
     const openCreateMenu = (event: { clientX: number; clientY: number }, directory: string, refresh: () => void) => {
         if (!directory)
@@ -1648,15 +1688,24 @@ export default function App() {
                 tabs={tabs.map((tab) => {
                     const tabKind = kindOf(tab);
                     const folder = folderOf(tab);
+                    const partner = tabKind === "files" && tab.split
+                        ? tabs.find((item) => item.id !== tab.id && kindOf(item) === "files")
+                        : undefined;
+                    const partnerFolder = partner ? folderOf(partner) : "";
+                    const title = tabKind === "files"
+                        ? quickName(quickAccess, folder, baseName(folder) || "Files")
+                        : viewTitles[tabKind];
+                    const partnerTitle = partner
+                        ? quickName(quickAccess, partnerFolder, baseName(partnerFolder) || "Files")
+                        : "";
 
                     return {
                         id: tab.id,
                         kind: tabKind,
-                        path: folder,
+                        path: partner ? `${folder}  |  ${partnerFolder}` : folder,
                         place: tabKind === "files" ? quickPlace(quickAccess, folder) : undefined,
-                        title: tabKind === "files"
-                            ? quickName(quickAccess, folder, baseName(folder) || "Files")
-                            : viewTitles[tabKind],
+                        split: Boolean(partner),
+                        title: partner ? `${title}  |  ${partnerTitle}` : title,
                     };
                 })}
             />
@@ -1681,9 +1730,12 @@ export default function App() {
 
                     {kind === "files" ? (
                         splitActive && secondary ? (
-                            <Split>
-                                <Pane $active={activePane === "primary"}>
-                                    <PaneToolbar onPointerDown={() => setActivePane("primary")}>
+                            <Split ref={splitRef}>
+                                <Pane style={{flex: splitRatio}}>
+                                    <PaneToolbar
+                                        $active={activePane === "primary"}
+                                        onPointerDown={() => setActivePane("primary")}
+                                    >
                                         <IconButton
                                             data-shortcut={prettyShortcut(shortcuts.goBack)}
                                             disabled={!canBack}
@@ -1747,9 +1799,16 @@ export default function App() {
                                     {filePane(active, true)}
                                     {activePane === "primary" && findBar}
                                 </Pane>
-                                <SplitDivider/>
-                                <Pane $active={activePane === "secondary"}>
-                                    <PaneToolbar onPointerDown={() => setActivePane("secondary")}>
+                                <SplitDivider
+                                    onDoubleClick={() => setSplitRatio(0.5)}
+                                    onPointerDown={startSplitDrag}
+                                    title="Drag to resize; double-click to reset"
+                                />
+                                <Pane style={{flex: 1 - splitRatio}}>
+                                    <PaneToolbar
+                                        $active={activePane === "secondary"}
+                                        onPointerDown={() => setActivePane("secondary")}
+                                    >
                                         <IconButton
                                             data-shortcut={prettyShortcut(shortcuts.goBack)}
                                             disabled={secondary.index <= 0}
@@ -1999,14 +2058,15 @@ const IconButton = styled.button`
     }
 `;
 
-const PaneToolbar = styled.div`
+const PaneToolbar = styled.div<{ $active?: boolean }>`
     display: flex;
     align-items: center;
     gap: 7px;
     padding: 12px 18px;
     border-bottom: 1px solid var(--border-color);
-    background: rgba(var(--bg-rgb), 0.58);
+    background: ${({$active}) => $active ? "rgba(var(--accent-rgb), 0.07)" : "rgba(var(--bg-rgb), 0.58)"};
     backdrop-filter: blur(10px);
+    transition: background 140ms ease;
 `;
 
 const Split = styled.div`
@@ -2015,23 +2075,39 @@ const Split = styled.div`
     min-height: 0;
 `;
 
-const Pane = styled.div<{ $active: boolean }>`
+const Pane = styled.div`
     position: relative;
     display: flex;
     flex-direction: column;
     flex: 1;
     min-width: 0;
     min-height: 0;
-    box-shadow: ${({$active}) => $active
-        ? "inset 0 0 0 1px rgba(var(--accent-rgb), 0.20)"
-        : "none"};
-    transition: box-shadow 140ms ease;
 `;
 
 const SplitDivider = styled.div`
-    width: 1px;
+    position: relative;
+    width: 7px;
     flex-shrink: 0;
-    background: var(--border-color);
+    cursor: col-resize;
+    background: transparent;
+    touch-action: none;
+
+    &::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 3px;
+        width: 1px;
+        background: var(--border-color);
+        transition: background 120ms ease, box-shadow 120ms ease;
+    }
+
+    &:hover::before,
+    &:active::before {
+        background: var(--accent-primary);
+        box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.45);
+    }
 `;
 
 const Files = styled.div`

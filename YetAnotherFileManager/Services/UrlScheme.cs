@@ -70,11 +70,14 @@ internal static class UrlScheme
 
     /// <summary>
     ///     Re-applies the user's choice at startup. The registry entry is easy to lose — a cleanup
-    ///     tool, another profile — so the setting is what decides whether links stay enabled.
+    ///     tool, another profile — so the setting is what decides whether links stay enabled. A
+    ///     leftover entry is removed when the user turned links off.
     /// </summary>
     public static void Apply(bool enabled)
     {
         if (enabled && !IsRegistered())
             Register();
+        else if (!enabled && IsRegistered())
+            Unregister();
     }
 }
