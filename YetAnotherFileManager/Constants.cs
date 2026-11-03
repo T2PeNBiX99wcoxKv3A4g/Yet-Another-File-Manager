@@ -36,6 +36,12 @@ public static class Constants
     public const string ShellInvokeArgument = "--shell-invoke";
 
     /// <summary>
+    ///     Short-lived helper that renders the first page of a PDF to a PNG. Keeping PDFium in its own
+    ///     process means a malformed document can only take the helper down, never the window.
+    /// </summary>
+    public const string PdfPreviewArgument = "--pdf-preview";
+
+    /// <summary>
     ///     The shared "Core" logger. Resolved from the configured <see cref="Log.Logger" /> on every
     ///     access, so it must not be captured before <see cref="Logging.Initialize" /> has run.
     /// </summary>

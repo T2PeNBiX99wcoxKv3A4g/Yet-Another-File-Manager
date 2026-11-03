@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState, type PointerEvent as ReactPointerEvent} from "react";
 import styled from "styled-components";
 import {previewText, type TextPreview} from "../api/files";
-import {useIcon, useMediaUrl, useThumbnail} from "../api/icons";
+import {useIcon, useMediaUrl, usePdfPreview, useThumbnail} from "../api/icons";
 import {FileIcon, FolderIcon, PauseIcon, PlayIcon} from "./Icons";
 
 export interface PreviewInfo {
@@ -52,6 +52,7 @@ export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, se
     const [position, setPosition] = useState(0);
     const [textPreview, setTextPreview] = useState<TextPreview | null>(null);
     const [textLoading, setTextLoading] = useState(false);
+    const [pdfFailed, setPdfFailed] = useState(false);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const drag = useRef<{ x: number; width: number } | null>(null);
     const path = info?.path ?? null;
@@ -60,11 +61,13 @@ export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, se
     const audio = !!info && !info.isDirectory && AudioExtensions.has(extension);
     const image = !!info && !info.isDirectory && ImageExtensions.has(extension);
     const text = !!info && !info.isDirectory && TextExtensions.has(extension);
+    const pdf = !!info && !info.isDirectory && extension === "pdf";
 
     const poster = useThumbnail(video ? path : null, 512, info?.modified ?? 0);
     const imagePreview = useMediaUrl(image ? path : null, info?.modified ?? 0, extension);
     const media = useMediaUrl(video || audio ? path : null, info?.modified ?? 0, extension);
-    const icon = useIcon(!video && !audio && !image && !text ? path : null, info?.isDirectory ?? false);
+    const pdfPreview = usePdfPreview(pdf ? path : null, info?.modified ?? 0);
+    const icon = useIcon(!video && !audio && !image && !text && !pdf ? path : null, info?.isDirectory ?? false);
 
     useEffect(() => {
         setVideoFailed(false);
@@ -72,6 +75,7 @@ export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, se
         setVideoHover(false);
         setDuration(0);
         setPosition(0);
+        setPdfFailed(false);
     }, [path]);
 
     useEffect(() => {
@@ -216,8 +220,20 @@ export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, se
                             ? <audio controls src={media}/>
                             : image && imagePreview
                                 ? <img alt="" decoding="async" loading="lazy" src={imagePreview}/>
-                                : text
+                                : pdf && pdfPreview && !pdfFailed
                                     ? (
+                                        <img
+                                            alt=""
+                                            decoding="async"
+                                            loading="lazy"
+                                            onError={() => setPdfFailed(true)}
+                                            src={pdfPreview}
+                                        />
+                                    )
+                                    : pdf
+                                        ? <FileIcon size={64}/>
+                                        : text
+                                            ? (
                                         <TextBox>
                                             {textLoading || !textPreview
                                                 ? <TextNote>Loading…</TextNote>

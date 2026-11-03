@@ -52,6 +52,13 @@ internal static partial class Program
             return;
         }
 
+        // PDFium is kept in a short-lived helper; the window only ever receives the rendered PNG.
+        if (args.Contains(Constants.PdfPreviewArgument))
+        {
+            RunPdfPreview(args);
+            return;
+        }
+
         // Main must stay synchronous: [STAThread] is ignored for an async entry point, and the
         // Photino message loop / WebView2 require an STA thread.
         Logging.Initialize(Constants.Name, "app");
@@ -224,6 +231,27 @@ internal static partial class Program
     ///     administrator can see to a JSON file (and deletes them when asked). Nothing else happens —
     ///     no window, no tray.
     /// </summary>
+    /// <summary>Runs the isolated PDF renderer and exits; the main window never loads PDFium.</summary>
+    private static void RunPdfPreview(string[] args)
+    {
+        var index = Array.IndexOf(args, Constants.PdfPreviewArgument);
+        if (index < 0 || index + 2 >= args.Length)
+        {
+            Environment.ExitCode = 2;
+            return;
+        }
+
+        try
+        {
+            Environment.ExitCode = PdfPreview.TryRender(args[index + 1], args[index + 2]) ? 0 : 1;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex);
+            Environment.ExitCode = 1;
+        }
+    }
+
     private static async Task RunOrphansReportAsync(string[] args)
     {
         Logging.Initialize(Constants.Name, "cleanup");

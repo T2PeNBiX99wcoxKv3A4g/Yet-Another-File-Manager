@@ -1,8 +1,10 @@
 using System.Buffers;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using PhotinoNetUtils.Utils;
@@ -25,6 +27,7 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
     private readonly ConcurrentDictionary<string, byte[]> _cache = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentQueue<string> _order = new();
     private readonly SemaphoreSlim _gate = new(Math.Clamp(Environment.ProcessorCount, 4, 8));
+    private static readonly SemaphoreSlim PdfGate = new(2, 2);
     private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
 
     public ThumbnailServer()
@@ -75,9 +78,17 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
                 if (request is null)
                     return;
 
-                if (!TryReadPath(request, out var path, out var size, out var version, out var media, out var extension))
+                if (!TryReadPath(request, out var path, out var size, out var version, out var media, out var pdf, out var extension))
                 {
                     await RespondAsync(stream, 404, "text/plain", []);
+                    return;
+                }
+
+                if (pdf)
+                {
+                    var image = await PdfAsync(path, version);
+                    await RespondAsync(stream, image is null ? 404 : 200,
+                        image is null ? "text/plain" : "image/png", image ?? []);
                     return;
                 }
 
@@ -124,12 +135,13 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
 
     /// <summary>Validates the token and reads the file path, size and cache version from the query.</summary>
     private bool TryReadPath(string request, out string path, out int size, out string version, out bool media,
-        out string extension)
+        out bool pdf, out string extension)
     {
         path = "";
         size = 128;
         version = "";
         media = false;
+        pdf = false;
         extension = "";
 
         var line = request.Split("\r\n", 2)[0];
@@ -144,8 +156,9 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
         var query = queryAt >= 0 ? target[(queryAt + 1)..] : "";
 
         media = route.Equals($"/{_token}/media", StringComparison.Ordinal);
+        pdf = route.Equals($"/{_token}/pdf", StringComparison.Ordinal);
 
-        if (!media && !route.Equals($"/{_token}/thumb", StringComparison.Ordinal))
+        if (!media && !pdf && !route.Equals($"/{_token}/thumb", StringComparison.Ordinal))
             return false;
 
         foreach (var pair in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
@@ -193,6 +206,99 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
         finally
         {
             _gate.Release();
+        }
+    }
+
+    /// <summary>Renders a PDF page in the isolated helper and caches the PNG it returns.</summary>
+    private async Task<byte[]?> PdfAsync(string path, string version)
+    {
+        var key = $"pdf|{path}|{version}";
+        if (_cache.TryGetValue(key, out var cached))
+            return cached;
+
+        if (!File.Exists(path))
+            return null;
+
+        await PdfGate.WaitAsync();
+        try
+        {
+            if (_cache.TryGetValue(key, out cached))
+                return cached;
+
+            var bytes = await RenderPdfAsync(path);
+            if (bytes is not null)
+                Remember(key, bytes);
+
+            return bytes;
+        }
+        finally
+        {
+            PdfGate.Release();
+        }
+    }
+
+    private static async Task<byte[]?> RenderPdfAsync(string path)
+    {
+        var executable = Environment.ProcessPath;
+        if (string.IsNullOrEmpty(executable))
+            return null;
+
+        var output = Path.Combine(Path.GetTempPath(), $"yafm-pdf-{Guid.NewGuid():N}.png");
+
+        try
+        {
+            var start = new ProcessStartInfo
+            {
+                FileName = executable,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
+            };
+
+            if (Path.GetFileNameWithoutExtension(executable).Equals("dotnet", StringComparison.OrdinalIgnoreCase))
+            {
+                var assembly = Assembly.GetEntryAssembly()?.Location;
+                if (string.IsNullOrEmpty(assembly))
+                    return null;
+
+                start.ArgumentList.Add(assembly);
+            }
+
+            start.ArgumentList.Add(Constants.PdfPreviewArgument);
+            start.ArgumentList.Add(path);
+            start.ArgumentList.Add(output);
+
+            using var process = Process.Start(start);
+            if (process is null)
+                return null;
+
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+
+            try
+            {
+                await process.WaitForExitAsync(timeout.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Try.Run(() => process.Kill(true));
+                Serilog.Log.Debug("PDF preview timed out for {Path}", path);
+                return null;
+            }
+
+            if (process.ExitCode != 0 || !File.Exists(output))
+                return null;
+
+            var bytes = await File.ReadAllBytesAsync(output);
+            return bytes.Length == 0 ? null : bytes;
+        }
+        catch (Exception ex)
+        {
+            Serilog.Log.Debug(ex, "Could not render the PDF preview of {Path}", path);
+            return null;
+        }
+        finally
+        {
+            Try.Run(() => File.Delete(output));
         }
     }
 

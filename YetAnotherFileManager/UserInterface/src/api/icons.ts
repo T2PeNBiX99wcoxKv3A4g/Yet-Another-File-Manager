@@ -194,3 +194,25 @@ export function useMediaUrl(path: string | null, version = 0, extension = ""): s
     const ext = extension ? `&ext=${encodeURIComponent(extension)}` : "";
     return `${base}/media?path=${encodeURIComponent(path)}&v=${version}${ext}`;
 }
+
+/** A PNG rendered by the isolated PDF helper; the web view never receives the PDF itself. */
+export function usePdfPreview(path: string | null, version = 0): string | null {
+    const [base, setBase] = useState<string | null>(thumbnailBase);
+
+    useEffect(() => {
+        if (!path || base !== null) return;
+
+        let alive = true;
+        void loadThumbnailBase().then((value) => {
+            if (alive) setBase(value);
+        });
+
+        return () => {
+            alive = false;
+        };
+    }, [path, base]);
+
+    if (!path || !base) return null;
+
+    return `${base}/pdf?path=${encodeURIComponent(path)}&v=${version}`;
+}
