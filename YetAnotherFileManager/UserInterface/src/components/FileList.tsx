@@ -160,6 +160,7 @@ export function FileList({
     const head = useRef<HTMLDivElement | null>(null);
     const body = useRef<HTMLDivElement | null>(null);
     const [rowLimit, setRowLimit] = useState(RowPage);
+    const [listWindow, setListWindow] = useState({top: 0, height: 640});
     const stripDrag = useRef<{ y: number; height: number } | null>(null);
     const anchor = useRef<string | null>(null);
     const [tagTarget, setTagTarget] = useState<{ entry: FileEntry; x: number; y: number } | null>(null);
@@ -257,10 +258,6 @@ export function FileList({
     };
 
     // Typing a letter jumps to the first match; the row has to be brought into view with it.
-    useEffect(() => {
-        currentRow.current?.scrollIntoView({block: "nearest"});
-    }, [find.currentPath]);
-
     const searching = find.query.length > 0;
     // Kept stable so a memoized row only re-renders when the columns themselves change.
     const visible = useMemo(
@@ -294,9 +291,57 @@ export function FileList({
             .filter((row) => !searching || find.mode === "dim" || row.ranges !== null);
 
         return sortRows(matched, view, listing);
-    }, [listing, searching, find, quick, view.sort, view.sortDescending]);
+    }, [
+        listing?.entries, listing?.tags,
+        view.sort === "size" || view.sort === "items" ? listing?.folderSizes : null,
+        view.sort === "size" || view.sort === "items" ? listing?.counts : null,
+        searching, find, quick, view.sort, view.sortDescending,
+    ]);
 
     rowsRef.current = rows;
+
+    // A list row keeps one height, so the scrollbar can represent all rows while only the rows
+    // around the viewport exist in the DOM.
+    const rowHeight = Math.max(40, view.iconSize + 20);
+    const windowStart = Math.max(0, Math.floor(listWindow.top / rowHeight) - 4);
+    const windowEnd = Math.min(rows.length, windowStart + Math.ceil(listWindow.height / rowHeight) + 10);
+    const windowRows = useMemo(() => rows.slice(windowStart, windowEnd), [rows, windowStart, windowEnd]);
+
+    useEffect(() => {
+        const node = body.current;
+        if (!node || view.mode !== "list") return;
+
+        const measure = () => setListWindow((current) =>
+            current.height === node.clientHeight ? current : {...current, height: node.clientHeight});
+
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [view.mode]);
+
+    useEffect(() => {
+        setListWindow((current) => ({...current, top: 0}));
+        if (body.current) body.current.scrollTop = 0;
+    }, [listing?.path]);
+
+    // A search hit can be far outside the rendered window; scroll the list to its row.
+    useEffect(() => {
+        if (!find.currentPath) return;
+
+        if (view.mode === "list") {
+            const index = rows.findIndex((row) => row.entry.fullPath === find.currentPath);
+            const node = body.current;
+            if (index < 0 || !node) return;
+
+            const top = index * rowHeight;
+            if (top < node.scrollTop || top + rowHeight > node.scrollTop + node.clientHeight)
+                node.scrollTop = Math.max(0, top - node.clientHeight / 2);
+            return;
+        }
+
+        currentRow.current?.scrollIntoView({block: "nearest"});
+    }, [find.currentPath, view.mode, rows, rowHeight]);
 
     const visibleRows = useMemo(() => rows.slice(0, rowLimit), [rows, rowLimit]);
 
@@ -1226,42 +1271,53 @@ export function FileList({
                 onScroll={(event) => {
                     if (head.current && head.current.scrollLeft !== event.currentTarget.scrollLeft)
                         head.current.scrollLeft = event.currentTarget.scrollLeft;
-                    growRows(event.currentTarget);
+
+                    const node = event.currentTarget;
+                    setListWindow((current) => current.top === node.scrollTop && current.height === node.clientHeight
+                        ? current
+                        : {top: node.scrollTop, height: node.clientHeight});
                 }}
                 ref={body}
             >
                 {loading && !listing
                     ? <PlaceholderRows template={template} columns={visible.length}/>
-                    : visibleRows.map((row) => {
-                        const path = row.entry.fullPath;
+                    : (
+                        <>
+                            {windowStart > 0 && <div style={{height: windowStart * rowHeight}}/>}
+                            {windowRows.map((row) => {
+                                const path = row.entry.fullPath;
 
-                        return (
-                            <ListRow
-                                current={searching && path === find.currentPath}
-                                dim={searching && row.ranges === null}
-                                iconSize={view.iconSize}
-                                innerRef={currentRow}
-                                key={path}
-                                listing={listing!}
-                                onContextMenu={openMenu}
-                                onOpen={openRow}
-                                onRenameCancel={cancelRename}
-                                onRenameChange={changeRename}
-                                onRenameCommit={commitRename}
-                                onSelect={selectRow}
-                                onTagEdit={editTags}
-                                onToggle={toggleRow}
-                                openOnSingleClick={openOnSingleClick}
-                                renaming={renaming?.path === path ? {value: renaming.value} : null}
-                                row={row}
-                                selected={selected.has(path)}
-                                showCheckboxes={showCheckboxes}
-                                showTarget={showTarget}
-                                template={template}
-                                visible={visible}
-                            />
-                        );
-                    })}
+                                return (
+                                    <ListRow
+                                        current={searching && path === find.currentPath}
+                                        dim={searching && row.ranges === null}
+                                        height={rowHeight}
+                                        iconSize={view.iconSize}
+                                        innerRef={currentRow}
+                                        key={path}
+                                        listing={listing!}
+                                        onContextMenu={openMenu}
+                                        onOpen={openRow}
+                                        onRenameCancel={cancelRename}
+                                        onRenameChange={changeRename}
+                                        onRenameCommit={commitRename}
+                                        onSelect={selectRow}
+                                        onTagEdit={editTags}
+                                        onToggle={toggleRow}
+                                        openOnSingleClick={openOnSingleClick}
+                                        renaming={renaming?.path === path ? {value: renaming.value} : null}
+                                        row={row}
+                                        selected={selected.has(path)}
+                                        showCheckboxes={showCheckboxes}
+                                        showTarget={showTarget}
+                                        template={template}
+                                        visible={visible}
+                                    />
+                                );
+                            })}
+                            {windowEnd < rows.length && <div style={{height: (rows.length - windowEnd) * rowHeight}}/>}
+                        </>
+                    )}
 
                 {!loading && listing && rows.length === 0 && (
                     <Center>
@@ -1570,14 +1626,38 @@ function sizeOf(entry: FileEntry, folderSizes: Record<string, number>): string {
  * desktop.ini when that is enabled), then the built-in icon for the file type.
  */
 function EntryIcon({entry, size = 18}: { entry: FileEntry; size?: number }) {
-    // Folders all share the built-in glyph. Asking the shell per folder made a cache directory
-    // with a thousand subfolders pay for a thousand icon lookups.
-    const shellIcon = useIcon(entry.isDirectory ? null : entry.fullPath, false, size > 32);
+    const slot = useRef<HTMLSpanElement | null>(null);
+    const [onScreen, setOnScreen] = useState(false);
+
+    // Only visible icons ask the shell; a cache with hundreds of folders must not do that up front.
+    useEffect(() => {
+        if (onScreen) return;
+
+        const node = slot.current;
+        if (!node) return;
+
+        if (!("IntersectionObserver" in window)) {
+            setOnScreen(true);
+            return;
+        }
+
+        const observer = new IntersectionObserver((entries) => {
+            if (entries.some((item) => item.isIntersecting)) {
+                setOnScreen(true);
+                observer.disconnect();
+            }
+        }, {rootMargin: "250px"});
+
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [onScreen]);
+
+    const shellIcon = useIcon(onScreen ? entry.fullPath : null, entry.isDirectory, size > 32);
     const customFile = entry.iconSource?.startsWith("file:") ? entry.iconSource.slice(5) : null;
     const customImage = useIconFile(customFile);
 
     return (
-        <IconSlot $size={size}>
+        <IconSlot $size={size} ref={slot}>
             {entry.iconSource?.startsWith("icon:")
                 ? <BuiltinIcon name={entry.iconSource.slice(5)} size={size}/>
                 : customImage
@@ -1898,7 +1978,7 @@ function RenameInput({
  */
 const ListRow = memo(function ListRow({
     row, current, dim, selected, showCheckboxes, showTarget, openOnSingleClick,
-    iconSize, template, visible, listing, innerRef, renaming,
+    iconSize, height, template, visible, listing, innerRef, renaming,
     onSelect, onToggle, onContextMenu, onOpen, onTagEdit,
     onRenameChange, onRenameCommit, onRenameCancel,
 }: {
@@ -1910,6 +1990,7 @@ const ListRow = memo(function ListRow({
     showTarget: boolean;
     openOnSingleClick: boolean;
     iconSize: number;
+    height: number;
     template: string;
     visible: typeof ViewColumns;
     listing: DirectoryListing;
@@ -1931,6 +2012,7 @@ const ListRow = memo(function ListRow({
         <Row
             $current={current}
             $dim={dim}
+            $height={height}
             $hidden={row.entry.isHidden}
             $selected={selected}
             onClick={(event) => {
@@ -2237,10 +2319,11 @@ const Bone = styled.span`
     }
 `;
 
-const Row = styled.div<{ $hidden: boolean; $dim: boolean; $current: boolean; $selected: boolean }>`
+const Row = styled.div<{ $height: number; $hidden: boolean; $dim: boolean; $current: boolean; $selected: boolean }>`
     display: grid;
     gap: 16px;
     align-items: center;
+    height: ${({$height}) => $height}px;
     padding: 9px 12px;
     border: 1px solid ${({$selected}) => $selected ? "rgba(var(--accent-rgb), 0.35)" : "transparent"};
     border-radius: var(--radius-md);
@@ -2253,8 +2336,7 @@ const Row = styled.div<{ $hidden: boolean; $dim: boolean; $current: boolean; $se
     opacity: ${({$hidden, $dim}) => $dim ? 0.3 : $hidden ? 0.55 : 1};
     cursor: default;
     user-select: none;
-    content-visibility: auto;
-    contain-intrinsic-size: auto 40px;
+    overflow: hidden;
     transition: background 110ms ease, border-color 110ms ease, opacity 110ms ease;
 
     &:hover {
