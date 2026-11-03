@@ -145,11 +145,13 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
     const [tagBusy, setTagBusy] = useState(false);
     const [tagError, setTagError] = useState<string | null>(null);
     const [recentColors, setRecentColors] = useState<RecentColors>(readRecentColors);
+    const [draftPreset, setDraftPreset] = useState<{ name: string; accent: string; secondary: string } | null>(null);
     const [colorStart, setColorStart] = useState<{ role: ColorRole; color: string } | null>(null);
     const [activeSection, setActiveSection] = useState(SettingSections[0].id);
     const page = useRef<HTMLDivElement | null>(null);
     const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
     const defaultView = settings?.defaultView ?? DefaultViewDefaults;
+    const customPresets = settings?.themePresets ?? [];
 
     // The table of contents follows the section that is currently at the top of the scroller.
     useEffect(() => {
@@ -221,6 +223,11 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
         if (!settings) return;
 
         const next = {...settings, ...patch};
+        // A colour well can fire the same value over and over while its dialog is open; saving
+        // those would re-render the input and keep the dialog feeding it.
+        if ((Object.keys(patch) as (keyof AppSettings)[]).every((key) => next[key] === settings[key]))
+            return;
+
         setSettings(next);
         clearIconCache();
         setSettings(await saveSettings(next));
@@ -259,6 +266,24 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
 
         rememberColor(role, role === "accent" ? accentNow : secondaryNow);
         void update(role === "accent" ? {accentColor: color} : {secondaryColor: color});
+    };
+
+    /** Saves the current pair under the name in the draft, or the two colours when it is blank. */
+    const savePreset = async () => {
+        if (!settings || !draftPreset) return;
+
+        const name = draftPreset.name.trim()
+            || `${draftPreset.accent.toUpperCase()} / ${draftPreset.secondary.toUpperCase()}`;
+        const presets = [...settings.themePresets, {name, accent: draftPreset.accent, secondary: draftPreset.secondary}];
+
+        setDraftPreset(null);
+        await update({themePresets: presets});
+    };
+
+    const removePreset = async (index: number) => {
+        if (!settings) return;
+
+        await update({themePresets: settings.themePresets.filter((_, position) => position !== index)});
     };
 
     /** The colour well fires while the picker is open; only the value it ends on is remembered. */
@@ -540,9 +565,82 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                             <i style={{background: preset.accent}}/>
                                             <i style={{background: preset.secondary}}/>
                                         </PresetDots>
-                                        {t(preset.name)}
+                                        <PresetName>{t(preset.name)}</PresetName>
                                     </Preset>
                                 ))}
+
+                                {customPresets.map((preset, index) => (
+                                    <PresetSlot key={`${preset.name}-${index}`}>
+                                        <Preset
+                                            $on={accentNow.toLowerCase() === preset.accent.toLowerCase()
+                                                && secondaryNow.toLowerCase() === preset.secondary.toLowerCase()}
+                                            onClick={() => applyPreset(preset.accent, preset.secondary)}
+                                            title={`${preset.name} · ${preset.accent} / ${preset.secondary}`}
+                                            type="button"
+                                        >
+                                            <PresetDots>
+                                                <i style={{background: preset.accent}}/>
+                                                <i style={{background: preset.secondary}}/>
+                                            </PresetDots>
+                                            <PresetName>{preset.name}</PresetName>
+                                        </Preset>
+                                        <PresetRemove
+                                            onClick={() => void removePreset(index)}
+                                            title={t("Remove preset")}
+                                            type="button"
+                                        >
+                                            <CrossIcon size={9}/>
+                                        </PresetRemove>
+                                    </PresetSlot>
+                                ))}
+
+                                {draftPreset
+                                    ? (
+                                        <PresetDraft>
+                                            <PresetDots>
+                                                <i style={{background: draftPreset.accent}}/>
+                                                <i style={{background: draftPreset.secondary}}/>
+                                            </PresetDots>
+                                            <PresetInput
+                                                autoFocus
+                                                maxLength={24}
+                                                onChange={(event) => setDraftPreset({...draftPreset, name: event.target.value})}
+                                                onKeyDown={(event) => {
+                                                    if (event.key === "Enter") {
+                                                        event.preventDefault();
+                                                        void savePreset();
+                                                    } else if (event.key === "Escape") {
+                                                        event.preventDefault();
+                                                        setDraftPreset(null);
+                                                    }
+                                                }}
+                                                placeholder={t("Preset name")}
+                                                spellCheck={false}
+                                                value={draftPreset.name}
+                                            />
+                                            <SmallButton onClick={() => void savePreset()} type="button">
+                                                {t("Save")}
+                                            </SmallButton>
+                                            <SmallButton onClick={() => setDraftPreset(null)} type="button">
+                                                {t("Cancel")}
+                                            </SmallButton>
+                                        </PresetDraft>
+                                    )
+                                    : (
+                                        <AddPreset
+                                            disabled={!settings}
+                                            onClick={() => setDraftPreset({
+                                                name: "",
+                                                accent: accentNow,
+                                                secondary: secondaryNow,
+                                            })}
+                                            title={t("Save the current colours as a preset")}
+                                            type="button"
+                                        >
+                                            <PlusIcon size={12}/>
+                                            {t("Add preset")}
+                                        </AddPreset>
+                                    )}
                             </PresetGrid>
                         </Block>
                         <Row>
@@ -1616,6 +1714,104 @@ const Preset = styled.button<{ $on: boolean }>`
 
     &:active {
         transform: translateY(0);
+    }
+`;
+
+const PresetName = styled.span`
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
+/** A saved preset plus its remove button, so the pair reads as one tile. */
+const PresetSlot = styled.div`
+    display: flex;
+    gap: 3px;
+    min-width: 0;
+
+    > button:first-child {
+        flex: 1;
+        min-width: 0;
+    }
+`;
+
+const PresetRemove = styled.button`
+    display: grid;
+    place-items: center;
+    width: 24px;
+    flex-shrink: 0;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
+    color: var(--text-muted);
+    cursor: pointer;
+
+    &:hover {
+        border-color: rgba(248, 113, 113, 0.55);
+        color: #fca5a5;
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--border-color-focus);
+        outline-offset: 1px;
+    }
+`;
+
+const AddPreset = styled.button`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+
+    &:hover {
+        border-color: var(--border-color-hover);
+        color: var(--text-primary);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--border-color-focus);
+        outline-offset: 1px;
+    }
+
+    &:disabled {
+        opacity: 0.55;
+        cursor: default;
+    }
+`;
+
+const PresetDraft = styled.div`
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
+`;
+
+const PresetInput = styled.input`
+    flex: 1;
+    min-width: 0;
+    padding: 4px 7px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 11px;
+    outline: 0;
+
+    &:focus {
+        border-color: var(--border-color-focus);
     }
 `;
 

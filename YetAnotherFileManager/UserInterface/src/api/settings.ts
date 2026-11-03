@@ -61,6 +61,15 @@ export interface AppSettings {
     secondaryColor: string | null;
     /** UI language such as "en" or "zh-TW"; null means English, "system" follows the OS. */
     language: string | null;
+    /** Colour pairs the user saved; the built-in presets live in the settings page. */
+    themePresets: ThemePreset[];
+}
+
+/** A named colour pair the user saved from the settings page. */
+export interface ThemePreset {
+    name: string;
+    accent: string;
+    secondary: string;
 }
 
 const fallback: AppSettings = {
@@ -95,6 +104,7 @@ const fallback: AppSettings = {
     accentColor: null,
     secondaryColor: null,
     language: null,
+    themePresets: [],
 };
 
 /** The interface settings, persisted by the host. */
@@ -135,6 +145,7 @@ export async function getSettings(): Promise<AppSettings> {
         accentColor: raw?.accentColor ?? null,
         secondaryColor: raw?.secondaryColor ?? null,
         language: raw?.language ?? null,
+        themePresets: raw?.themePresets ?? [],
     };
 }
 
@@ -176,6 +187,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         accentColor: saved?.accentColor ?? settings.accentColor,
         secondaryColor: saved?.secondaryColor ?? settings.secondaryColor,
         language: saved?.language ?? settings.language,
+        themePresets: saved?.themePresets ?? settings.themePresets,
     };
 }
 
