@@ -163,6 +163,14 @@ function focusedTabIdOf(state: { tabs: Tab[]; activeId: string; activePane: "pri
     return pane?.id ?? state.activeId;
 }
 
+/** The tray is fixed-position, so a saved spot from a larger window still has to stay reachable. */
+function clampTrayPosition(position: { x: number; y: number }): { x: number; y: number } {
+    return {
+        x: Math.max(0, Math.min(position.x, window.innerWidth - 320)),
+        y: Math.max(38, Math.min(position.y, window.innerHeight - 100)),
+    };
+}
+
 /** The directory's own mode/size/sort sit on top of the window-wide defaults; columns are global. */
 function resolveView(tab: Tab, defaults: ViewDefaults): ResolvedView {
     return {
@@ -277,12 +285,12 @@ export default function App() {
                 { x?: number; y?: number } | null;
 
             if (typeof saved?.x === "number" && typeof saved?.y === "number")
-                return {x: saved.x, y: saved.y};
+                return clampTrayPosition({x: saved.x, y: saved.y});
         } catch {
             // A malformed saved position is not worth a warning.
         }
 
-        return {x: Math.max(20, window.innerWidth - 340), y: 110};
+        return clampTrayPosition({x: Math.max(20, window.innerWidth - 340), y: 110});
     });
 
     const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
@@ -947,16 +955,25 @@ export default function App() {
     }, [refreshClipboard]);
 
     const moveTray = useCallback((position: { x: number; y: number }) => {
-        setTrayPosition(position);
+        const next = clampTrayPosition(position);
+        setTrayPosition(next);
 
         try {
-            localStorage.setItem("yafm.tray.position", JSON.stringify(position));
+            localStorage.setItem("yafm.tray.position", JSON.stringify(next));
         } catch {
             // A private web view may refuse storage; the position still works for this run.
         }
     }, []);
 
-    const toggleTray = useCallback(() => setTrayVisible((visible) => !visible), []);
+    const toggleTray = useCallback(() => {
+        if (trayVisible) {
+            setTrayVisible(false);
+            return;
+        }
+
+        setTrayPosition((current) => clampTrayPosition(current));
+        setTrayVisible(true);
+    }, [trayVisible]);
 
     const transferTo = useCallback(async (paths: string[], target: string, move: boolean) => {
         const result = await transferPaths(paths, target, move);
@@ -1688,7 +1705,7 @@ export default function App() {
                 showImages={showImages}
                 tasks={tasks}
                 onClearTasks={clearFinishedTasks}
-                trayCount={trayItems.length}
+                trayCount={trayItems.length + clipboardItems.length}
                 trayVisible={trayVisible}
                 onToggleTray={toggleTray}
                 split={splitActive}

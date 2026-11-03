@@ -198,9 +198,8 @@ export function TitleBar({
                 </UtilityButton>
                 <TrayButton
                     $active={trayVisible}
-                    disabled={trayCount === 0}
                     onClick={onToggleTray}
-                    title="File tray"
+                    title={trayVisible ? "Hide file tray" : "Show file tray"}
                     type="button"
                 >
                     <PackageIcon size={14}/>

@@ -318,9 +318,11 @@ const Panel = styled.div<{ $dragging: boolean }>`
     width: 300px;
     max-height: 380px;
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    background: rgba(10, 15, 24, 0.97);
-    box-shadow: 0 22px 50px rgba(2, 6, 23, 0.6);
+    border-radius: var(--radius-lg);
+    background: var(--bg-elevated);
+    backdrop-filter: blur(18px) saturate(120%);
+    -webkit-backdrop-filter: blur(18px) saturate(120%);
+    box-shadow: var(--shadow-panel);
     overflow: hidden;
     user-select: none;
     cursor: ${({$dragging}) => $dragging ? "grabbing" : "default"};
@@ -331,8 +333,9 @@ const Head = styled.div`
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: 7px 8px;
+    padding: 9px 10px;
     border-bottom: 1px solid var(--border-color);
+    background: rgba(var(--accent-rgb), 0.05);
     cursor: grab;
 
     &:active {
@@ -353,7 +356,7 @@ const Title = styled.span`
 const Count = styled.span`
     padding: 0 5px;
     border-radius: 999px;
-    background: rgba(148, 163, 184, 0.18);
+    background: rgba(var(--accent-rgb), 0.16);
     color: var(--text-secondary);
     font-family: var(--font-mono);
     font-size: 9px;
@@ -367,17 +370,19 @@ const HeadActions = styled.span`
 `;
 
 const SmallButton = styled.button`
-    padding: 2px 6px;
-    border: 0;
-    border-radius: 5px;
+    padding: 3px 7px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
     background: transparent;
     color: var(--text-muted);
     font: inherit;
     font-size: 9px;
     cursor: pointer;
+    transition: background 130ms ease, border-color 130ms ease, color 130ms ease;
 
     &:hover {
-        background: var(--bg-card-hover);
+        border-color: var(--border-color);
+        background: rgba(var(--accent-rgb), 0.10);
         color: var(--text-primary);
     }
 `;
@@ -385,16 +390,18 @@ const SmallButton = styled.button`
 const IconButton = styled.button`
     display: grid;
     place-items: center;
-    width: 20px;
-    height: 20px;
-    border: 0;
-    border-radius: 5px;
+    width: 22px;
+    height: 22px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
     background: transparent;
     color: var(--text-muted);
     cursor: pointer;
+    transition: background 130ms ease, border-color 130ms ease, color 130ms ease;
 
     &:hover {
-        background: var(--bg-card-hover);
+        border-color: var(--border-color);
+        background: rgba(var(--accent-rgb), 0.10);
         color: var(--text-primary);
     }
 `;
@@ -453,7 +460,7 @@ const Item = styled.div<{ $checked: boolean }>`
     cursor: grab;
 
     &:hover {
-        background: var(--bg-card-hover);
+        background: rgba(var(--accent-rgb), 0.07);
     }
 
     &:active {
@@ -502,24 +509,35 @@ const Foot = styled.div`
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
-    padding: 6px 8px;
+    padding: 7px 9px;
     border-top: 1px solid var(--border-color);
+    background: rgba(var(--bg-rgb), 0.35);
 `;
 
 const FootButton = styled.button<{ $danger?: boolean; $plain?: boolean }>`
     flex: 1 1 30%;
     min-width: 78px;
     padding: 5px 6px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    background: ${({$danger, $plain}) => $danger || $plain ? "transparent" : "var(--accent-primary)"};
-    color: ${({$danger, $plain}) => $danger || $plain ? "var(--text-secondary)" : "#fff"};
+    border: 1px solid ${({$danger, $plain}) => $danger
+        ? "rgba(248, 113, 113, 0.35)"
+        : $plain ? "var(--border-color)" : "transparent"};
+    border-radius: var(--radius-sm);
+    background: ${({$danger, $plain}) => $danger || $plain ? "transparent" : "var(--accent-gradient)"};
+    color: ${({$danger, $plain}) => $danger ? "#fca5a5" : $plain ? "var(--text-secondary)" : "#fff"};
     font: inherit;
     font-size: 10px;
     cursor: pointer;
+    transition: border-color 130ms ease, background 130ms ease, color 130ms ease, filter 130ms ease;
 
     &:hover:not(:disabled) {
-        filter: brightness(1.08);
+        border-color: ${({$danger, $plain}) => $danger
+            ? "rgba(248, 113, 113, 0.6)"
+            : $plain ? "var(--border-color-hover)" : "transparent"};
+        background: ${({$danger, $plain}) => $danger
+            ? "rgba(248, 113, 113, 0.14)"
+            : $plain ? "rgba(var(--accent-rgb), 0.10)" : "var(--accent-gradient)"};
+        color: ${({$danger, $plain}) => $danger ? "#fecaca" : $plain ? "var(--text-primary)" : "#fff"};
+        filter: ${({$danger, $plain}) => $danger || $plain ? "none" : "brightness(1.08)"};
     }
 
     &:disabled {
