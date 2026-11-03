@@ -4,7 +4,7 @@ import {
     type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject,
 } from "react";
 import styled from "styled-components";
-import {wantsNewTab, isTyping, comboOf, DefaultShortcuts, type ShortcutMap} from "../shortcuts";
+import {wantsNewTab, isTyping, comboOf, DefaultShortcuts, prettyShortcut, type ShortcutMap} from "../shortcuts";
 import type {DirectoryListing, FileEntry, Place, ResolvedView} from "../api/files";
 import {useIcon, useIconFile, useThumbnail} from "../api/icons";
 import {
@@ -766,14 +766,22 @@ export function FileList({
         });
 
         quickActions.push(
-            {label: "New folder", icon: <PlusIcon size={16}/>, onSelect: () => void createFolder()},
+            {
+                label: "New folder", icon: <PlusIcon size={16}/>, shortcut: prettyShortcut(shortcuts.newFolder),
+                onSelect: () => void createFolder(),
+            },
             {
                 label: "Paste", icon: <PasteIcon size={16}/>, disabled: !canPaste,
+                shortcut: prettyShortcut(shortcuts.paste),
                 onSelect: () => void paste(currentDirectory),
             },
-            {label: "Refresh", icon: <RefreshIcon size={16}/>, onSelect: refresh},
+            {
+                label: "Refresh", icon: <RefreshIcon size={16}/>, shortcut: prettyShortcut(shortcuts.refresh),
+                onSelect: refresh,
+            },
             {
                 label: "Properties", icon: <GearIcon size={16}/>,
+                shortcut: prettyShortcut(shortcuts.properties),
                 onSelect: () => void showProperties([currentDirectory]),
             },
         );
@@ -866,17 +874,31 @@ export function FileList({
         });
 
         quickActions.push(
-            {label: "Cut", icon: <CutIcon size={16}/>, onSelect: () => void copy(menu.paths, true)},
-            {label: "Copy", icon: <CopyIcon size={16}/>, onSelect: () => void copy(menu.paths, false)},
+            {
+                label: "Cut", icon: <CutIcon size={16}/>, shortcut: prettyShortcut(shortcuts.cut),
+                onSelect: () => void copy(menu.paths, true),
+            },
+            {
+                label: "Copy", icon: <CopyIcon size={16}/>, shortcut: prettyShortcut(shortcuts.copy),
+                onSelect: () => void copy(menu.paths, false),
+            },
         );
 
         if (single && entry)
-            quickActions.push({label: "Rename", icon: <PencilIcon size={16}/>, onSelect: () => void rename(entry)});
+            quickActions.push({
+                label: "Rename", icon: <PencilIcon size={16}/>, shortcut: prettyShortcut(shortcuts.rename),
+                onSelect: () => void rename(entry),
+            });
 
         quickActions.push(
-            {label: "Delete", icon: <TrashIcon size={16}/>, danger: true, onSelect: () => void remove(menu.paths)},
+            {
+                label: "Delete", icon: <TrashIcon size={16}/>, danger: true,
+                shortcut: prettyShortcut(shortcuts.delete),
+                onSelect: () => void remove(menu.paths),
+            },
             {
                 label: "Properties", icon: <GearIcon size={16}/>,
+                shortcut: prettyShortcut(shortcuts.properties),
                 onSelect: () => void showProperties(menu.paths),
             },
         );

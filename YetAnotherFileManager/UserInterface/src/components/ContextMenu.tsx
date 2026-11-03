@@ -16,6 +16,8 @@ export interface ContextMenuItem {
     /** Indentation for entries that came from a submenu. */
     depth?: number;
     checked?: boolean;
+    /** The key combination, if this action has one. */
+    shortcut?: string;
     /** Shows a small pulse instead of a glyph while the entry is on its way. */
     loading?: boolean;
     /** Entries shown in a flyout beside this item. */
@@ -96,7 +98,8 @@ export function ContextMenu({x, y, items, quick = [], onClose}: ContextMenuProps
         const rect = event.currentTarget.getBoundingClientRect();
         const leftSide = rect.right + 248 > window.innerWidth;
         const flyoutLeft = leftSide ? Math.max(8, rect.left - 248) : rect.right + 4;
-        const flyoutTop = Math.max(8, Math.min(rect.top, window.innerHeight - 320));
+        const estimatedHeight = Math.min(320, children.length * 30 + 16);
+        const flyoutTop = Math.max(8, Math.min(rect.top, window.innerHeight - estimatedHeight - 8));
 
         // Keep the parents and replace everything below this level. A nested submenu therefore
         // stacks beside its parent instead of replacing it.
@@ -133,6 +136,7 @@ export function ContextMenu({x, y, items, quick = [], onClose}: ContextMenuProps
                 <Item
                     $danger={item.danger}
                     $depth={item.depth}
+                    data-shortcut={item.shortcut}
                     disabled={item.disabled}
                     key={`${item.label}-${index}`}
                     onClick={(event) => {
@@ -144,6 +148,7 @@ export function ContextMenu({x, y, items, quick = [], onClose}: ContextMenuProps
                         : undefined}
                     onPointerLeave={hasChildren ? () => scheduleClose(depth) : undefined}
                     role="menuitem"
+                    title={item.label}
                     type="button"
                 >
                     <ItemIcon>{item.loading ? <Loading/> : item.icon}</ItemIcon>
@@ -171,6 +176,7 @@ export function ContextMenu({x, y, items, quick = [], onClose}: ContextMenuProps
                             {quick.map((item, index) => (
                                 <QuickButton
                                     $danger={item.danger}
+                                    data-shortcut={item.shortcut}
                                     disabled={item.disabled}
                                     key={`${item.label}-${index}`}
                                     onClick={() => select(item)}

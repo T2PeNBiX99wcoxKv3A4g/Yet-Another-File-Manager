@@ -13,10 +13,11 @@ namespace YetAnotherFileManager.Services;
 internal sealed class FolderCountService : Singleton<FolderCountService>
 {
     /// <summary>
-    ///     Counts are cheap compared with sizes, so a listing queues essentially all of them; the
-    ///     old twenty-folder cap was the same "late names never fill in" problem.
+    ///     Counts are cheap individually, but a directory with thousands of children still makes a
+    ///     background flood. Normal listings count every child; very large ones stop at a burst.
     /// </summary>
-    private const int Burst = 512;
+    private const int Burst = 128;
+    private const int FullListing = 512;
 
     private readonly ConcurrentQueue<(string Parent, string Child)> _queue = new();
     private readonly ConcurrentDictionary<string, bool> _queued = new(StringComparer.OrdinalIgnoreCase);
@@ -43,7 +44,10 @@ internal sealed class FolderCountService : Singleton<FolderCountService>
     {
         DropQueued();
 
-        foreach (var child in children.Take(Burst))
+        var list = children as IReadOnlyCollection<string> ?? children.ToList();
+        var limit = list.Count <= FullListing ? list.Count : Burst;
+
+        foreach (var child in list.Take(limit))
         {
             var key = Path.Combine(directory, child);
             if (!_queued.TryAdd(key, true))

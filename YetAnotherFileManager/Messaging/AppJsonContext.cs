@@ -112,6 +112,8 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(TagsCatalogPayload))]
 [JsonSerializable(typeof(TagDeleteRequest))]
 [JsonSerializable(typeof(TagRenameRequest))]
+[JsonSerializable(typeof(TextPreviewRequest))]
+[JsonSerializable(typeof(TextPreviewPayload))]
 [JsonSerializable(typeof(TagRecord))]
 [JsonSerializable(typeof(List<TagRecord>))]
 internal sealed partial class AppJsonContext : JsonSerializerContext;

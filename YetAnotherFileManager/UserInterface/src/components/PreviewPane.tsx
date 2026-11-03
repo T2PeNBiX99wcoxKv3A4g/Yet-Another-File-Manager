@@ -1,5 +1,6 @@
 import {useEffect, useRef, useState, type PointerEvent as ReactPointerEvent} from "react";
 import styled from "styled-components";
+import {previewText, type TextPreview} from "../api/files";
 import {useIcon, useMediaUrl, useThumbnail} from "../api/icons";
 import {FileIcon, FolderIcon, PauseIcon, PlayIcon} from "./Icons";
 
@@ -31,6 +32,13 @@ const AudioExtensions = new Set(["mp3", "m4a", "wav", "flac", "ogg", "oga", "aac
 const ImageExtensions = new Set([
     "png", "jpg", "jpeg", "gif", "webp", "bmp", "avif", "tif", "tiff", "ico", "svg",
 ]);
+const TextExtensions = new Set([
+    "txt", "text", "log", "md", "markdown", "json", "jsonc", "xml", "yaml", "yml", "toml", "ini",
+    "cfg", "conf", "csv", "tsv", "html", "htm", "css", "scss", "less", "js", "jsx", "mjs", "cjs",
+    "ts", "tsx", "cs", "fs", "vb", "java", "kt", "kts", "py", "rb", "php", "rs", "go", "c", "h", "cpp",
+    "cc", "cxx", "hpp", "hxx", "sh", "bash", "zsh", "fish", "ps1", "psm1", "bat", "cmd", "sql", "lua",
+    "r", "pl", "swift", "dart", "gradle", "properties", "env", "gitignore", "editorconfig",
+]);
 
 /**
  * The right-side details pane shared by the file browser and the recycle bin. The media area shows
@@ -39,6 +47,11 @@ const ImageExtensions = new Set([
 export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, selectionNote}: PreviewPaneProps) {
     const [videoFailed, setVideoFailed] = useState(false);
     const [playing, setPlaying] = useState(false);
+    const [videoHover, setVideoHover] = useState(false);
+    const [duration, setDuration] = useState(0);
+    const [position, setPosition] = useState(0);
+    const [textPreview, setTextPreview] = useState<TextPreview | null>(null);
+    const [textLoading, setTextLoading] = useState(false);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const drag = useRef<{ x: number; width: number } | null>(null);
     const path = info?.path ?? null;
@@ -46,16 +59,48 @@ export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, se
     const video = !!info && !info.isDirectory && VideoExtensions.has(extension);
     const audio = !!info && !info.isDirectory && AudioExtensions.has(extension);
     const image = !!info && !info.isDirectory && ImageExtensions.has(extension);
+    const text = !!info && !info.isDirectory && TextExtensions.has(extension);
 
     const poster = useThumbnail(video ? path : null, 512, info?.modified ?? 0);
     const imagePreview = useMediaUrl(image ? path : null, info?.modified ?? 0, extension);
     const media = useMediaUrl(video || audio ? path : null, info?.modified ?? 0, extension);
-    const icon = useIcon(!video && !audio && !image ? path : null, info?.isDirectory ?? false);
+    const icon = useIcon(!video && !audio && !image && !text ? path : null, info?.isDirectory ?? false);
 
     useEffect(() => {
         setVideoFailed(false);
         setPlaying(false);
+        setVideoHover(false);
+        setDuration(0);
+        setPosition(0);
     }, [path]);
+
+    useEffect(() => {
+        if (!path || !text) {
+            setTextPreview(null);
+            setTextLoading(false);
+            return;
+        }
+
+        let alive = true;
+        setTextLoading(true);
+        setTextPreview(null);
+
+        void previewText(path).then((preview) => {
+            if (alive) {
+                setTextPreview(preview);
+                setTextLoading(false);
+            }
+        }, () => {
+            if (alive) {
+                setTextPreview({text: null, truncated: false, error: "Could not read this file."});
+                setTextLoading(false);
+            }
+        });
+
+        return () => {
+            alive = false;
+        };
+    }, [path, text]);
 
     if (!info)
         return null;
@@ -103,42 +148,98 @@ export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, se
                 <Media>
                     {video && media && !videoFailed
                         ? (
-                            <>
+                            <VideoStage
+                                onPointerEnter={() => setVideoHover(true)}
+                                onPointerLeave={() => setVideoHover(false)}
+                            >
                                 <video
                                     autoPlay={videoAutoplay}
-                                    controls
+                                    controls={false}
                                     muted={!videoAudio}
+                                    onClick={toggleVideo}
+                                    onDurationChange={(event) => setDuration(event.currentTarget.duration || 0)}
                                     onError={() => setVideoFailed(true)}
+                                    onLoadedMetadata={(event) => {
+                                        setDuration(event.currentTarget.duration || 0);
+                                        setPosition(event.currentTarget.currentTime);
+                                    }}
                                     onPause={() => setPlaying(false)}
                                     onPlay={() => setPlaying(true)}
+                                    onTimeUpdate={(event) => setPosition(event.currentTarget.currentTime)}
                                     playsInline
                                     poster={poster ?? undefined}
                                     preload="metadata"
                                     ref={videoRef}
                                     src={media}
                                 />
-                                <VideoToggle
-                                    $playing={playing}
-                                    onClick={toggleVideo}
-                                    title={playing ? "Pause" : "Play"}
-                                    type="button"
-                                >
-                                    {playing ? <PauseIcon size={13}/> : <PlayIcon size={13}/>}
-                                    {playing ? "Pause" : "Play"}
-                                </VideoToggle>
-                            </>
+
+                                {!playing && (
+                                    <CenterPlay onClick={toggleVideo} title="Play" type="button">
+                                        <PlayIcon size={28}/>
+                                    </CenterPlay>
+                                )}
+
+                                {playing && (
+                                    <MiniPause onClick={toggleVideo} title="Pause" type="button">
+                                        <PauseIcon size={14}/>
+                                    </MiniPause>
+                                )}
+
+                                {videoHover && (
+                                    <VideoControls onClick={(event) => event.stopPropagation()}>
+                                        <Times>
+                                            <span>{formatTime(position)}</span>
+                                            <span>{formatTime(duration)}</span>
+                                        </Times>
+                                        <Range
+                                            aria-label="Seek"
+                                            max={duration || 0}
+                                            min={0}
+                                            onChange={(event) => {
+                                                const element = videoRef.current;
+                                                if (!element)
+                                                    return;
+
+                                                const next = Number(event.target.value);
+                                                element.currentTime = next;
+                                                setPosition(next);
+                                            }}
+                                            step={0.1}
+                                            type="range"
+                                            value={Math.min(position, duration || 0)}
+                                        />
+                                    </VideoControls>
+                                )}
+                            </VideoStage>
                         )
                         : audio && media
                             ? <audio controls src={media}/>
                             : image && imagePreview
                                 ? <img alt="" decoding="async" loading="lazy" src={imagePreview}/>
-                                : video && poster
-                                    ? <img alt="" src={poster}/>
-                                    : icon
-                                        ? <img alt="" src={icon}/>
-                                        : info.isDirectory
-                                            ? <FolderIcon size={64}/>
-                                            : <FileIcon size={64}/>}
+                                : text
+                                    ? (
+                                        <TextBox>
+                                            {textLoading || !textPreview
+                                                ? <TextNote>Loading…</TextNote>
+                                                : textPreview.error
+                                                    ? <TextNote>{textPreview.error}</TextNote>
+                                                    : (
+                                                        <>
+                                                            <Pre>{textPreview.text}</Pre>
+                                                            {textPreview.truncated && (
+                                                                <TextNote>Showing the first 256 KB.</TextNote>
+                                                            )}
+                                                        </>
+                                                    )}
+                                        </TextBox>
+                                    )
+                                    : video && poster
+                                        ? <img alt="" src={poster}/>
+                                        : icon
+                                            ? <img alt="" src={icon}/>
+                                            : info.isDirectory
+                                                ? <FolderIcon size={64}/>
+                                                : <FileIcon size={64}/>}
                 </Media>
 
                 <Body>
@@ -163,6 +264,21 @@ export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, se
 function extensionOf(name: string): string {
     const dot = name.lastIndexOf(".");
     return dot > 0 && dot < name.length - 1 ? name.slice(dot + 1).toLowerCase() : "";
+}
+
+/** Seconds as m:ss, or h:mm:ss once the video is longer than an hour. */
+function formatTime(seconds: number): string {
+    if (!Number.isFinite(seconds) || seconds < 0)
+        return "0:00";
+
+    const total = Math.floor(seconds);
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const rest = total % 60;
+
+    return hours > 0
+        ? `${hours}:${String(minutes).padStart(2, "0")}:${String(rest).padStart(2, "0")}`
+        : `${minutes}:${String(rest).padStart(2, "0")}`;
 }
 
 const Root = styled.div`
@@ -218,20 +334,59 @@ const Media = styled.div`
     }
 `;
 
-const VideoToggle = styled.button<{ $playing: boolean }>`
+const VideoStage = styled.div`
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+
+    video {
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+    }
+`;
+
+const CenterPlay = styled.button`
+    position: absolute;
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 50%;
+    background: rgba(2, 6, 23, 0.62);
+    color: #fff;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+
+    svg {
+        margin-left: 3px;
+        fill: currentColor;
+        stroke: currentColor;
+    }
+
+    &:hover {
+        border-color: var(--border-color-focus);
+        background: rgba(15, 23, 42, 0.86);
+    }
+`;
+
+const MiniPause = styled.button`
     position: absolute;
     top: 8px;
     left: 8px;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 4px 9px;
-    border: 1px solid ${({$playing}) => $playing ? "var(--border-color-focus)" : "rgba(148, 163, 184, 0.35)"};
-    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 50%;
     background: rgba(2, 6, 23, 0.72);
     color: #e2e8f0;
-    font: inherit;
-    font-size: 10px;
     cursor: pointer;
     backdrop-filter: blur(4px);
 
@@ -239,6 +394,64 @@ const VideoToggle = styled.button<{ $playing: boolean }>`
         border-color: var(--border-color-focus);
         background: rgba(15, 23, 42, 0.9);
     }
+`;
+
+const VideoControls = styled.div`
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 24px 10px 8px;
+    background: linear-gradient(to top, rgba(2, 6, 23, 0.92), rgba(2, 6, 23, 0));
+`;
+
+const Times = styled.div`
+    display: flex;
+    justify-content: space-between;
+    color: #e2e8f0;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+`;
+
+const Range = styled.input`
+    width: 100%;
+    height: 12px;
+    margin: 0;
+    accent-color: var(--accent-primary);
+    cursor: pointer;
+`;
+
+const TextBox = styled.div`
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow: auto;
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+`;
+
+const Pre = styled.pre`
+    margin: 0;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    user-select: text;
+`;
+
+const TextNote = styled.span`
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+    font-size: 10px;
 `;
 
 const Body = styled.div`

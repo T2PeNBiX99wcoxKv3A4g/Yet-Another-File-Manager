@@ -27,6 +27,9 @@ internal static partial class FileOperations
     private const ushort FofNoConfirmation = 0x0010;
     private const ushort FofNoConfirmMkdir = 0x0200;
 
+    /// <summary>Text previews stop here, so a huge log cannot freeze the details panel.</summary>
+    private const int MaxTextPreviewBytes = 256 * 1024;
+
     /// <summary>
     ///     Above this many files the Rust writer is tried first. Below it the managed writer is
     ///     already fast enough, and the extra measurement walk would only add work.
@@ -444,6 +447,54 @@ internal static partial class FileOperations
         {
             Log.Warning(ex, "Could not create a file in {Directory}", directory);
             return new PathOperationPayload(false, null, ex.Message);
+        }
+    }
+
+    /// <summary>Reads the start of a text file for the details pane; binary data is refused.</summary>
+    public static async Task<TextPreviewPayload> PreviewTextAsync(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            return new TextPreviewPayload(null, false, "The file is no longer there.");
+
+        try
+        {
+            var info = new FileInfo(path);
+            var take = (int)Math.Min(info.Length, MaxTextPreviewBytes);
+            var buffer = new byte[take];
+
+            await using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite,
+                             16 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan))
+            {
+                var offset = 0;
+
+                while (offset < buffer.Length)
+                {
+                    var read = await stream.ReadAsync(buffer.AsMemory(offset, buffer.Length - offset));
+                    if (read == 0)
+                        break;
+
+                    offset += read;
+                }
+
+                if (offset < buffer.Length)
+                    Array.Resize(ref buffer, offset);
+            }
+
+            var utf16 = buffer.Length >= 2
+                        && ((buffer[0] == 0xFF && buffer[1] == 0xFE) || (buffer[0] == 0xFE && buffer[1] == 0xFF));
+
+            if (!utf16 && Array.IndexOf(buffer, (byte)0) >= 0)
+                return new TextPreviewPayload(null, false, "This looks like a binary file.");
+
+            using var reader = new StreamReader(new MemoryStream(buffer), Encoding.UTF8, true);
+            var text = await reader.ReadToEndAsync();
+
+            return new TextPreviewPayload(text, info.Length > MaxTextPreviewBytes, null);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Could not preview the text of {Path}", path);
+            return new TextPreviewPayload(null, false, ex.Message);
         }
     }
 

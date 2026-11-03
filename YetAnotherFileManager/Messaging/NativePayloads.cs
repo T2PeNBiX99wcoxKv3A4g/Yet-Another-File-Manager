@@ -263,6 +263,12 @@ internal sealed record TagDeleteRequest(string Name);
 /// <summary>Payload for <c>app.tags.rename</c>: the tag's old and new names.</summary>
 internal sealed record TagRenameRequest(string OldName, string NewName);
 
+/// <summary>Payload for <c>fs.preview.text</c>: the path whose text should be read.</summary>
+internal sealed record TextPreviewRequest(string Path);
+
+/// <summary>The first part of a text file, or why it cannot be shown as text.</summary>
+internal sealed record TextPreviewPayload(string? Text, bool Truncated, string? Error);
+
 /// <summary>Persisted tag catalogue record; <c>Directories</c> lets a delete clean the indexes.</summary>
 public sealed class TagRecord
 {

@@ -15,11 +15,11 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
     private const int Levels = 1;
 
     /// <summary>
-    ///     Every folder of one listing is queued; the workers bound how many run at once. The old
-    ///     forty-folder cap left everything after it without a size, which looked like a bug when
-    ///     the names sorted late (for example "~temp" or ".cache").
+    ///     A normal listing measures every child. A cache directory can hold thousands, and walking
+    ///     all of them in the background made navigation crawl, so those stop at the first burst.
     /// </summary>
-    private const int Burst = 4096;
+    private const int Burst = 128;
+    private const int FullListing = 512;
 
     private readonly ConcurrentQueue<(string Parent, string Child)> _queue = new();
     private readonly ConcurrentDictionary<string, bool> _queued = new(StringComparer.OrdinalIgnoreCase);
@@ -49,7 +49,10 @@ internal sealed class FolderSizeService : Singleton<FolderSizeService>
         DropQueued();
         Interlocked.Increment(ref _generation);
 
-        foreach (var child in children.Take(Burst))
+        var list = children as IReadOnlyCollection<string> ?? children.ToList();
+        var limit = list.Count <= FullListing ? list.Count : Burst;
+
+        foreach (var child in list.Take(limit))
         {
             var key = Path.Combine(directory, child);
             if (!_queued.TryAdd(key, true))

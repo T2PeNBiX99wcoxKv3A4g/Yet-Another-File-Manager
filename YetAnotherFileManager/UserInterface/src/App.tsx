@@ -62,6 +62,7 @@ import {SettingsView} from "./components/SettingsView";
 import {GalleryView} from "./components/GalleryView";
 import {Sidebar} from "./components/Sidebar";
 import {TitleBar} from "./components/TitleBar";
+import {TooltipLayer} from "./components/TooltipLayer";
 import {viewTitles, type TabKind} from "./tabs";
 import {buildPanels} from "./panels";
 import {Native, ResizeHandles, useWindowCorners} from "@photino-net-utils/bridge";
@@ -70,6 +71,7 @@ import {
     comboOf,
     DefaultShortcuts,
     isTyping,
+    prettyShortcut,
     setClickModifier,
     type ShortcutMap,
 } from "./shortcuts";
@@ -184,6 +186,23 @@ function samePath(left: string, right: string): boolean {
     return normalize(left) === normalize(right);
 }
 
+/** The parent of a folder path, even before its listing has arrived. */
+function parentOf(path: string): string | null {
+    const trimmed = path.replace(/[\\/]+$/, "");
+    if (trimmed.length === 0)
+        return null;
+
+    const cut = Math.max(trimmed.lastIndexOf("\\"), trimmed.lastIndexOf("/"));
+    if (cut < 0)
+        return null;
+
+    // C:\foo -> C:\; \\server\share\folder -> \\server\share
+    if (cut === 2 && trimmed[1] === ":")
+        return `${trimmed.slice(0, 2)}\\`;
+
+    return trimmed.slice(0, cut);
+}
+
 /** What the folder adds up to: files right away, folders once their size has been measured. */
 function statusLine(listing: DirectoryListing): string {    const total = listing.entries.reduce((sum, entry) => sum + (entry.isDirectory
         ? listing.folderSizes[entry.name] ?? 0
@@ -250,6 +269,10 @@ export default function App() {
     const activeTabIndex = Math.max(tabs.findIndex((tab) => tab.id === activeId), 0);
     const secondary = tabs.find((tab, index) => index !== activeTabIndex && kindOf(tab) === "files");
     const splitActive = kind === "files" && split && secondary !== undefined;
+    const activeFolder = folderOf(active);
+    const activeParent = kind === "files" ? active.listing?.parent ?? parentOf(activeFolder) : null;
+    const secondaryFolder = secondary ? folderOf(secondary) : "";
+    const secondaryParent = secondary ? secondary.listing?.parent ?? parentOf(secondaryFolder) : null;
 
     // The directory's own mode/size/sort sit on top of the window-wide defaults; columns are global.
     const viewDefaults = settings?.defaultView ?? DefaultViewDefaults;
@@ -413,13 +436,34 @@ export default function App() {
         const paintCache = !keepFresh || !stateRef.current.tabs.find((tab) => tab.id === id)?.listing;
 
         // A navigation clears the folder that was on screen so it cannot linger over the new one;
-        // the saved listing fills the gap immediately. A refresh keeps what is already visible.
-        patch(id, (tab) => ({
-            listing: keepFresh ? tab.listing : null,
-            loading: true,
-            error: null,
-            fresh: keepFresh && tab.fresh,
-        }));
+        // the saved listing fills the gap immediately. Its history entry is written now, not after
+        // the disk answers, so Back/Up stay usable while a slow folder is still loading.
+        const navigating = !keepFresh && path !== undefined;
+
+        patch(id, (tab) => {
+            if (!navigating)
+                return {
+                    listing: keepFresh ? tab.listing : null,
+                    loading: true,
+                    error: null,
+                    fresh: keepFresh && tab.fresh,
+                };
+
+            const current = tab.history[tab.index];
+            const stays = current !== undefined && samePath(current, path);
+            const history = stays
+                ? tab.history
+                : [...tab.history.slice(0, tab.index + 1), path];
+
+            return {
+                listing: null,
+                loading: true,
+                error: null,
+                fresh: false,
+                history,
+                index: stays ? tab.index : tab.index + 1,
+            };
+        });
 
         try {
             // The cached read and the disk walk are independent; starting both at once means the
@@ -435,8 +479,10 @@ export default function App() {
                 view: listing.view ?? null,
                 loading: false,
                 fresh: false,
-                history: [...tab.history.slice(0, tab.index + 1), listing.path],
-                index: tab.index + 1,
+                history: navigating
+                    ? tab.history.map((entry, index) => index === tab.index ? listing.path : entry)
+                    : tab.history,
+                index: tab.index,
             }));
 
             // A refresh shows the same folder again; only a real navigation counts as a visit.
@@ -661,6 +707,7 @@ export default function App() {
             {
                 label: "New folder",
                 icon: <FolderIcon size={14}/>,
+                shortcut: prettyShortcut(shortcuts.newFolder),
                 onSelect: () => void createItem(false),
             },
             {
@@ -1224,9 +1271,20 @@ export default function App() {
 
             const {path, sizes} = event.data;
 
-            setTabs((current) => current.map((tab) => tab.listing?.path === path
-                ? {...tab, listing: {...tab.listing, folderSizes: {...tab.listing.folderSizes, ...sizes}}}
-                : tab));
+            setTabs((current) => {
+                const index = current.findIndex((tab) => tab.listing?.path === path);
+                if (index < 0)
+                    return current;
+
+                const next = current.slice();
+                const tab = current[index];
+                next[index] = {
+                    ...tab,
+                    listing: {...tab.listing!, folderSizes: {...tab.listing!.folderSizes, ...sizes}},
+                };
+
+                return next;
+            });
         });
     }, []);
 
@@ -1240,9 +1298,20 @@ export default function App() {
 
             const {path, counts} = event.data;
 
-            setTabs((current) => current.map((tab) => tab.listing?.path === path
-                ? {...tab, listing: {...tab.listing, counts: {...tab.listing.counts, ...counts}}}
-                : tab));
+            setTabs((current) => {
+                const index = current.findIndex((tab) => tab.listing?.path === path);
+                if (index < 0)
+                    return current;
+
+                const next = current.slice();
+                const tab = current[index];
+                next[index] = {
+                    ...tab,
+                    listing: {...tab.listing!, counts: {...tab.listing!.counts, ...counts}},
+                };
+
+                return next;
+            });
         });
     }, []);
 
@@ -1482,17 +1551,30 @@ export default function App() {
     /** The normal toolbar; a file tab also gets the create and search buttons at its right edge. */
     const mainToolbar = (
         <Toolbar>
-            <IconButton disabled={!canBack} onClick={goBack} title="Back" type="button">
+            <IconButton
+                data-shortcut={prettyShortcut(shortcuts.goBack)}
+                disabled={!canBack}
+                onClick={goBack}
+                title="Back"
+                type="button"
+            >
                 <ArrowLeftIcon/>
             </IconButton>
 
-            <IconButton disabled={!canForward} onClick={goForward} title="Forward" type="button">
+            <IconButton
+                data-shortcut={prettyShortcut(shortcuts.goForward)}
+                disabled={!canForward}
+                onClick={goForward}
+                title="Forward"
+                type="button"
+            >
                 <ArrowRightIcon/>
             </IconButton>
 
             <IconButton
-                disabled={kind !== "files" || !active.listing?.parent}
-                onClick={() => active.listing?.parent && navigate(active.listing.parent)}
+                data-shortcut={prettyShortcut(shortcuts.goUp)}
+                disabled={kind !== "files" || !activeParent}
+                onClick={() => activeParent && navigate(activeParent)}
                 title="Up one level"
                 type="button"
             >
@@ -1504,19 +1586,28 @@ export default function App() {
                 icon={viewIcon}
                 label={kind === "files" ? undefined : viewTitles[kind]}
                 onNavigate={navigate}
-                path={kind === "files" ? folderOf(active) : location}
+                path={kind === "files" ? activeFolder : location}
             />
 
             {kind === "files" && (
                 <>
                     <IconButton
-                        onClick={(event) => openCreateMenu(event, folderOf(active), refreshActive)}
+                        onClick={(event) => openCreateMenu(
+                            event,
+                            activeFolder,
+                            () => void load(active.id, activeFolder, true),
+                        )}
                         title="New folder or file"
                         type="button"
                     >
                         <PlusIcon/>
                     </IconButton>
-                    <IconButton onClick={openFind} title="Search (Ctrl+F)" type="button">
+                    <IconButton
+                        data-shortcut={prettyShortcut(shortcuts.find)}
+                        onClick={openFind}
+                        title="Search"
+                        type="button"
+                    >
                         <SearchIcon/>
                     </IconButton>
                 </>
@@ -1548,6 +1639,7 @@ export default function App() {
                 details={detailsVisible}
                 canDetails={kind === "files" || kind === "recycle"}
                 onToggleDetails={() => setDetailsVisible((visible) => !visible)}
+                shortcuts={shortcuts}
                 view={view}
                 tabs={tabs.map((tab) => {
                     const tabKind = kindOf(tab);
@@ -1588,10 +1680,17 @@ export default function App() {
                             <Split>
                                 <Pane>
                                     <PaneToolbar>
-                                        <IconButton disabled={!canBack} onClick={goBack} title="Back" type="button">
+                                        <IconButton
+                                            data-shortcut={prettyShortcut(shortcuts.goBack)}
+                                            disabled={!canBack}
+                                            onClick={goBack}
+                                            title="Back"
+                                            type="button"
+                                        >
                                             <ArrowLeftIcon/>
                                         </IconButton>
                                         <IconButton
+                                            data-shortcut={prettyShortcut(shortcuts.goForward)}
                                             disabled={!canForward}
                                             onClick={goForward}
                                             title="Forward"
@@ -1600,8 +1699,9 @@ export default function App() {
                                             <ArrowRightIcon/>
                                         </IconButton>
                                         <IconButton
-                                            disabled={!active.listing?.parent}
-                                            onClick={() => active.listing?.parent && navigate(active.listing.parent)}
+                                            data-shortcut={prettyShortcut(shortcuts.goUp)}
+                                            disabled={!activeParent}
+                                            onClick={() => activeParent && navigate(activeParent)}
                                             title="Up one level"
                                             type="button"
                                         >
@@ -1610,16 +1710,25 @@ export default function App() {
                                         <PathBar
                                             focusToken={locationFocus}
                                             onNavigate={navigate}
-                                            path={folderOf(active)}
+                                            path={activeFolder}
                                         />
                                         <IconButton
-                                            onClick={(event) => openCreateMenu(event, folderOf(active), refreshActive)}
+                                            onClick={(event) => openCreateMenu(
+                                                event,
+                                                activeFolder,
+                                                () => void load(active.id, activeFolder, true),
+                                            )}
                                             title="New folder or file"
                                             type="button"
                                         >
                                             <PlusIcon/>
                                         </IconButton>
-                                        <IconButton onClick={openFind} title="Search (Ctrl+F)" type="button">
+                                        <IconButton
+                                            data-shortcut={prettyShortcut(shortcuts.find)}
+                                            onClick={openFind}
+                                            title="Search"
+                                            type="button"
+                                        >
                                             <SearchIcon/>
                                         </IconButton>
                                     </PaneToolbar>
@@ -1630,6 +1739,7 @@ export default function App() {
                                 <Pane>
                                     <PaneToolbar>
                                         <IconButton
+                                            data-shortcut={prettyShortcut(shortcuts.goBack)}
                                             disabled={secondary.index <= 0}
                                             onClick={() => {
                                                 const index = secondary.index - 1;
@@ -1642,6 +1752,7 @@ export default function App() {
                                             <ArrowLeftIcon/>
                                         </IconButton>
                                         <IconButton
+                                            data-shortcut={prettyShortcut(shortcuts.goForward)}
                                             disabled={secondary.index >= secondary.history.length - 1}
                                             onClick={() => {
                                                 const index = secondary.index + 1;
@@ -1654,10 +1765,11 @@ export default function App() {
                                             <ArrowRightIcon/>
                                         </IconButton>
                                         <IconButton
-                                            disabled={!secondary.listing?.parent}
+                                            data-shortcut={prettyShortcut(shortcuts.goUp)}
+                                            disabled={!secondaryParent}
                                             onClick={() => {
-                                                if (secondary.listing?.parent)
-                                                    void load(secondary.id, secondary.listing.parent);
+                                                if (secondaryParent)
+                                                    void load(secondary.id, secondaryParent);
                                             }}
                                             title="Up one level"
                                             type="button"
@@ -1666,23 +1778,25 @@ export default function App() {
                                         </IconButton>
                                         <PathBar
                                             onNavigate={(path) => void load(secondary.id, path)}
-                                            path={folderOf(secondary)}
+                                            path={secondaryFolder}
                                         />
                                         <IconButton
                                             onClick={(event) => openCreateMenu(
                                                 event,
-                                                folderOf(secondary),
-                                                () => {
-                                                    if (secondary.listing)
-                                                        void load(secondary.id, secondary.listing.path, true);
-                                                },
+                                                secondaryFolder,
+                                                () => void load(secondary.id, secondaryFolder, true),
                                             )}
                                             title="New folder or file"
                                             type="button"
                                         >
                                             <PlusIcon/>
                                         </IconButton>
-                                        <IconButton onClick={openFind} title="Search (Ctrl+F)" type="button">
+                                        <IconButton
+                                            data-shortcut={prettyShortcut(shortcuts.find)}
+                                            onClick={openFind}
+                                            title="Search"
+                                            type="button"
+                                        >
                                             <SearchIcon/>
                                         </IconButton>
                                     </PaneToolbar>
@@ -1786,6 +1900,7 @@ export default function App() {
                 />
             )}
 
+            <TooltipLayer/>
             <ResizeHandles/>
         </Root>
         </QuickAccessProvider>

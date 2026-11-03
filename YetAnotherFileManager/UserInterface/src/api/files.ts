@@ -175,6 +175,20 @@ export async function listDirectory(path?: string, sizes = true, includeLinks = 
     return await Native.request<DirectoryListing>("fs.list", {path: path ?? null, sizes, includeLinks});
 }
 
+/** The first part of a text file, or why it cannot be shown as text. */
+export interface TextPreview {
+    text: string | null;
+    truncated: boolean;
+    error: string | null;
+}
+
+/** Reads a text file for the details pane; the host refuses binary data. */
+export async function previewText(path: string): Promise<TextPreview> {
+    if (!Native.available) return {text: null, truncated: false, error: "Text previews need the desktop app."};
+
+    return await Native.request<TextPreview>("fs.preview.text", {path});
+}
+
 /** Remembers how one directory is shown. */
 export async function saveDirectoryView(directory: string, view: DirectoryView): Promise<boolean> {
     if (!Native.available) return false;

@@ -3,6 +3,7 @@ import styled from "styled-components";
 import {useWindowControls, useWindowDrag} from "@photino-net-utils/bridge";
 import type {TabInfo} from "../tabs";
 import type {DirectoryView, ResolvedView} from "../api/files";
+import {prettyShortcut, type ShortcutMap} from "../shortcuts";
 import {PlaceIcon} from "./PlaceIcon";
 import {StatusCenter} from "./StatusCenter";
 import {ViewMenu} from "./ViewMenu";
@@ -48,13 +49,14 @@ interface TitleBarProps {
     details: boolean;
     canDetails: boolean;
     onToggleDetails: () => void;
+    shortcuts: ShortcutMap;
 }
 
 export function TitleBar({
     tabs, activeId, onSelect, onClose, onNewTab, onReorder,
     view, onViewChange, onColumns, showImages, onShowImages, tasks, onClearTasks,
     trayCount, trayVisible, onToggleTray,
-    split, canSplit, onToggleSplit, details, canDetails, onToggleDetails,
+    split, canSplit, onToggleSplit, details, canDetails, onToggleDetails, shortcuts,
 }: TitleBarProps) {
     const controls = useWindowControls();
     const drag = useWindowDrag();
@@ -135,6 +137,7 @@ export function TitleBar({
                             <TabGlyph tab={tab}/>
                             <TabName>{tab.title}</TabName>
                             <TabClose
+                                data-shortcut={prettyShortcut(shortcuts.closeTab)}
                                 onClick={(event) => {
                                     event.stopPropagation();
                                     onClose(tab.id);
@@ -153,7 +156,12 @@ export function TitleBar({
                     </ScrollButton>
                 )}
 
-                <NewTab onClick={onNewTab} title="New tab" type="button">
+                <NewTab
+                    data-shortcut={prettyShortcut(shortcuts.newTab)}
+                    onClick={onNewTab}
+                    title="New tab"
+                    type="button"
+                >
                     <PlusIcon size={13}/>
                 </NewTab>
             </Tabs>
@@ -163,6 +171,7 @@ export function TitleBar({
             <Controls>
                 <UtilityButton
                     $active={split}
+                    data-shortcut={prettyShortcut(shortcuts.splitView)}
                     disabled={!canSplit}
                     onClick={onToggleSplit}
                     title={split ? "Close split view" : "Split view"}

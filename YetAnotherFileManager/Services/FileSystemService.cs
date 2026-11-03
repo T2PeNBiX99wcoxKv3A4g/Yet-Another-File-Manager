@@ -256,6 +256,10 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 return context.Reply("fs.operation.newFile.result",
                     await FileOperations.NewFileAsync(context.Payload<DirectoryRequest>()?.Directory ?? ""));
 
+            case "fs.preview.text":
+                return context.Reply("fs.preview.text.result",
+                    await FileOperations.PreviewTextAsync(context.Payload<TextPreviewRequest>()?.Path ?? ""));
+
             case "fs.operation.compress":
                 return context.Reply("fs.operation.compress.result",
                     await FileOperations.CompressAsync(context.Payload<PathsPayload>()?.Paths ?? []));
@@ -737,12 +741,24 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                     links[file.FullName] = count;
             }));
 
-        var all = await Task.Run(() => infos
-            .Select(info => ToEntry(info, icons.GetValueOrDefault(info.Name), links.GetValueOrDefault(info.FullName)))
-            .OfType<FileEntry>()
-            .OrderByDescending(entry => entry.IsDirectory)
-            .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList());
+        var all = await Task.Run(() =>
+        {
+            // Attribute reads are independent; doing them in parallel keeps a directory with tens
+            // of thousands of entries from spending its time in one managed loop.
+            var built = new FileEntry?[infos.Count];
+
+            Parallel.For(0, infos.Count, index =>
+            {
+                var info = infos[index];
+                built[index] = ToEntry(info, icons.GetValueOrDefault(info.Name), links.GetValueOrDefault(info.FullName));
+            });
+
+            return built
+                .OfType<FileEntry>()
+                .OrderByDescending(entry => entry.IsDirectory)
+                .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        });
 
         // Shortcuts carry their target inside the file; the shell reader runs on the STA pool.
         all = await ResolveShortcutsAsync(all);
@@ -822,7 +838,12 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     /// <summary>Queues the child directories whose item count is stale; counts stay with the folder.</summary>
     private static void RequestCounts(string directory, List<FileEntry> entries)
     {
-        if (!SettingsService.Instance.Current.ShouldWriteDirectoryIndex)
+        var settings = SettingsService.Instance.Current;
+        if (!settings.ShouldWriteDirectoryIndex)
+            return;
+
+        var columns = settings.DefaultView?.Columns;
+        if (columns is not null && !columns.Contains("items", StringComparer.OrdinalIgnoreCase))
             return;
 
         var children = entries

@@ -1,0 +1,198 @@
+import {useEffect, useRef, useState} from "react";
+import {createPortal} from "react-dom";
+import styled from "styled-components";
+
+interface TooltipState {
+    text: string;
+    shortcut: string;
+    left: number;
+    top: number;
+    width: number;
+}
+
+/**
+ * One hover panel for every `title` or `data-tooltip` element. The native title is taken away while
+ * the panel is open, so the browser's own black box never appears next to it.
+ */
+export function TooltipLayer() {
+    const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+    const hovered = useRef<HTMLElement | null>(null);
+    const timer = useRef<number | undefined>(undefined);
+
+    useEffect(() => {
+        const clearTimer = () => {
+            window.clearTimeout(timer.current);
+            timer.current = undefined;
+        };
+
+        const restoreTitle = (element: HTMLElement | null) => {
+            if (!element)
+                return;
+
+            const stored = element.dataset.nativeTitle;
+
+            if (stored !== undefined) {
+                element.setAttribute("title", stored);
+                delete element.dataset.nativeTitle;
+            }
+        };
+
+        const hide = () => {
+            clearTimer();
+            restoreTitle(hovered.current);
+            hovered.current = null;
+            setTooltip(null);
+        };
+
+        const targetOf = (target: EventTarget | null): HTMLElement | null =>
+            target instanceof Element
+                ? target.closest<HTMLElement>("[data-tooltip], [title]")
+                : null;
+
+        const show = (element: HTMLElement, immediate: boolean) => {
+            const text = element.dataset.tooltip ?? element.getAttribute("title") ?? "";
+            if (text.length === 0)
+                return;
+
+            const shortcut = element.dataset.shortcut ?? "";
+
+            if (element.hasAttribute("title")) {
+                element.dataset.nativeTitle = element.getAttribute("title") ?? "";
+                element.removeAttribute("title");
+            }
+
+            hovered.current = element;
+
+            const place = () => {
+                if (hovered.current !== element)
+                    return;
+
+                const rect = element.getBoundingClientRect();
+                const width = Math.min(360, Math.max(180, window.innerWidth - 16));
+                const left = Math.max(8, Math.min(
+                    rect.left + rect.width / 2 - width / 2,
+                    window.innerWidth - width - 8,
+                ));
+                const below = rect.bottom + 8;
+                const top = below + 80 > window.innerHeight ? Math.max(8, rect.top - 8) : below;
+
+                setTooltip({text, shortcut, left, top, width});
+            };
+
+            clearTimer();
+
+            if (immediate)
+                place();
+            else
+                timer.current = window.setTimeout(place, 350);
+        };
+
+        const onPointerOver = (event: PointerEvent) => {
+            const element = targetOf(event.target);
+
+            if (element === hovered.current)
+                return;
+
+            hide();
+
+            if (element)
+                show(element, false);
+        };
+
+        const onPointerOut = (event: PointerEvent) => {
+            const element = hovered.current;
+
+            if (!element)
+                return;
+
+            if (event.relatedTarget instanceof Node && element.contains(event.relatedTarget))
+                return;
+
+            hide();
+        };
+
+        const onFocusIn = (event: FocusEvent) => {
+            const element = targetOf(event.target);
+
+            if (element && element !== hovered.current) {
+                hide();
+                show(element, true);
+            }
+        };
+
+        const onFocusOut = () => hide();
+
+        window.addEventListener("pointerover", onPointerOver);
+        window.addEventListener("pointerout", onPointerOut);
+        window.addEventListener("focusin", onFocusIn);
+        window.addEventListener("focusout", onFocusOut);
+        window.addEventListener("pointerdown", hide, true);
+        window.addEventListener("scroll", hide, true);
+        window.addEventListener("resize", hide);
+
+        return () => {
+            hide();
+            window.removeEventListener("pointerover", onPointerOver);
+            window.removeEventListener("pointerout", onPointerOut);
+            window.removeEventListener("focusin", onFocusIn);
+            window.removeEventListener("focusout", onFocusOut);
+            window.removeEventListener("pointerdown", hide, true);
+            window.removeEventListener("scroll", hide, true);
+            window.removeEventListener("resize", hide);
+        };
+    }, []);
+
+    if (!tooltip)
+        return null;
+
+    return createPortal(
+        <Panel
+            role="tooltip"
+            style={{
+                left: tooltip.left,
+                maxWidth: tooltip.width,
+                top: tooltip.top,
+            }}
+        >
+            <Text>{tooltip.text}</Text>
+            {tooltip.shortcut && <Shortcut>{tooltip.shortcut}</Shortcut>}
+        </Panel>,
+        document.body,
+    );
+}
+
+const Panel = styled.div`
+    position: fixed;
+    z-index: 5000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: calc(100vw - 16px);
+    padding: 6px 9px;
+    border: 1px solid var(--border-color-hover);
+    border-radius: var(--radius-sm);
+    background: rgba(7, 11, 18, 0.96);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+    pointer-events: none;
+`;
+
+const Text = styled.span`
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    line-height: 1.45;
+`;
+
+const Shortcut = styled.kbd`
+    flex-shrink: 0;
+    padding: 2px 6px;
+    border: 1px solid var(--border-color-hover);
+    border-radius: 4px;
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    white-space: nowrap;
+`;
