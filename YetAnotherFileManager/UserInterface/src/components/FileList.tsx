@@ -1963,14 +1963,14 @@ const SelectionBox = styled.button<{ $checked: boolean }>`
     padding: 0;
     border: 1px solid ${({$checked}) => $checked ? "var(--border-color-focus)" : "var(--border-color-hover)"};
     border-radius: 4px;
-    background: ${({$checked}) => $checked ? "rgba(59, 130, 246, 0.8)" : "transparent"};
+    background: ${({$checked}) => $checked ? "rgba(var(--accent-rgb), 0.8)" : "transparent"};
     color: #fff;
     cursor: pointer;
     transition: background 100ms ease, border-color 100ms ease;
 
     &:hover {
         border-color: var(--border-color-focus);
-        background: ${({$checked}) => $checked ? "rgba(59, 130, 246, 0.9)" : "rgba(148, 163, 184, 0.16)"};
+        background: ${({$checked}) => $checked ? "rgba(var(--accent-rgb), 0.9)" : "rgba(148, 163, 184, 0.16)"};
     }
 `;
 
@@ -1980,7 +1980,7 @@ const TileCheck = styled(SelectionBox)`
     top: 6px;
     left: 6px;
     z-index: 3;
-    background: ${({$checked}) => $checked ? "rgba(59, 130, 246, 0.9)" : "rgba(15, 23, 42, 0.6)"};
+    background: ${({$checked}) => $checked ? "rgba(var(--accent-rgb), 0.9)" : "rgba(15, 23, 42, 0.6)"};
     backdrop-filter: blur(4px);
 `;
 
@@ -2045,7 +2045,7 @@ const Splitter = styled.div`
     transition: background 120ms ease;
 
     &:hover {
-        background: rgba(59, 130, 246, 0.35);
+        background: rgba(var(--accent-rgb), 0.35);
     }
 `;
 
@@ -2150,12 +2150,12 @@ const Row = styled.div<{ $hidden: boolean; $dim: boolean; $current: boolean; $se
     gap: 16px;
     align-items: center;
     padding: 9px 12px;
-    border: 1px solid ${({$selected}) => $selected ? "rgba(59, 130, 246, 0.35)" : "transparent"};
-    border-radius: var(--radius-sm);
+    border: 1px solid ${({$selected}) => $selected ? "rgba(var(--accent-rgb), 0.35)" : "transparent"};
+    border-radius: var(--radius-md);
     background: ${({$current, $selected}) => $current
-        ? "rgba(59, 130, 246, 0.14)"
-        : $selected ? "rgba(59, 130, 246, 0.09)" : "transparent"};
-    box-shadow: ${({$current}) => $current ? "inset 0 0 0 1px rgba(59, 130, 246, 0.5)" : "none"};
+        ? "rgba(var(--accent-rgb), 0.14)"
+        : $selected ? "rgba(var(--accent-rgb), 0.09)" : "transparent"};
+    box-shadow: ${({$current}) => $current ? "inset 3px 0 0 var(--accent-primary)" : "none"};
     font-size: 13px;
     color: var(--text-secondary);
     opacity: ${({$hidden, $dim}) => $dim ? 0.3 : $hidden ? 0.55 : 1};
@@ -2163,7 +2163,7 @@ const Row = styled.div<{ $hidden: boolean; $dim: boolean; $current: boolean; $se
     user-select: none;
     content-visibility: auto;
     contain-intrinsic-size: auto 40px;
-    transition: background 100ms ease, border-color 100ms ease, opacity 100ms ease;
+    transition: background 110ms ease, border-color 110ms ease, opacity 110ms ease;
 
     &:hover {
         background: var(--bg-card-hover);
@@ -2275,17 +2275,17 @@ const Tile = styled.div<{ $dim: boolean; $current: boolean; $selected: boolean }
     min-width: 0;
     overflow: hidden;
     border: 1px solid ${({$current, $selected}) => $current
-        ? "rgba(59, 130, 246, 0.5)"
-        : $selected ? "rgba(59, 130, 246, 0.4)" : "var(--border-color)"};
-    border-radius: var(--radius-md);
+        ? "rgba(var(--accent-rgb), 0.5)"
+        : $selected ? "rgba(var(--accent-rgb), 0.4)" : "var(--border-color)"};
+    border-radius: var(--radius-lg);
     background: ${({$current, $selected}) => $current
-        ? "rgba(59, 130, 246, 0.14)"
-        : $selected ? "rgba(59, 130, 246, 0.1)" : "var(--bg-primary)"};
+        ? "rgba(var(--accent-rgb), 0.14)"
+        : $selected ? "rgba(var(--accent-rgb), 0.1)" : "var(--bg-primary)"};
     opacity: ${({$dim}) => $dim ? 0.3 : 1};
     cursor: default;
     user-select: none;
     content-visibility: auto;
-    transition: background 100ms ease, border-color 100ms ease, opacity 100ms ease;
+    transition: background 120ms ease, border-color 120ms ease, opacity 120ms ease;
 
     &:hover {
         background: var(--bg-card-hover);
@@ -2371,7 +2371,7 @@ const TileLink = styled.span`
 
 const Mark = styled.mark`
     border-radius: 2px;
-    background: rgba(59, 130, 246, 0.5);
+    background: rgba(var(--accent-rgb), 0.5);
     color: var(--text-primary);
 `;
 

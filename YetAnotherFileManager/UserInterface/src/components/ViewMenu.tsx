@@ -207,7 +207,7 @@ const Choice = styled.button<{ $on: boolean }>`
     padding: 5px 6px;
     border: 1px solid ${({$on}) => $on ? "var(--border-color-focus)" : "var(--border-color)"};
     border-radius: var(--radius-sm);
-    background: ${({$on}) => $on ? "rgba(59, 130, 246, 0.18)" : "var(--bg-input)"};
+    background: ${({$on}) => $on ? "rgba(var(--accent-rgb), 0.18)" : "var(--bg-input)"};
     color: ${({$on}) => $on ? "var(--text-primary)" : "var(--text-secondary)"};
     font: inherit;
     font-size: 11px;

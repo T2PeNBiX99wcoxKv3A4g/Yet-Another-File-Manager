@@ -172,7 +172,7 @@ const Toggle = styled.button<{ $on: boolean }>`
     padding: 0 4px;
     border: 1px solid ${({$on}) => $on ? "var(--border-color-focus)" : "transparent"};
     border-radius: var(--radius-sm);
-    background: ${({$on}) => $on ? "rgba(59, 130, 246, 0.18)" : "transparent"};
+    background: ${({$on}) => $on ? "rgba(var(--accent-rgb), 0.18)" : "transparent"};
     color: ${({$on}) => $on ? "var(--text-primary)" : "var(--text-secondary)"};
     font-family: var(--font-mono);
     font-size: 10px;

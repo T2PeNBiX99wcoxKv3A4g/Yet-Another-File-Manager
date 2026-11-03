@@ -16,28 +16,37 @@ html {
 
   font-family: var(--font-sans), var(--font-cjk);
 
-  --bg-primary: #0b0f19;
-  --bg-secondary: #111827;
-  --bg-card: rgba(17, 24, 39, 0.75);
-  --bg-card-hover: rgba(31, 41, 55, 0.85);
-  --bg-input: rgba(15, 23, 42, 0.75);
+  --bg-primary: #060b10;
+  --bg-secondary: #0a141b;
+  --bg-card: rgba(15, 31, 40, 0.72);
+  --bg-card-hover: rgba(24, 45, 57, 0.9);
+  --bg-input: rgba(5, 14, 20, 0.72);
+  --bg-elevated: rgba(8, 19, 26, 0.96);
 
-  --text-primary: #f9fafb;
-  --text-secondary: #aab4c5;
-  --text-muted: #7d879b;
+  --text-primary: #ecfeff;
+  --text-secondary: #93b6c1;
+  --text-muted: #5d7b87;
 
-  --border-color: rgba(255, 255, 255, 0.10);
-  --border-color-hover: rgba(99, 102, 241, 0.4);
-  --border-color-focus: #3b82f6;
+  --border-color: rgba(45, 212, 191, 0.13);
+  --border-color-hover: rgba(45, 212, 191, 0.4);
+  --border-color-focus: #2dd4bf;
 
-  --accent-primary: #3b82f6;
-  --accent-secondary: #6366f1;
-  --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%);
-  --accent-glow: 0 0 24px rgba(99, 102, 241, 0.35);
+  --accent-primary: #2dd4bf;
+  --accent-secondary: #a78bfa;
+  --accent-rgb: 45, 212, 191;
+  --accent-secondary-rgb: 167, 139, 250;
+  --accent-gradient: linear-gradient(135deg, #0ea5e9 0%, #14b8a6 55%, #a78bfa 100%);
+  --accent-glow: 0 0 28px rgba(45, 212, 191, 0.26);
+  --selection-bg: rgba(45, 212, 191, 0.11);
+  --selection-border: rgba(45, 212, 191, 0.36);
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --danger: #fb7185;
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  --radius-sm: 7px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --shadow-panel: 0 18px 48px rgba(0, 0, 0, 0.45);
 }
 
 html:lang(zh-TW) {
@@ -86,6 +95,11 @@ body {
   height: 100%;
 }
 
+::selection {
+  background: rgba(45, 212, 191, 0.3);
+  color: var(--text-primary);
+}
+
 // The window is transparent behind the rounded corners the interface paints (Linux without
 // decorations), so the page must not fill that area in.
 html.window-rounded,
@@ -116,10 +130,10 @@ html.window-rounded body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(45, 212, 191, 0.18);
   border-radius: 4px;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.28);
+    background: rgba(45, 212, 191, 0.32);
   }
 }

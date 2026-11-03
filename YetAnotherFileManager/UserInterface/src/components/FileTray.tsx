@@ -447,9 +447,9 @@ const Item = styled.div<{ $checked: boolean }>`
     gap: 8px;
     min-width: 0;
     padding: 5px 6px;
-    border: 1px solid ${({$checked}) => $checked ? "rgba(59, 130, 246, 0.4)" : "transparent"};
+    border: 1px solid ${({$checked}) => $checked ? "rgba(var(--accent-rgb), 0.4)" : "transparent"};
     border-radius: var(--radius-sm);
-    background: ${({$checked}) => $checked ? "rgba(59, 130, 246, 0.1)" : "transparent"};
+    background: ${({$checked}) => $checked ? "rgba(var(--accent-rgb), 0.1)" : "transparent"};
     cursor: grab;
 
     &:hover {

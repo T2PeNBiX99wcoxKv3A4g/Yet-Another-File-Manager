@@ -1026,9 +1026,23 @@ const Section = styled.section`
 `;
 
 const Title = styled.h1`
-    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
     font-weight: 600;
-    color: var(--text-primary);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+
+    &::before {
+        content: "";
+        width: 3px;
+        height: 12px;
+        flex-shrink: 0;
+        border-radius: 2px;
+        background: var(--accent-gradient);
+    }
 `;
 
 const Rows = styled.div`
@@ -1037,6 +1051,7 @@ const Rows = styled.div`
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     background: var(--bg-card);
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.16);
     overflow: hidden;
 `;
 
@@ -1272,7 +1287,7 @@ const Segment = styled.button<{ $on: boolean }>`
     padding: 5px 14px;
     border: 1px solid ${({$on}) => $on ? "var(--border-color-focus)" : "var(--border-color)"};
     border-radius: var(--radius-sm);
-    background: ${({$on}) => $on ? "rgba(59, 130, 246, 0.18)" : "var(--bg-input)"};
+    background: ${({$on}) => $on ? "rgba(var(--accent-rgb), 0.18)" : "var(--bg-input)"};
     color: ${({$on}) => $on ? "var(--text-primary)" : "var(--text-secondary)"};
     font-size: 11px;
     cursor: pointer;
@@ -1308,7 +1323,7 @@ const KeyButton = styled.button<{ $listening: boolean }>`
     padding: 4px 10px;
     border: 1px solid ${({$listening}) => $listening ? "var(--border-color-focus)" : "var(--border-color)"};
     border-radius: var(--radius-sm);
-    background: ${({$listening}) => $listening ? "rgba(59, 130, 246, 0.16)" : "var(--bg-input)"};
+    background: ${({$listening}) => $listening ? "rgba(var(--accent-rgb), 0.16)" : "var(--bg-input)"};
     color: ${({$listening}) => $listening ? "var(--text-primary)" : "var(--text-secondary)"};
     font-family: var(--font-mono);
     font-size: 11px;

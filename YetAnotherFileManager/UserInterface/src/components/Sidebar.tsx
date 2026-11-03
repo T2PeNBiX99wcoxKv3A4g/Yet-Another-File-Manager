@@ -308,7 +308,7 @@ const Aside = styled.aside`
     width: 52px;
     padding: 10px 9px;
     overflow: hidden;
-    background: var(--bg-secondary);
+    background: rgba(5, 12, 17, 0.92);
     border-right: 1px solid var(--border-color);
     transition: width 150ms ease, padding 150ms ease, box-shadow 150ms ease;
 
@@ -319,7 +319,7 @@ const Aside = styled.aside`
     &:hover {
         width: 224px;
         padding: 10px 10px;
-        box-shadow: 14px 0 34px rgba(0, 0, 0, 0.45);
+        box-shadow: 14px 0 36px rgba(0, 0, 0, 0.45), 0 0 28px rgba(var(--accent-rgb), 0.05);
         overflow-y: auto;
         scrollbar-width: none;
     }
@@ -377,29 +377,56 @@ const Inner = styled.div`
 `;
 
 const Item = styled.button<{ $active: boolean }>`
+    position: relative;
     display: flex;
     align-items: center;
     gap: 9px;
     width: 100%;
-    padding: 6px 8px;
+    padding: 7px 8px;
     border: 1px solid transparent;
-    border-radius: var(--radius-sm);
-    background: ${({$active}) => $active ? "rgba(99, 102, 241, 0.14)" : "transparent"};
+    border-radius: var(--radius-md);
+    background: ${({$active}) => $active ? "rgba(var(--accent-rgb), 0.12)" : "transparent"};
     color: ${({$active}) => $active ? "var(--text-primary)" : "var(--text-secondary)"};
     font: inherit;
     font-size: 12.5px;
     text-align: left;
     cursor: pointer;
+    transition: background 130ms ease, border-color 130ms ease, color 130ms ease, transform 130ms ease;
+
+    &::before {
+        content: "";
+        position: absolute;
+        left: -1px;
+        top: 50%;
+        width: 2px;
+        height: 0;
+        border-radius: 2px;
+        background: var(--accent-primary);
+        transform: translateY(-50%);
+        transition: height 160ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    ${({$active}) => $active && "&::before { height: 56%; }"}
 
     svg {
         flex-shrink: 0;
         color: ${({$active}) => $active ? "var(--accent-primary)" : "var(--text-muted)"};
+        transition: color 130ms ease, transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+        transform: scale(${({$active}) => $active ? 1.08 : 1});
     }
 
     &:hover {
-        background: var(--bg-card-hover);
+        background: rgba(var(--accent-rgb), 0.08);
         border-color: var(--border-color);
         color: var(--text-primary);
+
+        svg {
+            transform: scale(1.08);
+        }
+    }
+
+    &:active {
+        transform: scale(0.99);
     }
 
     &:focus-visible {
@@ -446,7 +473,7 @@ const Bar = styled.span`
     height: 3px;
     margin-top: 1px;
     border-radius: 2px;
-    background: rgba(148, 163, 184, 0.18);
+    background: rgba(147, 182, 193, 0.18);
     overflow: hidden;
 `;
 

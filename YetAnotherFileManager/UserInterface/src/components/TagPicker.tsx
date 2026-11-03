@@ -36,7 +36,7 @@ interface TagPickerProps {
 /** A floating panel for choosing existing tags, creating one, and giving each its own color. */
 export function TagPicker({x, y, tags, allTags, colors, onChange, onClose}: TagPickerProps) {
     const [draft, setDraft] = useState("");
-    const [draftColor, setDraftColor] = useState("#3b82f6");
+    const [draftColor, setDraftColor] = useState("#2dd4bf");
     const root = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {

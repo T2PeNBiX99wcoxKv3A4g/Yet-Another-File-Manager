@@ -95,6 +95,7 @@ export function TitleBar({
     return (
         <Bar>
             <Mark><AppIcon size={19}/></Mark>
+            <BrandWord>YAFM</BrandWord>
 
             <Tabs>
                 {overflow.left && (
@@ -248,9 +249,9 @@ function FilesTabGlyph({place}: { place?: TabInfo["place"] }) {
 const Bar = styled.header`
     display: flex;
     align-items: stretch;
-    height: 42px;
+    height: 44px;
     flex-shrink: 0;
-    background: rgba(7, 11, 18, 0.95);
+    background: rgba(4, 10, 14, 0.96);
     border-bottom: 1px solid var(--border-color);
     user-select: none;
     -webkit-user-select: none;
@@ -260,10 +261,23 @@ const Mark = styled.span`
     display: grid;
     place-items: center;
     align-self: center;
-    width: 22px;
-    height: 22px;
+    width: 26px;
+    height: 26px;
     margin-left: 12px;
     flex-shrink: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: rgba(var(--accent-rgb), 0.08);
+    box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.12);
+`;
+
+const BrandWord = styled.strong`
+    align-self: center;
+    margin-left: 8px;
+    color: var(--text-primary);
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
 `;
 
 const Tabs = styled.div`
@@ -273,7 +287,7 @@ const Tabs = styled.div`
     min-width: 0;
     flex: 0 1 auto;
     margin-left: 10px;
-    padding-top: 4px;
+    padding-top: 5px;
 `;
 
 const Scroller = styled.div`
@@ -328,14 +342,15 @@ const Tab = styled.button<{ $active: boolean; $dragging: boolean }>`
     padding: 0 6px 0 10px;
     border: 1px solid ${({$active}) => $active ? "var(--border-color)" : "transparent"};
     border-bottom: 0;
-    border-radius: 7px 7px 0 0;
-    background: ${({$active}) => $active ? "var(--bg-card-hover)" : "transparent"};
+    border-radius: 9px 9px 0 0;
+    background: ${({$active}) => $active ? "rgba(var(--accent-rgb), 0.10)" : "transparent"};
     color: ${({$active}) => $active ? "var(--text-primary)" : "var(--text-muted)"};
     font: inherit;
     font-size: 12px;
     cursor: pointer;
     opacity: ${({$dragging}) => $dragging ? 0.45 : 1};
-    transition: background 110ms ease, color 110ms ease, opacity 110ms ease;
+    box-shadow: ${({$active}) => $active ? "inset 0 -2px 0 var(--accent-primary)" : "none"};
+    transition: background 120ms ease, color 120ms ease, opacity 120ms ease, box-shadow 120ms ease;
 
     svg {
         flex-shrink: 0;
@@ -343,7 +358,7 @@ const Tab = styled.button<{ $active: boolean; $dragging: boolean }>`
     }
 
     &:hover {
-        background: var(--bg-card-hover);
+        background: rgba(var(--accent-rgb), 0.08);
         color: var(--text-primary);
     }
 
@@ -384,7 +399,7 @@ const TabClose = styled.span`
     }
 
     &:hover {
-        background: rgba(148, 163, 184, 0.22);
+        background: rgba(var(--accent-rgb), 0.14);
         color: var(--text-primary);
     }
 `;
@@ -396,14 +411,15 @@ const NewTab = styled.button`
     height: 26px;
     flex-shrink: 0;
     margin-bottom: 2px;
-    border: 0;
-    border-radius: 6px;
+    border: 1px solid transparent;
+    border-radius: 8px;
     background: transparent;
     color: var(--text-muted);
     cursor: pointer;
 
     &:hover {
-        background: var(--bg-card-hover);
+        background: rgba(var(--accent-rgb), 0.10);
+        border-color: var(--border-color);
         color: var(--text-primary);
     }
 `;
@@ -425,12 +441,12 @@ const TrayButton = styled.button<{ $active: boolean }>`
     width: 34px;
     height: 100%;
     border: 0;
-    background: ${({$active}) => $active ? "rgba(148, 163, 184, 0.14)" : "transparent"};
+    background: ${({$active}) => $active ? "rgba(var(--accent-rgb), 0.12)" : "transparent"};
     color: var(--text-secondary);
     cursor: pointer;
 
     &:hover:not(:disabled) {
-        background: rgba(148, 163, 184, 0.14);
+        background: rgba(var(--accent-rgb), 0.10);
         color: var(--text-primary);
     }
 
@@ -446,12 +462,12 @@ const UtilityButton = styled.button<{ $active: boolean }>`
     width: 34px;
     height: 100%;
     border: 0;
-    background: ${({$active}) => $active ? "rgba(148, 163, 184, 0.14)" : "transparent"};
-    color: ${({$active}) => $active ? "var(--text-primary)" : "var(--text-secondary)"};
+    background: ${({$active}) => $active ? "rgba(var(--accent-rgb), 0.12)" : "transparent"};
+    color: ${({$active}) => $active ? "var(--accent-primary)" : "var(--text-secondary)"};
     cursor: pointer;
 
     &:hover:not(:disabled) {
-        background: rgba(148, 163, 184, 0.14);
+        background: rgba(var(--accent-rgb), 0.10);
         color: var(--text-primary);
     }
 
@@ -497,7 +513,7 @@ const ControlButton = styled.button`
     }
 
     &:hover {
-        background: rgba(148, 163, 184, 0.14);
+        background: rgba(var(--accent-rgb), 0.14);
         color: var(--text-primary);
     }
 

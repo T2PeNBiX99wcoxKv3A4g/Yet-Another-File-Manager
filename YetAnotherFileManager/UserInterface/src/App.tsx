@@ -1915,8 +1915,10 @@ const Root = styled.div<{ $rounded: boolean }>`
     background: var(--bg-primary);
 
     /* An undecorated window gets no frame from the compositor, so the corners are drawn here. */
-    border-radius: ${({$rounded}) => ($rounded ? "10px" : "0")};
-    box-shadow: ${({$rounded}) => ($rounded ? "inset 0 0 0 1px var(--border-color)" : "none")};
+    border-radius: ${({$rounded}) => ($rounded ? "12px" : "0")};
+    box-shadow: ${({$rounded}) => ($rounded
+        ? "inset 0 0 0 1px var(--border-color), 0 24px 70px rgba(0, 0, 0, 0.38)"
+        : "none")};
 `;
 
 const Body = styled.div`
@@ -1925,9 +1927,9 @@ const Body = styled.div`
     flex: 1;
     min-height: 0;
     background:
-        radial-gradient(1200px 600px at 15% -10%, rgba(99, 102, 241, 0.12), transparent 60%),
-        radial-gradient(900px 500px at 110% 20%, rgba(59, 130, 246, 0.08), transparent 55%),
-        var(--bg-primary);
+        radial-gradient(1200px 650px at 12% -10%, rgba(var(--accent-rgb), 0.12), transparent 60%),
+        radial-gradient(900px 520px at 110% 18%, rgba(var(--accent-secondary-rgb), 0.10), transparent 55%),
+        linear-gradient(180deg, #060b10 0%, #05090d 100%);
 `;
 
 const Main = styled.main`
@@ -1941,34 +1943,39 @@ const Main = styled.main`
 const Toolbar = styled.header`
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
     padding: 12px 18px;
     border-bottom: 1px solid var(--border-color);
-    background: rgba(11, 15, 25, 0.55);
-    backdrop-filter: blur(8px);
+    background: rgba(6, 16, 22, 0.62);
+    backdrop-filter: blur(10px);
 `;
 
 const IconButton = styled.button`
     display: grid;
     place-items: center;
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
     flex-shrink: 0;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    background: var(--bg-input);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: transparent;
     color: var(--text-secondary);
     cursor: pointer;
-    transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+    transition: color 130ms ease, border-color 130ms ease, background 130ms ease, transform 130ms ease;
 
     &:hover:not(:disabled) {
         color: var(--text-primary);
         border-color: var(--border-color-hover);
-        background: var(--bg-card-hover);
+        background: rgba(var(--accent-rgb), 0.10);
+        transform: translateY(-1px);
+    }
+
+    &:active:not(:disabled) {
+        transform: translateY(0);
     }
 
     &:disabled {
-        opacity: 0.35;
+        opacity: 0.32;
         cursor: default;
     }
 
@@ -1981,11 +1988,11 @@ const IconButton = styled.button`
 const PaneToolbar = styled.div`
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
     padding: 12px 18px;
     border-bottom: 1px solid var(--border-color);
-    background: rgba(11, 15, 25, 0.55);
-    backdrop-filter: blur(8px);
+    background: rgba(6, 16, 22, 0.62);
+    backdrop-filter: blur(10px);
 `;
 
 const Split = styled.div`
@@ -2037,9 +2044,11 @@ const StatusBar = styled.footer`
     display: flex;
     justify-content: space-between;
     gap: 16px;
-    padding: 8px 22px;
+    padding: 7px 20px;
     border-top: 1px solid var(--border-color);
+    background: rgba(4, 10, 14, 0.58);
     font-family: var(--font-sans);
     font-size: 11px;
     color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
 `;

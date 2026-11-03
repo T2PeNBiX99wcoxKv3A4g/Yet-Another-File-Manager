@@ -255,7 +255,7 @@ const State = styled.span<{ $state: string }>`
     border-radius: 50%;
     background: ${({$state}) => $state === "failed"
         ? "rgba(239, 68, 68, 0.18)"
-        : $state === "done" ? "rgba(34, 197, 94, 0.16)" : "rgba(59, 130, 246, 0.18)"};
+        : $state === "done" ? "rgba(34, 197, 94, 0.16)" : "rgba(var(--accent-rgb), 0.18)"};
     color: ${({$state}) => $state === "failed"
         ? "#f87171"
         : $state === "done" ? "#4ade80" : "var(--accent-primary)"};
@@ -264,7 +264,7 @@ const State = styled.span<{ $state: string }>`
 const Spin = styled.span`
     width: 9px;
     height: 9px;
-    border: 2px solid rgba(59, 130, 246, 0.25);
+    border: 2px solid rgba(var(--accent-rgb), 0.25);
     border-top-color: var(--accent-primary);
     border-radius: 50%;
     animation: yafm-task-spin 800ms linear infinite;

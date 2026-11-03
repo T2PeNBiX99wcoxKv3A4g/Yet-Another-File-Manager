@@ -710,7 +710,7 @@ const ActionButton = styled.button<{ $danger?: boolean }>`
 
 const OrphanButton = styled(ActionButton)<{ $on: boolean }>`
     border-color: ${({$on}) => $on ? "var(--border-color-hover)" : "var(--border-color)"};
-    background: ${({$on}) => $on ? "rgba(99, 102, 241, 0.16)" : "var(--bg-input)"};
+    background: ${({$on}) => $on ? "rgba(var(--accent-secondary-rgb), 0.16)" : "var(--bg-input)"};
     color: ${({$on}) => $on ? "var(--text-primary)" : "var(--text-secondary)"};
 `;
 
@@ -783,9 +783,9 @@ const Row = styled.div<{ $orphan: boolean; $checked: boolean }>`
     gap: 14px;
     align-items: center;
     padding: 8px 12px;
-    border: 1px solid ${({$checked}) => $checked ? "rgba(59, 130, 246, 0.38)" : "transparent"};
+    border: 1px solid ${({$checked}) => $checked ? "rgba(var(--accent-rgb), 0.38)" : "transparent"};
     border-radius: var(--radius-sm);
-    background: ${({$checked}) => $checked ? "rgba(59, 130, 246, 0.1)" : "transparent"};
+    background: ${({$checked}) => $checked ? "rgba(var(--accent-rgb), 0.1)" : "transparent"};
     font-size: 13px;
     color: var(--text-secondary);
     opacity: ${({$orphan}) => $orphan ? 0.72 : 1};

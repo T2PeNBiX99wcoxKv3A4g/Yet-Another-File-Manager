@@ -183,7 +183,7 @@ const Trail = styled.div`
     height: 32px;
     padding: 0 10px;
     border: 1px solid transparent;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     overflow: hidden;
     cursor: text;
     transition: border-color 130ms ease, background 130ms ease, box-shadow 130ms ease;
@@ -191,7 +191,7 @@ const Trail = styled.div`
     &:hover {
         border-color: var(--border-color-hover);
         background: var(--bg-input);
-        box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.08);
+        box-shadow: inset 0 0 0 1px rgba(var(--accent-secondary-rgb), 0.08);
     }
 `;
 
@@ -262,9 +262,9 @@ const Editor = styled.div`
     height: 32px;
     padding: 0 4px 0 10px;
     border: 1px solid var(--border-color-focus);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     background: var(--bg-input);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.12);
 
     input {
         flex: 1;

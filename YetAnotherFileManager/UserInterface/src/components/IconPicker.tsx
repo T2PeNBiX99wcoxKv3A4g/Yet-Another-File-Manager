@@ -137,7 +137,7 @@ const IconChoice = styled.button<{ $active?: boolean }>`
     padding: 0;
     border: 1px solid ${({$active}) => $active ? "var(--border-color-focus)" : "transparent"};
     border-radius: 5px;
-    background: ${({$active}) => $active ? "rgba(99, 102, 241, 0.24)" : "transparent"};
+    background: ${({$active}) => $active ? "rgba(var(--accent-secondary-rgb), 0.24)" : "transparent"};
     color: var(--text-secondary);
     cursor: pointer;
 

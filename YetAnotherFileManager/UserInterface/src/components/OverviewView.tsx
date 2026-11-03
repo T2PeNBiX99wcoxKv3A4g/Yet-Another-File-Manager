@@ -76,7 +76,7 @@ const Segment = styled.button<{ $active: boolean }>`
     padding: 2px 0;
     border: 0;
     border-radius: 4px;
-    background: ${({$active}) => $active ? "rgba(99, 102, 241, 0.22)" : "transparent"};
+    background: ${({$active}) => $active ? "rgba(var(--accent-secondary-rgb), 0.22)" : "transparent"};
     color: ${({$active}) => $active ? "var(--text-primary)" : "var(--text-muted)"};
     font: inherit;
     font-size: 12px;
@@ -208,7 +208,7 @@ const IconButton = styled.button<{ $active?: boolean }>`
     padding: 0;
     border: 1px solid ${({$active}) => $active ? "var(--border-color-focus)" : "var(--border-color)"};
     border-radius: 5px;
-    background: ${({$active}) => $active ? "rgba(99, 102, 241, 0.24)" : "var(--bg-input)"};
+    background: ${({$active}) => $active ? "rgba(var(--accent-secondary-rgb), 0.24)" : "var(--bg-input)"};
     color: ${({$active}) => $active ? "var(--text-primary)" : "var(--text-muted)"};
     cursor: pointer;
 
@@ -262,7 +262,7 @@ const Glyph = styled.span`
     height: 30px;
     flex-shrink: 0;
     border-radius: 8px;
-    background: rgba(99, 102, 241, 0.16);
+    background: rgba(var(--accent-secondary-rgb), 0.16);
     color: var(--accent-primary);
 
     img {
@@ -470,7 +470,7 @@ const IconTrigger = styled.button`
     cursor: pointer;
 
     &:hover {
-        background: rgba(99, 102, 241, 0.22);
+        background: rgba(var(--accent-secondary-rgb), 0.22);
     }
 `;
 
@@ -516,7 +516,7 @@ const RenameButton = styled.button`
     cursor: pointer;
 
     &:hover {
-        background: rgba(99, 102, 241, 0.28);
+        background: rgba(var(--accent-secondary-rgb), 0.28);
         color: #c7d2fe;
         opacity: 1;
     }
@@ -532,7 +532,7 @@ const InlineEditorBox = styled.span`
     border: 1px solid var(--border-color-focus);
     border-radius: var(--radius-sm);
     background: var(--bg-input);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.12);
 
     input {
         min-width: 4ch;

@@ -306,7 +306,7 @@ const Splitter = styled.div`
     transition: background 120ms ease;
 
     &:hover {
-        background: rgba(59, 130, 246, 0.25);
+        background: rgba(var(--accent-rgb), 0.25);
     }
 `;
 
