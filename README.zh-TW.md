@@ -1,6 +1,6 @@
 <div align="center">
   <img src="icon.svg" alt="" width="120">
-  <h1>YetAnotherFileManager</h1>
+  <h1>Yet Another File Manager</h1>
   <p><strong>把所有東西集中在同一個視窗裡的檔案管理員。</strong></p>
   <p>
     <a href="https://t2penbix99wcoxkv3a4g.github.io/Yet-Another-File-Manager/">網站</a> ·
@@ -13,7 +13,7 @@
   </p>
 </div>
 
-YetAnotherFileManager 是 Windows 與 Linux 上的桌面檔案管理員。它以清單或格狀瀏覽資料夾，在旁邊預覽
+Yet Another File Manager 是 Windows 與 Linux 上的桌面檔案管理員。它以清單或格狀瀏覽資料夾，在旁邊預覽
 圖片、影片與文件，並把分頁、分割檢視、搜尋、相簿、每個資料夾的標籤與資源回收筒都放在同一個視窗裡。
 兩個系統共用同一份程式碼。
 
@@ -33,7 +33,7 @@ YetAnotherFileManager 是 Windows 與 Linux 上的桌面檔案管理員。它以
 
 ## 為什麼
 
-檔案總管一直夠用，直到你想要兩個資料夾並排、想在開啟前先預覽檔案，或想從誤刪中復原。YetAnotherFileManager
+檔案總管一直夠用，直到你想要兩個資料夾並排、想在開啟前先預覽檔案，或想從誤刪中復原。Yet Another File Manager
 是我嘗試保留熟悉的操作方式，並加入我每天都會用到的功能，而不是把它們藏在付費方案後面。Windows 與 Linux
 共用同一個介面，因此兩邊的視窗看起來一樣。
 
@@ -76,7 +76,7 @@ YetAnotherFileManager 是 Windows 與 Linux 上的桌面檔案管理員。它以
 
 | 檔案                                          | 用途                                                                                                                                      |
 |-----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| `YetAnotherFileManager-<version>-win-x64.msi` | 每位使用者的 Windows 安裝程式：安裝到 `%LOCALAPPDATA%\Programs\YetAnotherFileManager`，建立開始功能表項目與桌面捷徑，且不需要管理員權限。 |
+| `YetAnotherFileManager-<version>-win-x64.msi` | 每位使用者的 Windows 安裝程式：安裝到 `%LOCALAPPDATA%\Programs\Yet Another File Manager`，建立開始功能表項目與桌面捷徑，且不需要管理員權限。 |
 | `yafm-<version>-1.fcXX.x86_64.rpm`            | Fedora 套件：`sudo dnf install ./yafm-<version>-*.rpm`。安裝到 `/opt/YetAnotherFileManager`，提供 `yafm` 指令、桌面項目與圖示。           |
 | `yafm_<version>_amd64.deb`                    | Debian/Ubuntu 套件：`sudo apt install ./yafm_<version>_amd64.deb`。配置與 RPM 相同。                                                      |
 | `yafm-<version>-1-x86_64.pkg.tar.zst`         | Arch Linux 套件：`sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`。配置與 RPM 相同。                                                  |

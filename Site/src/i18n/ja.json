@@ -4,13 +4,13 @@
     "docs": "ドキュメント"
   },
   "version": "バージョン",
-  "footer": "YetAnotherFileManager は MIT ライセンスで公開されています。",
+  "footer": "Yet Another File Manager は MIT ライセンスで公開されています。",
   "home": {
     "tagline": "すべてを 1 つのウィンドウにまとめるファイルマネージャー。",
     "download": "ダウンロード",
     "documentation": "ドキュメント",
     "whatTitle": "できること",
-    "whatText": "YetAnotherFileManager はフォルダーをリストまたはグリッドで表示し、画像・動画・ドキュメントをその横でプレビューします。タブ、分割表示、検索、ギャラリー、フォルダーごとのタグ、ごみ箱を同じウィンドウにまとめています。Windows と Linux で同じコードを使っています。",
+    "whatText": "Yet Another File Manager はフォルダーをリストまたはグリッドで表示し、画像・動画・ドキュメントをその横でプレビューします。タブ、分割表示、検索、ギャラリー、フォルダーごとのタグ、ごみ箱を同じウィンドウにまとめています。Windows と Linux で同じコードを使っています。",
     "featuresTitle": "機能",
     "features": [
       {

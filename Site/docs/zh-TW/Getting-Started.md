@@ -1,6 +1,6 @@
 # 開始使用
 
-YetAnotherFileManager 是 Windows 與 Linux 上的桌面檔案管理員。它是一個視窗，內含分頁、分割檢視、
+Yet Another File Manager 是 Windows 與 Linux 上的桌面檔案管理員。它是一個視窗，內含分頁、分割檢視、
 預覽、相簿與資源回收筒，並把設定與快取放在你瀏覽的資料夾之外。
 
 ## 安裝

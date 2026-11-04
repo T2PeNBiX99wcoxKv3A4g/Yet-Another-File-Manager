@@ -1,6 +1,6 @@
 <div align="center">
   <img src="icon.svg" alt="" width="120">
-  <h1>YetAnotherFileManager</h1>
+  <h1>Yet Another File Manager</h1>
   <p><strong>把所有东西集中在同一个窗口里的文件管理器。</strong></p>
   <p>
     <a href="https://t2penbix99wcoxkv3a4g.github.io/Yet-Another-File-Manager/">网站</a> ·
@@ -13,7 +13,7 @@
   </p>
 </div>
 
-YetAnotherFileManager 是 Windows 和 Linux 上的桌面文件管理器。它以列表或网格浏览文件夹，在旁边预览
+Yet Another File Manager 是 Windows 和 Linux 上的桌面文件管理器。它以列表或网格浏览文件夹，在旁边预览
 图片、视频和文档，并把标签页、分屏视图、搜索、图库、每个文件夹的标签和回收站都放在同一个窗口里。
 两个系统共用同一份代码。
 
@@ -34,7 +34,7 @@ YetAnotherFileManager 是 Windows 和 Linux 上的桌面文件管理器。它以
 ## 为什么
 
 资源管理器一直够用，直到你想要两个文件夹并排、想在打开前先预览文件，或想从误删中恢复。
-YetAnotherFileManager 是我尝试保留熟悉的操作方式，并加入我每天都会用到的功能，而不是把它们藏在付费
+Yet Another File Manager 是我尝试保留熟悉的操作方式，并加入我每天都会用到的功能，而不是把它们藏在付费
 方案后面。Windows 与 Linux 共用同一个界面，因此两边的窗口看起来一样。
 
 ## 功能
@@ -76,7 +76,7 @@ YetAnotherFileManager 是我尝试保留熟悉的操作方式，并加入我每�
 
 | 文件                                          | 用途                                                                                                                                    |
 |-----------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
-| `YetAnotherFileManager-<version>-win-x64.msi` | 每位用户的 Windows 安装程序：安装到 `%LOCALAPPDATA%\Programs\YetAnotherFileManager`，创建开始菜单项和桌面快捷方式，且不需要管理员权限。 |
+| `YetAnotherFileManager-<version>-win-x64.msi` | 每位用户的 Windows 安装程序：安装到 `%LOCALAPPDATA%\Programs\Yet Another File Manager`，创建开始菜单项和桌面快捷方式，且不需要管理员权限。 |
 | `yafm-<version>-1.fcXX.x86_64.rpm`            | Fedora 包：`sudo dnf install ./yafm-<version>-*.rpm`。安装到 `/opt/YetAnotherFileManager`，提供 `yafm` 命令、桌面项和图标。             |
 | `yafm_<version>_amd64.deb`                    | Debian/Ubuntu 包：`sudo apt install ./yafm_<version>_amd64.deb`。布局与 RPM 相同。                                                      |
 | `yafm-<version>-1-x86_64.pkg.tar.zst`         | Arch Linux 包：`sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`。布局与 RPM 相同。                                                  |

@@ -4,13 +4,13 @@
     "docs": "Docs"
   },
   "version": "Version",
-  "footer": "YetAnotherFileManager is under the MIT license.",
+  "footer": "Yet Another File Manager is under the MIT license.",
   "home": {
     "tagline": "A file manager that keeps everything in one window.",
     "download": "Download",
     "documentation": "Documentation",
     "whatTitle": "What it does",
-    "whatText": "YetAnotherFileManager browses folders in a list or a grid, previews pictures, video and documents beside them, and keeps tabs, a split view, a search, a gallery, per-folder tags and a recycle bin in the same window. It runs on Windows and Linux from the same code base.",
+    "whatText": "Yet Another File Manager browses folders in a list or a grid, previews pictures, video and documents beside them, and keeps tabs, a split view, a search, a gallery, per-folder tags and a recycle bin in the same window. It runs on Windows and Linux from the same code base.",
     "featuresTitle": "Features",
     "features": [
       {

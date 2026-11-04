@@ -53,7 +53,7 @@ Installed-Size: $(du -sk "$stage" | cut -f1)
 Depends: libgtk-3-0 | libgtk-3-0t64, libwebkit2gtk-4.1-0, libnotify4, libicu72 | libicu74 | libicu76, libssl3 | libssl3t64, zlib1g, libkrb5-3, fontconfig, libfreetype6
 Homepage: https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager
 Description: Tabbed file manager with previews, a gallery and a recycle bin
- YetAnotherFileManager browses folders in a list or a grid, previews pictures,
+ Yet Another File Manager browses folders in a list or a grid, previews pictures,
  video and documents beside them, and keeps a search, a gallery, a recycle bin
  and per-folder tags in the same window.
 EOF

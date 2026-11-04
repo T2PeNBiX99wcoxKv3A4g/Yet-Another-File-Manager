@@ -1,6 +1,6 @@
 <div align="center">
   <img src="icon.svg" alt="" width="120">
-  <h1>YetAnotherFileManager</h1>
+  <h1>Yet Another File Manager</h1>
   <p><strong>A file manager that keeps everything in one window.</strong></p>
   <p>
     <a href="https://t2penbix99wcoxkv3a4g.github.io/Yet-Another-File-Manager/">Website</a> ·
@@ -13,7 +13,7 @@
   </p>
 </div>
 
-YetAnotherFileManager is a desktop file manager for Windows and Linux. It browses folders in a list
+Yet Another File Manager is a desktop file manager for Windows and Linux. It browses folders in a list
 or a grid, previews pictures, video and documents beside them, and keeps tabs, a split view, a
 search, a gallery, per-folder tags and a recycle bin in the same window. It runs on both systems
 from one code base.
@@ -35,7 +35,7 @@ from one code base.
 ## Why
 
 Explorer is fine until you want two folders side by side, a preview of the file you are about to
-open, or a way back from a mistaken delete. YetAnotherFileManager is my attempt at keeping the
+open, or a way back from a mistaken delete. Yet Another File Manager is my attempt at keeping the
 familiar workflow and adding the things I use every day, without hiding them behind a paid tier.
 Windows and Linux share the same interface, so the window looks the same on both.
 
@@ -84,7 +84,7 @@ Four package formats are published beside the plain archives:
 
 | File                                          | What it does                                                                                                                                                                        |
 |-----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `YetAnotherFileManager-<version>-win-x64.msi` | Per-user Windows installer: installs into `%LOCALAPPDATA%\Programs\YetAnotherFileManager`, adds a Start menu entry and a desktop shortcut, and never asks for administrator rights. |
+| `YetAnotherFileManager-<version>-win-x64.msi` | Per-user Windows installer: installs into `%LOCALAPPDATA%\Programs\Yet Another File Manager`, adds a Start menu entry and a desktop shortcut, and never asks for administrator rights. |
 | `yafm-<version>-1.fcXX.x86_64.rpm`            | Fedora package: `sudo dnf install ./yafm-<version>-*.rpm`. Installs to `/opt/YetAnotherFileManager` with a `yafm` command, a desktop entry and the icon.                            |
 | `yafm_<version>_amd64.deb`                    | Debian/Ubuntu package: `sudo apt install ./yafm_<version>_amd64.deb`. Same layout as the RPM.                                                                                       |
 | `yafm-<version>-1-x86_64.pkg.tar.zst`         | Arch Linux package: `sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`. Same layout as the RPM.                                                                                   |

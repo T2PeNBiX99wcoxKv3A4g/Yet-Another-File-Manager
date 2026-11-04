@@ -26,7 +26,7 @@ Requires:       fontconfig
 Requires:       freetype
 
 %description
-YetAnotherFileManager browses folders in a list or a grid, previews pictures,
+Yet Another File Manager browses folders in a list or a grid, previews pictures,
 video and documents beside them, and keeps a search, a gallery, a recycle bin
 and per-folder tags in the same window.
 
@@ -62,4 +62,4 @@ touch --no-create %{_datadir}/icons/hicolor >/dev/null 2>&1 || :
 
 %changelog
 * Wed Nov 04 2026 yukiyosanako <yukiyosanako@users.noreply.github.com> - @VERSION@-1
-- Package the published YetAnotherFileManager build.
+- Package the published Yet Another File Manager build.

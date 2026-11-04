@@ -4,13 +4,13 @@
     "docs": "文档"
   },
   "version": "版本",
-  "footer": "YetAnotherFileManager 采用 MIT 许可。",
+  "footer": "Yet Another File Manager 采用 MIT 许可。",
   "home": {
     "tagline": "把一切集中在一个窗口里的文件管理器。",
     "download": "下载",
     "documentation": "说明文档",
     "whatTitle": "它能做什么",
-    "whatText": "YetAnotherFileManager 以列表或网格浏览文件夹，在旁边预览图片、视频和文档，并把标签页、分屏视图、搜索、图库、每个文件夹的标签和回收站都放在同一个窗口里。Windows 与 Linux 共用同一份代码。",
+    "whatText": "Yet Another File Manager 以列表或网格浏览文件夹，在旁边预览图片、视频和文档，并把标签页、分屏视图、搜索、图库、每个文件夹的标签和回收站都放在同一个窗口里。Windows 与 Linux 共用同一份代码。",
     "featuresTitle": "功能",
     "features": [
       {

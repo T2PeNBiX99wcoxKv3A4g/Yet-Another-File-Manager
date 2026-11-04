@@ -287,7 +287,7 @@ export const HomePage: React.FC = () => {
         <>
             <Hero>
                 <AppIcon src={ICON} alt=""/>
-                <Title>YetAnotherFileManager</Title>
+                <Title>Yet Another File Manager</Title>
                 <Tagline>{home.tagline}</Tagline>
                 <Actions>
                     <Button $primary href={RELEASES}>

@@ -4,13 +4,13 @@
     "docs": "文件"
   },
   "version": "版本",
-  "footer": "YetAnotherFileManager 採用 MIT 授權。",
+  "footer": "Yet Another File Manager 採用 MIT 授權。",
   "home": {
     "tagline": "把一切集中在同一個視窗裡的檔案管理員。",
     "download": "下載",
     "documentation": "說明文件",
     "whatTitle": "它能做什麼",
-    "whatText": "YetAnotherFileManager 以清單或格狀瀏覽資料夾，在旁邊預覽圖片、影片與文件，並把分頁、分割檢視、搜尋、相簿、每個資料夾的標籤與資源回收筒都放在同一個視窗裡。Windows 與 Linux 共用同一份程式碼。",
+    "whatText": "Yet Another File Manager 以清單或格狀瀏覽資料夾，在旁邊預覽圖片、影片與文件，並把分頁、分割檢視、搜尋、相簿、每個資料夾的標籤與資源回收筒都放在同一個視窗裡。Windows 與 Linux 共用同一份程式碼。",
     "featuresTitle": "功能",
     "features": [
       {

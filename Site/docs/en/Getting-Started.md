@@ -1,6 +1,6 @@
 # Getting started
 
-YetAnotherFileManager is a desktop file manager for Windows and Linux. It is one window with tabs,
+Yet Another File Manager is a desktop file manager for Windows and Linux. It is one window with tabs,
 a split view, previews, a gallery and a recycle bin, and it keeps its settings and caches out of the
 folders you browse.
 

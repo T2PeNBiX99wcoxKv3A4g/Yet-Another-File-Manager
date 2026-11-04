@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
-    <title id="title">YetAnotherFileManager</title>
+    <title id="title">Yet Another File Manager</title>
     <desc id="desc">A file manager that keeps everything in one window.</desc>
 
     <defs>
@@ -33,7 +33,7 @@
     </g>
 
     <g font-family="Segoe UI, Arial, sans-serif">
-        <text x="340" y="300" fill="#eef2ff" font-size="66" font-weight="700" letter-spacing="-2">YetAnotherFileManager</text>
+        <text x="332" y="300" fill="#eef2ff" font-size="58" font-weight="700" letter-spacing="-2">Yet Another File Manager</text>
         <text x="344" y="368" fill="#b6c0d8" font-size="30">Previews, gallery, tags and a recycle bin</text>
         <text x="344" y="408" fill="#b6c0d8" font-size="30">in one window.</text>
         <text x="344" y="466" fill="#6d7893" font-size="22" letter-spacing="0.4">Tabbed file manager for Windows and Linux</text>

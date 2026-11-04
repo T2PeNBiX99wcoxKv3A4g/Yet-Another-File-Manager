@@ -1,6 +1,6 @@
 <div align="center">
   <img src="icon.svg" alt="" width="120">
-  <h1>YetAnotherFileManager</h1>
+  <h1>Yet Another File Manager</h1>
   <p><strong>すべてを 1 つのウィンドウにまとめるファイルマネージャー。</strong></p>
   <p>
     <a href="https://t2penbix99wcoxkv3a4g.github.io/Yet-Another-File-Manager/">ウェブサイト</a> ·
@@ -13,7 +13,7 @@
   </p>
 </div>
 
-YetAnotherFileManager は Windows と Linux 向けのデスクトップファイルマネージャーです。フォルダーを
+Yet Another File Manager は Windows と Linux 向けのデスクトップファイルマネージャーです。フォルダーを
 リストまたはグリッドで表示し、画像・動画・ドキュメントをその横でプレビューします。タブ、分割表示、
 検索、ギャラリー、フォルダーごとのタグ、ごみ箱を同じウィンドウにまとめ、両方の OS で同じコードを
 使っています。
@@ -35,7 +35,7 @@ YetAnotherFileManager は Windows と Linux 向けのデスクトップファイ
 ## なぜ作ったか
 
 エクスプローラーは十分に便利ですが、2 つのフォルダーを並べたい、開く前に中身を確認したい、誤って
-削除したものを戻したい、と思うことがあります。YetAnotherFileManager は、慣れた操作を保ちながら、
+削除したものを戻したい、と思うことがあります。Yet Another File Manager は、慣れた操作を保ちながら、
 毎日使う機能を有料プランの奥に隠さずに追加する試みです。Windows と Linux で同じインターフェースを
 使うため、どちらでも同じ見た目になります。
 
@@ -84,7 +84,7 @@ OS 側で必要なものは、各システムの説明に記載しています�
 
 | ファイル                                      | 内容                                                                                                                                                                                |
 |-----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `YetAnotherFileManager-<version>-win-x64.msi` | ユーザー単位の Windows インストーラー。`%LOCALAPPDATA%\Programs\YetAnotherFileManager` に導入し、スタートメニューとデスクトップにショートカットを作成します。管理者権限は不要です。 |
+| `YetAnotherFileManager-<version>-win-x64.msi` | ユーザー単位の Windows インストーラー。`%LOCALAPPDATA%\Programs\Yet Another File Manager` に導入し、スタートメニューとデスクトップにショートカットを作成します。管理者権限は不要です。 |
 | `yafm-<version>-1.fcXX.x86_64.rpm`            | Fedora パッケージ: `sudo dnf install ./yafm-<version>-*.rpm`。`/opt/YetAnotherFileManager` に導入し、`yafm` コマンド、デスクトップエントリ、アイコンを追加します。                  |
 | `yafm_<version>_amd64.deb`                    | Debian/Ubuntu パッケージ: `sudo apt install ./yafm_<version>_amd64.deb`。配置は RPM と同じです。                                                                                    |
 | `yafm-<version>-1-x86_64.pkg.tar.zst`         | Arch Linux パッケージ: `sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`。配置は RPM と同じです。                                                                                |

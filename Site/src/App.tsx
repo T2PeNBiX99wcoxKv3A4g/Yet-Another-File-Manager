@@ -290,7 +290,7 @@ function useTitle(section: string, page: string, language: Language, copy: Copy)
     useEffect(() => {
         const doc = (docs[language] ?? docs.en).find((entry) => entry.slug === page);
         const name = section === "docs" ? doc?.title ?? copy.nav.docs : "";
-        document.title = name ? `${name} — YetAnotherFileManager` : "YetAnotherFileManager";
+        document.title = name ? `${name} — Yet Another File Manager` : "Yet Another File Manager";
     }, [section, page, language, copy]);
 }
 
@@ -307,7 +307,7 @@ const Site: React.FC = () => {
                 <BrandGroup>
                     <Brand href={homeHref()}>
                         <BrandIcon src={ICON} alt=""/>
-                        YetAnotherFileManager
+                        Yet Another File Manager
                     </Brand>
                     {version && (
                         <VersionBadge

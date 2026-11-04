@@ -1,6 +1,6 @@
 # はじめに
 
-YetAnotherFileManager は Windows と Linux 向けのデスクトップファイルマネージャーです。タブ、分割表示、
+Yet Another File Manager は Windows と Linux 向けのデスクトップファイルマネージャーです。タブ、分割表示、
 プレビュー、ギャラリー、ごみ箱を 1 つのウィンドウにまとめ、設定とキャッシュは閲覧するフォルダーの外に
 置きます。
 

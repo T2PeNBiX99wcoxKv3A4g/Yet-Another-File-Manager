@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=YetAnotherFileManager
+Name=Yet Another File Manager
 GenericName=File Manager
 Comment=Browse files with previews, a gallery and a recycle bin
 Exec=/opt/YetAnotherFileManager/YetAnotherFileManager %U

@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Per-user installer: YetAnotherFileManager keeps its settings, its caches and its per-folder
+    Per-user installer: Yet Another File Manager keeps its settings, its caches and its per-folder
     indexes under %APPDATA% and %LOCALAPPDATA%, so it never needs elevation and never writes to a
     location another user shares.
 
     The published build is a single executable plus the Rust helper that speeds up gallery scans.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-    <Package Name="YetAnotherFileManager"
+    <Package Name="Yet Another File Manager"
              Manufacturer="yukiyosanako"
              Version="$(var.Version)"
              UpgradeCode="0f5d3f9b-6a1e-4b0e-9f3a-2c7d5e8b1a44"
@@ -15,7 +15,7 @@
              Compressed="yes"
              InstallerVersion="500">
 
-        <SummaryInformation Description="YetAnotherFileManager file manager" Manufacturer="yukiyosanako" />
+        <SummaryInformation Description="Yet Another File Manager file manager" Manufacturer="yukiyosanako" />
 
         <!--
             Force the per-user context even when the MSI is started from an elevated shell: the app
@@ -27,7 +27,7 @@
 
         <!-- A reinstall of the same version replaces the files instead of failing. -->
         <MajorUpgrade AllowSameVersionUpgrades="yes"
-                      DowngradeErrorMessage="A newer version of YetAnotherFileManager is already installed." />
+                      DowngradeErrorMessage="A newer version of Yet Another File Manager is already installed." />
 
         <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
 
@@ -36,7 +36,7 @@
         <Property Id="ARPHELPLINK" Value="https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager" />
         <Property Id="ARPNOMODIFY" Value="1" />
 
-        <Feature Id="Main" Title="YetAnotherFileManager" Level="1">
+        <Feature Id="Main" Title="Yet Another File Manager" Level="1">
             <ComponentGroupRef Id="ApplicationFiles" />
         </Feature>
     </Package>
@@ -45,7 +45,7 @@
         <!-- Same place per-user installers normally use, so no elevation is involved. -->
         <StandardDirectory Id="LocalAppDataFolder">
             <Directory Id="ProgramsFolder" Name="Programs">
-                <Directory Id="INSTALLFOLDER" Name="YetAnotherFileManager" />
+                <Directory Id="INSTALLFOLDER" Name="Yet Another File Manager" />
             </Directory>
         </StandardDirectory>
 
@@ -58,9 +58,9 @@
         <ComponentGroup Id="ApplicationFiles">
             <Component Id="Application" Directory="INSTALLFOLDER" Guid="*">
                 <File Id="YetAnotherFileManagerExe" Source="$(var.SourceDir)\YetAnotherFileManager.exe" KeyPath="yes">
-                    <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="YetAnotherFileManager"
+                    <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="Yet Another File Manager"
                               Description="Browse files with previews, a gallery and a recycle bin" />
-                    <Shortcut Id="DesktopShortcut" Directory="DesktopFolder" Name="YetAnotherFileManager"
+                    <Shortcut Id="DesktopShortcut" Directory="DesktopFolder" Name="Yet Another File Manager"
                               Description="Browse files with previews, a gallery and a recycle bin" />
                 </File>
                 <RemoveFolder Id="RemoveInstallFolder" On="uninstall" />
