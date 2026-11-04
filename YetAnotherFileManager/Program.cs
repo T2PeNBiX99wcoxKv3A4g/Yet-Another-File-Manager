@@ -356,14 +356,15 @@ _ = UpdateService.Instance;
     {
         var manager = WindowManager.Instance;
 
-        return TrayIconFactory.Create(
+        return TrayIconFactory.CreateStandard(
             Constants.Name,
             Constants.WindowTitle,
             iconPath,
-            manager.ShowMainWindow,
-            [
-                new("Open", manager.ShowMainWindow),
-                new("Exit", manager.Exit, true)
-            ]);
+            Localization.Get("Open"),
+            Localization.Get("Settings"),
+            Localization.Get("Exit"),
+            () => manager.ShowMainWindow(),
+            () => manager.ShowMainWindow($"{Constants.ViewScheme}settings"),
+            manager.Exit);
     }
 }

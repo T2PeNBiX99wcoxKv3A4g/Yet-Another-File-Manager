@@ -227,9 +227,18 @@ internal sealed class WindowManager : Singleton<WindowManager>
     /// <summary>Starts the message loop; blocks until the window is closed for good.</summary>
     public void Run() => _mainWindow?.WaitForClose();
 
-    /// <summary>Shows the main window, restoring it first when it is hidden or minimised.</summary>
-    public void ShowMainWindow()
+    /// <summary>
+    ///     Shows the main window, restoring it first when it is hidden or minimised, and optionally
+    ///     opens a location there (the tray's Settings entry, for instance).
+    /// </summary>
+    public void ShowMainWindow(string? path = null)
     {
+        if (path is { Length: > 0 })
+        {
+            ShowPath(path);
+            return;
+        }
+
         Log.Information("Showing the main window");
         RunOnMainWindow(() => Show(_mainWindow!));
     }

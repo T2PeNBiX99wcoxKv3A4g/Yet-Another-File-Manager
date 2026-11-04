@@ -651,7 +651,7 @@ export default function App() {
 
         setTabs((current) => [...current, tab]);
         if (activate) setActiveId(tab.id);
-        if (path) void load(tab.id, path);
+        if (path && !viewKind(path)) void load(tab.id, path);
     }, [load]);
 
     /** The sidebar and the overview replace the page the active tab shows. */
@@ -1367,6 +1367,10 @@ export default function App() {
 
             if (isStartup && current.length === 1 && current[0].fresh)
                 openLocation(current[0].id, target);
+            else if (viewKind(target))
+                // A built-in page asked for from outside (the tray, a yafm:// link) replaces the
+                // focused page instead of opening a tab that cannot load a folder.
+                openLocation(focusedTabIdOf(stateRef.current), target);
             else
                 openFiles(target);
         });
