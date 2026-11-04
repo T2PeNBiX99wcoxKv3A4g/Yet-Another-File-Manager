@@ -62,6 +62,8 @@ depend = zlib
 depend = krb5
 depend = fontconfig
 depend = freetype2
+optdepend = wl-clipboard: file clipboard on Wayland
+optdepend = xclip: file clipboard on X11
 EOF
 
 # makepkg writes a gzipped mtree file next to the package info, so do the same.

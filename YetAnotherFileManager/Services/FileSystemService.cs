@@ -363,7 +363,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     /// <summary>The icon the shell would show, or null when the settings and the shell have none.</summary>
     private static async Task<string?> IconAsync(IconRequest? request)
     {
-        if (request is not { Path.Length: > 0 } || !OperatingSystem.IsWindows())
+        if (request is not { Path.Length: > 0 })
             return null;
 
         var settings = SettingsService.Instance.Current;
@@ -371,6 +371,12 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         // The setting is a hard off switch: no shell icon of any kind, including a folder's own
         // desktop.ini icon, is shown while it is off.
         if (!settings.UseSystemIcons)
+            return null;
+
+        if (OperatingSystem.IsLinux())
+            return await Task.Run(() => LinuxIcons.DataUrl(request.Path, request.Directory, request.Large));
+
+        if (!OperatingSystem.IsWindows())
             return null;
 
         // A folder's own icon (desktop.ini) is read from its path; the jumbo list is index-based and

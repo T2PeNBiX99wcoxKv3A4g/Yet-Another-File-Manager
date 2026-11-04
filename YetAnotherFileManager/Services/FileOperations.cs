@@ -26,13 +26,27 @@ internal static partial class FileOperations
 
     private static readonly string PreferredDropEffect = "Preferred DropEffect";
 
+    /// <summary>The cut made through this app's Linux clipboard, and the list it described.</summary>
+    private static bool _linuxCut;
+    private static string? _linuxSignature;
+
     /// <summary>Puts the paths on the clipboard as files, with the effect Explorer uses for cut/copy.</summary>
     public static bool CopyToClipboard(IReadOnlyList<string>? paths, bool cut)
     {
-        if (!OperatingSystem.IsWindows()) return false;
-
         var files = paths?.Where(path => path.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList() ?? [];
         if (files.Count == 0) return false;
+
+        if (OperatingSystem.IsLinux())
+        {
+            if (!LinuxClipboard.WriteFiles(files))
+                return false;
+
+            _linuxCut = cut;
+            _linuxSignature = LinuxClipboard.Signature(files);
+            return true;
+        }
+
+        if (!OperatingSystem.IsWindows()) return false;
 
         if (!OpenClipboard())
             return false;
@@ -51,6 +65,12 @@ internal static partial class FileOperations
     /// <summary>Whether the clipboard currently carries files that can be pasted.</summary>
     public static bool ClipboardHasFiles()
     {
+        if (OperatingSystem.IsLinux())
+        {
+            var (paths, _) = LinuxClipboard.ReadFiles();
+            return paths.Count > 0;
+        }
+
         if (!OperatingSystem.IsWindows()) return false;
 
         if (!IsClipboardFormatAvailable(CfHDrop) || !OpenClipboard())
@@ -63,7 +83,7 @@ internal static partial class FileOperations
     /// <summary>Copies or moves the files on the clipboard into a folder.</summary>
     public static async Task<bool> PasteAsync(string directory)
     {
-        if (!OperatingSystem.IsWindows()) return false;
+        if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux()) return false;
 
         var (paths, move, read) = ReadClipboardFiles();
         if (!read || paths.Count == 0 || !Directory.Exists(directory))
@@ -145,16 +165,21 @@ internal static partial class FileOperations
     /// <summary>The files on the clipboard, with just enough detail for the tray to draw them.</summary>
     public static ClipboardPathsPayload ReadClipboardPayload()
     {
-        if (!OperatingSystem.IsWindows())
+        if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
             return new ClipboardPathsPayload([], false, 0);
 
         var (paths, move, read) = ReadClipboardFiles();
 
         // A clipboard another app is holding is not "empty": leave the sequence alone so the next
         // poll retries instead of remembering a sequence that never carried the files.
-        return read
-            ? new ClipboardPathsPayload(Describe(paths), move, GetClipboardSequenceNumber())
-            : new ClipboardPathsPayload([], false, 0);
+        if (!read)
+            return new ClipboardPathsPayload([], false, 0);
+
+        var sequence = OperatingSystem.IsWindows()
+            ? GetClipboardSequenceNumber()
+            : (uint)LinuxClipboard.Signature(paths).GetHashCode();
+
+        return new ClipboardPathsPayload(Describe(paths), move, sequence);
     }
 
     /// <summary>Describes paths for the tray without reading the clipboard.</summary>
@@ -257,6 +282,14 @@ internal static partial class FileOperations
 
     private static void ClearClipboard()
     {
+        if (OperatingSystem.IsLinux())
+        {
+            LinuxClipboard.Clear();
+            _linuxCut = false;
+            _linuxSignature = null;
+            return;
+        }
+
         if (!OpenClipboard())
             return;
 
@@ -864,6 +897,16 @@ internal static partial class FileOperations
 
     private static (List<string> Paths, bool Move, bool Read) ReadClipboardFiles()
     {
+        if (OperatingSystem.IsLinux())
+        {
+            var (paths, read) = LinuxClipboard.ReadFiles();
+            var move = _linuxCut
+                       && _linuxSignature is not null
+                       && _linuxSignature == LinuxClipboard.Signature(paths);
+
+            return (paths, move, read);
+        }
+
         if (!OpenClipboard())
             return ([], false, false);
 

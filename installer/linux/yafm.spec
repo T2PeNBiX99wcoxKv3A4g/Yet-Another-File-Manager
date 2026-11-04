@@ -24,6 +24,9 @@ Requires:       zlib
 Requires:       krb5-libs
 Requires:       fontconfig
 Requires:       freetype
+# The file clipboard uses whichever of these the session provides.
+Recommends:     wl-clipboard
+Recommends:     xclip
 
 %description
 Yet Another File Manager browses folders in a list or a grid, previews pictures,
