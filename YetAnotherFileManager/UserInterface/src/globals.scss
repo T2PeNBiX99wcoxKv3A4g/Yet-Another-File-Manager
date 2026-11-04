@@ -49,6 +49,16 @@ html {
   --radius-md: 12px;
   --radius-lg: 18px;
   --shadow-panel: 0 18px 48px rgba(0, 0, 0, 0.45);
+
+  // Floating panels stay nearly opaque when the engine cannot blur; the class below makes them
+  // translucent only where backdrop-filter really renders (WebKitGTK especially).
+  --panel-alpha: 0.96;
+  --panel-blur: none;
+}
+
+html.backdrop-blur {
+  --panel-alpha: 0.82;
+  --panel-blur: blur(20px) saturate(140%);
 }
 
 html:lang(zh-TW) {

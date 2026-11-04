@@ -1849,6 +1849,7 @@ const Rows = styled.div`
     background: var(--bg-card);
     box-shadow: 0 14px 36px rgba(0, 0, 0, 0.18);
     backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     overflow: hidden;
 `;
 

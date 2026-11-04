@@ -2265,6 +2265,7 @@ const TileCheck = styled(SelectionBox)`
     z-index: 3;
     background: ${({$checked}) => $checked ? "rgba(var(--accent-rgb), 0.9)" : "rgba(var(--bg-rgb), 0.6)"};
     backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 `;
 
 const SplitPane = styled.div`

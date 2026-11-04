@@ -414,9 +414,6 @@ const Completions = styled.div`
     padding: 4px;
     overflow-y: auto;
     ${elevatedPanel}
-    background: rgba(10, 15, 26, 0.9);
-    backdrop-filter: blur(24px) saturate(150%);
-    -webkit-backdrop-filter: blur(24px) saturate(150%);
     animation: yafm-path-in 130ms cubic-bezier(0.22, 1, 0.36, 1);
     transform-origin: top left;
 

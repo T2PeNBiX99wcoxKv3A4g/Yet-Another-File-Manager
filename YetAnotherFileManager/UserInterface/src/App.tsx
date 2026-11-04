@@ -2142,6 +2142,7 @@ const Toolbar = styled.header`
     border-bottom: 1px solid var(--border-color);
     background: rgba(var(--bg-rgb), 0.58);
     backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 `;
 
 const IconButton = styled.button`
@@ -2187,6 +2188,7 @@ const PaneToolbar = styled.div<{ $active?: boolean }>`
     border-bottom: 1px solid var(--border-color);
     background: ${({$active}) => $active ? "rgba(var(--accent-rgb), 0.07)" : "rgba(var(--bg-rgb), 0.58)"};
     backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     transition: background 140ms ease;
 `;
 

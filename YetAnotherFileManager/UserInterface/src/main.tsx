@@ -12,6 +12,14 @@ import "@fontsource/jetbrains-mono/latin-500.css";
 import App from "./App";
 import {LocalizationProvider} from "@photino-net-utils/bridge";
 
+// WebKit needs the prefixed property, and the effect is only worth using when the engine really
+// has it: without it the floating panels keep an almost opaque background so text stays readable.
+const supportsBackdrop = typeof CSS !== "undefined"
+    && (CSS.supports("backdrop-filter", "blur(1px)")
+        || CSS.supports("-webkit-backdrop-filter", "blur(1px)"));
+
+document.documentElement.classList.toggle("backdrop-blur", supportsBackdrop);
+
 const rootElement = document.getElementById("root");
 if (rootElement)
     createRoot(rootElement).render(

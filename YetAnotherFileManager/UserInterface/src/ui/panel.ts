@@ -7,8 +7,8 @@ import {css} from "styled-components";
 export const elevatedPanel = css`
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
-    background: var(--bg-elevated);
-    backdrop-filter: blur(18px) saturate(120%);
-    -webkit-backdrop-filter: blur(18px) saturate(120%);
+    background: rgba(var(--bg-rgb), var(--panel-alpha));
+    backdrop-filter: var(--panel-blur);
+    -webkit-backdrop-filter: var(--panel-blur);
     box-shadow: var(--shadow-panel);
 `;

@@ -375,6 +375,7 @@ const CenterPlay = styled.button`
     color: #fff;
     cursor: pointer;
     backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 
     svg {
         margin-left: 3px;

@@ -80,6 +80,7 @@ const Overlay = styled.div`
     padding: 24px;
     background: rgba(var(--bg-rgb), 0.72);
     backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
     ${fadeInStyle}
 `;
 
