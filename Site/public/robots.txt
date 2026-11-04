@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://t2penbix99wcoxkv3a4g.github.io/YetAnotherFileManager/sitemap.xml
+Sitemap: https://t2penbix99wcoxkv3a4g.github.io/Yet-Another-File-Manager/sitemap.xml

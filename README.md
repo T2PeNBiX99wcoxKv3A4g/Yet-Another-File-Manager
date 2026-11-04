@@ -3,8 +3,8 @@
   <h1>YetAnotherFileManager</h1>
   <p><strong>A file manager that keeps everything in one window.</strong></p>
   <p>
-    <a href="https://t2penbix99wcoxkv3a4g.github.io/YetAnotherFileManager/">Website</a> ·
-    <a href="https://t2penbix99wcoxkv3a4g.github.io/YetAnotherFileManager/#/docs/Getting-Started">Documentation</a>
+    <a href="https://t2penbix99wcoxkv3a4g.github.io/Yet-Another-File-Manager/">Website</a> ·
+    <a href="https://t2penbix99wcoxkv3a4g.github.io/Yet-Another-File-Manager/#/docs/Getting-Started">Documentation</a>
   </p>
   <p>
     <a href="README.ja.md">日本語</a> ·
@@ -106,7 +106,7 @@ Four package formats are published beside the plain archives:
 ## Building from source
 
 ```bash
-git clone https://github.com/T2PeNBiX99wcoxKv3A4g/YetAnotherFileManager.git
+git clone https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager.git
 cd YetAnotherFileManager
 dotnet build YetAnotherFileManager/YetAnotherFileManager.csproj
 ```

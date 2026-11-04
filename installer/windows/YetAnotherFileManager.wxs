@@ -33,7 +33,7 @@
 
         <Icon Id="AppIcon.ico" SourceFile="$(var.IconPath)" />
         <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
-        <Property Id="ARPHELPLINK" Value="https://github.com/T2PeNBiX99wcoxKv3A4g/YetAnotherFileManager" />
+        <Property Id="ARPHELPLINK" Value="https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager" />
         <Property Id="ARPNOMODIFY" Value="1" />
 
         <Feature Id="Main" Title="YetAnotherFileManager" Level="1">

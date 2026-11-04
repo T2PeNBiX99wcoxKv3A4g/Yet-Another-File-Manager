@@ -3,8 +3,8 @@
   <h1>YetAnotherFileManager</h1>
   <p><strong>すべてを 1 つのウィンドウにまとめるファイルマネージャー。</strong></p>
   <p>
-    <a href="https://t2penbix99wcoxkv3a4g.github.io/YetAnotherFileManager/">ウェブサイト</a> ·
-    <a href="https://t2penbix99wcoxkv3a4g.github.io/YetAnotherFileManager/#/docs/Getting-Started">ドキュメント</a>
+    <a href="https://t2penbix99wcoxkv3a4g.github.io/Yet-Another-File-Manager/">ウェブサイト</a> ·
+    <a href="https://t2penbix99wcoxkv3a4g.github.io/Yet-Another-File-Manager/#/docs/Getting-Started">ドキュメント</a>
   </p>
   <p>
     <a href="README.md">English</a> ·
@@ -107,7 +107,7 @@ OS 側で必要なものは、各システムの説明に記載しています�
 ## ソースからビルド
 
 ```bash
-git clone https://github.com/T2PeNBiX99wcoxKv3A4g/YetAnotherFileManager.git
+git clone https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager.git
 cd YetAnotherFileManager
 dotnet build YetAnotherFileManager/YetAnotherFileManager.csproj
 ```

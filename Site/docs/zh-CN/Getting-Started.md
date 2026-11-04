@@ -5,7 +5,7 @@ YetAnotherFileManager 是 Windows 和 Linux 上的桌面文件管理器。它是
 
 ## 安装
 
-从[发布页面](https://github.com/T2PeNBiX99wcoxKv3A4g/YetAnotherFileManager/releases/latest)选择适合你系统的包：
+从[发布页面](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/releases/latest)选择适合你系统的包：
 
 | 系统 | 包 |
 | --- | --- |

@@ -6,7 +6,7 @@ YetAnotherFileManager は Windows と Linux 向けのデスクトップファイ
 
 ## インストール
 
-[リリースページ](https://github.com/T2PeNBiX99wcoxKv3A4g/YetAnotherFileManager/releases/latest)から環境に合うパッケージを選びます。
+[リリースページ](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/releases/latest)から環境に合うパッケージを選びます。
 
 | システム | パッケージ |
 | --- | --- |

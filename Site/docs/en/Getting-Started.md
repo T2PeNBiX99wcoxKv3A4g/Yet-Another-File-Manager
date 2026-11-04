@@ -6,7 +6,7 @@ folders you browse.
 
 ## Install
 
-Pick the package for your system from the [releases page](https://github.com/T2PeNBiX99wcoxKv3A4g/YetAnotherFileManager/releases/latest):
+Pick the package for your system from the [releases page](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/releases/latest):
 
 | System | Package |
 | --- | --- |

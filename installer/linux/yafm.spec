@@ -9,7 +9,7 @@ Release:        1%{?dist}
 Summary:        Tabbed file manager with previews, a gallery and a recycle bin
 
 License:        MIT
-URL:            https://github.com/T2PeNBiX99wcoxKv3A4g/YetAnotherFileManager
+URL:            https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager
 Source0:        %{name}-%{version}.tar.gz
 
 BuildArch:      x86_64

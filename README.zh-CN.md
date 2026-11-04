@@ -3,8 +3,8 @@
   <h1>YetAnotherFileManager</h1>
   <p><strong>把所有东西集中在同一个窗口里的文件管理器。</strong></p>
   <p>
-    <a href="https://t2penbix99wcoxkv3a4g.github.io/YetAnotherFileManager/">网站</a> ·
-    <a href="https://t2penbix99wcoxkv3a4g.github.io/YetAnotherFileManager/#/docs/Getting-Started">文档</a>
+    <a href="https://t2penbix99wcoxkv3a4g.github.io/Yet-Another-File-Manager/">网站</a> ·
+    <a href="https://t2penbix99wcoxkv3a4g.github.io/Yet-Another-File-Manager/#/docs/Getting-Started">文档</a>
   </p>
   <p>
     <a href="README.md">English</a> ·
@@ -98,7 +98,7 @@ YetAnotherFileManager 是我尝试保留熟悉的操作方式，并加入我每�
 ## 从源码构建
 
 ```bash
-git clone https://github.com/T2PeNBiX99wcoxKv3A4g/YetAnotherFileManager.git
+git clone https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager.git
 cd YetAnotherFileManager
 dotnet build YetAnotherFileManager/YetAnotherFileManager.csproj
 ```

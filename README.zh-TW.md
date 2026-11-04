@@ -3,8 +3,8 @@
   <h1>YetAnotherFileManager</h1>
   <p><strong>把所有東西集中在同一個視窗裡的檔案管理員。</strong></p>
   <p>
-    <a href="https://t2penbix99wcoxkv3a4g.github.io/YetAnotherFileManager/">網站</a> ·
-    <a href="https://t2penbix99wcoxkv3a4g.github.io/YetAnotherFileManager/#/docs/Getting-Started">說明文件</a>
+    <a href="https://t2penbix99wcoxkv3a4g.github.io/Yet-Another-File-Manager/">網站</a> ·
+    <a href="https://t2penbix99wcoxkv3a4g.github.io/Yet-Another-File-Manager/#/docs/Getting-Started">說明文件</a>
   </p>
   <p>
     <a href="README.md">English</a> ·
@@ -97,7 +97,7 @@ YetAnotherFileManager 是 Windows 與 Linux 上的桌面檔案管理員。它以
 ## 從原始碼建置
 
 ```bash
-git clone https://github.com/T2PeNBiX99wcoxKv3A4g/YetAnotherFileManager.git
+git clone https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager.git
 cd YetAnotherFileManager
 dotnet build YetAnotherFileManager/YetAnotherFileManager.csproj
 ```
