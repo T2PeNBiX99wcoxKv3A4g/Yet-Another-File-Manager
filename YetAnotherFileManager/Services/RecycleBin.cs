@@ -1,9 +1,12 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Security.Principal;
 using System.Text;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
+using Microsoft.Win32;
 using Serilog;
 using YetAnotherFileManager.Models;
 
@@ -19,8 +22,8 @@ internal static class RecycleBin
 {
     private const int MaxPathChars = 32 * 1024;
 
-    /// <summary>A version 2 record has no room for a longer path, so the shell keeps those.</summary>
-    private const int MaxRecordPath = 260;
+    private const string BitBucketKey = @"Software\Microsoft\Windows\CurrentVersion\Explorer\BitBucket";
+    private const string PolicyKey = @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer";
     private const string TrashInfoSuffix = ".trashinfo";
 
     /// <summary>
@@ -59,6 +62,26 @@ internal static class RecycleBin
 
     public static Task<bool> RestoreAsync(string id, CancellationToken cancellationToken = default) =>
         Task.Run(() => Restore(id), cancellationToken);
+
+    /// <summary>
+    ///     Whether the entry may go to the recycle bin. Windows lets a policy or a per-volume setting
+    ///     turn the bin off, and both mean "delete for good", which the window asks about first. A
+    ///     volume without a <c>$Recycle.Bin</c> folder (FAT, a network share) cannot recycle either.
+    /// </summary>
+    public static bool CanRecycle(string path)
+    {
+        if (!OperatingSystem.IsWindows() || CurrentSid is not { Length: > 0 })
+            return false;
+
+        if (RecycleDisabled())
+            return false;
+
+        var root = Path.GetPathRoot(path);
+
+        return !string.IsNullOrEmpty(root)
+            && Directory.Exists(Path.Combine(root, "$Recycle.Bin"))
+            && !VolumeDeletesPermanently(root);
+    }
 
     /// <summary>
     ///     Puts one entry in the recycle bin of its own volume without going through the shell: the
@@ -248,9 +271,66 @@ internal static class RecycleBin
         }
     }
 
+    /// <summary>The "do not move files to the Recycle Bin" policy, which covers every volume.</summary>
+    [SupportedOSPlatform("windows")]
+    private static bool RecycleDisabled() =>
+        ReadDword(Registry.CurrentUser, PolicyKey, "NoRecycleFiles") == 1
+        || ReadDword(Registry.LocalMachine, PolicyKey, "NoRecycleFiles") == 1;
+
+    /// <summary>
+    ///     The per-volume switch in the Recycle Bin properties ("don't move files to this drive's
+    ///     Recycle Bin"), with the machine-wide value as the fallback.
+    /// </summary>
+    [SupportedOSPlatform("windows")]
+    private static bool VolumeDeletesPermanently(string root)
+    {
+        if (VolumeId(root) is { Length: > 0 } volume)
+        {
+            var perVolume = ReadDword(Registry.CurrentUser, $"{BitBucketKey}\\Volume\\{volume}", "NukeOnDelete");
+
+            if (perVolume is not null)
+                return perVolume == 1;
+
+            var machine = ReadDword(Registry.LocalMachine, $"{BitBucketKey}\\Volume\\{volume}", "NukeOnDelete");
+
+            if (machine is not null)
+                return machine == 1;
+        }
+
+        return ReadDword(Registry.CurrentUser, BitBucketKey, "NukeOnDelete") == 1
+            || ReadDword(Registry.LocalMachine, BitBucketKey, "NukeOnDelete") == 1;
+    }
+
+    /// <summary>The <c>{GUID}</c> the Recycle Bin settings use for the volume a path is on.</summary>
+    private static string? VolumeId(string root)
+    {
+        var buffer = new StringBuilder(64);
+
+        if (!GetVolumeNameForVolumeMountPoint(root, buffer, (uint)buffer.Capacity))
+            return null;
+
+        var name = buffer.ToString();
+        var open = name.IndexOf('{');
+        var close = name.LastIndexOf('}');
+
+        return open >= 0 && close > open ? name[open..(close + 1)] : null;
+    }
+
+    private static int? ReadDword(RegistryKey hive, string path, string name) =>
+        Try.Run(() =>
+        {
+            using var key = hive.OpenSubKey(path);
+            return key?.GetValue(name) is int value ? value : (int?)null;
+        }).GetOrNull();
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetVolumeNameForVolumeMountPoint(string mountPoint, StringBuilder volumeName,
+        uint bufferLength);
+
     private static bool SendWindows(string path)
     {
-        if (CurrentSid is not { Length: > 0 } sid || path.Length >= MaxRecordPath)
+        if (!CanRecycle(path) || CurrentSid is not { Length: > 0 } sid)
             return false;
 
         var root = Path.GetPathRoot(path);

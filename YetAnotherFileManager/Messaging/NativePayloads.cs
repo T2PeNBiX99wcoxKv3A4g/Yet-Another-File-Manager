@@ -164,6 +164,12 @@ internal sealed record PathsPayload(List<string> Paths);
 /// <summary>Payload for <c>fs.operation.delete</c>: the paths and whether they bypass the recycle bin.</summary>
 internal sealed record DeleteRequest(List<string> Paths, bool Permanent);
 
+/// <summary>
+///     Answer for <c>fs.operation.delete</c>. <c>NeedsPermanent</c> says the volume's recycle bin is
+///     turned off, so the selection would be deleted for good and the window has to ask first.
+/// </summary>
+internal sealed record DeletePayload(bool Ok, bool NeedsPermanent = false, string? Error = null);
+
 /// <summary>Payload for <c>fs.operation.rename</c>: the entry and its new name.</summary>
 internal sealed record RenamePathRequest(string Path, string Name);
 

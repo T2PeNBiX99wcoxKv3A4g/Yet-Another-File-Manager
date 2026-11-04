@@ -652,14 +652,26 @@ export function FileList({
         if ((permanent || confirmDelete) && !await askDelete(paths, permanent))
             return;
 
-        if (!await deletePaths(paths, permanent))
-            window.alert(permanent
-                ? t("The shell could not delete the selection.")
-                : t("The shell could not move the selection to the recycle bin."));
-        else {
-            clearSelection();
-            refresh();
+        let result = await deletePaths(paths, permanent);
+
+        // The volume's recycle bin is turned off, so the selection would be deleted for good. Explorer
+        // asks in that case too, whatever the "ask before deleting" setting says.
+        if (!result.ok && result.needsPermanent) {
+            if (!await askDelete(paths, true))
+                return;
+
+            result = await deletePaths(paths, true);
         }
+
+        if (!result.ok) {
+            window.alert(result.error ?? (permanent
+                ? t("Could not delete the selection.")
+                : t("Could not move the selection to the recycle bin.")));
+            return;
+        }
+
+        clearSelection();
+        refresh();
     };
 
     const askDelete = useCallback((paths: string[], permanent: boolean) =>

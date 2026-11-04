@@ -269,8 +269,6 @@
   "The language the interface uses. English is the default; the system option follows the operating system.": "介面使用的語言。預設為英文；系統選項會跟隨作業系統。",
   "The mode every folder starts with. A folder can still remember its own list or grid mode from the title bar.": "每個資料夾一開始使用的模式。資料夾仍可從標題列記住自己的清單或格狀模式。",
   "The recycle bin is empty.": "資源回收筒是空的。",
-  "The shell could not delete the selection.": "殼層無法刪除選取的項目。",
-  "The shell could not move the selection to the recycle bin.": "殼層無法將選取的項目移至資源回收筒。",
   "This PC": "本機",
   "This folder is empty.": "此資料夾是空的。",
   "To clipboard": "複製到剪貼簿",
@@ -447,5 +445,7 @@
   "No tags yet. Add one below; it is available in every folder.": "尚無標籤。在下方新增一個，所有資料夾都能使用。",
   "Every tag in the catalogue; add, rename, recolour or remove them here.": "目錄中的每個標籤；可在此新增、重新命名、改色或移除。",
   "Reopen closed tab": "重新開啟關閉的分頁",
-  "Brings back the tab you closed last, folder and all.": "把最後關閉的分頁連同資料夾一起開回來。"
+  "Brings back the tab you closed last, folder and all.": "把最後關閉的分頁連同資料夾一起開回來。",
+  "Could not delete the selection.": "殼層無法刪除選取的項目。",
+  "Could not move the selection to the recycle bin.": "殼層無法將選取的項目移至資源回收筒。"
 }

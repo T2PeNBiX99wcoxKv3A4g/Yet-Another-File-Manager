@@ -269,8 +269,6 @@
   "The language the interface uses. English is the default; the system option follows the operating system.": "界面使用的语言。默认为英文；系统选项会跟随操作系统。",
   "The mode every folder starts with. A folder can still remember its own list or grid mode from the title bar.": "每个文件夹一开始使用的模式。文件夹仍可从标题栏记住自己的列表或网格模式。",
   "The recycle bin is empty.": "回收站是空的。",
-  "The shell could not delete the selection.": "外壳无法删除所选内容。",
-  "The shell could not move the selection to the recycle bin.": "外壳无法将所选内容移到回收站。",
   "This PC": "此电脑",
   "This folder is empty.": "此文件夹为空。",
   "To clipboard": "复制到剪贴板",
@@ -447,5 +445,7 @@
   "No tags yet. Add one below; it is available in every folder.": "还没有标签。在下方添加一个，所有文件夹都能使用。",
   "Every tag in the catalogue; add, rename, recolour or remove them here.": "目录中的每个标签；可在此添加、重命名、改色或移除。",
   "Reopen closed tab": "重新打开关闭的标签页",
-  "Brings back the tab you closed last, folder and all.": "把最后关闭的标签页连同文件夹一起恢复。"
+  "Brings back the tab you closed last, folder and all.": "把最后关闭的标签页连同文件夹一起恢复。",
+  "Could not delete the selection.": "外壳无法删除所选内容。",
+  "Could not move the selection to the recycle bin.": "外壳无法将所选内容移到回收站。"
 }

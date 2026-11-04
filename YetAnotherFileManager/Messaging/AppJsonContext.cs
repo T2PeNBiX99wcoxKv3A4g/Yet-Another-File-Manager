@@ -22,6 +22,7 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(NativeResponse))]
 [JsonSerializable(typeof(NativeEvent))]
 [JsonSerializable(typeof(OkPayload))]
+[JsonSerializable(typeof(DeletePayload))]
 [JsonSerializable(typeof(LocaleRequest))]
 [JsonSerializable(typeof(LocalePayload))]
 [JsonSerializable(typeof(MemoryPayload))]

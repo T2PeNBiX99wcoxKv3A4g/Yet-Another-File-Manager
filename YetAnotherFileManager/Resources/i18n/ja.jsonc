@@ -269,8 +269,6 @@
   "The language the interface uses. English is the default; the system option follows the operating system.": "インターフェースで使用する言語。既定は英語で、システムを選ぶと OS に従います。",
   "The mode every folder starts with. A folder can still remember its own list or grid mode from the title bar.": "各フォルダーが最初に使うモード。フォルダーはタイトルバーから独自のリスト／グリッドモードを記憶できます。",
   "The recycle bin is empty.": "ごみ箱は空です。",
-  "The shell could not delete the selection.": "シェルが選択項目を削除できませんでした。",
-  "The shell could not move the selection to the recycle bin.": "シェルが選択項目をごみ箱に移動できませんでした。",
   "This PC": "この PC",
   "This folder is empty.": "このフォルダーは空です。",
   "To clipboard": "クリップボードへ",
@@ -447,5 +445,7 @@
   "No tags yet. Add one below; it is available in every folder.": "タグはまだありません。下で追加すると、すべてのフォルダーで使えます。",
   "Every tag in the catalogue; add, rename, recolour or remove them here.": "カタログ内のすべてのタグ。ここで追加、名前の変更、色の変更、削除ができます。",
   "Reopen closed tab": "閉じたタブを開き直す",
-  "Brings back the tab you closed last, folder and all.": "最後に閉じたタブをフォルダーごと開き直します。"
+  "Brings back the tab you closed last, folder and all.": "最後に閉じたタブをフォルダーごと開き直します。",
+  "Could not delete the selection.": "シェルが選択項目を削除できませんでした。",
+  "Could not move the selection to the recycle bin.": "シェルが選択項目をごみ箱に移動できませんでした。"
 }

@@ -76,12 +76,19 @@ export async function pasteInto(directory: string): Promise<boolean> {
     return data.ok;
 }
 
-/** Sends the paths to the recycle bin, or deletes them permanently when asked. */
-export async function deletePaths(paths: string[], permanent = false): Promise<boolean> {
-    if (!Native.available || paths.length === 0) return false;
+export interface DeleteResult {
+    ok: boolean;
+    /** The volume's recycle bin is turned off, so the selection would be deleted for good. */
+    needsPermanent: boolean;
+    error: string | null;
+}
 
-    const data = await Native.request<{ ok: boolean }>("fs.operation.delete", {paths, permanent});
-    return data.ok;
+/** Sends the paths to the recycle bin, or deletes them permanently when asked. */
+export async function deletePaths(paths: string[], permanent = false): Promise<DeleteResult> {
+    if (!Native.available || paths.length === 0)
+        return {ok: false, needsPermanent: false, error: null};
+
+    return await Native.request<DeleteResult>("fs.operation.delete", {paths, permanent});
 }
 
 /** Renames one entry; the result carries the new path or the reason it was refused. */

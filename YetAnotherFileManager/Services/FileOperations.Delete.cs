@@ -1,5 +1,6 @@
 using Serilog;
 using YetAnotherFileManager.Interop;
+using YetAnotherFileManager.Messaging;
 
 namespace YetAnotherFileManager.Services;
 
@@ -11,24 +12,27 @@ namespace YetAnotherFileManager.Services;
 internal static partial class FileOperations
 {
     /// <summary>Sends the paths to the recycle bin, or deletes them permanently when asked.</summary>
-    public static async Task<bool> DeleteAsync(IReadOnlyList<string> paths, bool permanent = false)
+    public static async Task<DeletePayload> DeleteAsync(IReadOnlyList<string> paths, bool permanent = false)
     {
         var items = Selection(paths);
         if (items.Count == 0)
-            return false;
+            return new DeletePayload(false, false, "There is nothing to delete.");
+
+        // A policy or a volume setting can turn the bin off; that means "delete for good", which
+        // Explorer asks about first, so the window gets the same chance.
+        if (!permanent && items.Any(path => !RecycleBin.CanRecycle(path)))
+            return new DeletePayload(false, true, "The recycle bin is turned off for this volume.");
 
         var deletedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var (step, deleted) = await DeleteWithProgressAsync(items, permanent);
 
-        if (permanent || deleted == 0)
-            return step.Ok;
+        if (!permanent && deleted > 0)
+            // Undo puts back whatever really reached the bin, so the whole selection is tried.
+            FileHistory.Instance.Record($"Delete {deleted} item(s)",
+                undo: () => RestoreFromRecycleAsync(items, deletedAt),
+                redo: async () => (await DeleteWithProgressAsync(items, false)).Step);
 
-        // Undo puts back whatever really reached the bin, so the whole selection is tried.
-        FileHistory.Instance.Record($"Delete {deleted} item(s)",
-            undo: () => RestoreFromRecycleAsync(items, deletedAt),
-            redo: async () => (await DeleteWithProgressAsync(items, false)).Step);
-
-        return step.Ok;
+        return new DeletePayload(step.Ok, false, step.Error);
     }
 
     private static async Task<FileHistory.Step> DeleteCoreAsync(IReadOnlyList<string> paths, bool permanent) =>
