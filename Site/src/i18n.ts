@@ -22,6 +22,10 @@ export interface Copy {
     /** Label for the release badge, read out with the version number. */
     version: string;
     footer: string;
+    /** The credit line is split so the project name can be a link. */
+    creditsBefore: string;
+    creditsLink: string;
+    creditsAfter: string;
     home: {
         tagline: string;
         download: string;

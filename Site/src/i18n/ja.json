@@ -82,5 +82,8 @@
   "docs": {
     "setup": "はじめに",
     "reference": "リファレンス"
-  }
+  },
+  "creditsBefore": "デザインの参考: ",
+  "creditsLink": "Sigma File Manager",
+  "creditsAfter": "（Aleksey Hoffman）。"
 }

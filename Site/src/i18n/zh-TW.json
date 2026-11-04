@@ -82,5 +82,8 @@
   "docs": {
     "setup": "開始使用",
     "reference": "參考"
-  }
+  },
+  "creditsBefore": "設計參考：",
+  "creditsLink": "Sigma File Manager",
+  "creditsAfter": "（Aleksey Hoffman）。"
 }

@@ -82,5 +82,8 @@
   "docs": {
     "setup": "Getting started",
     "reference": "Reference"
-  }
+  },
+  "creditsBefore": "Design reference: ",
+  "creditsLink": "Sigma File Manager",
+  "creditsAfter": " by Aleksey Hoffman."
 }

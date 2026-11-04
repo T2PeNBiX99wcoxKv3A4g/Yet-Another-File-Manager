@@ -5,7 +5,7 @@ import {siGithub} from "simple-icons";
 import {HomePage} from "./pages/Home";
 import {DocsPage} from "./pages/Docs";
 import {docs} from "./docs.generated";
-import {ICON, REPOSITORY, RELEASES} from "./constants";
+import {ICON, REPOSITORY, RELEASES, SIGMA_REPOSITORY} from "./constants";
 import {docsHref, homeHref} from "./links";
 import {useVersion} from "./version";
 import {LANGUAGES, type Copy, type Language} from "./i18n";
@@ -240,6 +240,24 @@ const Footer = styled.footer`
     color: var(--text-muted);
     font-size: 0.78rem;
     text-align: center;
+
+    p {
+        margin: 0;
+    }
+
+    p + p {
+        margin-top: 4px;
+    }
+
+    a {
+        color: var(--text-secondary);
+        text-decoration: none;
+
+        &:hover {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+    }
 `;
 
 /** `#/docs` and `#%2Fdocs` both mean the same page; a stray encoding must not break the route. */
@@ -337,7 +355,14 @@ const Site: React.FC = () => {
                 {route.section === "docs" ? <DocsPage page={route.page}/> : <HomePage/>}
             </Content>
 
-            <Footer>{copy.footer}</Footer>
+            <Footer>
+                <p>{copy.footer}</p>
+                <p>
+                    {copy.creditsBefore}
+                    <a href={SIGMA_REPOSITORY} rel="noreferrer" target="_blank">{copy.creditsLink}</a>
+                    {copy.creditsAfter}
+                </p>
+            </Footer>
         </Shell>
     );
 };

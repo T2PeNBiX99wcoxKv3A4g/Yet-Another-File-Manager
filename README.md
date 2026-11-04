@@ -140,6 +140,11 @@ npm install
 npm run dev
 ```
 
+## Credits
+
+- [Sigma File Manager](https://github.com/aleksey-hoffman/sigma-file-manager) by Aleksey Hoffman —
+  an early design reference for the layout and the feature set.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

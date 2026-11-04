@@ -132,6 +132,11 @@ npm install
 npm run dev
 ```
 
+## 致谢
+
+- [Sigma File Manager](https://github.com/aleksey-hoffman/sigma-file-manager)，作者 Aleksey Hoffman —
+  早期在布局与功能规划上的参考。
+
 ## 许可
 
 MIT — 请见 [LICENSE](LICENSE)。
