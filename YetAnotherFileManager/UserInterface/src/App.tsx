@@ -1974,20 +1974,22 @@ export default function App() {
                     <StatusBar>
                         <span>{kind === "files" && active.listing ? statusLine(t, active.listing) : ""}</span>
                         {appInfo ? (
-                            <VersionButton
-                                $alert={update?.available ?? false}
-                                onClick={() => {
-                                    setSettingsFocus("updates");
-                                    openView("settings");
-                                }}
-                                title={update?.available
-                                    ? t("Version {version} is available.", {version: update.latest})
-                                    : t("Version {version}", {version: appInfo.version})}
-                                type="button"
-                            >
-                                v{appInfo.version} · {appInfo.platform}
-                                {update?.available && <UpdateDot/>}
-                            </VersionButton>
+                            <StatusRight>
+                                <span>v{appInfo.version} · {appInfo.platform}</span>
+                                {update?.available && (
+                                    <UpdatePill
+                                        onClick={() => {
+                                            setSettingsFocus("updates");
+                                            openView("settings");
+                                        }}
+                                        title={t("Version {version} is available.", {version: update.latest})}
+                                        type="button"
+                                    >
+                                        <UpdateDot/>
+                                        {t("Update available")}
+                                    </UpdatePill>
+                                )}
+                            </StatusRight>
                         ) : <span>browser preview</span>}
                     </StatusBar>
                 </Main>
@@ -2179,37 +2181,55 @@ const FileColumn = styled.div`
     min-height: 0;
 `;
 
-const VersionButton = styled.button<{ $alert: boolean }>`
+const StatusRight = styled.span`
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+`;
+
+/** A newer build exists; the pill is the way into the update section. */
+const UpdatePill = styled.button`
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 2px 6px;
-    margin: -2px -6px;
-    border: 0;
-    border-radius: var(--radius-sm);
-    background: transparent;
-    color: ${({$alert}) => $alert ? "var(--text-primary)" : "inherit"};
+    padding: 2px 9px;
+    border: 1px solid rgba(var(--accent-rgb), 0.55);
+    border-radius: 999px;
+    background: rgba(var(--accent-rgb), 0.18);
+    color: var(--text-primary);
     font: inherit;
+    font-size: 10px;
+    font-weight: 600;
     cursor: pointer;
+    animation: updatePulse 2.4s ease-in-out infinite;
 
     &:hover {
-        background: var(--bg-card-hover);
-        color: var(--text-primary);
+        border-color: var(--accent-primary);
+        background: rgba(var(--accent-rgb), 0.32);
     }
 
     &:focus-visible {
         outline: 1px solid var(--border-color-focus);
-        outline-offset: 1px;
+        outline-offset: 2px;
+    }
+
+    @keyframes updatePulse {
+        0%, 100% {
+            box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0);
+        }
+        50% {
+            box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.16);
+        }
     }
 `;
 
 /** The dot that says a newer build is published. */
 const UpdateDot = styled.span`
-    width: 7px;
-    height: 7px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     background: var(--accent-primary);
-    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.2);
+    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.22);
 `;
 
 const StatusBar = styled.footer`

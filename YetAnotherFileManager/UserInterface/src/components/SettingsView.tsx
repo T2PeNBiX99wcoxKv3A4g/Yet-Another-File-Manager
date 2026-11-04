@@ -16,7 +16,7 @@ import {
 import type {AppInfo} from "../api/system";
 import {checkUpdate, getMemory, getScheme, getUpdateStatus, openUrl, setScheme, trimMemory,
     type MemoryUsage, type UpdateCheck} from "../api/system";
-import {deleteTag, listTags, renameTag, type TagCatalogEntry} from "../api/tags";
+import {createTag, deleteTag, listTags, renameTag, setTagColor, type TagCatalogEntry} from "../api/tags";
 import {CheckIcon, ChevronRightIcon, CrossIcon, PlusIcon, TrashIcon} from "./Icons";
 import {IconPicker} from "./IconPicker";
 import {DefaultTagColor} from "./TagPicker";
@@ -151,6 +151,8 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
     const [editingTag, setEditingTag] = useState<{ name: string; value: string } | null>(null);
     const [tagBusy, setTagBusy] = useState(false);
     const [tagError, setTagError] = useState<string | null>(null);
+    const [newTagName, setNewTagName] = useState("");
+    const [newTagColor, setNewTagColor] = useState(DefaultTagColor);
     const [recentColors, setRecentColors] = useState<RecentColors>(readRecentColors);
     const [draftPreset, setDraftPreset] = useState<{ name: string; accent: string; secondary: string } | null>(null);
     const [updateState, setUpdateState] = useState<UpdateCheck | null>(null);
@@ -330,6 +332,30 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
         const color = role === "accent" ? accentNow : secondaryNow;
         if (color.toLowerCase() !== start.color.toLowerCase())
             rememberColor(role, start.color);
+    };
+
+    const addTag = async () => {
+        const name = newTagName.trim();
+        if (!name || tagBusy) return;
+
+        setTagBusy(true);
+        setTagError(null);
+
+        try {
+            setTags(await createTag(name, newTagColor));
+            setNewTagName("");
+        } catch {
+            setTagError(t("Could not add the tag."));
+        } finally {
+            setTagBusy(false);
+        }
+    };
+
+    const recolorTag = async (name: string, color: string) => {
+        setTags((current) => current.map((tag) => tag.name === name ? {...tag, color} : tag));
+
+        if (!await setTagColor(name, color))
+            setTagError(t("Could not change the tag's color."));
     };
 
     const removeTag = async (name: string) => {
@@ -804,10 +830,45 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
 
                 <Section ref={anchor("tags")}>
                     <Head
-                        note="Every tag the catalogue has seen, ready to rename or remove."
+                        note="Every tag in the catalogue; add, rename, recolour or remove them here."
                         title="Tags"
                     />
                     <Rows>
+                        <Row>
+                            <RowText>
+                                <LabelRow>
+                                    <TagColorInput
+                                        aria-label={t("Color of the new tag")}
+                                        onChange={(event) => setNewTagColor(event.target.value)}
+                                        type="color"
+                                        value={newTagColor}
+                                    />
+                                    <Input
+                                        onChange={(event) => setNewTagName(event.target.value)}
+                                        onKeyDown={(event) => {
+                                            if (event.key === "Enter") {
+                                                event.preventDefault();
+                                                void addTag();
+                                            }
+                                        }}
+                                        placeholder={t("New tag")}
+                                        spellCheck={false}
+                                        value={newTagName}
+                                    />
+                                </LabelRow>
+                                <Note>{t("Add a tag here; it is available in every folder.")}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <SmallButton
+                                    disabled={tagBusy || newTagName.trim().length === 0}
+                                    onClick={() => void addTag()}
+                                    type="button"
+                                >
+                                    {t("Add")}
+                                </SmallButton>
+                            </RowEnd>
+                        </Row>
+
                         {tagError && (
                             <Row>
                                 <TagError>{tagError}</TagError>
@@ -816,7 +877,7 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
                         {tags.length === 0 && (
                             <Row>
                                 <Note>
-                                    {t("No tags yet. Add one from an entry's Tags cell; every tag you use will appear here.")}
+                                    {t("No tags yet. Add one below; it is available in every folder.")}
                                 </Note>
                             </Row>
                         )}
@@ -827,7 +888,13 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
                                         <>
                                             <RowText>
                                                 <LabelRow>
-                                                    <TagDot $color={tag.color ?? DefaultTagColor}/>
+                                                    <TagColorInput
+                                                        aria-label={t("Color of {tag}", {tag: tag.name})}
+                                                        onChange={(event) => void recolorTag(tag.name, event.target.value)}
+                                                        title={t("Change this tag's color")}
+                                                        type="color"
+                                                        value={tag.color ?? DefaultTagColor}
+                                                    />
                                                     <RenameTagInput
                                                         autoFocus
                                                         disabled={tagBusy}
@@ -863,7 +930,13 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
                                         <>
                                             <RowText>
                                                 <LabelRow>
-                                                    <TagDot $color={tag.color ?? DefaultTagColor}/>
+                                                    <TagColorInput
+                                                        aria-label={t("Color of {tag}", {tag: tag.name})}
+                                                        onChange={(event) => void recolorTag(tag.name, event.target.value)}
+                                                        title={t("Change this tag's color")}
+                                                        type="color"
+                                                        value={tag.color ?? DefaultTagColor}
+                                                    />
                                                     <Label>{tag.name}</Label>
                                                 </LabelRow>
                                                 <Note>
@@ -2177,12 +2250,24 @@ const Value = styled.span`
     color: var(--text-muted);
 `;
 
-const TagDot = styled.span<{ $color: string }>`
-    width: 10px;
-    height: 10px;
+const TagColorInput = styled.input`
+    width: 16px;
+    height: 16px;
     flex-shrink: 0;
-    border-radius: 50%;
-    background: ${({$color}) => $color};
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: transparent;
+    cursor: pointer;
+
+    &::-webkit-color-swatch-wrapper {
+        padding: 1px;
+    }
+
+    &::-webkit-color-swatch {
+        border: 0;
+        border-radius: 3px;
+    }
 `;
 
 const RenameTagInput = styled.input`

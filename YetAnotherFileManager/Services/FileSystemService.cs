@@ -297,6 +297,17 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                     new OkPayload(await TagCatalog.Instance.RenameAsync(
                         renameTag?.OldName ?? "", renameTag?.NewName ?? "")));
 
+            case "app.tags.create":
+                var createTag = context.Payload<TagCreateRequest>();
+                TagCatalog.Instance.Ensure(createTag?.Name ?? "", createTag?.Color);
+                return context.Reply("app.tags.create.result",
+                    new TagsCatalogPayload(TagCatalog.Instance.List().ToList()));
+
+            case "app.tags.color":
+                var colorTag = context.Payload<TagColorRequest>();
+                return context.Reply("app.tags.color.result",
+                    new OkPayload(TagCatalog.Instance.SetColor(colorTag?.Name ?? "", colorTag?.Color ?? "")));
+
             case "fs.operation.properties":
                 await FileOperations.ShowPropertiesAsync(context.Payload<PathsPayload>()?.Paths ?? []);
                 return context.Reply("fs.operation.properties.result", new OkPayload(true));
@@ -486,19 +497,18 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             ? Task.FromResult(false)
             : DirectoryIndex.SaveViewAsync(request.Directory, request.View);
 
-    /// <summary>Stores the tags of one entry, and the tag colors when the picker sent them.</summary>
+    /// <summary>Stores one entry's tags by id, creating catalogue entries for new names.</summary>
     private static async Task<bool> SaveTagsAsync(TagsRequest? request)
     {
         if (request is null || request.Directory.Length == 0 || request.Name.Length == 0)
             return false;
 
-        var saved = await DirectoryIndex.SetTagsAsync(request.Directory, request.Name, request.Tags);
-
-        if (request.Colors is { } colors)
-            await DirectoryIndex.SaveTagColorsAsync(request.Directory, colors);
+        var catalog = TagCatalog.Instance;
+        var ids = catalog.ResolveIds(request.Tags, request.Colors);
+        var saved = await DirectoryIndex.SetTagsAsync(request.Directory, request.Name, ids);
 
         if (saved)
-            TagCatalog.Instance.Record(request.Directory, request.Tags, request.Colors);
+            catalog.Record(request.Directory, request.Tags, request.Colors);
 
         return saved;
     }
@@ -717,24 +727,10 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         var sizes = metadata.Sizes;
         var view = metadata.View;
         var tags = metadata.Tags;
-        var tagColors = metadata.TagColors;
         var counts = metadata.Counts;
 
-        // Tags are per folder, but the catalogue remembers every name and colour so the Settings
-        // manager can list them and the picker can suggest tags from other folders.
-        var catalog = TagCatalog.Instance;
-        catalog.Record(directory.FullName, tags.Values.SelectMany(list => list).Concat(tagColors.Keys), tagColors);
-
-        foreach (var (name, color) in catalog.Colors)
-            tagColors.TryAdd(name, color);
-
-        var allTags = tags.Values
-            .SelectMany(list => list)
-            .Concat(tagColors.Keys)
-            .Concat(catalog.Names)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        // Tags are stored by id; the catalogue resolves them to names and owns the colours.
+        var (resolvedTags, tagColors, allTags) = ResolveTags(directory.FullName, tags, metadata.TagColors);
 
         // Everything is enumerated, hidden and system entries included, so the cache is complete;
         // the response only carries what the user's settings ask to see.
@@ -788,7 +784,49 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         RequestMeasurements(directory.FullName, entries, measure);
         _ = HistoryService.Instance.RecordRecentAsync(directory.FullName);
 
-        return new(directory.FullName, directory.Parent?.FullName, entries, sizes, view, tags, tagColors, allTags, counts);
+        return new(directory.FullName, directory.Parent?.FullName, entries, sizes, view, resolvedTags, tagColors, allTags, counts);
+    }
+
+    /// <summary>
+    ///     Turns the values stored in a folder index into tag ids (migrating legacy names), then back
+    ///     into names for the interface. Colours always come from the catalogue, so a tag looks the
+    ///     same in every folder.
+    /// </summary>
+    private static (Dictionary<string, List<string>> Tags, Dictionary<string, string> Colors, List<string> All)
+        ResolveTags(string directory, Dictionary<string, List<string>> tags, Dictionary<string, string> tagColors)
+    {
+        var catalog = TagCatalog.Instance;
+        var byName = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        var names = new List<string>();
+
+        foreach (var (entry, values) in tags)
+        {
+            var ids = catalog.ResolveIds(values);
+            var resolved = ids.Select(catalog.NameOf).OfType<string>().ToList();
+
+            byName[entry] = resolved;
+            names.AddRange(resolved);
+
+            // Older indexes stored names; rewrite them with ids the first time they are listed.
+            if (!values.SequenceEqual(ids, StringComparer.OrdinalIgnoreCase))
+                _ = DirectoryIndex.SetTagsAsync(directory, entry, ids);
+        }
+
+        catalog.Record(directory, names.Concat(tagColors.Keys), tagColors);
+
+        var colors = new Dictionary<string, string>(tagColors, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (name, color) in catalog.Colors)
+            colors[name] = color;
+
+        var all = names
+            .Concat(colors.Keys)
+            .Concat(catalog.Names)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return (byName, colors, all);
     }
 
     /// <summary>
@@ -811,22 +849,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         var sizes = metadata.Sizes;
         var view = metadata.View;
         var tags = metadata.Tags;
-        var tagColors = metadata.TagColors;
         var counts = metadata.Counts;
 
-        var catalog = TagCatalog.Instance;
-        catalog.Record(directory.FullName, tags.Values.SelectMany(list => list).Concat(tagColors.Keys), tagColors);
-
-        foreach (var (name, color) in catalog.Colors)
-            tagColors.TryAdd(name, color);
-
-        var allTags = tags.Values
-            .SelectMany(list => list)
-            .Concat(tagColors.Keys)
-            .Concat(catalog.Names)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var (resolvedTags, tagColors, allTags) = ResolveTags(directory.FullName, tags, metadata.TagColors);
 
         var visible = entries
             .Where(entry => (showSystem || !entry.IsSystem) && (showHidden || !entry.IsHidden))
@@ -834,7 +859,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             .ToList();
 
         return new(true, new FsListPayload(directory.FullName, directory.Parent?.FullName, visible, sizes, view,
-            tags, tagColors, allTags, counts));
+            resolvedTags, tagColors, allTags, counts));
     }
 
     /// <summary>Queues the child folders whose size or item count is stale.</summary>

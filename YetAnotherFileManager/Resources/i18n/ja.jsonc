@@ -439,5 +439,11 @@
   "Open release page": "リリースページを開く",
   "Could not check for updates.": "アップデートを確認できませんでした。",
   "You are on the latest version.": "最新バージョンです。",
-  "Version {version}": "バージョン {version}"
+  "Version {version}": "バージョン {version}",
+  "Update available": "アップデートあり",
+  "Add a tag here; it is available in every folder.": "ここでタグを追加すると、すべてのフォルダーで使えます。",
+  "Could not add the tag.": "タグを追加できませんでした。",
+  "Could not change the tag's color.": "タグの色を変更できませんでした。",
+  "No tags yet. Add one below; it is available in every folder.": "タグはまだありません。下で追加すると、すべてのフォルダーで使えます。",
+  "Every tag in the catalogue; add, rename, recolour or remove them here.": "カタログ内のすべてのタグ。ここで追加、名前の変更、色の変更、削除ができます。"
 }

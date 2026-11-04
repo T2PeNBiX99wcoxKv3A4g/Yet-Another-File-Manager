@@ -7,15 +7,17 @@ using YetAnotherFileManager.Messaging;
 namespace YetAnotherFileManager.Services;
 
 /// <summary>
-///     A global catalogue of the tags the app has seen. Tags themselves stay in each folder's index;
-///     this file only remembers their names, their last colour and which folders used them, so the
-///     Settings page can list them and a delete can clean every index that still contains one.
+///     The global tag catalogue: every tag has an id, a name and a colour, and a folder's index
+///     stores the id rather than the text. The catalogue also remembers which folders used a tag, so
+///     deleting one can clean every index that still contains its id.
 /// </summary>
 internal sealed class TagCatalog : Singleton<TagCatalog>
 {
     private static readonly string CatalogPath = Path.Combine(Constants.SettingsDirectory, "tags.json");
 
     private readonly Lock _gate = new();
+
+    /// <summary>Tags by name, which is how the settings page and the picker talk about them.</summary>
     private readonly Dictionary<string, TagRecord> _tags = new(StringComparer.OrdinalIgnoreCase);
 
     private Timer? _saveTimer;
@@ -48,7 +50,7 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
             {
                 if (!_tags.TryGetValue(name, out var record))
                 {
-                    _tags[name] = record = new TagRecord {Name = name};
+                    _tags[name] = record = NewRecord(name);
                     changed = true;
                 }
 
@@ -71,6 +73,93 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
         }
     }
 
+    /// <summary>Returns the tag with this name, creating it when it is new.</summary>
+    public TagRecord Ensure(string name, string? color = null)
+    {
+        name = name.Trim();
+
+        lock (_gate)
+        {
+            EnsureLoaded();
+
+            if (!_tags.TryGetValue(name, out var record))
+            {
+                _tags[name] = record = NewRecord(name);
+                ScheduleSave();
+            }
+
+            if (!string.IsNullOrWhiteSpace(color) && !string.Equals(record.Color, color, StringComparison.OrdinalIgnoreCase))
+            {
+                record.Color = color;
+                ScheduleSave();
+            }
+
+            return Copy(record);
+        }
+    }
+
+    /// <summary>
+    ///     Maps the values stored in a folder index to tag ids. An id is kept as it is, a legacy name
+    ///     becomes its tag's id, and an unknown name becomes a new tag.
+    /// </summary>
+    public IReadOnlyList<string> ResolveIds(IEnumerable<string> values, IReadOnlyDictionary<string, string>? colors = null)
+    {
+        lock (_gate)
+        {
+            EnsureLoaded();
+
+            var ids = new List<string>();
+            var changed = false;
+
+            foreach (var value in values)
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                    continue;
+
+                var id = _tags.Values.FirstOrDefault(record => string.Equals(record.Id, value, StringComparison.OrdinalIgnoreCase))?.Id;
+
+                if (id is null)
+                {
+                    var name = value.Trim();
+
+                    if (!_tags.TryGetValue(name, out var record))
+                    {
+                        _tags[name] = record = NewRecord(name);
+                        changed = true;
+                    }
+
+                    if (colors is not null && colors.TryGetValue(name, out var color)
+                        && !string.Equals(record.Color, color, StringComparison.OrdinalIgnoreCase))
+                    {
+                        record.Color = color;
+                        changed = true;
+                    }
+
+                    id = record.Id;
+                }
+
+                if (!ids.Contains(id, StringComparer.OrdinalIgnoreCase))
+                    ids.Add(id);
+            }
+
+            if (changed)
+                ScheduleSave();
+
+            return ids;
+        }
+    }
+
+    /// <summary>The name of a tag id, or null when the id is no longer in the catalogue.</summary>
+    public string? NameOf(string id)
+    {
+        lock (_gate)
+        {
+            EnsureLoaded();
+
+            return _tags.Values.FirstOrDefault(record => string.Equals(record.Id, id, StringComparison.OrdinalIgnoreCase))?.Name;
+        }
+    }
+
     /// <summary>Every tag, alphabetical, with the number of folders it was seen in.</summary>
     public IReadOnlyList<TagCatalogEntry> List()
     {
@@ -80,7 +169,7 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
 
             return _tags.Values
                 .OrderBy(record => record.Name, StringComparer.OrdinalIgnoreCase)
-                .Select(record => new TagCatalogEntry(record.Name, record.Color, record.Directories.Count))
+                .Select(record => new TagCatalogEntry(record.Id, record.Name, record.Color, record.Directories.Count))
                 .ToList();
         }
     }
@@ -97,7 +186,7 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
         }
     }
 
-    /// <summary>Colours chosen in any folder; a folder's own colour wins when it has one.</summary>
+    /// <summary>The colour of every tag, by name; the folder's own colour is only a legacy fallback.</summary>
     public IReadOnlyDictionary<string, string> Colors
     {
         get
@@ -113,12 +202,32 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
         }
     }
 
+    /// <summary>Changes one tag's colour everywhere.</summary>
+    public bool SetColor(string name, string color)
+    {
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(color))
+            return false;
+
+        lock (_gate)
+        {
+            EnsureLoaded();
+
+            if (!_tags.TryGetValue(name, out var record))
+                return false;
+
+            record.Color = color;
+            ScheduleSave();
+            return true;
+        }
+    }
+
     /// <summary>Removes a tag from every index the catalogue has seen, then from the catalogue.</summary>
     public async Task<bool> DeleteAsync(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
             return false;
 
+        string id;
         string[] directories;
 
         lock (_gate)
@@ -128,6 +237,7 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
             if (!_tags.Remove(name, out var record))
                 return false;
 
+            id = record.Id;
             directories = [.. record.Directories];
             ScheduleSave();
         }
@@ -136,7 +246,8 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
 
         foreach (var directory in directories)
         {
-            var removed = await Try.Run(() => FolderIndex.RemoveTagAsync(directory, name));
+            // Indexes store the id, so that is what has to be removed.
+            var removed = await Try.Run(() => FolderIndex.RemoveTagAsync(directory, id));
             if (!removed.GetOrElse(_ => false))
             {
                 failed.Add(directory);
@@ -151,14 +262,14 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
         // success here would only be undone by the next listing of that folder.
         lock (_gate)
         {
-            _tags[name] = new TagRecord {Name = name, Directories = failed};
+            _tags[name] = new TagRecord {Id = id, Name = name, Directories = failed};
             ScheduleSave();
         }
 
         return false;
     }
 
-    /// <summary>Renames a tag in every index the catalogue knows, merging with an existing name.</summary>
+    /// <summary>Renames a tag; the id stays the same, so no folder index has to change.</summary>
     public async Task<bool> RenameAsync(string name, string next)
     {
         next = next.Trim();
@@ -172,27 +283,17 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
         {
             EnsureLoaded();
 
-            if (!_tags.Remove(name, out var record))
+            if (!_tags.TryGetValue(name, out var record) || _tags.ContainsKey(next))
                 return false;
 
-            if (_tags.TryGetValue(next, out var existing))
-            {
-                foreach (var directory in record.Directories)
-                    if (!existing.Directories.Contains(directory, StringComparer.OrdinalIgnoreCase))
-                        existing.Directories.Add(directory);
-
-                existing.Color ??= record.Color;
-            }
-            else
-            {
-                record.Name = next;
-                _tags[next] = record;
-            }
-
+            _tags.Remove(name);
+            record.Name = next;
+            _tags[next] = record;
             directories = [.. record.Directories];
             ScheduleSave();
         }
 
+        // Legacy indexes may still hold the old name; rewrite those, while ids need no change.
         foreach (var directory in directories)
         {
             var renamed = await Try.Run(() => FolderIndex.RenameTagAsync(directory, name, next));
@@ -202,6 +303,12 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
 
         return true;
     }
+
+    private static TagRecord NewRecord(string name) =>
+        new() {Id = Guid.NewGuid().ToString("N"), Name = name};
+
+    private static TagRecord Copy(TagRecord record) =>
+        new() {Id = record.Id, Name = record.Name, Color = record.Color, Directories = [.. record.Directories]};
 
     private void EnsureLoaded()
     {
@@ -217,9 +324,25 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
             File.ReadAllText(CatalogPath),
             AppJsonContext.Default.ListTagRecord)).GetOrNull();
 
+        var changed = false;
+
         foreach (var record in records ?? [])
-            if (!string.IsNullOrWhiteSpace(record.Name))
-                _tags[record.Name] = record;
+        {
+            if (string.IsNullOrWhiteSpace(record.Name))
+                continue;
+
+            // Records written before tags had ids get one now.
+            if (string.IsNullOrWhiteSpace(record.Id))
+            {
+                record.Id = Guid.NewGuid().ToString("N");
+                changed = true;
+            }
+
+            _tags[record.Name] = record;
+        }
+
+        if (changed)
+            ScheduleSave();
     }
 
     private void ScheduleSave()

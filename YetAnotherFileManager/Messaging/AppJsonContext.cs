@@ -117,6 +117,8 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(TagsCatalogPayload))]
 [JsonSerializable(typeof(TagDeleteRequest))]
 [JsonSerializable(typeof(TagRenameRequest))]
+[JsonSerializable(typeof(TagCreateRequest))]
+[JsonSerializable(typeof(TagColorRequest))]
 [JsonSerializable(typeof(TextPreviewRequest))]
 [JsonSerializable(typeof(TextPreviewPayload))]
 [JsonSerializable(typeof(TagRecord))]

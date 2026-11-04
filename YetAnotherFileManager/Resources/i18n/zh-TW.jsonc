@@ -439,5 +439,11 @@
   "Open release page": "開啟發行頁面",
   "Could not check for updates.": "無法檢查更新。",
   "You are on the latest version.": "您已是最新版本。",
-  "Version {version}": "版本 {version}"
+  "Version {version}": "版本 {version}",
+  "Update available": "有可用更新",
+  "Add a tag here; it is available in every folder.": "在這裡新增標籤，所有資料夾都能使用。",
+  "Could not add the tag.": "無法新增標籤。",
+  "Could not change the tag's color.": "無法變更標籤顏色。",
+  "No tags yet. Add one below; it is available in every folder.": "尚無標籤。在下方新增一個，所有資料夾都能使用。",
+  "Every tag in the catalogue; add, rename, recolour or remove them here.": "目錄中的每個標籤；可在此新增、重新命名、改色或移除。"
 }

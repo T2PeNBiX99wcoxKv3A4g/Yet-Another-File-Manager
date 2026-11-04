@@ -258,7 +258,7 @@ internal sealed record RecycleBatchRequest(List<string> Ids);
 internal sealed record RecycleBatchPayload(bool Ok, int Done);
 
 /// <summary>A tag the app has seen, for the Settings tag manager.</summary>
-internal sealed record TagCatalogEntry(string Name, string? Color, int Folders);
+internal sealed record TagCatalogEntry(string Id, string Name, string? Color, int Folders);
 
 /// <summary>Body for <c>app.tags</c>: every tag the catalogue knows.</summary>
 internal sealed record TagsCatalogPayload(List<TagCatalogEntry> Tags);
@@ -269,6 +269,12 @@ internal sealed record TagDeleteRequest(string Name);
 /// <summary>Payload for <c>app.tags.rename</c>: the tag's old and new names.</summary>
 internal sealed record TagRenameRequest(string OldName, string NewName);
 
+/// <summary>Payload for <c>app.tags.create</c>: the new tag's name and colour.</summary>
+internal sealed record TagCreateRequest(string Name, string? Color);
+
+/// <summary>Payload for <c>app.tags.color</c>: the tag and its new colour.</summary>
+internal sealed record TagColorRequest(string Name, string Color);
+
 /// <summary>Payload for <c>fs.preview.text</c>: the path whose text should be read.</summary>
 internal sealed record TextPreviewRequest(string Path);
 
@@ -278,6 +284,7 @@ internal sealed record TextPreviewPayload(string? Text, bool Truncated, string? 
 /// <summary>Persisted tag catalogue record; <c>Directories</c> lets a delete clean the indexes.</summary>
 public sealed class TagRecord
 {
+    public string Id { get; set; } = "";
     public string Name { get; set; } = "";
     public string? Color { get; set; }
     public List<string> Directories { get; set; } = [];
