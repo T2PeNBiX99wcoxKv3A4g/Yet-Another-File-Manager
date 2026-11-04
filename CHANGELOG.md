@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.1.0..v0.1.1) - 2026-11-04
+
+### 🐛 Bug Fixes
+
+- Point the links at the actual repository name - ([ee812fb](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/ee812fb7db5287ef952830c674d1dbfc61a6cd92))
+
+### 🚜 Refactor
+
+- Display the app as Yet Another File Manager - ([2ad521a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/2ad521aa65f87d14fbb450209713e7319c8fff47))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([9d6b783](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/9d6b783e84603d543443cc38aeabc87b353a07f7))
+
+## New Contributors ❤️
+
+* @github-actions[bot] made their first contribution
+
 ## [0.1.0] - 2026-11-04
 
 ### ⛰️  Features
