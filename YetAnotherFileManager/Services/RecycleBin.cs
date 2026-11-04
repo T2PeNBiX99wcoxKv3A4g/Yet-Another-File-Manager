@@ -40,6 +40,7 @@ internal static class RecycleBin
     // ---- Windows ----
 
     /// <summary>The per-user folder Windows itself shows: our SID, not every profile that ever used the volume.</summary>
+    [SupportedOSPlatform("windows")]
     private static string? CurrentSid =>
         Try.Run(() => WindowsIdentity.GetCurrent().User?.Value).GetOrNull();
 
@@ -73,7 +74,10 @@ internal static class RecycleBin
         if (OperatingSystem.IsLinux())
             return CanRecycleUnix(path);
 
-        if (!OperatingSystem.IsWindows() || CurrentSid is not { Length: > 0 })
+        if (!OperatingSystem.IsWindows())
+            return false;
+
+        if (CurrentSid is not { Length: > 0 })
             return false;
 
         if (RecycleDisabled())
@@ -290,7 +294,7 @@ internal static class RecycleBin
 
     /// <summary>Shows the shell properties of the stored content behind one record.</summary>
     public static Task ShowPropertiesAsync(string id) =>
-        id.Length == 0
+        !OperatingSystem.IsWindows() || id.Length == 0
             ? Task.CompletedTask
             : FileOperations.ShowPropertiesAsync([ContentPath(id)]);
 
@@ -312,6 +316,7 @@ internal static class RecycleBin
     public static Task<int> PurgeOrphanMetadataAsync(IEnumerable<RecycleEntry> entries,
         CancellationToken cancellationToken = default) => Task.Run(() => PurgeOrphanMetadata(entries), cancellationToken);
 
+    [SupportedOSPlatform("windows")]
     private static IEnumerable<RecycleEntry> ListWindows(bool includeOrphans)
     {
         if (CurrentSid is not { Length: > 0 } sid)
@@ -327,6 +332,7 @@ internal static class RecycleBin
     ///     also reads every other profile's records — those are reported as not removable, because
     ///     this account normally cannot write there.
     /// </summary>
+    [SupportedOSPlatform("windows")]
     private static IReadOnlyList<RecycleEntry> ListWindowsDrive(string root, string sid, bool includeOrphans) =>
         Try.Run(() =>
         {
@@ -356,6 +362,7 @@ internal static class RecycleBin
             return entries.ToList();
         }).GetOrElse(_ => []);
 
+    [SupportedOSPlatform("windows")]
     private static RecycleEntry? ReadWindowsRecord(string infoPath, bool includeOrphans, string currentSid)
     {
         using var reader = new BinaryReader(File.OpenRead(infoPath));
@@ -462,6 +469,7 @@ internal static class RecycleBin
     }
 
     /// <summary>The <c>{GUID}</c> the Recycle Bin settings use for the volume a path is on.</summary>
+    [SupportedOSPlatform("windows")]
     private static string? VolumeId(string root)
     {
         var buffer = new StringBuilder(64);
@@ -476,6 +484,7 @@ internal static class RecycleBin
         return open >= 0 && close > open ? name[open..(close + 1)] : null;
     }
 
+    [SupportedOSPlatform("windows")]
     private static int? ReadDword(RegistryKey hive, string path, string name) =>
         Try.Run(() =>
         {
@@ -488,6 +497,7 @@ internal static class RecycleBin
     private static extern bool GetVolumeNameForVolumeMountPoint(string mountPoint, StringBuilder volumeName,
         uint bufferLength);
 
+    [SupportedOSPlatform("windows")]
     private static bool SendWindows(string path)
     {
         if (!CanRecycle(path) || CurrentSid is not { Length: > 0 } sid)
@@ -552,6 +562,7 @@ internal static class RecycleBin
     }
 
     /// <summary>Version 2 of the record: the size, the deletion time, then the original path.</summary>
+    [SupportedOSPlatform("windows")]
     private static void WriteWindowsRecord(string infoPath, string original, long size)
     {
         using var stream = new FileStream(infoPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
@@ -575,6 +586,7 @@ internal static class RecycleBin
                 span[index] = (char)('A' + random.Next(26));
         });
 
+    [SupportedOSPlatform("windows")]
     private static bool RestoreWindows(string infoPath)
     {
         if (ReadWindowsOriginalPath(infoPath) is not { Length: > 0 } original)
@@ -597,6 +609,7 @@ internal static class RecycleBin
         return true;
     }
 
+    [SupportedOSPlatform("windows")]
     private static void DeleteWindows(string infoPath)
     {
         var content = ContentPath(infoPath);
@@ -610,9 +623,11 @@ internal static class RecycleBin
     }
 
     /// <summary>The <c>$R…</c> file that belongs to an <c>$I…</c> record: same name, one letter apart.</summary>
+    [SupportedOSPlatform("windows")]
     private static string ContentPath(string infoPath) =>
         Path.Combine(Path.GetDirectoryName(infoPath)!, "$R" + Path.GetFileName(infoPath)[2..]);
 
+    [SupportedOSPlatform("windows")]
     private static string? ReadWindowsOriginalPath(string infoPath) =>
         Try.Run(() =>
         {

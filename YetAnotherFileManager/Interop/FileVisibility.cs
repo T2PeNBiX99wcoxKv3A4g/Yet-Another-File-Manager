@@ -45,6 +45,7 @@ internal static partial class FileVisibility
     ///     Two registry reads are enough for every listing that arrives in the same couple of
     ///     seconds, instead of reading them again for each refresh.
     /// </summary>
+    [SupportedOSPlatform("windows")]
     private static (bool Hidden, bool System) ReadCached()
     {
         var now = Environment.TickCount64;

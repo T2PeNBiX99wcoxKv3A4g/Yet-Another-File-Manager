@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Runtime.Versioning;
 
 namespace YetAnotherFileManager.Services;
 
@@ -7,6 +8,7 @@ namespace YetAnotherFileManager.Services;
 ///     browser of a <c>.url</c>, the target of a <c>.lnk</c> — only answer an apartment-threaded
 ///     caller; from the thread pool they quietly fall back to the generic shortcut glyph.
 /// </summary>
+[SupportedOSPlatform("windows")]
 internal static class StaThread
 {
     private const int Workers = 6;

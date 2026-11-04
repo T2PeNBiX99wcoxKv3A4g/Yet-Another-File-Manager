@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Text.Json;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Messaging;
@@ -317,14 +318,23 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 return context.Reply("fs.operation.openWith.result", new OkPayload(true));
 
             case "fs.openWith.programs":
+            {
+                if (!OperatingSystem.IsWindows())
+                    return context.Reply("fs.openWith.programs.result", new OpenWithProgramsPayload([], []));
+
                 return context.Reply("fs.openWith.programs.result",
-                    await StaThread.RunAsync(() => AssociatedPrograms.Read(context.Payload<PathPayload>()?.Path ?? "")));
+                    await ReadOpenWithAsync(context.Payload<PathPayload>()?.Path ?? ""));
+            }
 
             case "fs.openWith.program":
             {
                 var request = context.Payload<OpenWithProgramRequest>();
+
+                if (!OperatingSystem.IsWindows())
+                    return context.Reply("fs.openWith.program.result", new OkPayload(false));
+
                 return context.Reply("fs.openWith.program.result",
-                    new OkPayload(AssociatedPrograms.Open(request?.FilePath ?? "", request?.ProgramPath ?? "")));
+                    new OkPayload(await OpenWithProgramAsync(request?.FilePath ?? "", request?.ProgramPath ?? "")));
             }
 
             case "fs.history.state":
@@ -360,9 +370,16 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         }
     }
 
+    [SupportedOSPlatform("windows")]
+    private static Task<OpenWithProgramsPayload> ReadOpenWithAsync(string path) =>
+        StaThread.RunAsync(() => AssociatedPrograms.Read(path));
+
+    [SupportedOSPlatform("windows")]
+    private static Task<bool> OpenWithProgramAsync(string filePath, string programPath) =>
+        StaThread.RunAsync(() => AssociatedPrograms.Open(filePath, programPath));
+
     /// <summary>The icon the shell would show, or null when the settings and the shell have none.</summary>
-    private static async Task<string?> IconAsync(IconRequest? request)
-    {
+    private static async Task<string?> IconAsync(IconRequest? request)    {
         if (request is not { Path.Length: > 0 })
             return null;
 
@@ -374,11 +391,21 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             return null;
 
         if (OperatingSystem.IsLinux())
-            return await Task.Run(() => LinuxIcons.DataUrl(request.Path, request.Directory, request.Large));
+            return await LinuxIconAsync(request);
 
         if (!OperatingSystem.IsWindows())
             return null;
 
+        return await WindowsIconAsync(request, settings);
+    }
+
+    [SupportedOSPlatform("linux")]
+    private static Task<string?> LinuxIconAsync(IconRequest request) =>
+        Task.Run(() => LinuxIcons.DataUrl(request.Path, request.Directory, request.Large));
+
+    [SupportedOSPlatform("windows")]
+    private static async Task<string?> WindowsIconAsync(IconRequest request, AppSettings settings)
+    {
         // A folder's own icon (desktop.ini) is read from its path; the jumbo list is index-based and
         // can hand back a different image for a custom icon, so folders use the HICON directly.
         if (request.Directory && settings.UseCustomFolderIcons && await HasCustomFolderIconAsync(request.Path)
@@ -561,7 +588,13 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         if (!OperatingSystem.IsWindows())
             return new(false, false, "Volume labels can only be changed on Windows.");
 
-        if (SetVolumeLabel(request.Root, label))
+        return RenameWindowsDrive(request.Root, label);
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static DriveRenamePayload RenameWindowsDrive(string root, string label)
+    {
+        if (SetVolumeLabel(root, label))
             return new(true, false, null);
 
         var error = Marshal.GetLastWin32Error();
@@ -751,12 +784,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         var links = new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         if (OperatingSystem.IsWindows() && includeLinks && infos.Count <= LinkLimit)
-            await Task.Run(() => Parallel.ForEach(infos.OfType<FileInfo>(), file =>
-            {
-                var count = FileLinks.Count(file.FullName);
-                if (count > 1)
-                    links[file.FullName] = count;
-            }));
+            await CountLinksAsync(infos, links);
 
         var all = await Task.Run(() =>
         {
@@ -778,7 +806,8 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         });
 
         // Shortcuts carry their target inside the file; the shell reader runs on the STA pool.
-        all = await ResolveShortcutsAsync(all);
+        if (OperatingSystem.IsWindows())
+            all = await ResolveShortcutsAsync(all);
 
         // Storing is best effort and must not hold the listing back; the next open paints it first.
         _ = DirectoryIndex.SaveListingAsync(directory.FullName, all);
@@ -1025,17 +1054,32 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             : value;
     }
 
+    [SupportedOSPlatform("windows")]
+    private static Task CountLinksAsync(IReadOnlyList<FileSystemInfo> infos,
+        ConcurrentDictionary<string, int> links) =>
+        Task.Run(() => CountLinks(infos, links));
+
+    [SupportedOSPlatform("windows")]
+    private static void CountLinks(IReadOnlyList<FileSystemInfo> infos, ConcurrentDictionary<string, int> links) =>
+        Parallel.ForEach(infos.OfType<FileInfo>(), file =>
+        {
+            var count = FileLinks.Count(file.FullName);
+            if (count > 1)
+                links[file.FullName] = count;
+        });
+
     /// <summary>
     ///     Fills in the target of every <c>.lnk</c>, so a dead shortcut can be shown struck through.
     ///     The shell's shortcut reader needs an STA caller, so it runs on that pool.
     /// </summary>
+    [SupportedOSPlatform("windows")]
     private static async Task<List<FileEntry>> ResolveShortcutsAsync(List<FileEntry> entries)
     {
         var shortcuts = entries
             .Where(entry => !entry.IsDirectory && entry.Name.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        if (!OperatingSystem.IsWindows() || shortcuts.Count == 0)
+        if (shortcuts.Count == 0)
             return entries;
 
         var resolved = await Task.WhenAll(shortcuts.Select(async entry =>

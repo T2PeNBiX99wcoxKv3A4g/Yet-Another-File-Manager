@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Text;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Interop;
@@ -290,6 +291,15 @@ internal static partial class FileOperations
             return;
         }
 
+        if (!OperatingSystem.IsWindows())
+            return;
+
+        ClearClipboardWindows();
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static void ClearClipboardWindows()
+    {
         if (!OpenClipboard())
             return;
 
@@ -680,23 +690,27 @@ internal static partial class FileOperations
             if (!OperatingSystem.IsWindows() || paths.Count == 0)
                 return;
 
-            var path = paths[0];
-
-            // SHObjectProperties is the shell's own entry point and does not depend on a registered
-            // "properties" verb, which Process.Start needs and which several file types lack.
-            var shown = Try.Run(() => StaThread.RunAsync(() =>
-                    SHObjectProperties(WindowManager.Instance.WindowHandle, ShopFilepath, path, null))
-                .GetAwaiter().GetResult()).GetOrElse(_ => false);
-
-            if (shown)
-                return;
-
-            Try.Run(() => Process.Start(new ProcessStartInfo(path)
-            {
-                UseShellExecute = true,
-                Verb = "properties"
-            })).OnFailure(ex => Log.Warning(ex, "Could not show properties for {Path}", path));
+            ShowWindowsProperties(paths[0]);
         });
+
+    [SupportedOSPlatform("windows")]
+    private static void ShowWindowsProperties(string path)
+    {
+        // SHObjectProperties is the shell's own entry point and does not depend on a registered
+        // "properties" verb, which Process.Start needs and which several file types lack.
+        var shown = Try.Run(() => StaThread.RunAsync(() =>
+                SHObjectProperties(WindowManager.Instance.WindowHandle, ShopFilepath, path, null))
+            .GetAwaiter().GetResult()).GetOrElse(_ => false);
+
+        if (shown)
+            return;
+
+        Try.Run(() => Process.Start(new ProcessStartInfo(path)
+        {
+            UseShellExecute = true,
+            Verb = "properties"
+        })).OnFailure(ex => Log.Warning(ex, "Could not show properties for {Path}", path));
+    }
 
     private const uint ShopFilepath = 0x00000002;
 
@@ -809,6 +823,7 @@ internal static partial class FileOperations
                 })).OnFailure(ex => Log.Warning(ex, "Could not open {Directory}", directory));
         });
 
+    [SupportedOSPlatform("windows")]
     private static bool OpenClipboard()
     {
         for (var attempt = 0; attempt < 5; attempt++)
@@ -822,6 +837,7 @@ internal static partial class FileOperations
         return false;
     }
 
+    [SupportedOSPlatform("windows")]
     private static bool WriteDropFiles(IReadOnlyList<string> paths)
     {
         var text = Encoding.Unicode.GetBytes(string.Join('\0', paths) + "\0\0");
@@ -862,6 +878,7 @@ internal static partial class FileOperations
         return false;
     }
 
+    [SupportedOSPlatform("windows")]
     private static bool WriteDropEffect(uint effect)
     {
         var format = RegisterClipboardFormat(PreferredDropEffect);
@@ -907,6 +924,15 @@ internal static partial class FileOperations
             return (paths, move, read);
         }
 
+        if (!OperatingSystem.IsWindows())
+            return ([], false, false);
+
+        return ReadClipboardFilesWindows();
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static (List<string> Paths, bool Move, bool Read) ReadClipboardFilesWindows()
+    {
         if (!OpenClipboard())
             return ([], false, false);
 
@@ -947,6 +973,7 @@ internal static partial class FileOperations
         }
     }
 
+    [SupportedOSPlatform("windows")]
     private static uint ReadDropEffect()
     {
         var format = RegisterClipboardFormat(PreferredDropEffect);

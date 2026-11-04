@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.Versioning;
 using System.Text.Json;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
@@ -27,9 +28,13 @@ internal static class ShellMenuClient
         if (full is not null)
             return new ShellVerbsPayload(full, false);
 
-        var safe = await StaThread.RunAsync(() => ShellMenu.Read(paths, true));
+        var safe = await ReadSafeAsync(paths);
         return new ShellVerbsPayload(safe, true);
     }
+
+    [SupportedOSPlatform("windows")]
+    private static Task<List<ShellVerb>> ReadSafeAsync(IReadOnlyList<string> paths) =>
+        StaThread.RunAsync(() => ShellMenu.Read(paths, true));
 
     public static void Invoke(IReadOnlyList<string> paths, bool safe, string? verb, int offset)
     {
@@ -74,6 +79,7 @@ internal static class ShellMenuClient
         });
     }
 
+    [SupportedOSPlatform("windows")]
     private static async Task<List<ShellVerb>?> ReadFullAsync(IReadOnlyList<string> paths)
     {
         if (Environment.ProcessPath is not { Length: > 0 } executable)

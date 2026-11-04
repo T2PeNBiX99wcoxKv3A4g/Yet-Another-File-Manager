@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using Microsoft.Win32;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
@@ -24,6 +25,12 @@ internal static class UrlScheme
         if (!OperatingSystem.IsWindows())
             return false;
 
+        return IsRegisteredWindows();
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static bool IsRegisteredWindows()
+    {
         var command = Try.Run(() => Registry.CurrentUser.OpenSubKey(CommandPath)?.GetValue(null) as string)
             .GetOrNull();
 
@@ -40,6 +47,12 @@ internal static class UrlScheme
         if (!OperatingSystem.IsWindows())
             return false;
 
+        return RegisterWindows();
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static bool RegisterWindows()
+    {
         var executable = Environment.ProcessPath;
         if (executable is null)
             return false;
@@ -62,11 +75,15 @@ internal static class UrlScheme
         if (!OperatingSystem.IsWindows())
             return false;
 
-        Try.Run(() => Registry.CurrentUser.DeleteSubKeyTree(KeyPath, false))
-            .OnFailure(ex => Log.Warning(ex, "Could not remove the yafm:// registration"));
+        UnregisterWindows();
 
         return !IsRegistered();
     }
+
+    [SupportedOSPlatform("windows")]
+    private static void UnregisterWindows() =>
+        Try.Run(() => Registry.CurrentUser.DeleteSubKeyTree(KeyPath, false))
+            .OnFailure(ex => Log.Warning(ex, "Could not remove the yafm:// registration"));
 
     /// <summary>
     ///     Re-applies the user's choice at startup. The registry entry is easy to lose — a cleanup

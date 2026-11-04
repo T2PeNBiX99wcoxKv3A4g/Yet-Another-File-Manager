@@ -41,13 +41,13 @@ internal static partial class Program
 
         // The shell menu is read and invoked in this short-lived helper, so a third-party handler
         // that crashes can never take the window down with it.
-        if (args.Contains(Constants.ShellVerbsArgument))
+        if (OperatingSystem.IsWindows() && args.Contains(Constants.ShellVerbsArgument))
         {
             RunShellVerbs(args);
             return;
         }
 
-        if (args.Contains(Constants.ShellInvokeArgument))
+        if (OperatingSystem.IsWindows() && args.Contains(Constants.ShellInvokeArgument))
         {
             RunShellInvoke(args);
             return;
@@ -179,6 +179,7 @@ _ = UpdateService.Instance;
     }
 
     /// <summary>Reads the shell menu for the paths and writes the result as JSON, then exits.</summary>
+    [SupportedOSPlatform("windows")]
     private static void RunShellVerbs(string[] args)
     {
         if (!OperatingSystem.IsWindows())
@@ -208,6 +209,7 @@ _ = UpdateService.Instance;
     }
 
     /// <summary>Runs one extracted shell command in this process, then exits.</summary>
+    [SupportedOSPlatform("windows")]
     private static void RunShellInvoke(string[] args)
     {
         if (!OperatingSystem.IsWindows())

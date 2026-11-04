@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Text;
 using PhotinoNetUtils.Utils;
@@ -197,13 +198,14 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
             if (_cache.TryGetValue(key, out cached))
                 return cached;
 
-            var bytes = await Task.Run(() =>
-            {
-                if (OperatingSystem.IsWindows())
-                    return ShellThumbnail.Bytes(path, size);
+            byte[]? bytes;
 
-                return LinuxThumbnails.Png(path, size);
-            });
+            if (OperatingSystem.IsWindows())
+                bytes = await WindowsThumbnailAsync(path, size);
+            else if (OperatingSystem.IsLinux())
+                bytes = await LinuxThumbnailAsync(path, size);
+            else
+                return null;
 
             if (bytes is not null)
                 Remember(key, bytes);
@@ -215,6 +217,14 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
             _gate.Release();
         }
     }
+
+    [SupportedOSPlatform("windows")]
+    private static Task<byte[]?> WindowsThumbnailAsync(string path, int size) =>
+        Task.Run(() => ShellThumbnail.Bytes(path, size));
+
+    [SupportedOSPlatform("linux")]
+    private static Task<byte[]?> LinuxThumbnailAsync(string path, int size) =>
+        Task.Run(() => LinuxThumbnails.Png(path, size));
 
     /// <summary>Renders a PDF page in the isolated helper and caches the PNG it returns.</summary>
     private async Task<byte[]?> PdfAsync(string path, string version)

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
 using Serilog;
@@ -82,6 +83,12 @@ internal static partial class AppMemory
         if (!OperatingSystem.IsWindows())
             return;
 
+        ReleaseWindowsPages();
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static void ReleaseWindowsPages()
+    {
         using var process = Process.GetCurrentProcess();
         SetProcessWorkingSetSize(process.Handle, -1, -1);
     }
