@@ -68,7 +68,7 @@ YetAnotherFileManager は Windows と Linux 向けのデスクトップファイ
 
 - **C# on .NET 10** — ファイルシステム操作、シェル統合、ごみ箱、アイコン、SQLite インデックス、
   トレイ。
-- **React 19 + TypeScript**、**Vite** でバンドル、**styled-components** でスタイル — インターフェース
+- **React 19 + TypeScript**、 **Vite** でバンドル、 **styled-components** でスタイル — インターフェース
   は表示のみを担当し、C# 側と JSON メッセージをやり取りします。
 - **Photino.NET** — デスクトップシェル。OS 自身の Web ビューにインターフェースを表示するため、
   Web ビューは実行時の依存です（Windows は WebView2、Linux は WebKitGTK）。
@@ -77,25 +77,24 @@ YetAnotherFileManager は Windows と Linux 向けのデスクトップファイ
 
 ## 実行
 
-公開ビルドは**自己完結型**で、.NET ランタイムを同梱しているため追加のインストールは不要です。
+公開ビルドは **自己完結型**で、.NET ランタイムを同梱しているため追加のインストールは不要です。
 OS 側で必要なものは、各システムの説明に記載しています。
 
 プレーンなアーカイブのほかに、4 種類のパッケージを公開しています。
 
-| ファイル                                              | 内容                                                                                                                                                    |
-|-------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `YetAnotherFileManager-<version>-win-x64.msi`         | ユーザー単位の Windows インストーラー。`%LOCALAPPDATA%\Programs\YetAnotherFileManager` に導入し、スタートメニューとデスクトップにショートカットを作成します。管理者権限は不要です。 |
-| `yafm-<version>-1.fcXX.x86_64.rpm`                    | Fedora パッケージ: `sudo dnf install ./yafm-<version>-*.rpm`。`/opt/YetAnotherFileManager` に導入し、`yafm` コマンド、デスクトップエントリ、アイコンを追加します。 |
-| `yafm_<version>_amd64.deb`                            | Debian/Ubuntu パッケージ: `sudo apt install ./yafm_<version>_amd64.deb`。配置は RPM と同じです。                                                       |
-| `yafm-<version>-1-x86_64.pkg.tar.zst`                 | Arch Linux パッケージ: `sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`。配置は RPM と同じです。                                                   |
+| ファイル                                      | 内容                                                                                                                                                                                |
+|-----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `YetAnotherFileManager-<version>-win-x64.msi` | ユーザー単位の Windows インストーラー。`%LOCALAPPDATA%\Programs\YetAnotherFileManager` に導入し、スタートメニューとデスクトップにショートカットを作成します。管理者権限は不要です。 |
+| `yafm-<version>-1.fcXX.x86_64.rpm`            | Fedora パッケージ: `sudo dnf install ./yafm-<version>-*.rpm`。`/opt/YetAnotherFileManager` に導入し、`yafm` コマンド、デスクトップエントリ、アイコンを追加します。                  |
+| `yafm_<version>_amd64.deb`                    | Debian/Ubuntu パッケージ: `sudo apt install ./yafm_<version>_amd64.deb`。配置は RPM と同じです。                                                                                    |
+| `yafm-<version>-1-x86_64.pkg.tar.zst`         | Arch Linux パッケージ: `sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`。配置は RPM と同じです。                                                                                |
 
 ### Windows
 
 1. Microsoft Edge **WebView2 ランタイム**。Windows 10 と 11 には入っています。それ以外では
    [Microsoft のインストーラー](https://developer.microsoft.com/microsoft-edge/webview2/) が必要です。
 2. MSI はユーザー単位でインストールされ、昇格は不要です。
-3. ビルドはコード署名されていないため、初回に SmartScreen の警告が出ることがあります。
-   **詳細情報** → **実行** を選んでください。
+3. ビルドはコード署名されていないため、初回に SmartScreen の警告が出ることがあります。 **詳細情報** → **実行** を選んでください。
 
 ### Linux
 

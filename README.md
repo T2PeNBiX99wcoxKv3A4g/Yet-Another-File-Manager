@@ -82,20 +82,19 @@ installed for them. What the operating system still has to provide is listed und
 
 Four package formats are published beside the plain archives:
 
-| File                                                  | What it does                                                                                                                                                                                          |
-|-------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `YetAnotherFileManager-<version>-win-x64.msi`         | Per-user Windows installer: installs into `%LOCALAPPDATA%\Programs\YetAnotherFileManager`, adds a Start menu entry and a desktop shortcut, and never asks for administrator rights.                    |
-| `yafm-<version>-1.fcXX.x86_64.rpm`                    | Fedora package: `sudo dnf install ./yafm-<version>-*.rpm`. Installs to `/opt/YetAnotherFileManager` with a `yafm` command, a desktop entry and the icon.                                              |
-| `yafm_<version>_amd64.deb`                            | Debian/Ubuntu package: `sudo apt install ./yafm_<version>_amd64.deb`. Same layout as the RPM.                                                                                                         |
-| `yafm-<version>-1-x86_64.pkg.tar.zst`                 | Arch Linux package: `sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`. Same layout as the RPM.                                                                                                     |
+| File                                          | What it does                                                                                                                                                                        |
+|-----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `YetAnotherFileManager-<version>-win-x64.msi` | Per-user Windows installer: installs into `%LOCALAPPDATA%\Programs\YetAnotherFileManager`, adds a Start menu entry and a desktop shortcut, and never asks for administrator rights. |
+| `yafm-<version>-1.fcXX.x86_64.rpm`            | Fedora package: `sudo dnf install ./yafm-<version>-*.rpm`. Installs to `/opt/YetAnotherFileManager` with a `yafm` command, a desktop entry and the icon.                            |
+| `yafm_<version>_amd64.deb`                    | Debian/Ubuntu package: `sudo apt install ./yafm_<version>_amd64.deb`. Same layout as the RPM.                                                                                       |
+| `yafm-<version>-1-x86_64.pkg.tar.zst`         | Arch Linux package: `sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`. Same layout as the RPM.                                                                                   |
 
 ### Windows
 
 1. The Microsoft Edge **WebView2 Runtime**. Windows 10 and 11 already ship it; other versions need
    [Microsoft's installer](https://developer.microsoft.com/microsoft-edge/webview2/).
 2. The MSI installs per user and needs no elevation.
-3. The build is not code-signed, so SmartScreen may warn the first time. Choose **More info** →
-   **Run anyway**.
+3. The build is not code-signed, so SmartScreen may warn the first time. Choose **More info** → **Run anyway**.
 
 ### Linux
 

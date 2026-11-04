@@ -60,7 +60,7 @@ YetAnotherFileManager 是我尝试保留熟悉的操作方式，并加入我每�
 ## 使用技术
 
 - **C# on .NET 10** — 文件系统操作、外壳集成、回收站、图标、SQLite 索引与系统托盘。
-- **React 19 + TypeScript**，以 **Vite** 打包、**styled-components** 设计样式 — 界面本身只负责呈现，
+- **React 19 + TypeScript**，以 **Vite** 打包、 **styled-components** 设计样式 — 界面本身只负责呈现，
   通过 JSON 消息与 C# 端通信。
 - **Photino.NET** — 桌面外壳。它在操作系统自己的网页视图中显示界面，因此网页视图是运行时依赖：
   Windows 使用 WebView2，Linux 使用 WebKitGTK。
@@ -69,25 +69,24 @@ YetAnotherFileManager 是我尝试保留熟悉的操作方式，并加入我每�
 
 ## 运行
 
-发布版本是**自包含**的——已一并打包 .NET 运行时，因此无需另外安装。操作系统仍需提供什么，列在下面
+发布版本是 **自包含**的——已一并打包 .NET 运行时，因此无需另外安装。操作系统仍需提供什么，列在下面
 各系统的说明中。
 
 除了纯压缩包外，还发布四种包格式：
 
-| 文件                                                  | 用途                                                                                                                                                    |
-|-------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `YetAnotherFileManager-<version>-win-x64.msi`         | 每位用户的 Windows 安装程序：安装到 `%LOCALAPPDATA%\Programs\YetAnotherFileManager`，创建开始菜单项和桌面快捷方式，且不需要管理员权限。                |
-| `yafm-<version>-1.fcXX.x86_64.rpm`                    | Fedora 包：`sudo dnf install ./yafm-<version>-*.rpm`。安装到 `/opt/YetAnotherFileManager`，提供 `yafm` 命令、桌面项和图标。                             |
-| `yafm_<version>_amd64.deb`                            | Debian/Ubuntu 包：`sudo apt install ./yafm_<version>_amd64.deb`。布局与 RPM 相同。                                                                      |
-| `yafm-<version>-1-x86_64.pkg.tar.zst`                 | Arch Linux 包：`sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`。布局与 RPM 相同。                                                                  |
+| 文件                                          | 用途                                                                                                                                    |
+|-----------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
+| `YetAnotherFileManager-<version>-win-x64.msi` | 每位用户的 Windows 安装程序：安装到 `%LOCALAPPDATA%\Programs\YetAnotherFileManager`，创建开始菜单项和桌面快捷方式，且不需要管理员权限。 |
+| `yafm-<version>-1.fcXX.x86_64.rpm`            | Fedora 包：`sudo dnf install ./yafm-<version>-*.rpm`。安装到 `/opt/YetAnotherFileManager`，提供 `yafm` 命令、桌面项和图标。             |
+| `yafm_<version>_amd64.deb`                    | Debian/Ubuntu 包：`sudo apt install ./yafm_<version>_amd64.deb`。布局与 RPM 相同。                                                      |
+| `yafm-<version>-1-x86_64.pkg.tar.zst`         | Arch Linux 包：`sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`。布局与 RPM 相同。                                                  |
 
 ### Windows
 
 1. Microsoft Edge **WebView2 运行时**。Windows 10 和 11 已内置；其他版本需要
    [Microsoft 的安装程序](https://developer.microsoft.com/microsoft-edge/webview2/)。
 2. MSI 以每位用户安装，不需要提升权限。
-3. 构建版本未经代码签名，因此首次运行时 SmartScreen 可能会警告。请选择 **更多信息** →
-   **仍要运行**。
+3. 构建版本未经代码签名，因此首次运行时 SmartScreen 可能会警告。请选择 **更多信息** → **仍要运行**。
 
 ### Linux
 
