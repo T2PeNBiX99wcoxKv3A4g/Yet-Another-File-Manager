@@ -70,6 +70,9 @@ internal static class RecycleBin
     /// </summary>
     public static bool CanRecycle(string path)
     {
+        if (OperatingSystem.IsLinux())
+            return CanRecycleUnix(path);
+
         if (!OperatingSystem.IsWindows() || CurrentSid is not { Length: > 0 })
             return false;
 
@@ -81,6 +84,41 @@ internal static class RecycleBin
         return !string.IsNullOrEmpty(root)
             && Directory.Exists(Path.Combine(root, "$Recycle.Bin"))
             && !VolumeDeletesPermanently(root);
+    }
+
+    /// <summary>
+    ///     The freedesktop trash is usable when its files/ and info/ folders can be written on the
+    ///     same mount as the source. A cross-device fallback to the home trash would fail on move,
+    ///     so it is treated as "cannot recycle" and the window asks before deleting for good.
+    /// </summary>
+    private static bool CanRecycleUnix(string path)
+    {
+        if (!File.Exists(path) && !Directory.Exists(path))
+            return false;
+
+        return Try.Run(() =>
+        {
+            var root = TrashRootFor(path);
+            var sourceMount = MountOf(Path.GetFullPath(path));
+            var trashMount = MountOf(root);
+
+            if (sourceMount is not null && trashMount is not null
+                && !sourceMount.Equals(trashMount, StringComparison.Ordinal))
+                return false;
+
+            var files = Path.Combine(root, "files");
+            var info = Path.Combine(root, "info");
+            EnsurePrivate(files);
+            EnsurePrivate(info);
+
+            if (!Directory.Exists(files) || !Directory.Exists(info))
+                return false;
+
+            var probe = Path.Combine(files, $".yafm-{Guid.NewGuid():N}");
+            File.WriteAllText(probe, "");
+            File.Delete(probe);
+            return true;
+        }).GetOrElse(_ => false);
     }
 
     /// <summary>
