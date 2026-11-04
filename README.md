@@ -57,10 +57,13 @@ Windows and Linux share the same interface, so the window looks the same on both
   full-size viewer on double click.
 - **Recycle bin** — restore, delete permanently, and list the leftover records whose files are gone.
   The administrator view covers the leftovers of every profile.
+- **File operations in the app** — copy, move, rename and delete run in-process instead of being
+  handed to Explorer, so they report progress in the status center and never wait on a shell
+  dialog. The recycle bin record is written by the app itself, and Explorer restores it as usual.
 - **Themes and languages** — accent and secondary colours, built-in and saved presets, and an
   interface in English, 繁體中文, 简体中文 or 日本語.
 - **Fast where it matters** — a small index per folder (or one central database), shell icons loaded
-  lazily, and a Rust helper that scans the gallery.
+  lazily, and a Rust helper that scans the gallery and unlinks big trees.
 - **`yafm://` links** — open a folder in a new tab from anywhere, with the handler registered per
   user.
 
@@ -72,7 +75,7 @@ Windows and Linux share the same interface, so the window looks the same on both
   interface. It is presentation only: it exchanges JSON messages with the C# side.
 - **Photino.NET** — the desktop shell. It shows the interface in the operating system's own web
   view, which is why the web view is a runtime dependency: WebView2 on Windows, WebKitGTK on Linux.
-- **Rust** (`Native/yafm-native`) — the bulk gallery scan and ZIP creation. The managed fallback
+- **Rust** (`Native/yafm-native`) — the bulk gallery scan, ZIP creation and large deletes. The managed fallback
   keeps the app working when the helper is missing.
 
 ## Running

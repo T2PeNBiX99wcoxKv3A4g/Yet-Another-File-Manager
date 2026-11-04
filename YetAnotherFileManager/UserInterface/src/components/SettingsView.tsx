@@ -45,6 +45,7 @@ const ShortcutRows: { id: keyof ShortcutMap; label: string; note: string }[] = [
     {id: "location", label: "Edit location", note: "Turns the breadcrumbs into an editable path; Ctrl+L in Dolphin."},
     {id: "closeTab", label: "Close tab", note: "Closes the tab that is open."},
     {id: "newTab", label: "New tab", note: "Opens the overview in a new tab."},
+    {id: "reopenTab", label: "Reopen closed tab", note: "Brings back the tab you closed last, folder and all."},
     {id: "nextTab", label: "Next tab", note: "Cycles to the next tab."},
     {id: "previousTab", label: "Previous tab", note: "Cycles to the previous tab."},
     {id: "copy", label: "Copy", note: "Ctrl+D copies too, following KDE's file manager."},

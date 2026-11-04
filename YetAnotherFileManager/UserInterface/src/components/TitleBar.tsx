@@ -41,6 +41,8 @@ interface TitleBarProps {
     onShowImages: (value: boolean) => void;
     tasks: TaskInfo[];
     onClearTasks: () => void;
+    activityOpen: boolean;
+    onActivityOpenChange: (open: boolean) => void;
     trayCount: number;
     trayVisible: boolean;
     onToggleTray: () => void;
@@ -56,6 +58,7 @@ interface TitleBarProps {
 export function TitleBar({
     tabs, activeId, onSelect, onClose, onNewTab, onReorder,
     view, onViewChange, onColumns, showImages, onShowImages, tasks, onClearTasks,
+    activityOpen, onActivityOpenChange,
     trayCount, trayVisible, onToggleTray,
     split, canSplit, onToggleSplit, details, canDetails, onToggleDetails, shortcuts,
 }: TitleBarProps) {
@@ -207,7 +210,12 @@ export function TitleBar({
                     <PackageIcon size={14}/>
                     {trayCount > 0 && <TrayBadge>{trayCount > 9 ? "9+" : trayCount}</TrayBadge>}
                 </TrayButton>
-                <StatusCenter tasks={tasks} onClear={onClearTasks}/>
+                <StatusCenter
+                    tasks={tasks}
+                    onClear={onClearTasks}
+                    open={activityOpen}
+                    onOpenChange={onActivityOpenChange}
+                />
                 <ViewMenu
                     disabled={tabs.find((tab) => tab.id === activeId)?.kind !== "files"}
                     onChange={onViewChange}

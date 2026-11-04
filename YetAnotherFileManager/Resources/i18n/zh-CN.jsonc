@@ -445,5 +445,7 @@
   "Could not add the tag.": "无法添加标签。",
   "Could not change the tag's color.": "无法更改标签颜色。",
   "No tags yet. Add one below; it is available in every folder.": "还没有标签。在下方添加一个，所有文件夹都能使用。",
-  "Every tag in the catalogue; add, rename, recolour or remove them here.": "目录中的每个标签；可在此添加、重命名、改色或移除。"
+  "Every tag in the catalogue; add, rename, recolour or remove them here.": "目录中的每个标签；可在此添加、重命名、改色或移除。",
+  "Reopen closed tab": "重新打开关闭的标签页",
+  "Brings back the tab you closed last, folder and all.": "把最后关闭的标签页连同文件夹一起恢复。"
 }

@@ -445,5 +445,7 @@
   "Could not add the tag.": "タグを追加できませんでした。",
   "Could not change the tag's color.": "タグの色を変更できませんでした。",
   "No tags yet. Add one below; it is available in every folder.": "タグはまだありません。下で追加すると、すべてのフォルダーで使えます。",
-  "Every tag in the catalogue; add, rename, recolour or remove them here.": "カタログ内のすべてのタグ。ここで追加、名前の変更、色の変更、削除ができます。"
+  "Every tag in the catalogue; add, rename, recolour or remove them here.": "カタログ内のすべてのタグ。ここで追加、名前の変更、色の変更、削除ができます。",
+  "Reopen closed tab": "閉じたタブを開き直す",
+  "Brings back the tab you closed last, folder and all.": "最後に閉じたタブをフォルダーごと開き直します。"
 }

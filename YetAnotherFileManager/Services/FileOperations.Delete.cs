@@ -1,0 +1,206 @@
+using PhotinoNetUtils.Extensions;
+using PhotinoNetUtils.Utils;
+using Serilog;
+using YetAnotherFileManager.Interop;
+
+namespace YetAnotherFileManager.Services;
+
+/// <summary>
+///     Deleting entries without handing them to the shell: the recycle bin record is written here, and
+///     a big tree is unlinked by the Rust helper across every core. Both paths report to the status
+///     center, so the window shows a row with the count and a bar while the delete runs.
+/// </summary>
+internal static partial class FileOperations
+{
+    /// <summary>Above this many files the native deleter beats unlinking them one by one.</summary>
+    private const int RustDeleteThreshold = 32;
+
+    /// <summary>Sends the paths to the recycle bin, or deletes them permanently when asked.</summary>
+    public static async Task<bool> DeleteAsync(IReadOnlyList<string> paths, bool permanent = false)
+    {
+        var items = Selection(paths);
+        if (items.Count == 0)
+            return false;
+
+        var deletedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var (step, deleted) = await DeleteWithProgressAsync(items, permanent);
+
+        if (permanent || deleted == 0)
+            return step.Ok;
+
+        // Undo puts back whatever really reached the bin, so the whole selection is tried.
+        FileHistory.Instance.Record($"Delete {deleted} item(s)",
+            undo: () => RestoreFromRecycleAsync(items, deletedAt),
+            redo: async () => (await DeleteWithProgressAsync(items, false)).Step);
+
+        return step.Ok;
+    }
+
+    private static async Task<FileHistory.Step> DeleteCoreAsync(IReadOnlyList<string> paths, bool permanent) =>
+        (await DeleteWithProgressAsync(Selection(paths), permanent)).Step;
+
+    /// <summary>
+    ///     Runs one delete behind a status-center row. <c>Deleted</c> is how many entries really went to
+    ///     the recycle bin; a permanent delete leaves it at zero because there is nothing to restore.
+    /// </summary>
+    private static async Task<(FileHistory.Step Step, int Deleted)> DeleteWithProgressAsync(
+        List<string> items, bool permanent)
+    {
+        if (items.Count == 0)
+            return (new FileHistory.Step(false, [], "There is nothing to delete."), 0);
+
+        // Only the recycle bin is Windows-only; a permanent delete works on every platform.
+        if (!permanent && !OperatingSystem.IsWindows())
+            return (new FileHistory.Step(false, ParentsOf(items),
+                "Moving to the recycle bin needs Windows."), 0);
+
+        var id = TaskCenter.Instance.Start("delete",
+            $"{(permanent ? "Permanently delete" : "Delete")} {items.Count} item{(items.Count == 1 ? "" : "s")}",
+            items.Count);
+
+        try
+        {
+            return permanent
+                ? await DeletePermanentlyAsync(id, items)
+                : await RecycleAsync(id, items);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Could not delete the selection");
+            TaskCenter.Instance.Fail(id, ex.Message);
+
+            return (new FileHistory.Step(false, ParentsOf(items), ex.Message), 0);
+        }
+    }
+
+    /// <summary>One record per entry, so the status center can count them off as they go.</summary>
+    private static async Task<(FileHistory.Step Step, int Deleted)> RecycleAsync(string id, List<string> items)
+    {
+        var deleted = 0;
+        var done = 0;
+        string? error = null;
+
+        foreach (var path in items)
+        {
+            if (await RecycleBin.SendAsync(path))
+                deleted++;
+            else
+                error ??= $"Could not move {Path.GetFileName(path)} to the recycle bin.";
+
+            TaskCenter.Instance.Progress(id, ++done, 0);
+        }
+
+        return Finish(id, items, error, deleted);
+    }
+
+    /// <summary>
+    ///     A big tree goes to Rust, which measures the files first so the bar has a total; a small one
+    ///     is unlinked in place, where starting the helper would cost more than the delete.
+    /// </summary>
+    private static async Task<(FileHistory.Step Step, int Deleted)> DeletePermanentlyAsync(string id,
+        List<string> items)
+    {
+        // The walk is the slow part of a big delete, so it never runs on the message thread.
+        var files = await Task.Run(() => RustNative.CountFiles(items) ?? 0);
+
+        if (files >= RustDeleteThreshold)
+        {
+            TaskCenter.Instance.UpdateTotal(id, (int)Math.Min(files, int.MaxValue), 0);
+
+            var failures = await Task.Run(() => RustNative.Delete(items, files,
+                (done, _) => TaskCenter.Instance.Progress(id, (int)Math.Min(done, int.MaxValue), 0)));
+
+            if (failures is >= 0)
+                return Finish(id, items,
+                    failures == 0 ? null : $"{failures} entr{(failures == 1 ? "y" : "ies")} could not be deleted.",
+                    0);
+        }
+
+        var done = 0;
+        string? error = null;
+
+        foreach (var path in items)
+        {
+            if (!await Task.Run(() => DeleteTree(path)))
+                error ??= $"Could not delete {Path.GetFileName(path)}.";
+
+            TaskCenter.Instance.Progress(id, ++done, 0);
+        }
+
+        return Finish(id, items, error, 0);
+    }
+
+    /// <summary>The managed fallback: a plain recursive delete for the trees Rust does not take.</summary>
+    private static bool DeleteTree(string path) =>
+        Try.Run(() =>
+        {
+            if (Directory.Exists(path))
+                Directory.Delete(path, true);
+            else
+                File.Delete(path);
+
+            return true;
+        }).OnFailure(ex => Log.Warning(ex, "Could not delete {Path}", path)).GetOrElse(_ => false);
+
+    private static (FileHistory.Step Step, int Deleted) Finish(string id, List<string> items, string? error,
+        int deleted)
+    {
+        if (error is null)
+            TaskCenter.Instance.Complete(id);
+        else
+        {
+            TaskCenter.Instance.Fail(id, error);
+            Log.Warning("Delete of {Total} item(s) finished with a problem: {Error}", items.Count, error);
+        }
+
+        // A selection that lost a few entries still changed the folder, so the window has to reread it.
+        return (new FileHistory.Step(deleted > 0 || error is null, ParentsOf(items), error), deleted);
+    }
+
+    /// <summary>Finds the records a delete just created and restores them.</summary>
+    private static async Task<FileHistory.Step> RestoreFromRecycleAsync(IReadOnlyList<string> paths, long deletedAt)
+    {
+        var entries = await RecycleBin.ListAsync(false);
+        var wanted = paths.Select(Normalize).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var matches = entries
+            .Where(entry => entry.Deleted >= deletedAt - 5000 && wanted.Contains(Normalize(entry.OriginalPath)))
+            .OrderByDescending(entry => entry.Deleted)
+            .ToList();
+
+        if (matches.Count == 0)
+            return new FileHistory.Step(false, ParentsOf(paths),
+                "The deleted items are no longer in the recycle bin.");
+
+        var restored = 0;
+
+        foreach (var entry in matches)
+            if (await RecycleBin.RestoreAsync(entry.Id))
+                restored++;
+
+        return new FileHistory.Step(restored > 0, ParentsOf(paths),
+            restored > 0 ? null : "Windows could not restore the deleted items.");
+    }
+
+    /// <summary>
+    ///     The paths that really need deleting: duplicates and anything inside another selected folder
+    ///     are dropped, and a drive root is never one of them.
+    /// </summary>
+    private static List<string> Selection(IReadOnlyList<string> paths)
+    {
+        var items = paths
+            .Where(path => path.Length > 0)
+            .Select(path => path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+            .Where(path => path.Length > 2 && (File.Exists(path) || Directory.Exists(path)))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return items
+            .Where(path => !items.Any(other => other.Length < path.Length
+                && path.StartsWith(other + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+    }
+
+    private static string Normalize(string path) =>
+        path.TrimEnd('\\', '/').ToLowerInvariant();
+}

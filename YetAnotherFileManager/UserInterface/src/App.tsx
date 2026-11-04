@@ -114,6 +114,9 @@ const ViewNames: Record<string, ViewKind> = {
 
 let nextTabId = 0;
 
+/** How many closed tabs Ctrl+Shift+T can walk back through. */
+const ClosedTabLimit = 20;
+
 /** The address of one of the built-in pages. */
 function viewLocation(kind: ViewKind): string {
     return `${ViewScheme}${kind === "home" ? "overview" : kind}`;
@@ -276,6 +279,10 @@ export default function App() {
         refresh: () => void;
     } | null>(null);
     const [tasks, setTasks] = useState<TaskInfo[]>([]);
+    const [activityOpen, setActivityOpen] = useState(false);
+    const tasksRef = useRef<TaskInfo[]>([]);
+    /** The tabs closed in this session, newest last, for Ctrl+Shift+T. */
+    const closedTabs = useRef<string[]>([]);
     const [trayItems, setTrayItems] = useState<TrayItem[]>([]);
     const [clipboardItems, setClipboardItems] = useState<TrayItem[]>([]);
     const [clipboardMove, setClipboardMove] = useState(false);
@@ -657,6 +664,11 @@ export default function App() {
         const closing = current.find((tab) => tab.id === id);
         const remaining = current.filter((tab) => tab.id !== id && tab.id !== closing?.splitWith);
 
+        if (closing && !closing.hidden) {
+            closedTabs.current.push(locationOf(closing));
+            if (closedTabs.current.length > ClosedTabLimit) closedTabs.current.shift();
+        }
+
         if (remaining.length === 0) {
             // A window always keeps one tab; closing the last one starts over at the overview.
             const replacement = createTab();
@@ -672,6 +684,19 @@ export default function App() {
         if (currentActive === id)
             setActiveId(remaining[Math.min(index, remaining.length - 1)].id);
     }, []);
+
+    /** Brings back the tab closed last, showing the folder it had. */
+    const reopenTab = useCallback(() => {
+        const location = closedTabs.current.pop();
+        if (!location) return;
+
+        const tab = {...createTab(location), fresh: false};
+
+        setTabs((current) => [...current, tab]);
+        setActiveId(tab.id);
+
+        if (kindOf(tab) === "files") void load(tab.id, folderOf(tab));
+    }, [load]);
 
     const navigate = useCallback((target?: string, newTab = false) => {
         if (newTab) {
@@ -979,18 +1004,33 @@ export default function App() {
     useEffect(() => {
         if (!Native.available) return;
 
-        void listTasks().then(setTasks, () => undefined);
+        void listTasks().then((list) => {
+            tasksRef.current = list;
+            setTasks(list);
+        }, () => undefined);
 
         return Native.on((evt) => {
             const event = evt as { type?: string; data?: { tasks?: TaskInfo[] } };
             if (event.type !== "app.tasks.changed" || !Array.isArray(event.data?.tasks)) return;
 
-            setTasks(event.data.tasks);
+            const next = event.data.tasks;
+
+            // A delete shows the panel, so its progress and any refusal are seen. A small one may
+            // already be finished by the time the first notification arrives.
+            const started = next.some((task) => task.kind === "delete"
+                && !tasksRef.current.some((old) => old.id === task.id));
+
+            tasksRef.current = next;
+            setTasks(next);
+            if (started) setActivityOpen(true);
         });
     }, []);
 
     const clearFinishedTasks = useCallback(() => {
-        void clearTasks().then(() => listTasks().then(setTasks, () => undefined));
+        void clearTasks().then(() => listTasks().then((list) => {
+            tasksRef.current = list;
+            setTasks(list);
+        }, () => undefined));
     }, []);
 
     // The clipboard section mirrors the system clipboard: copying files in Explorer or in another
@@ -1421,6 +1461,9 @@ export default function App() {
             } else if (combo === shortcuts.newTab) {
                 event.preventDefault();
                 openFiles();
+            } else if (combo === shortcuts.reopenTab) {
+                event.preventDefault();
+                reopenTab();
             } else if (combo === shortcuts.goBack) {
                 event.preventDefault();
                 goBack();
@@ -1479,8 +1522,8 @@ export default function App() {
 
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [shortcuts, kind, find.open, closeTab, openFiles, goBack, goForward, goUp, openFind, resetFind, startFind,
-        changeView, cycleTab, navigate, places, refreshAll, runHistory, toggleSplit]);
+    }, [shortcuts, kind, find.open, closeTab, reopenTab, openFiles, goBack, goForward, goUp, openFind, resetFind,
+        startFind, changeView, cycleTab, navigate, places, refreshAll, runHistory, toggleSplit]);
 
     // Back and forward on the mouse: WebView2 would otherwise walk its own history and reload the app.
     useEffect(() => {
@@ -1702,6 +1745,8 @@ export default function App() {
                 showImages={showImages}
                 tasks={tasks}
                 onClearTasks={clearFinishedTasks}
+                activityOpen={activityOpen}
+                onActivityOpenChange={setActivityOpen}
                 trayCount={trayItems.length + clipboardItems.length}
                 trayVisible={trayVisible}
                 onToggleTray={toggleTray}

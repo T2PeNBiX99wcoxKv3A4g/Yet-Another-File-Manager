@@ -7,6 +7,8 @@ button on a folder to open one. Drag a tab to reorder it, and close it with `Ctr
 
 A new tab starts on the overview; a tab opened from a folder starts in that folder.
 
+A closed tab is not gone: `Ctrl+Shift+T` opens it again where it was.
+
 ## Split view
 
 Press the split button in the title bar, or `F3`, to show the next file tab beside the current one.

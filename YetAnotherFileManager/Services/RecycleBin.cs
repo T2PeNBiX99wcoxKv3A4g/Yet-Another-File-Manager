@@ -18,6 +18,9 @@ namespace YetAnotherFileManager.Services;
 internal static class RecycleBin
 {
     private const int MaxPathChars = 32 * 1024;
+
+    /// <summary>A version 2 record has no room for a longer path, so the shell keeps those.</summary>
+    private const int MaxRecordPath = 260;
     private const string TrashInfoSuffix = ".trashinfo";
 
     /// <summary>
@@ -56,6 +59,17 @@ internal static class RecycleBin
 
     public static Task<bool> RestoreAsync(string id, CancellationToken cancellationToken = default) =>
         Task.Run(() => Restore(id), cancellationToken);
+
+    /// <summary>
+    ///     Puts one entry in the recycle bin of its own volume without going through the shell: the
+    ///     content is renamed to <c>$R…</c> and an <c>$I…</c> record beside it keeps the original path.
+    ///     That is the same layout Explorer and this app read back, so restore keeps working either way.
+    /// </summary>
+    public static bool Send(string path) => OperatingSystem.IsWindows() && SendWindows(path);
+
+    /// <summary>Runs a whole selection through <see cref="Send" />, one entry at a time.</summary>
+    public static Task<bool> SendAsync(string path, CancellationToken cancellationToken = default) =>
+        Task.Run(() => Send(path), cancellationToken);
 
     /// <summary>Permanently removes every entry this account may delete.</summary>
     public static void Empty(bool includeOrphans = false) =>
@@ -233,6 +247,93 @@ internal static class RecycleBin
             return ContentState.Unknown;
         }
     }
+
+    private static bool SendWindows(string path)
+    {
+        if (CurrentSid is not { Length: > 0 } sid || path.Length >= MaxRecordPath)
+            return false;
+
+        var root = Path.GetPathRoot(path);
+        if (string.IsNullOrEmpty(root))
+            return false;
+
+        var bin = Path.Combine(root, "$Recycle.Bin", sid);
+        Try.Run(() => Directory.CreateDirectory(bin))
+            .OnFailure(ex => Log.Debug(ex, "There is no recycle bin on {Root}", root));
+
+        if (!Directory.Exists(bin))
+            return false;
+
+        var directory = Directory.Exists(path);
+        var extension = Path.GetExtension(path);
+        var size = directory ? 0 : Try.Run(() => new FileInfo(path).Length).GetOrElse(_ => 0L);
+
+        for (var attempt = 0; attempt < 8; attempt++)
+        {
+            var id = NewId();
+            var content = Path.Combine(bin, "$R" + id + extension);
+            var info = Path.Combine(bin, "$I" + id + extension);
+
+            if (File.Exists(info) || File.Exists(content) || Directory.Exists(content))
+                continue;
+
+            try
+            {
+                if (directory)
+                    Directory.Move(path, content);
+                else
+                    File.Move(path, content);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Could not move {Path} into the recycle bin", path);
+                return false;
+            }
+
+            try
+            {
+                WriteWindowsRecord(info, path, size);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                // Content without its record could never be restored, so put it back.
+                Log.Warning(ex, "Could not write the recycle bin record for {Path}", path);
+
+                Try.Run(() => directory ? (Action)(() => Directory.Move(content, path))
+                        : () => File.Move(content, path))
+                    .OnFailure(back => Log.Error(back, "Could not put {Path} back", path));
+
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Version 2 of the record: the size, the deletion time, then the original path.</summary>
+    private static void WriteWindowsRecord(string infoPath, string original, long size)
+    {
+        using var stream = new FileStream(infoPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        using var writer = new BinaryWriter(stream, Encoding.Unicode);
+
+        writer.Write(2L);
+        writer.Write(size);
+        writer.Write(DateTime.UtcNow.ToFileTimeUtc());
+        writer.Write(original.Length + 1);
+        writer.Write(Encoding.Unicode.GetBytes(original + "\0"));
+    }
+
+    /// <summary>
+    ///     The 26 letters Windows puts in a record name. Any combination is a valid id, so a random one
+    ///     keeps two deletes from ever meeting.
+    /// </summary>
+    private static string NewId() =>
+        string.Create(26, Random.Shared, static (span, random) =>
+        {
+            for (var index = 0; index < span.Length; index++)
+                span[index] = (char)('A' + random.Next(26));
+        });
 
     private static bool RestoreWindows(string infoPath)
     {

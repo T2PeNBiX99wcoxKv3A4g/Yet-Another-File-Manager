@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useRef} from "react";
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import type {TaskInfo} from "../api/tasks";
@@ -9,12 +9,14 @@ import {elevatedPanel} from "../ui/panel";
 interface StatusCenterProps {
     tasks: TaskInfo[];
     onClear: () => void;
+    /** The window opens the panel itself when a delete starts. */
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
 }
 
 /** The title bar's activity button and the floating list of running and finished operations. */
-export function StatusCenter({tasks, onClear}: StatusCenterProps) {
+export function StatusCenter({tasks, onClear, open, onOpenChange}: StatusCenterProps) {
     const t = useTranslation();
-    const [open, setOpen] = useState(false);
     const root = useRef<HTMLDivElement | null>(null);
     const running = tasks.filter((task) => task.state === "running").length;
 
@@ -22,18 +24,18 @@ export function StatusCenter({tasks, onClear}: StatusCenterProps) {
         if (!open) return;
 
         const close = (event: PointerEvent) => {
-            if (!root.current?.contains(event.target as Node)) setOpen(false);
+            if (!root.current?.contains(event.target as Node)) onOpenChange(false);
         };
 
         window.addEventListener("pointerdown", close);
         return () => window.removeEventListener("pointerdown", close);
-    }, [open]);
+    }, [open, onOpenChange]);
 
     return (
         <Root ref={root}>
             <ActivityButton
                 $active={open}
-                onClick={() => setOpen((value) => !value)}
+                onClick={() => onOpenChange(!open)}
                 title={running > 0 ? plural(t, running, "1 operation running", "{count} operations running") : t("Activity")}
                 type="button"
             >
@@ -53,7 +55,7 @@ export function StatusCenter({tasks, onClear}: StatusCenterProps) {
                             >
                                 {t("Clear finished")}
                             </TextButton>
-                            <ClosePanel onClick={() => setOpen(false)} title={t("Close")} type="button">
+                            <ClosePanel onClick={() => onOpenChange(false)} title={t("Close")} type="button">
                                 <CrossIcon size={10}/>
                             </ClosePanel>
                         </PanelActions>

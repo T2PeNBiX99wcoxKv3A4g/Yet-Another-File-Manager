@@ -57,6 +57,8 @@ defaults are:
 | Split view | `F3` | Open terminal | `F4` |
 | Show hidden files | `Ctrl+H` | Open in a new tab | hold `Ctrl` |
 
+`Ctrl+Shift+T` reopens the tab you closed last, folder and all.
+
 ## Icons
 
 - **Use system file icons** asks the shell for each file type's icon instead of the built-in glyph.

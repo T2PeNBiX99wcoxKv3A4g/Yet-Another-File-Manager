@@ -20,12 +20,6 @@ internal static partial class FileOperations
 {
     private const uint CfHDrop = 15;
     private const uint GmemMoveable = 0x0002;
-    private const uint FoMove = 0x0001;
-    private const uint FoCopy = 0x0002;
-    private const uint FoDelete = 0x0003;
-    private const ushort FofAllowUndo = 0x0040;
-    private const ushort FofNoConfirmation = 0x0010;
-    private const ushort FofNoConfirmMkdir = 0x0200;
 
     /// <summary>Text previews stop here, so a huge log cannot freeze the details panel.</summary>
     private const int MaxTextPreviewBytes = 256 * 1024;
@@ -275,63 +269,6 @@ internal static partial class FileOperations
         EmptyClipboard();
         NativeMethods.CloseClipboard();
     }
-
-    /// <summary>Sends the paths to the recycle bin, or deletes them permanently when asked.</summary>
-    public static async Task<bool> DeleteAsync(IReadOnlyList<string> paths, bool permanent = false)
-    {
-        var deletedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var step = await DeleteCoreAsync(paths, permanent);
-
-        if (!step.Ok || permanent || paths.Count == 0)
-            return step.Ok;
-
-        var deleted = paths.ToList();
-        FileHistory.Instance.Record($"Delete {deleted.Count} item(s)",
-            undo: () => RestoreFromRecycleAsync(deleted, deletedAt),
-            redo: () => DeleteCoreAsync(deleted, false));
-
-        return true;
-    }
-
-    private static async Task<FileHistory.Step> DeleteCoreAsync(IReadOnlyList<string> paths, bool permanent)
-    {
-        if (!OperatingSystem.IsWindows())
-            return new FileHistory.Step(false, ParentsOf(paths), "Deleting needs Windows.");
-
-        var ok = await ShellOperationAsync(FoDelete, paths, null,
-            (ushort)(permanent ? FofNoConfirmation : FofAllowUndo | FofNoConfirmation));
-
-        return new FileHistory.Step(ok, ParentsOf(paths),
-            ok ? null : "The shell could not delete the selection.");
-    }
-
-    /// <summary>Finds the records a delete just created and restores them.</summary>
-    private static async Task<FileHistory.Step> RestoreFromRecycleAsync(IReadOnlyList<string> paths, long deletedAt)
-    {
-        var entries = await RecycleBin.ListAsync(false);
-        var wanted = paths.Select(Normalize).ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        var matches = entries
-            .Where(entry => entry.Deleted >= deletedAt - 5000 && wanted.Contains(Normalize(entry.OriginalPath)))
-            .OrderByDescending(entry => entry.Deleted)
-            .ToList();
-
-        if (matches.Count == 0)
-            return new FileHistory.Step(false, ParentsOf(paths),
-                "The deleted items are no longer in the recycle bin.");
-
-        var restored = 0;
-
-        foreach (var entry in matches)
-            if (await RecycleBin.RestoreAsync(entry.Id))
-                restored++;
-
-        return new FileHistory.Step(restored > 0, ParentsOf(paths),
-            restored > 0 ? null : "Windows could not restore the deleted items.");
-    }
-
-    private static string Normalize(string path) =>
-        path.TrimEnd('\\', '/').ToLowerInvariant();
 
     /// <summary>Renames one entry in place.</summary>
     public static async Task<PathOperationPayload> RenameAsync(string path, string name)
@@ -825,36 +762,6 @@ internal static partial class FileOperations
                 })).OnFailure(ex => Log.Warning(ex, "Could not open {Directory}", directory));
         });
 
-    private static async Task<bool> ShellOperationAsync(uint function, IReadOnlyList<string> paths,
-        string? target, ushort extraFlags = 0)
-    {
-        if (paths.Count == 0)
-            return false;
-
-        var files = paths.Where(path => path.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        if (files.Count == 0)
-            return false;
-
-        return await StaThread.RunAsync(() =>
-        {
-            var operation = new ShFileOpStruct
-            {
-                hwnd = WindowManager.Instance.WindowHandle,
-                wFunc = function,
-                pFrom = string.Join('\0', files) + "\0",
-                pTo = target ?? "",
-                fFlags = (ushort)(FofAllowUndo | FofNoConfirmMkdir | extraFlags)
-            };
-
-            var result = SHFileOperation(ref operation);
-
-            if (result != 0)
-                Log.Warning("The shell file operation {Function} failed with {Result}", function, result);
-
-            return result == 0 && !operation.fAnyOperationsAborted;
-        });
-    }
-
     private static bool OpenClipboard()
     {
         for (var attempt = 0; attempt < 5; attempt++)
@@ -1013,22 +920,6 @@ internal static partial class FileOperations
         public int fNC;
         public int fWide;
     }
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    private struct ShFileOpStruct
-    {
-        public IntPtr hwnd;
-        public uint wFunc;
-        [MarshalAs(UnmanagedType.LPWStr)] public string pFrom;
-        [MarshalAs(UnmanagedType.LPWStr)] public string pTo;
-        public ushort fFlags;
-        [MarshalAs(UnmanagedType.Bool)] public bool fAnyOperationsAborted;
-        public IntPtr hNameMappings;
-        [MarshalAs(UnmanagedType.LPWStr)] public string? lpszProgressTitle;
-    }
-
-    [DllImport("shell32.dll", EntryPoint = "SHFileOperationW", CharSet = CharSet.Unicode)]
-    private static extern int SHFileOperation(ref ShFileOpStruct fileOp);
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     private static extern uint DragQueryFile(IntPtr hDrop, uint iFile, IntPtr lpszFile, uint cch);

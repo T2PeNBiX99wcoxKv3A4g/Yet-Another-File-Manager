@@ -6,6 +6,7 @@ export interface ShortcutMap {
     find: string;
     closeTab: string;
     newTab: string;
+    reopenTab: string;
     copy: string;
     cut: string;
     paste: string;
@@ -40,6 +41,7 @@ export const DefaultShortcuts: ShortcutMap = {
     find: "ctrl+f",
     closeTab: "ctrl+w",
     newTab: "ctrl+t",
+    reopenTab: "ctrl+shift+t",
     copy: "ctrl+c",
     cut: "ctrl+x",
     paste: "ctrl+v",
