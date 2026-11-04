@@ -248,10 +248,14 @@ const Card = styled.div<{ $plain: boolean }>`
     font: inherit;
     text-align: left;
     cursor: ${({$plain}) => $plain ? "default" : "pointer"};
+    transition: background 130ms ease, border-color 130ms ease, transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 140ms ease;
 
     &:hover {
         border-color: ${({$plain}) => $plain ? "var(--border-color)" : "var(--border-color-hover)"};
         background: ${({$plain}) => $plain ? "var(--bg-card)" : "var(--bg-card-hover)"};
+        box-shadow: ${({$plain}) => $plain ? "none" : "0 8px 20px rgba(0, 0, 0, 0.22)"};
+        transform: ${({$plain}) => $plain ? "none" : "translateY(-1px)"};
     }
 `;
 

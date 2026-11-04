@@ -1,6 +1,7 @@
 import {useEffect, useLayoutEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
+import {fadeInStyle} from "../ui/motion";
 
 interface TooltipState {
     text: string;
@@ -214,6 +215,7 @@ const Panel = styled.div`
     background: rgba(7, 11, 18, 0.96);
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
     pointer-events: none;
+    ${fadeInStyle}
 `;
 
 const Text = styled.span`

@@ -2,6 +2,7 @@ import {useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
+import {popInStyle} from "../ui/motion";
 import {CheckIcon, CrossIcon} from "./Icons";
 
 /** The color a tag gets until the user picks one. */
@@ -159,6 +160,7 @@ const Panel = styled.div`
     border-radius: var(--radius-md);
     background: var(--bg-secondary);
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+    ${popInStyle}
 `;
 
 const Header = styled.div`

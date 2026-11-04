@@ -38,7 +38,7 @@ import {clearTasks, listTasks, type TaskInfo} from "./api/tasks";
 import {FileList} from "./components/FileList";
 import {ContextMenu, type ContextMenuItem} from "./components/ContextMenu";
 import {PreviewPane, type PreviewInfo} from "./components/PreviewPane";
-import {FileTray, type TrayItem} from "./components/FileTray";
+import {FileTray, isPathDrag, type TrayItem} from "./components/FileTray";
 import {FindBar} from "./components/FindBar";
 import {EmptyFind, matchesName, type FindState} from "./find";
 import {QuickAccessProvider, quickName, quickPlace, type QuickAccess} from "./quick";
@@ -69,6 +69,7 @@ import {Native, ResizeHandles, useTranslation, useWindowCorners, type Translate}
 import {baseName, formatBytes, normalizePath, plural} from "./utils/format";
 import {applyTheme} from "./theme";
 import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "./storage";
+import {pageInStyle} from "./ui/motion";
 import {
     comboOf,
     DefaultShortcuts,
@@ -939,12 +940,23 @@ export default function App() {
     // starts. It stays open until the user closes it.
     useEffect(() => {
         const onDragStart = (event: DragEvent) => {
-            if (event.dataTransfer?.types.some((type) => type.toLowerCase() === "application/x-yafm-paths"))
+            if (isPathDrag(event.dataTransfer))
+                showTray();
+        };
+
+        // A drag that comes from another application never fires dragstart here; opening the tray
+        // on dragenter is what makes it a target for those files too.
+        const onDragEnter = (event: DragEvent) => {
+            if (isPathDrag(event.dataTransfer))
                 showTray();
         };
 
         window.addEventListener("dragstart", onDragStart);
-        return () => window.removeEventListener("dragstart", onDragStart);
+        window.addEventListener("dragenter", onDragEnter);
+        return () => {
+            window.removeEventListener("dragstart", onDragStart);
+            window.removeEventListener("dragenter", onDragEnter);
+        };
     }, [showTray]);
 
     // Keep the floating tray inside the window when it is resized.
@@ -1635,6 +1647,7 @@ export default function App() {
                 onPaste={pruneTray}
                 onClipboardChanged={() => void refreshClipboard()}
                 onTransfer={transferTo}
+                onAddToTray={(paths) => void addTrayPaths(paths)}
                 openOnSingleClick={settings?.openOnSingleClick ?? false}
                 refreshToken={visibilityVersion}
                 shortcuts={shortcuts}
@@ -1807,6 +1820,7 @@ export default function App() {
                 <Main>
                     {kind !== "files" && mainToolbar}
 
+                    <ViewShell key={kind}>
                     {kind === "files" ? (
                         splitActive && secondary ? (
                             <Split ref={splitRef}>
@@ -2019,6 +2033,7 @@ export default function App() {
                             videoAutoplay={settings?.previewVideoAutoplay ?? false}
                         />
                     )}
+                    </ViewShell>
 
                     <StatusBar>
                         <span>{kind === "files" && active.listing ? statusLine(t, active.listing) : ""}</span>
@@ -2107,6 +2122,16 @@ const Main = styled.main`
     flex: 1;
     min-width: 0;
     margin-left: 56px;
+`;
+
+/** The page a tab shows; re-keyed by kind, so a different page slides in instead of snapping. */
+const ViewShell = styled.div`
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    ${pageInStyle}
 `;
 
 const Toolbar = styled.header`

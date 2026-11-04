@@ -693,11 +693,31 @@ internal static partial class FileOperations
                 .OnFailure(ex => Log.Warning(ex, "Could not open {Path} with another app", path));
         });
 
-    /// <summary>Opens Windows Terminal in a folder, falling back to PowerShell.</summary>
+    /// <summary>Opens a terminal in a folder, with the platform's own terminal.</summary>
     public static Task OpenTerminalAsync(string directory) =>
         Task.Run(() =>
         {
-            if (!OperatingSystem.IsWindows() || !Directory.Exists(directory))
+            if (!Directory.Exists(directory))
+                return;
+
+            if (OperatingSystem.IsLinux())
+            {
+                // xdg-terminal-exec is the freedesktop way; the common terminals cover the desktop
+                // images that have not adopted it yet.
+                if (TryStartTerminal("xdg-terminal-exec", directory))
+                    return;
+
+                if (TryStartTerminal("konsole", directory, "--workdir", directory)
+                    || TryStartTerminal("gnome-terminal", directory, "--working-directory", directory)
+                    || TryStartTerminal("x-terminal-emulator", directory)
+                    || TryStartTerminal("xterm", directory))
+                    return;
+
+                Log.Warning("No terminal application could be started in {Directory}", directory);
+                return;
+            }
+
+            if (!OperatingSystem.IsWindows())
                 return;
 
             var terminal = Try.Run(() => Process.Start(new ProcessStartInfo("wt.exe")
@@ -717,6 +737,22 @@ internal static partial class FileOperations
                 UseShellExecute = true
             })).OnFailure(ex => Log.Warning(ex, "Could not open a terminal in {Directory}", directory));
         });
+
+    /// <summary>Starts a terminal with the folder as its working directory; false when it is missing.</summary>
+    private static bool TryStartTerminal(string program, string directory, params string[] arguments) =>
+        Try.Run(() =>
+        {
+            var info = new ProcessStartInfo(program)
+            {
+                UseShellExecute = false,
+                WorkingDirectory = directory
+            };
+
+            foreach (var argument in arguments)
+                info.ArgumentList.Add(argument);
+
+            return Process.Start(info) is not null;
+        }).GetOrElse(_ => false);
 
     /// <summary>Reveals a path in Explorer, or opens its folder elsewhere.</summary>
     public static Task ShowInExplorerAsync(string path) =>

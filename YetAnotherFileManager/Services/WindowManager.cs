@@ -365,7 +365,9 @@ internal sealed class WindowManager : Singleton<WindowManager>
             if (File.Exists(marker) && await File.ReadAllTextAsync(marker) != AppInfoService.BuildToken)
             {
                 Log.Information("This is a different build; clearing the web view's cache");
-                await Task.Run(() => Directory.Delete(WebViewDataPath, true));
+
+                if (Directory.Exists(WebViewDataPath))
+                    await Task.Run(() => Directory.Delete(WebViewDataPath, true));
             }
 
             await File.WriteAllTextAsync(marker, AppInfoService.BuildToken);

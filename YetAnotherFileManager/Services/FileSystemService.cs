@@ -744,7 +744,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         const int LinkLimit = 512;
         var links = new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-        if (includeLinks && infos.Count <= LinkLimit)
+        if (OperatingSystem.IsWindows() && includeLinks && infos.Count <= LinkLimit)
             await Task.Run(() => Parallel.ForEach(infos.OfType<FileInfo>(), file =>
             {
                 var count = FileLinks.Count(file.FullName);
@@ -989,7 +989,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             .Where(entry => !entry.IsDirectory && entry.Name.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        if (shortcuts.Count == 0)
+        if (!OperatingSystem.IsWindows() || shortcuts.Count == 0)
             return entries;
 
         var resolved = await Task.WhenAll(shortcuts.Select(async entry =>

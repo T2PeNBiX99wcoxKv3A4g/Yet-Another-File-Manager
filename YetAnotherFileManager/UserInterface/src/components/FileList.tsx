@@ -44,6 +44,7 @@ import {
     FolderIcon,
     GearIcon,
     PasteIcon,
+    PackageIcon,
     PencilIcon,
     PinIcon,
     PlusIcon,
@@ -59,7 +60,7 @@ import {PreviewPane, type PreviewInfo} from "./PreviewPane";
 import {PlaceIcon} from "./PlaceIcon";
 import {TagPicker, DefaultTagColor, inkFor} from "./TagPicker";
 import {BuiltinIcon, iconForName} from "../icons/fileTypes";
-import {readDraggedPaths, writeDraggedPaths} from "./FileTray";
+import {readDraggedPaths, writeDraggedPaths, isPathDrag} from "./FileTray";
 
 /** The strip is a glance, not a gallery; thousands of thumbnails would stall the window. */
 const PreviewLimit = 60;
@@ -113,6 +114,8 @@ interface FileListProps {
     onClipboardChanged?: () => void;
     /** Moves or copies dropped paths into a folder. */
     onTransfer?: (paths: string[], target: string, move: boolean) => void;
+    /** Adds the selection to the floating file tray without dragging it. */
+    onAddToTray?: (paths: string[]) => void;
     /** Called after a paste, so the tray can drop entries the move consumed. */
     onPaste?: () => void;
     /** Ask before moving items to the recycle bin. Shift+Del always asks. */
@@ -153,7 +156,7 @@ export function FileList({
     listing, loading, error, find = NoFind, view, showImages, imageStripHeight = DefaultStripHeight,
     onImageStripHeight, onSort, onSetTags, onOpen, onOpenFile, showCheckboxes = true,
     openOnSingleClick = false, shortcuts = DefaultShortcuts, enableShortcuts = true, refreshToken = 0, onRefresh,
-    onClipboardChanged, onTransfer, onPaste, confirmDelete = false, previewVideoAudio = false,
+    onClipboardChanged, onTransfer, onAddToTray, onPaste, confirmDelete = false, previewVideoAudio = false,
     previewVideoAutoplay = false, showDetails = true, onPreviewInfo, onActivate,
     groupOf, onGridScroll, gridFooter, allowBackgroundMenu = true,
 }: FileListProps) {
@@ -495,7 +498,7 @@ export function FileList({
     }, [selected]);
 
     const overListDrag = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
-        if (!event.dataTransfer.types.some((type) => type.toLowerCase() === "application/x-yafm-paths"))
+        if (!isPathDrag(event.dataTransfer))
             return;
 
         event.preventDefault();
@@ -960,6 +963,12 @@ export function FileList({
             label: t("Copy as path"), icon: <CopyIcon size={14}/>,
             onSelect: () => void copyAsPath(menu.paths),
         });
+
+        if (onAddToTray)
+            menuItems.push({
+                label: t("Add to file tray"), icon: <PackageIcon size={14}/>,
+                onSelect: () => onAddToTray(menu.paths),
+            });
 
         menuItems.push({
             label: t("Show in Explorer"), icon: <FolderIcon size={14}/>, separatorBefore: true,
@@ -2568,11 +2577,14 @@ const Tile = styled.div<{ $dim: boolean; $current: boolean; $selected: boolean }
     cursor: default;
     user-select: none;
     content-visibility: auto;
-    transition: background 120ms ease, border-color 120ms ease, opacity 120ms ease;
+    transition: background 120ms ease, border-color 120ms ease, opacity 120ms ease,
+        transform 140ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 140ms ease;
 
     &:hover {
         background: var(--bg-card-hover);
         border-color: var(--border-color-hover);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+        transform: translateY(-1px);
     }
 `;
 

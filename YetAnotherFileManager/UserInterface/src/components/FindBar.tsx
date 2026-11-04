@@ -2,6 +2,7 @@ import {useEffect, useRef} from "react";
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import type {FindMode} from "../find";
+import {slideDownStyle} from "../ui/motion";
 import {ChevronRightIcon, CrossIcon, SearchIcon} from "./Icons";
 
 interface FindBarProps {
@@ -122,6 +123,7 @@ const Bar = styled.div`
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
     backdrop-filter: blur(10px);
     color: var(--text-muted);
+    ${slideDownStyle}
 `;
 
 const Input = styled.input`

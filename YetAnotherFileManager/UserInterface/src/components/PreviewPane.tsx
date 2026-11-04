@@ -3,6 +3,7 @@ import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import {previewText, type TextPreview} from "../api/files";
 import {useIcon, useMediaUrl, usePdfPreview, useThumbnail} from "../api/icons";
+import {slideInRightStyle} from "../ui/motion";
 import {FileIcon, FolderIcon, PlayIcon} from "./Icons";
 
 export interface PreviewInfo {
@@ -318,6 +319,7 @@ const Panel = styled.aside`
     min-width: 0;
     min-height: 0;
     background: var(--bg-secondary);
+    ${slideInRightStyle}
 `;
 
 const Media = styled.div`

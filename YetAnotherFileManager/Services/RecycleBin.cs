@@ -88,7 +88,129 @@ internal static class RecycleBin
     ///     content is renamed to <c>$R…</c> and an <c>$I…</c> record beside it keeps the original path.
     ///     That is the same layout Explorer and this app read back, so restore keeps working either way.
     /// </summary>
-    public static bool Send(string path) => OperatingSystem.IsWindows() && SendWindows(path);
+    public static bool Send(string path) =>
+        OperatingSystem.IsWindows() ? SendWindows(path)
+        : OperatingSystem.IsLinux() && SendUnix(path);
+
+    /// <summary>
+    ///     Moves a path into the freedesktop.org trash of the volume that holds it. The home trash is
+    ///     used when the volume cannot hold a per-user one; a cross-device move then fails, which the
+    ///     caller reports instead of deleting anything for good.
+    /// </summary>
+    private static bool SendUnix(string path) =>
+        Try.Run(() =>
+        {
+            var source = Path.GetFullPath(path);
+            if (!File.Exists(source) && !Directory.Exists(source))
+                return false;
+
+            var root = TrashRootFor(source);
+            var files = Path.Combine(root, "files");
+            var info = Path.Combine(root, "info");
+            EnsurePrivate(files);
+            EnsurePrivate(info);
+
+            var name = Path.GetFileName(source);
+            var stored = name;
+
+            for (var index = 1; File.Exists(Path.Combine(files, stored))
+                                 || Directory.Exists(Path.Combine(files, stored))
+                                 || File.Exists(Path.Combine(info, stored + TrashInfoSuffix)); index++)
+                stored = $"{name}.{index}";
+
+            var target = Path.Combine(files, stored);
+            var record = Path.Combine(info, stored + TrashInfoSuffix);
+
+            if (Directory.Exists(source))
+                Directory.Move(source, target);
+            else
+                File.Move(source, target);
+
+            try
+            {
+                File.WriteAllText(record,
+                    $"[Trash Info]\nPath={EscapeTrashPath(source)}\nDeletionDate={DateTime.Now:yyyy-MM-ddTHH:mm:ss}\n");
+            }
+            catch
+            {
+                // Without its record the content is a leftover nobody can restore; put it back.
+                if (Directory.Exists(target))
+                    Directory.Move(target, source);
+                else
+                    File.Move(target, source);
+
+                throw;
+            }
+
+            return true;
+        }).OnFailure(ex => Log.Warning(ex, "Could not move {Path} to the trash", path))
+        .GetOrElse(_ => false);
+
+    /// <summary>The trash folder that belongs to the volume a path lives on.</summary>
+    private static string TrashRootFor(string source)
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var dataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
+        var homeTrash = Path.Combine(
+            string.IsNullOrWhiteSpace(dataHome) ? Path.Combine(home, ".local", "share") : dataHome,
+            "Trash");
+
+        var mount = MountOf(source);
+        if (mount is null || mount == MountOf(home))
+            return homeTrash;
+
+        var uid = geteuid().ToString();
+        var perUser = Path.Combine(mount, $".Trash-{uid}");
+
+        if (TryCreatePrivate(perUser))
+            return perUser;
+
+        var shared = Path.Combine(mount, ".Trash", uid);
+        return TryCreatePrivate(shared) ? shared : homeTrash;
+    }
+
+    /// <summary>The mount that holds a path, as <see cref="DriveInfo" /> reports Linux mounts.</summary>
+    private static string? MountOf(string path) =>
+        DriveInfo.GetDrives()
+            .Select(drive => drive.RootDirectory.FullName)
+            .Where(root => IsUnder(path, root))
+            .OrderByDescending(root => root.Length)
+            .FirstOrDefault();
+
+    private static bool IsUnder(string path, string root)
+    {
+        var prefix = root.EndsWith('/') ? root : root + "/";
+
+        return path == root || path.StartsWith(prefix, StringComparison.Ordinal);
+    }
+
+    private static void EnsurePrivate(string directory)
+    {
+        if (!Directory.Exists(directory))
+            TryCreatePrivate(directory);
+    }
+
+    private static bool TryCreatePrivate(string directory) =>
+        Try.Run(() =>
+        {
+            if (!Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+
+                if (OperatingSystem.IsLinux())
+                    File.SetUnixFileMode(directory,
+                        UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            }
+
+            return true;
+        }).GetOrElse(_ => false);
+
+    /// <summary>The path a <c>.trashinfo</c> record stores: absolute and percent-encoded.</summary>
+    private static string EscapeTrashPath(string path) =>
+        "/" + string.Join("/", path.TrimStart('/').Split('/').Select(Uri.EscapeDataString));
+
+    [DllImport("libc", EntryPoint = "geteuid")]
+    private static extern uint geteuid();
 
     /// <summary>Runs a whole selection through <see cref="Send" />, one entry at a time.</summary>
     public static Task<bool> SendAsync(string path, CancellationToken cancellationToken = default) =>

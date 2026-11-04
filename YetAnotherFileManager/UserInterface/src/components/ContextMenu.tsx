@@ -2,6 +2,7 @@ import {useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type Re
 import {createPortal} from "react-dom";
 import styled from "styled-components";
 import {elevatedPanel} from "../ui/panel";
+import {menuInStyle} from "../ui/motion";
 import {CheckIcon, ChevronRightIcon} from "./Icons";
 
 export interface ContextMenuItem {
@@ -227,6 +228,8 @@ const Menu = styled.div`
     overflow-y: auto;
     padding: 6px;
     ${elevatedPanel}
+    ${menuInStyle}
+    transform-origin: top left;
 `;
 
 const QuickRow = styled.div`
@@ -249,6 +252,7 @@ const QuickButton = styled.button<{ $danger?: boolean }>`
     background: transparent;
     color: ${({$danger}) => $danger ? "#fca5a5" : "var(--text-secondary)"};
     cursor: pointer;
+    transition: background 120ms ease, color 120ms ease;
 
     &:hover:not(:disabled) {
         background: var(--bg-card-hover);
@@ -291,6 +295,7 @@ const Item = styled.button<{ $danger?: boolean; $depth?: number }>`
     font-size: 13px;
     text-align: left;
     cursor: pointer;
+    transition: background 120ms ease, color 120ms ease;
 
     &:hover:not(:disabled) {
         background: var(--bg-card-hover);

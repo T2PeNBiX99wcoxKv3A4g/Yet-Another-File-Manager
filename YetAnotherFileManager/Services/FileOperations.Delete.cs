@@ -48,10 +48,11 @@ internal static partial class FileOperations
         if (items.Count == 0)
             return (new FileHistory.Step(false, [], "There is nothing to delete."), 0);
 
-        // Only the recycle bin is Windows-only; a permanent delete works on every platform.
-        if (!permanent && !OperatingSystem.IsWindows())
+        // Only the recycle bin is Windows-only (the freedesktop trash covers Linux); a permanent
+        // delete works on every platform.
+        if (!permanent && !OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
             return (new FileHistory.Step(false, ParentsOf(items),
-                "Moving to the recycle bin needs Windows."), 0);
+                "Moving to the recycle bin needs Windows or Linux."), 0);
 
         var id = TaskCenter.Instance.Start("delete",
             $"{(permanent ? "Permanently delete" : "Delete")} {items.Count} item{(items.Count == 1 ? "" : "s")}",

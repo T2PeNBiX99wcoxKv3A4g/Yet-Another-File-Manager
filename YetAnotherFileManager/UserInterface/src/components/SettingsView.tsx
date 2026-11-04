@@ -1282,6 +1282,26 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
                             </Note>
                         </Gauge>
 
+                        <Gauge>
+                            <GaugeHead>
+                                <Label>{t("Native and runtime")}</Label>
+                                <Value>
+                                    {memory
+                                        ? `${formatBytes(Math.max(0, memory.private - memory.managed))} · ${percent(Math.max(0, memory.private - memory.managed), memory.private)}`
+                                        : "—"}
+                                </Value>
+                            </GaugeHead>
+                            <Track>
+                                <TrackFill
+                                    $ratio={memory ? Math.max(0, memory.private - memory.managed) / Math.max(memory.private, 1) : 0}
+                                    $tone="var(--accent-primary)"
+                                />
+                            </Track>
+                            <Note>
+                                {t("The runtime, loaded libraries and the Rust helper share this part. Rust runs inside the process, so it has no separate figure.")}
+                            </Note>
+                        </Gauge>
+
                         <Row>
                             <RowText>
                                 <Label>{t("Free memory")}</Label>

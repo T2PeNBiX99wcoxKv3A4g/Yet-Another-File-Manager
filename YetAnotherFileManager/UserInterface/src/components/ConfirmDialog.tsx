@@ -2,6 +2,7 @@ import {useEffect, useRef} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
+import {fadeInStyle, popInStyle} from "../ui/motion";
 
 interface ConfirmDialogProps {
     open: boolean;
@@ -79,6 +80,7 @@ const Overlay = styled.div`
     padding: 24px;
     background: rgba(var(--bg-rgb), 0.72);
     backdrop-filter: blur(3px);
+    ${fadeInStyle}
 `;
 
 const Card = styled.div`
@@ -88,6 +90,7 @@ const Card = styled.div`
     border-radius: var(--radius-md);
     background: var(--bg-secondary);
     box-shadow: 0 24px 60px rgba(2, 6, 23, 0.6);
+    ${popInStyle}
 `;
 
 const Title = styled.h2`

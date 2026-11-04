@@ -1,10 +1,12 @@
 import {useEffect, useRef, useState, type ReactNode} from "react";
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
-import type {Place} from "../api/files";
+import {listDirectory, type Place} from "../api/files";
 import {useQuickAccess} from "../quick";
 import {CheckIcon, ChevronRightIcon, CrossIcon} from "./Icons";
+import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
+import {elevatedPanel} from "../ui/panel";
 
 interface PathBarProps {
     path: string;
@@ -36,6 +38,8 @@ export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProp
     const quick = useQuickAccess();
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState("");
+    const [suggestions, setSuggestions] = useState<{ name: string; path: string }[]>([]);
+    const [activeSuggestion, setActiveSuggestion] = useState(0);
     const input = useRef<HTMLInputElement | null>(null);
     const lastFocus = useRef(0);
 
@@ -75,32 +79,127 @@ export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProp
         if (target.length > 0 && target !== path) onNavigate(target);
     };
 
+    // Explorer's address bar suggests the folders beside what is being typed. The listing is
+    // debounced so holding a key down does not ask the disk for every character.
+    useEffect(() => {
+        if (!editing) {
+            setSuggestions([]);
+            return;
+        }
+
+        const query = completionQuery(draft);
+        if (!query) {
+            setSuggestions([]);
+            return;
+        }
+
+        let cancelled = false;
+        const timer = window.setTimeout(() => {
+            void listDirectory(query.parent, false).then(
+                (listing) => {
+                    if (cancelled) return;
+
+                    const prefix = query.prefix.toLowerCase();
+                    const matches = listing.entries
+                        .filter((entry) => entry.isDirectory && entry.name.toLowerCase().startsWith(prefix))
+                        .sort((left, right) => left.name.localeCompare(right.name))
+                        .slice(0, 40)
+                        .map((entry) => ({name: entry.name, path: entry.fullPath}));
+
+                    setSuggestions(matches);
+                    setActiveSuggestion(0);
+                },
+                () => {
+                    if (!cancelled) setSuggestions([]);
+                },
+            );
+        }, 120);
+
+        return () => {
+            cancelled = true;
+            window.clearTimeout(timer);
+        };
+    }, [draft, editing]);
+
+    const choose = (suggestion: { path: string }) => {
+        setEditing(false);
+        onNavigate(suggestion.path);
+    };
+
     if (editing)
         return (
-            <Editor onPointerDown={(event) => event.stopPropagation()}>
-                <input
-                    onChange={(event) => setDraft(event.target.value)}
-                    onKeyDown={(event) => {
-                        if (event.key === "Enter") commit();
-                        if (event.key === "Escape") setEditing(false);
-                    }}
-                    ref={input}
-                    spellCheck={false}
-                    value={draft}
-                />
-                <EditorButton onClick={() => setEditing(false)} title={t("Cancel")} type="button">
-                    <CrossIcon size={12}/>
-                </EditorButton>
-                <EditorButton
-                    $apply
-                    onClick={commit}
-                    onPointerDown={(event) => event.stopPropagation()}
-                    title={t("Open this path")}
-                    type="button"
-                >
-                    <CheckIcon size={14}/>
-                </EditorButton>
-            </Editor>
+            <EditorWrap onPointerDown={(event) => event.stopPropagation()}>
+                <Editor>
+                    <input
+                        onChange={(event) => setDraft(event.target.value)}
+                        onKeyDown={(event) => {
+                            if (event.key === "ArrowDown" && suggestions.length > 0) {
+                                event.preventDefault();
+                                setActiveSuggestion((current) => (current + 1) % suggestions.length);
+                                return;
+                            }
+
+                            if (event.key === "ArrowUp" && suggestions.length > 0) {
+                                event.preventDefault();
+                                setActiveSuggestion((current) => (current - 1 + suggestions.length) % suggestions.length);
+                                return;
+                            }
+
+                            if (event.key === "Tab" && suggestions.length > 0) {
+                                event.preventDefault();
+                                const suggestion = suggestions[Math.min(activeSuggestion, suggestions.length - 1)];
+                                setDraft(`${suggestion.path.replace(/\\/g, "/")}/`);
+                                return;
+                            }
+
+                            if (event.key === "Enter") {
+                                if (suggestions.length > 0)
+                                    choose(suggestions[Math.min(activeSuggestion, suggestions.length - 1)]);
+                                else
+                                    commit();
+                                return;
+                            }
+
+                            if (event.key === "Escape") {
+                                if (suggestions.length > 0) setSuggestions([]);
+                                else setEditing(false);
+                            }
+                        }}
+                        ref={input}
+                        spellCheck={false}
+                        value={draft}
+                    />
+                    <EditorButton onClick={() => setEditing(false)} title={t("Cancel")} type="button">
+                        <CrossIcon size={12}/>
+                    </EditorButton>
+                    <EditorButton
+                        $apply
+                        onClick={commit}
+                        onPointerDown={(event) => event.stopPropagation()}
+                        title={t("Open this path")}
+                        type="button"
+                    >
+                        <CheckIcon size={14}/>
+                    </EditorButton>
+                </Editor>
+
+                {suggestions.length > 0 && (
+                    <Completions>
+                        {suggestions.map((suggestion, index) => (
+                            <Completion
+                                $active={index === activeSuggestion}
+                                key={suggestion.path}
+                                onClick={() => choose(suggestion)}
+                                onMouseEnter={() => setActiveSuggestion(index)}
+                                type="button"
+                            >
+                                <PathIcon isDirectory name={suggestion.name} path={suggestion.path} size={14}/>
+                                <CompletionName>{suggestion.name}</CompletionName>
+                            </Completion>
+                        ))}
+                    </Completions>
+                )}
+            </EditorWrap>
         );
 
     const crumbs: Crumb[] = label
@@ -175,6 +274,19 @@ function crumbsFor(path: string, quick: Record<string, Place>): Crumb[] {
         crumbs.splice(0, deepest + 1, {label: match.name, path: crumbs[deepest].path, place: match});
 
     return crumbs;
+}
+
+/**
+ * Splits the text being typed into the folder to list and the part still being completed. Text
+ * without a separator is not a path yet, so it gets no suggestions.
+ */
+function completionQuery(value: string): { parent: string; prefix: string } | null {
+    if (value.toLowerCase().startsWith("yafm://")) return null;
+
+    const cut = Math.max(value.lastIndexOf("/"), value.lastIndexOf("\\"));
+    if (cut < 0) return null;
+
+    return {parent: value.slice(0, cut + 1), prefix: value.slice(cut + 1)};
 }
 
 const Trail = styled.div`
@@ -253,6 +365,64 @@ const CrumbButton = styled.button`
         outline: 2px solid var(--border-color-focus);
         outline-offset: -1px;
     }
+`;
+
+const EditorWrap = styled.div`
+    position: relative;
+    display: flex;
+    flex: 1;
+    min-width: 0;
+`;
+
+const Completions = styled.div`
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    left: 0;
+    z-index: 80;
+    max-height: 280px;
+    padding: 4px;
+    overflow-y: auto;
+    ${elevatedPanel}
+    animation: yafm-path-in 130ms cubic-bezier(0.22, 1, 0.36, 1);
+
+    @keyframes yafm-path-in {
+        from {
+            opacity: 0;
+            transform: translateY(-4px) scale(0.99);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+`;
+
+const Completion = styled.button<{ $active: boolean }>`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: ${({$active}) => $active ? "rgba(var(--accent-rgb), 0.14)" : "transparent"};
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+    transition: background 100ms ease;
+
+    &:hover {
+        background: rgba(var(--accent-rgb), 0.14);
+    }
+`;
+
+const CompletionName = styled.span`
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 `;
 
 const Editor = styled.div`

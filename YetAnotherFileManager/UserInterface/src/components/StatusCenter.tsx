@@ -5,6 +5,7 @@ import type {TaskInfo} from "../api/tasks";
 import {formatBytes, plural} from "../utils/format";
 import {CheckIcon, ClockIcon, CrossIcon} from "./Icons";
 import {elevatedPanel} from "../ui/panel";
+import {fadeInStyle} from "../ui/motion";
 
 interface StatusCenterProps {
     tasks: TaskInfo[];
@@ -266,6 +267,7 @@ const Row = styled.div`
     padding: 8px;
     border-radius: var(--radius-md);
     transition: background 130ms ease;
+    ${fadeInStyle}
 
     & + & {
         border-top: 1px solid var(--border-color);

@@ -4,6 +4,7 @@ import {useTranslation} from "@photino-net-utils/bridge";
 import {PathIcon} from "./PathIcon";
 import {CheckIcon, CrossIcon, PackageIcon} from "./Icons";
 import {elevatedPanel} from "../ui/panel";
+import {popInStyle} from "../ui/motion";
 import {parentPath} from "../utils/format";
 
 /** One entry the tray holds; it can come from an in-app copy, a cut, or the system clipboard. */
@@ -35,6 +36,14 @@ interface FileTrayProps {
 
 const DragType = "application/x-yafm-paths";
 
+/** The drag types the app can turn into paths: its own rows, and files dragged in from elsewhere. */
+const PathDragTypes = [DragType, "text/uri-list"];
+
+/** Whether a drag carries paths the tray or a folder can accept. */
+export function isPathDrag(transfer: DataTransfer | null): boolean {
+    return transfer?.types.some((type) => PathDragTypes.includes(type.toLowerCase())) ?? false;
+}
+
 /** Reads the paths another part of the app put on a drag, or the plain-text fallback. */
 export function readDraggedPaths(event: { dataTransfer: DataTransfer | null }): { paths: string[]; move: boolean } {
     const transfer = event.dataTransfer;
@@ -57,20 +66,55 @@ export function readDraggedPaths(event: { dataTransfer: DataTransfer | null }): 
         }
     }
 
+    // Dropping from another file manager: the URIs are absolute, unlike a plain-text drop.
+    const uris = transfer.getData("text/uri-list");
+    if (uris) {
+        const paths = uris.split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter((line) => line.length > 0 && !line.startsWith("#"))
+            .map(uriToPath)
+            .filter((path): path is string => path !== null);
+
+        if (paths.length > 0)
+            return {paths, move: true};
+    }
+
     return {
         paths: transfer.getData("text/plain")
             .split(/\r?\n/)
             .map((path) => path.trim())
-            .filter((path) => /^[a-zA-Z]:[\\/]|^\\\\/.test(path)),
+            .filter((path) => /^[a-zA-Z]:[\\/]|^\\\\|^\//.test(path)),
         move: true,
     };
+}
+
+/** Windows paths arrive as "/C:/…" from the URI parser; Linux paths already start with "/". */
+const UsesWindowsPaths = typeof navigator !== "undefined" && /windows/i.test(navigator.userAgent);
+
+/** The local path behind a <c>file://</c> URI, or the path itself when it is already one. */
+function uriToPath(uri: string): string | null {
+    if (!uri.toLowerCase().startsWith("file://")) {
+        return /^[a-zA-Z]:[\\/]|^\\\\|^\//.test(uri) ? uri : null;
+    }
+
+    try {
+        const url = new URL(uri);
+        const path = decodeURIComponent(url.pathname);
+
+        // Windows keeps the drive letter, but the URI path starts with a slash ("/C:/…").
+        return UsesWindowsPaths ? path.replace(/^\/(?=[a-zA-Z]:)/, "") : path;
+    } catch {
+        return null;
+    }
 }
 
 /** Puts the paths on a drag so the tray, the list and any future target can read them. */
 export function writeDraggedPaths(event: { dataTransfer: DataTransfer }, paths: string[], move = true) {
     event.dataTransfer.setData(DragType, JSON.stringify({paths, move}));
     event.dataTransfer.setData("text/plain", paths.join("\r\n"));
-    event.dataTransfer.effectAllowed = move ? "move" : "copy";
+    // The target decides whether it copies or moves; a single effect here would make the tray's
+    // copy drop incompatible with a row dragged for a move and the browser would refuse it.
+    event.dataTransfer.effectAllowed = "copyMove";
 }
 
 /**
@@ -107,8 +151,7 @@ export function FileTray({
         };
         const over = (event: globalThis.DragEvent) => {
             const transfer = event.dataTransfer;
-            if (!transfer || !transfer.types.some((type) => type.toLowerCase() === DragType)
-                || !inside(event.clientX, event.clientY))
+            if (!transfer || !isPathDrag(transfer) || !inside(event.clientX, event.clientY))
                 return;
 
             event.preventDefault();
@@ -260,7 +303,7 @@ export function FileTray({
     };
 
     const acceptDrag = (event: DragEvent<HTMLDivElement>) => {
-        if (!event.dataTransfer.types.some((type) => type.toLowerCase() === DragType))
+        if (!isPathDrag(event.dataTransfer))
             return;
 
         event.preventDefault();
@@ -361,9 +404,11 @@ const Panel = styled.div<{ $dragging: boolean }>`
     width: 300px;
     max-height: 380px;
     ${elevatedPanel}
+    ${popInStyle}
     overflow: hidden;
     user-select: none;
     cursor: ${({$dragging}) => $dragging ? "grabbing" : "default"};
+    transition: box-shadow 160ms ease;
 `;
 
 const Head = styled.div`
@@ -496,9 +541,11 @@ const Item = styled.div<{ $checked: boolean }>`
     border-radius: var(--radius-sm);
     background: ${({$checked}) => $checked ? "rgba(var(--accent-rgb), 0.1)" : "transparent"};
     cursor: grab;
+    transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
 
     &:hover {
         background: rgba(var(--accent-rgb), 0.07);
+        transform: translateX(1px);
     }
 
     &:active {

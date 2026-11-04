@@ -4,6 +4,7 @@ import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import {pickIconFile} from "../api/settings";
 import {PanelIcons} from "../panels";
+import {menuInStyle} from "../ui/motion";
 import {CrossIcon, PlusIcon} from "./Icons";
 
 interface IconPickerProps {
@@ -129,6 +130,8 @@ const IconMenu = styled.div`
     border-radius: var(--radius-sm);
     background: var(--bg-secondary);
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+    ${menuInStyle}
+    transform-origin: top left;
 `;
 
 const IconChoice = styled.button<{ $active?: boolean }>`
