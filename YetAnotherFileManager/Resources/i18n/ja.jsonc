@@ -451,5 +451,9 @@
   "Reopen closed tab": "閉じたタブを開き直す",
   "Brings back the tab you closed last, folder and all.": "最後に閉じたタブをフォルダーごと開き直します。",
   "Could not delete the selection.": "シェルが選択項目を削除できませんでした。",
-  "Could not move the selection to the recycle bin.": "シェルが選択項目をごみ箱に移動できませんでした。"
+  "Could not move the selection to the recycle bin.": "シェルが選択項目をごみ箱に移動できませんでした。",
+  "Registers this app for folder opens on this account. Explorer stays available from the context menu; on Linux this sets the inode/directory default.": "このアプリをこのアカウントのフォルダーを開くハンドラーとして登録します。Explorer は右クリックメニューに残ります。Linux では inode/directory の既定の関連付けを設定します。",
+  "Stop using this app for folders": "このアプリでフォルダーを開くのをやめる",
+  "Use as the default file manager": "既定のファイルマネージャーとして使う",
+  "Use this app for folders": "このアプリでフォルダーを開く"
 }

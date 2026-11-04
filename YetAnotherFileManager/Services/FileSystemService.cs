@@ -180,6 +180,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                     });
 
                     // The localization provider reloads the string table when the language changes.
+                    DefaultFileManager.Apply(saved.IsDefaultFileManager);
                     WindowManager.Instance.Notify("settings.changed", new OkPayload());
                     return context.Reply("app.settings.result", saved);
                 }

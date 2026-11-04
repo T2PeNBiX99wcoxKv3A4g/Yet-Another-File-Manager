@@ -64,6 +64,11 @@ internal static partial class Program
         // Photino message loop / WebView2 require an STA thread.
         Logging.Initialize(Constants.Name, "app");
 
+        // "yafm https://…" behaves like Explorer: the link goes to the default browser and the app
+        // does not open a window unless another path was passed as well.
+        if (TryOpenExternalUrls(args))
+            return;
+
         // The bridge serializes with the app's source-generated context; nothing is reflected.
         NativeBridge.Initialize(AppJsonContext.Default);
 
@@ -71,6 +76,9 @@ internal static partial class Program
         // values as soon as the window is up. Main must stay synchronous on its STA thread, so this
         // single startup read waits here instead of racing the services.
         SettingsService.Instance.InitializeAsync().GetAwaiter().GetResult();
+
+        // Re-apply the per-user folder association in case it was removed outside the app.
+        DefaultFileManager.Apply(SettingsService.Instance.Current.IsDefaultFileManager);
 
         // UI strings come from Resources/i18n; the settings select the language.
         Localization.Initialize(typeof(Program).Assembly, "YetAnotherFileManager.Resources.i18n.",
@@ -288,6 +296,29 @@ _ = UpdateService.Instance;
     }
 
     /// <summary>
+    ///     Opens every http(s) argument in the default browser, like <c>explorer https://…</c>. True
+    ///     when there was nothing else to open, so the process can exit without a window.
+    /// </summary>
+    private static bool TryOpenExternalUrls(IEnumerable<string> args)
+    {
+        var arguments = args.ToList();
+        var urls = arguments.Where(IsExternalUrl).ToList();
+
+        if (urls.Count == 0)
+            return false;
+
+        foreach (var url in urls)
+            Try.Run(() => SystemLauncher.Open(url))
+                .OnFailure(ex => Log.Warning(ex, "Could not open {Url}", url));
+
+        return !arguments.Any(argument => !argument.StartsWith('-') && !IsExternalUrl(argument));
+    }
+
+    private static bool IsExternalUrl(string value) =>
+        Uri.TryCreate(value, UriKind.Absolute, out var uri)
+        && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
+    /// <summary>
     ///     Explorer-style command line: every non-flag argument is a file or folder to show. A file
     ///     opens its containing folder until the interface can select it.
     /// </summary>
@@ -295,10 +326,17 @@ _ = UpdateService.Instance;
     {
         var paths = new List<string>();
 
-        foreach (var arg in args)
+        foreach (var raw in args)
         {
+            var arg = raw;
+
             if (arg.Length == 0 || arg.StartsWith('-'))
                 continue;
+
+            // "yafm file:///home/me/Downloads" is the same as passing the path itself.
+            if (arg.StartsWith("file://", StringComparison.OrdinalIgnoreCase)
+                && Uri.TryCreate(arg, UriKind.Absolute, out var file) && file.IsFile)
+                arg = file.LocalPath;
 
             // yafm:// links arrive as the only argument when the shell opens one; the interface
             // knows how to parse them, so they are passed through untouched.

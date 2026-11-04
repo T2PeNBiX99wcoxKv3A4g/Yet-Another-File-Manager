@@ -16,7 +16,8 @@ import {
     type Place,
     type RecentEntry,
 } from "../api/files";
-import {getSettings, pickFolder, saveSettings, type AppSettings} from "../api/settings";
+import {getSettings, saveSettings, type AppSettings} from "../api/settings";
+import {requestFolder} from "../folder-picker";
 import {Native, useTranslation} from "@photino-net-utils/bridge";
 import {FileList} from "./FileList";
 import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, GridIcon, ListIcon, PencilIcon, PinIcon, PlusIcon} from "./Icons";
@@ -793,7 +794,7 @@ export function OverviewView({
         if (!settings) return;
 
         if (kind === "folder") {
-            const folder = await pickFolder();
+            const folder = await requestFolder();
             if (!folder) return;
 
             const id = `folder:${folder}`;
@@ -819,7 +820,7 @@ export function OverviewView({
 
     /** Pins one more folder to the chosen Quick access panel. */
     const addPlace = async (panel: Panel) => {
-        const folder = await pickFolder();
+        const folder = await requestFolder();
         if (!folder) return;
 
         if (panel.id === "quick") {

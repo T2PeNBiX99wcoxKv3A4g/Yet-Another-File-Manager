@@ -39,6 +39,8 @@ import {FileList} from "./components/FileList";
 import {ContextMenu, type ContextMenuItem} from "./components/ContextMenu";
 import {PreviewPane, type PreviewInfo} from "./components/PreviewPane";
 import {FileTray, isPathDrag, type TrayItem} from "./components/FileTray";
+import {FolderPicker} from "./components/FolderPicker";
+import {setFolderPickerOpener} from "./folder-picker";
 import {FindBar} from "./components/FindBar";
 import {EmptyFind, matchesName, type FindState} from "./find";
 import {QuickAccessProvider, quickName, quickPlace, type QuickAccess} from "./quick";
@@ -288,6 +290,7 @@ export default function App() {
     const [clipboardItems, setClipboardItems] = useState<TrayItem[]>([]);
     const [clipboardMove, setClipboardMove] = useState(false);
     const [trayVisible, setTrayVisible] = useState(false);
+    const [folderPicker, setFolderPicker] = useState<{ initial: string; resolve: (path: string | null) => void } | null>(null);
     const [trayPosition, setTrayPosition] = useState<{ x: number; y: number }>(() => {
         const saved = readStoredJson<{ x?: number; y?: number }>("yafm.tray.position");
 
@@ -935,6 +938,14 @@ export default function App() {
 
     const trayRef = useRef(trayItems);
     trayRef.current = trayItems;
+
+    // Views ask for a folder through this promise instead of the shell's dialog.
+    useEffect(() => {
+        setFolderPickerOpener((initial) =>
+            new Promise<string | null>((resolve) => setFolderPicker({initial: initial ?? "", resolve})));
+
+        return () => setFolderPickerOpener(null);
+    }, []);
 
     // The tray is a drop target, so it shows up (at a reachable spot) as soon as an in-app drag
     // starts. It stays open until the user closes it.
@@ -2082,6 +2093,20 @@ export default function App() {
                     onClose={() => setCreateMenu(null)}
                     x={createMenu.x}
                     y={createMenu.y}
+                />
+            )}
+
+            {folderPicker && (
+                <FolderPicker
+                    initial={folderPicker.initial}
+                    onCancel={() => {
+                        folderPicker.resolve(null);
+                        setFolderPicker(null);
+                    }}
+                    onSelect={(path) => {
+                        folderPicker.resolve(path);
+                        setFolderPicker(null);
+                    }}
                 />
             )}
 

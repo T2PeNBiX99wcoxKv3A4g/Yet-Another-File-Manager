@@ -60,6 +60,13 @@
         <EmbeddedResource Include="Resources\**" />
     </ItemGroup>
 
+    <ItemGroup>
+        <!-- The "yafm" command: a batch shim beside the executable, copied to the publish folder
+             too so the MSI and the plain archive both carry it. -->
+        <None Include="..\installer\windows\yafm.cmd" Link="yafm.cmd"
+              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+
     <!-- Rust handles bulk filesystem work: the gallery scan, ZIP creation, measuring and deleting
          trees. The library is required, so the build stops when cargo is missing or the crate does
          not compile, and the file is copied beside the executable. -->

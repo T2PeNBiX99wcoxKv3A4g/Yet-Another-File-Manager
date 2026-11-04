@@ -39,12 +39,14 @@ public sealed record AppSettings(
     string? SecondaryColor,
     /// <summary>UI language; null means English, "system" follows the operating system.</summary>
     string? Language,
-    List<ThemePreset>? ThemePresets)
+    List<ThemePreset>? ThemePresets,
+    /// <summary>Register this app as the folder handler; off by default and per-user only.</summary>
+    bool? DefaultFileManager)
 {
     public static AppSettings Default =>
         new(true, true, true, [], null, 10, null, ["quick", "frequent", "recent", "home", "drives"], null, 1, null,
             null, null, null, null, null, ["quick", "frequent", "recent", "drives"], null, null, true, null, 0, null,
-            true, false, false, false, false, null, null, null, null);
+            true, false, false, false, false, null, null, null, null, false);
 
     // The accessors below are derived, so they are kept out of settings.json entirely; only the
     // fields above are stored, and the JSON stays readable and stable.
@@ -127,6 +129,10 @@ public sealed record AppSettings(
     /// </summary>
     [JsonIgnore]
     public bool OwnsLinks => LinksEnabled ?? false;
+
+    /// <summary>Use this app for folder opens; the registration is per-user and re-applied at launch.</summary>
+    [JsonIgnore]
+    public bool IsDefaultFileManager => DefaultFileManager ?? false;
 
     /// <summary>Show a selection checkbox in front of every name.</summary>
     [JsonIgnore]

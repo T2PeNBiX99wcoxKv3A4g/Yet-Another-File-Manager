@@ -63,6 +63,10 @@
                     <Shortcut Id="DesktopShortcut" Directory="DesktopFolder" Name="Yet Another File Manager"
                               Description="Browse files with previews, a gallery and a recycle bin" />
                 </File>
+                <!-- "yafm <path>" from any prompt after the install folder is added to the user PATH. -->
+                <File Id="YafmCommand" Source="$(var.SourceDir)\yafm.cmd" />
+                <Environment Id="UserPath" Name="PATH" Action="set" Part="last" System="no"
+                             Value="[INSTALLFOLDER]" />
                 <RemoveFolder Id="RemoveInstallFolder" On="uninstall" />
             </Component>
             <Component Id="NativeHelper" Directory="INSTALLFOLDER" Guid="*">

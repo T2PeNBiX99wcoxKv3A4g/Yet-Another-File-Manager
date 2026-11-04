@@ -35,6 +35,8 @@ export interface AppSettings {
     overviewPinned: string[] | null;
     /** Keep yafm:// registered for this user; the host re-applies it at every launch. */
     linksEnabled: boolean | null;
+    /** Register this app as the folder handler; off by default and per-user only. */
+    defaultFileManager: boolean;
     /** Folders shown by a Quick access panel, by panel id. The factory "quick" panel uses quickAccess. */
     panelPlaces: Record<string, string[]> | null;
     /** Reopen the tabs that were open when the window was closed. */
@@ -91,6 +93,7 @@ const fallback: AppSettings = {
     overviewIcons: null,
     overviewPinned: null,
     linksEnabled: null,
+    defaultFileManager: false,
     panelPlaces: null,
     restoreTabs: true,
     openTabs: null,
@@ -132,6 +135,7 @@ export async function getSettings(): Promise<AppSettings> {
         overviewIcons: raw?.overviewIcons ?? null,
         overviewPinned: raw?.overviewPinned ?? null,
         linksEnabled: raw?.linksEnabled ?? null,
+        defaultFileManager: raw?.defaultFileManager ?? false,
         panelPlaces: raw?.panelPlaces ?? null,
         restoreTabs: raw?.restoreTabs ?? true,
         openTabs: raw?.openTabs ?? null,
@@ -174,6 +178,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         overviewIcons: saved?.overviewIcons ?? settings.overviewIcons,
         overviewPinned: saved?.overviewPinned ?? settings.overviewPinned,
         linksEnabled: saved?.linksEnabled ?? settings.linksEnabled,
+        defaultFileManager: saved?.defaultFileManager ?? settings.defaultFileManager,
         panelPlaces: saved?.panelPlaces ?? settings.panelPlaces,
         restoreTabs: saved?.restoreTabs ?? settings.restoreTabs,
         openTabs: saved?.openTabs ?? settings.openTabs,

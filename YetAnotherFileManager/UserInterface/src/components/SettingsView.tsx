@@ -7,13 +7,13 @@ import {DefaultViewDefaults} from "../api/files";
 import {clearIconCache, useIconFile} from "../api/icons";
 import {
     getSettings,
-    pickFolder,
     pickIconFile,
     saveSettings,
     setEntryIcon,
     type AppSettings,
 } from "../api/settings";
 import type {AppInfo} from "../api/system";
+import {requestFolder} from "../folder-picker";
 import {checkUpdate, getMemory, getScheme, getUpdateStatus, openUrl, setScheme, trimMemory,
     type MemoryUsage, type UpdateCheck} from "../api/system";
 import {createTag, deleteTag, listTags, renameTag, setTagColor, type TagCatalogEntry} from "../api/tags";
@@ -488,7 +488,7 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
     };
 
     const addGalleryRoot = async () => {
-        const folder = await pickFolder();
+        const folder = await requestFolder();
         const paths = settings?.galleryRoots ?? [];
 
         if (!folder || paths.some((path) => path.toLowerCase() === folder.toLowerCase()))
@@ -511,7 +511,7 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
         setBusy(true);
 
         try {
-            const folder = await pickFolder();
+            const folder = await requestFolder();
             if (!folder) return;
 
             const icon = await pickIconFile();
@@ -576,6 +576,30 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
                                     disabled={schemeBusy}
                                     onClick={() => void toggleScheme()}
                                     title={scheme ? t("Stop opening yafm:// links") : t("Open yafm:// links with this app")}
+                                    type="button"
+                                >
+                                    <Knob/>
+                                </Toggle>
+                            </RowEnd>
+                        </Row>
+                        <Row>
+                            <RowText>
+                                <Label>{t("Use as the default file manager")}</Label>
+                                <Note>
+                                    {t("Registers this app for folder opens on this account. Explorer stays available from the context menu; on Linux this sets the inode/directory default.")}
+                                </Note>
+                            </RowText>
+                            <RowEnd>
+                                <State $on={settings?.defaultFileManager ?? false}>
+                                    {settings?.defaultFileManager ? t("Active") : t("Off")}
+                                </State>
+                                <Toggle
+                                    $on={settings?.defaultFileManager ?? false}
+                                    disabled={!settings}
+                                    onClick={() => void update({defaultFileManager: !settings?.defaultFileManager})}
+                                    title={settings?.defaultFileManager
+                                        ? t("Stop using this app for folders")
+                                        : t("Use this app for folders")}
                                     type="button"
                                 >
                                     <Knob/>

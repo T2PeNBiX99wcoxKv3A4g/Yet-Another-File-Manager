@@ -451,5 +451,9 @@
   "Reopen closed tab": "重新打开关闭的标签页",
   "Brings back the tab you closed last, folder and all.": "把最后关闭的标签页连同文件夹一起恢复。",
   "Could not delete the selection.": "外壳无法删除所选内容。",
-  "Could not move the selection to the recycle bin.": "外壳无法将所选内容移到回收站。"
+  "Could not move the selection to the recycle bin.": "外壳无法将所选内容移到回收站。",
+  "Registers this app for folder opens on this account. Explorer stays available from the context menu; on Linux this sets the inode/directory default.": "将此程序注册为此账户打开文件夹的处理程序。Explorer 仍保留在右键菜单中；Linux 会设置 inode/directory 的默认关联。",
+  "Stop using this app for folders": "停止使用此程序打开文件夹",
+  "Use as the default file manager": "设为默认文件管理器",
+  "Use this app for folders": "使用此程序打开文件夹"
 }
