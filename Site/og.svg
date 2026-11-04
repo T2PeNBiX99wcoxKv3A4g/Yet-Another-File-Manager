@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+    <title id="title">YetAnotherFileManager</title>
+    <desc id="desc">A file manager that keeps everything in one window.</desc>
+
+    <defs>
+        <radialGradient id="glow-top" cx="18%" cy="-10%" r="75%">
+            <stop offset="0" stop-color="#6366f1" stop-opacity="0.42"/>
+            <stop offset="1" stop-color="#6366f1" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="glow-bottom" cx="95%" cy="110%" r="70%">
+            <stop offset="0" stop-color="#3b82f6" stop-opacity="0.30"/>
+            <stop offset="1" stop-color="#3b82f6" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="icon-bg" x1="8" y1="8" x2="248" y2="248" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#3b82f6"/>
+            <stop offset="1" stop-color="#8b5cf6"/>
+        </linearGradient>
+    </defs>
+
+    <rect width="1200" height="630" fill="#0b0a10"/>
+    <rect width="1200" height="630" fill="url(#glow-top)"/>
+    <rect width="1200" height="630" fill="url(#glow-bottom)"/>
+
+    <rect x="24" y="24" width="1152" height="582" rx="28" fill="none"
+          stroke="#7aa2ff" stroke-opacity="0.16" stroke-width="2"/>
+
+    <!-- The app mark, scaled from icon.svg. -->
+    <g transform="translate(84 200) scale(0.88)">
+        <rect x="8" y="8" width="240" height="240" rx="54" fill="url(#icon-bg)"/>
+        <rect x="60" y="82" width="96" height="40" rx="14" fill="#dbeafe" fill-opacity="0.92"/>
+        <rect x="60" y="100" width="136" height="78" rx="20" fill="#f8fafc" fill-opacity="0.98"/>
+        <rect x="84" y="134" width="88" height="10" rx="5" fill="#6366f1"/>
+    </g>
+
+    <g font-family="Segoe UI, Arial, sans-serif">
+        <text x="340" y="300" fill="#eef2ff" font-size="66" font-weight="700" letter-spacing="-2">YetAnotherFileManager</text>
+        <text x="344" y="368" fill="#b6c0d8" font-size="30">Previews, gallery, tags and a recycle bin</text>
+        <text x="344" y="408" fill="#b6c0d8" font-size="30">in one window.</text>
+        <text x="344" y="466" fill="#6d7893" font-size="22" letter-spacing="0.4">Tabbed file manager for Windows and Linux</text>
+    </g>
+
+    <text x="1110" y="570" fill="#6d7893" font-family="Cascadia Mono, Consolas, monospace"
+          font-size="19" text-anchor="end">t2penbix99wcoxkv3a4g.github.io/YetAnotherFileManager</text>
+</svg>

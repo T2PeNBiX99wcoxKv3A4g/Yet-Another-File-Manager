@@ -1,0 +1,86 @@
+{
+  "nav": {
+    "home": "Home",
+    "docs": "Docs"
+  },
+  "version": "Version",
+  "footer": "YetAnotherFileManager is under the MIT license.",
+  "home": {
+    "tagline": "A file manager that keeps everything in one window.",
+    "download": "Download",
+    "documentation": "Documentation",
+    "whatTitle": "What it does",
+    "whatText": "YetAnotherFileManager browses folders in a list or a grid, previews pictures, video and documents beside them, and keeps tabs, a split view, a search, a gallery, per-folder tags and a recycle bin in the same window. It runs on Windows and Linux from the same code base.",
+    "featuresTitle": "Features",
+    "features": [
+      {
+        "name": "Tabs and split view",
+        "text": "Open several folders at once and show two of them side by side. Tabs remember their own history and the view each folder had."
+      },
+      {
+        "name": "List and grid",
+        "text": "Sort by any column, pick the columns you want, and let each folder remember its own list or grid mode, icon size and tile height."
+      },
+      {
+        "name": "Previews",
+        "text": "Pictures, video, PDFs and text files appear beside the list or under it. The details panel shows size, dates, link targets and attributes."
+      },
+      {
+        "name": "Overview",
+        "text": "A home page made of panels: Quick access, frequent folders, recent items, drives and any folder you pin, in one, two or three columns."
+      },
+      {
+        "name": "Search",
+        "text": "A floating find bar that filters as you type, with match case, regular expressions, and a choice between dimming and hiding the rest."
+      },
+      {
+        "name": "Tags",
+        "text": "Give files and folders coloured tags, browse them in the catalogue, and rename or remove a tag everywhere at once."
+      },
+      {
+        "name": "Gallery",
+        "text": "Point it at the folders that hold pictures and it groups every image by day, with a full-size viewer one double click away."
+      },
+      {
+        "name": "Recycle bin",
+        "text": "Restore what you deleted, remove it for good, and see the leftover records whose files are already gone."
+      },
+      {
+        "name": "Themes and languages",
+        "text": "Pick the accent and secondary colours, save your own presets, and switch between English, 繁體中文, 简体中文 and 日本語 at any time."
+      }
+    ],
+    "howTitle": "How it works",
+    "how": [
+      "Install it, then open a folder. The left sidebar has Quick access, the overview, the gallery and the recycle bin.",
+      "Use tabs and split view to keep two folders in sight, and drag the divider to give either side more room.",
+      "Right-click anywhere for file operations, and open Settings to change the theme, the columns, the shortcuts and the language."
+    ],
+    "installTitle": "Install",
+    "installBefore": "Builds are self-contained: the .NET runtime is bundled, so nothing else needs installing. Windows also needs the WebView2 runtime, which Windows 10 and 11 already have; Linux needs WebKitGTK 4.1 and libnotify (see the ",
+    "readme": "README",
+    "installAfter": "). The Windows build is not code-signed, so Windows may warn the first time.",
+    "platforms": [
+      {
+        "name": "Windows",
+        "note": "x64 installer (.msi)"
+      },
+      {
+        "name": "Fedora",
+        "note": "x86_64 (.rpm)"
+      },
+      {
+        "name": "Debian / Ubuntu",
+        "note": "amd64 (.deb)"
+      },
+      {
+        "name": "Arch Linux",
+        "note": "x86_64 (.pkg.tar.zst)"
+      }
+    ]
+  },
+  "docs": {
+    "setup": "Getting started",
+    "reference": "Reference"
+  }
+}

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=YetAnotherFileManager
+GenericName=File Manager
+Comment=Browse files with previews, a gallery and a recycle bin
+Exec=/opt/YetAnotherFileManager/YetAnotherFileManager %U
+Icon=yafm
+Terminal=false
+StartupWMClass=YetAnotherFileManager
+Categories=System;FileManager;Utility;
+MimeType=inode/directory;x-scheme-handler/yafm;
