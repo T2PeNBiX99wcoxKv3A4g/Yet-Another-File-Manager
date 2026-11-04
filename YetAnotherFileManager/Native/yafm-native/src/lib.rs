@@ -233,14 +233,28 @@ pub unsafe extern "C" fn yafm_compress(
 
     match compress(&sources, &output, threads) {
         Ok(()) => 0,
-        Err(_) => -3,
+        // -4 tells the caller to stream the archive itself; -3 is a real failure.
+        Err(CompressError::TooLarge) => -4,
+        Err(CompressError::Other) => -3,
     }
 }
 
-fn compress(sources: &[&str], output: &str, threads: usize) -> Result<(), String> {
+/// Why the native writer stopped: a file it cannot hold, or a genuine failure.
+enum CompressError {
+    TooLarge,
+    Other,
+}
+
+impl From<String> for CompressError {
+    fn from(_: String) -> Self {
+        CompressError::Other
+    }
+}
+
+fn compress(sources: &[&str], output: &str, threads: usize) -> Result<(), CompressError> {
     let items = collect(sources)?;
     if items.is_empty() {
-        return Err("nothing to compress".into());
+        return Err(CompressError::Other);
     }
 
     let pool = rayon::ThreadPoolBuilder::new()
@@ -263,7 +277,7 @@ fn compress(sources: &[&str], output: &str, threads: usize) -> Result<(), String
 
         for entry in prepared {
             if entry.compressed.len() as u64 > u32::MAX as u64 || entry.uncompressed > u32::MAX as u64 {
-                return Err("zip64 is not supported by the native writer".into());
+                return Err(CompressError::TooLarge);
             }
 
             let local_offset = offset;
@@ -285,7 +299,7 @@ fn compress(sources: &[&str], output: &str, threads: usize) -> Result<(), String
     let central_size = write_central(&mut writer, &central)?;
 
     if central_start > u32::MAX as u64 || central.len() > u16::MAX as usize {
-        return Err("zip64 is not supported by the native writer".into());
+        return Err(CompressError::TooLarge);
     }
 
     write_end(&mut writer, central.len() as u16, central_size as u32, central_start as u32)?;
@@ -295,7 +309,7 @@ fn compress(sources: &[&str], output: &str, threads: usize) -> Result<(), String
 }
 
 /// Splits the entries into batches that bound both the file count and the bytes held in memory.
-fn batches(items: &[Item]) -> Result<Vec<Range<usize>>, String> {
+fn batches(items: &[Item]) -> Result<Vec<Range<usize>>, CompressError> {
     let mut ranges = Vec::new();
     let mut start = 0;
 
@@ -310,7 +324,7 @@ fn batches(items: &[Item]) -> Result<Vec<Range<usize>>, String> {
             };
 
             if size > MAX_NATIVE_FILE {
-                return Err("a file is too large for the native writer".into());
+                return Err(CompressError::TooLarge);
             }
 
             if end > start && bytes + size > CHUNK_BYTES {

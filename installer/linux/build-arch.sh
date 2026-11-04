@@ -30,7 +30,7 @@ trap 'rm -rf "$stage"' EXIT
 
 install -Dpm 0755 "$publish_dir/YetAnotherFileManager" "$stage/opt/YetAnotherFileManager/YetAnotherFileManager"
 if [[ ! -f "$publish_dir/libyafm_native.so" ]]; then
-    echo "No libyafm_native.so in $publish_dir; the gallery would fall back to the slow managed walk." >&2
+    echo "No libyafm_native.so in $publish_dir; the app needs the Rust helper." >&2
     exit 1
 fi
 install -Dpm 0755 "$publish_dir/libyafm_native.so" "$stage/opt/YetAnotherFileManager/libyafm_native.so"

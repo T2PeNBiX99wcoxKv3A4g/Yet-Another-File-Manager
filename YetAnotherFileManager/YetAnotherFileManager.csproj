@@ -60,9 +60,9 @@
         <EmbeddedResource Include="Resources\**" />
     </ItemGroup>
 
-    <!-- Rust handles bulk filesystem work (the gallery scan today). These targets build the library
-         when cargo is present and copy it beside the executable; the managed walk is the fallback
-         when the file is missing, so a checkout without the toolchain still builds and runs. -->
+    <!-- Rust handles bulk filesystem work: the gallery scan, ZIP creation, measuring and deleting
+         trees. The library is required, so the build stops when cargo is missing or the crate does
+         not compile, and the file is copied beside the executable. -->
     <PropertyGroup>
         <RustManifest>$(MSBuildProjectDirectory)/Native/yafm-native/Cargo.toml</RustManifest>
         <RustReleaseDir>$(MSBuildProjectDirectory)/Native/yafm-native/target/release</RustReleaseDir>
@@ -71,10 +71,8 @@
         <RustLibraryName Condition="$([MSBuild]::IsOSPlatform('OSX'))">libyafm_native.dylib</RustLibraryName>
     </PropertyGroup>
 
-    <Target Name="BuildRustNative" BeforeTargets="Build"
-            Condition="Exists('$(RustManifest)') AND '$(SkipRustNative)' != 'true'">
-        <Exec Command="cargo build --release --manifest-path &quot;$(RustManifest)&quot;"
-              ContinueOnError="WarnAndContinue" />
+    <Target Name="BuildRustNative" BeforeTargets="Build" Condition="Exists('$(RustManifest)')">
+        <Exec Command="cargo build --release --manifest-path &quot;$(RustManifest)&quot;" />
     </Target>
 
     <Target Name="CopyRustNative" AfterTargets="Build"

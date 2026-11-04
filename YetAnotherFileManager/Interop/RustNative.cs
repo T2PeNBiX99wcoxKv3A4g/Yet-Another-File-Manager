@@ -13,22 +13,29 @@ namespace YetAnotherFileManager.Interop;
 ///     the native walk spreads that over every core.
 /// </summary>
 /// <remarks>
-///     The library is optional. A source checkout without cargo, a platform with no prebuilt
-///     artifact or a trimmed publish without the file all fall back to the managed walk, so nothing
-///     here may ever throw into a caller.
+///     The library is part of the build, not an optional extra: the project compiles it with cargo and
+///     copies it beside the executable, so every entry point must resolve. A missing file or export
+///     throws instead of quietly changing how the app works.
 /// </remarks>
 internal static unsafe class RustNative
 {
-    private static readonly Lazy<bool> Ready = new(TryInitialize);
+    /// <summary>
+    ///     What the native ZIP writer did. It holds each file in memory, so a file above its limit
+    ///     stops it, and the caller streams that archive itself.
+    /// </summary>
+    public enum ZipResult
+    {
+        Ok,
+        TooLarge
+    }
 
-    /// <summary>Whether the native library was loaded and its entry points resolved.</summary>
-    public static bool Available => Ready.Value;
+    private static readonly ScanImagesDelegate ScanImagesNative;
+    private static readonly FreeBufferDelegate FreeBufferNative;
+    private static readonly CompressDelegate CompressNative;
+    private static readonly MeasureDelegate MeasureNative;
+    private static readonly DeleteDelegate DeleteNative;
 
-    private static ScanImagesDelegate? _scanImages;
-    private static FreeBufferDelegate? _freeBuffer;
-    private static CompressDelegate? _compress;
-    private static MeasureDelegate? _measure;
-    private static DeleteDelegate? _delete;
+    /// <summary>The delete callback has no per-call state, so one delete runs at a time.</summary>
     private static Action<long, long>? _report;
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -51,33 +58,32 @@ internal static unsafe class RustNative
 
     private static uint Threads => (uint)Math.Clamp(Environment.ProcessorCount, 1, 64);
 
-    /// <summary>
-    ///     Pictures under <paramref name="root"/>, or null when the library is missing or the scan
-    ///     failed. <paramref name="extensions"/> is semicolon separated and may include the dot.
-    /// </summary>
-    public static List<GalleryEntry>? ScanImages(string root, int depth, string extensions)
-    {
-        if (!Ready.Value || _scanImages is null || _freeBuffer is null)
-            return null;
+    /// <summary>Touching the class loads the library; the app does it once, before the window.</summary>
+    public static void Initialize() => Log.Debug("The Rust filesystem helper is loaded");
 
+    /// <summary>
+    ///     Pictures under <paramref name="root" />. <paramref name="extensions" /> is semicolon
+    ///     separated and may include the dot.
+    /// </summary>
+    public static List<GalleryEntry> ScanImages(string root, int depth, string extensions)
+    {
         byte* result = null;
         nuint length = 0;
 
         fixed (char* rootPointer = root)
         fixed (char* extensionPointer = extensions)
         {
-            var status = _scanImages((ushort*)rootPointer, (nuint)root.Length, (uint)depth,
-                (uint)Math.Clamp(Environment.ProcessorCount, 2, 64),
-                (ushort*)extensionPointer, (nuint)extensions.Length, out result, out length);
+            var status = ScanImagesNative((ushort*)rootPointer, (nuint)root.Length, (uint)depth,
+                Threads, (ushort*)extensionPointer, (nuint)extensions.Length, out result, out length);
 
             if (status != 0)
-                return null;
+                throw new IOException($"The native gallery scan failed with {status}.");
         }
 
         if (result is null || length < 4)
         {
             if (result is not null)
-                _freeBuffer(result, length);
+                FreeBufferNative(result, length);
 
             return [];
         }
@@ -88,59 +94,53 @@ internal static unsafe class RustNative
         }
         finally
         {
-            _freeBuffer(result, length);
+            FreeBufferNative(result, length);
         }
     }
 
-    /// <summary>
-    ///     Compresses the paths into a ZIP with the native writer. False when the library is missing
-    ///     or the archive could not be written; the managed writer then takes over.
-    /// </summary>
-    public static bool TryCompress(IReadOnlyList<string> paths, string output)
+    /// <summary>Compresses the paths into a ZIP with the native writer.</summary>
+    public static ZipResult Compress(IReadOnlyList<string> paths, string output)
     {
-        if (!Ready.Value || _compress is null || paths.Count == 0)
-            return false;
-
         var joined = string.Join('\0', paths);
 
         fixed (char* pathsPointer = joined)
         fixed (char* outputPointer = output)
-            return _compress((ushort*)pathsPointer, (nuint)joined.Length,
-                (ushort*)outputPointer, (nuint)output.Length,
-                (uint)Math.Clamp(Environment.ProcessorCount, 1, 64)) == 0;
+        {
+            var status = CompressNative((ushort*)pathsPointer, (nuint)joined.Length,
+                (ushort*)outputPointer, (nuint)output.Length, Threads);
+
+            return status switch
+            {
+                0 => ZipResult.Ok,
+                -4 => ZipResult.TooLarge,
+                _ => throw new IOException($"The native ZIP writer failed with {status}.")
+            };
+        }
     }
 
-    /// <summary>
-    ///     How many files the paths hold, or null when the library is missing. The count is the total
-    ///     a delete reports, so the status center can show a bar instead of a spinner.
-    /// </summary>
-    public static long? CountFiles(IReadOnlyList<string> paths)
+    /// <summary>How many files the paths hold; the total a delete reports while it runs.</summary>
+    public static long CountFiles(IReadOnlyList<string> paths)
     {
-        if (!Ready.Value || _measure is null || paths.Count == 0)
-            return null;
-
         var joined = string.Join('\0', paths);
 
         fixed (char* pointer = joined)
         {
-            var status = _measure((ushort*)pointer, (nuint)joined.Length, Threads, out var files);
-            return status == 0 ? (long)files : null;
+            var status = MeasureNative((ushort*)pointer, (nuint)joined.Length, Threads, out var files);
+
+            return status == 0
+                ? (long)files
+                : throw new IOException($"The native measure failed with {status}.");
         }
     }
 
     /// <summary>
-    ///     Deletes the paths in parallel and reports how many files are gone. Null when the library is
-    ///     missing, so the caller can fall back to the shell; otherwise the number of entries that
-    ///     could not be removed.
+    ///     Deletes the paths in parallel, reporting how many files are gone. Returns the number of
+    ///     entries that could not be removed.
     /// </summary>
-    public static int? Delete(IReadOnlyList<string> paths, long total, Action<long, long> progress)
+    public static int Delete(IReadOnlyList<string> paths, long total, Action<long, long> progress)
     {
-        if (!Ready.Value || _delete is null || paths.Count == 0)
-            return null;
-
         var joined = string.Join('\0', paths);
 
-        // One delete at a time: the callback is a plain function pointer, so it has no per-call state.
         lock (typeof(RustNative))
         {
             _report = progress;
@@ -148,9 +148,15 @@ internal static unsafe class RustNative
             try
             {
                 fixed (char* pointer = joined)
-                    return _delete((ushort*)pointer, (nuint)joined.Length, Threads,
+                {
+                    var failures = DeleteNative((ushort*)pointer, (nuint)joined.Length, Threads,
                         (ulong)Math.Max(total, 0),
                         (IntPtr)(delegate* unmanaged[Cdecl]<ulong, ulong, void>)&Report);
+
+                    return failures >= 0
+                        ? failures
+                        : throw new IOException($"The native delete failed with {failures}.");
+                }
             }
             finally
             {
@@ -209,48 +215,24 @@ internal static unsafe class RustNative
         return value;
     }
 
-    private static T? TryResolve<T>(IntPtr handle, string name) where T : Delegate
+    private static T Resolve<T>(IntPtr handle, string name) where T : Delegate =>
+        Marshal.GetDelegateForFunctionPointer<T>(NativeLibrary.GetExport(handle, name));
+
+    static RustNative()
     {
-        try
-        {
-            return Marshal.GetDelegateForFunctionPointer<T>(NativeLibrary.GetExport(handle, name));
-        }
-        catch (Exception ex)
-        {
-            Log.Debug(ex, "The Rust helper has no {Export}", name);
-            return null;
-        }
-    }
+        var name = OperatingSystem.IsWindows() ? "yafm_native.dll"
+            : OperatingSystem.IsMacOS() ? "libyafm_native.dylib"
+            : "libyafm_native.so";
+        var local = Path.Combine(AppContext.BaseDirectory, name);
 
-    private static bool TryInitialize()
-    {
-        try
-        {
-            var name = OperatingSystem.IsWindows() ? "yafm_native.dll"
-                : OperatingSystem.IsMacOS() ? "libyafm_native.dylib"
-                : "libyafm_native.so";
-            var local = Path.Combine(AppContext.BaseDirectory, name);
+        var handle = NativeLibrary.Load(File.Exists(local) ? local : name);
 
-            var handle = NativeLibrary.Load(File.Exists(local) ? local : name);
+        ScanImagesNative = Resolve<ScanImagesDelegate>(handle, "yafm_scan_images");
+        FreeBufferNative = Resolve<FreeBufferDelegate>(handle, "yafm_free");
+        CompressNative = Resolve<CompressDelegate>(handle, "yafm_compress");
+        MeasureNative = Resolve<MeasureDelegate>(handle, "yafm_measure");
+        DeleteNative = Resolve<DeleteDelegate>(handle, "yafm_delete");
 
-            _scanImages = Marshal.GetDelegateForFunctionPointer<ScanImagesDelegate>(
-                NativeLibrary.GetExport(handle, "yafm_scan_images"));
-            _freeBuffer = Marshal.GetDelegateForFunctionPointer<FreeBufferDelegate>(
-                NativeLibrary.GetExport(handle, "yafm_free"));
-            _compress = Marshal.GetDelegateForFunctionPointer<CompressDelegate>(
-                NativeLibrary.GetExport(handle, "yafm_compress"));
-
-            // The delete entry points arrived later; an older library simply keeps them null.
-            _measure = TryResolve<MeasureDelegate>(handle, "yafm_measure");
-            _delete = TryResolve<DeleteDelegate>(handle, "yafm_delete");
-
-            Log.Information("The Rust filesystem helper is available");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            Log.Debug(ex, "The Rust filesystem helper is unavailable; bulk work stays in managed code");
-            return false;
-        }
+        Log.Information("The Rust filesystem helper is ready");
     }
 }

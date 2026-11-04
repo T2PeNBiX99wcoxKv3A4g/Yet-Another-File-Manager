@@ -119,7 +119,7 @@ cd YetAnotherFileManager/UserInterface
 npm run dev       # http://127.0.0.1:3100
 ```
 
-Rust 輔助程式對建置而言是選用的；沒有它時相簿會改用受控的後備實作：
+Rust 輔助程式是建置的一部分：由 cargo 編譯，缺少它建置就會失敗：
 
 ```bash
 cargo build --release --manifest-path YetAnotherFileManager/Native/yafm-native/Cargo.toml

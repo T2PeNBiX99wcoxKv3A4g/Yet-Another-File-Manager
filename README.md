@@ -129,7 +129,7 @@ cd YetAnotherFileManager/UserInterface
 npm run dev       # http://127.0.0.1:3100
 ```
 
-The Rust helper is optional for a build; without it the gallery uses the managed walk:
+The Rust helper is part of the build — cargo compiles it, and the build stops without it:
 
 ```bash
 cargo build --release --manifest-path YetAnotherFileManager/Native/yafm-native/Cargo.toml

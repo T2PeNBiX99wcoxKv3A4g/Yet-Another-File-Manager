@@ -24,12 +24,6 @@ internal static partial class FileOperations
     /// <summary>Text previews stop here, so a huge log cannot freeze the details panel.</summary>
     private const int MaxTextPreviewBytes = 256 * 1024;
 
-    /// <summary>
-    ///     Above this many files the Rust writer is tried first. Below it the managed writer is
-    ///     already fast enough, and the extra measurement walk would only add work.
-    /// </summary>
-    private const int RustCompressThreshold = 32;
-
     private static readonly string PreferredDropEffect = "Preferred DropEffect";
 
     /// <summary>Puts the paths on the clipboard as files, with the effect Explorer uses for cut/copy.</summary>
@@ -554,17 +548,25 @@ internal static partial class FileOperations
 
             var zipPath = UniquePath(directory, baseName, ".zip");
             var taskId = TaskCenter.Instance.Start("compress", $"Compress {Path.GetFileName(zipPath)}");
-            var fileCount = CountFiles(entries);
+            var fileCount = (int)Math.Min(RustNative.CountFiles(entries), int.MaxValue);
             TaskCenter.Instance.UpdateTotal(taskId, fileCount, 0);
 
-            // The managed writer is excellent for a handful of files; the native writer is there
-            // for the batches where its parallel deflate beats a single stream.
-            if (fileCount >= RustCompressThreshold && RustNative.TryCompress(entries, zipPath))
+            try
             {
-                TaskCenter.Instance.Complete(taskId);
-                return new PathOperationPayload(true, zipPath, null);
+                if (RustNative.Compress(entries, zipPath) == RustNative.ZipResult.Ok)
+                {
+                    TaskCenter.Instance.Complete(taskId);
+                    return new PathOperationPayload(true, zipPath, null);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Could not compress the selection with the native writer");
+                TaskCenter.Instance.Fail(taskId, ex.Message);
+                return new PathOperationPayload(false, null, ex.Message);
             }
 
+            // The native writer holds whole files, so a file above its limit streams here instead.
             Try.Run(() => File.Delete(zipPath));
 
             try
@@ -609,30 +611,6 @@ internal static partial class FileOperations
                 return new PathOperationPayload(false, null, ex.Message);
             }
         });
-
-    /// <summary>Counts files until the threshold is reached; the walk stops early for huge trees.</summary>
-    private static int CountFiles(IReadOnlyList<string> entries) =>
-        Try.Run(() =>
-        {
-            var count = 0;
-
-            foreach (var path in entries)
-            {
-                if (Directory.Exists(path))
-                {
-                    foreach (var _ in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
-                        if (++count >= RustCompressThreshold)
-                            return count;
-                }
-                else if (File.Exists(path))
-                {
-                    if (++count >= RustCompressThreshold)
-                        return count;
-                }
-            }
-
-            return count;
-        }).GetOrElse(_ => entries.Count);
 
     private static Task<FileHistory.Step> DeleteFileStepAsync(string path) =>
         Task.Run(() =>

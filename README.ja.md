@@ -130,7 +130,7 @@ cd YetAnotherFileManager/UserInterface
 npm run dev       # http://127.0.0.1:3100
 ```
 
-Rust ヘルパーはビルドには必須ではありません。ない場合はギャラリーがマネージド実装に切り替わります。
+Rust ヘルパーはビルドの一部です。cargo がコンパイルし、ないとビルドが止まります。
 
 ```bash
 cargo build --release --manifest-path YetAnotherFileManager/Native/yafm-native/Cargo.toml

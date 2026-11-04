@@ -1,5 +1,3 @@
-using PhotinoNetUtils.Extensions;
-using PhotinoNetUtils.Utils;
 using Serilog;
 using YetAnotherFileManager.Interop;
 
@@ -12,9 +10,6 @@ namespace YetAnotherFileManager.Services;
 /// </summary>
 internal static partial class FileOperations
 {
-    /// <summary>Above this many files the native deleter beats unlinking them one by one.</summary>
-    private const int RustDeleteThreshold = 32;
-
     /// <summary>Sends the paths to the recycle bin, or deletes them permanently when asked.</summary>
     public static async Task<bool> DeleteAsync(IReadOnlyList<string> paths, bool permanent = false)
     {
@@ -94,53 +89,22 @@ internal static partial class FileOperations
     }
 
     /// <summary>
-    ///     A big tree goes to Rust, which measures the files first so the bar has a total; a small one
-    ///     is unlinked in place, where starting the helper would cost more than the delete.
+    ///     The native deleter measures the tree first, so the status center has a total, then unlinks
+    ///     the files across every core. Both calls stay off the message thread.
     /// </summary>
     private static async Task<(FileHistory.Step Step, int Deleted)> DeletePermanentlyAsync(string id,
         List<string> items)
     {
-        // The walk is the slow part of a big delete, so it never runs on the message thread.
-        var files = await Task.Run(() => RustNative.CountFiles(items) ?? 0);
+        var files = await Task.Run(() => RustNative.CountFiles(items));
+        TaskCenter.Instance.UpdateTotal(id, (int)Math.Min(files, int.MaxValue), 0);
 
-        if (files >= RustDeleteThreshold)
-        {
-            TaskCenter.Instance.UpdateTotal(id, (int)Math.Min(files, int.MaxValue), 0);
+        var failures = await Task.Run(() => RustNative.Delete(items, files,
+            (done, _) => TaskCenter.Instance.Progress(id, (int)Math.Min(done, int.MaxValue), 0)));
 
-            var failures = await Task.Run(() => RustNative.Delete(items, files,
-                (done, _) => TaskCenter.Instance.Progress(id, (int)Math.Min(done, int.MaxValue), 0)));
-
-            if (failures is >= 0)
-                return Finish(id, items,
-                    failures == 0 ? null : $"{failures} entr{(failures == 1 ? "y" : "ies")} could not be deleted.",
-                    0);
-        }
-
-        var done = 0;
-        string? error = null;
-
-        foreach (var path in items)
-        {
-            if (!await Task.Run(() => DeleteTree(path)))
-                error ??= $"Could not delete {Path.GetFileName(path)}.";
-
-            TaskCenter.Instance.Progress(id, ++done, 0);
-        }
-
-        return Finish(id, items, error, 0);
+        return Finish(id, items,
+            failures == 0 ? null : $"{failures} entr{(failures == 1 ? "y" : "ies")} could not be deleted.",
+            0);
     }
-
-    /// <summary>The managed fallback: a plain recursive delete for the trees Rust does not take.</summary>
-    private static bool DeleteTree(string path) =>
-        Try.Run(() =>
-        {
-            if (Directory.Exists(path))
-                Directory.Delete(path, true);
-            else
-                File.Delete(path);
-
-            return true;
-        }).OnFailure(ex => Log.Warning(ex, "Could not delete {Path}", path)).GetOrElse(_ => false);
 
     private static (FileHistory.Step Step, int Deleted) Finish(string id, List<string> items, string? error,
         int deleted)

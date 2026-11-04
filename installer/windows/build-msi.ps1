@@ -35,7 +35,7 @@ if (-not (Test-Path (Join-Path $source "YetAnotherFileManager.exe"))) {
 }
 
 if (-not (Test-Path (Join-Path $source "yafm_native.dll"))) {
-    throw "No yafm_native.dll in $source; the gallery would fall back to the slow managed walk."
+    throw "No yafm_native.dll in $source; the app needs the Rust helper."
 }
 
 # WiX ships as a .NET tool; keep it local to this repository instead of polluting the machine.

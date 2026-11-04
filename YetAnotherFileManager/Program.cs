@@ -87,6 +87,10 @@ internal static partial class Program
 
         try
         {
+            // The native helper is part of the build, so a missing library stops the launch here,
+            // with a log entry, instead of surfacing as a failed scan or a failed delete later.
+            RustNative.Initialize();
+
             foreach (var arg in args)
                 Log.Information("arg: {Arg}", arg);
 

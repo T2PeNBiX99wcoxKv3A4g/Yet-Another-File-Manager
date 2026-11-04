@@ -33,7 +33,7 @@ trap 'rm -rf "$stage" "$topdir"' EXIT
 mkdir -p "$stage/yafm-$version"
 install -m 0755 "$publish_dir/YetAnotherFileManager" "$stage/yafm-$version/YetAnotherFileManager"
 if [[ ! -f "$publish_dir/libyafm_native.so" ]]; then
-    echo "No libyafm_native.so in $publish_dir; the gallery would fall back to the slow managed walk." >&2
+    echo "No libyafm_native.so in $publish_dir; the app needs the Rust helper." >&2
     exit 1
 fi
 install -m 0755 "$publish_dir/libyafm_native.so" "$stage/yafm-$version/libyafm_native.so"

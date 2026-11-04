@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
 using YetAnotherFileManager.Interop;
 using YetAnotherFileManager.Models;
@@ -29,13 +27,6 @@ internal sealed class Gallery : Singleton<Gallery>
     };
 
     private static readonly string ExtensionList = string.Join(';', Extensions);
-
-    private static readonly EnumerationOptions Options = new()
-    {
-        IgnoreInaccessible = true,
-        RecurseSubdirectories = false,
-        AttributesToSkip = FileAttributes.ReparsePoint
-    };
 
     private readonly SemaphoreSlim _scanGate = new(1, 1);
 
@@ -100,78 +91,6 @@ internal sealed class Gallery : Singleton<Gallery>
         ];
     }
 
-    private static IEnumerable<GalleryEntry> Read(string root) =>
-        Try.Run(() => RustNative.ScanImages(root, Depth, ExtensionList) ?? Walk(root)).GetOrElse(_ => []);
-
-    /// <summary>
-    ///     Walks one root with a bounded set of workers. A recursive <c>EnumerateFiles</c> visits one
-    ///     directory at a time; spreading the directories over cores is what makes a large picture
-    ///     library scan quickly.
-    /// </summary>
-    private static List<GalleryEntry> Walk(string root)
-    {
-        if (!Directory.Exists(root))
-            return [];
-
-        var entries = new ConcurrentBag<GalleryEntry>();
-        var pending = new ConcurrentQueue<(string Path, int Depth)>();
-        pending.Enqueue((root, 0));
-
-        // Counts the directories that are queued or being walked; when it reaches zero, the walk is
-        // done. The increment happens before the enqueue so a worker never sees an empty queue while
-        // another one is still adding children.
-        var waiting = 1;
-
-        Parallel.For(0, Workers, _ =>
-        {
-            while (true)
-            {
-                if (!pending.TryDequeue(out var item))
-                {
-                    if (Volatile.Read(ref waiting) == 0)
-                        return;
-
-                    Thread.Yield();
-                    continue;
-                }
-
-                try
-                {
-                    foreach (var file in new DirectoryInfo(item.Path).EnumerateFiles("*", Options))
-                        if (Extensions.Contains(file.Extension))
-                            entries.Add(new GalleryEntry(
-                                file.FullName,
-                                file.Name,
-                                new DateTimeOffset(file.LastWriteTimeUtc).ToUnixTimeMilliseconds(),
-                                file.Length));
-                }
-                catch (Exception ex)
-                {
-                    Serilog.Log.Debug(ex, "Could not read pictures in {Directory}", item.Path);
-                }
-
-                if (item.Depth < Depth)
-                {
-                    try
-                    {
-                        foreach (var child in Directory.EnumerateDirectories(item.Path, "*", Options))
-                        {
-                            Interlocked.Increment(ref waiting);
-                            pending.Enqueue((child, item.Depth + 1));
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Serilog.Log.Debug(ex, "Could not read folders in {Directory}", item.Path);
-                    }
-                }
-
-                Interlocked.Decrement(ref waiting);
-            }
-        });
-
-        return [.. entries];
-    }
-
-    private static readonly int Workers = Math.Clamp(Environment.ProcessorCount, 2, 8);
+    private static List<GalleryEntry> Read(string root) =>
+        Directory.Exists(root) ? RustNative.ScanImages(root, Depth, ExtensionList) : [];
 }

@@ -120,7 +120,7 @@ cd YetAnotherFileManager/UserInterface
 npm run dev       # http://127.0.0.1:3100
 ```
 
-Rust 辅助程序对构建而言是可选的；没有它时图库会改用托管的回退实现：
+Rust 辅助程序是构建的一部分：由 cargo 编译，缺少它构建就会失败：
 
 ```bash
 cargo build --release --manifest-path YetAnotherFileManager/Native/yafm-native/Cargo.toml
