@@ -1,4 +1,5 @@
-import {useEffect, useRef, useState, type ReactNode} from "react";
+import {useEffect, useLayoutEffect, useRef, useState, type ReactNode} from "react";
+import {createPortal} from "react-dom";
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import {listDirectory, type Place} from "../api/files";
@@ -40,7 +41,9 @@ export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProp
     const [draft, setDraft] = useState("");
     const [suggestions, setSuggestions] = useState<{ name: string; path: string }[]>([]);
     const [activeSuggestion, setActiveSuggestion] = useState(0);
+    const [anchor, setAnchor] = useState<{ left: number; top: number; width: number } | null>(null);
     const input = useRef<HTMLInputElement | null>(null);
+    const wrap = useRef<HTMLDivElement | null>(null);
     const lastFocus = useRef(0);
 
     useEffect(() => {
@@ -126,9 +129,35 @@ export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProp
         onNavigate(suggestion.path);
     };
 
+    // The list lives in a portal, so it is positioned from the editor's rectangle instead of
+    // inheriting the toolbar's stacking context (which the file list otherwise covers).
+    useLayoutEffect(() => {
+        if (!editing) {
+            setAnchor(null);
+            return;
+        }
+
+        const update = () => {
+            const rect = wrap.current?.getBoundingClientRect();
+            if (!rect)
+                return;
+
+            const width = Math.max(rect.width, 260);
+            setAnchor({
+                left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
+                top: rect.bottom + 6,
+                width,
+            });
+        };
+
+        update();
+        window.addEventListener("resize", update);
+        return () => window.removeEventListener("resize", update);
+    }, [editing]);
+
     if (editing)
         return (
-            <EditorWrap onPointerDown={(event) => event.stopPropagation()}>
+            <EditorWrap onPointerDown={(event) => event.stopPropagation()} ref={wrap}>
                 <Editor>
                     <input
                         onChange={(event) => setDraft(event.target.value)}
@@ -183,8 +212,11 @@ export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProp
                     </EditorButton>
                 </Editor>
 
-                {suggestions.length > 0 && (
-                    <Completions>
+                {suggestions.length > 0 && anchor && createPortal(
+                    <Completions
+                        onPointerDown={(event) => event.stopPropagation()}
+                        style={{left: anchor.left, top: anchor.top, width: anchor.width}}
+                    >
                         {suggestions.map((suggestion, index) => (
                             <Completion
                                 $active={index === activeSuggestion}
@@ -197,7 +229,8 @@ export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProp
                                 <CompletionName>{suggestion.name}</CompletionName>
                             </Completion>
                         ))}
-                    </Completions>
+                    </Completions>,
+                    document.body,
                 )}
             </EditorWrap>
         );
@@ -375,16 +408,17 @@ const EditorWrap = styled.div`
 `;
 
 const Completions = styled.div`
-    position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
-    left: 0;
-    z-index: 80;
+    position: fixed;
+    z-index: 2600;
     max-height: 280px;
     padding: 4px;
     overflow-y: auto;
     ${elevatedPanel}
+    background: rgba(10, 15, 26, 0.9);
+    backdrop-filter: blur(24px) saturate(150%);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
     animation: yafm-path-in 130ms cubic-bezier(0.22, 1, 0.36, 1);
+    transform-origin: top left;
 
     @keyframes yafm-path-in {
         from {
