@@ -105,6 +105,8 @@ Four package formats are published beside the plain archives:
    in; a plain archive needs them installed by hand.
 2. The Linux build is exercised on **Fedora with KDE Plasma on Wayland**. Other distributions and
    desktops are untested; if the window does not start, check the runtime libraries first.
+3. The file clipboard uses **wl-clipboard** on Wayland or **xclip** on X11; the packages recommend
+   both. KDE system icons are read from the icon theme that `kdeglobals` selects.
 
 ## Building from source
 
