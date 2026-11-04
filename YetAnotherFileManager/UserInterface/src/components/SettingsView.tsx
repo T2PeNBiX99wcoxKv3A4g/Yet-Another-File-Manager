@@ -7,13 +7,12 @@ import {DefaultViewDefaults} from "../api/files";
 import {clearIconCache, useIconFile} from "../api/icons";
 import {
     getSettings,
-    pickIconFile,
     saveSettings,
     setEntryIcon,
     type AppSettings,
 } from "../api/settings";
 import type {AppInfo} from "../api/system";
-import {requestFolder} from "../folder-picker";
+import {requestFile, requestFolder} from "../folder-picker";
 import {checkUpdate, getMemory, getScheme, getUpdateStatus, openUrl, setScheme, trimMemory,
     type MemoryUsage, type UpdateCheck} from "../api/system";
 import {createTag, deleteTag, listTags, renameTag, setTagColor, type TagCatalogEntry} from "../api/tags";
@@ -514,7 +513,7 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
             const folder = await requestFolder();
             if (!folder) return;
 
-            const icon = await pickIconFile();
+            const icon = await requestFile([".png", ".ico", ".svg", ".jpg", ".jpeg", ".webp"]);
             if (!icon) return;
 
             const parent = folder.replace(/[\\/][^\\/]+$/, "");

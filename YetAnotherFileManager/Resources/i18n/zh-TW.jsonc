@@ -455,5 +455,9 @@
   "Registers this app for folder opens on this account. Explorer stays available from the context menu; on Linux this sets the inode/directory default.": "將此程式註冊為此帳戶開啟資料夾的處理程式。Explorer 仍保留在右鍵選單中；Linux 會設定 inode/directory 的預設關聯。",
   "Stop using this app for folders": "停止使用此程式開啟資料夾",
   "Use as the default file manager": "設為預設檔案管理員",
-  "Use this app for folders": "使用此程式開啟資料夾"
+  "Use this app for folders": "使用此程式開啟資料夾",
+  "Choose a file": "選擇檔案",
+  "Choose a folder": "選擇資料夾",
+  "Select this file": "選擇此檔案",
+  "Select this folder": "選擇此資料夾"
 }

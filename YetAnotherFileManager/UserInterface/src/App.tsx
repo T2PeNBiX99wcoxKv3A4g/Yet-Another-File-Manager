@@ -40,7 +40,7 @@ import {ContextMenu, type ContextMenuItem} from "./components/ContextMenu";
 import {PreviewPane, type PreviewInfo} from "./components/PreviewPane";
 import {FileTray, isPathDrag, type TrayItem} from "./components/FileTray";
 import {FolderPicker} from "./components/FolderPicker";
-import {setFolderPickerOpener} from "./folder-picker";
+import {setFilePickerOpener, setFolderPickerOpener} from "./folder-picker";
 import {FindBar} from "./components/FindBar";
 import {EmptyFind, matchesName, type FindState} from "./find";
 import {QuickAccessProvider, quickName, quickPlace, type QuickAccess} from "./quick";
@@ -291,6 +291,7 @@ export default function App() {
     const [clipboardMove, setClipboardMove] = useState(false);
     const [trayVisible, setTrayVisible] = useState(false);
     const [folderPicker, setFolderPicker] = useState<{ initial: string; resolve: (path: string | null) => void } | null>(null);
+    const [filePicker, setFilePicker] = useState<{ extensions: string[]; resolve: (path: string | null) => void } | null>(null);
     const [trayPosition, setTrayPosition] = useState<{ x: number; y: number }>(() => {
         const saved = readStoredJson<{ x?: number; y?: number }>("yafm.tray.position");
 
@@ -944,7 +945,13 @@ export default function App() {
         setFolderPickerOpener((initial) =>
             new Promise<string | null>((resolve) => setFolderPicker({initial: initial ?? "", resolve})));
 
-        return () => setFolderPickerOpener(null);
+        setFilePickerOpener((extensions) =>
+            new Promise<string | null>((resolve) => setFilePicker({extensions: extensions ?? [], resolve})));
+
+        return () => {
+            setFolderPickerOpener(null);
+            setFilePickerOpener(null);
+        };
     }, []);
 
     // The tray is a drop target, so it shows up (at a reachable spot) as soon as an in-app drag
@@ -2106,6 +2113,21 @@ export default function App() {
                     onSelect={(path) => {
                         folderPicker.resolve(path);
                         setFolderPicker(null);
+                    }}
+                />
+            )}
+
+            {filePicker && (
+                <FolderPicker
+                    extensions={filePicker.extensions}
+                    mode="file"
+                    onCancel={() => {
+                        filePicker.resolve(null);
+                        setFilePicker(null);
+                    }}
+                    onSelect={(path) => {
+                        filePicker.resolve(path);
+                        setFilePicker(null);
                     }}
                 />
             )}

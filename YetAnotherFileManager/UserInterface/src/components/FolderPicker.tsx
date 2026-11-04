@@ -13,15 +13,19 @@ import {parentPath} from "../utils/format";
 
 interface FolderPickerProps {
     initial?: string;
+    mode?: "folder" | "file";
+    /** Extensions (with the dot) to offer in file mode. */
+    extensions?: string[];
     onCancel: () => void;
     onSelect: (path: string) => void;
 }
 
 /**
- * A folder picker drawn by the app itself, used instead of the shell's IFileOpenDialog. It browses
- * with the same listing call as the file view and returns the folder that is on screen.
+ * A path picker drawn by the app itself, used instead of the shell's IFileOpenDialog. Folder mode
+ * walks into a folder and returns it; file mode lists the matching files below the folders.
  */
-export function FolderPicker({initial = "", onCancel, onSelect}: FolderPickerProps) {
+export function FolderPicker({initial = "", mode = "folder", extensions, onCancel, onSelect}: FolderPickerProps) {
+    const isFileMode = mode === "file";
     const t = useTranslation();
     const quick = useQuickAccess();
     const [path, setPath] = useState(initial);
@@ -29,6 +33,7 @@ export function FolderPicker({initial = "", onCancel, onSelect}: FolderPickerPro
     const [listing, setListing] = useState<DirectoryListing | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
     const [drives, setDrives] = useState<Drive[]>([]);
 
     const places = useMemo(
@@ -51,6 +56,7 @@ export function FolderPicker({initial = "", onCancel, onSelect}: FolderPickerPro
                 setListing(result);
                 setPath(result.path);
                 setDraft(result.path);
+                setSelectedFile(null);
                 setLoading(false);
             },
             (cause) => {
@@ -80,11 +86,24 @@ export function FolderPicker({initial = "", onCancel, onSelect}: FolderPickerPro
     };
 
     const choose = () => {
-        if (!loading && !error) onSelect(listing?.path || path);
+        if (loading || error) return;
+
+        if (isFileMode) {
+            if (selectedFile) onSelect(selectedFile.fullPath);
+            return;
+        }
+
+        onSelect(listing?.path || path);
     };
 
     const parent = listing?.parent ?? (path ? parentPath(path) : null);
     const folders = listing?.entries.filter((entry: FileEntry) => entry.isDirectory) ?? [];
+    const files = isFileMode
+        ? (listing?.entries ?? []).filter((entry: FileEntry) => !entry.isDirectory && (
+            !extensions?.length
+            || extensions.some((extension) => entry.name.toLowerCase().endsWith(extension.toLowerCase()))
+        ))
+        : [];
 
     return createPortal(
         <Overlay onPointerDown={(event) => {
@@ -94,7 +113,7 @@ export function FolderPicker({initial = "", onCancel, onSelect}: FolderPickerPro
                 <Header>
                     <Title>
                         <FolderIcon size={16}/>
-                        {t("Choose a folder")}
+                        {isFileMode ? t("Choose a file") : t("Choose a folder")}
                     </Title>
                     <CloseButton onClick={onCancel} title={t("Cancel")} type="button">
                         <CrossIcon size={12}/>
@@ -136,7 +155,9 @@ export function FolderPicker({initial = "", onCancel, onSelect}: FolderPickerPro
                 <List>
                     {loading && <Notice>{t("Working…")}</Notice>}
                     {!loading && error && <Notice $error>{error}</Notice>}
-                    {!loading && !error && folders.length === 0 && <Notice>{t("This folder is empty.")}</Notice>}
+                    {!loading && !error && folders.length === 0 && files.length === 0 && (
+                        <Notice>{t("This folder is empty.")}</Notice>
+                    )}
                     {!loading && !error && folders.map((entry) => (
                         <Entry
                             key={entry.fullPath}
@@ -149,15 +170,36 @@ export function FolderPicker({initial = "", onCancel, onSelect}: FolderPickerPro
                             <EntryName>{entry.name}</EntryName>
                         </Entry>
                     ))}
+                    {!loading && !error && files.map((entry) => (
+                        <Entry
+                            $selected={selectedFile?.fullPath === entry.fullPath}
+                            key={entry.fullPath}
+                            onClick={() => setSelectedFile(entry)}
+                            onDoubleClick={() => {
+                                setSelectedFile(entry);
+                                onSelect(entry.fullPath);
+                            }}
+                            title={entry.fullPath}
+                            type="button"
+                        >
+                            <PathIcon isDirectory={false} name={entry.name} path={entry.fullPath} size={18}/>
+                            <EntryName>{entry.name}</EntryName>
+                        </Entry>
+                    ))}
                 </List>
 
                 <Footer>
-                    <CurrentPath>{listing?.path || path || t("Home")}</CurrentPath>
+                    <CurrentPath>{selectedFile?.fullPath || listing?.path || path || t("Home")}</CurrentPath>
                     <FooterActions>
                         <Button onClick={onCancel} type="button">{t("Cancel")}</Button>
-                        <Button $primary disabled={loading || error !== null} onClick={choose} type="button">
+                        <Button
+                            $primary
+                            disabled={loading || error !== null || (isFileMode && !selectedFile)}
+                            onClick={choose}
+                            type="button"
+                        >
                             <CheckIcon size={12}/>
-                            {t("Select this folder")}
+                            {isFileMode ? t("Select this file") : t("Select this folder")}
                         </Button>
                     </FooterActions>
                 </Footer>
@@ -312,16 +354,16 @@ const List = styled.div`
     padding: 5px;
 `;
 
-const Entry = styled.button`
+const Entry = styled.button<{ $selected?: boolean }>`
     display: flex;
     align-items: center;
     gap: 9px;
     width: 100%;
     padding: 6px 8px;
-    border: 1px solid transparent;
+    border: 1px solid ${({$selected}) => $selected ? "rgba(var(--accent-rgb), 0.4)" : "transparent"};
     border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--text-secondary);
+    background: ${({$selected}) => $selected ? "rgba(var(--accent-rgb), 0.1)" : "transparent"};
+    color: ${({$selected}) => $selected ? "var(--text-primary)" : "var(--text-secondary)"};
     font: inherit;
     font-size: 12px;
     text-align: left;

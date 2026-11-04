@@ -2,7 +2,7 @@ import {useEffect, useLayoutEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
-import {pickIconFile} from "../api/settings";
+import {requestFile} from "../folder-picker";
 import {PanelIcons} from "../panels";
 import {menuInStyle} from "../ui/motion";
 import {CrossIcon, PlusIcon} from "./Icons";
@@ -94,7 +94,7 @@ export function IconPicker({value, onPick, onClose, allowDefault = true}: IconPi
                     ))}
                     <IconChoice
                         onClick={async () => {
-                            const file = await pickIconFile();
+                            const file = await requestFile([".png", ".ico", ".svg", ".jpg", ".jpeg", ".webp"]);
                             if (file) onPick(`file:${file}`);
                         }}
                         title={t("Choose an image")}

@@ -455,5 +455,9 @@
   "Registers this app for folder opens on this account. Explorer stays available from the context menu; on Linux this sets the inode/directory default.": "このアプリをこのアカウントのフォルダーを開くハンドラーとして登録します。Explorer は右クリックメニューに残ります。Linux では inode/directory の既定の関連付けを設定します。",
   "Stop using this app for folders": "このアプリでフォルダーを開くのをやめる",
   "Use as the default file manager": "既定のファイルマネージャーとして使う",
-  "Use this app for folders": "このアプリでフォルダーを開く"
+  "Use this app for folders": "このアプリでフォルダーを開く",
+  "Choose a file": "ファイルを選択",
+  "Choose a folder": "フォルダーを選択",
+  "Select this file": "このファイルを選択",
+  "Select this folder": "このフォルダーを選択"
 }
