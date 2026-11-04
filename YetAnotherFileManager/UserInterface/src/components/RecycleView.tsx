@@ -162,6 +162,7 @@ export function RecycleView({
     };
 
     const selectAll = useCallback(() => setSelected(new Set(rows.map((entry) => entry.id))), [rows]);
+    const allSelected = rows.length > 0 && rows.every((entry) => selected.has(entry.id));
 
     const restoreSelected = useCallback(async () => {
         const ids = removable.map((entry) => entry.id);
@@ -454,7 +455,15 @@ export function RecycleView({
                 <SplitPane>
                     <Table>
                         <Head>
-                            <span/>
+                            <SelectAll
+                                $checked={allSelected}
+                                $partial={!allSelected && selected.size > 0}
+                                onClick={() => allSelected ? setSelected(new Set()) : selectAll()}
+                                title={allSelected ? t("Select none") : t("Select all")}
+                                type="button"
+                            >
+                                {allSelected ? <CheckIcon size={9}/> : selected.size > 0 && <Dash/>}
+                            </SelectAll>
                             <SortButton onClick={() => toggleSort("name")} type="button">
                                 {t("Name")}{mark(sort, "name")}
                             </SortButton>
@@ -807,6 +816,36 @@ const CheckBox = styled.span<{ $checked: boolean }>`
     border-radius: 4px;
     background: ${({$checked}) => $checked ? "var(--accent-primary)" : "transparent"};
     color: #fff;
+`;
+
+/** The header's select-all box; a dash means only some rows are selected. */
+const SelectAll = styled.button<{ $checked: boolean; $partial: boolean }>`
+    display: grid;
+    place-items: center;
+    width: 15px;
+    height: 15px;
+    padding: 0;
+    border: 1px solid ${({$checked, $partial}) => $checked || $partial
+        ? "var(--border-color-focus)"
+        : "var(--border-color-hover)"};
+    border-radius: 4px;
+    background: ${({$checked, $partial}) => $checked || $partial
+        ? "var(--accent-primary)"
+        : "transparent"};
+    color: #fff;
+    cursor: pointer;
+    transition: border-color 120ms ease, background 120ms ease;
+
+    &:hover {
+        border-color: var(--border-color-focus);
+    }
+`;
+
+const Dash = styled.span`
+    width: 7px;
+    height: 1.5px;
+    border-radius: 1px;
+    background: #fff;
 `;
 
 const NameCell = styled(Cell)`
