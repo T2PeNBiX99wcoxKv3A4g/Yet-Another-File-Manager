@@ -96,9 +96,21 @@
               SkipUnchangedFiles="true" />
     </Target>
 
+    <Target Name="CopyRustShellMenu" AfterTargets="Build"
+            Condition="'$(OS)' == 'Windows_NT' and Exists('$(RustReleaseDir)/yafm-shellmenu.exe')">
+        <Copy SourceFiles="$(RustReleaseDir)/yafm-shellmenu.exe" DestinationFolder="$(OutDir)"
+              SkipUnchangedFiles="true" />
+    </Target>
+
     <Target Name="CopyRustNativeOnPublish" AfterTargets="Publish"
             Condition="Exists('$(RustReleaseDir)/$(RustLibraryName)')">
         <Copy SourceFiles="$(RustReleaseDir)/$(RustLibraryName)" DestinationFolder="$(PublishDir)"
+              SkipUnchangedFiles="true" />
+    </Target>
+
+    <Target Name="CopyRustShellMenuOnPublish" AfterTargets="Publish"
+            Condition="'$(OS)' == 'Windows_NT' and Exists('$(RustReleaseDir)/yafm-shellmenu.exe')">
+        <Copy SourceFiles="$(RustReleaseDir)/yafm-shellmenu.exe" DestinationFolder="$(PublishDir)"
               SkipUnchangedFiles="true" />
     </Target>
 

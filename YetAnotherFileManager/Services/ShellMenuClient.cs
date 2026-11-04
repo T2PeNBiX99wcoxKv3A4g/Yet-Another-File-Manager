@@ -18,6 +18,9 @@ namespace YetAnotherFileManager.Services;
 internal static class ShellMenuClient
 {
     private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(2);
+    private static readonly string? RustHelper = OperatingSystem.IsWindows()
+        ? Path.Combine(AppContext.BaseDirectory, "yafm-shellmenu.exe")
+        : null;
 
     public static async Task<ShellVerbsPayload> ReadAsync(IReadOnlyList<string> paths)
     {
@@ -43,6 +46,27 @@ internal static class ShellMenuClient
 
         if (Environment.ProcessPath is not { Length: > 0 } executable)
             return;
+
+        if (RustHelper is { } rust && File.Exists(rust))
+        {
+            var rustInfo = new ProcessStartInfo(rust)
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            rustInfo.ArgumentList.Add("--invoke");
+            rustInfo.ArgumentList.Add(offset.ToString(CultureInfo.InvariantCulture));
+            rustInfo.ArgumentList.Add(verb ?? "");
+
+            foreach (var path in paths)
+                rustInfo.ArgumentList.Add(path);
+
+            Try.Run(() => Process.Start(rustInfo))
+                .OnFailure(ex => Log.Warning(ex, "Could not start the native shell menu helper"));
+
+            return;
+        }
 
         var startInfo = new ProcessStartInfo(executable)
         {
@@ -82,6 +106,13 @@ internal static class ShellMenuClient
     [SupportedOSPlatform("windows")]
     private static async Task<List<ShellVerb>?> ReadFullAsync(IReadOnlyList<string> paths)
     {
+        if (RustHelper is { } rust && File.Exists(rust))
+        {
+            var native = await ReadWithRustAsync(rust, paths);
+            if (native is not null)
+                return native;
+        }
+
         if (Environment.ProcessPath is not { Length: > 0 } executable)
             return null;
 
@@ -127,6 +158,59 @@ internal static class ShellMenuClient
         catch (Exception ex)
         {
             Log.Debug(ex, "Could not read the shell context menu in the helper");
+            return null;
+        }
+        finally
+        {
+            Try.Run(() => File.Delete(output));
+        }
+    }
+
+    /// <summary>Runs the native COM helper, which does not block managed shell extensions.</summary>
+    [SupportedOSPlatform("windows")]
+    private static async Task<List<ShellVerb>?> ReadWithRustAsync(string helper, IReadOnlyList<string> paths)
+    {
+        var output = Path.Combine(Path.GetTempPath(), $"yafm-verbs-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var startInfo = new ProcessStartInfo(helper)
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            startInfo.ArgumentList.Add("--read");
+            startInfo.ArgumentList.Add(output);
+
+            foreach (var path in paths)
+                startInfo.ArgumentList.Add(path);
+
+            using var process = Try.Run(() => Process.Start(startInfo)).GetOrNull();
+            if (process is null)
+                return null;
+
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+            try
+            {
+                await process.WaitForExitAsync(cancellation.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Try.Run(() => process.Kill(true));
+                return null;
+            }
+
+            if (process.ExitCode != 0 || !File.Exists(output))
+                return null;
+
+            var json = await File.ReadAllTextAsync(output);
+            return JsonSerializer.Deserialize(json, AppJsonContext.Default.ListShellVerb);
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Could not read the shell context menu in the native helper");
             return null;
         }
         finally
