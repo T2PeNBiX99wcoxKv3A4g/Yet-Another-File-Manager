@@ -69,10 +69,18 @@
         <RustLibraryName Condition="$([MSBuild]::IsOSPlatform('Windows'))">yafm_native.dll</RustLibraryName>
         <RustLibraryName Condition="$([MSBuild]::IsOSPlatform('Linux'))">libyafm_native.so</RustLibraryName>
         <RustLibraryName Condition="$([MSBuild]::IsOSPlatform('OSX'))">libyafm_native.dylib</RustLibraryName>
+
+        <!-- The cargo rustup keeps in CARGO_HOME is the one that follows toolchain updates, so it
+             is preferred over whatever the launching process happens to have on its PATH. An IDE
+             started before rustup was installed has neither, and can set CargoCommand by hand
+             (dotnet build -p:CargoCommand=...). -->
+        <CargoCommand Condition="'$(CargoCommand)' == '' and '$(CARGO_HOME)' != '' and Exists('$(CARGO_HOME)\bin\cargo.exe')">$(CARGO_HOME)\bin\cargo.exe</CargoCommand>
+        <CargoCommand Condition="'$(CargoCommand)' == '' and '$(CARGO_HOME)' != '' and Exists('$(CARGO_HOME)/bin/cargo')">$(CARGO_HOME)/bin/cargo</CargoCommand>
+        <CargoCommand Condition="'$(CargoCommand)' == ''">cargo</CargoCommand>
     </PropertyGroup>
 
     <Target Name="BuildRustNative" BeforeTargets="Build" Condition="Exists('$(RustManifest)')">
-        <Exec Command="cargo build --release --manifest-path &quot;$(RustManifest)&quot;" />
+        <Exec Command="&quot;$(CargoCommand)&quot; build --release --manifest-path &quot;$(RustManifest)&quot;" />
     </Target>
 
     <Target Name="CopyRustNative" AfterTargets="Build"
