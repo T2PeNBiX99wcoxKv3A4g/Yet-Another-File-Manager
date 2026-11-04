@@ -188,7 +188,7 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
         if (_cache.TryGetValue(key, out var cached))
             return cached;
 
-        if (!OperatingSystem.IsWindows() || !File.Exists(path))
+        if (!File.Exists(path) || (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux()))
             return null;
 
         await _gate.WaitAsync();
@@ -197,7 +197,14 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
             if (_cache.TryGetValue(key, out cached))
                 return cached;
 
-            var bytes = await Task.Run(() => ShellThumbnail.Bytes(path, size));
+            var bytes = await Task.Run(() =>
+            {
+                if (OperatingSystem.IsWindows())
+                    return ShellThumbnail.Bytes(path, size);
+
+                return LinuxThumbnails.Png(path, size);
+            });
+
             if (bytes is not null)
                 Remember(key, bytes);
 

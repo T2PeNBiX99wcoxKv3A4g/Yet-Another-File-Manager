@@ -963,6 +963,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     private static List<DriveEntry> GetDrives() =>
     [
         .. DriveInfo.GetDrives()
+            .Where(IsUserVolume)
             .Where(drive => Try.Run(() => drive.IsReady).GetOrNull())
             .Select(drive => Try.Run(() => new DriveEntry(
                 drive.Name,
@@ -972,6 +973,45 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 drive.AvailableFreeSpace)).GetOrNull())
             .OfType<DriveEntry>()
     ];
+
+    /// <summary>
+    ///     Linux reports every mount, including /proc, /sys, tmpfs and AppImage sandboxes. Only the
+    ///     volumes a user would browse belong in the sidebar; the boot and system mounts stay out.
+    /// </summary>
+    private static bool IsUserVolume(DriveInfo drive)
+    {
+        if (!OperatingSystem.IsLinux())
+            return true;
+
+        var name = drive.Name;
+        var format = Try.Run(() => drive.DriveFormat).GetOrNull() ?? "";
+
+        if (format is "tmpfs" or "devtmpfs" or "devpts" or "proc" or "sysfs" or "cgroup2" or "pstore"
+            or "efivarfs" or "bpf" or "configfs" or "autofs" or "debugfs" or "tracefs" or "mqueue"
+            or "hugetlbfs" or "fusectl" or "securityfs" or "selinuxfs" or "binfmt_misc" or "rpc_pipefs"
+            or "fuse.portal" or "squashfs")
+            return false;
+
+        // AppImage and other one-off FUSE mounts have no place in the volume list.
+        if (format.StartsWith("fuse.", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (name == "/")
+            return true;
+
+        if (name.StartsWith("/boot", StringComparison.Ordinal)
+            || name.StartsWith("/proc", StringComparison.Ordinal)
+            || name.StartsWith("/sys", StringComparison.Ordinal)
+            || name.StartsWith("/dev", StringComparison.Ordinal)
+            || name.StartsWith("/tmp", StringComparison.Ordinal)
+            || name.StartsWith("/var/lib", StringComparison.Ordinal)
+            || name.StartsWith("/snap", StringComparison.Ordinal))
+            return false;
+
+        // Removable media lives under /run/media; the rest of /run is runtime state.
+        return !name.StartsWith("/run", StringComparison.Ordinal)
+               || name.StartsWith("/run/media", StringComparison.Ordinal);
+    }
 
     private static string ResolvePath(string? path)
     {

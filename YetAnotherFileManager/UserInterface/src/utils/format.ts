@@ -90,5 +90,8 @@ export function driveLetter(drive: { name: string }): string {
 
 /** "Local Disk (C:)" — the label the user gave, plus the letter Windows uses. */
 export function driveName(drive: { name: string; label: string }): string {
-    return `${drive.label || "Local Disk"}${driveLetter(drive)}`;
+    const letter = driveLetter(drive);
+
+    // Linux volumes have no drive letter; their mount point is the name the user recognizes.
+    return letter ? `${drive.label || "Local Disk"}${letter}` : drive.label || drive.name;
 }
