@@ -33,6 +33,8 @@ interface RecycleViewProps {
     videoAudio?: boolean;
     /** Start a video preview automatically; off means the user presses play. */
     videoAutoplay?: boolean;
+    /** The host platform; the elevated all-profiles view only exists on Windows. */
+    platform?: string;
 }
 
 /**
@@ -42,8 +44,10 @@ interface RecycleViewProps {
  */
 export function RecycleView({
     onOpenLocation, showDetails = true, onShowDetails, videoAudio = false, videoAutoplay = false,
+    platform,
 }: RecycleViewProps) {
     const t = useTranslation();
+    const isWindows = platform === "windows";
     const [entries, setEntries] = useState<RecycleEntry[]>([]);
     const [adminEntries, setAdminEntries] = useState<RecycleEntry[]>([]);
     const [adminLoaded, setAdminLoaded] = useState(false);
@@ -396,7 +400,7 @@ export function RecycleView({
                         {t("Orphans")}
                     </OrphanButton>
 
-                    {showOrphans && (
+                    {showOrphans && isWindows && (
                         <>
                             <ActionButton
                                 disabled={busy || adminLoaded}
@@ -549,8 +553,9 @@ export function RecycleView({
                         </Body>
                     </Table>
 
-                    {showDetails && previewInfo && (
+                    {showDetails && (
                         <PreviewPane
+                            emptyNote={t("Nothing selected.")}
                             info={previewInfo}
                             onWidth={resizePreview}
                             selectionNote={selectedEntries.length > 1

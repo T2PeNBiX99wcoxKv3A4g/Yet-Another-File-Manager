@@ -27,6 +27,8 @@ interface PreviewPaneProps {
     videoAutoplay: boolean;
     /** A note such as "3 items selected". */
     selectionNote?: string;
+    /** Text shown in the otherwise empty pane when nothing is selected. */
+    emptyNote?: string;
 }
 
 const VideoExtensions = new Set(["mp4", "webm", "mkv", "mov", "m4v", "avi", "wmv", "ogv"]);
@@ -46,7 +48,7 @@ const TextExtensions = new Set([
  * The right-side details pane shared by the file browser and the recycle bin. The media area shows
  * an image, a playable video/audio file, or the entry's icon; the splitter on its left resizes it.
  */
-export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, selectionNote}: PreviewPaneProps) {
+export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, selectionNote, emptyNote}: PreviewPaneProps) {
     const t = useTranslation();
     const [videoFailed, setVideoFailed] = useState(false);
     const [playing, setPlaying] = useState(false);
@@ -109,7 +111,7 @@ export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, se
         };
     }, [path, text]);
 
-    if (!info)
+    if (!info && !emptyNote)
         return null;
 
     const start = (event: ReactPointerEvent) => {
@@ -129,6 +131,26 @@ export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, se
         drag.current = null;
         event.currentTarget.releasePointerCapture(event.pointerId);
     };
+
+    if (!info)
+        return (
+            <Root>
+                <Splitter
+                    onPointerDown={start}
+                    onPointerMove={move}
+                    onPointerUp={end}
+                    onDoubleClick={() => onWidth(320)}
+                    title={t("Drag to resize; double-click to reset")}
+                />
+
+                <Panel style={{width}}>
+                    <Empty>
+                        <FolderIcon size={56}/>
+                        <span>{emptyNote}</span>
+                    </Empty>
+                </Panel>
+            </Root>
+        );
 
     const toggleVideo = () => {
         const element = videoRef.current;
@@ -320,6 +342,25 @@ const Panel = styled.aside`
     min-height: 0;
     background: var(--bg-secondary);
     ${slideInRightStyle}
+`;
+
+/** The details pane's empty state, used by the recycle bin when nothing is selected. */
+const Empty = styled.div`
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 24px;
+    color: var(--text-muted);
+    font-size: 12px;
+    text-align: center;
+
+    svg {
+        color: var(--text-muted);
+        opacity: 0.45;
+    }
 `;
 
 const Media = styled.div`

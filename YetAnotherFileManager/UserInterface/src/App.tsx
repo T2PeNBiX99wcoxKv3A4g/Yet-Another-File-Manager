@@ -2028,6 +2028,7 @@ export default function App() {
                         <RecycleView
                             onOpenLocation={navigate}
                             onShowDetails={() => setDetailsVisible(true)}
+                            platform={appInfo?.platform}
                             showDetails={detailsVisible}
                             videoAudio={settings?.previewVideoAudio ?? false}
                             videoAutoplay={settings?.previewVideoAutoplay ?? false}
