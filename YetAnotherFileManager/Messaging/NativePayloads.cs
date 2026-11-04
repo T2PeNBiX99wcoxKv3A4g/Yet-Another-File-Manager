@@ -8,6 +8,12 @@ namespace YetAnotherFileManager.Messaging;
 /// <summary>Body for a bare <c>{ "ok": true }</c> acknowledgement.</summary>
 internal sealed record OkPayload(bool Ok = true);
 
+/// <summary>Body for <c>app.updateStatus</c> and <c>app.checkUpdate</c>.</summary>
+internal sealed record UpdateCheckPayload(string Current, string Latest, bool Available);
+
+/// <summary>Payload for <c>app.openUrl</c>: the address to hand to the default browser.</summary>
+internal sealed record UrlPayload(string Url);
+
 /// <summary>Body for <c>app.info</c>.</summary>
 internal sealed record AppInfoPayload(string Version, string Platform, bool Rounded);
 

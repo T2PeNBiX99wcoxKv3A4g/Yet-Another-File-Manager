@@ -14,7 +14,8 @@ import {
     type AppSettings,
 } from "../api/settings";
 import type {AppInfo} from "../api/system";
-import {getMemory, getScheme, setScheme, trimMemory, type MemoryUsage} from "../api/system";
+import {checkUpdate, getMemory, getScheme, getUpdateStatus, openUrl, setScheme, trimMemory,
+    type MemoryUsage, type UpdateCheck} from "../api/system";
 import {deleteTag, listTags, renameTag, type TagCatalogEntry} from "../api/tags";
 import {CheckIcon, ChevronRightIcon, CrossIcon, PlusIcon, TrashIcon} from "./Icons";
 import {IconPicker} from "./IconPicker";
@@ -29,6 +30,8 @@ import {readStoredJson, writeStoredJson} from "../storage";
 
 interface SettingsViewProps {
     appInfo: AppInfo | null;
+    /** A section the footer's update dot asked for. */
+    focusSection?: string | null;
     onSettingsChanged: () => void;
 }
 
@@ -78,6 +81,9 @@ const ThemePresets: { name: string; accent: string; secondary: string }[] = [
     {name: "Slate", accent: "#64748b", secondary: "#94a3b8"},
 ];
 
+/** Where the update section sends the user when a newer build exists. */
+const ReleasesUrl = "https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/releases/latest";
+
 /** The language a fresh install uses until the picker changes it. */
 const DefaultLanguage = "en";
 
@@ -95,6 +101,7 @@ const LocaleNames: Record<string, string> = {
 /** The sections the table of contents jumps to; the ids are what the list shows. */
 const SettingSections: { id: string; label: string }[] = [
     {id: "application", label: "Application"},
+    {id: "updates", label: "Updates"},
     {id: "colors", label: "Colors"},
     {id: "tags", label: "Tags"},
     {id: "files-view", label: "Files view"},
@@ -125,7 +132,7 @@ function readRecentColors(): RecentColors {
     };
 }
 
-export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
+export function SettingsView({appInfo, focusSection, onSettingsChanged}: SettingsViewProps) {
     const t = useTranslation();
     const [languages, setLanguages] = useState<string[]>([]);
     const [visibility, setVisibility] = useState<FileVisibility | null>(null);
@@ -146,6 +153,9 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
     const [tagError, setTagError] = useState<string | null>(null);
     const [recentColors, setRecentColors] = useState<RecentColors>(readRecentColors);
     const [draftPreset, setDraftPreset] = useState<{ name: string; accent: string; secondary: string } | null>(null);
+    const [updateState, setUpdateState] = useState<UpdateCheck | null>(null);
+    const [updateBusy, setUpdateBusy] = useState(false);
+    const [updateError, setUpdateError] = useState(false);
     const [colorStart, setColorStart] = useState<{ role: ColorRole; color: string } | null>(null);
     const [activeSection, setActiveSection] = useState(SettingSections[0].id);
     const page = useRef<HTMLDivElement | null>(null);
@@ -198,9 +208,19 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
         setActiveSection(id);
     };
 
+    // The footer's update dot opens this page straight at the update section.
+    useEffect(() => {
+        if (focusSection) jumpTo(focusSection);
+    }, [focusSection]);
+
     // The translation files that exist, for the language picker; the list does not change at runtime.
     useEffect(() => {
         void loadStrings().then((payload) => setLanguages(payload.available), () => setLanguages([]));
+    }, []);
+
+    // The footer already asked on start, so this normally answers from the backend's cache.
+    useEffect(() => {
+        void getUpdateStatus().then(setUpdateState, () => undefined);
     }, []);
 
     useEffect(() => {
@@ -266,6 +286,20 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
 
         rememberColor(role, role === "accent" ? accentNow : secondaryNow);
         void update(role === "accent" ? {accentColor: color} : {secondaryColor: color});
+    };
+
+    /** Reads the published version file and shows whether this build is behind. */
+    const checkNow = async () => {
+        setUpdateBusy(true);
+        setUpdateError(false);
+
+        try {
+            setUpdateState(await checkUpdate());
+        } catch {
+            setUpdateError(true);
+        } finally {
+            setUpdateBusy(false);
+        }
     };
 
     /** Saves the current pair under the name in the draft, or the two colours when it is blank. */
@@ -537,6 +571,63 @@ export function SettingsView({appInfo, onSettingsChanged}: SettingsViewProps) {
                                 <Knob/>
                             </Toggle>
                         </Row>
+                    </Rows>
+                </Section>
+
+                <Section ref={anchor("updates")}>
+                    <Head
+                        note="The running build and the newest one published."
+                        title="Updates"
+                    />
+                    <Rows>
+                        <Row>
+                            <Label>{t("Current version")}</Label>
+                            <Value>{appInfo ? `v${appInfo.version}` : "—"}</Value>
+                        </Row>
+                        <Row>
+                            <Label>{t("Latest version")}</Label>
+                            <Value>{updateState ? `v${updateState.latest}` : "—"}</Value>
+                        </Row>
+                        <Row>
+                            <RowText>
+                                <Label>{t("Check for updates")}</Label>
+                                <Note>
+                                    {updateState && !updateState.available
+                                        ? t("You are on the latest version.")
+                                        : t("Reads the version file the release workflow publishes.")}
+                                </Note>
+                            </RowText>
+                            <RowEnd>
+                                <ActionButton
+                                    disabled={updateBusy}
+                                    onClick={() => void checkNow()}
+                                    type="button"
+                                >
+                                    {updateBusy ? t("Checking…") : t("Check now")}
+                                </ActionButton>
+                            </RowEnd>
+                        </Row>
+                        {updateState?.available && (
+                            <Row>
+                                <RowText>
+                                    <Label>{t("Version {version} is available.", {version: updateState.latest})}</Label>
+                                    <Note>{t("Download the new build from the releases page.")}</Note>
+                                </RowText>
+                                <RowEnd>
+                                    <ActionButton
+                                        onClick={() => void openUrl(ReleasesUrl)}
+                                        type="button"
+                                    >
+                                        {t("Open release page")}
+                                    </ActionButton>
+                                </RowEnd>
+                            </Row>
+                        )}
+                        {updateError && (
+                            <Row>
+                                <TagError>{t("Could not check for updates.")}</TagError>
+                            </Row>
+                        )}
                     </Rows>
                 </Section>
 

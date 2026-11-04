@@ -27,6 +27,35 @@ export async function getAppInfo(): Promise<AppInfo> {
     return await Native.request<AppInfo>("app.info");
 }
 
+/** Body of `app.updateStatus` and `app.checkUpdate`: the running version and the published one. */
+export interface UpdateCheck {
+    current: string;
+    latest: string;
+    available: boolean;
+}
+
+/** The cached update answer; null when the version file could not be read. */
+export async function getUpdateStatus(): Promise<UpdateCheck | null> {
+    if (!Native.available) return null;
+
+    return (await Native.request<UpdateCheck | null>("app.updateStatus")) ?? null;
+}
+
+/** Compares this build with the version file the release workflow publishes, ignoring the cache. */
+export async function checkUpdate(): Promise<UpdateCheck> {
+    if (!Native.available) return {current: "dev", latest: "dev", available: false};
+
+    return await Native.request<UpdateCheck>("app.checkUpdate");
+}
+
+/** Hands a URL to the system browser. */
+export async function openUrl(url: string): Promise<boolean> {
+    if (!Native.available || !url) return false;
+
+    const data = await Native.request<{ ok: boolean }>("app.openUrl", {url});
+    return data.ok;
+}
+
 /** What the application process uses, in bytes. The webview keeps its own numbers. */
 export async function getMemory(): Promise<MemoryUsage> {
     if (!Native.available) return EmptyMemory;

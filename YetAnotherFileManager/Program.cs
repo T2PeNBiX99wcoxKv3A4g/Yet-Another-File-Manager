@@ -116,6 +116,7 @@ internal static partial class Program
 
             // Touching each singleton constructs it, which is what registers its message handlers.
             _ = AppInfoService.Instance;
+_ = UpdateService.Instance;
             _ = FileSystemService.Instance;
             _ = ThumbnailServer.Instance;
 

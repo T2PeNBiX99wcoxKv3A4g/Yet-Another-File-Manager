@@ -425,5 +425,19 @@
   "Slate": "石板灰",
   "%APPDATA%, which sits on the system drive (usually C:)": "%APPDATA%，位於系統磁碟機 (通常是 C:)",
   "your home folder, which often shares a partition with the system": "您的主資料夾，通常與系統共用同一個分割區",
-  "the app's settings folder, which usually sits on the system drive": "應用程式的設定資料夾，通常位於系統磁碟機"
+  "the app's settings folder, which usually sits on the system drive": "應用程式的設定資料夾，通常位於系統磁碟機",
+  "Updates": "更新",
+  "The running build and the newest one published.": "目前執行的版本，以及最新發佈的版本。",
+  "Current version": "目前版本",
+  "Latest version": "最新版本",
+  "Check for updates": "檢查更新",
+  "Reads the version file the release workflow publishes.": "讀取發行工作流程發佈的版本檔案。",
+  "Checking…": "檢查中…",
+  "Check now": "立即檢查",
+  "Version {version} is available.": "有新的 {version} 版本可用。",
+  "Download the new build from the releases page.": "從發行頁面下載新的版本。",
+  "Open release page": "開啟發行頁面",
+  "Could not check for updates.": "無法檢查更新。",
+  "You are on the latest version.": "您已是最新版本。",
+  "Version {version}": "版本 {version}"
 }

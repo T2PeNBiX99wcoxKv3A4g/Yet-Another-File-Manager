@@ -22,7 +22,7 @@ import {
     type ViewDefaults,
 } from "./api/files";
 import {getSettings, saveOpenTabs, saveSettings, type AppSettings} from "./api/settings";
-import {getAppInfo, type AppInfo} from "./api/system";
+import {getAppInfo, getUpdateStatus, type AppInfo, type UpdateCheck} from "./api/system";
 import {
     copyPaths,
     getClipboardFiles,
@@ -247,6 +247,8 @@ export default function App() {
     const [places, setPlaces] = useState<Place[]>([]);
     const [drives, setDrives] = useState<Drive[]>([]);
     const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
+    const [update, setUpdate] = useState<UpdateCheck | null>(null);
+    const [settingsFocus, setSettingsFocus] = useState<string | null>(null);
     const corners = useWindowCorners();
     const [find, setFind] = useState<FindState>(EmptyFind);
     const [findIndex, setFindIndex] = useState(0);
@@ -1277,6 +1279,18 @@ export default function App() {
         void getAppInfo().then(setAppInfo, () => setAppInfo(null));
     }, [load, reloadPlaces, reloadSettings, reloadDrives]);
 
+    // The footer shows a dot when a newer build is published; the backend caches the answer.
+    useEffect(() => {
+        void getUpdateStatus().then(setUpdate, () => setUpdate(null));
+
+        if (!Native.available) return;
+
+        return Native.on((evt) => {
+            const event = evt as { type?: string; data?: UpdateCheck };
+            if (event.type === "app.update" && event.data) setUpdate(event.data);
+        });
+    }, []);
+
     // Free space changes while the app runs; keep the bars honest without asking for a refresh.
     useEffect(() => {
         const timer = setInterval(reloadDrives, 30_000);
@@ -1938,7 +1952,7 @@ export default function App() {
                             visibilityVersion={visibilityVersion}
                         />
                     ) : kind === "settings" ? (
-                        <SettingsView appInfo={appInfo} onSettingsChanged={reloadSettings}/>
+                        <SettingsView appInfo={appInfo} focusSection={settingsFocus} onSettingsChanged={reloadSettings}/>
                     ) : kind === "gallery" ? (
                         <GalleryView
                             confirmDelete={settings?.confirmDelete ?? false}
@@ -1959,7 +1973,22 @@ export default function App() {
 
                     <StatusBar>
                         <span>{kind === "files" && active.listing ? statusLine(t, active.listing) : ""}</span>
-                        <span>{appInfo ? `v${appInfo.version} · ${appInfo.platform}` : "browser preview"}</span>
+                        {appInfo ? (
+                            <VersionButton
+                                $alert={update?.available ?? false}
+                                onClick={() => {
+                                    setSettingsFocus("updates");
+                                    openView("settings");
+                                }}
+                                title={update?.available
+                                    ? t("Version {version} is available.", {version: update.latest})
+                                    : t("Version {version}", {version: appInfo.version})}
+                                type="button"
+                            >
+                                v{appInfo.version} · {appInfo.platform}
+                                {update?.available && <UpdateDot/>}
+                            </VersionButton>
+                        ) : <span>browser preview</span>}
                     </StatusBar>
                 </Main>
             </Body>
@@ -2148,6 +2177,39 @@ const FileColumn = styled.div`
     flex: 1;
     min-width: 0;
     min-height: 0;
+`;
+
+const VersionButton = styled.button<{ $alert: boolean }>`
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 6px;
+    margin: -2px -6px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: ${({$alert}) => $alert ? "var(--text-primary)" : "inherit"};
+    font: inherit;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--bg-card-hover);
+        color: var(--text-primary);
+    }
+
+    &:focus-visible {
+        outline: 1px solid var(--border-color-focus);
+        outline-offset: 1px;
+    }
+`;
+
+/** The dot that says a newer build is published. */
+const UpdateDot = styled.span`
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.2);
 `;
 
 const StatusBar = styled.footer`

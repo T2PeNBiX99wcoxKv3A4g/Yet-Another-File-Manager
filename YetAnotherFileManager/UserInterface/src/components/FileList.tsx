@@ -405,6 +405,12 @@ export function FileList({
     );
 
     const allPaths = useMemo(() => rows.map((row) => row.entry.fullPath), [rows]);
+    const allSelected = rows.length > 0 && selected.size >= rows.length;
+    const someSelected = selected.size > 0 && !allSelected;
+    const toggleAll = () => {
+        if (allSelected) clearSelection();
+        else setSelected(new Set(allPaths));
+    };
     const currentDirectory = listing?.path ?? "";
 
     /** Applies Explorer's plain, Ctrl and Shift selection rules to one click. */
@@ -1191,6 +1197,22 @@ export function FileList({
                         growRows(event.currentTarget);
                     }}
                 >
+                    {showCheckboxes && rows.length > 0 && (
+                        <GridSelectAll>
+                            <SelectAll
+                                $checked={allSelected}
+                                $partial={someSelected}
+                                aria-label={allSelected ? t("Select none") : t("Select all")}
+                                onClick={toggleAll}
+                                title={allSelected ? t("Select none") : t("Select all")}
+                                type="button"
+                            >
+                                {allSelected ? <CheckIcon size={10}/> : someSelected ? <Dash/> : null}
+                            </SelectAll>
+                            <span>{allSelected ? t("Select none") : t("Select all")}</span>
+                        </GridSelectAll>
+                    )}
+
                     {loading && !listing
                         ? <Tiles $size={view.gridSize}><PlaceholderTiles size={view.gridSize}/></Tiles>
                         : <GridContent
@@ -1246,9 +1268,26 @@ export function FileList({
                 ref={head}
                 style={{gridTemplateColumns: template}}
             >
-                <HeaderButton onClick={() => onSort("name")} type="button">
-                    {t("Name")}{markOf(view, "name")}
-                </HeaderButton>
+                <HeaderName>
+                    {showCheckboxes && (
+                        <SelectAll
+                            $checked={allSelected}
+                            $partial={someSelected}
+                            aria-label={allSelected ? t("Select none") : t("Select all")}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                toggleAll();
+                            }}
+                            title={allSelected ? t("Select none") : t("Select all")}
+                            type="button"
+                        >
+                            {allSelected ? <CheckIcon size={10}/> : someSelected ? <Dash/> : null}
+                        </SelectAll>
+                    )}
+                    <HeaderButton onClick={() => onSort("name")} type="button">
+                        {t("Name")}{markOf(view, "name")}
+                    </HeaderButton>
+                </HeaderName>
                 {visible.map((column) => (
                     <HeaderButton key={column.id} onClick={() => onSort(column.id)} type="button">
                         {t(column.label)}{markOf(view, column.id)}
@@ -2121,6 +2160,62 @@ const IconSlot = styled.span<{ $size?: number }>`
 `;
 
 /** The Explorer-style selection box in front of a name. */
+const HeaderName = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+`;
+
+/** The header checkbox: one click selects every row, or clears the selection again. */
+const SelectAll = styled.button<{ $checked: boolean; $partial: boolean }>`
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    padding: 0;
+    border: 1px solid ${({$checked, $partial}) => $checked || $partial
+        ? "var(--border-color-focus)"
+        : "var(--border-color-hover)"};
+    border-radius: 4px;
+    background: ${({$checked, $partial}) => $checked || $partial
+        ? "rgba(var(--accent-rgb), 0.8)"
+        : "transparent"};
+    color: #fff;
+    cursor: pointer;
+    transition: background 100ms ease, border-color 100ms ease;
+
+    &:hover {
+        border-color: var(--border-color-focus);
+        background: ${({$checked, $partial}) => $checked || $partial
+            ? "rgba(var(--accent-rgb), 0.9)"
+            : "rgba(148, 163, 184, 0.16)"};
+    }
+`;
+
+/** The mark a partly selected folder shows instead of a check. */
+const Dash = styled.span`
+    width: 7px;
+    height: 2px;
+    border-radius: 1px;
+    background: #fff;
+`;
+
+const GridSelectAll = styled.div`
+    position: sticky;
+    top: -12px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: -12px -14px 10px;
+    padding: 9px 14px;
+    background: var(--bg-primary);
+    color: var(--text-muted);
+    font-size: 11px;
+`;
+
 const SelectionBox = styled.button<{ $checked: boolean }>`
     display: grid;
     place-items: center;

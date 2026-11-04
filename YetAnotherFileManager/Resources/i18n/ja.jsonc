@@ -425,5 +425,19 @@
   "Slate": "スレート",
   "%APPDATA%, which sits on the system drive (usually C:)": "%APPDATA%（通常は C: のシステムドライブ）",
   "your home folder, which often shares a partition with the system": "ホームフォルダー（多くの場合システムと同じパーティション）",
-  "the app's settings folder, which usually sits on the system drive": "アプリの設定フォルダー（通常はシステムドライブ）"
+  "the app's settings folder, which usually sits on the system drive": "アプリの設定フォルダー（通常はシステムドライブ）",
+  "Updates": "アップデート",
+  "The running build and the newest one published.": "実行中のビルドと、公開されている最新ビルド。",
+  "Current version": "現在のバージョン",
+  "Latest version": "最新バージョン",
+  "Check for updates": "アップデートを確認",
+  "Reads the version file the release workflow publishes.": "リリースワークフローが公開するバージョンファイルを読み取ります。",
+  "Checking…": "確認中…",
+  "Check now": "今すぐ確認",
+  "Version {version} is available.": "{version} が利用可能です。",
+  "Download the new build from the releases page.": "リリースページから新しいビルドをダウンロードしてください。",
+  "Open release page": "リリースページを開く",
+  "Could not check for updates.": "アップデートを確認できませんでした。",
+  "You are on the latest version.": "最新バージョンです。",
+  "Version {version}": "バージョン {version}"
 }

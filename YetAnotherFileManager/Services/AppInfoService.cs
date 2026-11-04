@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using JetBrains.Annotations;
+using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Utils;
 using YetAnotherFileManager.Messaging;
@@ -26,10 +28,33 @@ internal sealed class AppInfoService : Singleton<AppInfoService>
     public AppInfoService() => NativeBridge.MessageReceived += HandleMessageAsync;
 
     private static Task<NativeResponse?> HandleMessageAsync(NativeContext context) =>
-        context.Request.Type == "app.info"
-            ? Task.FromResult<NativeResponse?>(context.Reply("app.info.result",
-                new AppInfoPayload(Version, Platform, WindowManager.Instance.DrawsWindowCorners)))
-            : Task.FromResult<NativeResponse?>(null);
+        Task.FromResult(context.Request.Type switch
+        {
+            "app.info" => context.Reply("app.info.result",
+                new AppInfoPayload(Version, Platform, WindowManager.Instance.DrawsWindowCorners)),
+            "app.openUrl" => OpenUrl(context),
+            _ => (NativeResponse?)null
+        });
+
+    /// <summary>Hands a URL to the shell, so the release page opens in the user's browser.</summary>
+    private static NativeResponse OpenUrl(NativeContext context)
+    {
+        var url = context.Payload<UrlPayload>()?.Url;
+
+        if (string.IsNullOrWhiteSpace(url))
+            return context.Fail("app.openUrl.result", "No URL was given.");
+
+        var opened = Try.Run(() => Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }) is not null)
+            .GetOrElse(exception =>
+            {
+                Serilog.Log.Warning(exception, "Could not open {Url}", url);
+                return false;
+            });
+
+        return opened
+            ? context.Reply("app.openUrl.result", new OkPayload())
+            : context.Fail("app.openUrl.result", "Could not open the link.");
+    }
 
     /// <summary>The executable's write time, which a replacement binary always changes.</summary>
     private static string ResolveBuildToken()

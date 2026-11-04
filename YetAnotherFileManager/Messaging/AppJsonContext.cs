@@ -28,6 +28,8 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(SchemeRequest))]
 [JsonSerializable(typeof(SchemePayload))]
 [JsonSerializable(typeof(AppInfoPayload))]
+[JsonSerializable(typeof(UpdateCheckPayload))]
+[JsonSerializable(typeof(UrlPayload))]
 [JsonSerializable(typeof(FsListRequest))]
 [JsonSerializable(typeof(FsListPayload))]
 [JsonSerializable(typeof(FsCachedListPayload))]
