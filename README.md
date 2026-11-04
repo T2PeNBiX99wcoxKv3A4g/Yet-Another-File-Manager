@@ -15,7 +15,7 @@
 
 Yet Another File Manager is a desktop file manager for Windows and Linux. It browses folders in a list
 or a grid, previews pictures, video and documents beside them, and keeps tabs, a split view, a
-search, a gallery, per-folder tags and a recycle bin in the same window. It runs on both systems
+search, a gallery, a global tag catalogue and a recycle bin in the same window. It runs on both systems
 from one code base.
 
 <div align="center">
@@ -51,8 +51,8 @@ Windows and Linux share the same interface, so the window looks the same on both
   and any folder you pin, in one to five columns.
 - **Search** — a floating find bar that filters as you type, with match case, regular expressions,
   and a choice between dimming and hiding the rest.
-- **Tags** — coloured tags per folder, a catalogue to rename or remove them everywhere at once, and
-  the colours stored with the folder.
+- **Tags** — one global catalogue with a colour per tag; tag files and folders from any folder, and
+  rename, recolour or remove a tag everywhere at once.
 - **Gallery** — point it at the folders that hold pictures; it groups every image by day and opens a
   full-size viewer on double click.
 - **Recycle bin** — restore, delete permanently, and list the leftover records whose files are gone.

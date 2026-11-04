@@ -14,14 +14,14 @@ Search only looks at the folder on screen; it does not walk subfolders.
 
 ## Tags
 
-Tags are stored per folder, in that folder's index, and the catalogue in
-[Settings](Settings-and-Shortcuts) → Tags lists every tag the app has seen.
+Every tag lives in one global catalogue, and each has a colour. A folder's index stores the tag's
+id, so renaming or recolouring it changes it everywhere at once.
 
-- Click the tag cell of a row, or use the tag button in the details panel, to open the picker.
-- Tick the tags you want, add a new one in the text box, and pick a colour per tag.
-- Renaming or removing a tag in the catalogue updates every folder that used it.
-- A tag's colour is remembered in the folder it was set in, so the same tag can look different in
-  another folder if you choose so.
+- Click the tag cell of a row to open the picker, which lists every tag in the catalogue.
+- Tick the tags you want; a new name typed in the box creates a tag with the colour beside it.
+- [Settings](Settings-and-Shortcuts) → Tags is the catalogue: add a tag, rename one, change its
+  colour, or remove it from every folder that uses it.
+- A tag looks the same in every folder, because the colour belongs to the tag, not to the folder.
 
 ## Recycle bin
 
