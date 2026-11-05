@@ -258,10 +258,10 @@ export function GalleryView({
             query: find.query,
             matchCase: find.matchCase,
             regex: find.regex,
-            mode: find.mode,
+            mode: "hide",
             currentPath: null,
         }
-        : NoFind, [find?.open, find?.query, find?.matchCase, find?.regex, find?.mode]);
+        : NoFind, [find?.open, find?.query, find?.matchCase, find?.regex]);
 
     return (
         <Page>
