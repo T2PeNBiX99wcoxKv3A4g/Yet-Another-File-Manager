@@ -275,7 +275,6 @@ export function GalleryView({
                     openOnSingleClick={openOnSingleClick}
                     shortcuts={shortcuts}
                     enableShortcuts={!onPick}
-                    readOnly={Boolean(onPick)}
                     onSelectionChange={onSelectionChange}
                     onSort={() => undefined}
                     onOpen={open}

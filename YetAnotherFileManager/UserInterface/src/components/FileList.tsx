@@ -4,27 +4,18 @@ import {
     type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject,
 } from "react";
 import styled from "styled-components";
-import {wantsNewTab, isTyping, comboOf, DefaultShortcuts, prettyShortcut, type ShortcutMap} from "../shortcuts";
+import {wantsNewTab, isTyping, comboOf, DefaultShortcuts, type ShortcutMap} from "../shortcuts";
 import type {DirectoryListing, FileEntry, Place, ResolvedView} from "../api/files";
 import {useIcon, useIconFile, useThumbnail} from "../api/icons";
 import {
-    compressPaths,
     copyPaths,
     deletePaths,
     hasClipboardFiles,
-    invokeShellVerb,
-    listOpenWith,
-    listShellVerbs,
     newFolder,
     openTerminal,
-    openWith,
-    openWithProgram,
     pasteInto,
     renamePath,
-    showInExplorer,
     showProperties,
-    type OpenWithProgram,
-    type ShellVerb,
 } from "../api/operations";
 import {NoFind, rangesOf, type FindView} from "../find";
 import {canPreview, previewKindOf, PreviewKindLabels} from "../preview";
@@ -32,29 +23,8 @@ import {quickPlace, useQuickAccess} from "../quick";
 import {baseName, formatBytes, formatDate, plural} from "../utils/format";
 import {readStoredNumber, writeStoredNumber} from "../storage";
 import {useTranslation, type Translate} from "@photino-net-utils/bridge";
-import {
-    AppIcon,
-    ArchiveIcon,
-    ArrowRightIcon,
-    CheckIcon,
-    CopyIcon,
-    CutIcon,
-    DocumentIcon,
-    ExecutableIcon,
-    FolderIcon,
-    GearIcon,
-    PasteIcon,
-    PackageIcon,
-    PencilIcon,
-    PinIcon,
-    PlusIcon,
-    RefreshIcon,
-    ShareIcon,
-    StarIcon,
-    TerminalIcon,
-    TrashIcon,
-} from "./Icons";
-import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
+import {CheckIcon, FolderIcon} from "./Icons";
+import {FileMenu} from "./FileMenu";
 import {ConfirmDialog} from "./ConfirmDialog";
 import {PreviewPane, type PreviewInfo} from "./PreviewPane";
 import {PlaceIcon} from "./PlaceIcon";
@@ -211,26 +181,12 @@ export function FileList({
         writeStoredNumber("yafm.preview.width", width);
     }, []);
     const [canPaste, setCanPaste] = useState(false);
-    const shellRequest = useRef(0);
-    const openWithRequest = useRef(0);
-    const [shell, setShell] = useState<{ verbs: ShellVerb[]; safe: boolean; loading: boolean }>({
-        verbs: [], safe: true, loading: false,
-    });
-    const [openWithApps, setOpenWithApps] = useState<{
-        recommended: OpenWithProgram[];
-        other: OpenWithProgram[];
-        loading: boolean;
-    }>({recommended: [], other: [], loading: false});
 
     // A new folder starts with nothing selected; an operation that renamed a path drops it too.
     useEffect(() => {
         setSelected(new Set());
         setRenaming(null);
         setMenu(null);
-        setShell({verbs: [], safe: true, loading: false});
-        setOpenWithApps({recommended: [], other: [], loading: false});
-        shellRequest.current += 1;
-        openWithRequest.current += 1;
         anchor.current = null;
     }, [listing?.path]);
 
@@ -528,11 +484,7 @@ export function FileList({
         });
     }, [body, listing, pendingRename, pendingRenameToken, rowHeight, rows, view.mode]);
 
-    const closeMenu = useCallback(() => {
-        shellRequest.current += 1;
-        openWithRequest.current += 1;
-        setMenu(null);
-    }, []);
+    const closeMenu = useCallback(() => setMenu(null), []);
 
     const openRow = useCallback((entry: FileEntry, event: ReactMouseEvent) => {
         if (entry.isDirectory)
@@ -603,48 +555,9 @@ export function FileList({
             anchor.current = path;
 
         const paths = path ? (selectedNow.has(path) ? [...selectedNow] : [path]) : [];
-        const shellPaths = path ? paths : currentDirectory ? [currentDirectory] : [];
-        const request = ++shellRequest.current;
-        const targetRow = path ? rowsRef.current.find((row) => row.entry.fullPath === path) : undefined;
-        const openWithTarget = targetRow && !targetRow.entry.isDirectory && paths.length === 1
-            ? targetRow.entry.fullPath
-            : null;
-        const openWithToken = ++openWithRequest.current;
 
         setMenu({x: event.clientX, y: event.clientY, paths, background: !path});
-        setShell({verbs: [], safe: true, loading: shellPaths.length > 0});
-
-        if (openWithTarget) {
-            setOpenWithApps({recommended: [], other: [], loading: true});
-
-            void listOpenWith(openWithTarget).then(
-                (result) => {
-                    if (openWithRequest.current === openWithToken)
-                        setOpenWithApps({...result, loading: false});
-                },
-                () => {
-                    if (openWithRequest.current === openWithToken)
-                        setOpenWithApps({recommended: [], other: [], loading: false});
-                },
-            );
-        }
-        else
-            setOpenWithApps({recommended: [], other: [], loading: false});
-
         void hasClipboardFiles().then(setCanPaste, () => setCanPaste(false));
-
-        if (shellPaths.length === 0) return;
-
-        void listShellVerbs(shellPaths).then(
-            (result) => {
-                if (shellRequest.current === request)
-                    setShell({...result, loading: false});
-            },
-            () => {
-                if (shellRequest.current === request)
-                    setShell({verbs: [], safe: true, loading: false});
-            },
-        );
     }, [allowBackgroundMenu, currentDirectory]);
 
     const refresh = useCallback(() => onRefresh?.(), [onRefresh]);
@@ -751,23 +664,6 @@ export function FileList({
             return null;
         });
     }, []);
-
-    const compress = async (paths: string[]) => {
-        const result = await compressPaths(paths);
-
-        if (result.ok)
-            refresh();
-        else
-            window.alert(result.error ?? t("Could not create the ZIP file."));
-    };
-
-    const copyAsPath = async (paths: string[]) => {
-        try {
-            await navigator.clipboard.writeText(paths.join("\n"));
-        } catch {
-            // The web view refused the clipboard; nothing sensible to show.
-        }
-    };
 
     // File-manager shortcuts. Ctrl+D copies as KDE's file manager does; Ctrl+C also copies.
     useEffect(() => {
@@ -909,224 +805,6 @@ export function FileList({
     }, [allPaths, copy, createFolder, currentDirectory, enableShortcuts, menu, onOpen, onOpenFile, paste, refresh,
         remove, rename, rows, selected, shortcuts]);
 
-    const menuItems: ContextMenuItem[] = [];
-    const quickActions: ContextMenuItem[] = [];
-    const target = menu?.paths[0];
-    const entry = target ? rows.find((row) => row.entry.fullPath === target)?.entry : undefined;
-    const single = menu?.paths.length === 1;
-    const shellPaths = menu?.background ? (currentDirectory ? [currentDirectory] : []) : menu?.paths ?? [];
-
-    if (menu?.background) {
-        menuItems.push({
-            label: t("Open in Terminal"), icon: <TerminalIcon size={14}/>,
-            onSelect: () => void openTerminal(currentDirectory),
-        });
-        menuItems.push({
-            label: t("Show in Explorer"), icon: <FolderIcon size={14}/>, separatorBefore: true,
-            onSelect: () => void showInExplorer(currentDirectory),
-        });
-
-        quickActions.push(
-            {
-                label: t("New folder"), icon: <PlusIcon size={16}/>, shortcut: prettyShortcut(shortcuts.newFolder),
-                onSelect: () => void createFolder(),
-            },
-            {
-                label: t("Paste"), icon: <PasteIcon size={16}/>, disabled: !canPaste,
-                shortcut: prettyShortcut(shortcuts.paste),
-                onSelect: () => void paste(currentDirectory),
-            },
-            {
-                label: t("Refresh"), icon: <RefreshIcon size={16}/>, shortcut: prettyShortcut(shortcuts.refresh),
-                onSelect: refresh,
-            },
-            {
-                label: t("Properties"), icon: <GearIcon size={16}/>,
-                shortcut: prettyShortcut(shortcuts.properties),
-                onSelect: () => void showProperties([currentDirectory]),
-            },
-        );
-    }
-    else if (menu) {
-        menuItems.push({
-            label: t("Open"), icon: <ArrowRightIcon size={14}/>, onSelect: () => {
-                if (!entry) return;
-
-                if (entry.isDirectory) onOpen(entry.fullPath);
-                else onOpenFile?.(entry.fullPath);
-            },
-        });
-
-        if (entry?.isDirectory) {
-            menuItems.push({
-                label: t("Open in new tab"), icon: <PlusIcon size={14}/>,
-                onSelect: () => onOpen(entry.fullPath, true),
-            });
-            menuItems.push({
-                label: t("Paste into folder"), icon: <PasteIcon size={14}/>, disabled: !canPaste,
-                onSelect: () => void paste(entry.fullPath),
-            });
-            menuItems.push({
-                label: t("Open in Terminal"), icon: <TerminalIcon size={14}/>,
-                onSelect: () => void openTerminal(entry.fullPath),
-            });
-        }
-
-        if (single && entry && !entry.isDirectory) {
-            const children: ContextMenuItem[] = [];
-
-            if (openWithApps.loading)
-                children.push({label: t("Loading apps…"), loading: true, disabled: true, onSelect: () => undefined});
-            else {
-                openWithApps.recommended.forEach((app) => {
-                    children.push({
-                        label: app.name,
-                        group: t("Suggested apps"),
-                        icon: app.icon
-                            ? <img alt="" height={14} src={app.icon} width={14}/>
-                            : <ExecutableIcon size={14}/>,
-                        onSelect: () => void openWithProgram(entry.fullPath, app.path).then((opened) => {
-                            if (!opened) void openWith(entry.fullPath);
-                        }),
-                    });
-                });
-
-                openWithApps.other.forEach((app) => {
-                    children.push({
-                        label: app.name,
-                        group: t("Other apps"),
-                        icon: app.icon
-                            ? <img alt="" height={14} src={app.icon} width={14}/>
-                            : <ExecutableIcon size={14}/>,
-                        onSelect: () => void openWithProgram(entry.fullPath, app.path).then((opened) => {
-                            if (!opened) void openWith(entry.fullPath);
-                        }),
-                    });
-                });
-            }
-
-            children.push({
-                label: t("Choose another app…"),
-                icon: <ExecutableIcon size={14}/>,
-                separatorBefore: true,
-                onSelect: () => void openWith(entry.fullPath),
-            });
-
-            menuItems.push({
-                label: t("Open with"),
-                icon: <ExecutableIcon size={14}/>,
-                children,
-                onSelect: () => void openWith(entry.fullPath),
-            });
-        }
-
-        menuItems.push({
-            label: t("Compress to ZIP"), icon: <ArchiveIcon size={14}/>, separatorBefore: true,
-            onSelect: () => void compress(menu.paths),
-        });
-        menuItems.push({
-            label: t("Copy as path"), icon: <CopyIcon size={14}/>,
-            onSelect: () => void copyAsPath(menu.paths),
-        });
-
-        if (onAddToTray)
-            menuItems.push({
-                label: t("Add to file tray"), icon: <PackageIcon size={14}/>,
-                onSelect: () => onAddToTray(menu.paths),
-            });
-
-        menuItems.push({
-            label: t("Show in Explorer"), icon: <FolderIcon size={14}/>, separatorBefore: true,
-            onSelect: () => void showInExplorer(menu.paths[0]),
-        });
-
-        quickActions.push(
-            {
-                label: t("Cut"), icon: <CutIcon size={16}/>, shortcut: prettyShortcut(shortcuts.cut),
-                onSelect: () => void copy(menu.paths, true),
-            },
-            {
-                label: t("Copy"), icon: <CopyIcon size={16}/>, shortcut: prettyShortcut(shortcuts.copy),
-                onSelect: () => void copy(menu.paths, false),
-            },
-        );
-
-        if (single && entry)
-            quickActions.push({
-                label: t("Rename"), icon: <PencilIcon size={16}/>, shortcut: prettyShortcut(shortcuts.rename),
-                onSelect: () => void rename(entry),
-            });
-
-        quickActions.push(
-            {
-                label: t("Delete"), icon: <TrashIcon size={16}/>, danger: true,
-                shortcut: prettyShortcut(shortcuts.delete),
-                onSelect: () => void remove(menu.paths),
-            },
-            {
-                label: t("Properties"), icon: <GearIcon size={16}/>,
-                shortcut: prettyShortcut(shortcuts.properties),
-                onSelect: () => void showProperties(menu.paths),
-            },
-        );
-    }
-
-    if (menu) {
-        if (shell.loading)
-            menuItems.push({
-                label: t("More actions"),
-                icon: <ExecutableIcon size={14}/>,
-                loading: true,
-                disabled: true,
-                separatorBefore: true,
-                onSelect: () => undefined,
-            });
-        else if (shell.verbs.length > 0) {
-            type ShellNode = { items: ShellVerb[]; children: Map<string, ShellNode> };
-            const root: ShellNode = {items: [], children: new Map()};
-
-            for (const verb of shell.verbs) {
-                let node = root;
-
-                for (const label of verb.groupPath ?? []) {
-                    let child = node.children.get(label);
-
-                    if (!child) {
-                        child = {items: [], children: new Map()};
-                        node.children.set(label, child);
-                    }
-
-                    node = child;
-                }
-
-                node.items.push(verb);
-            }
-
-            const toItems = (node: ShellNode): ContextMenuItem[] => [
-                ...node.items.map((verb) => ({
-                    label: verb.label,
-                    icon: <MenuIcon source={verb.icon}/>,
-                    disabled: !verb.enabled,
-                    checked: verb.checked,
-                    onSelect: () => void invokeShellVerb(shellPaths, shell.safe, verb.verb, verb.offset),
-                })),
-                ...[...node.children.entries()].map(([label, child]) => ({
-                    label,
-                    children: toItems(child),
-                    onSelect: () => undefined,
-                })),
-            ];
-
-            menuItems.push({
-                label: shell.safe ? "More actions" : "More actions (extensions)",
-                icon: <ExecutableIcon size={14}/>,
-                separatorBefore: true,
-                children: toItems(root),
-                onSelect: () => undefined,
-            });
-        }
-    }
-
     const confirmDialog = pendingConfirm && (
         <ConfirmDialog
             confirmLabel={pendingConfirm.permanent ? t("Delete") : t("Move")}
@@ -1240,8 +918,11 @@ export function FileList({
         };
     }, [listing, previewEntry, t]);
 
-    const previewInfo = selectionInfo ?? directoryInfo;
-    const previewInfoRef = useRef(onPreviewInfo);
+    const menuTargetPath = menu?.paths.length === 1 ? menu.paths[0] : null;
+    const menuEntry = menuTargetPath ? rows.find((row) => row.entry.fullPath === menuTargetPath)?.entry : undefined;
+    const menuTarget = menuEntry ? {path: menuEntry.fullPath, isDirectory: menuEntry.isDirectory} : null;
+
+    const previewInfo = selectionInfo ?? directoryInfo;    const previewInfoRef = useRef(onPreviewInfo);
     previewInfoRef.current = onPreviewInfo;
 
     useEffect(() => {
@@ -1337,7 +1018,28 @@ export function FileList({
                     {gridFooter}
                 </GridBody>
 
-                {menu && <ContextMenu items={menuItems} onClose={closeMenu} quick={quickActions} x={menu.x} y={menu.y}/>}
+                {menu && (
+                <FileMenu
+                    canPaste={canPaste}
+                    directory={currentDirectory}
+                    menu={menu}
+                    onAddToTray={onAddToTray}
+                    onClose={closeMenu}
+                    onCopy={copy}
+                    onCreateFolder={createFolder}
+                    onDelete={remove}
+                    onOpen={onOpen}
+                    onOpenFile={onOpenFile}
+                    onPaste={paste}
+                    onRefresh={refresh}
+                    onRename={(path) => {
+                        const target = rows.find((row) => row.entry.fullPath === path)?.entry;
+                        if (target) rename(target);
+                    }}
+                    shortcuts={shortcuts}
+                    target={menuTarget}
+                />
+            )}
                 {confirmDialog}
                 </Wrapper>
                 {previewPane}
@@ -1511,49 +1213,33 @@ export function FileList({
                 />
             )}
 
-            {menu && <ContextMenu items={menuItems} onClose={closeMenu} quick={quickActions} x={menu.x} y={menu.y}/>}
+            {menu && (
+                <FileMenu
+                    canPaste={canPaste}
+                    directory={currentDirectory}
+                    menu={menu}
+                    onAddToTray={onAddToTray}
+                    onClose={closeMenu}
+                    onCopy={copy}
+                    onCreateFolder={createFolder}
+                    onDelete={remove}
+                    onOpen={onOpen}
+                    onOpenFile={onOpenFile}
+                    onPaste={paste}
+                    onRefresh={refresh}
+                    onRename={(path) => {
+                        const target = rows.find((row) => row.entry.fullPath === path)?.entry;
+                        if (target) rename(target);
+                    }}
+                    shortcuts={shortcuts}
+                    target={menuTarget}
+                />
+            )}
             {confirmDialog}
             </Wrapper>
             {previewPane}
         </SplitPane>
     );
-}
-
-/** Maps an extracted shell icon source to the glyph the menu draws. */
-function MenuIcon({source}: {source: string | null}) {
-    if (!source) return null;
-    if (source.startsWith("data:")) return <img alt="" height={14} src={source} width={14}/>;
-
-    switch (source.startsWith("icon:") ? source.slice(5) : source) {
-        case "open":
-            return <ArrowRightIcon size={14}/>;
-        case "document":
-            return <DocumentIcon size={14}/>;
-        case "cut":
-            return <CutIcon size={14}/>;
-        case "copy":
-            return <CopyIcon size={14}/>;
-        case "paste":
-            return <PasteIcon size={14}/>;
-        case "trash":
-            return <TrashIcon size={14}/>;
-        case "pencil":
-            return <PencilIcon size={14}/>;
-        case "gear":
-            return <GearIcon size={14}/>;
-        case "star":
-            return <StarIcon size={14}/>;
-        case "pin":
-            return <PinIcon size={14}/>;
-        case "executable":
-            return <ExecutableIcon size={14}/>;
-        case "share":
-            return <ShareIcon size={14}/>;
-        case "arrow":
-            return <ArrowRightIcon size={14}/>;
-        default:
-            return <AppIcon size={14}/>;
-    }
 }
 
 /** "↑"/"↓" beside the column that is sorted. */
