@@ -28,17 +28,148 @@ export function appLocale(): string | undefined {
     return lang.length > 0 ? lang : undefined;
 }
 
-/** Date and time in a compact table-friendly form, using the interface's language. */
+export type TimeFormatMode = "system" | "12" | "24" | "custom";
+
+/** The shipped default: the interface reads 24-hour time out of the box. */
+export const DefaultTimeFormat: TimeFormatMode = "24";
+export const DefaultTimePattern = "yyyy/MM/dd HH:mm";
+
+let currentTimeFormat: TimeFormatMode = DefaultTimeFormat;
+let currentTimePattern = DefaultTimePattern;
+
+/** Applies the saved time settings to every formatter; called whenever the settings change. */
+export function applyTimeFormat(format: string | null | undefined, pattern: string | null | undefined) {
+    currentTimeFormat = normalizeTimeFormat(format);
+    currentTimePattern = pattern?.trim() || DefaultTimePattern;
+}
+
+export function normalizeTimeFormat(format: string | null | undefined): TimeFormatMode {
+    return format === "system" || format === "12" || format === "custom" ? format : "24";
+}
+
+/** Date and time in a compact table-friendly form, using the configured format. */
 export function formatDate(unixMilliseconds: number): string {
+    return formatDateWith(unixMilliseconds, currentTimeFormat, currentTimePattern);
+}
+
+/** Same as formatDate but with an explicit format, for the settings preview. */
+export function formatDateWith(unixMilliseconds: number, format: string | null | undefined,
+    pattern: string | null | undefined): string {
     if (unixMilliseconds <= 0) return "—";
 
-    return new Date(unixMilliseconds).toLocaleString(appLocale(), {
+    const date = new Date(unixMilliseconds);
+    const mode = normalizeTimeFormat(format);
+
+    if (mode === "custom")
+        return applyTimePattern(date, pattern?.trim() || DefaultTimePattern);
+
+    const options: Intl.DateTimeFormatOptions = {
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
         hour: "2-digit",
         minute: "2-digit",
-    });
+    };
+
+    if (mode === "24") options.hourCycle = "h23";
+    if (mode === "12") options.hour12 = true;
+
+    return date.toLocaleString(appLocale(), options);
+}
+
+/** Time only, for the history panel. */
+export function formatClock(unixMilliseconds: number): string {
+    if (unixMilliseconds <= 0) return "—";
+
+    const date = new Date(unixMilliseconds);
+
+    if (currentTimeFormat === "custom")
+        return applyTimePattern(date, currentTimePattern);
+
+    const options: Intl.DateTimeFormatOptions = {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+    };
+
+    if (currentTimeFormat === "24") options.hourCycle = "h23";
+    if (currentTimeFormat === "12") options.hour12 = true;
+
+    return date.toLocaleTimeString(appLocale(), options);
+}
+
+const TimeTokens = ["yyyy", "yy", "MM", "M", "dd", "d", "HH", "H", "hh", "h", "mm", "m", "ss", "s", "a"];
+
+/** Replaces the documented tokens; every other character is copied as-is. */
+function applyTimePattern(date: Date, pattern: string): string {
+    let result = "";
+
+    for (let index = 0; index < pattern.length;) {
+        const token = TimeTokens.find((candidate) => pattern.startsWith(candidate, index));
+
+        if (!token) {
+            result += pattern[index];
+            index++;
+            continue;
+        }
+
+        result += timeTokenValue(date, token);
+        index += token.length;
+    }
+
+    return result;
+}
+
+function timeTokenValue(date: Date, token: string): string {
+    const hours = date.getHours();
+    const twelve = ((hours + 11) % 12) + 1;
+
+    switch (token) {
+        case "yyyy":
+            return String(date.getFullYear());
+        case "yy":
+            return pad2(date.getFullYear() % 100);
+        case "MM":
+            return pad2(date.getMonth() + 1);
+        case "M":
+            return String(date.getMonth() + 1);
+        case "dd":
+            return pad2(date.getDate());
+        case "d":
+            return String(date.getDate());
+        case "HH":
+            return pad2(hours);
+        case "H":
+            return String(hours);
+        case "hh":
+            return pad2(twelve);
+        case "h":
+            return String(twelve);
+        case "mm":
+            return pad2(date.getMinutes());
+        case "m":
+            return String(date.getMinutes());
+        case "ss":
+            return pad2(date.getSeconds());
+        case "s":
+            return String(date.getSeconds());
+        case "a":
+            return dayPeriod(date);
+        default:
+            return "";
+    }
+}
+
+function pad2(value: number): string {
+    return String(value).padStart(2, "0");
+}
+
+function dayPeriod(date: Date): string {
+    const part = new Intl.DateTimeFormat(appLocale(), {hour: "numeric", hour12: true})
+        .formatToParts(date)
+        .find((piece) => piece.type === "dayPeriod")?.value;
+
+    return part ?? (date.getHours() < 12 ? "AM" : "PM");
 }
 
 /**

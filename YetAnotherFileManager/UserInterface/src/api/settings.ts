@@ -75,6 +75,10 @@ export interface AppSettings {
     protectedPaths: string[];
     /** Seconds the protected-delete confirmation stays disabled; never below 1. */
     deleteDelaySeconds: number;
+    /** "system", "12", "24" or "custom" for every timestamp. */
+    timeFormat: string;
+    /** Pattern used when timeFormat is "custom". */
+    timeFormatPattern: string;
     /** UI language such as "en" or "zh-TW"; null means English, "system" follows the OS. */
     language: string | null;
     /** Colour pairs the user saved; the built-in presets live in the settings page. */
@@ -127,6 +131,8 @@ const fallback: AppSettings = {
     backgroundBrightness: 100,
     protectedPaths: [],
     deleteDelaySeconds: 5,
+    timeFormat: "24",
+    timeFormatPattern: "yyyy/MM/dd HH:mm",
     language: null,
     themePresets: [],
 };
@@ -176,6 +182,8 @@ export async function getSettings(): Promise<AppSettings> {
         backgroundBrightness: raw?.backgroundBrightness ?? 100,
         protectedPaths: raw?.protectedPaths ?? [],
         deleteDelaySeconds: raw?.deleteDelaySeconds ?? 5,
+        timeFormat: raw?.timeFormat ?? "24",
+        timeFormatPattern: raw?.timeFormatPattern ?? "yyyy/MM/dd HH:mm",
         language: raw?.language ?? null,
         themePresets: raw?.themePresets ?? [],
     };
@@ -234,6 +242,8 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         backgroundBrightness: saved?.backgroundBrightness ?? settings.backgroundBrightness,
         protectedPaths: saved?.protectedPaths ?? settings.protectedPaths,
         deleteDelaySeconds: saved?.deleteDelaySeconds ?? settings.deleteDelaySeconds,
+        timeFormat: saved?.timeFormat ?? settings.timeFormat,
+        timeFormatPattern: saved?.timeFormatPattern ?? settings.timeFormatPattern,
         language: saved?.language ?? settings.language,
         themePresets: saved?.themePresets ?? settings.themePresets,
     };

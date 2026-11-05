@@ -533,5 +533,13 @@
   "Protected path": "保护路径",
   "The delete button in the protected-folder dialog stays disabled for this many seconds. At least 2.": "受保护文件夹对话框的删除按钮会停用这么多秒，至少 2 秒。",
   "Rules are full-path globs: * stays inside one name, ** crosses folders, and ? matches one character. A rule without a folder part, such as *.log, applies to that name at any depth. %VARS%, $VARS and ~ are expanded first.": "规则是完整路径的 glob：* 只匹配同一层名称内的内容，** 可跨文件夹，? 匹配单个字符。没有文件夹部分的规则（例如 *.log）会应用到任意深度的同名文件。检查前会先展开 %VAR%、$VAR 和 ~。",
-  "Restore defaults": "恢复默认值"
+  "Restore defaults": "恢复默认值",
+  "Time format": "时间格式",
+  "Format": "格式",
+  "24-hour": "24 小时制",
+  "12-hour": "12 小时制",
+  "Pattern": "模式",
+  "Follow the system, force 24-hour or 12-hour time, or define your own pattern.": "跟随系统，或强制使用 24/12 小时制，也可以自定义模式。",
+  "Every timestamp in the interface uses this format: follow the system, force 24-hour or 12-hour time, or define your own pattern.": "界面中的所有时间都会使用此格式：可跟随系统、强制 24 或 12 小时制，或自定义模式。",
+  "Tokens: yyyy year, MM month, dd day, HH 24-hour, mm minute, ss second, hh 12-hour and a AM/PM. Other characters are copied.": "符号：yyyy 年、MM 月、dd 日、HH 24 小时、mm 分、ss 秒、hh 12 小时、a 上午/下午；其他字符会原样保留。"
 }

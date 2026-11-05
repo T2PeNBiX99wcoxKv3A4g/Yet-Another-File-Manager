@@ -28,7 +28,7 @@ import {GlobalTag} from "./GlobalTag";
 import {ViewColumns} from "./FileList";
 import {BuiltInBackgrounds, BuiltInVideos} from "../backgrounds/concepts";
 import {isVideoPath} from "./Wallpaper";
-import {baseName, formatBytes, plural, usageTone} from "../utils/format";
+import {baseName, DefaultTimePattern, formatBytes, formatDateWith, plural, usageTone} from "../utils/format";
 import {readStoredJson, writeStoredJson} from "../storage";
 
 interface SettingsViewProps {
@@ -79,6 +79,17 @@ const ReleasesUrl = "https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Ma
 /** The language a fresh install uses until the picker changes it. */
 const DefaultLanguage = "en";
 
+/** The choices offered for every timestamp; "custom" reveals the pattern box. */
+const TimeModes: { id: string; label: string }[] = [
+    {id: "system", label: "System"},
+    {id: "24", label: "24-hour"},
+    {id: "12", label: "12-hour"},
+    {id: "custom", label: "Custom"},
+];
+
+/** A fixed afternoon so the preview shows both the date and the hour clearly. */
+const TimePreviewSample = new Date(2026, 10, 5, 16, 8).getTime();
+
 /** The stored value the shared localization library reads as "follow the operating system". */
 const SystemLanguage = "system";
 
@@ -93,6 +104,7 @@ const LocaleNames: Record<string, string> = {
 /** The sections the table of contents jumps to; the ids are what the list shows. */
 const SettingSections: { id: string; label: string }[] = [
     {id: "application", label: "Application"},
+    {id: "time", label: "Time format"},
     {id: "updates", label: "Updates"},
     {id: "colors", label: "Colors"},
     {id: "background", label: "Background"},
@@ -149,6 +161,7 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
     const [newTagName, setNewTagName] = useState("");
     const [newTagColor, setNewTagColor] = useState(DefaultTagColor);
     const [ruleDraft, setRuleDraft] = useState<{ from: string; value: string } | null>(null);
+    const [timeDraft, setTimeDraft] = useState<string | null>(null);
     const [recentColors, setRecentColors] = useState<RecentColors>(readRecentColors);
     const [draftPreset, setDraftPreset] = useState<{ name: string; accent: string; secondary: string } | null>(null);
     const [updateState, setUpdateState] = useState<UpdateCheck | null>(null);
@@ -317,6 +330,17 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
         const paths = await getDefaultProtectedPaths();
         if (paths.length > 0)
             await update({protectedPaths: paths});
+    };
+
+    /** Saves the custom time pattern when the field loses focus or Enter is pressed. */
+    const commitTimePattern = () => {
+        if (!settings || timeDraft === null) return;
+
+        const value = timeDraft.trim() || DefaultTimePattern;
+        setTimeDraft(null);
+
+        if (value !== settings.timeFormatPattern)
+            void update({timeFormatPattern: value});
     };
 
     /** Keeps the last few applied colours, so a palette click and a revert are one click each. */
@@ -683,6 +707,63 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
                                 <Knob/>
                             </Toggle>
                         </Row>
+                    </Rows>
+                </Section>
+
+                <Section ref={anchor("time")}>
+                    <Head
+                        note="Every timestamp in the interface uses this format: follow the system, force 24-hour or 12-hour time, or define your own pattern."
+                        title="Time format"
+                    />
+                    <Rows>
+                        <Block>
+                            <BlockHead>
+                                <Label>{t("Format")}</Label>
+                                <Note>{t("Follow the system, force 24-hour or 12-hour time, or define your own pattern.")}</Note>
+                            </BlockHead>
+                            <TimeModesRow>
+                                {TimeModes.map((mode) => (
+                                    <TimeMode
+                                        $active={(settings?.timeFormat ?? "24") === mode.id}
+                                        key={mode.id}
+                                        onClick={() => void update({timeFormat: mode.id})}
+                                        type="button"
+                                    >
+                                        {t(mode.label)}
+                                    </TimeMode>
+                                ))}
+                            </TimeModesRow>
+                            {(settings?.timeFormat ?? "24") === "custom" && (
+                                <>
+                                    <TimePatternInput
+                                        aria-label={t("Pattern")}
+                                        onBlur={commitTimePattern}
+                                        onChange={(event) => setTimeDraft(event.target.value)}
+                                        onKeyDown={(event) => {
+                                            if (event.key === "Enter") {
+                                                event.preventDefault();
+                                                commitTimePattern();
+                                            } else if (event.key === "Escape") {
+                                                setTimeDraft(null);
+                                            }
+                                        }}
+                                        spellCheck={false}
+                                        value={timeDraft ?? settings?.timeFormatPattern ?? DefaultTimePattern}
+                                    />
+                                    <Note>{t("Tokens: yyyy year, MM month, dd day, HH 24-hour, mm minute, ss second, hh 12-hour and a AM/PM. Other characters are copied.")}</Note>
+                                </>
+                            )}
+                            <TimePreview>
+                                <span>{t("Preview")}</span>
+                                <code>
+                                    {formatDateWith(
+                                        TimePreviewSample,
+                                        settings?.timeFormat,
+                                        timeDraft ?? settings?.timeFormatPattern,
+                                    )}
+                                </code>
+                            </TimePreview>
+                        </Block>
                     </Rows>
                 </Section>
 
@@ -3099,6 +3180,63 @@ const ProtectAdd = styled.div`
     justify-content: flex-end;
     gap: 10px;
     margin-top: 2px;
+`;
+
+const TimeModesRow = styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+`;
+
+const TimeMode = styled.button<{ $active?: boolean }>`
+    padding: 6px 12px;
+    border: 1px solid ${({$active}) => $active ? "var(--border-color-focus)" : "var(--border-color)"};
+    border-radius: var(--radius-sm);
+    background: ${({$active}) => $active ? "rgba(var(--accent-rgb), 0.14)" : "transparent"};
+    color: ${({$active}) => $active ? "var(--text-primary)" : "var(--text-secondary)"};
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+
+    &:hover {
+        border-color: var(--border-color-hover);
+        color: var(--text-primary);
+    }
+`;
+
+const TimePatternInput = styled.input`
+    width: 100%;
+    height: 32px;
+    padding: 0 9px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    outline: 0;
+
+    &:focus {
+        border-color: var(--border-color-focus);
+    }
+`;
+
+const TimePreview = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    color: var(--text-muted);
+    font-size: 11px;
+
+    code {
+        padding: 2px 7px;
+        border-radius: var(--radius-sm);
+        background: rgba(var(--bg-rgb), 0.45);
+        color: var(--text-primary);
+        font-family: var(--font-mono);
+        font-size: 11px;
+    }
 `;
 
 const ColumnGrid = styled.div`

@@ -2,6 +2,7 @@ import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import {listHistory, undoHistory, type HistoryEntry} from "../api/history";
+import {formatClock} from "../utils/format";
 import {elevatedPanel} from "../ui/panel";
 import {ClockIcon, CrossIcon} from "./Icons";
 
@@ -68,7 +69,7 @@ export function HistoryPanel() {
                                     <Row key={entry.id}>
                                         <RowHead>
                                             <Name>{entry.label}</Name>
-                                            <Time>{new Date(entry.at).toLocaleTimeString()}</Time>
+                                            <Time>{formatClock(entry.at)}</Time>
                                         </RowHead>
                                         {entry.paths.length > 0 && (
                                             <Paths title={entry.paths.join("\n")}>

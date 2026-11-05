@@ -67,7 +67,7 @@ import {TooltipLayer} from "./components/TooltipLayer";
 import {viewTitles, type TabKind} from "./tabs";
 import {buildPanels} from "./panels";
 import {Native, ResizeHandles, useTranslation, useWindowCorners, type Translate} from "@photino-net-utils/bridge";
-import {baseName, formatBytes, normalizePath, plural} from "./utils/format";
+import {applyTimeFormat, baseName, formatBytes, normalizePath, plural} from "./utils/format";
 import {applyTheme} from "./theme";
 import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "./storage";
 import {fadeInStyle, pageInStyle, splitLineInStyle} from "./ui/motion";
@@ -338,6 +338,11 @@ export default function App() {
     useEffect(() => {
         applyTheme(settings?.accentColor, settings?.secondaryColor);
     }, [settings?.accentColor, settings?.secondaryColor]);
+
+    // Dates are formatted by a tiny shared module, so it has to follow the settings before render.
+    useEffect(() => {
+        applyTimeFormat(settings?.timeFormat, settings?.timeFormatPattern);
+    }, [settings?.timeFormat, settings?.timeFormatPattern]);
 
     // A wallpaper turns the opaque window surfaces transparent; the layer sits behind all of them.
     useEffect(() => {

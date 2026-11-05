@@ -53,6 +53,10 @@ public sealed record AppSettings(
     List<string>? ProtectedPaths,
     /// <summary>Seconds the protected-delete confirmation stays disabled.</summary>
     int? DeleteDelaySeconds,
+    /// <summary>"system", "12", "24" or "custom" for every timestamp in the interface.</summary>
+    string? TimeFormat,
+    /// <summary>Pattern used when <see cref="TimeFormat" /> is "custom".</summary>
+    string? TimeFormatPattern,
     /// <summary>Show ordinary hidden files; null follows Explorer (or off elsewhere).</summary>
     bool? ShowHidden)
 {
@@ -60,7 +64,7 @@ public sealed record AppSettings(
         new(true, true, true, [], null, 10, null, ["quick", "frequent", "recent", "home", "drives"], null, 1, null,
             null, null, null, null, null, ["quick", "frequent", "recent", "drives"], null, null, true, null, 0, null,
             true, false, false, false, false, null, null, null, null, false, null, null, null, null, null, null, 5,
-            null);
+            "24", null, null);
 
     // The accessors below are derived, so they are kept out of settings.json entirely; only the
     // fields above are stored, and the JSON stays readable and stable.
