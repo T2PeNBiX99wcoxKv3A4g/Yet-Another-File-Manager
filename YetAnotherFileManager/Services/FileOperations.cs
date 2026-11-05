@@ -362,7 +362,7 @@ internal static partial class FileOperations
         });
 
     /// <summary>Creates the next free "New folder" name in a directory.</summary>
-    public static async Task<PathOperationPayload> NewFolderAsync(string directory)
+    public static async Task<PathOperationPayload> NewFolderAsync(string directory, bool caseSensitive = false)
     {
         if (!Directory.Exists(directory))
             return new PathOperationPayload(false, null, "The folder is no longer there.");
@@ -378,6 +378,11 @@ internal static partial class FileOperations
                     continue;
 
                 Directory.CreateDirectory(path);
+
+                // Windows only turns the flag on while the folder is still empty.
+                if (caseSensitive)
+                    CaseFolders.MarkNew(path);
+
                 FileHistory.Instance.Record("New folder",
                     paths: [path],
                     undo: () => DeleteEmptyFolderAsync(path),

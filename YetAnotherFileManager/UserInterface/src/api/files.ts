@@ -172,8 +172,15 @@ export interface FileVisibility {
 }
 
 /** Lists one directory. Omit the path to start at the user's home directory. */
-export async function listDirectory(path?: string, sizes = true, includeLinks = false): Promise<DirectoryListing> {
-    return await Native.request<DirectoryListing>("fs.list", {path: path ?? null, sizes, includeLinks});
+export async function listDirectory(path?: string, sizes = true, includeLinks = false,
+    codePage = 0): Promise<DirectoryListing> {
+    return await Native.request<DirectoryListing>("fs.list", {path: path ?? null, sizes, includeLinks, codePage});
+}
+
+/** Extracts an archive, or a folder inside one, into a folder on disk. */
+export async function extractArchive(path: string, target: string, codePage = 0): Promise<{ ok: boolean; error: string | null }> {
+    return await Native.request<{ ok: boolean; error: string | null }>(
+        "fs.archive.extract", {path, target, codePage});
 }
 
 /** The first part of a text file, or why it cannot be shown as text. */

@@ -2,17 +2,22 @@ import {useEffect, useRef, useState} from "react";
 import {useTranslation} from "@photino-net-utils/bridge";
 import {
     compressPaths,
+    createLink,
     invokeShellVerb,
     listOpenWith,
     listShellVerbs,
     openTerminal,
     openWith,
     openWithProgram,
+    setCaseSensitive,
+    isCaseSensitive,
     showInExplorer,
     showProperties,
+    type LinkKind,
     type OpenWithProgram,
     type ShellVerb,
 } from "../api/operations";
+import {requestFolder} from "../folder-picker";
 import {prettyShortcut, type ShortcutMap} from "../shortcuts";
 import {CreateFileTypes} from "../create-types";
 import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
@@ -67,7 +72,7 @@ interface FileMenuProps {
     onDelete?: (paths: string[]) => void;
     onCopy?: (paths: string[], cut: boolean) => void;
     onPaste?: (directory: string) => void;
-    onCreateFolder?: () => void;
+    onCreateFolder?: (caseSensitive?: boolean) => void;
     /** Creates a folder (null) or a file with this extension. */
     onCreateFile?: (extension: string | null) => void;
     /** The New button only needs the creation entries, not the folder background actions. */
@@ -94,6 +99,7 @@ export function FileMenu({
         other: OpenWithProgram[];
         loading: boolean;
     }>({recommended: [], other: [], loading: false});
+    const [caseState, setCaseState] = useState<boolean | null>(null);
     const shellRequest = useRef(0);
     const openWithRequest = useRef(0);
 
@@ -140,6 +146,28 @@ export function FileMenu({
         }
     }, [menu, single, target?.path, target?.isDirectory, shellPaths.length]);
 
+    // The case flag lives on the folder itself, so it is read when the menu opens.
+    useEffect(() => {
+        if (!menu || menu.background || !single || !target?.isDirectory) {
+            setCaseState(null);
+            return;
+        }
+
+        let alive = true;
+        void isCaseSensitive(target.path).then(
+            (enabled) => {
+                if (alive) setCaseState(enabled);
+            },
+            () => {
+                if (alive) setCaseState(null);
+            },
+        );
+
+        return () => {
+            alive = false;
+        };
+    }, [menu, single, target?.path, target?.isDirectory]);
+
     if (!menu)
         return null;
 
@@ -160,6 +188,44 @@ export function FileMenu({
         }
     };
 
+    const toggleCaseSensitivity = async () => {
+        if (!target || caseState === null) return;
+
+        const result = await setCaseSensitive(target.path, !caseState);
+
+        if (!result.ok) {
+            window.alert(result.error ?? t("Could not change the case sensitivity."));
+            return;
+        }
+
+        setCaseState(result.enabled);
+        onRefresh?.();
+    };
+
+    /** Sends the link to a folder the user picks; the menu never guesses where it belongs. */
+    const makeLink = async (kind: LinkKind) => {
+        if (!target) return;
+
+        const folder = await requestFolder(directory);
+        if (!folder) return;
+
+        const name = target.path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? "link";
+        let result = await createLink(kind, target.path,
+            `${folder.replace(/[\\/]+$/, "")}\\${name} - link`);
+
+        // A link in the same folder needs a free name, so keep trying the numbered ones.
+        for (let attempt = 2; !result.ok && /exist/i.test(result.error ?? "") && attempt <= 99; attempt++)
+            result = await createLink(kind, target.path,
+                `${folder.replace(/[\\/]+$/, "")}\\${name} - link ${attempt}`);
+
+        if (!result.ok) {
+            window.alert(result.error ?? t("Could not create the link."));
+            return;
+        }
+
+        onRefresh?.();
+    };
+
     if (menu.background) {
         if (onCreateFolder) {
             quick.push({
@@ -169,16 +235,28 @@ export function FileMenu({
             });
         }
 
-        if (onCreateFile) {
-            const newItems: ContextMenuItem[] = [
-                {label: t("Folder"), icon: <FolderIcon size={14}/>, onSelect: () => onCreateFile(null)},
-                ...CreateFileTypes.map((type, index) => ({
+        if (onCreateFile || onCreateFolder) {
+            const newItems: ContextMenuItem[] = [];
+
+            if (onCreateFolder) {
+                newItems.push({
+                    label: t("Folder"), icon: <FolderIcon size={14}/>,
+                    onSelect: () => onCreateFolder(false),
+                });
+                newItems.push({
+                    label: t("Case-sensitive folder"), icon: <FolderIcon size={14}/>,
+                    onSelect: () => onCreateFolder(true),
+                });
+            }
+
+            if (onCreateFile) {
+                newItems.push(...CreateFileTypes.map((type, index) => ({
                     label: `${t(type.label)} (${type.extension})`,
                     icon: <FileIcon size={14}/>,
                     separatorBefore: index === 0,
                     onSelect: () => onCreateFile(type.extension),
-                })),
-            ];
+                })));
+            }
 
             items.push({
                 label: t("New"),
@@ -296,6 +374,45 @@ export function FileMenu({
             label: t("Compress to ZIP"), icon: <ArchiveIcon size={14}/>, separatorBefore: true,
             onSelect: () => void compress(menu.paths),
         });
+
+        if (single && target) {
+            const links: ContextMenuItem[] = target.isDirectory
+                ? [
+                    {
+                        label: t("Symbolic link"), icon: <FolderIcon size={14}/>,
+                        onSelect: () => void makeLink("symbolic-folder"),
+                    },
+                    {
+                        label: t("Directory junction"), icon: <FolderIcon size={14}/>,
+                        onSelect: () => void makeLink("junction"),
+                    },
+                ]
+                : [
+                    {
+                        label: t("Symbolic link"), icon: <FileIcon size={14}/>,
+                        onSelect: () => void makeLink("symbolic-file"),
+                    },
+                    {
+                        label: t("Hard link"), icon: <FileIcon size={14}/>,
+                        onSelect: () => void makeLink("hard"),
+                    },
+                ];
+
+            items.push({
+                label: t("Create link"), icon: <ShareIcon size={14}/>,
+                children: links,
+                onSelect: () => undefined,
+            });
+        }
+
+        if (target?.isDirectory && caseState !== null) {
+            items.push({
+                label: t("Case-sensitive names"), icon: <FolderIcon size={14}/>,
+                checked: caseState,
+                onSelect: () => void toggleCaseSensitivity(),
+            });
+        }
+
         items.push({
             label: t("Copy as path"), icon: <CopyIcon size={14}/>,
             onSelect: () => void copyAsPath(menu.paths),

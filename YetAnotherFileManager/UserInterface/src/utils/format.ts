@@ -199,6 +199,31 @@ export function parentPath(path: string): string {
     return cut > 0 ? trimmed.slice(0, cut) : trimmed;
 }
 
+const archiveExtensions = [".zip", ".7z", ".rar", ".tar", ".gz", ".tgz", ".bz2", ".xz"];
+
+/** Whether the path itself names an archive file, such as `C:\show.zip`. */
+export function isArchivePath(path: string): boolean {
+    const trimmed = path.replace(/[\\/]+$/, "").toLowerCase();
+    return archiveExtensions.some((extension) => trimmed.endsWith(extension));
+}
+
+/** Whether any part of the path is an archive, such as `C:\show.zip\text`. */
+export function isArchiveLocation(path: string): boolean {
+    if (isArchivePath(path)) return true;
+
+    return path.toLowerCase().split(/[\\/]/).some((part) =>
+        archiveExtensions.some((extension) => part.endsWith(extension)));
+}
+
+/** The archive file a virtual path points into, such as `C:\show.zip`. */
+export function archiveFile(path: string): string {
+    const parts = path.split(/[\\/]/);
+    const index = parts.findIndex((part) =>
+        archiveExtensions.some((extension) => part.toLowerCase().endsWith(extension)));
+
+    return index < 0 ? path : parts.slice(0, index + 1).join("\\");
+}
+
 /** A path with one separator style, no trailing separator and folded case, for map lookups. */
 export function normalizePath(path: string): string {
     // Most Windows paths already use single backslashes, so the regex only runs when needed.

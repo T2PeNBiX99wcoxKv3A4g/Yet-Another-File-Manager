@@ -606,12 +606,12 @@ export function FileList({
         }
     };
 
-    const createEntry = async (extension: string | null) => {
+    const createEntry = async (extension: string | null, caseSensitive = false) => {
         if (!currentDirectory)
             return;
 
         const result = extension === null
-            ? await newFolder(currentDirectory)
+            ? await newFolder(currentDirectory, caseSensitive)
             : await newFile(currentDirectory, extension);
 
         if (!result.ok || result.path === null) {
@@ -1062,7 +1062,7 @@ export function FileList({
                     onClose={closeMenu}
                     onCopy={copy}
                     onCreateFile={(extension) => void createEntry(extension)}
-                    onCreateFolder={() => void createEntry(null)}
+                    onCreateFolder={(caseSensitive) => void createEntry(null, caseSensitive)}
                     onDelete={remove}
                     onOpen={onOpen}
                     onOpenFile={onOpenFile}
@@ -1258,7 +1258,7 @@ export function FileList({
                     onClose={closeMenu}
                     onCopy={copy}
                     onCreateFile={(extension) => void createEntry(extension)}
-                    onCreateFolder={() => void createEntry(null)}
+                    onCreateFolder={(caseSensitive) => void createEntry(null, caseSensitive)}
                     onDelete={remove}
                     onOpen={onOpen}
                     onOpenFile={onOpenFile}
@@ -2504,3 +2504,4 @@ const ErrorText = styled.p`
     text-align: center;
     word-break: break-word;
 `;
+

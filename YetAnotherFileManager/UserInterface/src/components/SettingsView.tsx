@@ -701,6 +701,30 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                         </Row>
                         <Row>
                             <RowText>
+                                <Label>{t("Open archives with this app")}</Label>
+                                <Note>
+                                    {t("Registers this app for ZIP, 7z, RAR, TAR and the other archive types on this account, so double-clicking one shows it as a folder here. Windows may still ask once which app to use.")}
+                                </Note>
+                            </RowText>
+                            <RowEnd>
+                                <State $on={settings?.archiveHandler ?? false}>
+                                    {settings?.archiveHandler ? t("Active") : t("Off")}
+                                </State>
+                                <Toggle
+                                    $on={settings?.archiveHandler ?? false}
+                                    disabled={!settings}
+                                    onClick={() => void update({archiveHandler: !settings?.archiveHandler})}
+                                    title={settings?.archiveHandler
+                                        ? t("Stop opening archives with this app")
+                                        : t("Open archives with this app")}
+                                    type="button"
+                                >
+                                    <Knob/>
+                                </Toggle>
+                            </RowEnd>
+                        </Row>
+                        <Row>
+                            <RowText>
                                 <Label>{t("Reopen the tabs that were open")}</Label>
                                 <Note>
                                     {t("Keeps the tabs and the folder each one shows, so they come back after a restart. A folder passed on the command line takes over instead.")}

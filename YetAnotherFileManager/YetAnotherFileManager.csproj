@@ -43,6 +43,7 @@
         <PackageReference Include="Serilog" Version="4.4.0" />
         <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+        <PackageReference Include="SharpCompress" Version="0.50.8" />
     </ItemGroup>
 
     <ItemGroup>
@@ -63,8 +64,7 @@
     <ItemGroup>
         <!-- The "yafm" command: a batch shim beside the executable, copied to the publish folder
              too so the MSI and the plain archive both carry it. -->
-        <None Include="..\installer\windows\yafm.cmd" Link="yafm.cmd"
-              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+        <None Include="..\installer\windows\yafm.cmd" Link="yafm.cmd" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     </ItemGroup>
 
     <!-- Rust handles bulk filesystem work: the gallery scan, ZIP creation, measuring and deleting
@@ -90,28 +90,20 @@
         <Exec Command="&quot;$(CargoCommand)&quot; build --release --manifest-path &quot;$(RustManifest)&quot;" />
     </Target>
 
-    <Target Name="CopyRustNative" AfterTargets="Build"
-            Condition="Exists('$(RustReleaseDir)/$(RustLibraryName)')">
-        <Copy SourceFiles="$(RustReleaseDir)/$(RustLibraryName)" DestinationFolder="$(OutDir)"
-              SkipUnchangedFiles="true" />
+    <Target Name="CopyRustNative" AfterTargets="Build" Condition="Exists('$(RustReleaseDir)/$(RustLibraryName)')">
+        <Copy SourceFiles="$(RustReleaseDir)/$(RustLibraryName)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
     </Target>
 
-    <Target Name="CopyRustShellMenu" AfterTargets="Build"
-            Condition="'$(OS)' == 'Windows_NT' and Exists('$(RustReleaseDir)/yafm-shellmenu.exe')">
-        <Copy SourceFiles="$(RustReleaseDir)/yafm-shellmenu.exe" DestinationFolder="$(OutDir)"
-              SkipUnchangedFiles="true" />
+    <Target Name="CopyRustShellMenu" AfterTargets="Build" Condition="'$(OS)' == 'Windows_NT' and Exists('$(RustReleaseDir)/yafm-shellmenu.exe')">
+        <Copy SourceFiles="$(RustReleaseDir)/yafm-shellmenu.exe" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
     </Target>
 
-    <Target Name="CopyRustNativeOnPublish" AfterTargets="Publish"
-            Condition="Exists('$(RustReleaseDir)/$(RustLibraryName)')">
-        <Copy SourceFiles="$(RustReleaseDir)/$(RustLibraryName)" DestinationFolder="$(PublishDir)"
-              SkipUnchangedFiles="true" />
+    <Target Name="CopyRustNativeOnPublish" AfterTargets="Publish" Condition="Exists('$(RustReleaseDir)/$(RustLibraryName)')">
+        <Copy SourceFiles="$(RustReleaseDir)/$(RustLibraryName)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
     </Target>
 
-    <Target Name="CopyRustShellMenuOnPublish" AfterTargets="Publish"
-            Condition="'$(OS)' == 'Windows_NT' and Exists('$(RustReleaseDir)/yafm-shellmenu.exe')">
-        <Copy SourceFiles="$(RustReleaseDir)/yafm-shellmenu.exe" DestinationFolder="$(PublishDir)"
-              SkipUnchangedFiles="true" />
+    <Target Name="CopyRustShellMenuOnPublish" AfterTargets="Publish" Condition="'$(OS)' == 'Windows_NT' and Exists('$(RustReleaseDir)/yafm-shellmenu.exe')">
+        <Copy SourceFiles="$(RustReleaseDir)/yafm-shellmenu.exe" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
     </Target>
 
 </Project>

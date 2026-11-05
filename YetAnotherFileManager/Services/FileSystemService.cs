@@ -218,6 +218,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
                     // The localization provider reloads the string table when the language changes.
                     DefaultFileManager.Apply(saved.IsDefaultFileManager);
+                    ArchiveAssociations.Apply(saved.HandlesArchives);
                     WindowManager.Instance.Notify("settings.changed", new OkPayload());
                     return context.Reply("app.settings.result", WithProtection(saved));
                 }
@@ -244,7 +245,8 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             case "fs.list":
                 return context.Reply("fs.list.result",
                     await ListAsync(context.Payload<FsListRequest>()?.Path, context.Payload<FsListRequest>()?.Sizes ?? true,
-                        context.Payload<FsListRequest>()?.IncludeLinks ?? false));
+                        context.Payload<FsListRequest>()?.IncludeLinks ?? false,
+                        context.Payload<FsListRequest>()?.CodePage ?? 0));
 
             case "fs.list.cached":
                 return context.Reply("fs.list.cached.result",
@@ -295,6 +297,32 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                     await FileOperations.DeleteAsync(paths, permanent));
             }
 
+            case "fs.archive.extract":
+            {
+                var request = context.Payload<ArchiveExtractRequest>();
+
+                if (request is null || !Archives.TrySplit(request.Path, out var archive, out _))
+                {
+                    return context.Reply("fs.archive.extract.result",
+                        new ArchiveExtractPayload(false, "The path is not inside an archive."));
+                }
+
+                var extracted = await Task.Run(() =>
+                {
+                    try
+                    {
+                        Archives.Extract(archive, request.Target, request.CodePage ?? 0);
+                        return new ArchiveExtractPayload(true);
+                    }
+                    catch (Exception ex)
+                    {
+                        return new ArchiveExtractPayload(false, ex.Message);
+                    }
+                });
+
+                return context.Reply("fs.archive.extract.result", extracted);
+            }
+
             case "fs.operation.rename":
                 return context.Reply("fs.operation.rename.result",
                     await FileOperations.RenameAsync(context.Payload<RenamePathRequest>()?.Path ?? "",
@@ -302,12 +330,32 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
             case "fs.operation.newFolder":
                 return context.Reply("fs.operation.newFolder.result",
-                    await FileOperations.NewFolderAsync(context.Payload<DirectoryRequest>()?.Directory ?? ""));
+                    await FileOperations.NewFolderAsync(context.Payload<NewFolderRequest>()?.Directory ?? "",
+                        context.Payload<NewFolderRequest>()?.CaseSensitive ?? false));
 
             case "fs.operation.newFile":
                 return context.Reply("fs.operation.newFile.result",
                     await FileOperations.NewFileAsync(context.Payload<NewFileRequest>()?.Directory ?? "",
                         context.Payload<NewFileRequest>()?.Extension));
+
+            case "fs.caseSensitive.get":
+                return context.Reply("fs.caseSensitive.get.result",
+                    new CaseSensitivePayload(true, CaseFolders.Query(context.Payload<PathPayload>()?.Path ?? "")));
+
+            case "fs.caseSensitive.set":
+            {
+                var request = context.Payload<CaseSensitiveRequest>();
+
+                return context.Reply("fs.caseSensitive.set.result",
+                    await Task.Run(() => CaseFolders.Set(request?.Path ?? "", request?.Enabled ?? false)));
+            }
+
+            case "fs.link.create":
+            {
+                var request = context.Payload<LinkRequest>();
+
+                return context.Reply("fs.link.create.result", await Task.Run(() => CreateLink(request)));
+            }
 
             case "fs.preview.text":
                 return context.Reply("fs.preview.text.result",
@@ -749,6 +797,34 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             DeleteDelaySeconds = Protection.DelaySeconds(settings)
         };
 
+    /// <summary>Creates one link, checking that the source and the link kind make sense.</summary>
+    private static LinkPayload CreateLink(LinkRequest? request)
+    {
+        if (request is null || request.Source.Length == 0 || request.Link.Length == 0)
+            return new LinkPayload(false, null, "No link was given.");
+
+        if (!OperatingSystem.IsWindows())
+            return new LinkPayload(false, null, "Creating links is a Windows feature.");
+
+        var isDirectory = Directory.Exists(request.Source);
+
+        if (!isDirectory && !File.Exists(request.Source))
+            return new LinkPayload(false, null, "The source no longer exists.");
+
+        var error = request.Kind switch
+        {
+            FileLinkCreation.Hard when isDirectory => "A hard link can only point at a file.",
+            FileLinkCreation.Junction when !isDirectory => "A junction can only point at a folder.",
+            FileLinkCreation.SymbolicFile when isDirectory => "A file link cannot point at a folder.",
+            FileLinkCreation.SymbolicFolder when !isDirectory => "A folder link cannot point at a file.",
+            _ => FileLinkCreation.Create(request.Kind, request.Source, request.Link),
+        };
+
+        return error.Length == 0
+            ? new LinkPayload(true, request.Link, null)
+            : new LinkPayload(false, null, error);
+    }
+
     /// <summary>
     ///     Blocks a delete that touches a protected path until the window confirms it after the
     ///     configured delay. Null means the operation may run; otherwise the body is the reply.
@@ -846,8 +922,13 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         Path.Combine(Path.GetTempPath(), $"yafm-orphans-{Guid.NewGuid():N}.json");
 
     /// <summary>Lists a directory. A missing path starts at the user's home directory.</summary>
-    private static async Task<FsListPayload> ListAsync(string? path, bool measure = true, bool includeLinks = false)
+    private static async Task<FsListPayload> ListAsync(string? path, bool measure = true, bool includeLinks = false,
+        int codePage = 0)
     {
+        // An archive is opened as a virtual folder; its inner path is everything after the archive file.
+        if (Archives.TrySplit(path ?? "", out var archivePath, out var inner))
+            return await Task.Run(() => Archives.List(archivePath, inner, codePage));
+
         var target = ResolvePath(path);
         var directory = new DirectoryInfo(target);
 
@@ -969,6 +1050,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     /// </summary>
     private static async Task<FsCachedListPayload> CachedListAsync(string? path, bool includeLinks = false)
     {
+        if (Archives.TrySplit(path ?? "", out _, out _))
+            return new FsCachedListPayload(false, null);
+
         var directory = new DirectoryInfo(ResolvePath(path));
 
         var entries = directory.Exists ? await DirectoryIndex.ListingAsync(directory.FullName) : null;

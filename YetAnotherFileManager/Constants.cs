@@ -38,6 +38,12 @@ public static class Constants
     public const string ShellInvokeArgument = "--shell-invoke";
 
     /// <summary>
+    ///     Elevated helper that toggles the NTFS case-sensitivity flag: <c>--case-sensitive path 1</c>.
+    ///     Windows only allows the change with administrator rights.
+    /// </summary>
+    public const string CaseSensitiveArgument = "--case-sensitive";
+
+    /// <summary>
     ///     Command line pick modes: open the in-app picker as the whole window and print the chosen
     ///     paths, so scripts and other programs can use it instead of the shell dialogs.
     /// </summary>

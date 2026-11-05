@@ -18,7 +18,7 @@ internal sealed record UrlPayload(string Url);
 internal sealed record AppInfoPayload(string Version, string Platform, bool Rounded);
 
 /// <summary>Payload for <c>fs.list</c>. An empty path means the user's home directory.</summary>
-internal sealed record FsListRequest(string? Path, bool? Sizes = true, bool? IncludeLinks = false);
+internal sealed record FsListRequest(string? Path, bool? Sizes = true, bool? IncludeLinks = false, int? CodePage = null);
 
 /// <summary>
 ///     Body for <c>fs.list</c>: the directory that was listed, its parent (null at the root), its
@@ -192,6 +192,12 @@ internal sealed record DeletePayload(
 /// <summary>One path a protected-folder pattern intercepted, and the pattern responsible.</summary>
 internal sealed record ProtectedHit(string Path, string Pattern);
 
+/// <summary>Payload for <c>fs.archive.extract</c>: the archive (or a folder inside it) and where to write.</summary>
+internal sealed record ArchiveExtractRequest(string Path, string Target, int? CodePage = null);
+
+/// <summary>Body for <c>fs.archive.extract</c>.</summary>
+internal sealed record ArchiveExtractPayload(bool Ok, string? Error = null);
+
 /// <summary>Body for <c>app.protection.defaults</c>: the rules a fresh install starts with.</summary>
 internal sealed record ProtectedDefaultsPayload(List<string> Paths);
 
@@ -203,6 +209,21 @@ internal sealed record DirectoryRequest(string Directory);
 
 /// <summary>Body for <c>fs.operation.newFile</c>: the folder and an optional file extension.</summary>
 internal sealed record NewFileRequest(string Directory, string? Extension);
+
+/// <summary>Body for <c>fs.operation.newFolder</c>; case-sensitive folders need an empty folder.</summary>
+internal sealed record NewFolderRequest(string Directory, bool? CaseSensitive = false);
+
+/// <summary>Body for <c>fs.caseSensitive.set</c>: the folder and the state to switch to.</summary>
+internal sealed record CaseSensitiveRequest(string Path, bool Enabled);
+
+/// <summary>Body for <c>fs.caseSensitive.get</c> and <c>fs.caseSensitive.set</c>.</summary>
+internal sealed record CaseSensitivePayload(bool Ok, bool Enabled, string? Error = null);
+
+/// <summary>Body for <c>fs.link.create</c>: link kind, what it points at, and where it goes.</summary>
+internal sealed record LinkRequest(string Kind, string Source, string Link);
+
+/// <summary>Body for <c>fs.link.create</c>.</summary>
+internal sealed record LinkPayload(bool Ok, string? Link = null, string? Error = null);
 
 /// <summary>Body for <c>fs.operation.rename</c> and <c>fs.operation.newFolder</c>.</summary>
 internal sealed record PathOperationPayload(bool Ok, string? Path, string? Error);

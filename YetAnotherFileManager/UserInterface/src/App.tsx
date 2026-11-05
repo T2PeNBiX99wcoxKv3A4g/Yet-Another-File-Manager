@@ -9,6 +9,7 @@ import {
     listPlaces,
     listRecent,
     openFile,
+    extractArchive,
     recordVisit,
     saveDirectoryView,
     saveTags,
@@ -47,6 +48,7 @@ import {FindBar} from "./components/FindBar";
 import {EmptyFind, matchesName, type FindState} from "./find";
 import {QuickAccessProvider, quickName, quickPlace, type QuickAccess} from "./quick";
 import {
+    ArchiveIcon,
     ArrowLeftIcon,
     ArrowRightIcon,
     ArrowUpIcon,
@@ -59,6 +61,8 @@ import {
 } from "./components/Icons";
 import {OverviewView} from "./components/OverviewView";
 import {PathBar} from "./components/PathBar";
+import {SelectMenu} from "./components/SelectMenu";
+import {requestFolder} from "./folder-picker";
 import {RecycleView} from "./components/RecycleView";
 import {SettingsView} from "./components/SettingsView";
 import {GalleryView} from "./components/GalleryView";
@@ -68,7 +72,7 @@ import {TooltipLayer} from "./components/TooltipLayer";
 import {viewTitles, type TabKind} from "./tabs";
 import {buildPanels} from "./panels";
 import {Native, ResizeHandles, useTranslation, useWindowCorners, type Translate} from "@photino-net-utils/bridge";
-import {applyTimeFormat, baseName, formatBytes, normalizePath, plural} from "./utils/format";
+import {applyTimeFormat, archiveFile, baseName, formatBytes, isArchiveLocation, isArchivePath, normalizePath, plural} from "./utils/format";
 import {applyTheme} from "./theme";
 import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "./storage";
 import {fadeInStyle, pageInStyle, splitLineInStyle} from "./ui/motion";
@@ -120,6 +124,20 @@ let nextTabId = 0;
 
 /** How many closed tabs Ctrl+Shift+T can walk back through. */
 const ClosedTabLimit = 20;
+
+/**
+ * The code pages an archive can be read with. 0 lets the archive's own metadata decide; the rest
+ * force a legacy code page for the file names, which is what Japanese ZIPs usually need.
+ */
+const ArchiveEncodings = [
+    {value: "0", label: "Auto"},
+    {value: "932", label: "日本語 (CP932)"},
+    {value: "936", label: "简体中文 (CP936)"},
+    {value: "950", label: "繁體中文 (CP950)"},
+    {value: "949", label: "한국어 (CP949)"},
+    {value: "1252", label: "Western (CP1252)"},
+    {value: "65001", label: "UTF-8"},
+];
 
 /** The address of one of the built-in pages. */
 function viewLocation(kind: ViewKind): string {
@@ -264,6 +282,9 @@ export default function App() {
     const [viewFindFocus, setViewFindFocus] = useState(0);
     const [viewFindIndex, setViewFindIndex] = useState(0);
     const [viewFindTotal, setViewFindTotal] = useState(0);
+    const [archiveEncoding, setArchiveEncoding] = useState(0);
+    const archiveEncodingRef = useRef(archiveEncoding);
+    archiveEncodingRef.current = archiveEncoding;
     const [recent, setRecent] = useState<RecentEntry[]>([]);
     const [recentLimit, setRecentLimit] = useState(10);
     const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -595,7 +616,7 @@ export default function App() {
             if (paintCache)
                 void showCached(id, path, current);
 
-            const listing = await listDirectory(path, true, includeLinks);
+            const listing = await listDirectory(path, true, includeLinks, archiveEncodingRef.current);
             if (!current()) return;
 
             patch(id, (tab) => ({
@@ -690,7 +711,7 @@ export default function App() {
             await showCached(id, target, current);
             if (!current()) return;
 
-            const listing = await listDirectory(target, true, includeLinks);
+            const listing = await listDirectory(target, true, includeLinks, archiveEncodingRef.current);
             if (!current()) return;
 
             patch(id, () => ({listing, view: listing.view ?? null, loading: false}));
@@ -724,6 +745,8 @@ export default function App() {
         setTabs((current) => [...current, tab]);
         if (activate) setActiveId(tab.id);
         if (path && !viewKind(path)) void load(tab.id, path);
+
+        return tab.id;
     }, [load]);
 
     /** The sidebar and the overview replace the page the active tab shows, or open a new tab. */
@@ -867,7 +890,7 @@ export default function App() {
         setCreateMenu({x: event.clientX, y: event.clientY, directory, refresh});
     };
 
-    const createItem = async (extension: string | null) => {
+    const createItem = async (extension: string | null, caseSensitive = false) => {
         const menu = createMenu;
         setCreateMenu(null);
 
@@ -875,7 +898,7 @@ export default function App() {
             return;
 
         const result = extension === null
-            ? await newFolder(menu.directory)
+            ? await newFolder(menu.directory, caseSensitive)
             : await newFile(menu.directory, extension);
 
         if (!result.ok || result.path === null)
@@ -1339,7 +1362,9 @@ export default function App() {
             return;
         }
 
-        for (const path of paths) openFiles(path);
+        // The restored tabs set their own focus, so the last path gets it once that has settled.
+        const last = paths.map((path) => openFiles(path)).at(-1);
+        if (last) setTimeout(() => setActiveId(last), 0);
     }, [openFiles, openLocation]);
 
     const reloadSettings = useCallback(() => {
@@ -1686,6 +1711,7 @@ export default function App() {
     const filePane = (tab: Tab, primary: boolean) => {
         // Each pane keeps its own mode, sizes and sort; columns stay window-wide.
         const tabView = resolveView(tab, viewDefaults);
+        const archive = isArchiveLocation(tab.listing?.path ?? tab.history[tab.index] ?? "");
 
         return (
             <FileList
@@ -1695,7 +1721,8 @@ export default function App() {
                 showDetails={false}
                 onPreviewInfo={primary ? setPrimaryPreview : setSecondaryPreview}
                 onActivate={() => setActivePane(primary ? "primary" : "secondary")}
-                enableShortcuts={!splitActive || (primary ? activePane === "primary" : activePane === "secondary")}
+                enableShortcuts={(!splitActive || (primary ? activePane === "primary" : activePane === "secondary"))
+                    && !archive}
                 error={tab.error}
                 find={tab.id === focusedTab.id
                     ? {...find, currentPath: findCurrent < 0 ? null : findHits[findCurrent]}
@@ -1704,11 +1731,19 @@ export default function App() {
                 listing={tab.listing}
                 loading={tab.loading}
                 onImageStripHeight={setImageStripHeight}
+                readOnly={archive}
                 onOpen={(path, newTab) => {
                     if (newTab) openFiles(path);
                     else void load(tab.id, path);
                 }}
-                onOpenFile={(file) => void openFile(file)}
+                onOpenFile={(file) => {
+                    if (isArchivePath(file)) {
+                        void load(tab.id, file);
+                        return;
+                    }
+
+                    void openFile(file);
+                }}
                 onRefresh={() => {
                     if (tab.listing) void load(tab.id, tab.listing.path, true);
                 }}
@@ -1754,6 +1789,32 @@ export default function App() {
             total={findHits.length}
         />
     );
+
+    /** Archive-only actions, shown after a separator at the right edge of the toolbar. */
+    const archived = kind === "files" && isArchiveLocation(activeFolder);
+
+    const extractActiveArchive = async () => {
+        if (!archived) return;
+
+        const target = await requestFolder(parentOf(archiveFile(activeFolder)) ?? undefined);
+        if (!target) return;
+
+        const result = await extractArchive(activeFolder, target, archiveEncodingRef.current);
+        if (!result.ok) {
+            alert(`${t("Could not extract the archive.")}${result.error ? `\n${result.error}` : ""}`);
+            return;
+        }
+
+        void load(active.id, target, true);
+    };
+
+    const changeArchiveEncoding = (value: string) => {
+        const codePage = Number(value);
+        setArchiveEncoding(codePage);
+        archiveEncodingRef.current = codePage;
+
+        if (archived) void load(active.id, activeFolder, true);
+    };
 
     /** The normal toolbar; a file tab also gets the create and search buttons at its right edge. */
     const mainToolbar = (
@@ -1812,7 +1873,7 @@ export default function App() {
                 path={kind === "files" ? activeFolder : location}
             />
 
-            {kind === "files" && (
+            {kind === "files" && !archived && (
                 <IconButton
                     onClick={(event) => openCreateMenu(
                         event,
@@ -1834,6 +1895,25 @@ export default function App() {
             >
                 <SearchIcon/>
             </IconButton>
+
+            {archived && (
+                <ArchiveActions>
+                    <ToolbarSeparator/>
+                    <IconButton
+                        onClick={() => void extractActiveArchive()}
+                        title={t("Extract archive")}
+                        type="button"
+                    >
+                        <ArchiveIcon/>
+                    </IconButton>
+                    <SelectMenu
+                        onChange={changeArchiveEncoding}
+                        options={ArchiveEncodings.map((option) => ({...option, label: t(option.label)}))}
+                        value={String(archiveEncoding)}
+                        width={116}
+                    />
+                </ArchiveActions>
+            )}
         </Toolbar>
     );
 
@@ -2224,7 +2304,7 @@ export default function App() {
                     menu={{x: createMenu.x, y: createMenu.y, paths: [], background: true}}
                     onClose={() => setCreateMenu(null)}
                     onCreateFile={(extension) => void createItem(extension)}
-                    onCreateFolder={() => void createItem(null)}
+                    onCreateFolder={(caseSensitive) => void createItem(null, caseSensitive)}
                     shortcuts={shortcuts}
                 />
             )}
@@ -2352,6 +2432,21 @@ const IconButton = styled.button`
         outline: 2px solid var(--border-color-focus);
         outline-offset: 1px;
     }
+`;
+
+/* Archive-only actions sit past a divider, so they never look like ordinary browsing buttons. */
+const ArchiveActions = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-left: auto;
+`;
+
+const ToolbarSeparator = styled.span`
+    width: 1px;
+    height: 20px;
+    margin: 0 3px;
+    background: var(--border-color);
 `;
 
 const PaneToolbar = styled.div<{ $active?: boolean }>`

@@ -53,6 +53,14 @@ internal static partial class Program
             return;
         }
 
+        // Turning NTFS case sensitivity on needs an administrator token; the window asks the shell
+        // to run this one-off helper and waits for its exit code.
+        if (OperatingSystem.IsWindows() && args.Contains(Constants.CaseSensitiveArgument))
+        {
+            Environment.ExitCode = RunCaseSensitivity(args);
+            return;
+        }
+
         // PDFium is kept in a short-lived helper; the window only ever receives the rendered PNG.
         if (args.Contains(Constants.PdfPreviewArgument))
         {
@@ -85,6 +93,7 @@ internal static partial class Program
 
         // Re-apply the per-user folder association in case it was removed outside the app.
         DefaultFileManager.Apply(SettingsService.Instance.Current.IsDefaultFileManager);
+        ArchiveAssociations.Apply(SettingsService.Instance.Current.HandlesArchives);
 
         // UI strings come from Resources/i18n; the settings select the language.
         Localization.Initialize(typeof(Program).Assembly, "YetAnotherFileManager.Resources.i18n.",
@@ -251,6 +260,26 @@ _ = UpdateService.Instance;
 
     /// <summary>Reads the shell menu for the paths and writes the result as JSON, then exits.</summary>
     [SupportedOSPlatform("windows")]
+    /// <summary>One-off elevated run that toggles the flag, then exits with 0 on success.</summary>
+    [SupportedOSPlatform("windows")]
+    private static int RunCaseSensitivity(string[] args)
+    {
+        var index = Array.IndexOf(args, Constants.CaseSensitiveArgument);
+
+        if (index < 0 || index + 2 >= args.Length)
+            return 2;
+
+        try
+        {
+            CaseSensitivity.Set(args[index + 1], args[index + 2] == "1");
+            return 0;
+        }
+        catch
+        {
+            return 1;
+        }
+    }
+
     private static void RunShellVerbs(string[] args)
     {
         if (!OperatingSystem.IsWindows())
@@ -416,7 +445,8 @@ _ = UpdateService.Instance;
             if (Directory.Exists(full))
                 paths.Add(full);
             else if (File.Exists(full) && Path.GetDirectoryName(full) is { } directory)
-                paths.Add(directory);
+                // An archive is shown as its own folder; anything else opens where it lives.
+                paths.Add(Archives.IsArchive(full) ? full : directory);
             else
                 Log.Warning("Ignoring {Arg}: no such file or folder", arg);
         }

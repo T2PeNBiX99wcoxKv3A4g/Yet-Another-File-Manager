@@ -127,11 +127,50 @@ export async function renamePath(path: string, name: string): Promise<PathOperat
     return await Native.request<PathOperation>("fs.operation.rename", {path, name});
 }
 
-/** Creates the next free "New folder" in a directory. */
-export async function newFolder(directory: string): Promise<PathOperation> {
+/** Creates the next free "New folder" in a directory, optionally case-sensitive. */
+export async function newFolder(directory: string, caseSensitive = false): Promise<PathOperation> {
     if (!Native.available) return {ok: false, path: null, error: "Creating folders needs the desktop app."};
 
-    return await Native.request<PathOperation>("fs.operation.newFolder", {directory});
+    return await Native.request<PathOperation>("fs.operation.newFolder", {directory, caseSensitive});
+}
+
+/** Whether names in a folder are compared with case. */
+export async function isCaseSensitive(path: string): Promise<boolean> {
+    if (!Native.available) return false;
+
+    const data = await Native.request<{ ok: boolean; enabled: boolean }>("fs.caseSensitive.get", {path});
+    return data.enabled;
+}
+
+export interface CaseSensitiveResult {
+    ok: boolean;
+    enabled: boolean;
+    error: string | null;
+}
+
+/** Turns the NTFS case-sensitivity flag on or off for a folder. */
+export async function setCaseSensitive(path: string, enabled: boolean): Promise<CaseSensitiveResult> {
+    if (!Native.available)
+        return {ok: false, enabled, error: "Case-sensitive folders need the desktop app."};
+
+    return await Native.request<CaseSensitiveResult>("fs.caseSensitive.set", {path, enabled});
+}
+
+/** The kinds of link Windows can create. */
+export type LinkKind = "symbolic-file" | "symbolic-folder" | "hard" | "junction";
+
+export interface LinkResult {
+    ok: boolean;
+    link: string | null;
+    error: string | null;
+}
+
+/** Creates a symbolic link, hard link or directory junction. */
+export async function createLink(kind: LinkKind, source: string, link: string): Promise<LinkResult> {
+    if (!Native.available)
+        return {ok: false, link: null, error: "Creating links needs the desktop app."};
+
+    return await Native.request<LinkResult>("fs.link.create", {kind, source, link});
 }
 
 /** Creates the next free "New file.txt" in a directory. */
