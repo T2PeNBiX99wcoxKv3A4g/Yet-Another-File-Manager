@@ -2110,8 +2110,8 @@ export default function App() {
                         folderPicker.resolve(null);
                         setFolderPicker(null);
                     }}
-                    onSelect={(path) => {
-                        folderPicker.resolve(path);
+                    onSelect={(paths) => {
+                        folderPicker.resolve(paths[0] ?? null);
                         setFolderPicker(null);
                     }}
                 />
@@ -2125,8 +2125,8 @@ export default function App() {
                         filePicker.resolve(null);
                         setFilePicker(null);
                     }}
-                    onSelect={(path) => {
-                        filePicker.resolve(path);
+                    onSelect={(paths) => {
+                        filePicker.resolve(paths[0] ?? null);
                         setFilePicker(null);
                     }}
                 />

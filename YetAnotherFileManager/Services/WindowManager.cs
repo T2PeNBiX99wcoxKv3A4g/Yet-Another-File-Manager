@@ -30,6 +30,12 @@ internal sealed class WindowManager : Singleton<WindowManager>
     /// <summary>A path that arrived before the interface was listening for navigation.</summary>
     private (string Path, bool Startup)? _pendingPath;
 
+    /// <summary>
+    ///     Set only in a command line pick run. The interface answers <c>pick.submit</c> or
+    ///     <c>pick.cancel</c>, this instance writes the result, and the window closes.
+    /// </summary>
+    public PickerOptions? Picker { get; set; }
+
     public WindowManager() => NativeBridge.MessageReceived += HandleMessageAsync;
 
     /// <summary>
@@ -53,7 +59,7 @@ internal sealed class WindowManager : Singleton<WindowManager>
     /// <summary>Raised once the window's native handle exists (the message loop is about to start).</summary>
     public event Action? MainWindowCreated;
 
-    private Task<NativeResponse?> HandleMessageAsync(NativeContext context)
+    private async Task<NativeResponse?> HandleMessageAsync(NativeContext context)
     {
         switch (context.Request.Type)
         {
@@ -61,6 +67,22 @@ internal sealed class WindowManager : Singleton<WindowManager>
                 _mainWindowReady = true;
                 // Flushing sends a web message, which has to happen on the UI thread.
                 RunOnMainWindow(FlushPendingPath);
+                break;
+
+            case "pick.submit":
+                if (Picker is { } picker)
+                {
+                    await CliPicker.CompleteAsync(picker, context.Payload<PickResultRequest>()?.Paths ?? []);
+                    Exit();
+                }
+                break;
+
+            case "pick.cancel":
+                if (Picker is { } cancelled)
+                {
+                    CliPicker.Cancel(cancelled);
+                    Exit();
+                }
                 break;
 
             case "window.minimize":
@@ -104,7 +126,7 @@ internal sealed class WindowManager : Singleton<WindowManager>
                 break;
         }
 
-        return Task.FromResult<NativeResponse?>(null);
+        return null;
     }
 
     /// <summary>Sends an event to the interface. Failures are only logged: a view may be gone.</summary>
@@ -139,7 +161,12 @@ internal sealed class WindowManager : Singleton<WindowManager>
         NotifyWindowState(maximized);
     }
 
-    public void CreateMainWindow()
+    public void CreateMainWindow(
+        string title = Constants.WindowTitle,
+        int width = 1280,
+        int height = 800,
+        int minWidth = 860,
+        int minHeight = 520)
     {
         // One startup-only wait: the message loop has not started yet, and the web view needs the
         // cache decision before it is created.
@@ -148,19 +175,23 @@ internal sealed class WindowManager : Singleton<WindowManager>
         var window = new PhotinoWindow()
             // The native layer prints every property setter and message it handles. That is useful
             // while debugging, but it floods the log with JSON payloads in a release build.
-            .SetLogVerbosity(Constants.IsDebugMode ? 3 : 0)
-            .SetTitle(Constants.WindowTitle)
+            .SetLogVerbosity(Constants.IsDebugMode && Picker is null ? 3 : 0)
+            .SetTitle(title)
             .SetTemporaryFilesPath(WebViewDataPath)
             .SetUseOsDefaultSize(false)
             .SetUseOsDefaultLocation(false)
-            .SetSize(new(1280, 800))
-            .SetMinSize(860, 520)
+            .SetSize(new(width, height))
+            .SetMinSize(minWidth, minHeight)
             .Center()
             .SetContextMenuEnabled(false)
             .RegisterWebMessageReceivedHandler((sender, message) =>
                 _ = NativeBridge.HandleMessageAsync(sender as PhotinoWindow, message))
             .RegisterWindowClosingHandler((_, _) =>
             {
+                // A picker window is the whole process: closing it means the caller got no result.
+                if (Picker is not null && !_allowClose)
+                    Environment.ExitCode = 1;
+
                 // Stay resident: closing the window hides it instead of shutting down.
                 if (_allowClose || !CloseToTray)
                 {

@@ -78,6 +78,7 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(TagsRequest))]
 [JsonSerializable(typeof(ThumbnailServerPayload))]
 [JsonSerializable(typeof(PathPayload))]
+[JsonSerializable(typeof(PickResultRequest))]
 [JsonSerializable(typeof(Dictionary<string, long>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 [JsonSerializable(typeof(Dictionary<string, List<string>>))]

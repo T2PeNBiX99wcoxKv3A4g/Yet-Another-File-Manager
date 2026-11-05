@@ -10,6 +10,7 @@ import "@fontsource/inter/latin-700.css";
 import "@fontsource/jetbrains-mono/latin-400.css";
 import "@fontsource/jetbrains-mono/latin-500.css";
 import App from "./App";
+import {PickerWindow} from "./PickerWindow";
 import {LocalizationProvider} from "@photino-net-utils/bridge";
 
 // WebKit needs the prefixed property, and the effect is only worth using when the engine really
@@ -21,11 +22,22 @@ const supportsBackdrop = typeof CSS !== "undefined"
 document.documentElement.classList.toggle("backdrop-blur", supportsBackdrop);
 
 const rootElement = document.getElementById("root");
+const parameters = new URLSearchParams(window.location.search);
+const pickMode = parameters.get("picker");
+const pickFilter = parameters.get("filter") ?? "";
+
 if (rootElement)
     createRoot(rootElement).render(
         <StrictMode>
             <LocalizationProvider>
-                <App/>
+                {pickMode === "folder" || pickMode === "file"
+                    ? <PickerWindow
+                        extensions={pickFilter ? pickFilter.split(";").filter(Boolean) : []}
+                        initial={parameters.get("initial") ?? ""}
+                        mode={pickMode}
+                        multiple={parameters.get("multiple") === "1"}
+                    />
+                    : <App/>}
             </LocalizationProvider>
         </StrictMode>
     );

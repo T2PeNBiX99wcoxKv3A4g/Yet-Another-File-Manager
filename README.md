@@ -108,6 +108,19 @@ Four package formats are published beside the plain archives:
 3. The file clipboard uses **wl-clipboard** on Wayland or **xclip** on X11; the packages recommend
    both. KDE system icons are read from the icon theme that `kdeglobals` selects.
 
+### Command-line picker
+
+Scripts and other programs can use the same picker instead of a shell dialog:
+
+```bash
+yafm --pick-folder [--multiple] [--initial <path>] [--output <file>]
+yafm --pick-file --filter "*.png;*.jpg" [--multiple] [--initial <path>] [--output <file>]
+```
+
+The chosen paths are printed one per line to standard output; `--output` writes them to a file as
+well, which is useful when the caller has no console. Cancelling exits with code `1`, and picking
+exits with `0`. `--filter` accepts `*.png;*.jpg`, `png|jpg`, or `.png,.jpg`.
+
 ## Building from source
 
 ```bash

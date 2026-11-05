@@ -1,45 +1,65 @@
-import {useEffect, useMemo, useState} from "react";
+import {useEffect, useState} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
-import {listDirectory, listDrives, type DirectoryListing, type Drive, type FileEntry, type Place} from "../api/files";
-import {useQuickAccess} from "../quick";
+import {
+    listDirectory,
+    listDrives,
+    listPlaces,
+    type DirectoryListing,
+    type Drive,
+    type FileEntry,
+    type Place,
+} from "../api/files";
 import {elevatedPanel} from "../ui/panel";
 import {fadeInStyle, popInStyle} from "../ui/motion";
-import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, FolderIcon, RefreshIcon} from "./Icons";
+import {ArrowUpIcon, CheckIcon, ChevronRightIcon, CrossIcon, DriveIcon, FolderIcon, RefreshIcon} from "./Icons";
 import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
-import {parentPath} from "../utils/format";
+import {baseName, formatBytes, formatDate, parentPath} from "../utils/format";
 
 interface FolderPickerProps {
     initial?: string;
     mode?: "folder" | "file";
+    /** Allow more than one row to be selected. */
+    multiple?: boolean;
     /** Extensions (with the dot) to offer in file mode. */
     extensions?: string[];
+    /** Render as the whole window (the CLI picker) instead of a modal. */
+    inline?: boolean;
+    places?: Place[];
     onCancel: () => void;
-    onSelect: (path: string) => void;
+    onSelect: (paths: string[]) => void;
 }
 
 /**
- * A path picker drawn by the app itself, used instead of the shell's IFileOpenDialog. Folder mode
- * walks into a folder and returns it; file mode lists the matching files below the folders.
+ * An Explorer-shaped path picker drawn by the app. The left rail holds Quick access and the
+ * volumes; the right side has the address bar, the folder/file list and the action buttons.
  */
-export function FolderPicker({initial = "", mode = "folder", extensions, onCancel, onSelect}: FolderPickerProps) {
-    const isFileMode = mode === "file";
+export function FolderPicker({
+    initial = "", mode = "folder", multiple = false, extensions, inline = false, places: suppliedPlaces,
+    onCancel, onSelect,
+}: FolderPickerProps) {
     const t = useTranslation();
-    const quick = useQuickAccess();
+    const isFileMode = mode === "file";
     const [path, setPath] = useState(initial);
     const [draft, setDraft] = useState(initial);
     const [listing, setListing] = useState<DirectoryListing | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
+    const [selected, setSelected] = useState<Set<string>>(() => new Set());
+    const [places, setPlaces] = useState<Place[]>(suppliedPlaces ?? []);
     const [drives, setDrives] = useState<Drive[]>([]);
+    const [collapsed, setCollapsed] = useState(false);
 
-    const places = useMemo(
-        () => Object.values(quick.places).filter((place: Place) => place.path.length > 0),
-        [quick.places]
-    );
+    useEffect(() => {
+        if (suppliedPlaces) {
+            setPlaces(suppliedPlaces);
+            return;
+        }
+
+        void listPlaces().then(setPlaces, () => setPlaces([]));
+    }, [suppliedPlaces]);
 
     useEffect(() => {
         void listDrives().then(setDrives, () => setDrives([]));
@@ -49,6 +69,7 @@ export function FolderPicker({initial = "", mode = "folder", extensions, onCance
         let alive = true;
         setLoading(true);
         setError(null);
+        setSelected(new Set());
 
         void listDirectory(path || undefined, false).then(
             (result) => {
@@ -56,7 +77,6 @@ export function FolderPicker({initial = "", mode = "folder", extensions, onCance
                 setListing(result);
                 setPath(result.path);
                 setDraft(result.path);
-                setSelectedFile(null);
                 setLoading(false);
             },
             (cause) => {
@@ -74,28 +94,19 @@ export function FolderPicker({initial = "", mode = "folder", extensions, onCance
     useEffect(() => {
         const onKey = (event: KeyboardEvent) => {
             if (event.key === "Escape") onCancel();
+            if (event.key === "Enter" && selected.size > 0) choose();
         };
 
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [onCancel]);
+    });
 
     const navigate = (target: string) => {
         const next = target.trim();
         if (next.length > 0) setPath(next);
     };
 
-    const choose = () => {
-        if (loading || error) return;
-
-        if (isFileMode) {
-            if (selectedFile) onSelect(selectedFile.fullPath);
-            return;
-        }
-
-        onSelect(listing?.path || path);
-    };
-
+    const currentFolder = listing?.path ?? path;
     const parent = listing?.parent ?? (path ? parentPath(path) : null);
     const folders = listing?.entries.filter((entry: FileEntry) => entry.isDirectory) ?? [];
     const files = isFileMode
@@ -105,11 +116,89 @@ export function FolderPicker({initial = "", mode = "folder", extensions, onCance
         ))
         : [];
 
-    return createPortal(
-        <Overlay onPointerDown={(event) => {
-            if (event.target === event.currentTarget) onCancel();
-        }}>
-            <Card role="dialog" aria-modal="true">
+    const choose = () => {
+        if (loading || error) return;
+
+        // A single pick still uses the checkbox column, but only the first ticked row is returned.
+        const picked = multiple ? [...selected] : [...selected].slice(0, 1);
+
+        if (isFileMode) {
+            if (picked.length > 0) onSelect(picked);
+            return;
+        }
+
+        if (picked.length > 0) {
+            onSelect(picked);
+            return;
+        }
+
+        onSelect(currentFolder ? [currentFolder] : []);
+    };
+
+    const selectable = [...folders, ...files];
+    const allSelected = selectable.length > 0 && selectable.every((entry) => selected.has(entry.fullPath));
+    const someSelected = !allSelected && selectable.some((entry) => selected.has(entry.fullPath));
+
+    const toggleAll = () => {
+        if (allSelected) {
+            setSelected(new Set());
+            return;
+        }
+
+        setSelected(new Set(selectable.map((entry) => entry.fullPath)));
+    };
+
+    const toggle = (entry: FileEntry) => {
+        if (multiple) {
+            setSelected((current) => {
+                const next = new Set(current);
+                if (!next.delete(entry.fullPath)) next.add(entry.fullPath);
+                return next;
+            });
+            return;
+        }
+
+        setSelected(new Set([entry.fullPath]));
+    };
+
+    const open = (entry: FileEntry) => {
+        if (entry.isDirectory) {
+            setSelected(new Set());
+            navigate(entry.fullPath);
+            return;
+        }
+
+        setSelected(new Set([entry.fullPath]));
+        if (!multiple) onSelect([entry.fullPath]);
+    };
+
+    const row = (entry: FileEntry) => {
+        const checked = selected.has(entry.fullPath);
+
+        return (
+            <Row
+                $checked={checked}
+                key={entry.fullPath}
+                onClick={() => toggle(entry)}
+                onDoubleClick={() => open(entry)}
+                title={entry.fullPath}
+                type="button"
+            >
+                <CheckBox $checked={checked}>
+                    {checked && <CheckIcon size={9}/>}
+                </CheckBox>
+                <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.fullPath} size={18}/>
+                <NameCell>{entry.name}</NameCell>
+                <TypeCell>{entry.isDirectory ? t("Folder") : baseName(entry.name).includes(".") ? baseName(entry.name).split(".").at(-1)!.toUpperCase() : t("File")}</TypeCell>
+                <SizeCell>{entry.isDirectory ? "—" : formatBytes(entry.size)}</SizeCell>
+                <DateCell>{formatDate(entry.modified)}</DateCell>
+            </Row>
+        );
+    };
+
+    const card = (
+        <Card $inline={inline} role="dialog" aria-modal={!inline}>
+            {!inline && (
                 <Header>
                     <Title>
                         <FolderIcon size={16}/>
@@ -119,91 +208,135 @@ export function FolderPicker({initial = "", mode = "folder", extensions, onCance
                         <CrossIcon size={12}/>
                     </CloseButton>
                 </Header>
+            )}
 
-                <PathRow>
-                    <IconButton $disabled={!parent} onClick={() => parent && navigate(parent)} title={t("Up one level")} type="button">
-                        <ArrowUpIcon size={14}/>
-                    </IconButton>
-                    <PathInput
-                        onChange={(event) => setDraft(event.target.value)}
-                        onKeyDown={(event) => {
-                            if (event.key === "Enter") navigate(draft);
-                        }}
-                        spellCheck={false}
-                        value={draft}
-                    />
-                    <IconButton onClick={() => navigate(draft)} title={t("Refresh")} type="button">
-                        <RefreshIcon size={14}/>
-                    </IconButton>
-                </PathRow>
-
-                <Shortcuts>
+            <Body>
+                <Sidebar $collapsed={collapsed}>
+                    <SidebarHead $collapsed={collapsed}>
+                        {!collapsed && <SectionTitle $first>{t("Quick access")}</SectionTitle>}
+                        <CollapseButton
+                            onClick={() => setCollapsed((value) => !value)}
+                            title={collapsed ? t("Expand sidebar") : t("Collapse sidebar")}
+                            type="button"
+                        >
+                            <ChevronRightIcon
+                                size={12}
+                                style={{transform: collapsed ? "none" : "rotate(180deg)"}}
+                            />
+                        </CollapseButton>
+                    </SidebarHead>
                     {places.map((place) => (
-                        <Shortcut key={place.path} onClick={() => navigate(place.path)} title={place.path} type="button">
-                            <PlaceIcon place={place} size={14}/>
-                            {place.name}
-                        </Shortcut>
+                        <SideItem
+                            $active={currentFolder === place.path}
+                            $collapsed={collapsed}
+                            key={place.path}
+                            onClick={() => navigate(place.path)}
+                            title={place.path}
+                            type="button"
+                        >
+                            <SideGlyph><PlaceIcon place={place} size={15}/></SideGlyph>
+                            {!collapsed && <SideName>{place.name}</SideName>}
+                        </SideItem>
                     ))}
+                    {drives.length > 0 && !collapsed && <SectionTitle>{t("Drives")}</SectionTitle>}
                     {drives.map((drive) => (
-                        <Shortcut key={drive.name} onClick={() => navigate(drive.name)} title={drive.name} type="button">
-                            <DriveIcon size={14}/>
-                            {drive.label || drive.name}
-                        </Shortcut>
-                    ))}
-                </Shortcuts>
-
-                <List>
-                    {loading && <Notice>{t("Working…")}</Notice>}
-                    {!loading && error && <Notice $error>{error}</Notice>}
-                    {!loading && !error && folders.length === 0 && files.length === 0 && (
-                        <Notice>{t("This folder is empty.")}</Notice>
-                    )}
-                    {!loading && !error && folders.map((entry) => (
-                        <Entry
-                            key={entry.fullPath}
-                            onClick={() => navigate(entry.fullPath)}
-                            onDoubleClick={() => navigate(entry.fullPath)}
-                            title={entry.fullPath}
+                        <SideItem
+                            $active={currentFolder === drive.name}
+                            $collapsed={collapsed}
+                            key={drive.name}
+                            onClick={() => navigate(drive.name)}
+                            title={drive.name}
                             type="button"
                         >
-                            <PathIcon isDirectory name={entry.name} path={entry.fullPath} size={18}/>
-                            <EntryName>{entry.name}</EntryName>
-                        </Entry>
+                            <SideGlyph><DriveIcon size={15}/></SideGlyph>
+                            {!collapsed && <SideName>{drive.label || drive.name}</SideName>}
+                        </SideItem>
                     ))}
-                    {!loading && !error && files.map((entry) => (
-                        <Entry
-                            $selected={selectedFile?.fullPath === entry.fullPath}
-                            key={entry.fullPath}
-                            onClick={() => setSelectedFile(entry)}
-                            onDoubleClick={() => {
-                                setSelectedFile(entry);
-                                onSelect(entry.fullPath);
+                </Sidebar>
+
+                <Main>
+                    <PathRow>
+                        <IconButton
+                            $disabled={!parent}
+                            onClick={() => parent && navigate(parent)}
+                            title={t("Up one level")}
+                            type="button"
+                        >
+                            <ArrowUpIcon size={14}/>
+                        </IconButton>
+                        <PathInput
+                            onChange={(event) => setDraft(event.target.value)}
+                            onKeyDown={(event) => {
+                                if (event.key === "Enter") navigate(draft);
                             }}
-                            title={entry.fullPath}
-                            type="button"
-                        >
-                            <PathIcon isDirectory={false} name={entry.name} path={entry.fullPath} size={18}/>
-                            <EntryName>{entry.name}</EntryName>
-                        </Entry>
-                    ))}
-                </List>
+                            spellCheck={false}
+                            value={draft}
+                        />
+                        <IconButton onClick={() => navigate(draft)} title={t("Refresh")} type="button">
+                            <RefreshIcon size={14}/>
+                        </IconButton>
+                    </PathRow>
 
-                <Footer>
-                    <CurrentPath>{selectedFile?.fullPath || listing?.path || path || t("Home")}</CurrentPath>
-                    <FooterActions>
-                        <Button onClick={onCancel} type="button">{t("Cancel")}</Button>
-                        <Button
-                            $primary
-                            disabled={loading || error !== null || (isFileMode && !selectedFile)}
-                            onClick={choose}
-                            type="button"
-                        >
-                            <CheckIcon size={12}/>
-                            {isFileMode ? t("Select this file") : t("Select this folder")}
-                        </Button>
-                    </FooterActions>
-                </Footer>
-            </Card>
+                    <List>
+                        <HeadRow>
+                            <HeadCheck
+                                aria-label={t("Select all")}
+                                onClick={toggleAll}
+                                title={t("Select all")}
+                                type="button"
+                            >
+                                <CheckBox $checked={allSelected} $mixed={someSelected}>
+                                    {allSelected && <CheckIcon size={9}/>}
+                                </CheckBox>
+                            </HeadCheck>
+                            <span/>
+                            <span>{t("Name")}</span>
+                            <span>{t("Type")}</span>
+                            <span>{t("Size")}</span>
+                            <span>{t("Modified")}</span>
+                        </HeadRow>
+
+                        {loading && <Notice>{t("Working…")}</Notice>}
+                        {!loading && error && <Notice $error>{error}</Notice>}
+                        {!loading && !error && folders.length === 0 && files.length === 0 && (
+                            <Notice>{t("This folder is empty.")}</Notice>
+                        )}
+                        {!loading && !error && folders.map(row)}
+                        {!loading && !error && files.map(row)}
+                    </List>
+
+                    <Footer>
+                        <SelectedPath>
+                            {selected.size > 0
+                                ? selected.size === 1 ? [...selected][0] : t("{count} selected", {count: selected.size})
+                                : currentFolder || t("Home")}
+                        </SelectedPath>
+                        <FooterActions>
+                            <Button onClick={onCancel} type="button">{t("Cancel")}</Button>
+                            <Button
+                                $primary
+                                disabled={loading || error !== null || (isFileMode && selected.size === 0)}
+                                onClick={choose}
+                                type="button"
+                            >
+                                <CheckIcon size={12}/>
+                                {isFileMode ? t("Select this file") : t("Select this folder")}
+                            </Button>
+                        </FooterActions>
+                    </Footer>
+                </Main>
+            </Body>
+        </Card>
+    );
+
+    if (inline)
+        return card;
+
+    return createPortal(
+        <Overlay onPointerDown={(event) => {
+            if (event.target === event.currentTarget) onCancel();
+        }}>
+            {card}
         </Overlay>,
         document.body,
     );
@@ -220,21 +353,21 @@ const Overlay = styled.div`
     ${fadeInStyle}
 `;
 
-const Card = styled.div`
+const Card = styled.div<{ $inline: boolean }>`
     display: flex;
     flex-direction: column;
-    width: min(720px, 100%);
-    height: min(580px, 86vh);
+    width: ${({$inline}) => $inline ? "100%" : "min(1040px, 100%)"};
+    height: ${({$inline}) => $inline ? "100%" : "min(720px, 90vh)"};
     overflow: hidden;
-    ${elevatedPanel}
-    ${popInStyle}
+    ${({$inline}) => $inline ? "" : elevatedPanel}
+    ${({$inline}) => $inline ? "" : popInStyle}
 `;
 
 const Header = styled.header`
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 14px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--border-color);
 `;
 
@@ -254,8 +387,8 @@ const Title = styled.span`
 const CloseButton = styled.button`
     display: grid;
     place-items: center;
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
     padding: 0;
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
@@ -270,6 +403,132 @@ const CloseButton = styled.button`
     }
 `;
 
+const Body = styled.div`
+    display: flex;
+    flex: 1;
+    min-height: 0;
+`;
+
+const Sidebar = styled.nav<{ $collapsed: boolean }>`
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: ${({$collapsed}) => $collapsed ? "52px" : "232px"};
+    flex-shrink: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: ${({$collapsed}) => $collapsed ? "10px 6px 14px" : "10px 10px 14px"};
+    border-right: 1px solid var(--border-color);
+    background: rgba(var(--bg-rgb), 0.55);
+    scrollbar-width: none;
+    transition: width 150ms ease, padding 150ms ease;
+
+    &::-webkit-scrollbar {
+        width: 0;
+    }
+`;
+
+const SidebarHead = styled.div<{ $collapsed: boolean }>`
+    display: flex;
+    align-items: center;
+    justify-content: ${({$collapsed}) => $collapsed ? "center" : "space-between"};
+    gap: 4px;
+    min-height: 30px;
+`;
+
+const CollapseButton = styled.button`
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+
+    &:hover {
+        border-color: var(--border-color);
+        background: rgba(var(--accent-rgb), 0.08);
+        color: var(--text-primary);
+    }
+`;
+
+const SectionTitle = styled.div<{ $first?: boolean }>`
+    padding: ${({$first}) => $first ? "0 8px" : "10px 8px 5px"};
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+`;
+
+const SideGlyph = styled.span`
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    border-radius: 7px;
+    background: rgba(var(--accent-secondary-rgb), 0.16);
+    color: var(--accent-primary);
+`;
+
+const SideItem = styled.button<{ $active: boolean; $collapsed: boolean }>`
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: ${({$collapsed}) => $collapsed ? "center" : "flex-start"};
+    gap: 10px;
+    width: 100%;
+    padding: ${({$collapsed}) => $collapsed ? "6px 4px" : "6px 8px"};
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: ${({$active}) => $active ? "rgba(var(--accent-rgb), 0.12)" : "transparent"};
+    color: ${({$active}) => $active ? "var(--text-primary)" : "var(--text-secondary)"};
+    font: inherit;
+    font-size: 12.5px;
+    text-align: left;
+    cursor: pointer;
+    transition: background 130ms ease, border-color 130ms ease, color 130ms ease;
+
+    &::before {
+        content: "";
+        position: absolute;
+        left: -1px;
+        top: 50%;
+        width: 2px;
+        height: ${({$active}) => $active ? "56%" : 0};
+        border-radius: 2px;
+        background: var(--accent-primary);
+        transform: translateY(-50%);
+        transition: height 160ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    &:hover {
+        border-color: var(--border-color);
+        background: rgba(var(--accent-rgb), 0.08);
+        color: var(--text-primary);
+    }
+
+    &:active {
+        transform: scale(0.99);
+    }
+`;
+
+const SideName = styled.span`
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
+const Main = styled.div`
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+`;
+
 const PathRow = styled.div`
     display: flex;
     align-items: center;
@@ -281,7 +540,7 @@ const PathRow = styled.div`
 const PathInput = styled.input`
     flex: 1;
     min-width: 0;
-    height: 28px;
+    height: 30px;
     padding: 0 9px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
@@ -299,8 +558,8 @@ const PathInput = styled.input`
 const IconButton = styled.button<{ $disabled?: boolean }>`
     display: grid;
     place-items: center;
-    width: 28px;
-    height: 28px;
+    width: 30px;
+    height: 30px;
     padding: 0;
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
@@ -316,58 +575,45 @@ const IconButton = styled.button<{ $disabled?: boolean }>`
     }
 `;
 
-const Shortcuts = styled.div`
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--border-color);
-`;
-
-const Shortcut = styled.button`
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    max-width: 190px;
-    padding: 4px 8px;
-    border: 1px solid var(--border-color);
-    border-radius: 999px;
-    background: transparent;
-    color: var(--text-secondary);
-    font: inherit;
-    font-size: 10px;
-    cursor: pointer;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-
-    &:hover {
-        border-color: var(--border-color-hover);
-        color: var(--text-primary);
-    }
-`;
-
 const List = styled.div`
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 5px;
+    padding: 4px 8px 10px;
 `;
 
-const Entry = styled.button<{ $selected?: boolean }>`
-    display: flex;
+const Columns = "18px 24px minmax(0, 1.4fr) 90px 90px 140px";
+
+const HeadRow = styled.div`
+    display: grid;
+    grid-template-columns: ${Columns};
+    gap: 10px;
     align-items: center;
-    gap: 9px;
+    padding: 8px 8px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+`;
+
+const Row = styled.button<{ $checked: boolean }>`
+    display: grid;
+    grid-template-columns: ${Columns};
+    gap: 10px;
+    align-items: center;
     width: 100%;
     padding: 6px 8px;
-    border: 1px solid ${({$selected}) => $selected ? "rgba(var(--accent-rgb), 0.4)" : "transparent"};
+    border: 1px solid ${({$checked}) => $checked ? "rgba(var(--accent-rgb), 0.38)" : "transparent"};
     border-radius: var(--radius-sm);
-    background: ${({$selected}) => $selected ? "rgba(var(--accent-rgb), 0.1)" : "transparent"};
-    color: ${({$selected}) => $selected ? "var(--text-primary)" : "var(--text-secondary)"};
+    background: ${({$checked}) => $checked ? "rgba(var(--accent-rgb), 0.1)" : "transparent"};
+    color: ${({$checked}) => $checked ? "var(--text-primary)" : "var(--text-secondary)"};
     font: inherit;
     font-size: 12px;
     text-align: left;
-    cursor: pointer;
+    cursor: default;
+    user-select: none;
 
     &:hover {
         border-color: var(--border-color);
@@ -376,14 +622,68 @@ const Entry = styled.button<{ $selected?: boolean }>`
     }
 `;
 
-const EntryName = styled.span`
+const HeadCheck = styled.button`
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+`;
+
+const CheckBox = styled.span<{ $checked: boolean; $mixed?: boolean }>`
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 15px;
+    height: 15px;
+    border: 1px solid ${({$checked, $mixed}) => $checked || $mixed ? "var(--border-color-focus)" : "var(--border-color-hover)"};
+    border-radius: 4px;
+    background: ${({$checked, $mixed}) => $checked || $mixed ? "var(--accent-primary)" : "transparent"};
+    color: #fff;
+
+    &::after {
+        content: "";
+        position: absolute;
+        width: 7px;
+        height: 2px;
+        border-radius: 1px;
+        background: #fff;
+        opacity: ${({$mixed}) => $mixed ? 1 : 0};
+    }
+`;
+
+const NameCell = styled.span`
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 `;
 
+const TypeCell = styled.span`
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
+const SizeCell = styled.span`
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-align: right;
+`;
+
+const DateCell = styled.span`
+    color: var(--text-muted);
+    font-size: 10px;
+    white-space: nowrap;
+`;
+
 const Notice = styled.p<{ $error?: boolean }>`
-    padding: 14px;
+    padding: 18px;
     color: ${({$error}) => $error ? "#fca5a5" : "var(--text-muted)"};
     font-size: 11px;
     text-align: center;
@@ -399,7 +699,7 @@ const Footer = styled.footer`
     background: rgba(var(--bg-rgb), 0.35);
 `;
 
-const CurrentPath = styled.span`
+const SelectedPath = styled.span`
     min-width: 0;
     overflow: hidden;
     color: var(--text-muted);
@@ -419,7 +719,7 @@ const Button = styled.button<{ $primary?: boolean }>`
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 6px 11px;
+    padding: 7px 12px;
     border: 1px solid ${({$primary}) => $primary ? "transparent" : "var(--border-color)"};
     border-radius: var(--radius-sm);
     background: ${({$primary}) => $primary ? "var(--accent-gradient)" : "transparent"};

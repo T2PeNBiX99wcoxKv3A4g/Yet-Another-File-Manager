@@ -38,6 +38,26 @@ public static class Constants
     public const string ShellInvokeArgument = "--shell-invoke";
 
     /// <summary>
+    ///     Command line pick modes: open the in-app picker as the whole window and print the chosen
+    ///     paths, so scripts and other programs can use it instead of the shell dialogs.
+    /// </summary>
+    public const string PickFolderArgument = "--pick-folder";
+
+    public const string PickFileArgument = "--pick-file";
+
+    /// <summary>Lets a pick mode return several paths instead of one.</summary>
+    public const string PickMultipleArgument = "--multiple";
+
+    /// <summary>The extension filter for <c>--pick-file</c>, e.g. <c>*.png;*.jpg</c>.</summary>
+    public const string PickFilterArgument = "--filter";
+
+    /// <summary>Where a pick mode starts browsing.</summary>
+    public const string PickInitialArgument = "--initial";
+
+    /// <summary>Write the chosen paths to this file as well as to standard output.</summary>
+    public const string PickOutputArgument = "--output";
+
+    /// <summary>
     ///     Short-lived helper that renders the first page of a PDF to a PNG. Keeping PDFium in its own
     ///     process means a malformed document can only take the helper down, never the window.
     /// </summary>

@@ -84,6 +84,9 @@ internal sealed record FsCountsPayload(string Path, Dictionary<string, long> Cou
 /** Body for messages that carry a single path, such as the shell menu's working file. */
 internal sealed record PathPayload(string? Path);
 
+/// <summary>Payload for <c>pick.submit</c>: the paths the command line picker selected.</summary>
+internal sealed record PickResultRequest(IReadOnlyList<string> Paths);
+
 /// <summary>Body for <c>fs.recycle.admin.list</c>: what the elevated helper could see.</summary>
 /// <param name="Cancelled">True when the user declined the elevation prompt.</param>
 /// <param name="Failed">True when the helper ran but its report could not be read.</param>

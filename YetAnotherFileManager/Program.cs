@@ -64,6 +64,11 @@ internal static partial class Program
         // Photino message loop / WebView2 require an STA thread.
         Logging.Initialize(Constants.Name, "app");
 
+        // A pick run's standard output belongs to the caller, so its logs go to the file only.
+        var picker = CliPicker.Parse(args);
+        if (picker is not null)
+            DetachConsole();
+
         // "yafm https://…" behaves like Explorer: the link goes to the default browser and the app
         // does not open a window unless another path was passed as well.
         if (TryOpenExternalUrls(args))
@@ -98,6 +103,14 @@ internal static partial class Program
             // The native helper is part of the build, so a missing library stops the launch here,
             // with a log entry, instead of surfacing as a failed scan or a failed delete later.
             RustNative.Initialize();
+
+            // A pick run is a separate, short-lived window that answers the caller and exits. It
+            // deliberately stays out of the single-instance channel: several pickers may be open.
+            if (picker is not null)
+            {
+                RunPicker(picker);
+                return;
+            }
 
             foreach (var arg in args)
                 Log.Information("arg: {Arg}", arg);
@@ -173,6 +186,55 @@ _ = UpdateService.Instance;
         {
             Logging.Shutdown();
         }
+    }
+
+    /// <summary>
+    ///     Opens the in-app picker as the whole window. The caller gets the paths through standard
+    ///     output (and <c>--output</c> when given); cancelling exits with code 1.
+    /// </summary>
+    private static void RunPicker(PickerOptions picker)
+    {
+#if !DEBUG
+        using var staticServer = StaticServer.Start(Constants.DataDirectory);
+        var appUrl = $"{staticServer.BaseUrl}/index.html?v={AppInfoService.BuildToken}";
+#else
+        const string appUrl = "http://127.0.0.1:3100";
+#endif
+        _ = AppInfoService.Instance;
+        _ = FileSystemService.Instance;
+        _ = ThumbnailServer.Instance;
+
+        var manager = WindowManager.Instance;
+        manager.AppUrl = CliPicker.AppendTo(appUrl, picker);
+        manager.IconPath = AppIcon.EnsureExtracted(typeof(Program).Assembly, Constants.Name);
+        manager.Picker = picker;
+
+        manager.CreateMainWindow(
+            Localization.Get(picker.FileMode ? "Choose a file" : "Choose a folder"),
+            1000, 680, 720, 480);
+
+        manager.Run();
+    }
+
+    /// <summary>
+    ///     Swaps the console logger for a file-only one, so a pick run's standard output carries
+    ///     nothing but the chosen paths.
+    /// </summary>
+    private static void DetachConsole()
+    {
+        Log.CloseAndFlush();
+
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Information()
+            .WriteTo.File(
+                Path.Combine(AppPaths.LogDirectory(Constants.Name), "pick-.log"),
+                rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: 7,
+                shared: true)
+            .CreateLogger();
+
+        Console.SetOut(TextWriter.Null);
+        Console.SetError(TextWriter.Null);
     }
 
     /// <summary>Keeps a crashing helper from showing a Windows Error Reporting dialog.</summary>
