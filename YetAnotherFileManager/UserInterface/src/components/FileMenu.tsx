@@ -14,6 +14,7 @@ import {
     type ShellVerb,
 } from "../api/operations";
 import {prettyShortcut, type ShortcutMap} from "../shortcuts";
+import {CreateFileTypes} from "../create-types";
 import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
 import {
     ArchiveIcon,
@@ -23,6 +24,7 @@ import {
     CutIcon,
     DocumentIcon,
     ExecutableIcon,
+    FileIcon,
     FolderIcon,
     GearIcon,
     PackageIcon,
@@ -66,6 +68,10 @@ interface FileMenuProps {
     onCopy?: (paths: string[], cut: boolean) => void;
     onPaste?: (directory: string) => void;
     onCreateFolder?: () => void;
+    /** Creates a folder (null) or a file with this extension. */
+    onCreateFile?: (extension: string | null) => void;
+    /** The New button only needs the creation entries, not the folder background actions. */
+    creationOnly?: boolean;
     onRefresh?: () => void;
     onAddToTray?: (paths: string[]) => void;
 }
@@ -76,7 +82,8 @@ interface FileMenuProps {
  */
 export function FileMenu({
     menu, directory, target, shortcuts, canPaste = false, onClose,
-    onOpen, onOpenFile, onRename, onDelete, onCopy, onPaste, onCreateFolder, onRefresh, onAddToTray,
+    onOpen, onOpenFile, onRename, onDelete, onCopy, onPaste, onCreateFolder, onCreateFile, creationOnly = false,
+    onRefresh, onAddToTray,
 }: FileMenuProps) {
     const t = useTranslation();
     const [shell, setShell] = useState<{ verbs: ShellVerb[]; safe: boolean; loading: boolean }>({
@@ -154,6 +161,36 @@ export function FileMenu({
     };
 
     if (menu.background) {
+        if (onCreateFolder) {
+            quick.push({
+                label: t("New folder"), icon: <PlusIcon size={16}/>,
+                shortcut: prettyShortcut(shortcuts.newFolder),
+                onSelect: onCreateFolder,
+            });
+        }
+
+        if (onCreateFile) {
+            const newItems: ContextMenuItem[] = [
+                {label: t("Folder"), icon: <FolderIcon size={14}/>, onSelect: () => onCreateFile(null)},
+                ...CreateFileTypes.map((type, index) => ({
+                    label: `${t(type.label)} (${type.extension})`,
+                    icon: <FileIcon size={14}/>,
+                    separatorBefore: index === 0,
+                    onSelect: () => onCreateFile(type.extension),
+                })),
+            ];
+
+            items.push({
+                label: t("New"),
+                icon: <PlusIcon size={14}/>,
+                children: newItems,
+                onSelect: () => undefined,
+            });
+        }
+
+        if (creationOnly)
+            return <ContextMenu items={items} onClose={onClose} quick={quick} x={menu.x} y={menu.y}/>;
+
         items.push({
             label: t("Open in Terminal"), icon: <TerminalIcon size={14}/>,
             onSelect: () => void openTerminal(directory),
@@ -163,13 +200,6 @@ export function FileMenu({
             onSelect: () => void showInExplorer(directory),
         });
 
-        if (onCreateFolder) {
-            quick.push({
-                label: t("New folder"), icon: <PlusIcon size={16}/>,
-                shortcut: prettyShortcut(shortcuts.newFolder),
-                onSelect: onCreateFolder,
-            });
-        }
         if (onPaste) {
             quick.push({
                 label: t("Paste"), icon: <PasteIcon size={16}/>, disabled: !canPaste,

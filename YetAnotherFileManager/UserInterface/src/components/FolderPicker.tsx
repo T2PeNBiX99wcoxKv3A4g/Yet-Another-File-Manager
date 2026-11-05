@@ -4,6 +4,7 @@ import styled from "styled-components";
 import {Native, useTranslation} from "@photino-net-utils/bridge";
 import {
     DefaultView,
+    DefaultViewDefaults,
     listDirectory,
     listDrives,
     listPlaces,
@@ -12,12 +13,15 @@ import {
     type Drive,
     type Place,
     type RecentEntry,
+    type ResolvedView,
 } from "../api/files";
+import {getSettings, type AppSettings} from "../api/settings";
+import {DefaultShortcuts} from "../shortcuts";
 import {newFile, newFolder} from "../api/operations";
 import {EmptyFind, matchesName, type FindState} from "../find";
 import {elevatedPanel} from "../ui/panel";
 import {fadeInStyle, popInStyle} from "../ui/motion";
-import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
+import {FileMenu} from "./FileMenu";
 import {FileList} from "./FileList";
 import {FindBar} from "./FindBar";
 import {
@@ -26,7 +30,6 @@ import {
     ArrowUpIcon,
     CheckIcon,
     CrossIcon,
-    FileIcon,
     FolderIcon,
     PlusIcon,
     SearchIcon,
@@ -82,6 +85,11 @@ export function FolderPicker({
     const [createMenu, setCreateMenu] = useState<{ x: number; y: number } | null>(null);
     const [renamePath, setRenamePath] = useState<string | null>(null);
     const [renameToken, setRenameToken] = useState(0);
+    const [settings, setSettings] = useState<AppSettings | null>(null);
+
+    useEffect(() => {
+        void getSettings().then(setSettings, () => setSettings(null));
+    }, []);
 
     useEffect(() => {
         if (suppliedPlaces) {
@@ -251,6 +259,15 @@ export function FolderPicker({
         [find, findCurrent, findHits],
     );
 
+    const pickerView: ResolvedView = {
+        mode: settings?.defaultView?.mode ?? "list",
+        iconSize: settings?.defaultView?.iconSize ?? DefaultViewDefaults.iconSize,
+        gridSize: settings?.defaultView?.gridSize ?? DefaultViewDefaults.gridSize,
+        sort: "name",
+        sortDescending: false,
+        columns: settings?.defaultView?.columns ?? DefaultViewDefaults.columns ?? ["type", "size", "modified"],
+    };
+
     const typed = fileName.trim();
     const typedPath = typed.length > 0
         ? isAbsolutePath(typed) ? typed : joinPath(currentFolder, typed)
@@ -297,44 +314,27 @@ export function FolderPicker({
 
     const typeName = (value: string) => setFileName(value);
 
-    const startCreate = async (file: boolean) => {
+    const startCreate = async (extension: string | null) => {
         const menu = createMenu;
         setCreateMenu(null);
 
         if (!menu || !currentFolder)
             return;
 
-        const result = file
-            ? await newFile(currentFolder)
-            : await newFolder(currentFolder);
+        const result = extension === null
+            ? await newFolder(currentFolder)
+            : await newFile(currentFolder, extension);
 
         if (!result.ok || result.path === null)
             return;
 
         // The new entry has to be visible before FileList can focus its rename box.
         setFind((current) => ({...current, open: false, query: ""}));
-        if (file) setAllFiles(true);
+        if (extension !== null) setAllFiles(true);
         setRenamePath(result.path);
         setRenameToken((token) => token + 1);
         setReload((value) => value + 1);
     };
-
-    const createItems: ContextMenuItem[] = createMenu
-        ? [
-            {
-                label: t("New folder"),
-                icon: <FolderIcon size={14}/>,
-                onSelect: () => void startCreate(false),
-            },
-            ...(isFileMode
-                ? [{
-                    label: t("New file"),
-                    icon: <FileIcon size={14}/>,
-                    onSelect: () => void startCreate(true),
-                }]
-                : []),
-        ]
-        : [];
 
     const openFind = () => {
         setFind((current) => ({...current, open: true}));
@@ -460,6 +460,7 @@ export function FolderPicker({
                             <GalleryView
                                 onPick={(path) => onSelect([path])}
                                 onSelectionChange={handleSelection}
+                                showCheckboxes={settings?.showCheckboxes ?? true}
                                 view={{...DefaultView, columns: []}}
                             />
                             {selectionBar(setFileName)}
@@ -530,7 +531,8 @@ export function FolderPicker({
 
                             <FileList
                                 allowBackgroundMenu
-                                enableShortcuts={false}
+                                confirmDelete={settings?.confirmDelete ?? false}
+                                enableShortcuts
                                 error={error}
                                 find={findView}
                                 loading={loading}
@@ -540,14 +542,15 @@ export function FolderPicker({
                                 onRefresh={() => setReload((value) => value + 1)}
                                 onSelectionChange={handleSelection}
                                 onSort={() => undefined}
+                                openOnSingleClick={settings?.openOnSingleClick ?? false}
                                 refreshToken={reload}
                                 pendingRename={renamePath}
                                 pendingRenameToken={renameToken}
-                                showCheckboxes
+                                showCheckboxes={settings?.showCheckboxes ?? true}
                                 showDetails={false}
                                 showImages={false}
                                 singleSelect={!multiple}
-                                view={{...DefaultView, columns: ["type", "size", "modified"]}}
+                                view={pickerView}
                             />
 
                             {selectionBar(typeName)}
@@ -557,11 +560,14 @@ export function FolderPicker({
             </Body>
 
             {createMenu && (
-                <ContextMenu
-                    items={createItems}
+                <FileMenu
+                    creationOnly
+                    directory={currentFolder}
+                    menu={{x: createMenu.x, y: createMenu.y, paths: [], background: true}}
                     onClose={() => setCreateMenu(null)}
-                    x={createMenu.x}
-                    y={createMenu.y}
+                    onCreateFile={isFileMode ? (extension) => void startCreate(extension) : undefined}
+                    onCreateFolder={() => void startCreate(null)}
+                    shortcuts={DefaultShortcuts}
                 />
             )}
         </Card>

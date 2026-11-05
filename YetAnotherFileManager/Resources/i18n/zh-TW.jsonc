@@ -473,4 +473,24 @@
   "No indexing tasks are running.": "目前沒有執行中的索引任務。",
   "{count} indexing tasks": "{count} 個索引任務",
   "Operation history": "操作記錄"
+,
+  "Status center": "狀態中心"
+,
+  "New": "新建",
+  "Text file": "文字檔",
+  "Markdown file": "Markdown 檔",
+  "JSON file": "JSON 檔",
+  "HTML file": "HTML 檔",
+  "CSS file": "CSS 檔",
+  "JavaScript file": "JavaScript 檔",
+  "TypeScript file": "TypeScript 檔",
+  "C# file": "C# 檔",
+  "Python file": "Python 檔",
+  "Batch file": "批次檔",
+  "PowerShell file": "PowerShell 檔",
+  "CSV file": "CSV 檔",
+  "XML file": "XML 檔",
+  "YAML file": "YAML 檔",
+  "Could not create the item.": "無法建立項目。",
+  "History": "歷史記錄"
 }

@@ -266,7 +266,8 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
             case "fs.operation.newFile":
                 return context.Reply("fs.operation.newFile.result",
-                    await FileOperations.NewFileAsync(context.Payload<DirectoryRequest>()?.Directory ?? ""));
+                    await FileOperations.NewFileAsync(context.Payload<NewFileRequest>()?.Directory ?? "",
+                        context.Payload<NewFileRequest>()?.Extension));
 
             case "fs.preview.text":
                 return context.Reply("fs.preview.text.result",
@@ -352,6 +353,13 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
             case "fs.history.redo":
                 return context.Reply("fs.history.redo.result", await FileHistory.Instance.RedoAsync());
+
+            case "fs.history.list":
+                return context.Reply("fs.history.list.result", FileHistory.Instance.List());
+
+            case "fs.history.undoTo":
+                return context.Reply("fs.history.undoTo.result",
+                    await FileHistory.Instance.UndoToAsync(context.Payload<HistoryUndoRequest>()?.Id ?? 0));
 
             case "fs.operation.terminal":
                 await FileOperations.OpenTerminalAsync(context.Payload<PathPayload>()?.Path ?? "");

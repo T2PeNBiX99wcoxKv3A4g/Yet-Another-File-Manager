@@ -180,6 +180,9 @@ internal sealed record RenamePathRequest(string Path, string Name);
 /// <summary>Payload for <c>fs.operation.newFolder</c> and <c>fs.clipboard.paste</c>.</summary>
 internal sealed record DirectoryRequest(string Directory);
 
+/// <summary>Body for <c>fs.operation.newFile</c>: the folder and an optional file extension.</summary>
+internal sealed record NewFileRequest(string Directory, string? Extension);
+
 /// <summary>Body for <c>fs.operation.rename</c> and <c>fs.operation.newFolder</c>.</summary>
 internal sealed record PathOperationPayload(bool Ok, string? Path, string? Error);
 
@@ -225,6 +228,20 @@ internal sealed record HistoryStatePayload(bool CanUndo, bool CanRedo, string? U
 
 /// <summary>Body for <c>fs.history.undo</c> and <c>fs.history.redo</c>.</summary>
 internal sealed record HistoryOperationPayload(bool Ok, string? Error, List<string> Paths);
+
+/// <summary>One row of the history panel; <c>Applied</c> entries can still be undone.</summary>
+internal sealed record HistoryEntryPayload(
+    long Id,
+    string Label,
+    IReadOnlyList<string> Paths,
+    long At,
+    bool Applied);
+
+/// <summary>Body for <c>fs.history.list</c>: the session's operations, newest first.</summary>
+internal sealed record HistoryListPayload(IReadOnlyList<HistoryEntryPayload> Entries);
+
+/// <summary>Payload for <c>fs.history.undoTo</c>: the row whose undo button was clicked.</summary>
+internal sealed record HistoryUndoRequest(long Id);
 
 /// <summary>One operation the status center shows.</summary>
 internal sealed record TaskInfo(

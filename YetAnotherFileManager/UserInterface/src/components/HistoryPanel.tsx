@@ -1,0 +1,244 @@
+import {useEffect, useRef, useState} from "react";
+import styled from "styled-components";
+import {useTranslation} from "@photino-net-utils/bridge";
+import {listHistory, undoHistory, type HistoryEntry} from "../api/history";
+import {elevatedPanel} from "../ui/panel";
+import {ListIcon, CrossIcon} from "./Icons";
+
+/** The title bar's session history: every recorded file operation, with an undo button per row. */
+export function HistoryPanel() {
+    const t = useTranslation();
+    const [open, setOpen] = useState(false);
+    const [entries, setEntries] = useState<HistoryEntry[]>([]);
+    const [busy, setBusy] = useState(false);
+    const root = useRef<HTMLDivElement | null>(null);
+
+    const load = () => void listHistory().then(setEntries, () => setEntries([]));
+
+    useEffect(() => {
+        if (!open) return;
+
+        load();
+        const close = (event: PointerEvent) => {
+            if (!root.current?.contains(event.target as Node)) setOpen(false);
+        };
+        window.addEventListener("pointerdown", close);
+        return () => window.removeEventListener("pointerdown", close);
+    }, [open]);
+
+    const undo = async (id: number) => {
+        setBusy(true);
+        try {
+            await undoHistory(id);
+            load();
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <Root ref={root}>
+            <Button
+                $active={open}
+                onClick={() => setOpen((value) => !value)}
+                title={t("History")}
+                type="button"
+            >
+                <ListIcon size={14}/>
+            </Button>
+
+            {open && (
+                <Panel>
+                    <Head>
+                        <Title>{t("History")}</Title>
+                        <Close onClick={() => setOpen(false)} title={t("Close")} type="button">
+                            <CrossIcon size={10}/>
+                        </Close>
+                    </Head>
+
+                    {entries.length === 0
+                        ? <Empty>{t("No operations yet.")}</Empty>
+                        : (
+                            <Rows>
+                                {entries.map((entry) => (
+                                    <Row key={entry.id}>
+                                        <RowHead>
+                                            <Name>{entry.label}</Name>
+                                            <Time>{new Date(entry.at).toLocaleTimeString()}</Time>
+                                        </RowHead>
+                                        {entry.paths.length > 0 && (
+                                            <Paths title={entry.paths.join("\n")}>
+                                                {entry.paths.slice(0, 3).join(" · ")}
+                                                {entry.paths.length > 3 ? ` +${entry.paths.length - 3}` : ""}
+                                            </Paths>
+                                        )}
+                                        <Actions>
+                                            <Undo
+                                                disabled={!entry.applied || busy}
+                                                onClick={() => void undo(entry.id)}
+                                                type="button"
+                                            >
+                                                {t("Undo")}
+                                            </Undo>
+                                        </Actions>
+                                    </Row>
+                                ))}
+                            </Rows>
+                        )}
+                </Panel>
+            )}
+        </Root>
+    );
+}
+
+const Root = styled.div`
+    position: relative;
+    display: flex;
+`;
+
+const Button = styled.button<{ $active: boolean }>`
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 100%;
+    border: 0;
+    background: ${({$active}) => $active ? "rgba(var(--accent-rgb), 0.12)" : "transparent"};
+    color: ${({$active}) => $active ? "var(--accent-primary)" : "var(--text-secondary)"};
+    cursor: pointer;
+
+    &:hover {
+        background: rgba(var(--accent-rgb), 0.10);
+        color: var(--text-primary);
+    }
+`;
+
+const Panel = styled.div`
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    width: 390px;
+    max-height: 440px;
+    overflow: hidden;
+    ${elevatedPanel}
+`;
+
+const Head = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 11px 12px;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(var(--accent-rgb), 0.05);
+`;
+
+const Title = styled.span`
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+`;
+
+const Close = styled.button`
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+
+    &:hover {
+        background: var(--bg-card-hover);
+        color: var(--text-primary);
+    }
+`;
+
+const Rows = styled.div`
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: auto;
+`;
+
+const Row = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 9px 12px;
+    border-bottom: 1px solid rgba(var(--border-rgb, 148, 163, 184), 0.12);
+
+    &:last-child {
+        border-bottom: 0;
+    }
+`;
+
+const RowHead = styled.div`
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+`;
+
+const Name = styled.span`
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-primary);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
+const Time = styled.span`
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 9px;
+`;
+
+const Paths = styled.span`
+    overflow: hidden;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
+const Actions = styled.div`
+    display: flex;
+    justify-content: flex-end;
+`;
+
+const Undo = styled.button`
+    padding: 2px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 10px;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+        border-color: var(--border-color-hover);
+        color: var(--text-primary);
+    }
+
+    &:disabled {
+        opacity: 0.35;
+        cursor: default;
+    }
+`;
+
+const Empty = styled.p`
+    padding: 22px 14px;
+    color: var(--text-muted);
+    font-size: 12px;
+    text-align: center;
+`;

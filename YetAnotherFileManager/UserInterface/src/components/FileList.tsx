@@ -12,6 +12,7 @@ import {
     deletePaths,
     hasClipboardFiles,
     newFolder,
+    newFile,
     openTerminal,
     pasteInto,
     renamePath,
@@ -484,6 +485,30 @@ export function FileList({
         });
     }, [body, listing, pendingRename, pendingRenameToken, rowHeight, rows, view.mode]);
 
+    // A new folder/file sets the rename state before the refreshed listing arrives; once its row is
+    // in the list, bring it into view so the inline editor is visible.
+    useEffect(() => {
+        if (!renaming)
+            return;
+
+        const index = rows.findIndex((row) => row.entry.fullPath === renaming.path);
+        const node = body.current;
+        if (index < 0 || !node)
+            return;
+
+        if (view.mode === "list") {
+            const top = index * rowHeight;
+            node.scrollTop = Math.max(0, top - node.clientHeight / 2);
+            return;
+        }
+
+        window.requestAnimationFrame(() => {
+            document
+                .querySelector<HTMLElement>(`[data-path="${CSS.escape(renaming.path)}"]`)
+                ?.scrollIntoView({block: "nearest"});
+        });
+    }, [body, renaming, rowHeight, rows, view.mode]);
+
     const closeMenu = useCallback(() => setMenu(null), []);
 
     const openRow = useCallback((entry: FileEntry, event: ReactMouseEvent) => {
@@ -581,16 +606,23 @@ export function FileList({
         }
     };
 
-    const createFolder = async () => {
+    const createEntry = async (extension: string | null) => {
         if (!currentDirectory)
             return;
 
-        const result = await newFolder(currentDirectory);
+        const result = extension === null
+            ? await newFolder(currentDirectory)
+            : await newFile(currentDirectory, extension);
 
-        if (result.ok)
-            refresh();
-        else
-            window.alert(result.error ?? t("Could not create the folder."));
+        if (!result.ok || result.path === null) {
+            window.alert(result.error ?? t("Could not create the item."));
+            return;
+        }
+
+        anchor.current = result.path;
+        setSelected(new Set([result.path]));
+        setRenaming({path: result.path, value: baseName(result.path)});
+        refresh();
     };
 
     const rename = (entry: FileEntry) => {
@@ -780,7 +812,7 @@ export function FileList({
             }
 
             if (combo === shortcuts.newFolder || combo === "f10") {
-                run(() => void createFolder());
+                run(() => void createEntry(null));
                 return;
             }
 
@@ -802,7 +834,7 @@ export function FileList({
 
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [allPaths, copy, createFolder, currentDirectory, enableShortcuts, menu, onOpen, onOpenFile, paste, refresh,
+    }, [allPaths, copy, createEntry, currentDirectory, enableShortcuts, menu, onOpen, onOpenFile, paste, refresh,
         remove, rename, rows, selected, shortcuts]);
 
     const confirmDialog = pendingConfirm && (
@@ -1026,7 +1058,8 @@ export function FileList({
                     onAddToTray={onAddToTray}
                     onClose={closeMenu}
                     onCopy={copy}
-                    onCreateFolder={createFolder}
+                    onCreateFile={(extension) => void createEntry(extension)}
+                    onCreateFolder={() => void createEntry(null)}
                     onDelete={remove}
                     onOpen={onOpen}
                     onOpenFile={onOpenFile}
@@ -1221,7 +1254,8 @@ export function FileList({
                     onAddToTray={onAddToTray}
                     onClose={closeMenu}
                     onCopy={copy}
-                    onCreateFolder={createFolder}
+                    onCreateFile={(extension) => void createEntry(extension)}
+                    onCreateFolder={() => void createEntry(null)}
                     onDelete={remove}
                     onOpen={onOpen}
                     onOpenFile={onOpenFile}

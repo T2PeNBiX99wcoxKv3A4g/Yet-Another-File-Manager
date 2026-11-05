@@ -106,10 +106,10 @@ export async function newFolder(directory: string): Promise<PathOperation> {
 }
 
 /** Creates the next free "New file.txt" in a directory. */
-export async function newFile(directory: string): Promise<PathOperation> {
+export async function newFile(directory: string, extension?: string | null): Promise<PathOperation> {
     if (!Native.available) return {ok: false, path: null, error: "Creating files needs the desktop app."};
 
-    return await Native.request<PathOperation>("fs.operation.newFile", {directory});
+    return await Native.request<PathOperation>("fs.operation.newFile", {directory, extension});
 }
 
 /** Opens the shell's properties sheet for the selected entries. */

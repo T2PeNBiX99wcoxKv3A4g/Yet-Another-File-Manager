@@ -36,10 +36,10 @@ import {
 } from "./api/operations";
 import {clearTasks, listTasks, type TaskInfo} from "./api/tasks";
 import {FileList} from "./components/FileList";
-import {ContextMenu, type ContextMenuItem} from "./components/ContextMenu";
 import {PreviewPane, type PreviewInfo} from "./components/PreviewPane";
 import {FileTray, isPathDrag, type TrayItem} from "./components/FileTray";
 import {FolderPicker} from "./components/FolderPicker";
+import {FileMenu} from "./components/FileMenu";
 import {setFilePickerOpener, setFolderPickerOpener} from "./folder-picker";
 import {FindBar} from "./components/FindBar";
 import {EmptyFind, matchesName, type FindState} from "./find";
@@ -48,8 +48,6 @@ import {
     ArrowLeftIcon,
     ArrowRightIcon,
     ArrowUpIcon,
-    FileIcon,
-    FolderIcon,
     GearIcon,
     ImageIcon,
     OverviewIcon,
@@ -349,6 +347,17 @@ export default function App() {
     const splitTab = secondary ?? lastSecondary.current;
     const splitFolder = splitTab ? folderOf(splitTab) : "";
     const splitParent = splitTab ? splitTab.listing?.parent ?? parentOf(splitFolder) : null;
+    const [splitSpan, setSplitSpan] = useState(0);
+
+    useEffect(() => {
+        if (!showSplit || splitClosing) {
+            setSplitSpan(0);
+            return;
+        }
+
+        const frame = window.requestAnimationFrame(() => setSplitSpan(1));
+        return () => window.cancelAnimationFrame(frame);
+    }, [showSplit, splitClosing]);
 
     /** The pane the window-level actions target: while split, the one that was clicked last. */
     const focusedTab = splitActive && secondary && activePane === "secondary" ? secondary : active;
@@ -826,16 +835,16 @@ export default function App() {
         setCreateMenu({x: event.clientX, y: event.clientY, directory, refresh});
     };
 
-    const createItem = async (file: boolean) => {
+    const createItem = async (extension: string | null) => {
         const menu = createMenu;
         setCreateMenu(null);
 
         if (!menu)
             return;
 
-        const result = file
-            ? await newFile(menu.directory)
-            : await newFolder(menu.directory);
+        const result = extension === null
+            ? await newFolder(menu.directory)
+            : await newFile(menu.directory, extension);
 
         if (!result.ok || result.path === null)
             return;
@@ -849,22 +858,6 @@ export default function App() {
         }));
         menu.refresh();
     };
-
-    const createMenuItems: ContextMenuItem[] = createMenu
-        ? [
-            {
-                label: t("New folder"),
-                icon: <FolderIcon size={14}/>,
-                shortcut: prettyShortcut(shortcuts.newFolder),
-                onSelect: () => void createItem(false),
-            },
-            {
-                label: t("New file"),
-                icon: <FileIcon size={14}/>,
-                onSelect: () => void createItem(true),
-            },
-        ]
-        : [];
 
     /**
      * Steps through the active tab's history. These read the tab from the ref so the keyboard
@@ -1887,7 +1880,7 @@ export default function App() {
                     <ViewShell key={kind}>
                     {kind === "files" ? (
                         showSplit && splitTab ? (
-                            <Split $closing={splitClosing} ref={splitRef}>
+                            <Split ref={splitRef}>
                                 <Pane style={{flex: splitRatio}}>
                                     <PaneToolbar
                                         $active={activePane === "primary"}
@@ -1961,7 +1954,17 @@ export default function App() {
                                     onPointerDown={startSplitDrag}
                                     title={t("Drag to resize; double-click to reset")}
                                 />
-                                <Pane style={{flex: 1 - splitRatio}}>
+                                <Pane
+                                    style={{
+                                        flexBasis: `${splitSpan * (1 - splitRatio) * 100}%`,
+                                        flexGrow: 0,
+                                        flexShrink: 0,
+                                        overflow: "hidden",
+                                        transition: splitSpan === 1 && !splitClosing
+                                            ? "none"
+                                            : "flex-basis 180ms cubic-bezier(0.22, 1, 0.36, 1)",
+                                    }}
+                                >
                                     <PaneToolbar
                                         $active={activePane === "secondary"}
                                         onPointerDown={() => setActivePane("secondary")}
@@ -2141,11 +2144,14 @@ export default function App() {
             />
 
             {createMenu && (
-                <ContextMenu
-                    items={createMenuItems}
+                <FileMenu
+                    creationOnly
+                    directory={createMenu.directory}
+                    menu={{x: createMenu.x, y: createMenu.y, paths: [], background: true}}
                     onClose={() => setCreateMenu(null)}
-                    x={createMenu.x}
-                    y={createMenu.y}
+                    onCreateFile={(extension) => void createItem(extension)}
+                    onCreateFolder={() => void createItem(null)}
+                    shortcuts={shortcuts}
                 />
             )}
 
@@ -2286,25 +2292,10 @@ const PaneToolbar = styled.div<{ $active?: boolean }>`
     transition: background 140ms ease;
 `;
 
-const Split = styled.div<{ $closing?: boolean }>`
+const Split = styled.div`
     display: flex;
     flex: 1;
     min-height: 0;
-    opacity: ${({$closing}) => $closing ? 0 : 1};
-    transform: ${({$closing}) => $closing ? "scaleX(0.985)" : "none"};
-    transition: opacity 180ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
-    animation: yafm-split-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
-
-    @keyframes yafm-split-in {
-        from {
-            opacity: 0;
-            transform: scaleX(0.985);
-        }
-        to {
-            opacity: 1;
-            transform: scaleX(1);
-        }
-    }
 `;
 
 const Pane = styled.div`

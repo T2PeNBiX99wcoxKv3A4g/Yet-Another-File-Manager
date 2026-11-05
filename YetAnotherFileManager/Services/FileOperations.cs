@@ -105,6 +105,7 @@ internal static partial class FileOperations
         var sources = paths.ToList();
 
         FileHistory.Instance.Record(move ? $"Move {sources.Count} item(s)" : $"Copy {sources.Count} item(s)",
+            paths: current,
             undo: () => move
                 ? MoveBackAsync(current, sources)
                 : DeleteCoreAsync(current, false),
@@ -146,6 +147,7 @@ internal static partial class FileOperations
             var move = request.Move;
 
             FileHistory.Instance.Record(move ? $"Move {sources.Count} item(s)" : $"Copy {sources.Count} item(s)",
+            paths: current,
                 undo: () => move
                     ? MoveBackAsync(current, sources)
                     : DeleteCoreAsync(current, false),
@@ -328,6 +330,7 @@ internal static partial class FileOperations
 
         if (step.Ok)
             FileHistory.Instance.Record($"Rename {Path.GetFileName(path)}",
+                paths: [target],
                 undo: () => RenameCoreAsync(target, path),
                 redo: () => RenameCoreAsync(path, target));
 
@@ -376,6 +379,7 @@ internal static partial class FileOperations
 
                 Directory.CreateDirectory(path);
                 FileHistory.Instance.Record("New folder",
+                    paths: [path],
                     undo: () => DeleteEmptyFolderAsync(path),
                     redo: () => CreateFolderAsync(path));
 
@@ -392,16 +396,18 @@ internal static partial class FileOperations
     }
 
     /// <summary>Creates the next free "New file.txt" name in a directory.</summary>
-    public static async Task<PathOperationPayload> NewFileAsync(string directory)
+    public static async Task<PathOperationPayload> NewFileAsync(string directory, string? extension = null)
     {
         if (!Directory.Exists(directory))
             return new PathOperationPayload(false, null, "The folder is no longer there.");
+
+        var suffix = NormalizeExtension(extension);
 
         try
         {
             for (var attempt = 1; attempt < 1000; attempt++)
             {
-                var name = attempt == 1 ? "New file.txt" : $"New file ({attempt}).txt";
+                var name = attempt == 1 ? $"New file{suffix}" : $"New file ({attempt}){suffix}";
                 var path = Path.Combine(directory, name);
 
                 if (Directory.Exists(path) || File.Exists(path))
@@ -409,6 +415,7 @@ internal static partial class FileOperations
 
                 await File.WriteAllTextAsync(path, "");
                 FileHistory.Instance.Record("New file",
+                    paths: [path],
                     undo: () => DeleteFileAsync(path),
                     redo: () => CreateEmptyFileAsync(path));
 
@@ -422,6 +429,22 @@ internal static partial class FileOperations
             Log.Warning(ex, "Could not create a file in {Directory}", directory);
             return new PathOperationPayload(false, null, ex.Message);
         }
+    }
+
+    /// <summary>A short, safe suffix; anything unusual falls back to <c>.txt</c>.</summary>
+    private static string NormalizeExtension(string? extension)
+    {
+        var value = extension?.Trim() ?? "";
+
+        if (value.Length == 0)
+            return ".txt";
+
+        if (!value.StartsWith('.'))
+            value = $".{value}";
+
+        return value.Length <= 12 && value[1..].All(char.IsLetterOrDigit)
+            ? value.ToLowerInvariant()
+            : ".txt";
     }
 
     /// <summary>Reads the start of a text file for the details pane; binary data is refused.</summary>
@@ -558,6 +581,7 @@ internal static partial class FileOperations
         var currentZip = zipPath;
 
         FileHistory.Instance.Record($"Compress {Path.GetFileName(zipPath)}",
+            paths: [zipPath],
             undo: () => DeleteFileStepAsync(currentZip),
             redo: async () =>
             {

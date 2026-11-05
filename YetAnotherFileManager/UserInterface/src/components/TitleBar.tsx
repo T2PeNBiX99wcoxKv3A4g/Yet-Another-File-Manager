@@ -7,6 +7,7 @@ import type {DirectoryView, ResolvedView} from "../api/files";
 import {prettyShortcut, type ShortcutMap} from "../shortcuts";
 import {PlaceIcon} from "./PlaceIcon";
 import {StatusCenter} from "./StatusCenter";
+import {HistoryPanel} from "./HistoryPanel";
 import {ViewMenu} from "./ViewMenu";
 import type {TaskInfo} from "../api/tasks";
 import {
@@ -210,6 +211,7 @@ export function TitleBar({
                     <PackageIcon size={14}/>
                     {trayCount > 0 && <TrayBadge>{trayCount > 9 ? "9+" : trayCount}</TrayBadge>}
                 </TrayButton>
+                <HistoryPanel/>
                 <StatusCenter
                     tasks={tasks}
                     onClear={onClearTasks}

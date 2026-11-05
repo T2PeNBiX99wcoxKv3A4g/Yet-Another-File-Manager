@@ -29,6 +29,7 @@ internal static partial class FileOperations
         if (!permanent && deleted > 0)
             // Undo puts back whatever really reached the bin, so the whole selection is tried.
             FileHistory.Instance.Record($"Delete {deleted} item(s)",
+                paths: items,
                 undo: () => RestoreFromRecycleAsync(items, deletedAt),
                 redo: async () => (await DeleteWithProgressAsync(items, false)).Step);
 

@@ -277,7 +277,6 @@ export function GalleryView({
                     showCheckboxes={showCheckboxes}
                     openOnSingleClick={openOnSingleClick}
                     shortcuts={shortcuts}
-                    enableShortcuts={!onPick}
                     onSelectionChange={onSelectionChange}
                     onSort={() => undefined}
                     onOpen={open}

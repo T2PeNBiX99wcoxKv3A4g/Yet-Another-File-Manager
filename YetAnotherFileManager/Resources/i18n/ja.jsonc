@@ -473,4 +473,24 @@
   "No indexing tasks are running.": "実行中のインデックスタスクはありません。",
   "{count} indexing tasks": "{count} 件のインデックスタスク",
   "Operation history": "操作履歴"
+,
+  "Status center": "ステータスセンター"
+,
+  "New": "新規",
+  "Text file": "テキストファイル",
+  "Markdown file": "Markdown ファイル",
+  "JSON file": "JSON ファイル",
+  "HTML file": "HTML ファイル",
+  "CSS file": "CSS ファイル",
+  "JavaScript file": "JavaScript ファイル",
+  "TypeScript file": "TypeScript ファイル",
+  "C# file": "C# ファイル",
+  "Python file": "Python ファイル",
+  "Batch file": "バッチファイル",
+  "PowerShell file": "PowerShell ファイル",
+  "CSV file": "CSV ファイル",
+  "XML file": "XML ファイル",
+  "YAML file": "YAML ファイル",
+  "Could not create the item.": "項目を作成できません。",
+  "History": "履歴"
 }
