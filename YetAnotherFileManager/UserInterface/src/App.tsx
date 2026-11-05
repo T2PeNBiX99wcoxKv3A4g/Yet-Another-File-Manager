@@ -683,10 +683,15 @@ export default function App() {
         if (path && !viewKind(path)) void load(tab.id, path);
     }, [load]);
 
-    /** The sidebar and the overview replace the page the active tab shows. */
-    const openView = useCallback((next: ViewKind) => {
+    /** The sidebar and the overview replace the page the active tab shows, or open a new tab. */
+    const openView = useCallback((next: ViewKind, newTab = false) => {
+        if (newTab) {
+            openFiles(viewLocation(next));
+            return;
+        }
+
         openLocation(stateRef.current.activeId, viewLocation(next));
-    }, [openLocation]);
+    }, [openFiles, openLocation]);
 
     const closeTab = useCallback((id: string) => {
         const {tabs: current, activeId: currentActive} = stateRef.current;

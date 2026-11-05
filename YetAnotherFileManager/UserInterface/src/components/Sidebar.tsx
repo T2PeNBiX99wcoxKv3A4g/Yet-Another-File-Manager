@@ -28,7 +28,7 @@ interface SidebarProps {
     /** Built-in pages that have no meaning outside the app, such as the picker omitting Settings. */
     hiddenViews?: TabKind[];
     onNavigate: (path: string, newTab?: boolean) => void;
-    onOpenView: (kind: Exclude<TabKind, "files">) => void;
+    onOpenView: (kind: Exclude<TabKind, "files">, newTab?: boolean) => void;
 }
 
 /**
@@ -86,19 +86,19 @@ export function Sidebar({
         <Aside>
             <List>
                 {!hiddenViews.includes("home") && (
-                    <Item $active={activeKind === "home"} onClick={() => onOpenView("home")} title={t("Overview")} type="button">
+                    <Item $active={activeKind === "home"} onClick={(event) => onOpenView("home", wantsNewTab(event))} title={t("Overview")} type="button">
                         <OverviewIcon/>
                         <Label>{t("Overview")}</Label>
                     </Item>
                 )}
                 {!hiddenViews.includes("recycle") && (
-                    <Item $active={activeKind === "recycle"} onClick={() => onOpenView("recycle")} title={t("Recycle Bin")} type="button">
+                    <Item $active={activeKind === "recycle"} onClick={(event) => onOpenView("recycle", wantsNewTab(event))} title={t("Recycle Bin")} type="button">
                         <TrashIcon/>
                         <Label>{t("Recycle Bin")}</Label>
                     </Item>
                 )}
                 {!hiddenViews.includes("gallery") && (
-                    <Item $active={activeKind === "gallery"} onClick={() => onOpenView("gallery")} title={t("Gallery")} type="button">
+                    <Item $active={activeKind === "gallery"} onClick={(event) => onOpenView("gallery", wantsNewTab(event))} title={t("Gallery")} type="button">
                         <ImageIcon/>
                         <Label>{t("Gallery")}</Label>
                     </Item>
@@ -190,7 +190,7 @@ export function Sidebar({
 
             {!hiddenViews.includes("settings") && (
                 <Bottom>
-                    <Item $active={activeKind === "settings"} onClick={() => onOpenView("settings")} title={t("Settings")} type="button">
+                    <Item $active={activeKind === "settings"} onClick={(event) => onOpenView("settings", wantsNewTab(event))} title={t("Settings")} type="button">
                         <GearIcon/>
                         <Label>{t("Settings")}</Label>
                     </Item>
