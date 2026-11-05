@@ -144,6 +144,9 @@ interface FileListProps {
     onSelectionChange?: (paths: string[]) => void;
     /** A picker that returns one path still uses the checkboxes, but only one at a time. */
     singleSelect?: boolean;
+    /** A freshly created path that should enter rename as soon as the listing shows it. */
+    pendingRename?: string | null;
+    pendingRenameToken?: number;
 }
 
 interface RowModel {
@@ -165,7 +168,7 @@ export function FileList({
     onClipboardChanged, onTransfer, onAddToTray, onPaste, confirmDelete = false, previewVideoAudio = false,
     previewVideoAutoplay = false, showDetails = true, onPreviewInfo, onActivate,
     groupOf, onGridScroll, gridFooter, allowBackgroundMenu = true, readOnly = false, onSelectionChange,
-    singleSelect = false,
+    singleSelect = false, pendingRename = null, pendingRenameToken = 0,
 }: FileListProps) {
     const t = useTranslation();
     const quick = useQuickAccess();
@@ -195,6 +198,7 @@ export function FileList({
     const [renaming, setRenaming] = useState<{ path: string; value: string } | null>(null);
     const renamingRef = useRef(renaming);
     renamingRef.current = renaming;
+    const handledRenameRequest = useRef(0);
     const activateRef = useRef(onActivate);
     activateRef.current = onActivate;
     const [previewWidth, setPreviewWidth] = useState(() => {
@@ -491,6 +495,28 @@ export function FileList({
         anchor.current = null;
         setSelected(new Set());
     }, []);
+
+    // The picker asks for this after creating a folder or file; the listing may not carry the new
+    // path yet, so the request waits until the refreshed listing really shows it.
+    useEffect(() => {
+        if (pendingRenameToken === 0 || !pendingRename || handledRenameRequest.current === pendingRenameToken)
+            return;
+
+        if (!listing?.entries.some((entry) => entry.fullPath === pendingRename))
+            return;
+
+        handledRenameRequest.current = pendingRenameToken;
+        anchor.current = pendingRename;
+        setSelected(new Set([pendingRename]));
+        setRenaming({path: pendingRename, value: baseName(pendingRename)});
+
+        const index = rows.findIndex((row) => row.entry.fullPath === pendingRename);
+        const node = body.current;
+        if (index >= 0 && node) {
+            const top = index * rowHeight;
+            node.scrollTop = Math.max(0, top - node.clientHeight / 2);
+        }
+    }, [body, listing, pendingRename, pendingRenameToken, rowHeight, rows]);
 
     const closeMenu = useCallback(() => {
         shellRequest.current += 1;

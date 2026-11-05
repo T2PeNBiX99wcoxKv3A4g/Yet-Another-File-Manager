@@ -80,6 +80,8 @@ export function FolderPicker({
     const [findFocus, setFindFocus] = useState(0);
     const [findIndex, setFindIndex] = useState(0);
     const [createMenu, setCreateMenu] = useState<{ x: number; y: number } | null>(null);
+    const [renamePath, setRenamePath] = useState<string | null>(null);
+    const [renameToken, setRenameToken] = useState(0);
 
     useEffect(() => {
         if (suppliedPlaces) {
@@ -306,8 +308,15 @@ export function FolderPicker({
             ? await newFile(currentFolder)
             : await newFolder(currentFolder);
 
-        if (result.ok)
-            setReload((value) => value + 1);
+        if (!result.ok || result.path === null)
+            return;
+
+        // The new entry has to be visible before FileList can focus its rename box.
+        setFind((current) => ({...current, open: false, query: ""}));
+        if (file) setAllFiles(true);
+        setRenamePath(result.path);
+        setRenameToken((token) => token + 1);
+        setReload((value) => value + 1);
     };
 
     const createItems: ContextMenuItem[] = createMenu
@@ -317,11 +326,13 @@ export function FolderPicker({
                 icon: <FolderIcon size={14}/>,
                 onSelect: () => void startCreate(false),
             },
-            {
-                label: t("New file"),
-                icon: <FileIcon size={14}/>,
-                onSelect: () => void startCreate(true),
-            },
+            ...(isFileMode
+                ? [{
+                    label: t("New file"),
+                    icon: <FileIcon size={14}/>,
+                    onSelect: () => void startCreate(true),
+                }]
+                : []),
         ]
         : [];
 
@@ -530,6 +541,8 @@ export function FolderPicker({
                                 onSelectionChange={handleSelection}
                                 onSort={() => undefined}
                                 refreshToken={reload}
+                                pendingRename={renamePath}
+                                pendingRenameToken={renameToken}
                                 showCheckboxes
                                 showDetails={false}
                                 showImages={false}
