@@ -1084,12 +1084,12 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
                         <Row>
                             <RowText>
                                 <Label>{t("Confirmation delay")}</Label>
-                                <Note>{t("The delete button in the protected-folder dialog stays disabled for this many seconds. At least 1.")}</Note>
+                                <Note>{t("The delete button in the protected-folder dialog stays disabled for this many seconds. At least 2.")}</Note>
                             </RowText>
                             <RowEnd>
                                 <RangeInput
                                     max={30}
-                                    min={1}
+                                    min={2}
                                     onChange={(event) => void update({deleteDelaySeconds: Number(event.target.value)})}
                                     type="range"
                                     value={settings?.deleteDelaySeconds ?? 5}

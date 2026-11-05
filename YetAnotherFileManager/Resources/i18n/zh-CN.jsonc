@@ -530,5 +530,6 @@
   "Delete anyway": "仍要删除",
   "Deleting a protected folder, anything inside a recursive entry, or a folder that contains one always waits for an explicit confirmation.": "删除受保护文件夹、递归项内的任何内容，或包含受保护项的上级文件夹，一律需要明确确认。",
   "Rules are glob-like: ** covers the folder and everything below it, * covers the folder and the entries directly inside it, and a plain path covers only the folder. Environment variables such as %USERPROFILE% are expanded first.": "规则是类似 glob 的路径：** 涵盖文件夹本身及其下所有内容，* 涵盖文件夹本身与直接位于其中的项目，普通路径只涵盖文件夹本身。检查前会先展开 %USERPROFILE% 这类环境变量。",
-  "Protected path": "保护路径"
+  "Protected path": "保护路径",
+  "The delete button in the protected-folder dialog stays disabled for this many seconds. At least 2.": "受保护文件夹对话框的删除按钮会停用这么多秒，至少 2 秒。"
 }

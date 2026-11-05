@@ -54,12 +54,12 @@ internal static partial class Protection
     /// <summary>The stored patterns, or the defaults that ship with the app.</summary>
     public static List<string> Patterns(AppSettings settings) => settings.ProtectedPaths ?? Defaults();
 
-    /// <summary>The confirmation wait, never zero; a saved zero still gets the minimum.</summary>
-    public static int DelaySeconds(AppSettings settings) => Math.Clamp(settings.DeleteDelaySeconds ?? 5, 1, 3600);
+    /// <summary>The confirmation wait, never below the two-second floor.</summary>
+    public static int DelaySeconds(AppSettings settings) => Math.Clamp(settings.DeleteDelaySeconds ?? 5, 2, 3600);
 
     /// <summary>
-    ///     Folders where a stray delete would be expensive. Windows protects the system folders
-    ///     recursively and the profile folder itself; Linux protects the system trees and $HOME.
+    ///     Folders where a stray delete would be expensive. The defaults stay in environment-variable
+    ///     form, so they follow the profile and system drive instead of freezing one machine's paths.
     /// </summary>
     public static List<string> Defaults()
     {
@@ -67,18 +67,23 @@ internal static partial class Protection
 
         if (OperatingSystem.IsWindows())
         {
-            Add(paths, Environment.GetFolderPath(Environment.SpecialFolder.Windows), Depth.Everything);
-            Add(paths, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), Depth.Children);
-            Add(paths, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), Depth.Everything);
-            Add(paths, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), Depth.Everything);
-            Add(paths, Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), Depth.Everything);
+            paths.Add(@"%SystemRoot%\**");
+            paths.Add(@"%USERPROFILE%\*");
+            paths.Add(@"%ProgramFiles%\**");
+
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ProgramFiles(x86)")))
+                paths.Add(@"%ProgramFiles(x86)%\**");
+
+            paths.Add(@"%ProgramData%\**");
         }
         else
         {
             foreach (var folder in new[] { "/boot", "/etc", "/usr", "/var", "/dev", "/proc", "/sys", "/bin", "/sbin", "/lib", "/lib64" })
-                Add(paths, folder, Depth.Everything);
+                paths.Add($"{folder}/**");
 
-            Add(paths, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), Depth.Children);
+            paths.Add(string.IsNullOrEmpty(Environment.GetEnvironmentVariable("HOME"))
+                ? $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}/*"
+                : "$HOME/*");
         }
 
         return paths;
@@ -170,25 +175,6 @@ internal static partial class Protection
             return value;
 
         return value.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-    }
-
-    private static void Add(List<string> paths, string? folder, Depth depth)
-    {
-        if (string.IsNullOrWhiteSpace(folder))
-            return;
-
-        var normalized = Normalize(folder);
-        if (normalized.Length == 0)
-            return;
-
-        var separator = normalized.EndsWith(Path.DirectorySeparatorChar) ? "" : Path.DirectorySeparatorChar.ToString();
-
-        paths.Add(depth switch
-        {
-            Depth.Everything => $"{normalized}{separator}**",
-            Depth.Children => $"{normalized}{separator}*",
-            _ => normalized
-        });
     }
 
     private static string WithSeparator(string path) =>
