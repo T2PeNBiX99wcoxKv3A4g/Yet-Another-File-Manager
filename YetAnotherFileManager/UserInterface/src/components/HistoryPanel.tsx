@@ -19,11 +19,15 @@ export function HistoryPanel() {
         if (!open) return;
 
         load();
+        const timer = window.setInterval(load, 1000);
         const close = (event: PointerEvent) => {
             if (!root.current?.contains(event.target as Node)) setOpen(false);
         };
         window.addEventListener("pointerdown", close);
-        return () => window.removeEventListener("pointerdown", close);
+        return () => {
+            window.clearInterval(timer);
+            window.removeEventListener("pointerdown", close);
+        };
     }, [open]);
 
     const undo = async (id: number) => {
