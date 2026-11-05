@@ -126,6 +126,7 @@
   "Minimize": "最小化",
   "Modified": "更新日時",
   "More actions": "その他の操作",
+  "More actions (extensions)": "その他の操作（拡張機能）",
   "Move": "移動",
   "Move down": "下へ移動",
   "Move here": "ここに移動",
@@ -465,5 +466,11 @@
   "All files": "すべてのファイル",
   "Supported files": "対応ファイル",
   "File name:": "ファイル名：",
-  "Files of type:": "ファイルの種類："
+  "Files of type:": "ファイルの種類：",
+  "Index tasks": "インデックスタスク",
+  "Background folder size and item-count walks.": "バックグラウンドのフォルダーサイズと項目数の処理。",
+  "Index task information is unavailable.": "インデックスタスク情報を取得できません。",
+  "No indexing tasks are running.": "実行中のインデックスタスクはありません。",
+  "{count} indexing tasks": "{count} 件のインデックスタスク",
+  "Operation history": "操作履歴"
 }

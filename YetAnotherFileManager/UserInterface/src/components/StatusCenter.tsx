@@ -37,7 +37,7 @@ export function StatusCenter({tasks, onClear, open, onOpenChange}: StatusCenterP
             <ActivityButton
                 $active={open}
                 onClick={() => onOpenChange(!open)}
-                title={running > 0 ? plural(t, running, "1 operation running", "{count} operations running") : t("Activity")}
+                title={running > 0 ? plural(t, running, "1 operation running", "{count} operations running") : t("Operation history")}
                 type="button"
             >
                 <ClockIcon size={13}/>
@@ -47,7 +47,7 @@ export function StatusCenter({tasks, onClear, open, onOpenChange}: StatusCenterP
             {open && (
                 <Panel>
                     <PanelHead>
-                        <PanelTitle>{t("Activity")}</PanelTitle>
+                        <PanelTitle>{t("Operation history")}</PanelTitle>
                         <PanelActions>
                             <TextButton
                                 disabled={tasks.every((task) => task.state === "running")}

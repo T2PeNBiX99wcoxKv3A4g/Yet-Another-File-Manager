@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import {loadStrings, useTranslation, type Translate} from "@photino-net-utils/bridge";
 import styled, {css} from "styled-components";
-import {getVisibility, type FileVisibility} from "../api/files";
+import {getVisibility, listIndexTasks, type FileVisibility, type IndexTasks} from "../api/files";
 import {DefaultViewDefaults} from "../api/files";
 import {clearIconCache, useIconFile} from "../api/icons";
 import {
@@ -113,6 +113,7 @@ const SettingSections: { id: string; label: string }[] = [
     {id: "extension-icons", label: "Icons by extension"},
     {id: "folder-icons", label: "Folder icons"},
     {id: "folder-index", label: "Folder index"},
+    {id: "indexing", label: "Index tasks"},
     {id: "files", label: "Files"},
 ];
 
@@ -1572,6 +1573,14 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
                     )}
                 </Section>
 
+                <Section ref={anchor("indexing")}>
+                    <Head
+                        note="Background folder size and item-count walks."
+                        title="Index tasks"
+                    />
+                    <IndexTaskList/>
+                </Section>
+
                 <Section ref={anchor("files")}>
                     <Head
                         note="What the listings include."
@@ -1623,6 +1632,46 @@ function describe(t: Translate, value: boolean | undefined): string {
  * Shown only while per-folder indexes are off, and names the drive the central database grows on.
  * Windows and Linux keep the settings in different places, and only the user knows where that is.
  */
+/** Live view of the folders waiting for a background size/index walk. */
+function IndexTaskList() {
+    const t = useTranslation();
+    const [tasks, setTasks] = useState<IndexTasks | null>(null);
+
+    useEffect(() => {
+        let alive = true;
+        const load = () => listIndexTasks().then(
+            (result) => { if (alive) setTasks(result); },
+            () => { if (alive) setTasks(null); },
+        );
+
+        load();
+        const timer = window.setInterval(load, 1000);
+        return () => {
+            alive = false;
+            window.clearInterval(timer);
+        };
+    }, []);
+
+    if (!tasks)
+        return <Notice>{t("Index task information is unavailable.")}</Notice>;
+
+    if (tasks.count === 0)
+        return <Notice>{t("No indexing tasks are running.")}</Notice>;
+
+    return (
+        <Rows>
+            <Row>
+                <Label>{t("{count} indexing tasks", {count: tasks.count})}</Label>
+            </Row>
+            {tasks.directories.slice(0, 50).map((directory) => (
+                <Row key={directory}>
+                    <Value title={directory}>{directory}</Value>
+                </Row>
+            ))}
+        </Rows>
+    );
+}
+
 function folderIndexNotice(t: Translate, platform: string | undefined): string {
     const place = t(platform === "windows" ? "%APPDATA%, which sits on the system drive (usually C:)"
         : platform === "linux" ? "your home folder, which often shares a partition with the system"

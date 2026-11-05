@@ -3,7 +3,6 @@ import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import {previewText, type TextPreview} from "../api/files";
 import {useIcon, useMediaUrl, usePdfPreview, useThumbnail} from "../api/icons";
-import {slideInRightStyle} from "../ui/motion";
 import {FileIcon, FolderIcon, PlayIcon} from "./Icons";
 
 export interface PreviewInfo {
@@ -21,6 +20,8 @@ interface PreviewPaneProps {
     info: PreviewInfo | null;
     width: number;
     onWidth: (width: number) => void;
+    /** Open or closed; the width animates instead of the pane disappearing. */
+    open?: boolean;
     /** Play video previews with sound; off means muted. */
     videoAudio: boolean;
     /** Start a video preview automatically; off means the user presses play. */
@@ -48,7 +49,7 @@ const TextExtensions = new Set([
  * The right-side details pane shared by the file browser and the recycle bin. The media area shows
  * an image, a playable video/audio file, or the entry's icon; the splitter on its left resizes it.
  */
-export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, selectionNote, emptyNote}: PreviewPaneProps) {
+export function PreviewPane({info, width, onWidth, open = true, videoAudio, videoAutoplay, selectionNote, emptyNote}: PreviewPaneProps) {
     const t = useTranslation();
     const [videoFailed, setVideoFailed] = useState(false);
     const [playing, setPlaying] = useState(false);
@@ -135,15 +136,17 @@ export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, se
     if (!info)
         return (
             <Root>
-                <Splitter
-                    onPointerDown={start}
-                    onPointerMove={move}
-                    onPointerUp={end}
-                    onDoubleClick={() => onWidth(320)}
-                    title={t("Drag to resize; double-click to reset")}
-                />
+                {open && (
+                    <Splitter
+                        onPointerDown={start}
+                        onPointerMove={move}
+                        onPointerUp={end}
+                        onDoubleClick={() => onWidth(320)}
+                        title={t("Drag to resize; double-click to reset")}
+                    />
+                )}
 
-                <Panel style={{width}}>
+                <Panel style={{width: open ? width : 0}}>
                     <Empty>
                         <FolderIcon size={56}/>
                         <span>{emptyNote}</span>
@@ -165,15 +168,17 @@ export function PreviewPane({info, width, onWidth, videoAudio, videoAutoplay, se
 
     return (
         <Root>
-            <Splitter
-                onPointerDown={start}
-                onPointerMove={move}
-                onPointerUp={end}
-                onDoubleClick={() => onWidth(320)}
-                title={t("Drag to resize; double-click to reset")}
-            />
+            {open && (
+                <Splitter
+                    onPointerDown={start}
+                    onPointerMove={move}
+                    onPointerUp={end}
+                    onDoubleClick={() => onWidth(320)}
+                    title={t("Drag to resize; double-click to reset")}
+                />
+            )}
 
-            <Panel style={{width}}>
+            <Panel style={{width: open ? width : 0}}>
                 <Media>
                     {video && media && !videoFailed
                         ? (
@@ -340,8 +345,9 @@ const Panel = styled.aside`
     flex-direction: column;
     min-width: 0;
     min-height: 0;
+    overflow: hidden;
     background: var(--bg-secondary);
-    ${slideInRightStyle}
+    transition: width 180ms cubic-bezier(0.22, 1, 0.36, 1);
 `;
 
 /** The details pane's empty state, used by the recycle bin when nothing is selected. */

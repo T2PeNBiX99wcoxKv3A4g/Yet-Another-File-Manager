@@ -81,6 +81,7 @@ internal static partial class Program
         // values as soon as the window is up. Main must stay synchronous on its STA thread, so this
         // single startup read waits here instead of racing the services.
         SettingsService.Instance.InitializeAsync().GetAwaiter().GetResult();
+        FileVisibility.SetHidden(SettingsService.Instance.Current.ShowHidden);
 
         // Re-apply the per-user folder association in case it was removed outside the app.
         DefaultFileManager.Apply(SettingsService.Instance.Current.IsDefaultFileManager);

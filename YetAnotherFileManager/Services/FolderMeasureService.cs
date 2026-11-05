@@ -50,9 +50,12 @@ internal sealed class FolderMeasureService : Singleton<FolderMeasureService>
             _ = Task.Run(WorkAsync);
     }
 
+    /// <summary>The folders still queued for a size/index walk, for the settings page.</summary>
+    public IndexTasksPayload SnapshotTasks() =>
+        new(_queued.Count, [.. _queued.Keys.Order(StringComparer.OrdinalIgnoreCase)]);
+
     public void Request(string directory, IReadOnlyCollection<string> children, bool counts)
-    {
-        DropQueued();
+    {        DropQueued();
         Interlocked.Increment(ref _generation);
 
         var limit = children.Count <= FullListing ? children.Count : Burst;

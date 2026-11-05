@@ -65,9 +65,13 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             }
 
             case "fs.hidden.toggle":
-                return context.Reply("fs.hidden.toggle.result", await Task.Run(() =>
-                    new HiddenFilesPayload(FileVisibility.ToggleHidden(), FileVisibility.ShowSystem,
-                        FileVisibility.ShowHidden != FileVisibility.FollowsSystemHidden)));
+                return context.Reply("fs.hidden.toggle.result", await Task.Run(async () =>
+                {
+                    var showHidden = FileVisibility.ToggleHidden();
+                    await SettingsService.Instance.UpdateAsync(settings => settings with {ShowHidden = showHidden});
+                    return new HiddenFilesPayload(showHidden, FileVisibility.ShowSystem,
+                        showHidden != FileVisibility.FollowsSystemHidden);
+                }));
 
             case "fs.gallery":
                 return context.Reply("fs.gallery.result", await GalleryPageAsync(context.Payload<GalleryRequest>()));
@@ -77,8 +81,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                     new ThumbnailServerPayload(ThumbnailServer.Instance.BaseUrl));
 
             case "fs.recent":
-                return context.Reply("fs.recent.result", new FsRecentPayload(
-                    await HistoryService.Instance.RecentAsync(SettingsService.Instance.Current.RecentCount)));
+                return context.Reply("fs.recent.result", new FsRecentPayload(                    await HistoryService.Instance.RecentAsync(SettingsService.Instance.Current.RecentCount)));
 
             case "fs.frequent":
                 return context.Reply("fs.frequent.result",
@@ -279,6 +282,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
             case "app.tasks":
                 return context.Reply("app.tasks.result", new TasksPayload(TaskCenter.Instance.Snapshot()));
+
+            case "fs.index.tasks":
+                return context.Reply("fs.index.tasks.result", FolderMeasureService.Instance.SnapshotTasks());
 
             case "app.tasks.clear":
                 TaskCenter.Instance.ClearFinished();

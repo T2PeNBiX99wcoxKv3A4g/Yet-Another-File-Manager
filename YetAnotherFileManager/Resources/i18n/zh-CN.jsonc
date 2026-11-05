@@ -126,6 +126,7 @@
   "Minimize": "最小化",
   "Modified": "修改时间",
   "More actions": "更多操作",
+  "More actions (extensions)": "更多操作（扩展）",
   "Move": "移动",
   "Move down": "下移",
   "Move here": "移到此处",
@@ -465,5 +466,11 @@
   "All files": "所有文件",
   "Supported files": "支持的文件",
   "File name:": "文件名：",
-  "Files of type:": "文件类型："
+  "Files of type:": "文件类型：",
+  "Index tasks": "索引任务",
+  "Background folder size and item-count walks.": "后台文件夹大小与项目计数任务。",
+  "Index task information is unavailable.": "无法获取索引任务信息。",
+  "No indexing tasks are running.": "当前没有正在运行的索引任务。",
+  "{count} indexing tasks": "{count} 个索引任务",
+  "Operation history": "操作记录"
 }

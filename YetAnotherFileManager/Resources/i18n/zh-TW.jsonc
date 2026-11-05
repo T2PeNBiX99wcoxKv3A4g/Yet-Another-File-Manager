@@ -126,6 +126,7 @@
   "Minimize": "最小化",
   "Modified": "修改時間",
   "More actions": "更多動作",
+  "More actions (extensions)": "更多動作（擴充功能）",
   "Move": "移動",
   "Move down": "下移",
   "Move here": "移到這裡",
@@ -465,5 +466,11 @@
   "All files": "所有檔案",
   "Supported files": "支援的檔案",
   "File name:": "檔案名稱：",
-  "Files of type:": "檔案類型："
+  "Files of type:": "檔案類型：",
+  "Index tasks": "索引任務",
+  "Background folder size and item-count walks.": "背景資料夾大小與項目計數作業。",
+  "Index task information is unavailable.": "無法取得索引任務資訊。",
+  "No indexing tasks are running.": "目前沒有執行中的索引任務。",
+  "{count} indexing tasks": "{count} 個索引任務",
+  "Operation history": "操作記錄"
 }

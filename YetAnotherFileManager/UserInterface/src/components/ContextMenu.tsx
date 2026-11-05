@@ -220,7 +220,7 @@ export function ContextMenu({x, y, items, quick = [], onClose}: ContextMenuProps
 
 const Menu = styled.div`
     position: fixed;
-    z-index: 2000;
+    z-index: 5000;
     display: flex;
     flex-direction: column;
     min-width: 280px;

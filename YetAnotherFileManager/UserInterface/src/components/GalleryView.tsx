@@ -41,6 +41,8 @@ interface GalleryViewProps {
     onPick?: (path: string) => void;
     /** Reports the checked pictures, so the picker's footer can follow the selection. */
     onSelectionChange?: (paths: string[]) => void;
+    /** Adds the selected pictures to the file tray, like the file browser's menu. */
+    onAddToTray?: (paths: string[]) => void;
 }
 
 /**
@@ -55,6 +57,7 @@ export function GalleryView({
     view,
     onPick,
     onSelectionChange,
+    onAddToTray,
 }: GalleryViewProps) {
     const t = useTranslation();
     const [entries, setEntries] = useState<GalleryEntry[]>([]);
@@ -280,6 +283,7 @@ export function GalleryView({
                     onOpen={open}
                     onOpenFile={open}
                     onRefresh={refresh}
+                    onAddToTray={onAddToTray}
                     groupOf={groupOf}
                     onGridScroll={onScroll}
                     gridFooter={<Sentinel $space={hasMore ? MoreSpace : 1} ref={sentinel}/>}

@@ -364,7 +364,7 @@ export function FileMenu({
         ];
 
         items.push({
-            label: shell.safe ? "More actions" : "More actions (extensions)",
+            label: t(shell.safe ? "More actions" : "More actions (extensions)"),
             icon: <ExecutableIcon size={14}/>,
             separatorBefore: true,
             children: toItems(root),

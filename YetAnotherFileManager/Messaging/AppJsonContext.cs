@@ -56,6 +56,7 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(FrequentEntry))]
 [JsonSerializable(typeof(List<FrequentEntry>))]
 [JsonSerializable(typeof(FsFrequentPayload))]
+[JsonSerializable(typeof(IndexTasksPayload))]
 [JsonSerializable(typeof(PlacesRequest))]
 [JsonSerializable(typeof(OpenTabsRequest))]
 [JsonSerializable(typeof(PlaceRenameRequest))]

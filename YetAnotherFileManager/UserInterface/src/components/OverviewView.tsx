@@ -55,6 +55,8 @@ interface OverviewViewProps {
     onPick?: (path: string) => void;
     /** Reports a selected entry from a folder panel, so the picker's footer can use it. */
     onSelectionChange?: (paths: string[]) => void;
+    /** Adds an entry to the file tray, like the file browser's menu. */
+    onAddToTray?: (paths: string[]) => void;
 }
 
 const Page = styled.div`
@@ -615,6 +617,7 @@ export function OverviewView({
     readOnly = false,
     onPick,
     onSelectionChange,
+    onAddToTray,
 }: OverviewViewProps) {
     const t = useTranslation();
     const quick = useQuickAccess();
@@ -1544,6 +1547,7 @@ export function OverviewView({
                     menu={{x: menu.x, y: menu.y, paths: [menu.target.path]}}
                     onClose={() => setMenu(null)}
                     onCopy={(paths, cut) => void copyPaths(paths, cut)}
+                    onAddToTray={onAddToTray}
                     onOpen={openMenuTarget}
                     onOpenFile={(path) => onPick ? onPick(path) : void openFile(path)}
                     shortcuts={DefaultShortcuts}

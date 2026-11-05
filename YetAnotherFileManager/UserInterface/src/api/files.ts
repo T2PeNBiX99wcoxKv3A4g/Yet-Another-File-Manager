@@ -372,3 +372,14 @@ export async function toggleHiddenFiles(): Promise<{
         overridden: boolean;
     }>("fs.hidden.toggle");
 }
+
+/** Folders waiting for a background size/index walk. */
+export interface IndexTasks {
+    count: number;
+    directories: string[];
+}
+
+export async function listIndexTasks(): Promise<IndexTasks> {
+    if (!Native.available) return {count: 0, directories: []};
+    return await Native.request<IndexTasks>("fs.index.tasks");
+}

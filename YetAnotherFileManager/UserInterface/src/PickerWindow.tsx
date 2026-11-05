@@ -1,5 +1,8 @@
+import {useEffect} from "react";
 import styled from "styled-components";
 import {Native, ResizeHandles, useTranslation, useWindowDrag} from "@photino-net-utils/bridge";
+import {getSettings} from "./api/settings";
+import {applyTheme} from "./theme";
 import {FolderPicker} from "./components/FolderPicker";
 import {AppIcon, CrossIcon} from "./components/Icons";
 
@@ -17,6 +20,13 @@ interface PickerWindowProps {
 export function PickerWindow({mode, multiple, extensions, initial}: PickerWindowProps) {
     const t = useTranslation();
     const drag = useWindowDrag();
+
+    useEffect(() => {
+        void getSettings().then(
+            (settings) => applyTheme(settings.accentColor, settings.secondaryColor),
+            () => undefined,
+        );
+    }, []);
 
     return (
         <Host>

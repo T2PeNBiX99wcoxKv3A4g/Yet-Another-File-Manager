@@ -37,6 +37,9 @@ internal static partial class FileVisibility
         return ShowHidden;
     }
 
+    /// <summary>Applies the user's saved choice when a process starts; null follows the system.</summary>
+    public static void SetHidden(bool? show) => _hiddenOverride = show;
+
     /// <summary>"ShowSuperHidden" is 1 only when protected operating system files are shown.</summary>
     public static bool ShowSystem =>
         OperatingSystem.IsWindows() && ReadCached().System;

@@ -104,7 +104,8 @@ internal sealed record GalleryRequest(int Offset, int Count, bool Refresh);
 /// <summary>Body for <c>fs.recent</c>: the folders opened most recently.</summary>
 internal sealed record FsRecentPayload(IReadOnlyList<RecentEntry> Entries);
 
-/// <summary>Body for <c>fs.frequent</c>: the folders opened most often.</summary>
+/// <summary>Body for <c>fs.index.tasks</c>: the folders waiting for a size/index walk.</summary>
+internal sealed record IndexTasksPayload(int Count, IReadOnlyList<string> Directories);/// <summary>Body for <c>fs.frequent</c>: the folders opened most often.</summary>
 internal sealed record FsFrequentPayload(IReadOnlyList<FrequentEntry> Entries);
 
 /// <summary>Payload for <c>app.places.set</c>: the folders to pin, in order.</summary>

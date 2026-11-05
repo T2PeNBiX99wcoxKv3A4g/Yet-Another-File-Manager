@@ -2006,15 +2006,14 @@ export default function App() {
                                     {filePane(secondary, false)}
                                     {activePane === "secondary" && findBar}
                                 </Pane>
-                                {detailsVisible && (
-                                    <PreviewPane
-                                        info={detailsInfo}
-                                        onWidth={resizeDetails}
-                                        videoAudio={settings?.previewVideoAudio ?? false}
-                                        videoAutoplay={settings?.previewVideoAutoplay ?? false}
-                                        width={detailsWidth}
-                                    />
-                                )}
+                                <PreviewPane
+                                    info={detailsInfo}
+                                    onWidth={resizeDetails}
+                                    open={detailsVisible}
+                                    videoAudio={settings?.previewVideoAudio ?? false}
+                                    videoAutoplay={settings?.previewVideoAutoplay ?? false}
+                                    width={detailsWidth}
+                                />
                             </Split>
                         ) : (
                             <FileArea>
@@ -2025,15 +2024,14 @@ export default function App() {
                                         {findBar}
                                     </Files>
                                 </FileColumn>
-                                {detailsVisible && (
-                                    <PreviewPane
-                                        info={primaryPreview}
-                                        onWidth={resizeDetails}
-                                        videoAudio={settings?.previewVideoAudio ?? false}
-                                        videoAutoplay={settings?.previewVideoAutoplay ?? false}
-                                        width={detailsWidth}
-                                    />
-                                )}
+                                <PreviewPane
+                                    info={primaryPreview}
+                                    onWidth={resizeDetails}
+                                    open={detailsVisible}
+                                    videoAudio={settings?.previewVideoAudio ?? false}
+                                    videoAutoplay={settings?.previewVideoAutoplay ?? false}
+                                    width={detailsWidth}
+                                />
                             </FileArea>
                         )
                     ) : kind === "home" ? (
@@ -2043,6 +2041,7 @@ export default function App() {
                             homePath={places.find((place) => place.kind === "home")?.path ?? ""}
                             onDrivesChanged={reloadDrives}
                             onHistoryChanged={() => setHistoryVersion((current) => current + 1)}
+                            onAddToTray={(paths) => void addTrayPaths(paths)}
                             onOpen={navigate}
                             onLayoutChanged={reloadSettings}
                             onPlacesChanged={setPlaces}
@@ -2058,6 +2057,7 @@ export default function App() {
                         <GalleryView
                             confirmDelete={settings?.confirmDelete ?? false}
                             openOnSingleClick={settings?.openOnSingleClick ?? false}
+                            onAddToTray={(paths) => void addTrayPaths(paths)}
                             shortcuts={shortcuts}
                             showCheckboxes={settings?.showCheckboxes ?? true}
                             view={view}
@@ -2264,6 +2264,18 @@ const Split = styled.div`
     display: flex;
     flex: 1;
     min-height: 0;
+    animation: yafm-split-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
+
+    @keyframes yafm-split-in {
+        from {
+            opacity: 0;
+            transform: scaleX(0.985);
+        }
+        to {
+            opacity: 1;
+            transform: scaleX(1);
+        }
+    }
 `;
 
 const Pane = styled.div`
