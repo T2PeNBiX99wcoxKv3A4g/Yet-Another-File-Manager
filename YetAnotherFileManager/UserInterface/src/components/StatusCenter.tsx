@@ -3,7 +3,7 @@ import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import type {TaskInfo} from "../api/tasks";
 import {formatBytes, plural} from "../utils/format";
-import {CheckIcon, ListIcon, CrossIcon} from "./Icons";
+import {CheckIcon, StatusIcon, CrossIcon} from "./Icons";
 import {elevatedPanel} from "../ui/panel";
 import {fadeInStyle} from "../ui/motion";
 
@@ -40,7 +40,7 @@ export function StatusCenter({tasks, onClear, open, onOpenChange}: StatusCenterP
                 title={running > 0 ? plural(t, running, "1 operation running", "{count} operations running") : t("Status center")}
                 type="button"
             >
-                <ListIcon size={13}/>
+                <StatusIcon size={13}/>
                 {running > 0 && <Badge>{running > 9 ? "9+" : running}</Badge>}
             </ActivityButton>
 
