@@ -2,6 +2,22 @@
   "profiles": {
     "YetAnotherFileManager": {
       "commandName": "Project"
+    },
+    "Pick folder": {
+      "commandName": "Project",
+      "commandLineArgs": "--pick-folder"
+    },
+    "Pick folder (multiple)": {
+      "commandName": "Project",
+      "commandLineArgs": "--pick-folder --multiple"
+    },
+    "Pick file": {
+      "commandName": "Project",
+      "commandLineArgs": "--pick-file --filter \"*.png;*.jpg\""
+    },
+    "Pick file (multiple)": {
+      "commandName": "Project",
+      "commandLineArgs": "--pick-file --filter \"*.png;*.jpg\" --multiple"
     }
   }
 }
