@@ -93,6 +93,7 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(PathsPayload))]
 [JsonSerializable(typeof(DeleteRequest))]
 [JsonSerializable(typeof(ProtectedHit))]
+[JsonSerializable(typeof(ProtectedDefaultsPayload))]
 [JsonSerializable(typeof(RenamePathRequest))]
 [JsonSerializable(typeof(DirectoryRequest))]
 [JsonSerializable(typeof(NewFileRequest))]

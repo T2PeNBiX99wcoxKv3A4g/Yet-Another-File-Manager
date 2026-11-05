@@ -531,5 +531,7 @@
   "Deleting a protected folder, anything inside a recursive entry, or a folder that contains one always waits for an explicit confirmation.": "保護フォルダー、再帰項目内の内容、または保護項目を含む親フォルダーの削除は、必ず明示的な確認を待ちます。",
   "Rules are glob-like: ** covers the folder and everything below it, * covers the folder and the entries directly inside it, and a plain path covers only the folder. Environment variables such as %USERPROFILE% are expanded first.": "ルールは glob 風のパスです。** はフォルダー自身とその下のすべて、* はフォルダー自身と直下の項目、通常のパスはフォルダー自身だけを対象にします。%USERPROFILE% などの環境変数は検査前に展開されます。",
   "Protected path": "保護パス",
-  "The delete button in the protected-folder dialog stays disabled for this many seconds. At least 2.": "保護フォルダーのダイアログで削除ボタンが無効なままになる秒数です。2 以上。"
+  "The delete button in the protected-folder dialog stays disabled for this many seconds. At least 2.": "保護フォルダーのダイアログで削除ボタンが無効なままになる秒数です。2 以上。",
+  "Rules are full-path globs: * stays inside one name, ** crosses folders, and ? matches one character. A rule without a folder part, such as *.log, applies to that name at any depth. %VARS%, $VARS and ~ are expanded first.": "ルールはフルパスの glob です。* は同じ階層の名前内、** はフォルダーをまたぎ、? は 1 文字に一致します。*.log のようにフォルダー部分がないルールは、任意の深さの同名ファイルに適用されます。%VAR%、$VAR、~ は最初に展開されます。",
+  "Restore defaults": "既定値に戻す"
 }

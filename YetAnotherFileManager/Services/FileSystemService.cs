@@ -200,6 +200,10 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             case "app.settings":
                 return context.Reply("app.settings.result", WithProtection(SettingsService.Instance.Current));
 
+            case "app.protection.defaults":
+                return context.Reply("app.protection.defaults.result",
+                    new ProtectedDefaultsPayload(Protection.Defaults()));
+
             case "app.settings.set":
                 if (context.Payload<AppSettings>() is { } settings)
                 {

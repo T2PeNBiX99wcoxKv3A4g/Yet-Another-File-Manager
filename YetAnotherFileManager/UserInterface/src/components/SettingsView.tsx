@@ -6,6 +6,7 @@ import {getVisibility, listIndexTasks, type FileVisibility, type IndexTasks} fro
 import {DefaultViewDefaults} from "../api/files";
 import {clearIconCache, useIconFile, useMediaUrl} from "../api/icons";
 import {
+    getDefaultProtectedPaths,
     getSettings,
     saveSettings,
     setEntryIcon,
@@ -309,6 +310,13 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
         if (!settings) return;
 
         void update({protectedPaths: settings.protectedPaths.filter((item) => item !== pattern)});
+    };
+
+    /** Replaces the list with the platform defaults, for when every rule was removed by mistake. */
+    const restoreProtectedDefaults = async () => {
+        const paths = await getDefaultProtectedPaths();
+        if (paths.length > 0)
+            await update({protectedPaths: paths});
     };
 
     /** Keeps the last few applied colours, so a palette click and a revert are one click each. */
@@ -1044,7 +1052,7 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
                         <Block>
                             <BlockHead>
                                 <Label>{t("Protected folders")}</Label>
-                                <Note>{t("Rules are glob-like: ** covers the folder and everything below it, * covers the folder and the entries directly inside it, and a plain path covers only the folder. Environment variables such as %USERPROFILE% are expanded first.")}</Note>
+                                <Note>{t("Rules are full-path globs: * stays inside one name, ** crosses folders, and ? matches one character. A rule without a folder part, such as *.log, applies to that name at any depth. %VARS%, $VARS and ~ are expanded first.")}</Note>
                             </BlockHead>
                             <ProtectList>
                                 {(settings?.protectedPaths ?? []).map((pattern) => (
@@ -1076,6 +1084,9 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
                                 ))}
                             </ProtectList>
                             <ProtectAdd>
+                                <SmallButton onClick={() => void restoreProtectedDefaults()} type="button">
+                                    {t("Restore defaults")}
+                                </SmallButton>
                                 <SmallButton onClick={() => void addProtected()} type="button">
                                     {t("Add folder…")}
                                 </SmallButton>

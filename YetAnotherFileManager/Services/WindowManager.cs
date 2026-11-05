@@ -199,6 +199,9 @@ internal sealed class WindowManager : Singleton<WindowManager>
             .SetLogVerbosity(Constants.IsDebugMode && Picker is null ? 3 : 0)
             .SetTitle(title)
             .SetTemporaryFilesPath(webViewPath)
+            // Photino drops a Start Menu shortcut for toast registration. That is wanted for the
+            // main window, but a transient picker must not leave one named after its title.
+            .SetNotificationsEnabled(Picker is null)
             .SetUseOsDefaultSize(false)
             .SetUseOsDefaultLocation(false)
             .SetSize(new(width, height))

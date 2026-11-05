@@ -531,5 +531,7 @@
   "Deleting a protected folder, anything inside a recursive entry, or a folder that contains one always waits for an explicit confirmation.": "刪除受保護資料夾、遞迴項目內的任何內容，或包含受保護項目的上層資料夾，一律需要明確確認。",
   "Rules are glob-like: ** covers the folder and everything below it, * covers the folder and the entries directly inside it, and a plain path covers only the folder. Environment variables such as %USERPROFILE% are expanded first.": "規則是類似 glob 的路徑：** 涵蓋資料夾本身與其下所有內容，* 涵蓋資料夾本身與直接位於其中的項目，純路徑只涵蓋資料夾本身。檢查前會先展開 %USERPROFILE% 這類環境變數。",
   "Protected path": "保護路徑",
-  "The delete button in the protected-folder dialog stays disabled for this many seconds. At least 2.": "受保護資料夾對話框的刪除按鈕會停用這麼多秒，最少 2 秒。"
+  "The delete button in the protected-folder dialog stays disabled for this many seconds. At least 2.": "受保護資料夾對話框的刪除按鈕會停用這麼多秒，最少 2 秒。",
+  "Rules are full-path globs: * stays inside one name, ** crosses folders, and ? matches one character. A rule without a folder part, such as *.log, applies to that name at any depth. %VARS%, $VARS and ~ are expanded first.": "規則是完整路徑的 glob：* 只匹配同一層名稱內的內容，** 可跨越資料夾，? 匹配單一字元。沒有資料夾部分的規則（例如 *.log）會套用到任何深度的同名檔案。檢查前會先展開 %VAR%、$VAR 與 ~。",
+  "Restore defaults": "還原預設值"
 }

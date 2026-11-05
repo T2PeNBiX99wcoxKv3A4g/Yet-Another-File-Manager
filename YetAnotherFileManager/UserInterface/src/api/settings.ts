@@ -181,6 +181,14 @@ export async function getSettings(): Promise<AppSettings> {
     };
 }
 
+/** The protected rules a fresh install starts with, for the "Restore defaults" button. */
+export async function getDefaultProtectedPaths(): Promise<string[]> {
+    if (!Native.available) return [];
+
+    const data = await Native.request<{ paths: string[] }>("app.protection.defaults");
+    return data.paths ?? [];
+}
+
 /** Stores the settings and answers with what the host actually kept. */
 export async function saveSettings(settings: AppSettings): Promise<AppSettings> {
     if (!Native.available) return settings;

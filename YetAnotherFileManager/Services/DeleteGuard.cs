@@ -54,7 +54,7 @@ internal static class DeleteGuard
     /// <summary>The paths of a normal delete, in a stable order so the token binds to them.</summary>
     public static string KeyForDelete(IEnumerable<string> paths, bool permanent) =>
         "delete|" + (permanent ? "1" : "0") + "|" + string.Join('\n',
-            paths.Select(Protection.Normalize).OrderBy(path => path, StringComparer.Ordinal));
+            paths.Select(PathGlob.Normalize).OrderBy(path => path, StringComparer.Ordinal));
 
     /// <summary>The ids of a recycle-bin delete.</summary>
     public static string KeyForRecycle(IEnumerable<string> ids) =>

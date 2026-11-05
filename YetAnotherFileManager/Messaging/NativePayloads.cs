@@ -192,6 +192,9 @@ internal sealed record DeletePayload(
 /// <summary>One path a protected-folder pattern intercepted, and the pattern responsible.</summary>
 internal sealed record ProtectedHit(string Path, string Pattern);
 
+/// <summary>Body for <c>app.protection.defaults</c>: the rules a fresh install starts with.</summary>
+internal sealed record ProtectedDefaultsPayload(List<string> Paths);
+
 /// <summary>Payload for <c>fs.operation.rename</c>: the entry and its new name.</summary>
 internal sealed record RenamePathRequest(string Path, string Name);
 
