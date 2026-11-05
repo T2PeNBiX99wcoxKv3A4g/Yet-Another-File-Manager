@@ -11,6 +11,19 @@ namespace YetAnotherFileManager.Services;
 /// </summary>
 internal static partial class Protection
 {
+    /// <summary>How much of the tree a rule covers.</summary>
+    public enum Depth
+    {
+        /// <summary>A plain path: the folder itself only.</summary>
+        Folder,
+
+        /// <summary>A trailing <c>*</c>: the folder and the entries directly inside it.</summary>
+        Children,
+
+        /// <summary>A trailing <c>**</c>: the folder and everything below it.</summary>
+        Everything
+    }
+
     /// <summary>What a delete of this path would hit, if anything.</summary>
     public static List<ProtectedHit> Hits(IEnumerable<string> paths)
     {
@@ -26,8 +39,8 @@ internal static partial class Protection
 
             foreach (var pattern in patterns)
             {
-                var (basePath, recursive) = Parse(pattern);
-                if (basePath.Length == 0 || !Covers(target, basePath, recursive))
+                var (basePath, depth) = Parse(pattern);
+                if (basePath.Length == 0 || !Covers(target, basePath, depth))
                     continue;
 
                 hits[target] = new ProtectedHit(target, pattern);
@@ -54,25 +67,25 @@ internal static partial class Protection
 
         if (OperatingSystem.IsWindows())
         {
-            Add(paths, Environment.GetFolderPath(Environment.SpecialFolder.Windows), true);
-            Add(paths, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), false);
-            Add(paths, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), true);
-            Add(paths, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), true);
-            Add(paths, Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), true);
+            Add(paths, Environment.GetFolderPath(Environment.SpecialFolder.Windows), Depth.Everything);
+            Add(paths, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), Depth.Children);
+            Add(paths, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), Depth.Everything);
+            Add(paths, Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), Depth.Everything);
+            Add(paths, Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), Depth.Everything);
         }
         else
         {
             foreach (var folder in new[] { "/boot", "/etc", "/usr", "/var", "/dev", "/proc", "/sys", "/bin", "/sbin", "/lib", "/lib64" })
-                Add(paths, folder, true);
+                Add(paths, folder, Depth.Everything);
 
-            Add(paths, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), false);
+            Add(paths, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), Depth.Children);
         }
 
         return paths;
     }
 
-    /// <summary>Whether <paramref name="target" /> is the protected folder, inside it, or its parent.</summary>
-    public static bool Covers(string target, string basePath, bool recursive)
+    /// <summary>Whether <paramref name="target" /> is covered by a rule, or would take it down as a parent.</summary>
+    public static bool Covers(string target, string basePath, Depth depth)
     {
         var comparison = OperatingSystem.IsWindows()
             ? StringComparison.OrdinalIgnoreCase
@@ -81,24 +94,47 @@ internal static partial class Protection
         if (target.Equals(basePath, comparison))
             return true;
 
-        // Anything below a recursive entry is protected; an exact entry only protects itself.
-        if (recursive && target.StartsWith(WithSeparator(basePath), comparison))
+        if (depth == Depth.Everything && target.StartsWith(WithSeparator(basePath), comparison))
             return true;
+
+        // A single star covers exactly one level: entries whose remaining path has no separator.
+        if (depth == Depth.Children)
+        {
+            var prefix = WithSeparator(basePath);
+
+            if (target.StartsWith(prefix, comparison))
+            {
+                var rest = target[prefix.Length..];
+
+                if (rest.Length > 0
+                    && !rest.Contains(Path.DirectorySeparatorChar)
+                    && !rest.Contains(Path.AltDirectorySeparatorChar))
+                    return true;
+            }
+        }
 
         // Deleting a parent would take the protected folder down with it.
         return basePath.StartsWith(WithSeparator(target), comparison);
     }
 
-    /// <summary>Splits a pattern into its folder and whether the subtree is included.</summary>
-    public static (string BasePath, bool Recursive) Parse(string pattern)
+    /// <summary>Splits a rule into its folder and how deep it reaches.</summary>
+    public static (string BasePath, Depth Depth) Parse(string pattern)
     {
         var trimmed = pattern.Trim();
-        var recursive = trimmed.EndsWith("**", StringComparison.Ordinal);
+        var depth = Depth.Folder;
 
-        if (recursive)
-            trimmed = trimmed[..^2].TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (trimmed.EndsWith("**", StringComparison.Ordinal))
+        {
+            depth = Depth.Everything;
+            trimmed = trimmed[..^2];
+        }
+        else if (trimmed.EndsWith("*", StringComparison.Ordinal))
+        {
+            depth = Depth.Children;
+            trimmed = trimmed[..^1];
+        }
 
-        return (Normalize(trimmed), recursive);
+        return (Normalize(trimmed), depth);
     }
 
     /// <summary>Expands environment variables and "~", then makes the path absolute and canonical.</summary>
@@ -136,7 +172,7 @@ internal static partial class Protection
         return value.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
     }
 
-    private static void Add(List<string> paths, string? folder, bool recursive)
+    private static void Add(List<string> paths, string? folder, Depth depth)
     {
         if (string.IsNullOrWhiteSpace(folder))
             return;
@@ -145,7 +181,14 @@ internal static partial class Protection
         if (normalized.Length == 0)
             return;
 
-        paths.Add(recursive ? $"{normalized}{Path.DirectorySeparatorChar}**" : normalized);
+        var separator = normalized.EndsWith(Path.DirectorySeparatorChar) ? "" : Path.DirectorySeparatorChar.ToString();
+
+        paths.Add(depth switch
+        {
+            Depth.Everything => $"{normalized}{separator}**",
+            Depth.Children => $"{normalized}{separator}*",
+            _ => normalized
+        });
     }
 
     private static string WithSeparator(string path) =>

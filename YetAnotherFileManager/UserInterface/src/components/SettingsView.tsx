@@ -78,9 +78,6 @@ const ReleasesUrl = "https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Ma
 /** The language a fresh install uses until the picker changes it. */
 const DefaultLanguage = "en";
 
-/** A protected entry ending in ** covers the whole subtree. */
-const isRecursivePath = (pattern: string) => pattern.trimEnd().endsWith("**");
-
 /** The stored value the shared localization library reads as "follow the operating system". */
 const SystemLanguage = "system";
 
@@ -150,7 +147,7 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
     const [tagError, setTagError] = useState<string | null>(null);
     const [newTagName, setNewTagName] = useState("");
     const [newTagColor, setNewTagColor] = useState(DefaultTagColor);
-    const [protectChildren, setProtectChildren] = useState(true);
+    const [ruleDraft, setRuleDraft] = useState<{ from: string; value: string } | null>(null);
     const [recentColors, setRecentColors] = useState<RecentColors>(readRecentColors);
     const [draftPreset, setDraftPreset] = useState<{ name: string; accent: string; secondary: string } | null>(null);
     const [updateState, setUpdateState] = useState<UpdateCheck | null>(null);
@@ -277,7 +274,7 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
         });
     };
 
-    /** Adds the picked folder to the protected list, with or without its subtree. */
+    /** Adds the picked folder to the protected list as a "folder and everything below" rule. */
     const addProtected = async () => {
         if (!settings) return;
 
@@ -286,12 +283,26 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
 
         const separator = appInfo?.platform === "windows" ? "\\" : "/";
         const base = folder.replace(/[\\/]+$/, "");
-        const pattern = protectChildren ? `${base}${separator}**` : base;
+        const pattern = `${base}${separator}**`;
 
         if (settings.protectedPaths.includes(pattern))
             return;
 
         await update({protectedPaths: [...settings.protectedPaths, pattern]});
+    };
+
+    /** Saves the edited rule when the field loses focus or Enter is pressed. */
+    const commitRule = () => {
+        if (!settings || !ruleDraft) return;
+
+        const value = ruleDraft.value.trim();
+        const from = ruleDraft.from;
+        setRuleDraft(null);
+
+        if (value.length === 0 || value === from)
+            return;
+
+        void update({protectedPaths: settings.protectedPaths.map((item) => item === from ? value : item)});
     };
 
     const removeProtected = (pattern: string) => {
@@ -901,21 +912,87 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
                         title="Background"
                     />
                     <Rows>
-                        <Row>
-                            <RowText>
+                        <Block>
+                            <BlockHead>
                                 <Label>{t("Wallpaper")}</Label>
                                 <Note>{t("None keeps the normal dark surface. Every built-in concept comes in the app's colour presets; your own pictures, SVGs and videos are kept in the gallery.")}</Note>
-                            </RowText>
-                            <RowEnd>
-                                <BackgroundChoice
+                            </BlockHead>
+                            <VariantRow>
+                                <Variant
                                     $active={!settings?.backgroundSource}
                                     onClick={() => void update({backgroundSource: null})}
+                                    title={t("None")}
                                     type="button"
                                 >
-                                    {t("None")}
-                                </BackgroundChoice>
-                            </RowEnd>
-                        </Row>
+                                    <NoneLabel>{t("None")}</NoneLabel>
+                                </Variant>
+                            </VariantRow>
+                            <Gallery>
+                                {BuiltInBackgrounds.map((concept) => (
+                                    <GalleryGroup key={concept.id}>
+                                        <GalleryLabel>{t(concept.name)}</GalleryLabel>
+                                        <VariantRow>
+                                            {concept.variants.map((variant) => (
+                                                <Variant
+                                                    $active={settings?.backgroundSource === variant.id}
+                                                    key={variant.id}
+                                                    onClick={() => void update({backgroundSource: variant.id})}
+                                                    title={`${t(concept.name)} · ${t(variant.preset)}`}
+                                                    type="button"
+                                                >
+                                                    <img alt="" src={variant.url}/>
+                                                </Variant>
+                                            ))}
+                                        </VariantRow>
+                                    </GalleryGroup>
+                                ))}
+
+                                <GalleryGroup>
+                                    <GalleryLabel>{t("Motion")}</GalleryLabel>
+                                    <VariantRow>
+                                        {BuiltInVideos.map((video) => (
+                                            <Variant
+                                                $active={settings?.backgroundSource === video.id}
+                                                key={video.id}
+                                                onClick={() => void update({backgroundSource: video.id})}
+                                                title={t(video.name)}
+                                                type="button"
+                                            >
+                                                <img alt="" src={video.poster}/>
+                                                <PlayBadge><VideoIcon size={11}/></PlayBadge>
+                                            </Variant>
+                                        ))}
+                                    </VariantRow>
+                                </GalleryGroup>
+
+                                <GalleryGroup>
+                                    <GalleryLabel>{t("Custom")}</GalleryLabel>
+                                    <VariantRow>
+                                        {(settings?.backgroundCustom ?? []).map((path) => (
+                                            <CustomWallpaper
+                                                active={settings?.backgroundSource === `file:${path}`}
+                                                key={path}
+                                                onRemove={() => removeBackground(path)}
+                                                onSelect={() => void update({backgroundSource: `file:${path}`})}
+                                                path={path}
+                                            />
+                                        ))}
+                                        <AddTile
+                                            onClick={() => void addBackground([".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".svg"])}
+                                            type="button"
+                                        >
+                                            <PlusIcon size={12}/>{t("Image…")}
+                                        </AddTile>
+                                        <AddTile
+                                            onClick={() => void addBackground([".mp4", ".webm", ".mkv", ".mov", ".m4v", ".avi", ".wmv", ".ogv"])}
+                                            type="button"
+                                        >
+                                            <PlusIcon size={12}/>{t("Video…")}
+                                        </AddTile>
+                                    </VariantRow>
+                                </GalleryGroup>
+                            </Gallery>
+                        </Block>
                         <Row>
                             <Label>{t("Blur")}</Label>
                             <RowEnd>
@@ -956,72 +1033,6 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
                             </RowEnd>
                         </Row>
                     </Rows>
-
-                    <Gallery>
-                        {BuiltInBackgrounds.map((concept) => (
-                            <GalleryGroup key={concept.id}>
-                                <GalleryLabel>{t(concept.name)}</GalleryLabel>
-                                <VariantRow>
-                                    {concept.variants.map((variant) => (
-                                        <Variant
-                                            $active={settings?.backgroundSource === variant.id}
-                                            key={variant.id}
-                                            onClick={() => void update({backgroundSource: variant.id})}
-                                            title={`${t(concept.name)} · ${t(variant.preset)}`}
-                                            type="button"
-                                        >
-                                            <img alt="" src={variant.url}/>
-                                        </Variant>
-                                    ))}
-                                </VariantRow>
-                            </GalleryGroup>
-                        ))}
-
-                        <GalleryGroup>
-                            <GalleryLabel>{t("Motion")}</GalleryLabel>
-                            <VariantRow>
-                                {BuiltInVideos.map((video) => (
-                                    <Variant
-                                        $active={settings?.backgroundSource === video.id}
-                                        key={video.id}
-                                        onClick={() => void update({backgroundSource: video.id})}
-                                        title={t(video.name)}
-                                        type="button"
-                                    >
-                                        <img alt="" src={video.poster}/>
-                                        <PlayBadge><VideoIcon size={11}/></PlayBadge>
-                                    </Variant>
-                                ))}
-                            </VariantRow>
-                        </GalleryGroup>
-
-                        <GalleryGroup>
-                            <GalleryLabel>{t("Custom")}</GalleryLabel>
-                            <VariantRow>
-                                {(settings?.backgroundCustom ?? []).map((path) => (
-                                    <CustomWallpaper
-                                        active={settings?.backgroundSource === `file:${path}`}
-                                        key={path}
-                                        onRemove={() => removeBackground(path)}
-                                        onSelect={() => void update({backgroundSource: `file:${path}`})}
-                                        path={path}
-                                    />
-                                ))}
-                                <AddTile
-                                    onClick={() => void addBackground([".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".svg"])}
-                                    type="button"
-                                >
-                                    <PlusIcon size={12}/>{t("Image…")}
-                                </AddTile>
-                                <AddTile
-                                    onClick={() => void addBackground([".mp4", ".webm", ".mkv", ".mov", ".m4v", ".avi", ".wmv", ".ogv"])}
-                                    type="button"
-                                >
-                                    <PlusIcon size={12}/>{t("Video…")}
-                                </AddTile>
-                            </VariantRow>
-                        </GalleryGroup>
-                    </Gallery>
                 </Section>
 
                 <Section ref={anchor("safety")}>
@@ -1033,15 +1044,27 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
                         <Block>
                             <BlockHead>
                                 <Label>{t("Protected folders")}</Label>
-                                <Note>{t("A path ending in ** covers every subfolder. A plain path protects only that folder, but deleting its parent is still held back. Environment variables such as %USERPROFILE% are expanded before the check.")}</Note>
+                                <Note>{t("Rules are glob-like: ** covers the folder and everything below it, * covers the folder and the entries directly inside it, and a plain path covers only the folder. Environment variables such as %USERPROFILE% are expanded first.")}</Note>
                             </BlockHead>
                             <ProtectList>
                                 {(settings?.protectedPaths ?? []).map((pattern) => (
                                     <ProtectRow key={pattern}>
-                                        <ProtectPath title={pattern}>{pattern}</ProtectPath>
-                                        <ProtectTag>
-                                            {isRecursivePath(pattern) ? t("Includes subfolders") : t("This folder only")}
-                                        </ProtectTag>
+                                        <ProtectInput
+                                            aria-label={t("Protected path")}
+                                            onBlur={commitRule}
+                                            onChange={(event) => setRuleDraft({from: pattern, value: event.target.value})}
+                                            onFocus={() => setRuleDraft({from: pattern, value: pattern})}
+                                            onKeyDown={(event) => {
+                                                if (event.key === "Enter") {
+                                                    event.preventDefault();
+                                                    commitRule();
+                                                } else if (event.key === "Escape") {
+                                                    setRuleDraft(null);
+                                                }
+                                            }}
+                                            spellCheck={false}
+                                            value={ruleDraft?.from === pattern ? ruleDraft.value : pattern}
+                                        />
                                         <ProtectRemove
                                             onClick={() => removeProtected(pattern)}
                                             title={t("Remove")}
@@ -1053,14 +1076,6 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
                                 ))}
                             </ProtectList>
                             <ProtectAdd>
-                                <ProtectCheck>
-                                    <input
-                                        checked={protectChildren}
-                                        onChange={(event) => setProtectChildren(event.target.checked)}
-                                        type="checkbox"
-                                    />
-                                    {t("Includes subfolders")}
-                                </ProtectCheck>
                                 <SmallButton onClick={() => void addProtected()} type="button">
                                     {t("Add folder…")}
                                 </SmallButton>
@@ -2883,33 +2898,11 @@ const RangeInput = styled.input`
     accent-color: var(--accent-primary);
 `;
 
-const BackgroundChoice = styled.button<{ $active?: boolean }>`
-    padding: 5px 9px;
-    border: 1px solid ${({$active}) => $active ? "var(--border-color-focus)" : "var(--border-color)"};
-    border-radius: var(--radius-sm);
-    background: ${({$active}) => $active ? "rgba(var(--accent-rgb), 0.14)" : "transparent"};
-    color: ${({$active}) => $active ? "var(--text-primary)" : "var(--text-secondary)"};
-    font: inherit;
-    font-size: 11px;
-    cursor: pointer;
-
-    &:hover {
-        border-color: var(--border-color-hover);
-        color: var(--text-primary);
-    }
-`;
-
 const Gallery = styled.div`
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding: 13px 14px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    background: var(--bg-card);
-    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.18);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    margin-top: 12px;
 `;
 
 const GalleryGroup = styled.div`
@@ -3022,6 +3015,16 @@ const AddTile = styled.button`
     }
 `;
 
+const NoneLabel = styled.span`
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    color: var(--text-secondary);
+    font-size: 11px;
+    letter-spacing: 0.02em;
+`;
+
 const ProtectList = styled.div`
     display: flex;
     flex-direction: column;
@@ -3038,24 +3041,26 @@ const ProtectRow = styled.div`
     background: rgba(var(--bg-rgb), 0.35);
 `;
 
-const ProtectPath = styled.span`
+const ProtectInput = styled.input`
     flex: 1;
     min-width: 0;
-    overflow-wrap: anywhere;
+    padding: 4px 6px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
     color: var(--text-primary);
     font-family: var(--font-mono);
     font-size: 11px;
-`;
+    outline: 0;
 
-const ProtectTag = styled.span`
-    flex-shrink: 0;
-    padding: 2px 7px;
-    border-radius: 999px;
-    background: rgba(var(--accent-rgb), 0.12);
-    color: var(--text-muted);
-    font-size: 9.5px;
-    letter-spacing: 0.05em;
-    white-space: nowrap;
+    &:hover {
+        border-color: var(--border-color);
+    }
+
+    &:focus {
+        border-color: var(--border-color-focus);
+        background: var(--bg-input);
+    }
 `;
 
 const ProtectRemove = styled.button`
@@ -3080,22 +3085,9 @@ const ProtectRemove = styled.button`
 const ProtectAdd = styled.div`
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 10px;
     margin-top: 2px;
-`;
-
-const ProtectCheck = styled.label`
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--text-secondary);
-    font-size: 11px;
-    cursor: pointer;
-
-    input {
-        accent-color: var(--accent-primary);
-    }
 `;
 
 const ColumnGrid = styled.div`
