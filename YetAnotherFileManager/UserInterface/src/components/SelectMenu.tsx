@@ -1,0 +1,221 @@
+import {useEffect, useRef, useState, type ReactNode} from "react";
+import {createPortal} from "react-dom";
+import styled from "styled-components";
+import {menuInStyle} from "../ui/motion";
+import {CheckIcon, ChevronRightIcon} from "./Icons";
+
+export interface SelectOption {
+    value: string;
+    label: ReactNode;
+    /** Optional tooltip, e.g. the full text when the trigger truncates it. */
+    title?: string;
+}
+
+/**
+ * The app's own dropdown. A native <select> would be drawn by the browser, which ignores the
+ * theme and looks nothing like the rest of the surface, so the list is rendered in a portal.
+ */
+export function SelectMenu({value, options, onChange, disabled, width}: {
+    value: string;
+    options: SelectOption[];
+    onChange: (value: string) => void;
+    disabled?: boolean;
+    /** Width of the button; the menu never gets narrower than it. */
+    width?: number;
+}) {
+    const [anchor, setAnchor] = useState<{
+        left: number;
+        width: number;
+        top?: number;
+        bottom?: number;
+    } | null>(null);
+    const button = useRef<HTMLButtonElement | null>(null);
+    const current = options.find((option) => option.value === value) ?? options[0];
+
+    useEffect(() => {
+        if (!anchor) return;
+
+        const close = () => setAnchor(null);
+        const onPointerDown = (event: PointerEvent) => {
+            const target = event.target;
+            if (target instanceof Node && button.current?.contains(target)) return;
+            if (target instanceof Element && target.closest("[data-select-menu]")) return;
+
+            close();
+        };
+        const onKey = (event: KeyboardEvent) => {
+            if (event.key === "Escape") close();
+        };
+
+        window.addEventListener("pointerdown", onPointerDown, true);
+        window.addEventListener("keydown", onKey, true);
+        window.addEventListener("scroll", close, true);
+        window.addEventListener("resize", close);
+
+        return () => {
+            window.removeEventListener("pointerdown", onPointerDown, true);
+            window.removeEventListener("keydown", onKey, true);
+            window.removeEventListener("scroll", close, true);
+            window.removeEventListener("resize", close);
+        };
+    }, [anchor]);
+
+    const toggle = () => {
+        if (anchor) {
+            setAnchor(null);
+            return;
+        }
+
+        const rect = button.current?.getBoundingClientRect();
+        if (!rect) return;
+
+        // A trigger near the bottom of the window (the picker footer is one) opens upwards, or the
+        // list would land outside the viewport.
+        const needed = options.length * 31 + 10;
+        const openUp = rect.bottom + 4 + needed > window.innerHeight;
+        setAnchor({
+            left: rect.left,
+            width: rect.width,
+            top: openUp ? undefined : rect.bottom + 4,
+            bottom: openUp ? window.innerHeight - rect.top + 4 : undefined,
+        });
+    };
+
+    return (
+        <>
+            <Trigger
+                aria-expanded={anchor !== null}
+                aria-haspopup="listbox"
+                disabled={disabled}
+                onClick={toggle}
+                ref={button}
+                style={width ? {width} : undefined}
+                title={current?.title}
+                type="button"
+            >
+                <TriggerLabel>{current?.label ?? ""}</TriggerLabel>
+                <Chevron><ChevronRightIcon size={11}/></Chevron>
+            </Trigger>
+            {anchor && createPortal(
+                <Menu
+                    aria-label="options"
+                    data-select-menu="true"
+                    role="listbox"
+                    style={{bottom: anchor.bottom, left: anchor.left, minWidth: anchor.width, top: anchor.top}}
+                >
+                    {options.map((option) => (
+                        <Option
+                            $active={option.value === value}
+                            aria-selected={option.value === value}
+                            key={option.value}
+                            onClick={() => {
+                                onChange(option.value);
+                                setAnchor(null);
+                            }}
+                            role="option"
+                            title={option.title}
+                            type="button"
+                        >
+                            <OptionLabel>{option.label}</OptionLabel>
+                            {option.value === value && <CheckIcon size={11}/>}
+                        </Option>
+                    ))}
+                </Menu>,
+                document.body,
+            )}
+        </>
+    );
+}
+
+const Trigger = styled.button`
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 120px;
+    height: 32px;
+    padding: 0 9px 0 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+
+    &:hover {
+        border-color: var(--border-color-hover);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--border-color-focus);
+        outline-offset: 1px;
+    }
+
+    &:disabled {
+        opacity: 0.55;
+        cursor: default;
+    }
+`;
+
+const TriggerLabel = styled.span`
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
+const Chevron = styled.span`
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--text-muted);
+    transform: rotate(90deg);
+`;
+
+const Menu = styled.div`
+    position: fixed;
+    z-index: 3200;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-width: min(520px, 90vw);
+    padding: 4px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    box-shadow: 0 18px 44px rgba(2, 6, 23, 0.55);
+    ${menuInStyle}
+`;
+
+const Option = styled.button<{ $active: boolean }>`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 7px 9px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: ${({$active}) => $active ? "rgba(var(--accent-rgb), 0.16)" : "transparent"};
+    color: ${({$active}) => $active ? "var(--text-primary)" : "var(--text-secondary)"};
+    font: inherit;
+    font-size: 11px;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+        background: rgba(var(--accent-rgb), 0.12);
+        color: var(--text-primary);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--border-color-focus);
+        outline-offset: -2px;
+    }
+`;
+
+const OptionLabel = styled.span`
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;

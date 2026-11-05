@@ -87,6 +87,12 @@ internal sealed record PathPayload(string? Path);
 /// <summary>Payload for <c>pick.submit</c>: the paths the command line picker selected.</summary>
 internal sealed record PickResultRequest(IReadOnlyList<string> Paths);
 
+/// <summary>Payload for <c>pick.open</c>: which standalone picker to run, where, and its filter.</summary>
+internal sealed record PickOpenRequest(string Mode, List<string>? Extensions, string? Initial);
+
+/// <summary>Body for <c>pick.open</c>: the chosen paths, empty when the window was cancelled.</summary>
+internal sealed record PickOpenPayload(List<string> Paths);
+
 /// <summary>Body for <c>fs.recycle.admin.list</c>: what the elevated helper could see.</summary>
 /// <param name="Cancelled">True when the user declined the elevation prompt.</param>
 /// <param name="Failed">True when the helper ran but its report could not be read.</param>

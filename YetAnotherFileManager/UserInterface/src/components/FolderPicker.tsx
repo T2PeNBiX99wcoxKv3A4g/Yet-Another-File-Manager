@@ -37,6 +37,7 @@ import {
 import {GalleryView} from "./GalleryView";
 import {OverviewView} from "./OverviewView";
 import {PathBar} from "./PathBar";
+import {SelectMenu} from "./SelectMenu";
 import {Sidebar} from "./Sidebar";
 import {baseName, normalizePath, parentPath} from "../utils/format";
 
@@ -367,17 +368,20 @@ export function FolderPicker({
                 {isFileMode && (
                     <>
                         <FieldLabel>{t("Files of type:")}</FieldLabel>
-                        <TypeSelect
-                            onChange={(event) => setAllFiles(event.target.value === "all")}
+                        <SelectMenu
+                            onChange={(value) => setAllFiles(value === "all")}
+                            options={[
+                                ...(supported.length > 0
+                                    ? [{
+                                        value: "supported",
+                                        label: `${t("Supported files")} (${supported.map((extension) => `*${extension}`).join(";")})`,
+                                    }]
+                                    : []),
+                                {value: "all", label: `${t("All files")} (*.*)`},
+                            ]}
                             value={allFiles ? "all" : "supported"}
-                        >
-                            {supported.length > 0 && (
-                                <option value="supported">
-                                    {t("Supported files")} ({supported.map((extension) => `*${extension}`).join(";")})
-                                </option>
-                            )}
-                            <option value="all">{t("All files")} (*.*)</option>
-                        </TypeSelect>
+                            width={220}
+                        />
                     </>
                 )}
             </SelectionRow>
@@ -747,24 +751,6 @@ const NameInput = styled.input`
     min-width: 0;
     height: 32px;
     padding: 0 10px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    background: var(--bg-input);
-    color: var(--text-primary);
-    font: inherit;
-    font-size: 12px;
-    outline: 0;
-
-    &:focus {
-        border-color: var(--border-color-focus);
-        box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.12);
-    }
-`;
-
-const TypeSelect = styled.select`
-    width: 220px;
-    height: 32px;
-    padding: 0 8px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     background: var(--bg-input);

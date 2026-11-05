@@ -38,10 +38,8 @@ import {clearTasks, listTasks, type TaskInfo} from "./api/tasks";
 import {FileList} from "./components/FileList";
 import {PreviewPane, type PreviewInfo} from "./components/PreviewPane";
 import {FileTray, isPathDrag, type TrayItem} from "./components/FileTray";
-import {FolderPicker} from "./components/FolderPicker";
 import {FileMenu} from "./components/FileMenu";
 import {Wallpaper} from "./components/Wallpaper";
-import {setFilePickerOpener, setFolderPickerOpener} from "./folder-picker";
 import {FindBar} from "./components/FindBar";
 import {EmptyFind, matchesName, type FindState} from "./find";
 import {QuickAccessProvider, quickName, quickPlace, type QuickAccess} from "./quick";
@@ -70,7 +68,7 @@ import {Native, ResizeHandles, useTranslation, useWindowCorners, type Translate}
 import {baseName, formatBytes, normalizePath, plural} from "./utils/format";
 import {applyTheme} from "./theme";
 import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "./storage";
-import {pageInStyle} from "./ui/motion";
+import {fadeInStyle, pageInStyle, splitLineInStyle} from "./ui/motion";
 import {
     comboOf,
     DefaultShortcuts,
@@ -291,12 +289,10 @@ export default function App() {
     const tasksRef = useRef<TaskInfo[]>([]);
     /** The tabs closed in this session, newest last, for Ctrl+Shift+T. */
     const closedTabs = useRef<string[]>([]);
-    const [trayItems, setTrayItems] = useState<TrayItem[]>([]);
     const [clipboardItems, setClipboardItems] = useState<TrayItem[]>([]);
     const [clipboardMove, setClipboardMove] = useState(false);
     const [trayVisible, setTrayVisible] = useState(false);
-    const [folderPicker, setFolderPicker] = useState<{ initial: string; resolve: (path: string | null) => void } | null>(null);
-    const [filePicker, setFilePicker] = useState<{ extensions: string[]; resolve: (path: string | null) => void } | null>(null);
+    const [trayItems, setTrayItems] = useState<TrayItem[]>([]);
     const [trayPosition, setTrayPosition] = useState<{ x: number; y: number }>(() => {
         const saved = readStoredJson<{ x?: number; y?: number }>("yafm.tray.position");
 
@@ -943,20 +939,6 @@ export default function App() {
 
     const trayRef = useRef(trayItems);
     trayRef.current = trayItems;
-
-    // Views ask for a folder through this promise instead of the shell's dialog.
-    useEffect(() => {
-        setFolderPickerOpener((initial) =>
-            new Promise<string | null>((resolve) => setFolderPicker({initial: initial ?? "", resolve})));
-
-        setFilePickerOpener((extensions) =>
-            new Promise<string | null>((resolve) => setFilePicker({extensions: extensions ?? [], resolve})));
-
-        return () => {
-            setFolderPickerOpener(null);
-            setFilePickerOpener(null);
-        };
-    }, []);
 
     // The tray is a drop target, so it shows up (at a reachable spot) as soon as an in-app drag
     // starts. It stays open until the user closes it.
@@ -1950,7 +1932,7 @@ export default function App() {
                                     onPointerDown={startSplitDrag}
                                     title={t("Drag to resize; double-click to reset")}
                                 />
-                                <Pane style={{flex: 1 - splitRatio}}>
+                                <Pane $enter style={{flex: 1 - splitRatio}}>
                                     <PaneToolbar
                                         $active={activePane === "secondary"}
                                         onPointerDown={() => setActivePane("secondary")}
@@ -2146,35 +2128,6 @@ export default function App() {
                 />
             )}
 
-            {folderPicker && (
-                <FolderPicker
-                    initial={folderPicker.initial}
-                    onCancel={() => {
-                        folderPicker.resolve(null);
-                        setFolderPicker(null);
-                    }}
-                    onSelect={(paths) => {
-                        folderPicker.resolve(paths[0] ?? null);
-                        setFolderPicker(null);
-                    }}
-                />
-            )}
-
-            {filePicker && (
-                <FolderPicker
-                    extensions={filePicker.extensions}
-                    mode="file"
-                    onCancel={() => {
-                        filePicker.resolve(null);
-                        setFilePicker(null);
-                    }}
-                    onSelect={(paths) => {
-                        filePicker.resolve(paths[0] ?? null);
-                        setFilePicker(null);
-                    }}
-                />
-            )}
-
             <TooltipLayer/>
             <ResizeHandles/>
         </Root>
@@ -2300,13 +2253,14 @@ const Split = styled.div`
     min-height: 0;
 `;
 
-const Pane = styled.div`
+const Pane = styled.div<{ $enter?: boolean }>`
     position: relative;
     display: flex;
     flex-direction: column;
     flex: 1;
     min-width: 0;
     min-height: 0;
+    ${({$enter}) => $enter ? fadeInStyle : ""}
 `;
 
 const SplitDivider = styled.div`
@@ -2325,7 +2279,9 @@ const SplitDivider = styled.div`
         left: 3px;
         width: 1px;
         background: var(--border-color);
+        transform-origin: center;
         transition: background 120ms ease, box-shadow 120ms ease;
+        ${splitLineInStyle}
     }
 
     &:hover::before,

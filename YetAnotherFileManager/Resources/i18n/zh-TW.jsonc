@@ -504,5 +504,11 @@
   "Brightness": "亮度",
   "Aurora": "極光",
   "Dunes": "沙丘",
-  "Tide": "潮汐"
+  "Tide": "潮汐",
+  "Motion": "動態",
+  "Custom": "自訂",
+  "Drift": "漂流",
+  "Ember": "餘燼",
+  "Bloom": "綻放",
+  "None keeps the normal dark surface. Every built-in concept comes in the app's colour presets; your own pictures, SVGs and videos are kept in the gallery.": "「無」保留原本的深色表面。每個內建概念都有軟體全部配色變體；自訂圖片、SVG 與影片會保存在下方畫廊中。"
 }

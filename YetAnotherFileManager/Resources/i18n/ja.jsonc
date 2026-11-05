@@ -504,5 +504,11 @@
   "Brightness": "明るさ",
   "Aurora": "オーロラ",
   "Dunes": "砂丘",
-  "Tide": "潮汐"
+  "Tide": "潮汐",
+  "Motion": "モーション",
+  "Custom": "カスタム",
+  "Drift": "ドリフト",
+  "Ember": "残り火",
+  "Bloom": "ブルーム",
+  "None keeps the normal dark surface. Every built-in concept comes in the app's colour presets; your own pictures, SVGs and videos are kept in the gallery.": "「なし」は通常の暗い背景を保ちます。各内蔵コンセプトはアプリの配色すべてのバリエーションを持ち、カスタム画像・SVG・動画は下のギャラリーに保存されます。"
 }

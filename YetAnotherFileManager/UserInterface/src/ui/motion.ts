@@ -76,9 +76,22 @@ export const fadeIn = keyframes`
     }
 `;
 
+/** The divider between split panes, growing out of the middle without moving either pane. */
+export const splitLineIn = keyframes`
+    from {
+        opacity: 0;
+        transform: scaleY(0);
+    }
+    to {
+        opacity: 1;
+        transform: scaleY(1);
+    }
+`;
+
 export const popInStyle = css`animation: ${popIn} 150ms cubic-bezier(0.22, 1, 0.36, 1);`;
 export const menuInStyle = css`animation: ${menuIn} 130ms cubic-bezier(0.22, 1, 0.36, 1);`;
 export const pageInStyle = css`animation: ${pageIn} 180ms cubic-bezier(0.22, 1, 0.36, 1);`;
 export const slideInRightStyle = css`animation: ${slideInRight} 190ms cubic-bezier(0.22, 1, 0.36, 1);`;
 export const slideDownStyle = css`animation: ${slideDown} 150ms cubic-bezier(0.22, 1, 0.36, 1);`;
 export const fadeInStyle = css`animation: ${fadeIn} 140ms ease-out;`;
+export const splitLineInStyle = css`animation: ${splitLineIn} 260ms cubic-bezier(0.22, 1, 0.36, 1);`;

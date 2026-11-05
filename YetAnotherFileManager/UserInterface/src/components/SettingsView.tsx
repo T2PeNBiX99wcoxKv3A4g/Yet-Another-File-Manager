@@ -4,7 +4,7 @@ import {loadStrings, useTranslation, type Translate} from "@photino-net-utils/br
 import styled, {css} from "styled-components";
 import {getVisibility, listIndexTasks, type FileVisibility, type IndexTasks} from "../api/files";
 import {DefaultViewDefaults} from "../api/files";
-import {clearIconCache, useIconFile} from "../api/icons";
+import {clearIconCache, useIconFile, useMediaUrl} from "../api/icons";
 import {
     getSettings,
     saveSettings,
@@ -16,15 +16,17 @@ import {requestFile, requestFolder} from "../folder-picker";
 import {checkUpdate, getMemory, getScheme, getUpdateStatus, openUrl, setScheme, trimMemory,
     type MemoryUsage, type UpdateCheck} from "../api/system";
 import {createTag, deleteTag, listTags, renameTag, setTagColor, type TagCatalogEntry} from "../api/tags";
-import {CheckIcon, ChevronRightIcon, CrossIcon, PlusIcon, TrashIcon} from "./Icons";
+import {CheckIcon, ChevronRightIcon, CrossIcon, PlusIcon, TrashIcon, VideoIcon} from "./Icons";
 import {IconPicker} from "./IconPicker";
 import {DefaultTagColor} from "./TagPicker";
 import {DefaultAccentColor, DefaultSecondaryColor, normalizeColor} from "../theme";
 import {comboOf, DefaultShortcuts, prettyShortcut, type ShortcutMap} from "../shortcuts";
 import {BuiltinIcon} from "../icons/fileTypes";
+import {ThemePresets} from "../themePresets";
 import {GlobalTag} from "./GlobalTag";
 import {ViewColumns} from "./FileList";
-import {BuiltInBackgrounds} from "./Wallpaper";
+import {BuiltInBackgrounds, BuiltInVideos} from "../backgrounds/concepts";
+import {isVideoPath} from "./Wallpaper";
 import {baseName, formatBytes, plural, usageTone} from "../utils/format";
 import {readStoredJson, writeStoredJson} from "../storage";
 
@@ -68,18 +70,6 @@ const ShortcutRows: { id: keyof ShortcutMap; label: string; note: string }[] = [
     {id: "hidden", label: "Show hidden files", note: "Toggles ordinary hidden files for this session. Alt+. also works; system files still follow Explorer."},
     {id: "splitView", label: "Split view", note: "Shows the next file tab beside the current one; F3 in Dolphin."},
     {id: "openInNewTab", label: "Open in a new tab", note: "Hold this while clicking a folder."},
-];
-
-/** Two colours the presets apply at once, like a Windows accent palette does with one. */
-const ThemePresets: { name: string; accent: string; secondary: string }[] = [
-    {name: "Blue", accent: "#3b82f6", secondary: "#6366f1"},
-    {name: "Indigo", accent: "#6366f1", secondary: "#8b5cf6"},
-    {name: "Violet", accent: "#8b5cf6", secondary: "#d946ef"},
-    {name: "Teal", accent: "#14b8a6", secondary: "#0ea5e9"},
-    {name: "Green", accent: "#22c55e", secondary: "#14b8a6"},
-    {name: "Amber", accent: "#f59e0b", secondary: "#f97316"},
-    {name: "Rose", accent: "#f43f5e", secondary: "#ec4899"},
-    {name: "Slate", accent: "#64748b", secondary: "#94a3b8"},
 ];
 
 /** Where the update section sends the user when a newer build exists. */
@@ -258,6 +248,28 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
         setSettings(await saveSettings(next));
         // The window keeps its own copy of the settings; a toggle here has to reach it too.
         onSettingsChanged();
+    };
+
+    /** Adds a picture or video to the gallery and selects it right away. */
+    const addBackground = async (extensions: string[]) => {
+        const file = await requestFile(extensions);
+        if (!file) return;
+
+        const known = settings?.backgroundCustom ?? [];
+        await update({
+            backgroundCustom: known.includes(file) ? known : [...known, file],
+            backgroundSource: `file:${file}`,
+        });
+    };
+
+    /** Removing the selected wallpaper falls back to the plain window. */
+    const removeBackground = (path: string) => {
+        if (!settings) return;
+
+        void update({
+            backgroundCustom: settings.backgroundCustom.filter((item) => item !== path),
+            backgroundSource: settings.backgroundSource === `file:${path}` ? null : settings.backgroundSource,
+        });
     };
 
     /** Keeps the last few applied colours, so a palette click and a revert are one click each. */
@@ -864,47 +876,16 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
                         <Row>
                             <RowText>
                                 <Label>{t("Wallpaper")}</Label>
-                                <Note>{t("None keeps the normal dark surface. Built-in concepts are scalable SVGs; a custom picture or video is loaded from its file.")}</Note>
+                                <Note>{t("None keeps the normal dark surface. Every built-in concept comes in the app's colour presets; your own pictures, SVGs and videos are kept in the gallery.")}</Note>
                             </RowText>
                             <RowEnd>
-                                <BackgroundPicker>
-                                    <BackgroundChoice
-                                        $active={!settings?.backgroundSource}
-                                        onClick={() => void update({backgroundSource: null})}
-                                        type="button"
-                                    >
-                                        {t("None")}
-                                    </BackgroundChoice>
-                                    {BuiltInBackgrounds.map((background) => (
-                                        <BackgroundThumb
-                                            $active={settings?.backgroundSource === background.id}
-                                            key={background.id}
-                                            onClick={() => void update({backgroundSource: background.id})}
-                                            title={t(background.name)}
-                                            type="button"
-                                        >
-                                            <img alt="" src={background.url}/>
-                                        </BackgroundThumb>
-                                    ))}
-                                    <BackgroundChoice
-                                        onClick={async () => {
-                                            const file = await requestFile([".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"]);
-                                            if (file) void update({backgroundSource: `file:${file}`});
-                                        }}
-                                        type="button"
-                                    >
-                                        {t("Image…")}
-                                    </BackgroundChoice>
-                                    <BackgroundChoice
-                                        onClick={async () => {
-                                            const file = await requestFile([".mp4", ".webm", ".mkv", ".mov", ".m4v", ".avi", ".wmv", ".ogv"]);
-                                            if (file) void update({backgroundSource: `file:${file}`});
-                                        }}
-                                        type="button"
-                                    >
-                                        {t("Video…")}
-                                    </BackgroundChoice>
-                                </BackgroundPicker>
+                                <BackgroundChoice
+                                    $active={!settings?.backgroundSource}
+                                    onClick={() => void update({backgroundSource: null})}
+                                    type="button"
+                                >
+                                    {t("None")}
+                                </BackgroundChoice>
                             </RowEnd>
                         </Row>
                         <Row>
@@ -947,6 +928,72 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
                             </RowEnd>
                         </Row>
                     </Rows>
+
+                    <Gallery>
+                        {BuiltInBackgrounds.map((concept) => (
+                            <GalleryGroup key={concept.id}>
+                                <GalleryLabel>{t(concept.name)}</GalleryLabel>
+                                <VariantRow>
+                                    {concept.variants.map((variant) => (
+                                        <Variant
+                                            $active={settings?.backgroundSource === variant.id}
+                                            key={variant.id}
+                                            onClick={() => void update({backgroundSource: variant.id})}
+                                            title={`${t(concept.name)} · ${t(variant.preset)}`}
+                                            type="button"
+                                        >
+                                            <img alt="" src={variant.url}/>
+                                        </Variant>
+                                    ))}
+                                </VariantRow>
+                            </GalleryGroup>
+                        ))}
+
+                        <GalleryGroup>
+                            <GalleryLabel>{t("Motion")}</GalleryLabel>
+                            <VariantRow>
+                                {BuiltInVideos.map((video) => (
+                                    <Variant
+                                        $active={settings?.backgroundSource === video.id}
+                                        key={video.id}
+                                        onClick={() => void update({backgroundSource: video.id})}
+                                        title={t(video.name)}
+                                        type="button"
+                                    >
+                                        <img alt="" src={video.poster}/>
+                                        <PlayBadge><VideoIcon size={11}/></PlayBadge>
+                                    </Variant>
+                                ))}
+                            </VariantRow>
+                        </GalleryGroup>
+
+                        <GalleryGroup>
+                            <GalleryLabel>{t("Custom")}</GalleryLabel>
+                            <VariantRow>
+                                {(settings?.backgroundCustom ?? []).map((path) => (
+                                    <CustomWallpaper
+                                        active={settings?.backgroundSource === `file:${path}`}
+                                        key={path}
+                                        onRemove={() => removeBackground(path)}
+                                        onSelect={() => void update({backgroundSource: `file:${path}`})}
+                                        path={path}
+                                    />
+                                ))}
+                                <AddTile
+                                    onClick={() => void addBackground([".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".svg"])}
+                                    type="button"
+                                >
+                                    <PlusIcon size={12}/>{t("Image…")}
+                                </AddTile>
+                                <AddTile
+                                    onClick={() => void addBackground([".mp4", ".webm", ".mkv", ".mov", ".m4v", ".avi", ".wmv", ".ogv"])}
+                                    type="button"
+                                >
+                                    <PlusIcon size={12}/>{t("Video…")}
+                                </AddTile>
+                            </VariantRow>
+                        </GalleryGroup>
+                    </Gallery>
                 </Section>
 
                 <Section ref={anchor("tags")}>
@@ -1795,6 +1842,35 @@ function Thumb({src}: { src: string }) {
     const image = useIconFile(src);
 
     return <PreviewSlot>{image && <img alt="" height={18} src={image} width={18}/>}</PreviewSlot>;
+}
+
+/**
+ * A wallpaper the user added to the gallery. The cross in its corner removes it; the media URL
+ * goes through the shared thumbnail server, so a video shows its first frame and an SVG its art.
+ */
+function CustomWallpaper({path, active, onSelect, onRemove}: {
+    path: string;
+    active: boolean;
+    onSelect: () => void;
+    onRemove: () => void;
+}) {
+    const t = useTranslation();
+    const url = useMediaUrl(path);
+    const video = isVideoPath(path);
+
+    return (
+        <CustomItem>
+            <Variant $active={active} onClick={onSelect} title={path} type="button">
+                {url && (video
+                    ? <video muted preload="metadata" src={`${url}#t=0.5`}/>
+                    : <img alt="" src={url}/>)}
+                {video && <PlayBadge><VideoIcon size={11}/></PlayBadge>}
+            </Variant>
+            <Remove onClick={onRemove} title={t("Remove")} type="button">
+                <CrossIcon size={9}/>
+            </Remove>
+        </CustomItem>
+    );
 }
 
 /**
@@ -2718,14 +2794,6 @@ const RangeInput = styled.input`
     accent-color: var(--accent-primary);
 `;
 
-const BackgroundPicker = styled.div`
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 6px;
-`;
-
 const BackgroundChoice = styled.button<{ $active?: boolean }>`
     padding: 5px 9px;
     border: 1px solid ${({$active}) => $active ? "var(--border-color-focus)" : "var(--border-color)"};
@@ -2742,17 +2810,54 @@ const BackgroundChoice = styled.button<{ $active?: boolean }>`
     }
 `;
 
-const BackgroundThumb = styled.button<{ $active?: boolean }>`
-    width: 48px;
-    height: 32px;
+const Gallery = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 13px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.18);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+`;
+
+const GalleryGroup = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+`;
+
+const GalleryLabel = styled.span`
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+`;
+
+const VariantRow = styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+`;
+
+/** Twice the old 48x32 strip, so the art is actually readable before it is applied. */
+const Variant = styled.button<{ $active?: boolean }>`
+    position: relative;
+    width: 102px;
+    height: 58px;
     padding: 0;
     overflow: hidden;
     border: 1px solid ${({$active}) => $active ? "var(--border-color-focus)" : "var(--border-color)"};
     border-radius: var(--radius-sm);
-    background: var(--bg-card);
+    background: var(--bg-primary);
+    box-shadow: ${({$active}) => $active ? "0 0 0 2px rgba(var(--accent-rgb), 0.28)" : "none"};
     cursor: pointer;
 
-    img {
+    img,
+    video {
         display: block;
         width: 100%;
         height: 100%;
@@ -2761,6 +2866,70 @@ const BackgroundThumb = styled.button<{ $active?: boolean }>`
 
     &:hover {
         border-color: var(--border-color-hover);
+    }
+`;
+
+const CustomItem = styled.div`
+    position: relative;
+    width: 102px;
+    height: 58px;
+`;
+
+const Remove = styled.button`
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 17px;
+    height: 17px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 50%;
+    background: rgba(6, 8, 16, 0.78);
+    color: #fff;
+    cursor: pointer;
+
+    &:hover {
+        background: #e81123;
+        border-color: #e81123;
+    }
+`;
+
+const PlayBadge = styled.span`
+    position: absolute;
+    right: 5px;
+    bottom: 4px;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(6, 8, 16, 0.66);
+    color: #fff;
+`;
+
+const AddTile = styled.button`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 102px;
+    height: 58px;
+    padding: 0;
+    border: 1px dashed var(--border-color-hover);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 10.5px;
+    cursor: pointer;
+
+    &:hover {
+        border-color: var(--border-color-focus);
+        color: var(--text-primary);
     }
 `;
 

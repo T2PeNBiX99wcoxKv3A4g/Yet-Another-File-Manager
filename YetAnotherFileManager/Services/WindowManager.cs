@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Photino.NET;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Interop;
@@ -20,6 +21,14 @@ internal sealed class WindowManager : Singleton<WindowManager>
     ///     every Photino app, which breaks when another app holds it, so keep ours separate.
     /// </summary>
     private static readonly string WebViewDataPath = Path.Combine(Constants.DataDirectory, "webview");
+
+    /// <summary>
+    ///     A picker is a second process of this app. Sharing the main window's web view folder makes
+    ///     the second window stay blank, so pickers get a profile of their own; reusing it keeps the
+    ///     window opening quickly after the first run.
+    /// </summary>
+    internal static string PickerWebViewDataPath =>
+        Path.Combine(Constants.DataDirectory, "webview-picker");
 
     private bool _allowClose;
     private PhotinoWindow? _mainWindow;
@@ -84,6 +93,9 @@ internal sealed class WindowManager : Singleton<WindowManager>
                     Exit();
                 }
                 break;
+
+            case "pick.open":
+                return context.Reply("pick.open.result", await OpenPickerAsync(context.Payload<PickOpenRequest>()));
 
             case "window.minimize":
                 RunOnMainWindow(() => _mainWindow?.SetMinimized(true));
@@ -169,15 +181,24 @@ internal sealed class WindowManager : Singleton<WindowManager>
         int minHeight = 520)
     {
         // One startup-only wait: the message loop has not started yet, and the web view needs the
-        // cache decision before it is created.
-        PrepareWebViewDataAsync().GetAwaiter().GetResult();
+        // cache decision before it is created. A picker keeps its own folder and has no marker.
+        string webViewPath;
+        if (Picker is null)
+        {
+            PrepareWebViewDataAsync().GetAwaiter().GetResult();
+            webViewPath = WebViewDataPath;
+        }
+        else
+        {
+            webViewPath = PickerWebViewDataPath;
+        }
 
         var window = new PhotinoWindow()
             // The native layer prints every property setter and message it handles. That is useful
             // while debugging, but it floods the log with JSON payloads in a release build.
             .SetLogVerbosity(Constants.IsDebugMode && Picker is null ? 3 : 0)
             .SetTitle(title)
-            .SetTemporaryFilesPath(WebViewDataPath)
+            .SetTemporaryFilesPath(webViewPath)
             .SetUseOsDefaultSize(false)
             .SetUseOsDefaultLocation(false)
             .SetSize(new(width, height))
@@ -315,6 +336,54 @@ internal sealed class WindowManager : Singleton<WindowManager>
         // listing itself when it mounts, so nothing is lost by waiting.
         Try.Run(() => _mainWindow?.SendWebMessage(json))
             .OnFailure(ex => Log.Warning(ex, "Failed to send navigation"));
+    }
+
+    /// <summary>
+    ///     Runs the standalone picker as its own process and waits for what it returns. The window
+    ///     writes the chosen paths to a temporary file, so the caller needs no console.
+    /// </summary>
+    private static async Task<PickOpenPayload> OpenPickerAsync(PickOpenRequest? request)
+    {
+        if (request is null || Environment.ProcessPath is not { Length: > 0 } executable)
+            return new([]);
+
+        var output = Path.Combine(Path.GetTempPath(), $"yafm-pick-{Guid.NewGuid():N}.txt");
+        var start = new ProcessStartInfo(executable) { UseShellExecute = false, CreateNoWindow = true };
+        start.ArgumentList.Add(request.Mode == "file" ? Constants.PickFileArgument : Constants.PickFolderArgument);
+
+        if (request.Initial is { Length: > 0 } initial)
+        {
+            start.ArgumentList.Add(Constants.PickInitialArgument);
+            start.ArgumentList.Add(initial);
+        }
+
+        if (request.Extensions is { Count: > 0 } extensions)
+        {
+            start.ArgumentList.Add(Constants.PickFilterArgument);
+            start.ArgumentList.Add(string.Join(';', extensions));
+        }
+
+        start.ArgumentList.Add(Constants.PickOutputArgument);
+        start.ArgumentList.Add(output);
+
+        try
+        {
+            using var process = Try.Run(() => Process.Start(start)).GetOrNull();
+            if (process is null)
+                return new([]);
+
+            await process.WaitForExitAsync();
+
+            if (!File.Exists(output))
+                return new([]);
+
+            var paths = await File.ReadAllLinesAsync(output);
+            return new(paths.Where(path => path.Length > 0).ToList());
+        }
+        finally
+        {
+            Try.Run(() => File.Delete(output));
+        }
     }
 
     private void Show(PhotinoWindow window)

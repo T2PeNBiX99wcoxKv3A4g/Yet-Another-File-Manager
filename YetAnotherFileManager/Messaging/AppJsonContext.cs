@@ -80,6 +80,8 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(ThumbnailServerPayload))]
 [JsonSerializable(typeof(PathPayload))]
 [JsonSerializable(typeof(PickResultRequest))]
+[JsonSerializable(typeof(PickOpenRequest))]
+[JsonSerializable(typeof(PickOpenPayload))]
 [JsonSerializable(typeof(Dictionary<string, long>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 [JsonSerializable(typeof(Dictionary<string, List<string>>))]

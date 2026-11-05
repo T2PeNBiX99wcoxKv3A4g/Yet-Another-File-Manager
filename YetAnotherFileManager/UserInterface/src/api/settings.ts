@@ -61,8 +61,10 @@ export interface AppSettings {
     accentColor: string | null;
     /** The gradient/highlight colour, or null for the default indigo. */
     secondaryColor: string | null;
-    /** None, a built-in concept ("builtin:aurora"), or "file:<path>" for an image/video. */
+    /** None, a built-in concept ("builtin:aurora:violet") or "file:<path>" for a custom image/video. */
     backgroundSource: string | null;
+    /** Paths the user added to the background gallery; images, SVGs and videos. */
+    backgroundCustom: string[];
     /** Background blur in pixels. */
     backgroundBlur: number;
     /** Background saturation, 100 = unchanged. */
@@ -115,6 +117,7 @@ const fallback: AppSettings = {
     accentColor: null,
     secondaryColor: null,
     backgroundSource: null,
+    backgroundCustom: [],
     backgroundBlur: 0,
     backgroundSaturation: 100,
     backgroundBrightness: 100,
@@ -161,6 +164,7 @@ export async function getSettings(): Promise<AppSettings> {
         accentColor: raw?.accentColor ?? null,
         secondaryColor: raw?.secondaryColor ?? null,
         backgroundSource: raw?.backgroundSource ?? null,
+        backgroundCustom: raw?.backgroundCustom ?? [],
         backgroundBlur: raw?.backgroundBlur ?? 0,
         backgroundSaturation: raw?.backgroundSaturation ?? 100,
         backgroundBrightness: raw?.backgroundBrightness ?? 100,
@@ -208,6 +212,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         accentColor: saved?.accentColor ?? settings.accentColor,
         secondaryColor: saved?.secondaryColor ?? settings.secondaryColor,
         backgroundSource: saved?.backgroundSource ?? settings.backgroundSource,
+        backgroundCustom: saved?.backgroundCustom ?? settings.backgroundCustom,
         backgroundBlur: saved?.backgroundBlur ?? settings.backgroundBlur,
         backgroundSaturation: saved?.backgroundSaturation ?? settings.backgroundSaturation,
         backgroundBrightness: saved?.backgroundBrightness ?? settings.backgroundBrightness,
