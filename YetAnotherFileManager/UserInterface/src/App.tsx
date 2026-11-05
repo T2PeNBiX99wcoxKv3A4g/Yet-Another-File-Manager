@@ -281,6 +281,11 @@ export default function App() {
         directory: string;
         refresh: () => void;
     } | null>(null);
+    const [renameRequest, setRenameRequest] = useState<{
+        directory: string;
+        path: string;
+        token: number;
+    } | null>(null);
     const [tasks, setTasks] = useState<TaskInfo[]>([]);
     const [activityOpen, setActivityOpen] = useState(false);
     const tasksRef = useRef<TaskInfo[]>([]);
@@ -806,8 +811,17 @@ export default function App() {
             ? await newFile(menu.directory)
             : await newFolder(menu.directory);
 
-        if (result.ok)
-            menu.refresh();
+        if (!result.ok || result.path === null)
+            return;
+
+        const path = result.path;
+        resetFind();
+        setRenameRequest((current) => ({
+            directory: menu.directory,
+            path,
+            token: (current?.token ?? 0) + 1,
+        }));
+        menu.refresh();
     };
 
     const createMenuItems: ContextMenuItem[] = createMenu
@@ -1667,6 +1681,12 @@ export default function App() {
                 onTransfer={transferTo}
                 onAddToTray={(paths) => void addTrayPaths(paths)}
                 openOnSingleClick={settings?.openOnSingleClick ?? false}
+                pendingRename={renameRequest
+                    && primary === (activePane === "primary")
+                    && samePath(renameRequest.directory, tab.listing?.path ?? "")
+                    ? renameRequest.path
+                    : null}
+                pendingRenameToken={renameRequest?.token ?? 0}
                 refreshToken={visibilityVersion}
                 shortcuts={shortcuts}
                 showCheckboxes={settings?.showCheckboxes ?? true}

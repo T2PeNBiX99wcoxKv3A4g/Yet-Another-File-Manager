@@ -512,11 +512,21 @@ export function FileList({
 
         const index = rows.findIndex((row) => row.entry.fullPath === pendingRename);
         const node = body.current;
-        if (index >= 0 && node) {
+        if (index < 0 || !node)
+            return;
+
+        if (view.mode === "list") {
             const top = index * rowHeight;
             node.scrollTop = Math.max(0, top - node.clientHeight / 2);
+            return;
         }
-    }, [body, listing, pendingRename, pendingRenameToken, rowHeight, rows]);
+
+        window.requestAnimationFrame(() => {
+            document
+                .querySelector<HTMLElement>(`[data-path="${CSS.escape(pendingRename)}"]`)
+                ?.scrollIntoView({block: "nearest"});
+        });
+    }, [body, listing, pendingRename, pendingRenameToken, rowHeight, rows, view.mode]);
 
     const closeMenu = useCallback(() => {
         shellRequest.current += 1;
