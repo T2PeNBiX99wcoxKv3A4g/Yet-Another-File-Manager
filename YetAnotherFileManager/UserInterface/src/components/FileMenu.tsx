@@ -20,6 +20,7 @@ import {
 import {requestFolder} from "../folder-picker";
 import {prettyShortcut, type ShortcutMap} from "../shortcuts";
 import {CreateFileTypes} from "../create-types";
+import {isArchiveLocation} from "../utils/format";
 import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
 import {
     ArchiveIcon,
@@ -91,6 +92,7 @@ export function FileMenu({
     onRefresh, onAddToTray,
 }: FileMenuProps) {
     const t = useTranslation();
+    const archiveView = isArchiveLocation(directory);
     const [shell, setShell] = useState<{ verbs: ShellVerb[]; safe: boolean; loading: boolean }>({
         verbs: [], safe: true, loading: false,
     });
@@ -114,9 +116,9 @@ export function FileMenu({
         }
 
         const shellToken = ++shellRequest.current;
-        setShell({verbs: [], safe: true, loading: shellPaths.length > 0});
+        setShell({verbs: [], safe: true, loading: shellPaths.length > 0 && !archiveView});
 
-        if (shellPaths.length > 0) {
+        if (shellPaths.length > 0 && !archiveView) {
             void listShellVerbs(shellPaths).then(
                 (result) => {
                     if (shellRequest.current === shellToken) setShell({...result, loading: false});
@@ -129,7 +131,7 @@ export function FileMenu({
 
         const openWithToken = ++openWithRequest.current;
 
-        if (single && target && !target.isDirectory) {
+        if (!archiveView && single && target && !target.isDirectory) {
             setOpenWithApps({recommended: [], other: [], loading: true});
             void listOpenWith(target.path).then(
                 (result) => {
@@ -144,7 +146,7 @@ export function FileMenu({
         } else {
             setOpenWithApps({recommended: [], other: [], loading: false});
         }
-    }, [menu, single, target?.path, target?.isDirectory, shellPaths.length]);
+    }, [menu, single, target?.path, target?.isDirectory, shellPaths.length, archiveView]);
 
     // The case flag lives on the folder itself, so it is read when the menu opens.
     useEffect(() => {
@@ -243,10 +245,11 @@ export function FileMenu({
                     label: t("Folder"), icon: <FolderIcon size={14}/>,
                     onSelect: () => onCreateFolder(false),
                 });
-                newItems.push({
-                    label: t("Case-sensitive folder"), icon: <FolderIcon size={14}/>,
-                    onSelect: () => onCreateFolder(true),
-                });
+                if (!archiveView)
+                    newItems.push({
+                        label: t("Case-sensitive folder"), icon: <FolderIcon size={14}/>,
+                        onSelect: () => onCreateFolder(true),
+                    });
             }
 
             if (onCreateFile) {
@@ -269,14 +272,16 @@ export function FileMenu({
         if (creationOnly)
             return <ContextMenu items={items} onClose={onClose} quick={quick} x={menu.x} y={menu.y}/>;
 
-        items.push({
-            label: t("Open in Terminal"), icon: <TerminalIcon size={14}/>,
-            onSelect: () => void openTerminal(directory),
-        });
-        items.push({
-            label: t("Show in Explorer"), icon: <FolderIcon size={14}/>, separatorBefore: true,
-            onSelect: () => void showInExplorer(directory),
-        });
+        if (!archiveView) {
+            items.push({
+                label: t("Open in Terminal"), icon: <TerminalIcon size={14}/>,
+                onSelect: () => void openTerminal(directory),
+            });
+            items.push({
+                label: t("Show in Explorer"), icon: <FolderIcon size={14}/>, separatorBefore: true,
+                onSelect: () => void showInExplorer(directory),
+            });
+        }
 
         if (onPaste) {
             quick.push({
@@ -292,11 +297,12 @@ export function FileMenu({
                 onSelect: onRefresh,
             });
         }
-        quick.push({
-            label: t("Properties"), icon: <GearIcon size={16}/>,
-            shortcut: prettyShortcut(shortcuts.properties),
-            onSelect: () => void showProperties([directory]),
-        });
+        if (!archiveView)
+            quick.push({
+                label: t("Properties"), icon: <GearIcon size={16}/>,
+                shortcut: prettyShortcut(shortcuts.properties),
+                onSelect: () => void showProperties([directory]),
+            });
     } else {
         if (onOpen) {
             items.push({
@@ -320,13 +326,14 @@ export function FileMenu({
                     onSelect: () => onPaste(target.path),
                 });
             }
-            items.push({
-                label: t("Open in Terminal"), icon: <TerminalIcon size={14}/>,
-                onSelect: () => void openTerminal(target.path),
-            });
+            if (!archiveView)
+                items.push({
+                    label: t("Open in Terminal"), icon: <TerminalIcon size={14}/>,
+                    onSelect: () => void openTerminal(target.path),
+                });
         }
 
-        if (single && target && !target.isDirectory) {
+        if (!archiveView && single && target && !target.isDirectory) {
             const children: ContextMenuItem[] = [];
 
             if (openWithApps.loading) {
@@ -370,12 +377,13 @@ export function FileMenu({
             });
         }
 
-        items.push({
-            label: t("Compress to ZIP"), icon: <ArchiveIcon size={14}/>, separatorBefore: true,
-            onSelect: () => void compress(menu.paths),
-        });
+        if (!archiveView)
+            items.push({
+                label: t("Compress to ZIP"), icon: <ArchiveIcon size={14}/>, separatorBefore: true,
+                onSelect: () => void compress(menu.paths),
+            });
 
-        if (single && target) {
+        if (!archiveView && single && target) {
             const links: ContextMenuItem[] = target.isDirectory
                 ? [
                     {
@@ -405,7 +413,7 @@ export function FileMenu({
             });
         }
 
-        if (target?.isDirectory && caseState !== null) {
+        if (!archiveView && target?.isDirectory && caseState !== null) {
             items.push({
                 label: t("Case-sensitive names"), icon: <FolderIcon size={14}/>,
                 checked: caseState,
@@ -425,10 +433,11 @@ export function FileMenu({
             });
         }
 
-        items.push({
-            label: t("Show in Explorer"), icon: <FolderIcon size={14}/>, separatorBefore: true,
-            onSelect: () => void showInExplorer(menu.paths[0]),
-        });
+        if (!archiveView)
+            items.push({
+                label: t("Show in Explorer"), icon: <FolderIcon size={14}/>, separatorBefore: true,
+                onSelect: () => void showInExplorer(menu.paths[0]),
+            });
 
         if (onCopy) {
             quick.push(
@@ -458,11 +467,12 @@ export function FileMenu({
             });
         }
 
-        quick.push({
-            label: t("Properties"), icon: <GearIcon size={16}/>,
-            shortcut: prettyShortcut(shortcuts.properties),
-            onSelect: () => void showProperties(menu.paths),
-        });
+        if (!archiveView)
+            quick.push({
+                label: t("Properties"), icon: <GearIcon size={16}/>,
+                shortcut: prettyShortcut(shortcuts.properties),
+                onSelect: () => void showProperties(menu.paths),
+            });
     }
 
     if (shell.loading) {

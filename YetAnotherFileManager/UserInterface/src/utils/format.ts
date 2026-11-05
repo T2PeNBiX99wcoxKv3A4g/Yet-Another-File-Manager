@@ -224,6 +224,11 @@ export function archiveFile(path: string): string {
     return index < 0 ? path : parts.slice(0, index + 1).join("\\");
 }
 
+/** ZIP archives can be edited through a temporary working copy and atomically rebuilt. */
+export function isZipArchiveLocation(path: string): boolean {
+    return archiveFile(path).toLowerCase().endsWith(".zip");
+}
+
 /** A path with one separator style, no trailing separator and folded case, for map lookups. */
 export function normalizePath(path: string): string {
     // Most Windows paths already use single backslashes, so the regex only runs when needed.

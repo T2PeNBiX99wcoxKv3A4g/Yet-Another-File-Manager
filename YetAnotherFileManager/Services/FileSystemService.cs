@@ -263,11 +263,13 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
             case "fs.clipboard.copy":
                 return context.Reply("fs.clipboard.copy.result",
-                    new OkPayload(FileOperations.CopyToClipboard(context.Payload<PathsPayload>()?.Paths, false)));
+                    new OkPayload(FileOperations.CopyToClipboard(
+                        await MapWorkspacePathsAsync(context.Payload<PathsPayload>()?.Paths ?? []), false)));
 
             case "fs.clipboard.cut":
                 return context.Reply("fs.clipboard.cut.result",
-                    new OkPayload(FileOperations.CopyToClipboard(context.Payload<PathsPayload>()?.Paths, true)));
+                    new OkPayload(FileOperations.CopyToClipboard(
+                        await MapWorkspacePathsAsync(context.Payload<PathsPayload>()?.Paths ?? []), true)));
 
             case "fs.clipboard.hasFiles":
                 return context.Reply("fs.clipboard.hasFiles.result",
@@ -281,8 +283,12 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                     FileOperations.InspectPaths(context.Payload<PathsPayload>()?.Paths ?? []));
 
             case "fs.clipboard.paste":
+            {
+                var directory = context.Payload<DirectoryRequest>()?.Directory ?? "";
+                directory = await MapWorkspacePathAsync(directory, true);
                 return context.Reply("fs.clipboard.paste.result",
-                    new OkPayload(await FileOperations.PasteAsync(context.Payload<DirectoryRequest>()?.Directory ?? "")));
+                    new OkPayload(await FileOperations.PasteAsync(directory)));
+            }
 
             case "fs.operation.delete":
             {
@@ -293,6 +299,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 if (GuardDelete(request?.Confirm, DeleteGuard.KeyForDelete(paths, permanent), paths) is { } blocked)
                     return context.Reply("fs.operation.delete.result", blocked);
 
+                paths = await MapWorkspacePathsAsync(paths);
                 return context.Reply("fs.operation.delete.result",
                     await FileOperations.DeleteAsync(paths, permanent));
             }
@@ -323,20 +330,62 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 return context.Reply("fs.archive.extract.result", extracted);
             }
 
+            case "fs.archive.extractEntry":
+            {
+                var request = context.Payload<ArchivePathRequest>();
+                try
+                {
+                    var path = await Task.Run(() => Archives.ExtractEntry(request?.Path ?? "", request?.CodePage ?? 0));
+                    return context.Reply("fs.archive.extractEntry.result", new ArchiveOpenPayload(path));
+                }
+                catch (Exception ex)
+                {
+                    return context.Reply("fs.archive.extractEntry.result", new ArchiveOpenPayload(null, ex.Message));
+                }
+            }
+
+            case "fs.archive.apply":
+            {
+                var request = context.Payload<ArchivePathRequest>();
+                var changed = Archives.HasWorkspace(request?.Path ?? "");
+                var result = await Task.Run(() => Archives.ApplyChanges(request?.Path ?? "", out var error)
+                    ? new ArchiveApplyPayload(true, changed)
+                    : new ArchiveApplyPayload(false, false, error));
+                return context.Reply("fs.archive.apply.result", result);
+            }
+
             case "fs.operation.rename":
-                return context.Reply("fs.operation.rename.result",
-                    await FileOperations.RenameAsync(context.Payload<RenamePathRequest>()?.Path ?? "",
-                        context.Payload<RenamePathRequest>()?.Name ?? ""));
+            {
+                var request = context.Payload<RenamePathRequest>();
+                var path = await MapWorkspacePathAsync(request?.Path ?? "");
+                var result = await FileOperations.RenameAsync(path, request?.Name ?? "");
+                return context.Reply("fs.operation.rename.result", result with
+                {
+                    Path = result.Path is null ? null : Archives.ToVirtualPath(result.Path)
+                });
+            }
 
             case "fs.operation.newFolder":
-                return context.Reply("fs.operation.newFolder.result",
-                    await FileOperations.NewFolderAsync(context.Payload<NewFolderRequest>()?.Directory ?? "",
-                        context.Payload<NewFolderRequest>()?.CaseSensitive ?? false));
+            {
+                var request = context.Payload<NewFolderRequest>();
+                var directory = await MapWorkspacePathAsync(request?.Directory ?? "", true);
+                var result = await FileOperations.NewFolderAsync(directory, request?.CaseSensitive ?? false);
+                return context.Reply("fs.operation.newFolder.result", result with
+                {
+                    Path = result.Path is null ? null : Archives.ToVirtualPath(result.Path)
+                });
+            }
 
             case "fs.operation.newFile":
-                return context.Reply("fs.operation.newFile.result",
-                    await FileOperations.NewFileAsync(context.Payload<NewFileRequest>()?.Directory ?? "",
-                        context.Payload<NewFileRequest>()?.Extension));
+            {
+                var request = context.Payload<NewFileRequest>();
+                var directory = await MapWorkspacePathAsync(request?.Directory ?? "", true);
+                var result = await FileOperations.NewFileAsync(directory, request?.Extension);
+                return context.Reply("fs.operation.newFile.result", result with
+                {
+                    Path = result.Path is null ? null : Archives.ToVirtualPath(result.Path)
+                });
+            }
 
             case "fs.caseSensitive.get":
                 return context.Reply("fs.caseSensitive.get.result",
@@ -358,16 +407,31 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             }
 
             case "fs.preview.text":
+            {
+                var path = await ResolveArchiveEntryAsync(context.Payload<TextPreviewRequest>()?.Path ?? "");
                 return context.Reply("fs.preview.text.result",
-                    await FileOperations.PreviewTextAsync(context.Payload<TextPreviewRequest>()?.Path ?? ""));
+                    await FileOperations.PreviewTextAsync(path));
+            }
 
             case "fs.operation.compress":
                 return context.Reply("fs.operation.compress.result",
                     await FileOperations.CompressAsync(context.Payload<PathsPayload>()?.Paths ?? []));
 
             case "fs.operation.transfer":
-                return context.Reply("fs.operation.transfer.result",
-                    await FileOperations.TransferAsync(context.Payload<TransferRequest>()));
+            {
+                var request = context.Payload<TransferRequest>();
+                if (request is null)
+                    return context.Reply("fs.operation.transfer.result",
+                        new TransferResultPayload(false, "Nothing to transfer.", []));
+
+                var paths = await MapWorkspacePathsAsync(request.Paths);
+                var target = await MapWorkspacePathAsync(request.Target, true);
+                var result = await FileOperations.TransferAsync(request with {Paths = paths, Target = target});
+                return context.Reply("fs.operation.transfer.result", result with
+                {
+                    Created = result.Created.Select(Archives.ToVirtualPath).ToList()
+                });
+            }
 
             case "app.tasks":
                 return context.Reply("app.tasks.result", new TasksPayload(TaskCenter.Instance.Snapshot()));
@@ -735,8 +799,12 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     /// <summary>Hands a file to the shell, which opens it with whatever the user made its default.</summary>
     private static async Task<bool> OpenFileAsync(string? path)
     {
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        if (string.IsNullOrWhiteSpace(path))
             return false;
+
+        path = await ResolveArchiveEntryAsync(path);
+
+        if (!File.Exists(path)) return false;
 
         await HistoryService.Instance.RecordRecentAsync(path, false);
 
@@ -922,9 +990,47 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         Path.Combine(Path.GetTempPath(), $"yafm-orphans-{Guid.NewGuid():N}.json");
 
     /// <summary>Lists a directory. A missing path starts at the user's home directory.</summary>
+    /// <summary>Maps virtual archive entries to a writable per-archive staging directory.</summary>
+    private static async Task<string> MapWorkspacePathAsync(string path, bool directory = false)
+    {
+        if (!Archives.TrySplit(path, out var archivePath, out _))
+            return path;
+
+        // The archive file itself remains a normal file unless the caller is treating it as the
+        // virtual root directory (paste, drag-and-drop, or create-folder target).
+        if (!directory && string.Equals(Path.GetFullPath(path), Path.GetFullPath(archivePath),
+                StringComparison.OrdinalIgnoreCase))
+            return path;
+
+        return await Archives.WorkspacePathAsync(path) ?? path;
+    }
+
+    private static async Task<string> ResolveArchiveEntryAsync(string path)
+    {
+        if (Archives.TryGetWorkspacePath(path, out var staged) && File.Exists(staged))
+            return staged;
+
+        if (Archives.TrySplit(path, out _, out var inner) && inner.Length > 0)
+            return await Task.Run(() => Archives.ExtractEntry(path));
+
+        return path;
+    }
+
+    private static async Task<List<string>> MapWorkspacePathsAsync(IReadOnlyList<string> paths)
+    {
+        var mapped = new List<string>(paths.Count);
+        foreach (var path in paths)
+            mapped.Add(await MapWorkspacePathAsync(path));
+
+        return mapped;
+    }
+
     private static async Task<FsListPayload> ListAsync(string? path, bool measure = true, bool includeLinks = false,
         int codePage = 0)
     {
+        if (Archives.TryListWorkspace(path ?? "", out var workspaceListing))
+            return workspaceListing;
+
         // An archive is opened as a virtual folder; its inner path is everything after the archive file.
         if (Archives.TrySplit(path ?? "", out var archivePath, out var inner))
             return await Task.Run(() => Archives.List(archivePath, inner, codePage));

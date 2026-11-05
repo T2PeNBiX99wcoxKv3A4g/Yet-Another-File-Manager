@@ -10,6 +10,8 @@ import {
     listRecent,
     openFile,
     extractArchive,
+    extractArchiveEntry,
+    applyArchiveChanges,
     recordVisit,
     saveDirectoryView,
     saveTags,
@@ -49,6 +51,7 @@ import {EmptyFind, matchesName, type FindState} from "./find";
 import {QuickAccessProvider, quickName, quickPlace, type QuickAccess} from "./quick";
 import {
     ArchiveIcon,
+    CheckIcon,
     ArrowLeftIcon,
     ArrowRightIcon,
     ArrowUpIcon,
@@ -72,7 +75,7 @@ import {TooltipLayer} from "./components/TooltipLayer";
 import {viewTitles, type TabKind} from "./tabs";
 import {buildPanels} from "./panels";
 import {Native, ResizeHandles, useTranslation, useWindowCorners, type Translate} from "@photino-net-utils/bridge";
-import {applyTimeFormat, archiveFile, baseName, formatBytes, isArchiveLocation, isArchivePath, normalizePath, plural} from "./utils/format";
+import {applyTimeFormat, archiveFile, baseName, formatBytes, isArchiveLocation, isArchivePath, isZipArchiveLocation, normalizePath, plural} from "./utils/format";
 import {applyTheme} from "./theme";
 import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "./storage";
 import {fadeInStyle, pageInStyle, splitLineInStyle} from "./ui/motion";
@@ -1711,7 +1714,9 @@ export default function App() {
     const filePane = (tab: Tab, primary: boolean) => {
         // Each pane keeps its own mode, sizes and sort; columns stay window-wide.
         const tabView = resolveView(tab, viewDefaults);
-        const archive = isArchiveLocation(tab.listing?.path ?? tab.history[tab.index] ?? "");
+        const location = tab.listing?.path ?? tab.history[tab.index] ?? "";
+        const archive = isArchiveLocation(location);
+        const archiveWritable = archive && isZipArchiveLocation(location);
 
         return (
             <FileList
@@ -1722,7 +1727,7 @@ export default function App() {
                 onPreviewInfo={primary ? setPrimaryPreview : setSecondaryPreview}
                 onActivate={() => setActivePane(primary ? "primary" : "secondary")}
                 enableShortcuts={(!splitActive || (primary ? activePane === "primary" : activePane === "secondary"))
-                    && !archive}
+                    && (!archive || archiveWritable)}
                 error={tab.error}
                 find={tab.id === focusedTab.id
                     ? {...find, currentPath: findCurrent < 0 ? null : findHits[findCurrent]}
@@ -1731,7 +1736,7 @@ export default function App() {
                 listing={tab.listing}
                 loading={tab.loading}
                 onImageStripHeight={setImageStripHeight}
-                readOnly={archive}
+                readOnly={archive && !archiveWritable}
                 onOpen={(path, newTab) => {
                     if (newTab) openFiles(path);
                     else void load(tab.id, path);
@@ -1739,6 +1744,14 @@ export default function App() {
                 onOpenFile={(file) => {
                     if (isArchivePath(file)) {
                         void load(tab.id, file);
+                        return;
+                    }
+
+                    if (isArchiveLocation(file)) {
+                        void extractArchiveEntry(file, archiveEncodingRef.current).then((result) => {
+                            if (result.path) void openFile(result.path);
+                            else if (result.error) alert(result.error);
+                        });
                         return;
                     }
 
@@ -1792,6 +1805,7 @@ export default function App() {
 
     /** Archive-only actions, shown after a separator at the right edge of the toolbar. */
     const archived = kind === "files" && isArchiveLocation(activeFolder);
+    const archiveWritable = archived && isZipArchiveLocation(activeFolder);
 
     const extractActiveArchive = async () => {
         if (!archived) return;
@@ -1806,6 +1820,18 @@ export default function App() {
         }
 
         void load(active.id, target, true);
+    };
+
+    const applyActiveArchive = async () => {
+        if (!archiveWritable) return;
+
+        const result = await applyArchiveChanges(activeFolder, archiveEncodingRef.current);
+        if (!result.ok) {
+            alert(`${t("Could not apply archive changes.")}${result.error ? `\n${result.error}` : ""}`);
+            return;
+        }
+
+        if (result.changed) void load(active.id, activeFolder, true);
     };
 
     const changeArchiveEncoding = (value: string) => {
@@ -1906,6 +1932,15 @@ export default function App() {
                     >
                         <ArchiveIcon/>
                     </IconButton>
+                    {archiveWritable && (
+                        <IconButton
+                            onClick={() => void applyActiveArchive()}
+                            title={t("Apply archive changes")}
+                            type="button"
+                        >
+                            <CheckIcon/>
+                        </IconButton>
+                    )}
                     <SelectMenu
                         onChange={changeArchiveEncoding}
                         options={ArchiveEncodings.map((option) => ({...option, label: t(option.label)}))}

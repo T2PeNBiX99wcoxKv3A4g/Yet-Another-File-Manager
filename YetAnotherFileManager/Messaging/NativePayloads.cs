@@ -198,6 +198,15 @@ internal sealed record ArchiveExtractRequest(string Path, string Target, int? Co
 /// <summary>Body for <c>fs.archive.extract</c>.</summary>
 internal sealed record ArchiveExtractPayload(bool Ok, string? Error = null);
 
+/// <summary>Payload for opening one file or applying edits to an archive.</summary>
+internal sealed record ArchivePathRequest(string Path, int? CodePage = null);
+
+/// <summary>Result of rebuilding a staged archive.</summary>
+internal sealed record ArchiveApplyPayload(bool Ok, bool Changed, string? Error = null);
+
+/// <summary>Physical path of a temporary archive entry, or why it could not be extracted.</summary>
+internal sealed record ArchiveOpenPayload(string? Path, string? Error = null);
+
 /// <summary>Body for <c>app.protection.defaults</c>: the rules a fresh install starts with.</summary>
 internal sealed record ProtectedDefaultsPayload(List<string> Paths);
 

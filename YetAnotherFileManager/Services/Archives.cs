@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.IO.Compression;
 using System.Text;
 using SharpCompress.Archives;
 using SharpCompress.Common;
@@ -23,8 +24,15 @@ internal static class Archives
 
     private static readonly ConcurrentDictionary<string, (long Length, long Ticks, int CodePage)>
         Detected = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, int> SelectedCodePages = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, Workspace> Workspaces = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly string TempRoot = Path.Combine(Path.GetTempPath(), "YetAnotherFileManager", "Archives");
 
-    static Archives() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+    static Archives()
+    {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => CleanupWorkspaces();
+    }
 
     /// <summary>Whether the path itself names an archive file.</summary>
     public static bool IsArchive(string path) =>
@@ -86,6 +94,8 @@ internal static class Archives
     /// <summary>The listing of one folder inside an archive, shaped like a directory listing.</summary>
     public static FsListPayload List(string archivePath, string inner, int codePage = 0)
     {
+        SelectedCodePages[Path.GetFullPath(archivePath)] = codePage;
+
         var prefix = inner.Trim(Path.DirectorySeparatorChar).Replace('\\', '/');
         var folders = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         var files = new List<FileEntry>();
@@ -95,7 +105,8 @@ internal static class Archives
         foreach (var entry in archive.Entries)
         {
             var key = (entry.Key ?? "").Replace('\\', '/').Trim('/');
-            if (key.Length == 0)
+            if (key.Length == 0 || Path.IsPathRooted(key)
+                || key.Split('/').Any(part => part is ".." or "."))
                 continue;
 
             if (prefix.Length > 0)
@@ -162,7 +173,7 @@ internal static class Archives
     /// <summary>Extracts the whole archive into <paramref name="target" />.</summary>
     public static void Extract(string archivePath, string target, int codePage = 0)
     {
-        var root = Path.GetFullPath(target);
+        var root = Path.GetFullPath(target).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
         Directory.CreateDirectory(root);
 
         using var archive = Open(archivePath, ResolveCodePage(archivePath, codePage));
@@ -182,6 +193,240 @@ internal static class Archives
             WriteEntry(root, entry, entry.OpenEntryStream);
     }
 
+    /// <summary>Extracts one virtual file to a private temporary folder and returns its real path.</summary>
+    public static string ExtractEntry(string virtualPath, int codePage = 0)
+    {
+        if (!TrySplit(virtualPath, out var archivePath, out var inner) || inner.Length == 0)
+            throw new FileNotFoundException("The path does not name a file inside an archive.");
+
+        if (TryGetWorkspacePath(virtualPath, out var edited) && File.Exists(edited))
+            return edited;
+
+        var resolved = ResolveCodePage(archivePath, codePage);
+        var root = Path.Combine(TempRoot, "opened", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+
+        using var archive = Open(archivePath, resolved);
+        var normalized = inner.Replace('\\', '/').TrimStart('/');
+        var entry = archive.Entries.FirstOrDefault(candidate =>
+            string.Equals((candidate.Key ?? "").Replace('\\', '/').TrimStart('/'), normalized,
+                StringComparison.OrdinalIgnoreCase));
+
+        if (entry is null || entry.IsDirectory)
+            throw new FileNotFoundException("The file is no longer in the archive.", inner);
+
+        var destination = SafeDestination(root, Path.GetFileName(normalized));
+        using (var input = entry.OpenEntryStream())
+        using (var output = File.Create(destination))
+            input.CopyTo(output);
+
+        return destination;
+    }
+
+    /// <summary>Maps an archive's virtual directory to a writable temporary workspace.</summary>
+    public static async Task<string?> WorkspaceDirectoryAsync(string path, int codePage = 0)
+    {
+        var directory = await WorkspacePathAsync(path, codePage);
+        if (directory is null) return null;
+        Directory.CreateDirectory(directory);
+
+        return directory;
+    }
+
+    /// <summary>Maps a virtual path to its staging copy, creating the copy on the first mutation.</summary>
+    public static async Task<string?> WorkspacePathAsync(string path, int codePage = 0)
+    {
+        if (!TrySplit(path, out var archivePath, out var inner))
+            return null;
+
+        var workspace = await EnsureWorkspaceAsync(archivePath, codePage);
+        return WorkspacePath(workspace, inner);
+    }
+
+    /// <summary>Maps a virtual entry to an existing workspace path, without creating a workspace.</summary>
+    public static bool TryGetWorkspacePath(string path, out string physical)
+    {
+        physical = "";
+        if (!TrySplit(path, out var archivePath, out var inner)
+            || !Workspaces.TryGetValue(Path.GetFullPath(archivePath), out var workspace))
+            return false;
+
+        physical = WorkspacePath(workspace, inner);
+        return true;
+    }
+
+    /// <summary>Whether a ZIP has a staged working copy waiting to be applied.</summary>
+    public static bool HasWorkspace(string path) =>
+        TrySplit(path, out var archivePath, out _)
+        && Workspaces.ContainsKey(Path.GetFullPath(archivePath));
+
+    /// <summary>Maps any physical workspace path back to its user-facing archive path.</summary>
+    public static string ToVirtualPath(string path)
+    {
+        var full = Path.GetFullPath(path);
+        foreach (var (archive, workspace) in Workspaces)
+        {
+            var prefix = workspace.Root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (!full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var relative = Path.GetRelativePath(workspace.Root, full);
+            return relative == "." ? archive : Path.Combine(archive, relative);
+        }
+
+        return path;
+    }
+
+    /// <summary>Lists a folder from an edit workspace while keeping all returned paths virtual.</summary>
+    public static bool TryListWorkspace(string path, out FsListPayload listing)
+    {
+        listing = null!;
+        if (!TryGetWorkspacePath(path, out var directory) || !Directory.Exists(directory)
+            || !TrySplit(path, out var archivePath, out var inner))
+            return false;
+
+        var entries = Directory.EnumerateFileSystemEntries(directory)
+            .Select(entry =>
+            {
+                var info = new FileInfo(entry);
+                var isDirectory = Directory.Exists(entry);
+                var name = Path.GetFileName(entry);
+                return new FileEntry(name, Path.Combine(path, name), isDirectory,
+                    isDirectory ? 0 : info.Length,
+                    new DateTimeOffset(info.LastWriteTime).ToUnixTimeMilliseconds(),
+                    false, false, null);
+            })
+            .OrderByDescending(entry => entry.IsDirectory)
+            .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var parentInner = Path.GetDirectoryName(inner) ?? "";
+        listing = new FsListPayload(path, inner.Length == 0
+                ? Path.GetDirectoryName(archivePath)
+                : VirtualPath(archivePath, parentInner, ""),
+            entries, new Dictionary<string, long>(), null, new Dictionary<string, List<string>>(),
+            new Dictionary<string, string>(), [], new Dictionary<string, long>());
+        return true;
+    }
+
+    /// <summary>Rebuilds a staged ZIP into a sibling file and swaps it over the original.</summary>
+    public static bool ApplyChanges(string path, out string? error)
+    {
+        error = null;
+        if (!TrySplit(path, out var archivePath, out _)
+            || !string.Equals(Path.GetExtension(archivePath), ".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            error = "Applying edits is currently supported for ZIP archives.";
+            return false;
+        }
+
+        if (!Workspaces.TryGetValue(Path.GetFullPath(archivePath), out var workspace))
+            return true;
+
+        lock (workspace.Gate)
+        {
+            var output = Path.Combine(Path.GetDirectoryName(archivePath)!, $".{Path.GetFileName(archivePath)}.{Guid.NewGuid():N}.tmp");
+
+            try
+            {
+                ZipFile.CreateFromDirectory(workspace.Root, output, CompressionLevel.Optimal, false, Encoding.UTF8);
+                File.Move(output, archivePath, true);
+                Workspaces.TryRemove(Path.GetFullPath(archivePath), out _);
+                Detected.TryRemove(Path.GetFullPath(archivePath), out _);
+                TryDeleteDirectory(workspace.Root);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                TryDeleteFile(output);
+                return false;
+            }
+        }
+    }
+
+    private static async Task<Workspace> EnsureWorkspaceAsync(string archivePath, int codePage)
+    {
+        var fullArchive = Path.GetFullPath(archivePath);
+        if (Workspaces.TryGetValue(fullArchive, out var existing))
+            return existing;
+
+        return await Task.Run(() =>
+        {
+            lock (Workspaces)
+            {
+                if (Workspaces.TryGetValue(fullArchive, out var found))
+                    return found;
+
+                var root = Path.Combine(TempRoot, "edit", Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(root);
+                try
+                {
+                    Extract(fullArchive, root, codePage);
+                    var workspace = new Workspace(root);
+                    Workspaces[fullArchive] = workspace;
+                    return workspace;
+                }
+                catch
+                {
+                    TryDeleteDirectory(root);
+                    throw;
+                }
+            }
+        });
+    }
+
+    private static string WorkspacePath(Workspace workspace, string inner)
+    {
+        var destination = Path.GetFullPath(Path.Combine(workspace.Root, inner));
+        var prefix = workspace.Root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        if (!destination.Equals(workspace.Root, StringComparison.OrdinalIgnoreCase)
+            && !destination.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            throw new IOException("The archive entry is outside the workspace.");
+
+        return destination;
+    }
+
+    private static string SafeDestination(string root, string name)
+    {
+        var destination = Path.GetFullPath(Path.Combine(root, name));
+        var prefix = root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        if (!destination.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            throw new IOException("The archive entry is outside the temporary folder.");
+
+        return destination;
+    }
+
+    private static void CleanupWorkspaces()
+    {
+        foreach (var workspace in Workspaces.Values)
+            TryDeleteDirectory(workspace.Root);
+    }
+
+    private static void TryDeleteDirectory(string path)
+    {
+        try
+        {
+            if (Directory.Exists(path)) Directory.Delete(path, true);
+        }
+        catch { }
+    }
+
+    private static void TryDeleteFile(string path)
+    {
+        try
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+        catch { }
+    }
+
+    private sealed class Workspace(string root)
+    {
+        public string Root { get; } = root;
+        public object Gate { get; } = new();
+    }
+
     private static void WriteEntry(string root, IEntry entry, Func<Stream> open)
     {
         var name = (entry.Key ?? "").Replace('/', Path.DirectorySeparatorChar)
@@ -190,7 +435,8 @@ internal static class Archives
             return;
 
         var destination = Path.GetFullPath(Path.Combine(root, name));
-        if (!destination.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+        var prefix = root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        if (!destination.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             return;
 
         if (entry.IsDirectory)
@@ -222,6 +468,9 @@ internal static class Archives
     {
         if (codePage > 0)
             return codePage;
+
+        if (SelectedCodePages.TryGetValue(Path.GetFullPath(archivePath), out var selected) && selected > 0)
+            return selected;
 
         var file = new FileInfo(archivePath);
         if (!file.Exists)

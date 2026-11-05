@@ -183,6 +183,22 @@ export async function extractArchive(path: string, target: string, codePage = 0)
         "fs.archive.extract", {path, target, codePage});
 }
 
+/** Extracts one archive entry to a temporary file and returns its physical path for the shell. */
+export async function extractArchiveEntry(path: string, codePage = 0): Promise<{ path: string | null; error: string | null }> {
+    return await Native.request<{ path: string | null; error: string | null }>(
+        "fs.archive.extractEntry", {path, codePage});
+}
+
+/** Rebuilds the staged working copy over the original ZIP archive. */
+export async function applyArchiveChanges(path: string, codePage = 0): Promise<{
+    ok: boolean;
+    changed: boolean;
+    error: string | null;
+}> {
+    return await Native.request<{ ok: boolean; changed: boolean; error: string | null }>(
+        "fs.archive.apply", {path, codePage});
+}
+
 /** The first part of a text file, or why it cannot be shown as text. */
 export interface TextPreview {
     text: string | null;
