@@ -99,6 +99,7 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(ArchivePathRequest))]
 [JsonSerializable(typeof(ArchiveApplyPayload))]
 [JsonSerializable(typeof(ArchiveOpenPayload))]
+[JsonSerializable(typeof(CompressRequest))]
 [JsonSerializable(typeof(NewFolderRequest))]
 [JsonSerializable(typeof(CaseSensitiveRequest))]
 [JsonSerializable(typeof(CaseSensitivePayload))]

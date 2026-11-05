@@ -571,6 +571,49 @@ internal static class Archives
             options.ArchiveEncoding = new ArchiveEncoding { Default = encoding, Forced = encoding };
         }
 
+        var tarCompression = Path.GetFileName(archivePath).ToLowerInvariant() switch
+        {
+            var name when name.EndsWith(".tar.gz") => "gz",
+            var name when name.EndsWith(".tar.bz2") => "bz2",
+            _ => "",
+        };
+
+        if (tarCompression.Length > 0)
+        {
+            var input = File.OpenRead(archivePath);
+            Stream decompressed = tarCompression switch
+            {
+                "gz" => new SharpCompress.Compressors.Deflate.GZipStream(input,
+                    SharpCompress.Compressors.CompressionMode.Decompress, options),
+                "bz2" => SharpCompress.Compressors.BZip2.BZip2Stream.Create(input,
+                    SharpCompress.Compressors.CompressionMode.Decompress, true, false, false),
+                _ => throw new InvalidOperationException("Unsupported tar compression."),
+            };
+
+            FileStream? expanded = null;
+            try
+            {
+                var temp = Path.Combine(TempRoot, "streams");
+                Directory.CreateDirectory(temp);
+                expanded = new FileStream(Path.Combine(temp, $"{Guid.NewGuid():N}.tar"),
+                    FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read, 131072,
+                    FileOptions.DeleteOnClose | FileOptions.RandomAccess);
+                decompressed.CopyTo(expanded);
+                decompressed.Dispose();
+                input.Dispose();
+                expanded.Position = 0;
+                options.ExtensionHint = ".tar";
+                return ArchiveFactory.OpenArchive(expanded, options);
+            }
+            catch
+            {
+                decompressed.Dispose();
+                input.Dispose();
+                expanded?.Dispose();
+                throw;
+            }
+        }
+
         return ArchiveFactory.OpenArchive(archivePath, options);
     }
 

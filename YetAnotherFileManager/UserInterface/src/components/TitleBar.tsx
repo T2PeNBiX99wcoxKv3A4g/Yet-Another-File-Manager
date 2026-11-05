@@ -5,11 +5,13 @@ import {useWindowControls, useWindowDrag} from "@photino-net-utils/bridge";
 import type {TabInfo} from "../tabs";
 import type {DirectoryView, ResolvedView} from "../api/files";
 import {prettyShortcut, type ShortcutMap} from "../shortcuts";
+import {isPathDrag, readDraggedPaths} from "./FileTray";
 import {PlaceIcon} from "./PlaceIcon";
 import {StatusCenter} from "./StatusCenter";
 import {HistoryPanel} from "./HistoryPanel";
 import {ViewMenu} from "./ViewMenu";
 import type {TaskInfo} from "../api/tasks";
+import {isArchiveLocation, isZipArchiveLocation} from "../utils/format";
 import {
     AppIcon,
     FolderIcon,
@@ -35,6 +37,7 @@ interface TitleBarProps {
     onClose: (id: string) => void;
     onNewTab: () => void;
     onReorder: (id: string, beforeId: string) => void;
+    onTransferToTab: (paths: string[], target: string, move: boolean) => void;
     view: ResolvedView;
     onViewChange: (change: Partial<DirectoryView>) => void;
     onColumns: (columns: string[]) => void;
@@ -57,7 +60,7 @@ interface TitleBarProps {
 }
 
 export function TitleBar({
-    tabs, activeId, onSelect, onClose, onNewTab, onReorder,
+    tabs, activeId, onSelect, onClose, onNewTab, onReorder, onTransferToTab,
     view, onViewChange, onColumns, showImages, onShowImages, tasks, onClearTasks,
     activityOpen, onActivityOpenChange,
     trayCount, trayVisible, onToggleTray,
@@ -68,6 +71,8 @@ export function TitleBar({
     const drag = useWindowDrag();
     const [overflow, setOverflow] = useState({left: false, right: false});
     const [dragging, setDragging] = useState<string | null>(null);
+    const [dropTab, setDropTab] = useState<string | null>(null);
+    const tabHover = useRef<{id: string; timer: number} | null>(null);
     const scroller = useRef<HTMLDivElement | null>(null);
     const activeTab = useRef<HTMLButtonElement | null>(null);
 
@@ -91,12 +96,22 @@ export function TitleBar({
         return () => observer.disconnect();
     }, [measure, tabs.length]);
 
+    useEffect(() => () => {
+        if (tabHover.current) window.clearTimeout(tabHover.current.timer);
+    }, []);
+
     // Keep the tab that was just activated inside the visible strip.
     useEffect(() => {
         activeTab.current?.scrollIntoView({behavior: "smooth", block: "nearest", inline: "nearest"});
     }, [activeId]);
 
     const scrollBy = (delta: number) => scroller.current?.scrollBy({left: delta, behavior: "smooth"});
+
+    const cancelTabHover = () => {
+        if (tabHover.current) window.clearTimeout(tabHover.current.timer);
+        tabHover.current = null;
+        setDropTab(null);
+    };
 
     return (
         <Bar>
@@ -124,17 +139,51 @@ export function TitleBar({
                             key={tab.id}
                             $active={tab.id === activeId}
                             $dragging={dragging === tab.id}
+                            $dropTarget={dropTab === tab.id}
                             $split={Boolean(tab.split)}
                             draggable
-                            onDragEnd={() => setDragging(null)}
+                            onDragEnter={(event) => {
+                                if (!isPathDrag(event.dataTransfer) || !canDropOnTab(tab)) return;
+                                event.preventDefault();
+                                if (tabHover.current?.id === tab.id) return;
+                                cancelTabHover();
+                                setDropTab(tab.id);
+                                const timer = window.setTimeout(() => {
+                                    onSelect(tab.id);
+                                    tabHover.current = null;
+                                }, 500);
+                                tabHover.current = {id: tab.id, timer};
+                            }}
+                            onDragLeave={(event) => {
+                                const related = event.relatedTarget;
+                                if (related instanceof Node && event.currentTarget.contains(related)) return;
+                                if (tabHover.current?.id === tab.id || dropTab === tab.id) cancelTabHover();
+                            }}
+                            onDragEnd={() => {
+                                setDragging(null);
+                                cancelTabHover();
+                            }}
                             onDragOver={(event) => {
-                                if (dragging) event.preventDefault();
+                                if (dragging || (isPathDrag(event.dataTransfer) && canDropOnTab(tab))) {
+                                    event.preventDefault();
+                                    if (isPathDrag(event.dataTransfer))
+                                        event.dataTransfer.dropEffect = event.ctrlKey ? "copy" : "move";
+                                }
                             }}
                             onDragStart={() => setDragging(tab.id)}
                             onDrop={(event) => {
                                 event.preventDefault();
-                                if (dragging) onReorder(dragging, tab.id);
+                                if (dragging) {
+                                    onReorder(dragging, tab.id);
+                                } else if (canDropOnTab(tab) && isPathDrag(event.dataTransfer)) {
+                                    const {paths, move} = readDraggedPaths(event);
+                                    if (paths.length > 0) {
+                                        onSelect(tab.id);
+                                        onTransferToTab(paths, tab.path, event.ctrlKey ? false : move);
+                                    }
+                                }
                                 setDragging(null);
+                                cancelTabHover();
                             }}
                             onClick={() => onSelect(tab.id)}
                             ref={tab.id === activeId ? activeTab : undefined}
@@ -246,6 +295,10 @@ export function TitleBar({
     );
 }
 
+function canDropOnTab(tab: TabInfo): boolean {
+    return tab.kind === "files" && (!isArchiveLocation(tab.path) || isZipArchiveLocation(tab.path));
+}
+
 function TabGlyph({tab}: { tab: TabInfo }) {
     switch (tab.kind) {
         case "home":
@@ -349,7 +402,7 @@ const ScrollButton = styled.button`
     }
 `;
 
-const Tab = styled.button<{ $active: boolean; $dragging: boolean; $split: boolean }>`
+const Tab = styled.button<{ $active: boolean; $dragging: boolean; $split: boolean; $dropTarget: boolean }>`
     display: flex;
     align-items: center;
     gap: 7px;
@@ -357,7 +410,9 @@ const Tab = styled.button<{ $active: boolean; $dragging: boolean; $split: boolea
     height: 32px;
     flex: 0 0 auto;
     padding: 0 6px 0 10px;
-    border: 1px solid ${({$active}) => $active ? "var(--border-color)" : "transparent"};
+    border: 1px solid ${({$dropTarget, $active}) => $dropTarget
+        ? "var(--accent-primary)"
+        : $active ? "var(--border-color)" : "transparent"};
     border-bottom: 0;
     border-radius: 9px 9px 0 0;
     background: ${({$active}) => $active ? "rgba(var(--accent-rgb), 0.10)" : "transparent"};
@@ -366,7 +421,9 @@ const Tab = styled.button<{ $active: boolean; $dragging: boolean; $split: boolea
     font-size: 12px;
     cursor: pointer;
     opacity: ${({$dragging}) => $dragging ? 0.45 : 1};
-    box-shadow: ${({$active}) => $active ? "inset 0 -2px 0 var(--accent-primary)" : "none"};
+    box-shadow: ${({$dropTarget, $active}) => $dropTarget
+        ? "inset 0 -2px 0 var(--accent-primary), 0 0 12px rgba(var(--accent-rgb), 0.22)"
+        : $active ? "inset 0 -2px 0 var(--accent-primary)" : "none"};
     transition: background 120ms ease, color 120ms ease, opacity 120ms ease, box-shadow 120ms ease;
 
     svg {

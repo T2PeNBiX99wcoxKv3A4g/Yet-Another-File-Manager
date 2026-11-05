@@ -306,10 +306,17 @@ export async function invokeShellVerb(
     await Native.request("shell.invoke", {paths, safe, verb, offset});
 }
 
-/** Packs the selection into a ZIP file beside it. */
-export async function compressPaths(paths: string[]): Promise<PathOperation> {
+export interface CompressOptions {
+    directory: string;
+    name: string;
+    format: "zip" | "tar" | "tar.gz" | "tar.bz2";
+    level: number;
+}
+
+/** Packs selected files into the requested format and destination. */
+export async function compressPaths(paths: string[], options: CompressOptions): Promise<PathOperation> {
     if (!Native.available || paths.length === 0)
         return {ok: false, path: null, error: "Compressing needs the desktop app."};
 
-    return await Native.request<PathOperation>("fs.operation.compress", {paths});
+    return await Native.request<PathOperation>("fs.operation.compress", {...options, paths});
 }

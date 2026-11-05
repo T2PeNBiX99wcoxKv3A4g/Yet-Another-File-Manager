@@ -415,7 +415,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
             case "fs.operation.compress":
                 return context.Reply("fs.operation.compress.result",
-                    await FileOperations.CompressAsync(context.Payload<PathsPayload>()?.Paths ?? []));
+                    await FileOperations.CompressAsync(context.Payload<CompressRequest>()));
 
             case "fs.operation.transfer":
             {

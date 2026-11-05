@@ -207,6 +207,9 @@ internal sealed record ArchiveApplyPayload(bool Ok, bool Changed, string? Error 
 /// <summary>Physical path of a temporary archive entry, or why it could not be extracted.</summary>
 internal sealed record ArchiveOpenPayload(string? Path, string? Error = null);
 
+/// <summary>Selected paths and output options for <c>fs.operation.compress</c>.</summary>
+internal sealed record CompressRequest(List<string> Paths, string Directory, string Name, string Format, int Level);
+
 /// <summary>Body for <c>app.protection.defaults</c>: the rules a fresh install starts with.</summary>
 internal sealed record ProtectedDefaultsPayload(List<string> Paths);
 

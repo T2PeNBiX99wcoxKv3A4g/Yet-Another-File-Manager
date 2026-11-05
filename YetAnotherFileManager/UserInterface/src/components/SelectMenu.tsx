@@ -15,13 +15,15 @@ export interface SelectOption {
  * The app's own dropdown. A native <select> would be drawn by the browser, which ignores the
  * theme and looks nothing like the rest of the surface, so the list is rendered in a portal.
  */
-export function SelectMenu({value, options, onChange, disabled, width}: {
+export function SelectMenu({value, options, onChange, disabled, width, zIndex = 3200}: {
     value: string;
     options: SelectOption[];
     onChange: (value: string) => void;
     disabled?: boolean;
     /** Width of the button; the menu never gets narrower than it. */
     width?: number;
+    /** Place this menu above a modal that owns the trigger. */
+    zIndex?: number;
 }) {
     const [anchor, setAnchor] = useState<{
         left: number;
@@ -100,6 +102,7 @@ export function SelectMenu({value, options, onChange, disabled, width}: {
                 <Menu
                     aria-label="options"
                     data-select-menu="true"
+                    $menuZIndex={zIndex}
                     role="listbox"
                     style={{bottom: anchor.bottom, left: anchor.left, minWidth: anchor.width, top: anchor.top}}
                 >
@@ -172,9 +175,9 @@ const Chevron = styled.span`
     transform: rotate(90deg);
 `;
 
-const Menu = styled.div`
+const Menu = styled.div<{ $menuZIndex: number }>`
     position: fixed;
-    z-index: 3200;
+    z-index: ${({$menuZIndex}) => $menuZIndex};
     display: flex;
     flex-direction: column;
     gap: 2px;

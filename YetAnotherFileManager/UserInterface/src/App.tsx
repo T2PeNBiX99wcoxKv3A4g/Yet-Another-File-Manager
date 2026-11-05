@@ -1965,6 +1965,7 @@ export default function App() {
                 onClose={closeTab}
                 onNewTab={() => openFiles()}
                 onReorder={moveTab}
+                onTransferToTab={transferTo}
                 onSelect={setActiveId}
                 onViewChange={changeView}
                 onColumns={setColumns}

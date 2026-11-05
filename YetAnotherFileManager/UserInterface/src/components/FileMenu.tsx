@@ -14,13 +14,14 @@ import {
     showInExplorer,
     showProperties,
     type LinkKind,
+    type CompressOptions,
     type OpenWithProgram,
     type ShellVerb,
 } from "../api/operations";
 import {requestFolder} from "../folder-picker";
 import {prettyShortcut, type ShortcutMap} from "../shortcuts";
 import {CreateFileTypes} from "../create-types";
-import {isArchiveLocation} from "../utils/format";
+import {baseName, isArchiveLocation} from "../utils/format";
 import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
 import {
     ArchiveIcon,
@@ -80,6 +81,9 @@ interface FileMenuProps {
     creationOnly?: boolean;
     onRefresh?: () => void;
     onAddToTray?: (paths: string[]) => void;
+    allowCompression?: boolean;
+    onCompressTo?: (paths: string[], name: string) => void;
+    onArchiveCreated?: (path: string, rename: boolean) => void;
 }
 
 /**
@@ -89,7 +93,7 @@ interface FileMenuProps {
 export function FileMenu({
     menu, directory, target, shortcuts, canPaste = false, onClose,
     onOpen, onOpenFile, onRename, onDelete, onCopy, onPaste, onCreateFolder, onCreateFile, creationOnly = false,
-    onRefresh, onAddToTray,
+    onRefresh, onAddToTray, allowCompression = false, onCompressTo, onArchiveCreated,
 }: FileMenuProps) {
     const t = useTranslation();
     const archiveView = isArchiveLocation(directory);
@@ -176,10 +180,24 @@ export function FileMenu({
     const items: ContextMenuItem[] = [];
     const quick: ContextMenuItem[] = [];
 
-    const compress = async (paths: string[]) => {
-        const result = await compressPaths(paths);
-        if (result.ok) onRefresh?.();
-        else window.alert(result.error ?? t("Could not create the ZIP file."));
+    const selectedArchiveName = () => {
+        if (!single || !target) return "Archive";
+        const name = baseName(target.path);
+        if (target.isDirectory) return name;
+        const dot = name.lastIndexOf(".");
+        return dot > 0 ? name.slice(0, dot) : name;
+    };
+
+    const compressZip = async (paths: string[]) => {
+        const options: CompressOptions = {
+            directory,
+            name: selectedArchiveName(),
+            format: "zip",
+            level: 5,
+        };
+        const result = await compressPaths(paths, options);
+        if (result.ok && result.path) onArchiveCreated?.(result.path, true);
+        else window.alert(result.error ?? t("Could not create the archive."));
     };
 
     const copyAsPath = async (paths: string[]) => {
@@ -272,7 +290,7 @@ export function FileMenu({
         if (creationOnly)
             return <ContextMenu items={items} onClose={onClose} quick={quick} x={menu.x} y={menu.y}/>;
 
-        if (!archiveView) {
+        if (!archiveView && allowCompression) {
             items.push({
                 label: t("Open in Terminal"), icon: <TerminalIcon size={14}/>,
                 onSelect: () => void openTerminal(directory),
@@ -377,11 +395,16 @@ export function FileMenu({
             });
         }
 
-        if (!archiveView)
+        if (!archiveView) {
             items.push({
                 label: t("Compress to ZIP"), icon: <ArchiveIcon size={14}/>, separatorBefore: true,
-                onSelect: () => void compress(menu.paths),
+                onSelect: () => void compressZip(menu.paths),
             });
+            items.push({
+                label: t("Compress to…"), icon: <ArchiveIcon size={14}/>,
+                onSelect: () => onCompressTo?.(menu.paths, selectedArchiveName()),
+            });
+        }
 
         if (!archiveView && single && target) {
             const links: ContextMenuItem[] = target.isDirectory

@@ -1,8 +1,9 @@
 using System.Diagnostics;
-using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
+using SharpCompress.Common;
+using SharpCompress.Writers;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Interop;
 using PhotinoNetUtils.Utils;
@@ -574,115 +575,146 @@ internal static partial class FileOperations
             }
         });
 
-    /// <summary>Packs the selected files and folders into a ZIP beside the first one.</summary>
-    public static async Task<PathOperationPayload> CompressAsync(IReadOnlyList<string> paths)
+    /// <summary>Packs selected paths using the requested format, level, name and destination.</summary>
+    public static async Task<PathOperationPayload> CompressAsync(CompressRequest? request)
     {
-        var result = await CompressCoreAsync(paths);
+        if (request is null)
+            return new PathOperationPayload(false, null, "There is nothing to compress.");
 
-        if (!result.Ok || result.Path is not { } zipPath)
+        var entries = request.Paths.Where(path => File.Exists(path) || Directory.Exists(path)).ToList();
+        if (entries.Count == 0)
+            return new PathOperationPayload(false, null, "There is nothing to compress.");
+
+        if (!Directory.Exists(request.Directory))
+            return new PathOperationPayload(false, null, "The destination folder is no longer there.");
+
+        var (archiveType, compression, extension) = request.Format.ToLowerInvariant() switch
+        {
+            "zip" => (ArchiveType.Zip, request.Level == 0 ? CompressionType.None : CompressionType.Deflate, ".zip"),
+            "tar" => (ArchiveType.Tar, CompressionType.None, ".tar"),
+            "tar.gz" => (ArchiveType.Tar, CompressionType.GZip, ".tar.gz"),
+            "tar.bz2" => (ArchiveType.Tar, CompressionType.BZip2, ".tar.bz2"),
+            _ => (ArchiveType.Zip, (CompressionType?)null, ""),
+        };
+
+        if (compression is null)
+            return new PathOperationPayload(false, null, "That archive format is not supported.");
+
+        var baseName = request.Name.Trim();
+        if (baseName.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
+            baseName = baseName[..^extension.Length];
+
+        if (baseName.Length == 0 || baseName is "." or ".."
+            || baseName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
+            || Path.GetFileName(baseName) != baseName)
+            return new PathOperationPayload(false, null, "That archive name is not valid.");
+
+        var output = UniquePath(request.Directory, baseName, extension);
+        var sources = entries.ToList();
+
+        var compressionLevel = compression.Value is CompressionType.BZip2 or CompressionType.Xz
+            ? 0
+            : Math.Clamp(request.Level, 0, 9);
+        var result = await Task.Run(() => CompressCore(entries, output, archiveType, compression.Value,
+            compressionLevel));
+
+        if (!result.Ok || result.Path is not { } archivePath)
             return result;
 
-        var sources = paths.Where(path => File.Exists(path) || Directory.Exists(path)).ToList();
-        var currentZip = zipPath;
-
-        FileHistory.Instance.Record($"Compress {Path.GetFileName(zipPath)}",
-            paths: [zipPath],
-            undo: () => DeleteFileStepAsync(currentZip),
+        var currentPath = archivePath;
+        FileHistory.Instance.Record($"Compress {Path.GetFileName(archivePath)}",
+            paths: [archivePath],
+            undo: () => DeleteFileStepAsync(currentPath),
             redo: async () =>
             {
-                var redo = await CompressCoreAsync(sources);
-
-                if (redo.Ok && redo.Path is { } newZip)
-                    currentZip = newZip;
-
+                var redoPath = UniquePath(request.Directory, baseName, extension);
+                var redo = await Task.Run(() => CompressCore(sources, redoPath, archiveType, compression.Value,
+                    compressionLevel));
+                if (redo.Ok && redo.Path is { } newPath) currentPath = newPath;
                 return new FileHistory.Step(redo.Ok, ParentsOf(sources), redo.Error);
             });
 
         return result;
     }
 
-    private static Task<PathOperationPayload> CompressCoreAsync(IReadOnlyList<string> paths) =>
-        Task.Run(() =>
+    private static PathOperationPayload CompressCore(IReadOnlyList<string> paths, string output,
+        ArchiveType archiveType, CompressionType compression, int level)
+    {
+        var taskId = TaskCenter.Instance.Start("compress", $"Compress {Path.GetFileName(output)}");
+        var total = (int)Math.Min(paths.Sum(path => Directory.Exists(path)
+            ? Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories).LongCount()
+            : 1), int.MaxValue);
+        TaskCenter.Instance.UpdateTotal(taskId, total, 0);
+
+        // The native writer is much faster for the common ZIP setting and works in parallel; the
+        // streaming SharpCompress path below handles alternate levels, formats and very large files.
+        if (archiveType == ArchiveType.Zip && compression == CompressionType.Deflate && level == 5)
         {
-            var entries = paths.Where(path => File.Exists(path) || Directory.Exists(path)).ToList();
-            if (entries.Count == 0)
-                return new PathOperationPayload(false, null, "There is nothing to compress.");
+            var native = Try.Run(() => RustNative.Compress(paths, output))
+                .OnFailure(ex => Log.Warning(ex, "The native ZIP writer failed; using the streaming writer"))
+                .GetOrNull();
 
-            var first = entries[0];
-            var directory = Path.GetDirectoryName(first);
-
-            if (directory is null)
-                return new PathOperationPayload(false, null, "The selection has no parent folder.");
-
-            var baseName = entries.Count == 1
-                ? (Directory.Exists(first) ? new DirectoryInfo(first).Name : Path.GetFileNameWithoutExtension(first))
-                : "Archive";
-
-            var zipPath = UniquePath(directory, baseName, ".zip");
-            var taskId = TaskCenter.Instance.Start("compress", $"Compress {Path.GetFileName(zipPath)}");
-            var fileCount = (int)Math.Min(RustNative.CountFiles(entries), int.MaxValue);
-            TaskCenter.Instance.UpdateTotal(taskId, fileCount, 0);
-
-            try
+            if (native == RustNative.ZipResult.Ok)
             {
-                if (RustNative.Compress(entries, zipPath) == RustNative.ZipResult.Ok)
-                {
-                    TaskCenter.Instance.Complete(taskId);
-                    return new PathOperationPayload(true, zipPath, null);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Warning(ex, "Could not compress the selection with the native writer");
-                TaskCenter.Instance.Fail(taskId, ex.Message);
-                return new PathOperationPayload(false, null, ex.Message);
-            }
-
-            // The native writer holds whole files, so a file above its limit streams here instead.
-            Try.Run(() => File.Delete(zipPath));
-
-            try
-            {
-                var done = 0;
-
-                using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
-                {
-                    foreach (var path in entries)
-                    {
-                        if (Directory.Exists(path))
-                        {
-                            var parent = Path.GetDirectoryName(path.TrimEnd(Path.DirectorySeparatorChar)) ?? directory;
-                            var files = Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories).ToList();
-
-                            if (files.Count == 0)
-                                archive.CreateEntry($"{new DirectoryInfo(path).Name}/");
-
-                            foreach (var file in files)
-                            {
-                                var name = Path.GetRelativePath(parent, file).Replace('\\', '/');
-                                archive.CreateEntryFromFile(file, name, CompressionLevel.Optimal);
-                                TaskCenter.Instance.Progress(taskId, ++done, 0);
-                            }
-
-                            continue;
-                        }
-
-                        archive.CreateEntryFromFile(path, Path.GetFileName(path), CompressionLevel.Optimal);
-                        TaskCenter.Instance.Progress(taskId, ++done, 0);
-                    }
-                }
-
                 TaskCenter.Instance.Complete(taskId);
-                return new PathOperationPayload(true, zipPath, null);
+                return new PathOperationPayload(true, output, null);
             }
-            catch (Exception ex)
+
+            Try.Run(() => File.Delete(output));
+        }
+
+        try
+        {
+            var options = new WriterOptions(compression, level)
             {
-                Try.Run(() => File.Delete(zipPath));
-                TaskCenter.Instance.Fail(taskId, ex.Message);
-                Log.Warning(ex, "Could not compress {Count} entries", entries.Count);
-                return new PathOperationPayload(false, null, ex.Message);
+                ArchiveEncoding = new ArchiveEncoding {Default = Encoding.UTF8, Forced = Encoding.UTF8}
+            };
+            using var writer = WriterFactory.OpenWriter(output, archiveType, options);
+            var done = 0;
+
+            foreach (var path in paths)
+            {
+                var name = Directory.Exists(path) ? new DirectoryInfo(path).Name : Path.GetFileName(path);
+                WriteArchivePath(writer, path, name, ref done, total, taskId);
             }
-        });
+
+            TaskCenter.Instance.Complete(taskId);
+            return new PathOperationPayload(true, output, null);
+        }
+        catch (Exception ex)
+        {
+            Try.Run(() => File.Delete(output));
+            TaskCenter.Instance.Fail(taskId, ex.Message);
+            Log.Warning(ex, "Could not compress {Count} entries", paths.Count);
+            return new PathOperationPayload(false, null, ex.Message);
+        }
+    }
+
+    private static void WriteArchivePath(IWriter writer, string path, string archiveName,
+        ref int done, int total, string taskId)
+    {
+        var attributes = File.GetAttributes(path);
+        if ((attributes & FileAttributes.ReparsePoint) != 0)
+            return;
+
+        if ((attributes & FileAttributes.Directory) != 0)
+        {
+            var directory = new DirectoryInfo(path);
+            writer.WriteDirectory(archiveName.TrimEnd('/') + "/", directory.LastWriteTime);
+            var children = Directory.EnumerateFileSystemEntries(path).ToList();
+
+            foreach (var child in children)
+                WriteArchivePath(writer, child, $"{archiveName.TrimEnd('/')}/{Path.GetFileName(child)}",
+                    ref done, total, taskId);
+
+            return;
+        }
+
+        var info = new FileInfo(path);
+        using var stream = File.OpenRead(path);
+        writer.Write(archiveName.Replace('\\', '/'), stream, info.LastWriteTime);
+        TaskCenter.Instance.Progress(taskId, ++done, 0);
+    }
 
     private static Task<FileHistory.Step> DeleteFileStepAsync(string path) =>
         Task.Run(() =>

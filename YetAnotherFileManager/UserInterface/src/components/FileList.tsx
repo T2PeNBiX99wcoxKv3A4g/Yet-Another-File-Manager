@@ -8,6 +8,7 @@ import {wantsNewTab, isTyping, comboOf, DefaultShortcuts, type ShortcutMap} from
 import type {DirectoryListing, FileEntry, Place, ResolvedView} from "../api/files";
 import {useIcon, useIconFile, useThumbnail} from "../api/icons";
 import {
+    compressPaths,
     copyPaths,
     deletePaths,
     hasClipboardFiles,
@@ -16,6 +17,7 @@ import {
     openTerminal,
     pasteInto,
     renamePath,
+    type CompressOptions,
     showProperties,
 } from "../api/operations";
 import {NoFind, rangesOf, type FindView} from "../find";
@@ -26,6 +28,7 @@ import {readStoredNumber, writeStoredNumber} from "../storage";
 import {useTranslation, type Translate} from "@photino-net-utils/bridge";
 import {CheckIcon, FolderIcon} from "./Icons";
 import {FileMenu} from "./FileMenu";
+import {CompressDialog} from "./CompressDialog";
 import {ConfirmDialog} from "./ConfirmDialog";
 import {PreviewPane, type PreviewInfo} from "./PreviewPane";
 import {PlaceIcon} from "./PlaceIcon";
@@ -161,6 +164,7 @@ export function FileList({
     // A host that draws its own status bar follows the same selection the grid uses.
     useEffect(() => onSelectionChange?.([...selected]), [selected, onSelectionChange]);
     const [menu, setMenu] = useState<{ x: number; y: number; paths: string[]; background: boolean } | null>(null);
+    const [compressDialog, setCompressDialog] = useState<{paths: string[]; name: string} | null>(null);
     const [pendingConfirm, setPendingConfirm] = useState<{
         paths: string[];
         permanent: boolean;
@@ -586,6 +590,31 @@ export function FileList({
     }, [allowBackgroundMenu, currentDirectory]);
 
     const refresh = useCallback(() => onRefresh?.(), [onRefresh]);
+
+    const archiveCreated = (path: string, rename: boolean) => {
+        anchor.current = path;
+        setSelected(new Set([path]));
+        if (rename) setRenaming({path, value: baseName(path)});
+        refresh();
+    };
+
+    const compressDialogElement = compressDialog && (
+        <CompressDialog
+            initialDirectory={currentDirectory}
+            initialName={compressDialog.name}
+            onCancel={() => setCompressDialog(null)}
+            onCompress={async (options: CompressOptions) => {
+                const result = await compressPaths(compressDialog.paths, options);
+                if (!result.ok || !result.path) {
+                    window.alert(result.error ?? t("Could not create the archive."));
+                    return false;
+                }
+
+                archiveCreated(result.path, false);
+                return true;
+            }}
+        />
+    );
 
     const copy = async (paths: string[], cut = false) => {
         if (await copyPaths(paths, cut)) {
@@ -1057,9 +1086,12 @@ export function FileList({
                 <FileMenu
                     canPaste={canPaste}
                     directory={currentDirectory}
+                    allowCompression
                     menu={menu}
                     onAddToTray={onAddToTray}
+                    onArchiveCreated={archiveCreated}
                     onClose={closeMenu}
+                    onCompressTo={(paths, name) => setCompressDialog({paths, name})}
                     onCopy={copy}
                     onCreateFile={(extension) => void createEntry(extension)}
                     onCreateFolder={(caseSensitive) => void createEntry(null, caseSensitive)}
@@ -1076,6 +1108,7 @@ export function FileList({
                     target={menuTarget}
                 />
             )}
+                {compressDialogElement}
                 {confirmDialog}
                 </Wrapper>
                 {previewPane}
@@ -1253,9 +1286,12 @@ export function FileList({
                 <FileMenu
                     canPaste={canPaste}
                     directory={currentDirectory}
+                    allowCompression
                     menu={menu}
                     onAddToTray={onAddToTray}
+                    onArchiveCreated={archiveCreated}
                     onClose={closeMenu}
+                    onCompressTo={(paths, name) => setCompressDialog({paths, name})}
                     onCopy={copy}
                     onCreateFile={(extension) => void createEntry(extension)}
                     onCreateFolder={(caseSensitive) => void createEntry(null, caseSensitive)}
@@ -1272,6 +1308,7 @@ export function FileList({
                     target={menuTarget}
                 />
             )}
+            {compressDialogElement}
             {confirmDialog}
             </Wrapper>
             {previewPane}
