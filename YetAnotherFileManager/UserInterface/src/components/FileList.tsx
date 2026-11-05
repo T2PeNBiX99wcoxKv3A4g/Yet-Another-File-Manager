@@ -142,6 +142,8 @@ interface FileListProps {
     readOnly?: boolean;
     /** Reports the checked paths, so a host that draws its own footer can follow the selection. */
     onSelectionChange?: (paths: string[]) => void;
+    /** A picker that returns one path still uses the checkboxes, but only one at a time. */
+    singleSelect?: boolean;
 }
 
 interface RowModel {
@@ -163,6 +165,7 @@ export function FileList({
     onClipboardChanged, onTransfer, onAddToTray, onPaste, confirmDelete = false, previewVideoAudio = false,
     previewVideoAutoplay = false, showDetails = true, onPreviewInfo, onActivate,
     groupOf, onGridScroll, gridFooter, allowBackgroundMenu = true, readOnly = false, onSelectionChange,
+    singleSelect = false,
 }: FileListProps) {
     const t = useTranslation();
     const quick = useQuickAccess();
@@ -417,6 +420,9 @@ export function FileList({
     const allSelected = rows.length > 0 && selected.size >= rows.length;
     const someSelected = selected.size > 0 && !allSelected;
     const toggleAll = () => {
+        if (singleSelect)
+            return;
+
         if (allSelected) clearSelection();
         else setSelected(new Set(allPaths));
     };
@@ -424,6 +430,12 @@ export function FileList({
 
     /** Applies Explorer's plain, Ctrl and Shift selection rules to one click. */
     const selectRow = useCallback((event: ReactMouseEvent, path: string) => {
+        if (singleSelect) {
+            anchor.current = path;
+            setSelected(new Set([path]));
+            return;
+        }
+
         const additive = event.ctrlKey || event.metaKey;
 
         setSelected((current) => {
@@ -455,10 +467,16 @@ export function FileList({
             anchor.current = path;
             return new Set([path]);
         });
-    }, [allPaths]);
+    }, [allPaths, singleSelect]);
 
     /** The checkbox toggles one path without disturbing the rest of the selection. */
     const toggleRow = useCallback((path: string) => {
+        if (singleSelect) {
+            anchor.current = path;
+            setSelected(new Set([path]));
+            return;
+        }
+
         anchor.current = path;
         setSelected((current) => {
             const next = new Set(current);
@@ -467,7 +485,7 @@ export function FileList({
 
             return next;
         });
-    }, []);
+    }, [singleSelect]);
 
     const clearSelection = useCallback(() => {
         anchor.current = null;
@@ -1232,9 +1250,10 @@ export function FileList({
                     {showCheckboxes && rows.length > 0 && (
                         <GridSelectAll>
                             <SelectAll
-                                $checked={allSelected}
-                                $partial={someSelected}
+                                $checked={!singleSelect && allSelected}
+                                $partial={!singleSelect && someSelected}
                                 aria-label={allSelected ? t("Select none") : t("Select all")}
+                                disabled={singleSelect}
                                 onClick={toggleAll}
                                 title={allSelected ? t("Select none") : t("Select all")}
                                 type="button"
@@ -1303,9 +1322,10 @@ export function FileList({
                 <HeaderName>
                     {showCheckboxes && (
                         <SelectAll
-                            $checked={allSelected}
-                            $partial={someSelected}
+                            $checked={!singleSelect && allSelected}
+                            $partial={!singleSelect && someSelected}
                             aria-label={allSelected ? t("Select none") : t("Select all")}
+                            disabled={singleSelect}
                             onClick={(event) => {
                                 event.stopPropagation();
                                 toggleAll();
@@ -2223,6 +2243,16 @@ const SelectAll = styled.button<{ $checked: boolean; $partial: boolean }>`
         background: ${({$checked, $partial}) => $checked || $partial
             ? "rgba(var(--accent-rgb), 0.9)"
             : "rgba(148, 163, 184, 0.16)"};
+    }
+
+    &:disabled {
+        opacity: 0.32;
+        cursor: default;
+
+        &:hover {
+            border-color: var(--border-color-hover);
+            background: transparent;
+        }
     }
 `;
 

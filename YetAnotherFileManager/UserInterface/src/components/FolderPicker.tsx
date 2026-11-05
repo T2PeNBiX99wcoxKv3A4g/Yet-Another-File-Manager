@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
 import {Native, useTranslation} from "@photino-net-utils/bridge";
@@ -10,19 +10,32 @@ import {
     listRecent,
     type DirectoryListing,
     type Drive,
-    type FileEntry,
     type Place,
     type RecentEntry,
 } from "../api/files";
+import {newFile, newFolder} from "../api/operations";
+import {EmptyFind, matchesName, type FindState} from "../find";
 import {elevatedPanel} from "../ui/panel";
 import {fadeInStyle, popInStyle} from "../ui/motion";
-import {ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, CheckIcon, CrossIcon, FolderIcon} from "./Icons";
+import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
+import {FileList} from "./FileList";
+import {FindBar} from "./FindBar";
+import {
+    ArrowLeftIcon,
+    ArrowRightIcon,
+    ArrowUpIcon,
+    CheckIcon,
+    CrossIcon,
+    FileIcon,
+    FolderIcon,
+    PlusIcon,
+    SearchIcon,
+} from "./Icons";
 import {GalleryView} from "./GalleryView";
 import {OverviewView} from "./OverviewView";
 import {PathBar} from "./PathBar";
-import {PathIcon} from "./PathIcon";
 import {Sidebar} from "./Sidebar";
-import {baseName, formatBytes, formatDate, normalizePath, parentPath} from "../utils/format";
+import {baseName, normalizePath, parentPath} from "../utils/format";
 
 interface FolderPickerProps {
     initial?: string;
@@ -62,6 +75,11 @@ export function FolderPicker({
     const [fileName, setFileName] = useState("");
     const [allFiles, setAllFiles] = useState(supported.length === 0);
     const [view, setView] = useState<"files" | "overview" | "gallery">("files");
+    const [reload, setReload] = useState(0);
+    const [find, setFind] = useState<FindState>(EmptyFind);
+    const [findFocus, setFindFocus] = useState(0);
+    const [findIndex, setFindIndex] = useState(0);
+    const [createMenu, setCreateMenu] = useState<{ x: number; y: number } | null>(null);
 
     useEffect(() => {
         if (suppliedPlaces) {
@@ -102,12 +120,27 @@ export function FolderPicker({
         return () => {
             alive = false;
         };
-    }, [path, isFileMode]);
+    }, [path, reload, isFileMode]);
 
     useEffect(() => {
         const onKey = (event: KeyboardEvent) => {
+            if (event.defaultPrevented)
+                return;
+
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f") {
+                event.preventDefault();
+                setFind((current) => ({...current, open: true}));
+                setFindFocus((token) => token + 1);
+                return;
+            }
+
             if (event.key === "Escape") {
-                onCancel();
+                if (find.open) {
+                    setFind((current) => ({...current, open: false, query: ""}));
+                    setFindIndex(0);
+                } else {
+                    onCancel();
+                }
                 return;
             }
 
@@ -189,14 +222,32 @@ export function FolderPicker({
         });
     }, [currentFolder]);
 
-    const folders = listing?.entries.filter((entry: FileEntry) => entry.isDirectory) ?? [];
-    const files = isFileMode
-        ? (listing?.entries ?? []).filter((entry: FileEntry) => !entry.isDirectory && (
-            allFiles
-            || supported.length === 0
-            || supported.some((extension) => entry.name.toLowerCase().endsWith(extension.toLowerCase()))
-        ))
-        : [];
+    const visibleEntries = (listing?.entries ?? []).filter((entry) =>
+        entry.isDirectory
+        || (isFileMode && (allFiles || supported.length === 0
+            || supported.some((extension) => entry.name.toLowerCase().endsWith(extension.toLowerCase())))));
+
+    const pickerListing: DirectoryListing | null = listing
+        ? {...listing, entries: visibleEntries}
+        : null;
+
+    const searching = find.open && find.query.length > 0;
+    const findHits = useMemo(
+        () => searching
+            ? visibleEntries.filter((entry) => matchesName(entry.name, find)).map((entry) => entry.fullPath)
+            : [],
+        [searching, visibleEntries, find],
+    );
+
+    useEffect(() => {
+        setFindIndex(0);
+    }, [find.query, find.matchCase, find.regex, listing?.path]);
+
+    const findCurrent = findHits.length === 0 ? -1 : Math.min(findIndex, findHits.length - 1);
+    const findView = useMemo(
+        () => ({...find, currentPath: findCurrent >= 0 ? findHits[findCurrent] : null}),
+        [find, findCurrent, findHits],
+    );
 
     const typed = fileName.trim();
     const typedPath = typed.length > 0
@@ -223,93 +274,67 @@ export function FolderPicker({
             onSelect([currentFolder]);
     };
 
-    const selectable = [...folders, ...files];
-    const allSelected = selectable.length > 0 && selectable.every((entry) => selected.has(entry.fullPath));
-    const someSelected = !allSelected && selectable.some((entry) => selected.has(entry.fullPath));
-
-    const toggleAll = () => {
-        if (!multiple)
-            return;
-
-        if (allSelected) {
-            setSelected(new Set());
-            return;
-        }
-
-        setSelected(new Set(selectable.map((entry) => entry.fullPath)));
-        if (selectable.length > 0 && !isFileMode)
-            setFileName(baseName(selectable[0].fullPath));
-    };
-
-    const toggle = (entry: FileEntry) => {
-        if (multiple) {
-            setSelected((current) => {
-                const next = new Set(current);
-                if (!next.delete(entry.fullPath)) next.add(entry.fullPath);
-                return next;
-            });
-            setFileName(entry.name);
-            return;
-        }
-
-        setSelected(new Set([entry.fullPath]));
-        setFileName(entry.name);
-    };
-
-    const open = (entry: FileEntry) => {
-        if (entry.isDirectory) {
-            navigate(entry.fullPath);
-            return;
-        }
-
-        setSelected(new Set([entry.fullPath]));
-        setFileName(entry.name);
-        if (!multiple) onSelect([entry.fullPath]);
-    };
-
-    /** The gallery keeps its own grid selection; mirror it into the shared footer. */
-    const handleGallerySelection = useCallback((paths: string[]) => {
+    /** The file list and the gallery both report their selection; the footer follows it. */
+    const handleSelection = useCallback((paths: string[]) => {
         setSelected(new Set(paths));
-        setFileName(paths.length === 1 ? baseName(paths[0]) : "");
-    }, []);
+        setFileName(paths.length === 1
+            ? baseName(paths[0])
+            : paths.length === 0 && !isFileMode ? baseName(currentFolder) : "");
+    }, [currentFolder, isFileMode]);
 
-    const typeName = (value: string) => {        setFileName(value);
+    const openEntry = (target: string) => {
+        const entry = listing?.entries.find((item) => item.fullPath === target);
 
-        const match = listing?.entries.find(
-            (entry) => entry.name.toLowerCase() === value.trim().toLowerCase()
-                && entry.isDirectory !== isFileMode);
-
-        if (match) {
-            setSelected(new Set([match.fullPath]));
+        if (entry?.isDirectory) {
+            navigate(target);
             return;
         }
 
-        if (!multiple)
-            setSelected(new Set());
+        if (isFileMode) onSelect([target]);
     };
 
-    const row = (entry: FileEntry) => {
-        const checked = selected.has(entry.fullPath);
+    const typeName = (value: string) => setFileName(value);
 
-        return (
-            <Row
-                $checked={checked}
-                key={entry.fullPath}
-                onClick={() => toggle(entry)}
-                onDoubleClick={() => open(entry)}
-                title={entry.fullPath}
-                type="button"
-            >
-                <CheckBox $checked={checked}>
-                    {checked && <CheckIcon size={9}/>}
-                </CheckBox>
-                <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.fullPath} size={18}/>
-                <NameCell>{entry.name}</NameCell>
-                <TypeCell>{entry.isDirectory ? t("Folder") : baseName(entry.name).includes(".") ? baseName(entry.name).split(".").at(-1)!.toUpperCase() : t("File")}</TypeCell>
-                <SizeCell>{entry.isDirectory ? "—" : formatBytes(entry.size)}</SizeCell>
-                <DateCell>{formatDate(entry.modified)}</DateCell>
-            </Row>
-        );
+    const startCreate = async (file: boolean) => {
+        const menu = createMenu;
+        setCreateMenu(null);
+
+        if (!menu || !currentFolder)
+            return;
+
+        const result = file
+            ? await newFile(currentFolder)
+            : await newFolder(currentFolder);
+
+        if (result.ok)
+            setReload((value) => value + 1);
+    };
+
+    const createItems: ContextMenuItem[] = createMenu
+        ? [
+            {
+                label: t("New folder"),
+                icon: <FolderIcon size={14}/>,
+                onSelect: () => void startCreate(false),
+            },
+            {
+                label: t("New file"),
+                icon: <FileIcon size={14}/>,
+                onSelect: () => void startCreate(true),
+            },
+        ]
+        : [];
+
+    const openFind = () => {
+        setFind((current) => ({...current, open: true}));
+        setFindFocus((token) => token + 1);
+    };
+
+    const stepFind = (delta: number) => {
+        setFindIndex((index) => {
+            if (findHits.length === 0) return 0;
+            return (index + delta + findHits.length) % findHits.length;
+        });
     };
 
     const selectionBar = (onName: (value: string) => void) => (
@@ -407,8 +432,10 @@ export function FolderPicker({
                                 historyVersion={0}
                                 homePath={places.find((place) => place.kind === "home")?.path ?? ""}
                                 onOpen={(target) => navigate(target)}
+                                onPick={(target) => onSelect([target])}
                                 onPlacesChanged={() => undefined}
                                 onRecentCleared={() => undefined}
+                                onSelectionChange={handleSelection}
                                 places={places}
                                 readOnly
                                 recent={recent}
@@ -421,7 +448,7 @@ export function FolderPicker({
                         <>
                             <GalleryView
                                 onPick={(path) => onSelect([path])}
-                                onSelectionChange={handleGallerySelection}
+                                onSelectionChange={handleSelection}
                                 view={{...DefaultView, columns: []}}
                             />
                             {selectionBar(setFileName)}
@@ -455,42 +482,75 @@ export function FolderPicker({
                                 </IconButton>
 
                                 <PathBar onNavigate={navigate} path={currentFolder}/>
+
+                                <IconButton
+                                    onClick={(event) => setCreateMenu({x: event.clientX, y: event.clientY})}
+                                    title={t("New folder or file")}
+                                    type="button"
+                                >
+                                    <PlusIcon/>
+                                </IconButton>
+                                <IconButton onClick={openFind} title={t("Search")} type="button">
+                                    <SearchIcon/>
+                                </IconButton>
                             </Toolbar>
 
-                            <List>
-                                <HeadRow>
-                                    <HeadCheck
-                                        aria-label={t("Select all")}
-                                        disabled={!multiple}
-                                        onClick={toggleAll}
-                                        title={multiple ? t("Select all") : undefined}
-                                        type="button"
-                                    >
-                                        <CheckBox $checked={multiple && allSelected} $mixed={multiple && someSelected}>
-                                            {multiple && allSelected && <CheckIcon size={9}/>}
-                                        </CheckBox>
-                                    </HeadCheck>
-                                    <span/>
-                                    <span>{t("Name")}</span>
-                                    <span>{t("Type")}</span>
-                                    <span>{t("Size")}</span>
-                                    <span>{t("Modified")}</span>
-                                </HeadRow>
+                            {find.open && (
+                                <FindBar
+                                    current={findCurrent}
+                                    focusToken={findFocus}
+                                    matchCase={find.matchCase}
+                                    mode={find.mode}
+                                    onClose={() => {
+                                        setFind((current) => ({...current, open: false, query: ""}));
+                                        setFindIndex(0);
+                                    }}
+                                    onMatchCase={() => setFind((current) => ({...current, matchCase: !current.matchCase}))}
+                                    onMode={() => setFind((current) => ({...current, mode: current.mode === "dim" ? "hide" : "dim"}))}
+                                    onNext={() => stepFind(1)}
+                                    onPrevious={() => stepFind(-1)}
+                                    onQuery={(query) => setFind((current) => ({...current, query}))}
+                                    onRegex={() => setFind((current) => ({...current, regex: !current.regex}))}
+                                    query={find.query}
+                                    regex={find.regex}
+                                    total={findHits.length}
+                                />
+                            )}
 
-                                {loading && <Notice>{t("Working…")}</Notice>}
-                                {!loading && error && <Notice $error>{error}</Notice>}
-                                {!loading && !error && folders.length === 0 && files.length === 0 && (
-                                    <Notice>{t("This folder is empty.")}</Notice>
-                                )}
-                                {!loading && !error && folders.map(row)}
-                                {!loading && !error && files.map(row)}
-                            </List>
+                            <FileList
+                                allowBackgroundMenu
+                                enableShortcuts={false}
+                                error={error}
+                                find={findView}
+                                loading={loading}
+                                listing={pickerListing}
+                                onOpen={openEntry}
+                                onOpenFile={openEntry}
+                                onRefresh={() => setReload((value) => value + 1)}
+                                onSelectionChange={handleSelection}
+                                onSort={() => undefined}
+                                refreshToken={reload}
+                                showCheckboxes
+                                showDetails={false}
+                                showImages={false}
+                                singleSelect={!multiple}
+                                view={{...DefaultView, columns: ["type", "size", "modified"]}}
+                            />
 
                             {selectionBar(typeName)}
                         </>
                     )}
                 </Main>
             </Body>
+
+            {createMenu && (
+                <ContextMenu
+                    items={createItems}
+                    onClose={() => setCreateMenu(null)}
+                    x={createMenu.x}
+                    y={createMenu.y}
+                />
+            )}
         </Card>
     );
 
@@ -586,6 +646,7 @@ const Body = styled.div`
 `;
 
 const Main = styled.div`
+    position: relative;
     display: flex;
     flex: 1;
     flex-direction: column;
@@ -638,125 +699,6 @@ const IconButton = styled.button`
         outline: 2px solid var(--border-color-focus);
         outline-offset: 1px;
     }
-`;
-
-const List = styled.div`
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    padding: 4px 8px 10px;
-`;
-
-const Columns = "18px 24px minmax(0, 1.4fr) 90px 90px 140px";
-
-const HeadRow = styled.div`
-    display: grid;
-    grid-template-columns: ${Columns};
-    gap: 10px;
-    align-items: center;
-    padding: 8px 8px;
-    border-bottom: 1px solid var(--border-color);
-    color: var(--text-muted);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-`;
-
-const Row = styled.button<{ $checked: boolean }>`
-    display: grid;
-    grid-template-columns: ${Columns};
-    gap: 10px;
-    align-items: center;
-    width: 100%;
-    padding: 6px 8px;
-    border: 1px solid ${({$checked}) => $checked ? "rgba(var(--accent-rgb), 0.38)" : "transparent"};
-    border-radius: var(--radius-sm);
-    background: ${({$checked}) => $checked ? "rgba(var(--accent-rgb), 0.1)" : "transparent"};
-    color: ${({$checked}) => $checked ? "var(--text-primary)" : "var(--text-secondary)"};
-    font: inherit;
-    font-size: 12px;
-    text-align: left;
-    cursor: default;
-    user-select: none;
-
-    &:hover {
-        border-color: var(--border-color);
-        background: var(--bg-card-hover);
-        color: var(--text-primary);
-    }
-`;
-
-const HeadCheck = styled.button`
-    display: grid;
-    place-items: center;
-    width: 18px;
-    height: 18px;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    cursor: pointer;
-
-    &:disabled {
-        opacity: 0.32;
-        cursor: default;
-    }
-`;
-
-const CheckBox = styled.span<{ $checked: boolean; $mixed?: boolean }>`
-    position: relative;
-    display: grid;
-    place-items: center;
-    width: 15px;
-    height: 15px;
-    border: 1px solid ${({$checked, $mixed}) => $checked || $mixed ? "var(--border-color-focus)" : "var(--border-color-hover)"};
-    border-radius: 4px;
-    background: ${({$checked, $mixed}) => $checked || $mixed ? "var(--accent-primary)" : "transparent"};
-    color: #fff;
-
-    &::after {
-        content: "";
-        position: absolute;
-        width: 7px;
-        height: 2px;
-        border-radius: 1px;
-        background: #fff;
-        opacity: ${({$mixed}) => $mixed ? 1 : 0};
-    }
-`;
-
-const NameCell = styled.span`
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-`;
-
-const TypeCell = styled.span`
-    overflow: hidden;
-    color: var(--text-muted);
-    font-size: 11px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-`;
-
-const SizeCell = styled.span`
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    font-size: 10px;
-    text-align: right;
-`;
-
-const DateCell = styled.span`
-    color: var(--text-muted);
-    font-size: 10px;
-    white-space: nowrap;
-`;
-
-const Notice = styled.p<{ $error?: boolean }>`
-    padding: 18px;
-    color: ${({$error}) => $error ? "#fca5a5" : "var(--text-muted)"};
-    font-size: 11px;
-    text-align: center;
 `;
 
 const Footer = styled.footer`

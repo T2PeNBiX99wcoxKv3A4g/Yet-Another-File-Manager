@@ -48,6 +48,10 @@ interface OverviewViewProps {
     visibilityVersion?: number;
     /** The picker shows the overview as a browsing page, without the layout editor. */
     readOnly?: boolean;
+    /** The picker chooses a card or a panel entry instead of opening it. */
+    onPick?: (path: string) => void;
+    /** Reports a selected entry from a folder panel, so the picker's footer can use it. */
+    onSelectionChange?: (paths: string[]) => void;
 }
 
 const Page = styled.div`
@@ -238,21 +242,23 @@ const Places = styled.div`
     gap: 10px;
 `;
 
-const Card = styled.div<{ $plain: boolean }>`
+const Card = styled.div<{ $plain: boolean; $selected?: boolean }>`
     position: relative;
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 11px 13px;
-    border: 1px solid var(--border-color);
+    border: 1px solid ${({$selected}) => $selected ? "rgba(var(--accent-rgb), 0.55)" : "var(--border-color)"};
     border-radius: var(--radius-md);
-    background: var(--bg-card);
+    background: ${({$selected}) => $selected ? "rgba(var(--accent-rgb), 0.12)" : "var(--bg-card)"};
     color: var(--text-primary);
     font: inherit;
     text-align: left;
     cursor: ${({$plain}) => $plain ? "default" : "pointer"};
     transition: background 130ms ease, border-color 130ms ease, transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
         box-shadow 140ms ease;
+
+    ${({$selected}) => $selected ? "box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.16);" : ""}
 
     &:hover {
         border-color: ${({$plain}) => $plain ? "var(--border-color)" : "var(--border-color-hover)"};
@@ -306,16 +312,16 @@ const Rows = styled.div`
     gap: 2px;
 `;
 
-const Row = styled.button`
+const Row = styled.button<{ $selected?: boolean }>`
     display: flex;
     align-items: center;
     gap: 10px;
     width: 100%;
     padding: 7px 10px;
-    border: 1px solid transparent;
+    border: 1px solid ${({$selected}) => $selected ? "rgba(var(--accent-rgb), 0.55)" : "transparent"};
     border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--text-secondary);
+    background: ${({$selected}) => $selected ? "rgba(var(--accent-rgb), 0.12)" : "transparent"};
+    color: ${({$selected}) => $selected ? "var(--text-primary)" : "var(--text-secondary)"};
     font: inherit;
     text-align: left;
     cursor: pointer;
@@ -416,16 +422,16 @@ const Tiles = styled.div`
     gap: 4px;
 `;
 
-const Tile = styled.button`
+const Tile = styled.button<{ $selected?: boolean }>`
     display: flex;
     align-items: center;
     gap: 8px;
     min-width: 0;
     padding: 7px 9px;
-    border: 1px solid var(--border-color);
+    border: 1px solid ${({$selected}) => $selected ? "rgba(var(--accent-rgb), 0.55)" : "var(--border-color)"};
     border-radius: var(--radius-sm);
-    background: var(--bg-card);
-    color: var(--text-secondary);
+    background: ${({$selected}) => $selected ? "rgba(var(--accent-rgb), 0.12)" : "var(--bg-card)"};
+    color: ${({$selected}) => $selected ? "var(--text-primary)" : "var(--text-secondary)"};
     font: inherit;
     font-size: 12px;
     text-align: left;
@@ -604,6 +610,8 @@ export function OverviewView({
     onDrivesChanged,
     visibilityVersion = 0,
     readOnly = false,
+    onPick,
+    onSelectionChange,
 }: OverviewViewProps) {
     const t = useTranslation();
     const quick = useQuickAccess();
@@ -614,6 +622,17 @@ export function OverviewView({
     const [driveRename, setDriveRename] = useState<{ drive: Drive; label: string } | null>(null);
     const [placeRename, setPlaceRename] = useState<{ path: string; name: string } | null>(null);
     const [driveNotice, setDriveNotice] = useState<string | null>(null);
+    const [selectedPath, setSelectedPath] = useState<string | null>(null);
+
+    /** In the picker, a card selects for the footer instead of opening a tab. */
+    const pickCard = (path: string): boolean => {
+        if (!onPick)
+            return false;
+
+        setSelectedPath(path);
+        onSelectionChange?.([path]);
+        return true;
+    };
 
     useEffect(() => {
         void getSettings().then(setSettings, () => setSettings(null));
@@ -933,9 +952,13 @@ export function OverviewView({
                             <Card
                                 key={entry.path}
                                 $plain={false}
-                                onClick={(event) => entry.isDirectory
-                                    ? onOpen(entry.path, wantsNewTab(event))
-                                    : void openFile(entry.path)}
+                                $selected={selectedPath === entry.path}
+                                onClick={(event) => {
+                                    if (pickCard(entry.path)) return;
+                                    if (entry.isDirectory) onOpen(entry.path, wantsNewTab(event));
+                                    else void openFile(entry.path);
+                                }}
+                                onDoubleClick={() => onPick?.(entry.path)}
                                 title={entry.path}
                             >
                                 <Glyph>
@@ -960,9 +983,13 @@ export function OverviewView({
                         return (
                             <Row
                                 key={entry.path}
-                                onClick={(event) => entry.isDirectory
-                                    ? onOpen(entry.path, wantsNewTab(event))
-                                    : void openFile(entry.path)}
+                                $selected={selectedPath === entry.path}
+                                onClick={(event) => {
+                                    if (pickCard(entry.path)) return;
+                                    if (entry.isDirectory) onOpen(entry.path, wantsNewTab(event));
+                                    else void openFile(entry.path);
+                                }}
+                                onDoubleClick={() => onPick?.(entry.path)}
                                 title={entry.path}
                                 type="button"
                             >
@@ -1018,7 +1045,13 @@ export function OverviewView({
                     <Card
                         key={drive.name}
                         $plain={false}
-                        onClick={(event) => !editingName && onOpen(drive.name, wantsNewTab(event))}
+                        $selected={selectedPath === drive.name}
+                        onClick={(event) => {
+                            if (editingName || !pickCard(drive.name)) {
+                                if (!editingName) onOpen(drive.name, wantsNewTab(event));
+                            }
+                        }}
+                        onDoubleClick={() => !editingName && onPick?.(drive.name)}
                         title={drive.name}
                     >
                         <Glyph><DriveIcon size={18}/></Glyph>
@@ -1036,7 +1069,11 @@ export function OverviewView({
                     <Row
                         as={editingName ? "div" : "button"}
                         key={drive.name}
-                        onClick={editingName ? undefined : (event: MouseEvent<HTMLElement>) => onOpen(drive.name, wantsNewTab(event))}
+                        $selected={selectedPath === drive.name}
+                        onClick={editingName ? undefined : (event: MouseEvent<HTMLElement>) => {
+                            if (!pickCard(drive.name)) onOpen(drive.name, wantsNewTab(event));
+                        }}
+                        onDoubleClick={editingName ? undefined : () => onPick?.(drive.name)}
                         title={drive.name}
                         type={editingName ? undefined : "button"}
                     >
@@ -1072,8 +1109,13 @@ export function OverviewView({
                                 <Card
                                     key={place.path}
                                     $plain={editing}
+                                    $selected={selectedPath === place.path}
                                     {...placeDrop(panel, place.path)}
-                                    onClick={(event) => !editing && onOpen(place.path, wantsNewTab(event))}
+                                    onClick={(event) => {
+                                        if (!editing && !pickCard(place.path))
+                                            onOpen(place.path, wantsNewTab(event));
+                                    }}
+                                    onDoubleClick={() => !editing && onPick?.(place.path)}
                                     title={place.path}
                                 >
                                     {editing && (
@@ -1160,8 +1202,13 @@ export function OverviewView({
                             {items.map((place) => (
                                 <Row
                                     key={place.path}
+                                    $selected={selectedPath === place.path}
                                     {...placeDrop(panel, place.path)}
-                                    onClick={(event) => !editing && onOpen(place.path, wantsNewTab(event))}
+                                    onClick={(event) => {
+                                        if (!editing && !pickCard(place.path))
+                                            onOpen(place.path, wantsNewTab(event));
+                                    }}
+                                    onDoubleClick={() => !editing && onPick?.(place.path)}
                                     title={place.path}
                                     type="button"
                                 >
@@ -1248,7 +1295,7 @@ export function OverviewView({
             }
 
             case "frequent":
-                return <FrequentBody mode={panel.view} onOpen={onOpen} version={historyVersion}/>;
+                return <FrequentBody mode={panel.view} onOpen={onOpen} onPick={onPick} onSelectionChange={onSelectionChange} version={historyVersion}/>;
 
             case "recent":
                 return renderRecent(panel);
@@ -1261,6 +1308,8 @@ export function OverviewView({
                     <FolderBody
                         mode={panel.view}
                         onOpen={onOpen}
+                        onPick={onPick}
+                        onSelectionChange={onSelectionChange}
                         openOnSingleClick={settings?.openOnSingleClick ?? false}
                         path={panel.path ?? homePath}
                         showCheckboxes={settings?.showCheckboxes ?? true}
@@ -1515,14 +1564,26 @@ function samePath(left: string, right: string): boolean {
 }
 
 /** The folders this user opens most often, ranked by how many visits the host counted. */
-function FrequentBody({mode, onOpen, version}: {
+function FrequentBody({mode, onOpen, onPick, onSelectionChange, version}: {
     mode: ViewMode;
     onOpen: (path: string, newTab?: boolean) => void;
+    onPick?: (path: string) => void;
+    onSelectionChange?: (paths: string[]) => void;
     version: number;
 }) {
     const t = useTranslation();
     const [entries, setEntries] = useState<FrequentEntry[] | null>(null);
+    const [selectedPath, setSelectedPath] = useState<string | null>(null);
     const quick = useQuickAccess();
+
+    const pick = (path: string): boolean => {
+        if (!onPick)
+            return false;
+
+        setSelectedPath(path);
+        onSelectionChange?.([path]);
+        return true;
+    };
 
     useEffect(() => {
         listFrequent().then(setEntries, () => setEntries([]));
@@ -1547,7 +1608,11 @@ function FrequentBody({mode, onOpen, version}: {
                         <Card
                             key={entry.path}
                             $plain={false}
-                            onClick={(event) => onOpen(entry.path, wantsNewTab(event))}
+                            $selected={selectedPath === entry.path}
+                            onClick={(event) => {
+                                if (!pick(entry.path)) onOpen(entry.path, wantsNewTab(event));
+                            }}
+                            onDoubleClick={() => onPick?.(entry.path)}
                             title={entry.path}
                         >
                             <Glyph>
@@ -1573,7 +1638,11 @@ function FrequentBody({mode, onOpen, version}: {
                 return (
                     <Row
                         key={entry.path}
-                        onClick={(event) => onOpen(entry.path, wantsNewTab(event))}
+                        $selected={selectedPath === entry.path}
+                        onClick={(event) => {
+                            if (!pick(entry.path)) onOpen(entry.path, wantsNewTab(event));
+                        }}
+                        onDoubleClick={() => onPick?.(entry.path)}
                         title={entry.path}
                         type="button"
                     >
@@ -1592,16 +1661,19 @@ function FrequentBody({mode, onOpen, version}: {
 }
 
 /** One folder rendered as a panel: a table or a grid of its entries. */
-function FolderBody({path, mode, onOpen, showCheckboxes, openOnSingleClick, visibilityVersion}: {
+function FolderBody({path, mode, onOpen, onPick, onSelectionChange, showCheckboxes, openOnSingleClick, visibilityVersion}: {
     path: string;
     mode: ViewMode;
     onOpen: (path: string, newTab?: boolean) => void;
+    onPick?: (path: string) => void;
+    onSelectionChange?: (paths: string[]) => void;
     showCheckboxes: boolean;
     openOnSingleClick: boolean;
     visibilityVersion: number;
 }) {
     const t = useTranslation();
     const [listing, setListing] = useState<DirectoryListing | null>(null);
+    const [selectedPath, setSelectedPath] = useState<string | null>(null);
     const quick = useQuickAccess();
 
     useEffect(() => {
@@ -1635,8 +1707,9 @@ function FolderBody({path, mode, onOpen, showCheckboxes, openOnSingleClick, visi
                     error={null}
                     listing={listing}
                     loading={false}
-                    onOpen={onOpen}
-                    onOpenFile={(file) => void openFile(file)}
+                    onOpen={onPick ?? onOpen}
+                    onOpenFile={onPick ?? ((file) => void openFile(file))}
+                    onSelectionChange={onSelectionChange}
                     onSort={() => undefined}
                     openOnSingleClick={openOnSingleClick}
                     enableShortcuts={false}
@@ -1660,9 +1733,18 @@ function FolderBody({path, mode, onOpen, showCheckboxes, openOnSingleClick, visi
                             return (
                                 <Tile
                                     key={entry.fullPath}
-                                    onClick={(event) => entry.isDirectory
-                                        ? onOpen(entry.fullPath, wantsNewTab(event))
-                                        : void openFile(entry.fullPath)}
+                                    $selected={selectedPath === entry.fullPath}
+                                    onClick={(event) => {
+                                        if (onPick) {
+                                            setSelectedPath(entry.fullPath);
+                                            onSelectionChange?.([entry.fullPath]);
+                                            return;
+                                        }
+
+                                        if (entry.isDirectory) onOpen(entry.fullPath, wantsNewTab(event));
+                                        else void openFile(entry.fullPath);
+                                    }}
+                                    onDoubleClick={() => onPick?.(entry.fullPath)}
                                     title={entry.name}
                                     type="button"
                                 >
