@@ -76,6 +76,7 @@ import {
     isTyping,
     prettyShortcut,
     setClickModifier,
+    wantsNewTab,
     type ShortcutMap,
 } from "./shortcuts";
 
@@ -319,45 +320,8 @@ export default function App() {
         ? tabs.find((tab) => tab.id === active.splitWith)
         : undefined;
     const splitActive = kind === "files" && secondary !== undefined;
-    const lastSecondary = useRef<Tab | null>(null);
-    const splitWasActive = useRef(false);
-    if (secondary) lastSecondary.current = secondary;
-    const [splitClosing, setSplitClosing] = useState(false);
-
-    useEffect(() => {
-        if (splitActive) {
-            splitWasActive.current = true;
-            setSplitClosing(false);
-            return;
-        }
-
-        if (!splitWasActive.current || !lastSecondary.current)
-            return;
-
-        splitWasActive.current = false;
-        setSplitClosing(true);
-        const timer = window.setTimeout(() => {
-            lastSecondary.current = null;
-            setSplitClosing(false);
-        }, 180);
-        return () => window.clearTimeout(timer);
-    }, [splitActive]);
-
-    const showSplit = splitActive || splitClosing;
-    const splitTab = secondary ?? lastSecondary.current;
-    const splitFolder = splitTab ? folderOf(splitTab) : "";
-    const splitParent = splitTab ? splitTab.listing?.parent ?? parentOf(splitFolder) : null;
-    const [splitSpan, setSplitSpan] = useState(0);
-
-    useEffect(() => {
-        if (!showSplit || splitClosing) {
-            setSplitSpan(0);
-            return;
-        }
-
-        const frame = window.requestAnimationFrame(() => setSplitSpan(1));
-        return () => window.cancelAnimationFrame(frame);
-    }, [showSplit, splitClosing]);
+    const secondaryFolder = secondary ? folderOf(secondary) : "";
+    const secondaryParent = secondary ? secondary.listing?.parent ?? parentOf(secondaryFolder) : null;
 
     /** The pane the window-level actions target: while split, the one that was clicked last. */
     const focusedTab = splitActive && secondary && activePane === "secondary" ? secondary : active;
@@ -1743,7 +1707,13 @@ export default function App() {
             <IconButton
                 data-shortcut={prettyShortcut(shortcuts.goBack)}
                 disabled={!canBack}
-                onClick={goBack}
+                onClick={(event) => {
+                    if (active.index > 0 && wantsNewTab(event)) {
+                        openFiles(active.history[active.index - 1]);
+                        return;
+                    }
+                    goBack();
+                }}
                 title={t("Back")}
                 type="button"
             >
@@ -1753,7 +1723,13 @@ export default function App() {
             <IconButton
                 data-shortcut={prettyShortcut(shortcuts.goForward)}
                 disabled={!canForward}
-                onClick={goForward}
+                onClick={(event) => {
+                    if (active.index < active.history.length - 1 && wantsNewTab(event)) {
+                        openFiles(active.history[active.index + 1]);
+                        return;
+                    }
+                    goForward();
+                }}
                 title={t("Forward")}
                 type="button"
             >
@@ -1763,7 +1739,11 @@ export default function App() {
             <IconButton
                 data-shortcut={prettyShortcut(shortcuts.goUp)}
                 disabled={kind !== "files" || !activeParent}
-                onClick={() => activeParent && navigate(activeParent)}
+                onClick={(event) => {
+                    if (!activeParent) return;
+                    if (wantsNewTab(event)) openFiles(activeParent);
+                    else navigate(activeParent);
+                }}
                 title={t("Up one level")}
                 type="button"
             >
@@ -1879,7 +1859,7 @@ export default function App() {
 
                     <ViewShell key={kind}>
                     {kind === "files" ? (
-                        showSplit && splitTab ? (
+                        splitActive && secondary ? (
                             <Split ref={splitRef}>
                                 <Pane style={{flex: splitRatio}}>
                                     <PaneToolbar
@@ -1889,10 +1869,11 @@ export default function App() {
                                         <IconButton
                                             data-shortcut={prettyShortcut(shortcuts.goBack)}
                                             disabled={!canBack}
-                                            onClick={() => {
+                                            onClick={(event) => {
                                                 const index = active.index - 1;
-                                                if (index >= 0)
-                                                    void goTo(active.id, active.history[index], index);
+                                                if (index < 0) return;
+                                                if (wantsNewTab(event)) openFiles(active.history[index]);
+                                                else void goTo(active.id, active.history[index], index);
                                             }}
                                             title={t("Back")}
                                             type="button"
@@ -1902,10 +1883,11 @@ export default function App() {
                                         <IconButton
                                             data-shortcut={prettyShortcut(shortcuts.goForward)}
                                             disabled={!canForward}
-                                            onClick={() => {
+                                            onClick={(event) => {
                                                 const index = active.index + 1;
-                                                if (index < active.history.length)
-                                                    void goTo(active.id, active.history[index], index);
+                                                if (index >= active.history.length) return;
+                                                if (wantsNewTab(event)) openFiles(active.history[index]);
+                                                else void goTo(active.id, active.history[index], index);
                                             }}
                                             title={t("Forward")}
                                             type="button"
@@ -1915,7 +1897,11 @@ export default function App() {
                                         <IconButton
                                             data-shortcut={prettyShortcut(shortcuts.goUp)}
                                             disabled={!activeParent}
-                                            onClick={() => activeParent && void load(active.id, activeParent)}
+                                            onClick={(event) => {
+                                                if (!activeParent) return;
+                                                if (wantsNewTab(event)) openFiles(activeParent);
+                                                else void load(active.id, activeParent);
+                                            }}
                                             title={t("Up one level")}
                                             type="button"
                                         >
@@ -1923,7 +1909,9 @@ export default function App() {
                                         </IconButton>
                                         <PathBar
                                             focusToken={activePane === "primary" ? locationFocus : undefined}
-                                            onNavigate={(path) => void load(active.id, path)}
+                                            onNavigate={(path, newTab) => newTab
+                                                ? openFiles(path)
+                                                : void load(active.id, path)}
                                             path={activeFolder}
                                         />
                                         <IconButton
@@ -1954,28 +1942,19 @@ export default function App() {
                                     onPointerDown={startSplitDrag}
                                     title={t("Drag to resize; double-click to reset")}
                                 />
-                                <Pane
-                                    style={{
-                                        flexBasis: `${splitSpan * (1 - splitRatio) * 100}%`,
-                                        flexGrow: 0,
-                                        flexShrink: 0,
-                                        overflow: "hidden",
-                                        transition: splitSpan === 1 && !splitClosing
-                                            ? "none"
-                                            : "flex-basis 180ms cubic-bezier(0.22, 1, 0.36, 1)",
-                                    }}
-                                >
+                                <Pane style={{flex: 1 - splitRatio}}>
                                     <PaneToolbar
                                         $active={activePane === "secondary"}
                                         onPointerDown={() => setActivePane("secondary")}
                                     >
                                         <IconButton
                                             data-shortcut={prettyShortcut(shortcuts.goBack)}
-                                            disabled={splitTab.index <= 0}
-                                            onClick={() => {
-                                                const index = splitTab.index - 1;
-                                                if (index >= 0)
-                                                    void goTo(splitTab.id, splitTab.history[index], index);
+                                            disabled={secondary.index <= 0}
+                                            onClick={(event) => {
+                                                const index = secondary.index - 1;
+                                                if (index < 0) return;
+                                                if (wantsNewTab(event)) openFiles(secondary.history[index]);
+                                                else void goTo(secondary.id, secondary.history[index], index);
                                             }}
                                             title={t("Back")}
                                             type="button"
@@ -1984,11 +1963,12 @@ export default function App() {
                                         </IconButton>
                                         <IconButton
                                             data-shortcut={prettyShortcut(shortcuts.goForward)}
-                                            disabled={splitTab.index >= splitTab.history.length - 1}
-                                            onClick={() => {
-                                                const index = splitTab.index + 1;
-                                                if (index < splitTab.history.length)
-                                                    void goTo(splitTab.id, splitTab.history[index], index);
+                                            disabled={secondary.index >= secondary.history.length - 1}
+                                            onClick={(event) => {
+                                                const index = secondary.index + 1;
+                                                if (index >= secondary.history.length) return;
+                                                if (wantsNewTab(event)) openFiles(secondary.history[index]);
+                                                else void goTo(secondary.id, secondary.history[index], index);
                                             }}
                                             title={t("Forward")}
                                             type="button"
@@ -1997,10 +1977,11 @@ export default function App() {
                                         </IconButton>
                                         <IconButton
                                             data-shortcut={prettyShortcut(shortcuts.goUp)}
-                                            disabled={!splitParent}
-                                            onClick={() => {
-                                                if (splitParent)
-                                                    void load(splitTab.id, splitParent);
+                                            disabled={!secondaryParent}
+                                            onClick={(event) => {
+                                                if (!secondaryParent) return;
+                                                if (wantsNewTab(event)) openFiles(secondaryParent);
+                                                else void load(secondary.id, secondaryParent);
                                             }}
                                             title={t("Up one level")}
                                             type="button"
@@ -2009,14 +1990,16 @@ export default function App() {
                                         </IconButton>
                                         <PathBar
                                             focusToken={activePane === "secondary" ? locationFocus : undefined}
-                                            onNavigate={(path) => void load(splitTab.id, path)}
-                                            path={splitFolder}
+                                            onNavigate={(path, newTab) => newTab
+                                                ? openFiles(path)
+                                                : void load(secondary.id, path)}
+                                            path={secondaryFolder}
                                         />
                                         <IconButton
                                             onClick={(event) => openCreateMenu(
                                                 event,
-                                                splitFolder,
-                                                () => void load(splitTab.id, splitFolder, true),
+                                                secondaryFolder,
+                                                () => void load(secondary.id, secondaryFolder, true),
                                             )}
                                             title={t("New folder or file")}
                                             type="button"
@@ -2032,7 +2015,7 @@ export default function App() {
                                             <SearchIcon/>
                                         </IconButton>
                                     </PaneToolbar>
-                                    {filePane(splitTab, false)}
+                                    {filePane(secondary, false)}
                                     {activePane === "secondary" && findBar}
                                 </Pane>
                                 <PreviewPane

@@ -3,7 +3,7 @@ import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import {listHistory, undoHistory, type HistoryEntry} from "../api/history";
 import {elevatedPanel} from "../ui/panel";
-import {ListIcon, CrossIcon} from "./Icons";
+import {ClockIcon, CrossIcon} from "./Icons";
 
 /** The title bar's session history: every recorded file operation, with an undo button per row. */
 export function HistoryPanel() {
@@ -48,7 +48,7 @@ export function HistoryPanel() {
                 title={t("History")}
                 type="button"
             >
-                <ListIcon size={14}/>
+                <ClockIcon size={14}/>
             </Button>
 
             {open && (
@@ -139,11 +139,22 @@ const Head = styled.div`
 `;
 
 const Title = styled.span`
-    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 10px;
     font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
     color: var(--text-secondary);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+
+    &::before {
+        content: "";
+        width: 2px;
+        height: 10px;
+        border-radius: 2px;
+        background: var(--accent-gradient);
+    }
 `;
 
 const Close = styled.button`

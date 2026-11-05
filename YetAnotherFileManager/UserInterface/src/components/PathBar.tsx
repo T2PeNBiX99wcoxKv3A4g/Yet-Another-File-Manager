@@ -17,7 +17,7 @@ interface PathBarProps {
     icon?: ReactNode;
     /** A bump opens the editor, which is how Ctrl+L replaces the location. */
     focusToken?: number;
-    onNavigate: (path: string) => void;
+    onNavigate: (path: string, newTab?: boolean) => void;
 }
 
 interface Crumb {
@@ -76,10 +76,10 @@ export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProp
         setEditing(true);
     };
 
-    const commit = () => {
+    const commit = (event?: { ctrlKey?: boolean; metaKey?: boolean }) => {
         const target = draft.trim();
         setEditing(false);
-        if (target.length > 0 && target !== path) onNavigate(target);
+        if (target.length > 0 && target !== path) onNavigate(target, Boolean(event?.ctrlKey || event?.metaKey));
     };
 
     // Explorer's address bar suggests the folders beside what is being typed. The listing is
@@ -124,9 +124,9 @@ export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProp
         };
     }, [draft, editing]);
 
-    const choose = (suggestion: { path: string }) => {
+    const choose = (suggestion: { path: string }, newTab = false) => {
         setEditing(false);
-        onNavigate(suggestion.path);
+        onNavigate(suggestion.path, newTab);
     };
 
     // The list lives in a portal, so it is positioned from the editor's rectangle instead of
@@ -183,9 +183,10 @@ export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProp
 
                             if (event.key === "Enter") {
                                 if (suggestions.length > 0)
-                                    choose(suggestions[Math.min(activeSuggestion, suggestions.length - 1)]);
+                                    choose(suggestions[Math.min(activeSuggestion, suggestions.length - 1)],
+                                        event.ctrlKey || event.metaKey);
                                 else
-                                    commit();
+                                    commit(event);
                                 return;
                             }
 
@@ -221,7 +222,7 @@ export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProp
                             <Completion
                                 $active={index === activeSuggestion}
                                 key={suggestion.path}
-                                onClick={() => choose(suggestion)}
+                                onClick={(event) => choose(suggestion, event.ctrlKey || event.metaKey)}
                                 onMouseEnter={() => setActiveSuggestion(index)}
                                 type="button"
                             >
@@ -247,7 +248,7 @@ export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProp
                     <CrumbButton
                         onClick={(event) => {
                             event.stopPropagation();
-                            if (crumb.path !== path) onNavigate(crumb.path);
+                            if (crumb.path !== path) onNavigate(crumb.path, event.ctrlKey || event.metaKey);
                         }}
                         type="button"
                     >
