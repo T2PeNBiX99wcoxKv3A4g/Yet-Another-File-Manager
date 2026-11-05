@@ -102,34 +102,9 @@ internal sealed class WindowManager : Singleton<WindowManager>
                         LinuxWindow.BeginResize(window.Title, direction);
                 });
                 break;
-
-            case "app.pickIcon":
-                return Pick(context, () =>
-                    _mainWindow?.ShowOpenFile("Choose an icon", "", false,
-                        [
-                            ("Images", ["*.png", "*.ico", "*.svg", "*.jpg", "*.jpeg", "*.webp"]),
-                            ("All files", ["*.*"])
-                        ])
-                        ?.FirstOrDefault());
-
-            case "app.pickFolder":
-                return Pick(context, () => _mainWindow?.ShowOpenFolder("Choose a folder", "")
-                    ?.FirstOrDefault());
         }
 
         return Task.FromResult<NativeResponse?>(null);
-    }
-
-    /// <summary>Runs a native dialog on the UI thread and answers with the chosen path.</summary>
-    private Task<NativeResponse?> Pick(NativeContext context, Func<string?> pick)
-    {
-        var completion = new TaskCompletionSource<NativeResponse?>();
-
-        RunOnMainWindow(() =>
-            completion.SetResult(context.Reply("app.pick.result",
-                new PathPayload(Try.Run(pick).GetOrNull()))));
-
-        return completion.Task;
     }
 
     /// <summary>Sends an event to the interface. Failures are only logged: a view may be gone.</summary>

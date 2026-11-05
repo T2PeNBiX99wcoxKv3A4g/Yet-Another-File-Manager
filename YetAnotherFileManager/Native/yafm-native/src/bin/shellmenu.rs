@@ -22,8 +22,13 @@ mod windows_impl {
     use std::os::windows::ffi::OsStrExt;
     use std::path::Path;
     use std::ptr::null_mut;
+    use base64::Engine as _;
     use windows::core::{Interface, PCSTR, PCWSTR, PSTR, PWSTR};
     use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
+    use windows::Win32::Graphics::Gdi::{
+        CreateCompatibleDC, DeleteDC, GetDC, GetDIBits, GetObjectW, ReleaseDC, SelectObject, BITMAP,
+        BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HBITMAP, HGDIOBJ,
+    };
     use windows::Win32::System::Com::{
         CoInitializeEx, CoTaskMemFree, CoUninitialize, COINIT_APARTMENTTHREADED,
     };
@@ -34,7 +39,7 @@ mod windows_impl {
     };
     use windows::Win32::UI::WindowsAndMessaging::{
         CreatePopupMenu, DestroyMenu, GetMenuItemCount, GetMenuItemInfoW, MENUITEMINFOW,
-        MENU_ITEM_MASK, MFS_CHECKED, MFS_DEFAULT, MFS_DISABLED, MFT_SEPARATOR, MIIM_FTYPE, MIIM_ID,
+        MENU_ITEM_MASK, MFS_CHECKED, MFS_DEFAULT, MFS_DISABLED, MFT_SEPARATOR, MIIM_BITMAP, MIIM_FTYPE, MIIM_ID,
         MIIM_STATE, MIIM_STRING, MIIM_SUBMENU, SW_SHOWNORMAL, WM_INITMENUPOPUP,
     };
 
@@ -221,7 +226,7 @@ mod windows_impl {
             let mut info = MENUITEMINFOW::default();
             info.cbSize = std::mem::size_of::<MENUITEMINFOW>() as u32;
             info.fMask = MENU_ITEM_MASK(
-                MIIM_ID.0 | MIIM_STATE.0 | MIIM_SUBMENU.0 | MIIM_FTYPE.0 | MIIM_STRING.0,
+                MIIM_ID.0 | MIIM_STATE.0 | MIIM_SUBMENU.0 | MIIM_FTYPE.0 | MIIM_STRING.0 | MIIM_BITMAP.0,
             );
 
             let mut label_buffer = [0u16; 512];
@@ -270,7 +275,7 @@ mod windows_impl {
                 label,
                 verb,
                 offset,
-                icon: None,
+                icon: menu_icon(info.hbmpItem),
                 enabled: info.fState.0 & MFS_DISABLED.0 == 0,
                 checked: info.fState.0 & MFS_CHECKED.0 != 0,
                 group: path.last().cloned(),
@@ -280,8 +285,97 @@ mod windows_impl {
         }
     }
 
-    unsafe fn command_verb(context: &IContextMenu, offset: i32) -> Option<String> {
-        let mut buffer = [0u16; 256];
+    fn menu_icon(bitmap: HBITMAP) -> Option<String> {
+        // Small handles are the HBMMENU_* sentinels, not real bitmaps.
+        if (bitmap.0 as isize) <= 16 {
+            return None;
+        }
+
+        unsafe { bitmap_to_png(bitmap) }
+    }
+
+    unsafe fn bitmap_to_png(bitmap: HBITMAP) -> Option<String> {
+        let mut source = BITMAP::default();
+        if GetObjectW(
+            HGDIOBJ(bitmap.0),
+            std::mem::size_of::<BITMAP>() as i32,
+            Some(&mut source as *mut _ as *mut c_void),
+        ) == 0
+        {
+            return None;
+        }
+
+        let width = source.bmWidth.max(0) as u32;
+        let height = source.bmHeight.unsigned_abs();
+        if width == 0 || height == 0 || width > 512 || height > 512 {
+            return None;
+        }
+
+        let mut info = BITMAPINFO::default();
+        info.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
+        info.bmiHeader.biWidth = width as i32;
+        info.bmiHeader.biHeight = -(height as i32);
+        info.bmiHeader.biPlanes = 1;
+        info.bmiHeader.biBitCount = 32;
+        info.bmiHeader.biCompression = BI_RGB.0;
+
+        let mut pixels = vec![0u8; (width * height * 4) as usize];
+        let screen = GetDC(None);
+        let dc = CreateCompatibleDC(Some(screen));
+        let old = SelectObject(dc, HGDIOBJ(bitmap.0));
+
+        let lines = GetDIBits(
+            dc,
+            bitmap,
+            0,
+            height,
+            Some(pixels.as_mut_ptr() as *mut c_void),
+            &mut info,
+            DIB_RGB_COLORS,
+        );
+
+        SelectObject(dc, old);
+        let _ = DeleteDC(dc);
+        ReleaseDC(None, screen);
+
+        if lines == 0 {
+            return None;
+        }
+
+        // GDI hands back BGRA; the alpha channel is zero on older icon bitmaps.
+        let mut has_alpha = false;
+        for pixel in pixels.chunks_exact_mut(4) {
+            pixel.swap(0, 2);
+            has_alpha |= pixel[3] != 0;
+        }
+
+        if !has_alpha {
+            for pixel in pixels.chunks_exact_mut(4) {
+                pixel[3] = 255;
+            }
+        }
+
+        png_data_url(width, height, &pixels)
+    }
+
+    fn png_data_url(width: u32, height: u32, rgba: &[u8]) -> Option<String> {
+        let mut output = Vec::new();
+
+        {
+            let mut encoder = png::Encoder::new(&mut output, width, height);
+            encoder.set_color(png::ColorType::Rgba);
+            encoder.set_depth(png::BitDepth::Eight);
+            let mut writer = encoder.write_header().ok()?;
+            writer.write_image_data(rgba).ok()?;
+        }
+
+        Some(format!(
+            "data:image/png;base64,{}",
+            base64::engine::general_purpose::STANDARD.encode(output)
+        ))
+    }
+
+    unsafe fn command_verb(context: &IContextMenu, offset: i32) -> Option<String> {        let mut buffer = [0u16; 256];
         let result = context.GetCommandString(
             offset as usize,
             GCS_VERBW,

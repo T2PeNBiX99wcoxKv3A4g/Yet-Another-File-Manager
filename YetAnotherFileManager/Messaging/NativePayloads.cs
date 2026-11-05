@@ -81,7 +81,7 @@ internal sealed record FsSizesPayload(string Path, Dictionary<string, long> Size
 /// <summary>Body for <c>fs.counts</c>: child counts measured since the listing was sent.</summary>
 internal sealed record FsCountsPayload(string Path, Dictionary<string, long> Counts);
 
-/// <summary>Body for <c>app.pickIcon</c> and <c>app.pickFolder</c>: the chosen path, or null.</summary>
+/** Body for messages that carry a single path, such as the shell menu's working file. */
 internal sealed record PathPayload(string? Path);
 
 /// <summary>Body for <c>fs.recycle.admin.list</c>: what the elevated helper could see.</summary>

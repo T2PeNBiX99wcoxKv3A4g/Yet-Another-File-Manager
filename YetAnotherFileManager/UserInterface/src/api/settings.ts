@@ -214,18 +214,3 @@ export async function setEntryIcon(directory: string, name: string, source: stri
     return data.ok;
 }
 
-/** Asks the host for a native "choose an icon" dialog. */
-export async function pickIconFile(): Promise<string | null> {
-    if (!Native.available) return null;
-
-    const data = await Native.request<{ path: string | null }>("app.pickIcon");
-    return data.path;
-}
-
-/** Asks the host for a native "choose a folder" dialog. */
-export async function pickFolder(): Promise<string | null> {
-    if (!Native.available) return null;
-
-    const data = await Native.request<{ path: string | null }>("app.pickFolder");
-    return data.path;
-}
