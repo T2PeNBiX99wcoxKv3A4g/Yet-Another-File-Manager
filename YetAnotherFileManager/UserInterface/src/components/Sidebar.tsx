@@ -328,6 +328,10 @@ const Aside = styled.aside`
     -webkit-backdrop-filter: blur(16px) saturate(115%);
     transition: width 150ms ease, padding 150ms ease, box-shadow 150ms ease, background 150ms ease;
 
+    html.has-wallpaper & {
+        background: rgba(var(--bg-rgb), 0.52);
+    }
+
     &::-webkit-scrollbar {
         display: none;
     }

@@ -492,5 +492,17 @@
   "XML file": "XML ファイル",
   "YAML file": "YAML ファイル",
   "Could not create the item.": "項目を作成できません。",
-  "History": "履歴"
+  "History": "履歴",
+  "Background": "背景",
+  "Wallpaper": "壁紙",
+  "A picture or video behind the whole window, from the title bar to the bottom.": "タイトルバーから下端まで、ウィンドウ全体の背後の画像または動画。",
+  "None keeps the normal dark surface. Built-in concepts are scalable SVGs; a custom picture or video is loaded from its file.": "「なし」は通常の暗い背景を保ちます。内蔵コンセプトは拡大縮小できる SVG で、カスタム画像や動画はファイルから読み込みます。",
+  "Image…": "画像…",
+  "Video…": "動画…",
+  "Blur": "ぼかし",
+  "Saturation": "彩度",
+  "Brightness": "明るさ",
+  "Aurora": "オーロラ",
+  "Dunes": "砂丘",
+  "Tide": "潮汐"
 }

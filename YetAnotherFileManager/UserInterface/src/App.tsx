@@ -40,6 +40,7 @@ import {PreviewPane, type PreviewInfo} from "./components/PreviewPane";
 import {FileTray, isPathDrag, type TrayItem} from "./components/FileTray";
 import {FolderPicker} from "./components/FolderPicker";
 import {FileMenu} from "./components/FileMenu";
+import {Wallpaper} from "./components/Wallpaper";
 import {setFilePickerOpener, setFolderPickerOpener} from "./folder-picker";
 import {FindBar} from "./components/FindBar";
 import {EmptyFind, matchesName, type FindState} from "./find";
@@ -333,6 +334,12 @@ export default function App() {
     useEffect(() => {
         applyTheme(settings?.accentColor, settings?.secondaryColor);
     }, [settings?.accentColor, settings?.secondaryColor]);
+
+    // A wallpaper turns the opaque window surfaces transparent; the layer sits behind all of them.
+    useEffect(() => {
+        document.documentElement.classList.toggle("has-wallpaper", Boolean(settings?.backgroundSource));
+        return () => document.documentElement.classList.remove("has-wallpaper");
+    }, [settings?.backgroundSource]);
 
     // Choosing a tab in the title bar puts the focus back on the left pane.
     useEffect(() => {
@@ -1787,6 +1794,7 @@ export default function App() {
     return (
         <QuickAccessProvider value={quickAccess}>
         <Root $rounded={corners}>
+            <Wallpaper settings={settings}/>
             <TitleBar
                 activeId={active.id}
                 onClose={closeTab}
@@ -2175,11 +2183,17 @@ export default function App() {
 }
 
 const Root = styled.div<{ $rounded: boolean }>`
+    position: relative;
+    isolation: isolate;
     display: flex;
     flex-direction: column;
     height: 100%;
     overflow: hidden;
     background: var(--bg-primary);
+
+    html.has-wallpaper & {
+        background: transparent;
+    }
 
     /* An undecorated window gets no frame from the compositor, so the corners are drawn here. */
     border-radius: ${({$rounded}) => ($rounded ? "12px" : "0")};
@@ -2190,6 +2204,7 @@ const Root = styled.div<{ $rounded: boolean }>`
 
 const Body = styled.div`
     position: relative;
+    z-index: 1;
     display: flex;
     flex: 1;
     min-height: 0;
@@ -2197,6 +2212,10 @@ const Body = styled.div`
         radial-gradient(1200px 650px at 12% -10%, rgba(var(--accent-secondary-rgb), 0.12), transparent 60%),
         radial-gradient(900px 520px at 110% 18%, rgba(var(--accent-rgb), 0.09), transparent 55%),
         linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-media) 100%);
+
+    html.has-wallpaper & {
+        background: linear-gradient(180deg, rgba(var(--bg-rgb), 0.12), rgba(var(--bg-rgb), 0.3));
+    }
 `;
 
 const Main = styled.main`

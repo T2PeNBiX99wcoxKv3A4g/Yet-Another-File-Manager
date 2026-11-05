@@ -2032,6 +2032,12 @@ const GridSelectAll = styled.div`
     background: var(--bg-primary);
     color: var(--text-muted);
     font-size: 11px;
+
+    html.has-wallpaper & {
+        background: rgba(var(--bg-rgb), 0.65);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    }
 `;
 
 const SelectionBox = styled.button<{ $checked: boolean }>`

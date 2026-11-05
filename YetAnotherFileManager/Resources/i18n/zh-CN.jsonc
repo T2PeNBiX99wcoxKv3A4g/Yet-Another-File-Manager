@@ -492,5 +492,17 @@
   "XML file": "XML 文件",
   "YAML file": "YAML 文件",
   "Could not create the item.": "无法创建项目。",
-  "History": "历史记录"
+  "History": "历史记录",
+  "Background": "背景",
+  "Wallpaper": "壁纸",
+  "A picture or video behind the whole window, from the title bar to the bottom.": "整个窗口（从标题栏到底部）背后的图片或视频。",
+  "None keeps the normal dark surface. Built-in concepts are scalable SVGs; a custom picture or video is loaded from its file.": "“无”保留原本的深色表面。内置概念背景是可缩放的 SVG；自定义图片或视频会从文件加载。",
+  "Image…": "图片…",
+  "Video…": "视频…",
+  "Blur": "模糊",
+  "Saturation": "饱和度",
+  "Brightness": "亮度",
+  "Aurora": "极光",
+  "Dunes": "沙丘",
+  "Tide": "潮汐"
 }

@@ -61,6 +61,14 @@ export interface AppSettings {
     accentColor: string | null;
     /** The gradient/highlight colour, or null for the default indigo. */
     secondaryColor: string | null;
+    /** None, a built-in concept ("builtin:aurora"), or "file:<path>" for an image/video. */
+    backgroundSource: string | null;
+    /** Background blur in pixels. */
+    backgroundBlur: number;
+    /** Background saturation, 100 = unchanged. */
+    backgroundSaturation: number;
+    /** Background brightness, 100 = unchanged. */
+    backgroundBrightness: number;
     /** UI language such as "en" or "zh-TW"; null means English, "system" follows the OS. */
     language: string | null;
     /** Colour pairs the user saved; the built-in presets live in the settings page. */
@@ -106,6 +114,10 @@ const fallback: AppSettings = {
     previewVideoAutoplay: false,
     accentColor: null,
     secondaryColor: null,
+    backgroundSource: null,
+    backgroundBlur: 0,
+    backgroundSaturation: 100,
+    backgroundBrightness: 100,
     language: null,
     themePresets: [],
 };
@@ -148,6 +160,10 @@ export async function getSettings(): Promise<AppSettings> {
         previewVideoAutoplay: raw?.previewVideoAutoplay ?? false,
         accentColor: raw?.accentColor ?? null,
         secondaryColor: raw?.secondaryColor ?? null,
+        backgroundSource: raw?.backgroundSource ?? null,
+        backgroundBlur: raw?.backgroundBlur ?? 0,
+        backgroundSaturation: raw?.backgroundSaturation ?? 100,
+        backgroundBrightness: raw?.backgroundBrightness ?? 100,
         language: raw?.language ?? null,
         themePresets: raw?.themePresets ?? [],
     };
@@ -191,6 +207,10 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         previewVideoAutoplay: saved?.previewVideoAutoplay ?? settings.previewVideoAutoplay,
         accentColor: saved?.accentColor ?? settings.accentColor,
         secondaryColor: saved?.secondaryColor ?? settings.secondaryColor,
+        backgroundSource: saved?.backgroundSource ?? settings.backgroundSource,
+        backgroundBlur: saved?.backgroundBlur ?? settings.backgroundBlur,
+        backgroundSaturation: saved?.backgroundSaturation ?? settings.backgroundSaturation,
+        backgroundBrightness: saved?.backgroundBrightness ?? settings.backgroundBrightness,
         language: saved?.language ?? settings.language,
         themePresets: saved?.themePresets ?? settings.themePresets,
     };

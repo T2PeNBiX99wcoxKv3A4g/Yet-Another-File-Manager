@@ -24,6 +24,7 @@ import {comboOf, DefaultShortcuts, prettyShortcut, type ShortcutMap} from "../sh
 import {BuiltinIcon} from "../icons/fileTypes";
 import {GlobalTag} from "./GlobalTag";
 import {ViewColumns} from "./FileList";
+import {BuiltInBackgrounds} from "./Wallpaper";
 import {baseName, formatBytes, plural, usageTone} from "../utils/format";
 import {readStoredJson, writeStoredJson} from "../storage";
 
@@ -103,6 +104,7 @@ const SettingSections: { id: string; label: string }[] = [
     {id: "application", label: "Application"},
     {id: "updates", label: "Updates"},
     {id: "colors", label: "Colors"},
+    {id: "background", label: "Background"},
     {id: "tags", label: "Tags"},
     {id: "files-view", label: "Files view"},
     {id: "shortcuts", label: "Shortcuts"},
@@ -848,6 +850,100 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
                                 >
                                     {t("Reset")}
                                 </SmallButton>
+                            </RowEnd>
+                        </Row>
+                    </Rows>
+                </Section>
+
+                <Section ref={anchor("background")}>
+                    <Head
+                        note="A picture or video behind the whole window, from the title bar to the bottom."
+                        title="Background"
+                    />
+                    <Rows>
+                        <Row>
+                            <RowText>
+                                <Label>{t("Wallpaper")}</Label>
+                                <Note>{t("None keeps the normal dark surface. Built-in concepts are scalable SVGs; a custom picture or video is loaded from its file.")}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <BackgroundPicker>
+                                    <BackgroundChoice
+                                        $active={!settings?.backgroundSource}
+                                        onClick={() => void update({backgroundSource: null})}
+                                        type="button"
+                                    >
+                                        {t("None")}
+                                    </BackgroundChoice>
+                                    {BuiltInBackgrounds.map((background) => (
+                                        <BackgroundThumb
+                                            $active={settings?.backgroundSource === background.id}
+                                            key={background.id}
+                                            onClick={() => void update({backgroundSource: background.id})}
+                                            title={t(background.name)}
+                                            type="button"
+                                        >
+                                            <img alt="" src={background.url}/>
+                                        </BackgroundThumb>
+                                    ))}
+                                    <BackgroundChoice
+                                        onClick={async () => {
+                                            const file = await requestFile([".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"]);
+                                            if (file) void update({backgroundSource: `file:${file}`});
+                                        }}
+                                        type="button"
+                                    >
+                                        {t("Image…")}
+                                    </BackgroundChoice>
+                                    <BackgroundChoice
+                                        onClick={async () => {
+                                            const file = await requestFile([".mp4", ".webm", ".mkv", ".mov", ".m4v", ".avi", ".wmv", ".ogv"]);
+                                            if (file) void update({backgroundSource: `file:${file}`});
+                                        }}
+                                        type="button"
+                                    >
+                                        {t("Video…")}
+                                    </BackgroundChoice>
+                                </BackgroundPicker>
+                            </RowEnd>
+                        </Row>
+                        <Row>
+                            <Label>{t("Blur")}</Label>
+                            <RowEnd>
+                                <RangeInput
+                                    max={40}
+                                    min={0}
+                                    onChange={(event) => void update({backgroundBlur: Number(event.target.value)})}
+                                    type="range"
+                                    value={settings?.backgroundBlur ?? 0}
+                                />
+                                <Value>{settings?.backgroundBlur ?? 0}px</Value>
+                            </RowEnd>
+                        </Row>
+                        <Row>
+                            <Label>{t("Saturation")}</Label>
+                            <RowEnd>
+                                <RangeInput
+                                    max={200}
+                                    min={0}
+                                    onChange={(event) => void update({backgroundSaturation: Number(event.target.value)})}
+                                    type="range"
+                                    value={settings?.backgroundSaturation ?? 100}
+                                />
+                                <Value>{settings?.backgroundSaturation ?? 100}%</Value>
+                            </RowEnd>
+                        </Row>
+                        <Row>
+                            <Label>{t("Brightness")}</Label>
+                            <RowEnd>
+                                <RangeInput
+                                    max={150}
+                                    min={40}
+                                    onChange={(event) => void update({backgroundBrightness: Number(event.target.value)})}
+                                    type="range"
+                                    value={settings?.backgroundBrightness ?? 100}
+                                />
+                                <Value>{settings?.backgroundBrightness ?? 100}%</Value>
                             </RowEnd>
                         </Row>
                     </Rows>
@@ -2620,6 +2716,52 @@ const Segment = styled.button<{ $on: boolean }>`
 const RangeInput = styled.input`
     width: 150px;
     accent-color: var(--accent-primary);
+`;
+
+const BackgroundPicker = styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+`;
+
+const BackgroundChoice = styled.button<{ $active?: boolean }>`
+    padding: 5px 9px;
+    border: 1px solid ${({$active}) => $active ? "var(--border-color-focus)" : "var(--border-color)"};
+    border-radius: var(--radius-sm);
+    background: ${({$active}) => $active ? "rgba(var(--accent-rgb), 0.14)" : "transparent"};
+    color: ${({$active}) => $active ? "var(--text-primary)" : "var(--text-secondary)"};
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+
+    &:hover {
+        border-color: var(--border-color-hover);
+        color: var(--text-primary);
+    }
+`;
+
+const BackgroundThumb = styled.button<{ $active?: boolean }>`
+    width: 48px;
+    height: 32px;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid ${({$active}) => $active ? "var(--border-color-focus)" : "var(--border-color)"};
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    cursor: pointer;
+
+    img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    &:hover {
+        border-color: var(--border-color-hover);
+    }
 `;
 
 const ColumnGrid = styled.div`

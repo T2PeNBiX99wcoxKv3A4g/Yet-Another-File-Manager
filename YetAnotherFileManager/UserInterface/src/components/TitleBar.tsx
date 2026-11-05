@@ -265,6 +265,8 @@ function FilesTabGlyph({place}: { place?: TabInfo["place"] }) {
 }
 
 const Bar = styled.header`
+    position: relative;
+    z-index: 2;
     display: flex;
     align-items: stretch;
     height: 44px;
@@ -273,6 +275,12 @@ const Bar = styled.header`
     border-bottom: 1px solid var(--border-color);
     user-select: none;
     -webkit-user-select: none;
+
+    html.has-wallpaper & {
+        background: rgba(var(--bg-rgb), 0.5);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+    }
 `;
 
 const Mark = styled.span`

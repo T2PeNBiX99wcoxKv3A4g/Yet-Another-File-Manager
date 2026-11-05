@@ -492,5 +492,17 @@
   "XML file": "XML 檔",
   "YAML file": "YAML 檔",
   "Could not create the item.": "無法建立項目。",
-  "History": "歷史記錄"
+  "History": "歷史記錄",
+  "Background": "背景",
+  "Wallpaper": "桌布背景",
+  "A picture or video behind the whole window, from the title bar to the bottom.": "整個視窗（從標題欄到底部）背後的圖片或影片。",
+  "None keeps the normal dark surface. Built-in concepts are scalable SVGs; a custom picture or video is loaded from its file.": "「無」保留原本的深色表面。內建概念背景是可縮放的 SVG；自訂圖片或影片會從檔案載入。",
+  "Image…": "圖片…",
+  "Video…": "影片…",
+  "Blur": "模糊",
+  "Saturation": "飽和度",
+  "Brightness": "亮度",
+  "Aurora": "極光",
+  "Dunes": "沙丘",
+  "Tide": "潮汐"
 }
