@@ -17,7 +17,7 @@ import {
     type RecentEntry,
 } from "../api/files";
 import {getSettings, saveSettings, type AppSettings} from "../api/settings";
-import {matchesName, type FindState} from "../find";
+import {useTextSearch, type PageFind} from "../ui/textSearch";
 import {requestFolder} from "../folder-picker";
 import {Native, useTranslation} from "@photino-net-utils/bridge";
 import {FileList} from "./FileList";
@@ -50,8 +50,10 @@ interface OverviewViewProps {
     onDrivesChanged?: () => void;
     /** Bumped when the hidden-files override changes, so folder panels read again. */
     visibilityVersion?: number;
-    /** Text to narrow the panels to; null shows everything. */
-    find?: FindState | null;
+    /** Text to narrow the panels to; matching panels stay and are highlighted. */
+    find?: PageFind | null;
+    /** Reports how many panels matched, for the find bar's counter. */
+    onSearchMatches?: (count: number) => void;
     /** The picker shows the overview as a browsing page, without the layout editor. */
     readOnly?: boolean;
     /** The picker chooses a card or a panel entry instead of opening it. */
@@ -618,6 +620,7 @@ export function OverviewView({
     onDrivesChanged,
     visibilityVersion = 0,
     find,
+    onSearchMatches,
     readOnly = false,
     onPick,
     onSelectionChange,
@@ -706,24 +709,9 @@ export function OverviewView({
         Native.send({type: "fs.watch", payload: {paths}});
     }, [panels.map((panel) => panel.path ?? panel.id).join("|"), homePath]);
 
-    // A text search narrows the overview to the panels whose title or entries match.
-    useEffect(() => {
-        const root = panelsRef.current;
-        if (!root) return;
-
-        const query = find?.query.trim() ?? "";
-        const sections = [...root.querySelectorAll("section")];
-        let first: HTMLElement | null = null;
-
-        for (const section of sections) {
-            const match = query.length === 0 || matchesName(section.textContent ?? "", find!);
-            section.style.display = match ? "" : "none";
-            if (match && !first && section instanceof HTMLElement) first = section;
-        }
-
-        if (query.length > 0 && first) first.scrollIntoView({block: "nearest"});
-    }, [find?.query, find?.matchCase, find?.regex, panels.length, recent.length, places.length, drives.length,
-        visibilityVersion]);
+    // The shared page search highlights matches and dims or hides panels without any.
+    useTextSearch(panelsRef, find ?? null, "section", onSearchMatches ?? (() => undefined),
+        [recent.length, places.length, drives.length, visibilityVersion]);
 
     const setPlaceIcon = async (path: string, icon: string | null) => {
         const icons = {...settings?.placeIcons};

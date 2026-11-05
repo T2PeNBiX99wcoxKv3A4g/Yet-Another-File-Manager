@@ -75,12 +75,12 @@ internal static partial class PathGlob
         {
             paths.Add(@"%SystemRoot%\**");
             paths.Add(@"%USERPROFILE%\*");
-            paths.Add(@"%ProgramFiles%\**");
+            paths.Add(@"%ProgramFiles%\*");
 
             if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ProgramFiles(x86)")))
-                paths.Add(@"%ProgramFiles(x86)%\**");
+                paths.Add(@"%ProgramFiles(x86)%\*");
 
-            paths.Add(@"%ProgramData%\**");
+            paths.Add(@"%ProgramData%\*");
         }
         else
         {

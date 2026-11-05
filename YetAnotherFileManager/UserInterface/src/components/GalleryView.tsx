@@ -13,7 +13,8 @@ import type {ShortcutMap} from "../shortcuts";
 import {appLocale} from "../utils/format";
 import {RefreshIcon} from "./Icons";
 import {FileList} from "./FileList";
-import {NoFind, type FindState, type FindView} from "../find";
+import {NoFind, matchesName, type FindView} from "../find";
+import type {PageFind} from "../ui/textSearch";
 
 /** How many pictures one request carries; the rest are prefetched before the bottom is reached. */
 const PageSize = 150;
@@ -38,8 +39,10 @@ interface GalleryViewProps {
     shortcuts?: ShortcutMap;
     /** The grid size and icon size of the file browser. */
     view: ResolvedView;
-    /** The page search; the grid dims or hides non-matching pictures. */
-    find?: FindState | null;
+    /** The page search; matching pictures stay and are highlighted. */
+    find?: PageFind | null;
+    /** Reports how many loaded pictures matched, for the find bar's counter. */
+    onSearchMatches?: (count: number) => void;
     /** The picker opens a picture as the chosen file instead of handing it to the system. */
     onPick?: (path: string) => void;
     /** Reports the checked pictures, so the picker's footer can follow the selection. */
@@ -59,6 +62,7 @@ export function GalleryView({
     shortcuts,
     view,
     find,
+    onSearchMatches,
     onPick,
     onSelectionChange,
     onAddToTray,
@@ -253,15 +257,26 @@ export function GalleryView({
 
     const hasMore = entries.length < total;
 
+    const matching = useMemo(() => {
+        if (!find?.open || find.query.trim().length === 0)
+            return [];
+
+        return entries.filter((entry) => matchesName(entry.name, find) || matchesName(entry.path, find));
+    }, [entries, find?.open, find?.query, find?.matchCase, find?.regex]);
+
     const findView = useMemo<FindView>(() => find?.open
         ? {
             query: find.query,
             matchCase: find.matchCase,
             regex: find.regex,
-            mode: "hide",
-            currentPath: null,
+            mode: find.mode,
+            currentPath: matching[Math.min(find.index, Math.max(0, matching.length - 1))]?.path ?? null,
         }
-        : NoFind, [find?.open, find?.query, find?.matchCase, find?.regex]);
+        : NoFind, [find?.open, find?.query, find?.matchCase, find?.regex, find?.mode, find?.index, matching]);
+
+    useEffect(() => {
+        onSearchMatches?.(matching.length);
+    }, [matching.length, onSearchMatches]);
 
     return (
         <Page>

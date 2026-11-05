@@ -12,7 +12,8 @@ import {
     type RecycleEntry,
 } from "../api/files";
 import {useIcon} from "../api/icons";
-import {matchesName, type FindState} from "../find";
+import {matchesName} from "../find";
+import {useTextSearch, type PageFind} from "../ui/textSearch";
 import {formatBytes, formatDate, plural} from "../utils/format";
 import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "../storage";
 import {CheckIcon, CopyIcon, FileIcon, FolderIcon, GearIcon, RefreshIcon, TrashIcon} from "./Icons";
@@ -26,8 +27,10 @@ type SortColumn = "name" | "original" | "deleted" | "size" | "type";
 interface RecycleViewProps {
     /** Navigates to the folder that held the selected entry, when it still exists. */
     onOpenLocation: (path: string) => void;
-    /** The page search; matching rows stay visible. */
-    find?: FindState | null;
+    /** The page search; matching rows stay and are highlighted. */
+    find?: PageFind | null;
+    /** Reports how many rows matched, for the find bar's counter. */
+    onSearchMatches?: (count: number) => void;
     /** Draw the right-side details pane. */
     showDetails?: boolean;
     /** Called when a double click should reveal the details pane. */
@@ -46,8 +49,8 @@ interface RecycleViewProps {
  * presents what the host read and asks it for restore/delete.
  */
 export function RecycleView({
-    onOpenLocation, find, showDetails = true, onShowDetails, videoAudio = false, videoAutoplay = false,
-    platform,
+    onOpenLocation, find, onSearchMatches, showDetails = true, onShowDetails, videoAudio = false,
+    videoAutoplay = false, platform,
 }: RecycleViewProps) {
     const t = useTranslation();
     const isWindows = platform === "windows";
@@ -136,6 +139,11 @@ export function RecycleView({
         return rows.filter((entry) =>
             matchesName(entry.name, find) || matchesName(entry.originalPath, find));
     }, [rows, find?.open, find?.query, find?.matchCase, find?.regex]);
+
+    const listRef = useRef<HTMLDivElement | null>(null);
+
+    // The shared page search highlights matches and dims or hides rows without any.
+    useTextSearch(listRef, find ?? null, "[data-search-block]", onSearchMatches ?? (() => undefined), [rows]);
 
     // A new filter must not keep rows selected that are no longer visible.
     useEffect(() => {
@@ -469,7 +477,7 @@ export function RecycleView({
 
             {adminNotice && <Notice>{adminNotice}</Notice>}
             {error && <Message>{error}</Message>}
-            {!error && !loading && visibleRows.length === 0 && (
+            {!error && !loading && (find?.open && find.query.trim().length > 0 ? visibleRows.length === 0 : rows.length === 0) && (
                 <Message>
                     {find?.open && find.query.trim().length > 0
                         ? t("No matching items.")
@@ -477,9 +485,9 @@ export function RecycleView({
                 </Message>
             )}
 
-            {visibleRows.length > 0 && (
+            {rows.length > 0 && (
                 <SplitPane>
-                    <Table>
+                    <Table ref={listRef}>
                         <Head>
                             <SelectAll
                                 $checked={allSelected}
@@ -513,10 +521,11 @@ export function RecycleView({
                                     setSelected(new Set());
                             }}
                         >
-                            {visibleRows.map((entry) => (
+                            {rows.map((entry) => (
                                 <Row
                                     $checked={selected.has(entry.id)}
                                     $orphan={entry.isOrphan}
+                                    data-search-block="true"
                                     key={entry.id}
                                     onClick={(event) => select(entry, event)}
                                     onContextMenu={(event) => openMenu(event, entry)}

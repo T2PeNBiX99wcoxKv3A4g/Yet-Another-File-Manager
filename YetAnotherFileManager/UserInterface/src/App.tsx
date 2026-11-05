@@ -42,6 +42,7 @@ import {FileMenu} from "./components/FileMenu";
 import {Wallpaper} from "./components/Wallpaper";
 import {ProtectedDeleteDialog} from "./components/ProtectedDeleteDialog";
 import {setProtectedDeleteAsker, type ProtectedDeletePrompt} from "./api/safety";
+import type {PageFind} from "./ui/textSearch";
 import {FindBar} from "./components/FindBar";
 import {EmptyFind, matchesName, type FindState} from "./find";
 import {QuickAccessProvider, quickName, quickPlace, type QuickAccess} from "./quick";
@@ -261,6 +262,8 @@ export default function App() {
     const [findFocus, setFindFocus] = useState(0);
     const [viewFind, setViewFind] = useState<FindState>(EmptyFind);
     const [viewFindFocus, setViewFindFocus] = useState(0);
+    const [viewFindIndex, setViewFindIndex] = useState(0);
+    const [viewFindTotal, setViewFindTotal] = useState(0);
     const [recent, setRecent] = useState<RecentEntry[]>([]);
     const [recentLimit, setRecentLimit] = useState(10);
     const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -369,7 +372,18 @@ export default function App() {
     // A search belongs to the page it was opened on.
     useEffect(() => {
         setViewFind(EmptyFind);
+        setViewFindIndex(0);
+        setViewFindTotal(0);
     }, [kind]);
+
+    // A new query starts at the first match; a shrinking result list keeps the index in range.
+    useEffect(() => {
+        setViewFindIndex(0);
+    }, [viewFind.query, viewFind.matchCase, viewFind.regex]);
+
+    useEffect(() => {
+        setViewFindIndex((index) => viewFindTotal === 0 ? 0 : Math.min(index, viewFindTotal - 1));
+    }, [viewFindTotal]);
     // Hard-link counts open a handle per file, so they are only read while the column is visible.
     const includeLinks = view.columns.includes("linkCount");
 
@@ -463,7 +477,17 @@ export default function App() {
         setViewFindFocus((token) => token + 1);
     }, []);
 
-    const closeViewFind = useCallback(() => setViewFind(EmptyFind), []);
+    const closeViewFind = useCallback(() => {
+        setViewFind(EmptyFind);
+        setViewFindIndex(0);
+        setViewFindTotal(0);
+    }, []);
+
+    const stepViewFind = useCallback((delta: number) => {
+        setViewFindIndex((index) => viewFindTotal === 0
+            ? 0
+            : (Math.min(index, viewFindTotal - 1) + delta + viewFindTotal) % viewFindTotal);
+    }, [viewFindTotal]);
 
     /** Typing in a folder opens the search with what was typed, the way a file manager jumps to a name. */
     const startFind = useCallback((text: string) => {
@@ -1710,8 +1734,7 @@ export default function App() {
         );
     };
 
-    const findBar = find.open && (
-        <FindBar
+    const findBar = find.open && (        <FindBar
             current={findCurrent}
             focusToken={findFocus}
             matchCase={find.matchCase}
@@ -1814,6 +1837,10 @@ export default function App() {
         </Toolbar>
     );
 
+    const pageFind: PageFind | null = viewFind.open
+        ? {...viewFind, index: viewFindIndex}
+        : null;
+
     return (
         <QuickAccessProvider value={quickAccess}>
         <Root $rounded={corners}>
@@ -1891,22 +1918,24 @@ export default function App() {
                     <ViewShell key={kind}>
                     {kind !== "files" && viewFind.open && (
                         <FindBar
-                            compact
-                            current={0}
+                            current={viewFindIndex}
                             focusToken={viewFindFocus}
                             matchCase={viewFind.matchCase}
-                            mode="hide"
+                            mode={viewFind.mode}
                             onClose={closeViewFind}
                             onMatchCase={() => setViewFind((current) => ({...current, matchCase: !current.matchCase}))}
-                            onMode={() => undefined}
-                            onNext={() => undefined}
-                            onPrevious={() => undefined}
+                            onMode={() => setViewFind((current) => ({
+                                ...current,
+                                mode: current.mode === "dim" ? "hide" : "dim",
+                            }))}
+                            onNext={() => stepViewFind(1)}
+                            onPrevious={() => stepViewFind(-1)}
                             onQuery={(query) => setViewFind((current) => ({...current, query}))}
                             onRegex={() => setViewFind((current) => ({...current, regex: !current.regex}))}
                             placeholder={t("Search")}
                             query={viewFind.query}
                             regex={viewFind.regex}
-                            total={0}
+                            total={viewFindTotal}
                         />
                     )}
                     {kind === "files" ? (
@@ -2100,8 +2129,9 @@ export default function App() {
                     ) : kind === "home" ? (
                         <OverviewView
                             drives={drives}
-                            find={viewFind.open ? viewFind : null}
+                            find={pageFind}
                             historyVersion={historyVersion}
+                            onSearchMatches={setViewFindTotal}
                             homePath={places.find((place) => place.kind === "home")?.path ?? ""}
                             onDrivesChanged={reloadDrives}
                             onHistoryChanged={() => setHistoryVersion((current) => current + 1)}
@@ -2118,14 +2148,16 @@ export default function App() {
                     ) : kind === "settings" ? (
                         <SettingsView
                             appInfo={appInfo}
+                            find={pageFind}
                             focusSection={settingsFocus}
+                            onSearchMatches={setViewFindTotal}
                             onSettingsChanged={reloadSettings}
-                            search={viewFind.open ? viewFind : null}
                         />
                     ) : kind === "gallery" ? (
                         <GalleryView
                             confirmDelete={settings?.confirmDelete ?? false}
-                            find={viewFind.open ? viewFind : null}
+                            find={pageFind}
+                            onSearchMatches={setViewFindTotal}
                             openOnSingleClick={settings?.openOnSingleClick ?? false}
                             onAddToTray={(paths) => void addTrayPaths(paths)}
                             shortcuts={shortcuts}
@@ -2134,7 +2166,7 @@ export default function App() {
                         />
                     ) : (
                         <RecycleView
-                            find={viewFind.open ? viewFind : null}
+                            find={pageFind}
                             onOpenLocation={navigate}
                             onShowDetails={() => setDetailsVisible(true)}
                             platform={appInfo?.platform}
