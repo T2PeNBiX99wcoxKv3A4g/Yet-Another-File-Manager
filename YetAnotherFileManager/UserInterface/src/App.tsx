@@ -259,6 +259,8 @@ export default function App() {
     const [find, setFind] = useState<FindState>(EmptyFind);
     const [findIndex, setFindIndex] = useState(0);
     const [findFocus, setFindFocus] = useState(0);
+    const [viewFind, setViewFind] = useState<FindState>(EmptyFind);
+    const [viewFindFocus, setViewFindFocus] = useState(0);
     const [recent, setRecent] = useState<RecentEntry[]>([]);
     const [recentLimit, setRecentLimit] = useState(10);
     const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -363,6 +365,11 @@ export default function App() {
     useEffect(() => {
         setActivePane("primary");
     }, [activeId]);
+
+    // A search belongs to the page it was opened on.
+    useEffect(() => {
+        setViewFind(EmptyFind);
+    }, [kind]);
     // Hard-link counts open a handle per file, so they are only read while the column is visible.
     const includeLinks = view.columns.includes("linkCount");
 
@@ -450,6 +457,13 @@ export default function App() {
         setFind((current) => ({...current, open: true}));
         setFindFocus((token) => token + 1);
     }, []);
+
+    const openViewFind = useCallback(() => {
+        setViewFind((current) => ({...current, open: true}));
+        setViewFindFocus((token) => token + 1);
+    }, []);
+
+    const closeViewFind = useCallback(() => setViewFind(EmptyFind), []);
 
     /** Typing in a folder opens the search with what was typed, the way a file manager jumps to a name. */
     const startFind = useCallback((text: string) => {
@@ -1522,7 +1536,8 @@ export default function App() {
                 goUp();
             } else if (combo === shortcuts.find) {
                 event.preventDefault();
-                openFind();
+                if (kind === "files") openFind();
+                else openViewFind();
             } else if (combo === shortcuts.location) {
                 event.preventDefault();
                 setLocationFocus((token) => token + 1);
@@ -1569,8 +1584,8 @@ export default function App() {
 
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [shortcuts, kind, find.open, closeTab, reopenTab, openFiles, goBack, goForward, goUp, openFind, resetFind,
-        startFind, changeView, cycleTab, navigate, places, refreshAll, runHistory, toggleSplit]);
+    }, [shortcuts, kind, find.open, closeTab, reopenTab, openFiles, goBack, goForward, goUp, openFind, openViewFind,
+        resetFind, startFind, changeView, cycleTab, navigate, places, refreshAll, runHistory, toggleSplit]);
 
     // Back and forward on the mouse: WebView2 would otherwise walk its own history and reload the app.
     useEffect(() => {
@@ -1775,28 +1790,27 @@ export default function App() {
             />
 
             {kind === "files" && (
-                <>
-                    <IconButton
-                        onClick={(event) => openCreateMenu(
-                            event,
-                            activeFolder,
-                            () => void load(active.id, activeFolder, true),
-                        )}
-                        title={t("New folder or file")}
-                        type="button"
-                    >
-                        <PlusIcon/>
-                    </IconButton>
-                    <IconButton
-                        data-shortcut={prettyShortcut(shortcuts.find)}
-                        onClick={openFind}
-                        title={t("Search")}
-                        type="button"
-                    >
-                        <SearchIcon/>
-                    </IconButton>
-                </>
+                <IconButton
+                    onClick={(event) => openCreateMenu(
+                        event,
+                        activeFolder,
+                        () => void load(active.id, activeFolder, true),
+                    )}
+                    title={t("New folder or file")}
+                    type="button"
+                >
+                    <PlusIcon/>
+                </IconButton>
             )}
+
+            <IconButton
+                data-shortcut={prettyShortcut(shortcuts.find)}
+                onClick={openViewFind}
+                title={t("Search")}
+                type="button"
+            >
+                <SearchIcon/>
+            </IconButton>
         </Toolbar>
     );
 
@@ -1875,6 +1889,26 @@ export default function App() {
                     {kind !== "files" && mainToolbar}
 
                     <ViewShell key={kind}>
+                    {kind !== "files" && viewFind.open && (
+                        <FindBar
+                            compact
+                            current={0}
+                            focusToken={viewFindFocus}
+                            matchCase={viewFind.matchCase}
+                            mode="hide"
+                            onClose={closeViewFind}
+                            onMatchCase={() => setViewFind((current) => ({...current, matchCase: !current.matchCase}))}
+                            onMode={() => undefined}
+                            onNext={() => undefined}
+                            onPrevious={() => undefined}
+                            onQuery={(query) => setViewFind((current) => ({...current, query}))}
+                            onRegex={() => setViewFind((current) => ({...current, regex: !current.regex}))}
+                            placeholder={t("Search")}
+                            query={viewFind.query}
+                            regex={viewFind.regex}
+                            total={0}
+                        />
+                    )}
                     {kind === "files" ? (
                         splitActive && secondary ? (
                             <Split ref={splitRef}>
@@ -2066,6 +2100,7 @@ export default function App() {
                     ) : kind === "home" ? (
                         <OverviewView
                             drives={drives}
+                            find={viewFind.open ? viewFind : null}
                             historyVersion={historyVersion}
                             homePath={places.find((place) => place.kind === "home")?.path ?? ""}
                             onDrivesChanged={reloadDrives}
@@ -2081,10 +2116,16 @@ export default function App() {
                             visibilityVersion={visibilityVersion}
                         />
                     ) : kind === "settings" ? (
-                        <SettingsView appInfo={appInfo} focusSection={settingsFocus} onSettingsChanged={reloadSettings}/>
+                        <SettingsView
+                            appInfo={appInfo}
+                            focusSection={settingsFocus}
+                            onSettingsChanged={reloadSettings}
+                            search={viewFind.open ? viewFind : null}
+                        />
                     ) : kind === "gallery" ? (
                         <GalleryView
                             confirmDelete={settings?.confirmDelete ?? false}
+                            find={viewFind.open ? viewFind : null}
                             openOnSingleClick={settings?.openOnSingleClick ?? false}
                             onAddToTray={(paths) => void addTrayPaths(paths)}
                             shortcuts={shortcuts}
@@ -2093,6 +2134,7 @@ export default function App() {
                         />
                     ) : (
                         <RecycleView
+                            find={viewFind.open ? viewFind : null}
                             onOpenLocation={navigate}
                             onShowDetails={() => setDetailsVisible(true)}
                             platform={appInfo?.platform}
@@ -2225,6 +2267,7 @@ const Main = styled.main`
 
 /** The page a tab shows; re-keyed by kind, so a different page slides in instead of snapping. */
 const ViewShell = styled.div`
+    position: relative;
     display: flex;
     flex: 1;
     flex-direction: column;

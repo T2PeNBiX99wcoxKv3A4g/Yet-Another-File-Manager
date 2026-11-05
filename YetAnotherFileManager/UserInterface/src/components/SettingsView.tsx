@@ -14,6 +14,7 @@ import {
 } from "../api/settings";
 import type {AppInfo} from "../api/system";
 import {requestFile, requestFolder} from "../folder-picker";
+import {matchesName, type FindQuery} from "../find";
 import {checkUpdate, getMemory, getScheme, getUpdateStatus, openUrl, setScheme, trimMemory,
     type MemoryUsage, type UpdateCheck} from "../api/system";
 import {createTag, deleteTag, listTags, renameTag, setTagColor, type TagCatalogEntry} from "../api/tags";
@@ -36,6 +37,8 @@ interface SettingsViewProps {
     /** A section the footer's update dot asked for. */
     focusSection?: string | null;
     onSettingsChanged: () => void;
+    /** Text to narrow the sections to; null or empty shows everything. */
+    search?: FindQuery | null;
 }
 
 /** The actions the interface can bind; the ids are what settings.json stores. */
@@ -139,7 +142,7 @@ function readRecentColors(): RecentColors {
     };
 }
 
-export function SettingsView({appInfo, focusSection, onSettingsChanged}: SettingsViewProps) {
+export function SettingsView({appInfo, focusSection, onSettingsChanged, search}: SettingsViewProps) {
     const t = useTranslation();
     const [languages, setLanguages] = useState<string[]>([]);
     const [visibility, setVisibility] = useState<FileVisibility | null>(null);
@@ -173,6 +176,24 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
     const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
     const defaultView = settings?.defaultView ?? DefaultViewDefaults;
     const customPresets = settings?.themePresets ?? [];
+
+    // A text search hides the sections that have no matching text.
+    useEffect(() => {
+        const scroller = page.current;
+        if (!scroller) return;
+
+        const query = search?.query.trim() ?? "";
+        const sections = [...scroller.querySelectorAll("section")];
+        let first: HTMLElement | null = null;
+
+        for (const section of sections) {
+            const match = query.length === 0 || matchesName(section.textContent ?? "", search!);
+            section.style.display = match ? "" : "none";
+            if (match && !first && section instanceof HTMLElement) first = section;
+        }
+
+        if (query.length > 0 && first) first.scrollIntoView({block: "start"});
+    }, [search?.query, search?.matchCase, search?.regex, settings]);
 
     // The table of contents follows the section that is currently at the top of the scroller.
     useEffect(() => {
@@ -1334,7 +1355,8 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
                 <Section ref={anchor("files-view")}>
                     <Head
                         note="The defaults every folder starts with; a folder can still override them."
-                        title="Files view (global)"
+                        title="Files view"
+                        global
                     />
                     <Rows>
                         <Row>
@@ -2211,12 +2233,12 @@ function RecentSwatches({colors, current, onApply}: {
 }
 
 /** The title block above a card; every section explains itself in one line. */
-function Head({title, note}: { title: string; note: string }) {
+function Head({title, note, global = false}: { title: string; note: string; global?: boolean }) {
     const t = useTranslation();
 
     return (
         <SectionHead>
-            <h2>{t(title)}</h2>
+            <h2>{t(title)}{global && <GlobalTag/>}</h2>
             <p>{t(note)}</p>
         </SectionHead>
     );

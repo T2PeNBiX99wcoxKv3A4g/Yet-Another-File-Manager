@@ -541,5 +541,6 @@
   "Pattern": "樣式",
   "Follow the system, force 24-hour or 12-hour time, or define your own pattern.": "跟隨系統，或強制使用 24／12 小時制，也可以自訂樣式。",
   "Every timestamp in the interface uses this format: follow the system, force 24-hour or 12-hour time, or define your own pattern.": "介面中的所有時間都會使用此格式：可跟隨系統、強制 24 或 12 小時制，或自訂樣式。",
-  "Tokens: yyyy year, MM month, dd day, HH 24-hour, mm minute, ss second, hh 12-hour and a AM/PM. Other characters are copied.": "符號：yyyy 年、MM 月、dd 日、HH 24 小時、mm 分、ss 秒、hh 12 小時、a 上午／下午；其他字元會原樣保留。"
+  "Tokens: yyyy year, MM month, dd day, HH 24-hour, mm minute, ss second, hh 12-hour and a AM/PM. Other characters are copied.": "符號：yyyy 年、MM 月、dd 日、HH 24 小時、mm 分、ss 秒、hh 12 小時、a 上午／下午；其他字元會原樣保留。",
+  "No matching items.": "沒有符合的項目。"
 }

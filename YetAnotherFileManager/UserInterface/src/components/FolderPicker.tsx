@@ -155,6 +155,19 @@ export function FolderPicker({
                 return;
             }
 
+            // Alt+Left / Alt+Right walk the picker's own history, like the main window.
+            if (event.altKey && event.key === "ArrowLeft") {
+                event.preventDefault();
+                goBack();
+                return;
+            }
+
+            if (event.altKey && event.key === "ArrowRight") {
+                event.preventDefault();
+                goForward();
+                return;
+            }
+
             if (event.key !== "Enter")
                 return;
 
@@ -167,6 +180,22 @@ export function FolderPicker({
 
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
+    });
+
+    // Mouse back and forward buttons; WebView2 would otherwise walk its own history.
+    useEffect(() => {
+        const onDown = (event: MouseEvent) => {
+            if (event.button === 3) {
+                event.preventDefault();
+                goBack();
+            } else if (event.button === 4) {
+                event.preventDefault();
+                goForward();
+            }
+        };
+
+        window.addEventListener("mousedown", onDown);
+        return () => window.removeEventListener("mousedown", onDown);
     });
 
     const navigate = (target: string) => {

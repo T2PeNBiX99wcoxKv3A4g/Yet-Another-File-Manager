@@ -22,6 +22,10 @@ interface FindBarProps {
     onRegex: () => void;
     onMode: () => void;
     onClose: () => void;
+    /** Pages without a list of matches only need the box, the flags and the close button. */
+    compact?: boolean;
+    /** Overrides the file browser's "Search this folder" wording. */
+    placeholder?: string;
 }
 
 /**
@@ -29,11 +33,12 @@ interface FindBarProps {
  * taking a row from the toolbar, so it can be as wide as the query needs.
  */
 export function FindBar({
-    query, mode, matchCase, regex, total, current, focusToken,
+    query, mode, matchCase, regex, total, current, focusToken, compact = false, placeholder,
     onQuery, onPrevious, onNext, onMatchCase, onRegex, onMode, onClose,
 }: FindBarProps) {
     const t = useTranslation();
     const input = useRef<HTMLInputElement | null>(null);
+    const label = placeholder ?? t("Search this folder");
 
     useEffect(() => {
         const element = input.current;
@@ -54,7 +59,7 @@ export function FindBar({
             <SearchIcon/>
 
             <Input
-                aria-label={t("Search this folder")}
+                aria-label={label}
                 onChange={(event) => onQuery(event.target.value)}
                 onKeyDown={(event) => {
                     if (event.key === "Enter") {
@@ -68,21 +73,25 @@ export function FindBar({
                         onClose();
                     }
                 }}
-                placeholder={t("Search this folder")}
+                placeholder={label}
                 ref={input}
                 spellCheck={false}
                 value={query}
             />
 
-            <Counter>{total === 0 ? "0/0" : `${current + 1}/${total}`}</Counter>
+            {!compact && (
+                <>
+                    <Counter>{total === 0 ? "0/0" : `${current + 1}/${total}`}</Counter>
 
-            <Tool onClick={() => toggle(onPrevious)} title={t("Previous match (Shift+Enter)")} type="button">
-                <ChevronRightIcon size={12}/>
-            </Tool>
+                    <Tool onClick={() => toggle(onPrevious)} title={t("Previous match (Shift+Enter)")} type="button">
+                        <ChevronRightIcon size={12}/>
+                    </Tool>
 
-            <Tool $down onClick={() => toggle(onNext)} title={t("Next match (Enter)")} type="button">
-                <ChevronRightIcon size={12}/>
-            </Tool>
+                    <Tool $down onClick={() => toggle(onNext)} title={t("Next match (Enter)")} type="button">
+                        <ChevronRightIcon size={12}/>
+                    </Tool>
+                </>
+            )}
 
             <Toggle $on={matchCase} onClick={() => toggle(onMatchCase)} title={t("Match case")} type="button">
                 Aa
@@ -92,14 +101,16 @@ export function FindBar({
                 .*
             </Toggle>
 
-            <Mode
-                $on={mode === "hide"}
-                onClick={() => toggle(onMode)}
-                title={mode === "hide" ? t("Non-matching entries are hidden") : t("Non-matching entries are dimmed")}
-                type="button"
-            >
-                {mode === "hide" ? t("Hide") : t("Dim")}
-            </Mode>
+            {!compact && (
+                <Mode
+                    $on={mode === "hide"}
+                    onClick={() => toggle(onMode)}
+                    title={mode === "hide" ? t("Non-matching entries are hidden") : t("Non-matching entries are dimmed")}
+                    type="button"
+                >
+                    {mode === "hide" ? t("Hide") : t("Dim")}
+                </Mode>
+            )}
 
             <Tool onClick={onClose} title={t("Close search (Esc)")} type="button">
                 <CrossIcon size={12}/>

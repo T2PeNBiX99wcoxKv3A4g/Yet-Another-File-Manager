@@ -13,6 +13,7 @@ import type {ShortcutMap} from "../shortcuts";
 import {appLocale} from "../utils/format";
 import {RefreshIcon} from "./Icons";
 import {FileList} from "./FileList";
+import {NoFind, type FindState, type FindView} from "../find";
 
 /** How many pictures one request carries; the rest are prefetched before the bottom is reached. */
 const PageSize = 150;
@@ -37,6 +38,8 @@ interface GalleryViewProps {
     shortcuts?: ShortcutMap;
     /** The grid size and icon size of the file browser. */
     view: ResolvedView;
+    /** The page search; the grid dims or hides non-matching pictures. */
+    find?: FindState | null;
     /** The picker opens a picture as the chosen file instead of handing it to the system. */
     onPick?: (path: string) => void;
     /** Reports the checked pictures, so the picker's footer can follow the selection. */
@@ -55,6 +58,7 @@ export function GalleryView({
     confirmDelete = false,
     shortcuts,
     view,
+    find,
     onPick,
     onSelectionChange,
     onAddToTray,
@@ -249,6 +253,16 @@ export function GalleryView({
 
     const hasMore = entries.length < total;
 
+    const findView = useMemo<FindView>(() => find?.open
+        ? {
+            query: find.query,
+            matchCase: find.matchCase,
+            regex: find.regex,
+            mode: find.mode,
+            currentPath: null,
+        }
+        : NoFind, [find?.open, find?.query, find?.matchCase, find?.regex, find?.mode]);
+
     return (
         <Page>
             <Header>
@@ -268,6 +282,7 @@ export function GalleryView({
             {!error && (loading || total > 0) && (
                 <FileList
                     confirmDelete={confirmDelete}
+                    find={findView}
                     listing={loading && entries.length === 0 ? null : listing}
                     loading={loading}
                     error={null}

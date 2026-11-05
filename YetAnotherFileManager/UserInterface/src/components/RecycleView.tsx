@@ -12,6 +12,7 @@ import {
     type RecycleEntry,
 } from "../api/files";
 import {useIcon} from "../api/icons";
+import {matchesName, type FindState} from "../find";
 import {formatBytes, formatDate, plural} from "../utils/format";
 import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "../storage";
 import {CheckIcon, CopyIcon, FileIcon, FolderIcon, GearIcon, RefreshIcon, TrashIcon} from "./Icons";
@@ -25,6 +26,8 @@ type SortColumn = "name" | "original" | "deleted" | "size" | "type";
 interface RecycleViewProps {
     /** Navigates to the folder that held the selected entry, when it still exists. */
     onOpenLocation: (path: string) => void;
+    /** The page search; matching rows stay visible. */
+    find?: FindState | null;
     /** Draw the right-side details pane. */
     showDetails?: boolean;
     /** Called when a double click should reveal the details pane. */
@@ -43,7 +46,7 @@ interface RecycleViewProps {
  * presents what the host read and asks it for restore/delete.
  */
 export function RecycleView({
-    onOpenLocation, showDetails = true, onShowDetails, videoAudio = false, videoAutoplay = false,
+    onOpenLocation, find, showDetails = true, onShowDetails, videoAudio = false, videoAutoplay = false,
     platform,
 }: RecycleViewProps) {
     const t = useTranslation();
@@ -126,6 +129,19 @@ export function RecycleView({
         });
     }, [entries, adminEntries, sort]);
 
+    const visibleRows = useMemo(() => {
+        if (!find?.open || find.query.trim().length === 0)
+            return rows;
+
+        return rows.filter((entry) =>
+            matchesName(entry.name, find) || matchesName(entry.originalPath, find));
+    }, [rows, find?.open, find?.query, find?.matchCase, find?.regex]);
+
+    // A new filter must not keep rows selected that are no longer visible.
+    useEffect(() => {
+        setSelected(new Set());
+    }, [find?.open, find?.query, find?.matchCase, find?.regex]);
+
     const selectedEntries = useMemo(
         () => rows.filter((entry) => selected.has(entry.id)),
         [rows, selected]
@@ -165,8 +181,8 @@ export function RecycleView({
         setAnchor(entry.id);
     };
 
-    const selectAll = useCallback(() => setSelected(new Set(rows.map((entry) => entry.id))), [rows]);
-    const allSelected = rows.length > 0 && rows.every((entry) => selected.has(entry.id));
+    const selectAll = useCallback(() => setSelected(new Set(visibleRows.map((entry) => entry.id))), [visibleRows]);
+    const allSelected = visibleRows.length > 0 && visibleRows.every((entry) => selected.has(entry.id));
 
     const restoreSelected = useCallback(async () => {
         const ids = removable.map((entry) => entry.id);
@@ -453,9 +469,15 @@ export function RecycleView({
 
             {adminNotice && <Notice>{adminNotice}</Notice>}
             {error && <Message>{error}</Message>}
-            {!error && !loading && rows.length === 0 && <Message>{t("The recycle bin is empty.")}</Message>}
+            {!error && !loading && visibleRows.length === 0 && (
+                <Message>
+                    {find?.open && find.query.trim().length > 0
+                        ? t("No matching items.")
+                        : t("The recycle bin is empty.")}
+                </Message>
+            )}
 
-            {rows.length > 0 && (
+            {visibleRows.length > 0 && (
                 <SplitPane>
                     <Table>
                         <Head>
@@ -491,7 +513,7 @@ export function RecycleView({
                                     setSelected(new Set());
                             }}
                         >
-                            {rows.map((entry) => (
+                            {visibleRows.map((entry) => (
                                 <Row
                                     $checked={selected.has(entry.id)}
                                     $orphan={entry.isOrphan}

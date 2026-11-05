@@ -1,4 +1,4 @@
-import {useEffect, useState, type DragEvent, type MouseEvent} from "react";
+import {useEffect, useRef, useState, type DragEvent, type MouseEvent} from "react";
 import styled from "styled-components";
 import {
     clearFrequent,
@@ -17,6 +17,7 @@ import {
     type RecentEntry,
 } from "../api/files";
 import {getSettings, saveSettings, type AppSettings} from "../api/settings";
+import {matchesName, type FindState} from "../find";
 import {requestFolder} from "../folder-picker";
 import {Native, useTranslation} from "@photino-net-utils/bridge";
 import {FileList} from "./FileList";
@@ -49,6 +50,8 @@ interface OverviewViewProps {
     onDrivesChanged?: () => void;
     /** Bumped when the hidden-files override changes, so folder panels read again. */
     visibilityVersion?: number;
+    /** Text to narrow the panels to; null shows everything. */
+    find?: FindState | null;
     /** The picker shows the overview as a browsing page, without the layout editor. */
     readOnly?: boolean;
     /** The picker chooses a card or a panel entry instead of opening it. */
@@ -614,6 +617,7 @@ export function OverviewView({
     onHistoryChanged,
     onDrivesChanged,
     visibilityVersion = 0,
+    find,
     readOnly = false,
     onPick,
     onSelectionChange,
@@ -686,6 +690,7 @@ export function OverviewView({
 
     const panels = buildPanels(settings);
     const ids = panels.map((panel) => panel.id);
+    const panelsRef = useRef<HTMLDivElement | null>(null);
     const isPanelIconOpen = (id: string) => iconEditor?.kind === "panel" && iconEditor.id === id;
     const isPlaceIconOpen = (path: string) => iconEditor?.kind === "place" && iconEditor.id === path;
 
@@ -700,6 +705,25 @@ export function OverviewView({
 
         Native.send({type: "fs.watch", payload: {paths}});
     }, [panels.map((panel) => panel.path ?? panel.id).join("|"), homePath]);
+
+    // A text search narrows the overview to the panels whose title or entries match.
+    useEffect(() => {
+        const root = panelsRef.current;
+        if (!root) return;
+
+        const query = find?.query.trim() ?? "";
+        const sections = [...root.querySelectorAll("section")];
+        let first: HTMLElement | null = null;
+
+        for (const section of sections) {
+            const match = query.length === 0 || matchesName(section.textContent ?? "", find!);
+            section.style.display = match ? "" : "none";
+            if (match && !first && section instanceof HTMLElement) first = section;
+        }
+
+        if (query.length > 0 && first) first.scrollIntoView({block: "nearest"});
+    }, [find?.query, find?.matchCase, find?.regex, panels.length, recent.length, places.length, drives.length,
+        visibilityVersion]);
 
     const setPlaceIcon = async (path: string, icon: string | null) => {
         const icons = {...settings?.placeIcons};
@@ -1413,7 +1437,7 @@ export function OverviewView({
 
             {driveNotice && <Notice>{driveNotice}</Notice>}
 
-            <Panels $columns={columns}>
+            <Panels ref={panelsRef} $columns={columns}>
                 {panels
                     .map((panel) => {
                         const index = ids.indexOf(panel.id);

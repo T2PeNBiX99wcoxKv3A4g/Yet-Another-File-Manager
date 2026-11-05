@@ -541,5 +541,6 @@
   "Pattern": "パターン",
   "Follow the system, force 24-hour or 12-hour time, or define your own pattern.": "システムに従うか、24／12 時間制を強制するか、独自のパターンを指定します。",
   "Every timestamp in the interface uses this format: follow the system, force 24-hour or 12-hour time, or define your own pattern.": "インターフェースのすべての時刻はこの形式を使います。システムに従う、24／12 時間制を強制する、独自のパターンを指定するから選べます。",
-  "Tokens: yyyy year, MM month, dd day, HH 24-hour, mm minute, ss second, hh 12-hour and a AM/PM. Other characters are copied.": "記号：yyyy 年、MM 月、dd 日、HH 24 時間、mm 分、ss 秒、hh 12 時間、a 午前/午後。それ以外の文字はそのままコピーされます。"
+  "Tokens: yyyy year, MM month, dd day, HH 24-hour, mm minute, ss second, hh 12-hour and a AM/PM. Other characters are copied.": "記号：yyyy 年、MM 月、dd 日、HH 24 時間、mm 分、ss 秒、hh 12 時間、a 午前/午後。それ以外の文字はそのままコピーされます。",
+  "No matching items.": "一致する項目はありません。"
 }
