@@ -134,12 +134,32 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                     new OkPayload(await RecycleBin.RestoreAsync(context.Payload<RecycleRequest>()?.Id ?? "")));
 
             case "fs.recycle.empty":
-                await RecycleBin.EmptyAsync(context.Payload<RecycleListRequest>()?.IncludeOrphans ?? false);
-                return context.Reply("fs.recycle.empty.result", new OkPayload(true));
+            {
+                var request = context.Payload<RecycleListRequest>();
+                var includeOrphans = request?.IncludeOrphans ?? false;
+                var entries = await RecycleBin.ListAsync(includeOrphans);
+                var originalPaths = entries.Where(entry => entry.Removable).Select(entry => entry.OriginalPath).ToList();
+
+                if (GuardDelete(request?.Confirm, DeleteGuard.KeyForEmpty(includeOrphans), originalPaths) is { } blocked)
+                    return context.Reply("fs.recycle.empty.result", blocked);
+
+                await RecycleBin.EmptyAsync(includeOrphans);
+                return context.Reply("fs.recycle.empty.result", new DeletePayload(true));
+            }
 
             case "fs.recycle.delete":
+            {
+                var request = context.Payload<RecycleRequest>();
+                var id = request?.Id ?? "";
+                var entries = await RecycleBin.ListAsync(true);
+                var originalPaths = entries.Where(entry => entry.Id == id).Select(entry => entry.OriginalPath).ToList();
+
+                if (GuardDelete(request?.Confirm, DeleteGuard.KeyForRecycle([id]), originalPaths) is { } blocked)
+                    return context.Reply("fs.recycle.delete.result", blocked);
+
                 return context.Reply("fs.recycle.delete.result",
-                    new OkPayload(await RecycleBin.DeleteAsync(context.Payload<RecycleRequest>()?.Id ?? "")));
+                    new DeletePayload(await RecycleBin.DeleteAsync(id)));
+            }
 
             case "fs.recycle.restoreMany":
             {
@@ -151,7 +171,17 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
             case "fs.recycle.deleteMany":
             {
-                var ids = context.Payload<RecycleBatchRequest>()?.Ids ?? [];
+                var request = context.Payload<RecycleBatchRequest>();
+                var ids = request?.Ids ?? [];
+                var entries = await RecycleBin.ListAsync(true);
+                var originalPaths = entries.Where(entry => ids.Contains(entry.Id)).Select(entry => entry.OriginalPath).ToList();
+
+                if (GuardDelete(request?.Confirm, DeleteGuard.KeyForRecycle(ids), originalPaths) is { } blocked)
+                {
+                    return context.Reply("fs.recycle.deleteMany.result",
+                        new RecycleBatchPayload(false, 0, true, blocked.Token, blocked.Protected, blocked.DelaySeconds));
+                }
+
                 var done = await RecycleBin.DeleteManyAsync(ids);
                 return context.Reply("fs.recycle.deleteMany.result",
                     new RecycleBatchPayload(done == ids.Count, done));
@@ -168,7 +198,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 return await PurgeOrphansAsAdmin(context);
 
             case "app.settings":
-                return context.Reply("app.settings.result", SettingsService.Instance.Current);
+                return context.Reply("app.settings.result", WithProtection(SettingsService.Instance.Current));
 
             case "app.settings.set":
                 if (context.Payload<AppSettings>() is { } settings)
@@ -185,7 +215,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                     // The localization provider reloads the string table when the language changes.
                     DefaultFileManager.Apply(saved.IsDefaultFileManager);
                     WindowManager.Instance.Notify("settings.changed", new OkPayload());
-                    return context.Reply("app.settings.result", saved);
+                    return context.Reply("app.settings.result", WithProtection(saved));
                 }
 
                 return context.Reply("app.settings.result", SettingsService.Instance.Current);
@@ -251,8 +281,14 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             case "fs.operation.delete":
             {
                 var request = context.Payload<DeleteRequest>();
+                var paths = request?.Paths ?? [];
+                var permanent = request?.Permanent ?? false;
+
+                if (GuardDelete(request?.Confirm, DeleteGuard.KeyForDelete(paths, permanent), paths) is { } blocked)
+                    return context.Reply("fs.operation.delete.result", blocked);
+
                 return context.Reply("fs.operation.delete.result",
-                    await FileOperations.DeleteAsync(request?.Paths ?? [], request?.Permanent ?? false));
+                    await FileOperations.DeleteAsync(paths, permanent));
             }
 
             case "fs.operation.rename":
@@ -698,6 +734,50 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     }
 
     /// <summary>Runs the same elevated helper with deletion enabled.</summary>
+    /// <summary>
+    ///     Fills the defaults into the reply so the settings page can show the protected folders
+    ///     without keeping a second copy of the list.
+    /// </summary>
+    private static AppSettings WithProtection(AppSettings settings) =>
+        settings with
+        {
+            ProtectedPaths = Protection.Patterns(settings),
+            DeleteDelaySeconds = Protection.DelaySeconds(settings)
+        };
+
+    /// <summary>
+    ///     Blocks a delete that touches a protected path until the window confirms it after the
+    ///     configured delay. Null means the operation may run; otherwise the body is the reply.
+    /// </summary>
+    private static DeletePayload? GuardDelete(string? confirm, string key, IReadOnlyList<string> paths)
+    {
+        var delay = Protection.DelaySeconds(SettingsService.Instance.Current);
+
+        if (!string.IsNullOrEmpty(confirm))
+        {
+            if (DeleteGuard.Validate(confirm, key, delay, out var remaining))
+                return null;
+
+            var retryHits = Protection.Hits(paths);
+            if (retryHits.Count == 0)
+                return null;
+
+            return new DeletePayload(false, Required: true,
+                Token: remaining > 0 ? confirm : DeleteGuard.Issue(key),
+                Protected: retryHits,
+                DelaySeconds: remaining > 0 ? remaining : delay);
+        }
+
+        var hits = Protection.Hits(paths);
+        if (hits.Count == 0)
+            return null;
+
+        return new DeletePayload(false, Required: true,
+            Token: DeleteGuard.Issue(key),
+            Protected: hits,
+            DelaySeconds: delay);
+    }
+
     private static async Task<NativeResponse?> PurgeOrphansAsAdmin(NativeContext context)
     {
         var report = TempReportPath();

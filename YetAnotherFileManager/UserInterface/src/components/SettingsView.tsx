@@ -78,6 +78,9 @@ const ReleasesUrl = "https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Ma
 /** The language a fresh install uses until the picker changes it. */
 const DefaultLanguage = "en";
 
+/** A protected entry ending in ** covers the whole subtree. */
+const isRecursivePath = (pattern: string) => pattern.trimEnd().endsWith("**");
+
 /** The stored value the shared localization library reads as "follow the operating system". */
 const SystemLanguage = "system";
 
@@ -95,6 +98,7 @@ const SettingSections: { id: string; label: string }[] = [
     {id: "updates", label: "Updates"},
     {id: "colors", label: "Colors"},
     {id: "background", label: "Background"},
+    {id: "safety", label: "Safety"},
     {id: "tags", label: "Tags"},
     {id: "files-view", label: "Files view"},
     {id: "shortcuts", label: "Shortcuts"},
@@ -146,6 +150,7 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
     const [tagError, setTagError] = useState<string | null>(null);
     const [newTagName, setNewTagName] = useState("");
     const [newTagColor, setNewTagColor] = useState(DefaultTagColor);
+    const [protectChildren, setProtectChildren] = useState(true);
     const [recentColors, setRecentColors] = useState<RecentColors>(readRecentColors);
     const [draftPreset, setDraftPreset] = useState<{ name: string; accent: string; secondary: string } | null>(null);
     const [updateState, setUpdateState] = useState<UpdateCheck | null>(null);
@@ -270,6 +275,29 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
             backgroundCustom: settings.backgroundCustom.filter((item) => item !== path),
             backgroundSource: settings.backgroundSource === `file:${path}` ? null : settings.backgroundSource,
         });
+    };
+
+    /** Adds the picked folder to the protected list, with or without its subtree. */
+    const addProtected = async () => {
+        if (!settings) return;
+
+        const folder = await requestFolder();
+        if (!folder) return;
+
+        const separator = appInfo?.platform === "windows" ? "\\" : "/";
+        const base = folder.replace(/[\\/]+$/, "");
+        const pattern = protectChildren ? `${base}${separator}**` : base;
+
+        if (settings.protectedPaths.includes(pattern))
+            return;
+
+        await update({protectedPaths: [...settings.protectedPaths, pattern]});
+    };
+
+    const removeProtected = (pattern: string) => {
+        if (!settings) return;
+
+        void update({protectedPaths: settings.protectedPaths.filter((item) => item !== pattern)});
     };
 
     /** Keeps the last few applied colours, so a palette click and a revert are one click each. */
@@ -994,6 +1022,67 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged}: Setting
                             </VariantRow>
                         </GalleryGroup>
                     </Gallery>
+                </Section>
+
+                <Section ref={anchor("safety")}>
+                    <Head
+                        note="Deleting a protected folder, anything inside a recursive entry, or a folder that contains one always waits for an explicit confirmation."
+                        title="Safety"
+                    />
+                    <Rows>
+                        <Block>
+                            <BlockHead>
+                                <Label>{t("Protected folders")}</Label>
+                                <Note>{t("A path ending in ** covers every subfolder. A plain path protects only that folder, but deleting its parent is still held back. Environment variables such as %USERPROFILE% are expanded before the check.")}</Note>
+                            </BlockHead>
+                            <ProtectList>
+                                {(settings?.protectedPaths ?? []).map((pattern) => (
+                                    <ProtectRow key={pattern}>
+                                        <ProtectPath title={pattern}>{pattern}</ProtectPath>
+                                        <ProtectTag>
+                                            {isRecursivePath(pattern) ? t("Includes subfolders") : t("This folder only")}
+                                        </ProtectTag>
+                                        <ProtectRemove
+                                            onClick={() => removeProtected(pattern)}
+                                            title={t("Remove")}
+                                            type="button"
+                                        >
+                                            <CrossIcon size={10}/>
+                                        </ProtectRemove>
+                                    </ProtectRow>
+                                ))}
+                            </ProtectList>
+                            <ProtectAdd>
+                                <ProtectCheck>
+                                    <input
+                                        checked={protectChildren}
+                                        onChange={(event) => setProtectChildren(event.target.checked)}
+                                        type="checkbox"
+                                    />
+                                    {t("Includes subfolders")}
+                                </ProtectCheck>
+                                <SmallButton onClick={() => void addProtected()} type="button">
+                                    {t("Add folder…")}
+                                </SmallButton>
+                            </ProtectAdd>
+                        </Block>
+                        <Row>
+                            <RowText>
+                                <Label>{t("Confirmation delay")}</Label>
+                                <Note>{t("The delete button in the protected-folder dialog stays disabled for this many seconds. At least 1.")}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <RangeInput
+                                    max={30}
+                                    min={1}
+                                    onChange={(event) => void update({deleteDelaySeconds: Number(event.target.value)})}
+                                    type="range"
+                                    value={settings?.deleteDelaySeconds ?? 5}
+                                />
+                                <Value>{settings?.deleteDelaySeconds ?? 5}s</Value>
+                            </RowEnd>
+                        </Row>
+                    </Rows>
                 </Section>
 
                 <Section ref={anchor("tags")}>
@@ -2930,6 +3019,82 @@ const AddTile = styled.button`
     &:hover {
         border-color: var(--border-color-focus);
         color: var(--text-primary);
+    }
+`;
+
+const ProtectList = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+`;
+
+const ProtectRow = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: rgba(var(--bg-rgb), 0.35);
+`;
+
+const ProtectPath = styled.span`
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 11px;
+`;
+
+const ProtectTag = styled.span`
+    flex-shrink: 0;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(var(--accent-rgb), 0.12);
+    color: var(--text-muted);
+    font-size: 9.5px;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+`;
+
+const ProtectRemove = styled.button`
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+
+    &:hover {
+        background: rgba(248, 113, 113, 0.14);
+        color: #fca5a5;
+    }
+`;
+
+const ProtectAdd = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 2px;
+`;
+
+const ProtectCheck = styled.label`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    cursor: pointer;
+
+    input {
+        accent-color: var(--accent-primary);
     }
 `;
 

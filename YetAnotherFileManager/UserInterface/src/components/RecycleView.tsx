@@ -192,7 +192,7 @@ export function RecycleView({
         setBusy(true);
         try {
             const result = await deleteRecycleEntries(ids);
-            if (!result.ok)
+            if (!result.ok && !result.cancelled)
                 window.alert(plural(t, ids.length, "Deleted {done} of 1 item.", "Deleted {done} of {total} items.", {done: result.done, total: ids.length}));
             setSelected(new Set());
             await reload();

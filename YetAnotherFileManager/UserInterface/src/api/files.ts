@@ -1,4 +1,5 @@
 import {Native} from "@photino-net-utils/bridge";
+import {askProtectedDelete, type GuardedDelete} from "./safety";
 
 export interface FileEntry {
     name: string;
@@ -251,14 +252,43 @@ export async function restoreRecycleEntry(id: string): Promise<boolean> {
     return data.ok;
 }
 
+/** Sends the confirm token back after the dialog's countdown, for a recycle-bin delete. */
+async function confirmRecycle<T extends GuardedDelete>(
+    type: string,
+    payload: Record<string, unknown>,
+    initial: T,
+): Promise<T> {
+    let result = initial;
+
+    for (let attempt = 0; attempt < 2 && result.required; attempt++) {
+        if (!result.token || !result.protected?.length)
+            break;
+
+        const allowed = await askProtectedDelete({
+            hits: result.protected,
+            delaySeconds: result.delaySeconds ?? 5,
+            permanent: true,
+        });
+
+        if (!allowed)
+            return {...result, ok: false, cancelled: true};
+
+        result = await Native.request<T>(type, {...payload, confirm: result.token});
+    }
+
+    return result;
+}
+
 /** Permanently removes every listed entry, including leftover metadata when it is shown. */
 export async function emptyRecycleBin(includeOrphans = false): Promise<void> {
-    await Native.request("fs.recycle.empty", {includeOrphans});
+    const result = await Native.request<GuardedDelete>("fs.recycle.empty", {includeOrphans});
+    await confirmRecycle("fs.recycle.empty", {includeOrphans}, result);
 }
 
 /** Permanently removes one entry. */
 export async function deleteRecycleEntry(id: string): Promise<void> {
-    await Native.request("fs.recycle.delete", {id});
+    const result = await Native.request<GuardedDelete>("fs.recycle.delete", {id});
+    await confirmRecycle("fs.recycle.delete", {id}, result);
 }
 
 /** Restores several entries at once; `done` is how many actually went back. */
@@ -269,10 +299,13 @@ export async function restoreRecycleEntries(ids: string[]): Promise<{ ok: boolea
 }
 
 /** Permanently deletes several entries at once. */
-export async function deleteRecycleEntries(ids: string[]): Promise<{ ok: boolean; done: number }> {
+export async function deleteRecycleEntries(ids: string[]): Promise<{ ok: boolean; done: number; cancelled?: boolean }> {
     if (!Native.available || ids.length === 0) return {ok: false, done: 0};
 
-    return await Native.request<{ ok: boolean; done: number }>("fs.recycle.deleteMany", {ids});
+    const result = await Native.request<GuardedDelete & { done?: number }>("fs.recycle.deleteMany", {ids});
+    const confirmed = await confirmRecycle("fs.recycle.deleteMany", {ids}, result);
+
+    return {ok: confirmed.ok, done: confirmed.done ?? 0, cancelled: confirmed.cancelled};
 }
 
 /** Shows the shell properties of one stored entry. */

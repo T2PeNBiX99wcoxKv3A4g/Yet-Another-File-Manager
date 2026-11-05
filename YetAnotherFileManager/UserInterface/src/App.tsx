@@ -40,6 +40,8 @@ import {PreviewPane, type PreviewInfo} from "./components/PreviewPane";
 import {FileTray, isPathDrag, type TrayItem} from "./components/FileTray";
 import {FileMenu} from "./components/FileMenu";
 import {Wallpaper} from "./components/Wallpaper";
+import {ProtectedDeleteDialog} from "./components/ProtectedDeleteDialog";
+import {setProtectedDeleteAsker, type ProtectedDeletePrompt} from "./api/safety";
 import {FindBar} from "./components/FindBar";
 import {EmptyFind, matchesName, type FindState} from "./find";
 import {QuickAccessProvider, quickName, quickPlace, type QuickAccess} from "./quick";
@@ -293,6 +295,12 @@ export default function App() {
     const [clipboardMove, setClipboardMove] = useState(false);
     const [trayVisible, setTrayVisible] = useState(false);
     const [trayItems, setTrayItems] = useState<TrayItem[]>([]);
+    const [protectedDelete, setProtectedDelete] = useState<{
+        id: number;
+        prompt: ProtectedDeletePrompt;
+        resolve: (allowed: boolean) => void;
+    } | null>(null);
+    const protectedDeleteId = useRef(0);
     const [trayPosition, setTrayPosition] = useState<{ x: number; y: number }>(() => {
         const saved = readStoredJson<{ x?: number; y?: number }>("yafm.tray.position");
 
@@ -336,6 +344,15 @@ export default function App() {
         document.documentElement.classList.toggle("has-wallpaper", Boolean(settings?.backgroundSource));
         return () => document.documentElement.classList.remove("has-wallpaper");
     }, [settings?.backgroundSource]);
+
+    // Deletes that touch a protected path ask here; the backend holds the operation meanwhile.
+    useEffect(() => {
+        setProtectedDeleteAsker((prompt) => new Promise<boolean>((resolve) => {
+            setProtectedDelete({id: ++protectedDeleteId.current, prompt, resolve});
+        }));
+
+        return () => setProtectedDeleteAsker(null);
+    }, []);
 
     // Choosing a tab in the title bar puts the focus back on the left pane.
     useEffect(() => {
@@ -2125,6 +2142,23 @@ export default function App() {
                     onCreateFile={(extension) => void createItem(extension)}
                     onCreateFolder={() => void createItem(null)}
                     shortcuts={shortcuts}
+                />
+            )}
+
+            {protectedDelete && (
+                <ProtectedDeleteDialog
+                    delaySeconds={protectedDelete.prompt.delaySeconds}
+                    hits={protectedDelete.prompt.hits}
+                    key={protectedDelete.id}
+                    onCancel={() => {
+                        protectedDelete.resolve(false);
+                        setProtectedDelete(null);
+                    }}
+                    onConfirm={() => {
+                        protectedDelete.resolve(true);
+                        setProtectedDelete(null);
+                    }}
+                    permanent={protectedDelete.prompt.permanent}
                 />
             )}
 

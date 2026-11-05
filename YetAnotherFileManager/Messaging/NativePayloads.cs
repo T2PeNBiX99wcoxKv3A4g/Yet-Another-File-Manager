@@ -67,10 +67,10 @@ internal sealed record IconRequest(string Path, bool Directory, bool Large = fal
 internal sealed record IconPayload(string? DataUrl);
 
 /// <summary>Payload for <c>fs.recycle.*</c> actions: the entry to act on.</summary>
-internal sealed record RecycleRequest(string Id);
+internal sealed record RecycleRequest(string Id, string? Confirm = null);
 
 /// <summary>Payload for <c>fs.recycle</c>: whether leftover metadata records are listed too.</summary>
-internal sealed record RecycleListRequest(bool IncludeOrphans);
+internal sealed record RecycleListRequest(bool IncludeOrphans, string? Confirm = null);
 
 /// <summary>Payload for <c>fs.icon.set</c>: the icon recorded for one entry of a folder.</summary>
 internal sealed record IconOverrideRequest(string Directory, string Name, string? Source);
@@ -172,13 +172,25 @@ internal sealed record WindowResizeRequest(string Direction);
 internal sealed record PathsPayload(List<string> Paths);
 
 /// <summary>Payload for <c>fs.operation.delete</c>: the paths and whether they bypass the recycle bin.</summary>
-internal sealed record DeleteRequest(List<string> Paths, bool Permanent);
+internal sealed record DeleteRequest(List<string> Paths, bool Permanent, string? Confirm = null);
 
 /// <summary>
 ///     Answer for <c>fs.operation.delete</c>. <c>NeedsPermanent</c> says the volume's recycle bin is
 ///     turned off, so the selection would be deleted for good and the window has to ask first.
+///     <c>Required</c> means a protected path matched and <c>Token</c> must be sent once the delay
+///     has passed; <c>Protected</c> lists the exact paths and patterns for the dialog.
 /// </summary>
-internal sealed record DeletePayload(bool Ok, bool NeedsPermanent = false, string? Error = null);
+internal sealed record DeletePayload(
+    bool Ok,
+    bool NeedsPermanent = false,
+    string? Error = null,
+    bool Required = false,
+    string? Token = null,
+    IReadOnlyList<ProtectedHit>? Protected = null,
+    int DelaySeconds = 0);
+
+/// <summary>One path a protected-folder pattern intercepted, and the pattern responsible.</summary>
+internal sealed record ProtectedHit(string Path, string Pattern);
 
 /// <summary>Payload for <c>fs.operation.rename</c>: the entry and its new name.</summary>
 internal sealed record RenamePathRequest(string Path, string Name);
@@ -285,10 +297,16 @@ internal sealed record ClipboardPathsPayload(List<ClipboardEntry> Entries, bool 
 internal sealed record PathsInfoPayload(List<ClipboardEntry> Entries);
 
 /// <summary>Payload for the recycle bin's batch restore/delete commands.</summary>
-internal sealed record RecycleBatchRequest(List<string> Ids);
+internal sealed record RecycleBatchRequest(List<string> Ids, string? Confirm = null);
 
 /// <summary>Body for a recycle bin batch command: how many entries were handled.</summary>
-internal sealed record RecycleBatchPayload(bool Ok, int Done);
+internal sealed record RecycleBatchPayload(
+    bool Ok,
+    int Done,
+    bool Required = false,
+    string? Token = null,
+    IReadOnlyList<ProtectedHit>? Protected = null,
+    int DelaySeconds = 0);
 
 /// <summary>A tag the app has seen, for the Settings tag manager.</summary>
 internal sealed record TagCatalogEntry(string Id, string Name, string? Color, int Folders);

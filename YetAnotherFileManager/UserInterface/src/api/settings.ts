@@ -71,6 +71,10 @@ export interface AppSettings {
     backgroundSaturation: number;
     /** Background brightness, 100 = unchanged. */
     backgroundBrightness: number;
+    /** Folders a delete must stop at; a trailing "**" includes the subtree. */
+    protectedPaths: string[];
+    /** Seconds the protected-delete confirmation stays disabled; never below 1. */
+    deleteDelaySeconds: number;
     /** UI language such as "en" or "zh-TW"; null means English, "system" follows the OS. */
     language: string | null;
     /** Colour pairs the user saved; the built-in presets live in the settings page. */
@@ -121,6 +125,8 @@ const fallback: AppSettings = {
     backgroundBlur: 0,
     backgroundSaturation: 100,
     backgroundBrightness: 100,
+    protectedPaths: [],
+    deleteDelaySeconds: 5,
     language: null,
     themePresets: [],
 };
@@ -168,6 +174,8 @@ export async function getSettings(): Promise<AppSettings> {
         backgroundBlur: raw?.backgroundBlur ?? 0,
         backgroundSaturation: raw?.backgroundSaturation ?? 100,
         backgroundBrightness: raw?.backgroundBrightness ?? 100,
+        protectedPaths: raw?.protectedPaths ?? [],
+        deleteDelaySeconds: raw?.deleteDelaySeconds ?? 5,
         language: raw?.language ?? null,
         themePresets: raw?.themePresets ?? [],
     };
@@ -216,6 +224,8 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         backgroundBlur: saved?.backgroundBlur ?? settings.backgroundBlur,
         backgroundSaturation: saved?.backgroundSaturation ?? settings.backgroundSaturation,
         backgroundBrightness: saved?.backgroundBrightness ?? settings.backgroundBrightness,
+        protectedPaths: saved?.protectedPaths ?? settings.protectedPaths,
+        deleteDelaySeconds: saved?.deleteDelaySeconds ?? settings.deleteDelaySeconds,
         language: saved?.language ?? settings.language,
         themePresets: saved?.themePresets ?? settings.themePresets,
     };

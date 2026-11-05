@@ -677,6 +677,9 @@ export function FileList({
         }
 
         if (!result.ok) {
+            if (result.cancelled)
+                return;
+
             window.alert(result.error ?? (permanent
                 ? t("Could not delete the selection.")
                 : t("Could not move the selection to the recycle bin.")));

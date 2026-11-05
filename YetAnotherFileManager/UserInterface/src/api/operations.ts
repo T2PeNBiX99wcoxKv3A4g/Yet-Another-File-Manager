@@ -1,4 +1,5 @@
 import {Native} from "@photino-net-utils/bridge";
+import {askProtectedDelete, type ProtectedHit} from "./safety";
 
 /** The result of a rename or new-folder operation. */
 export interface PathOperation {
@@ -79,16 +80,44 @@ export async function pasteInto(directory: string): Promise<boolean> {
 export interface DeleteResult {
     ok: boolean;
     /** The volume's recycle bin is turned off, so the selection would be deleted for good. */
-    needsPermanent: boolean;
-    error: string | null;
+    needsPermanent?: boolean;
+    error?: string | null;
+    /** A protected path matched; the window has to confirm with the token after the delay. */
+    required?: boolean;
+    token?: string | null;
+    protected?: ProtectedHit[] | null;
+    delaySeconds?: number;
+    /** The user closed the confirmation dialog; this is not an error. */
+    cancelled?: boolean;
 }
 
 /** Sends the paths to the recycle bin, or deletes them permanently when asked. */
 export async function deletePaths(paths: string[], permanent = false): Promise<DeleteResult> {
     if (!Native.available || paths.length === 0)
-        return {ok: false, needsPermanent: false, error: null};
+        return {ok: false, error: null};
 
-    return await Native.request<DeleteResult>("fs.operation.delete", {paths, permanent});
+    let result = await Native.request<DeleteResult>("fs.operation.delete", {paths, permanent});
+
+    // A protected path blocks the first request. The dialog waits the countdown, then the token
+    // is sent back; the backend checks that the wait really happened.
+    for (let attempt = 0; attempt < 2 && result.required; attempt++) {
+        if (!result.token || !result.protected?.length)
+            break;
+
+        const allowed = await askProtectedDelete({
+            hits: result.protected,
+            delaySeconds: result.delaySeconds ?? 5,
+            permanent,
+        });
+
+        if (!allowed)
+            return {ok: false, error: null, cancelled: true};
+
+        result = await Native.request<DeleteResult>("fs.operation.delete",
+            {paths, permanent, confirm: result.token});
+    }
+
+    return result;
 }
 
 /** Renames one entry; the result carries the new path or the reason it was refused. */
