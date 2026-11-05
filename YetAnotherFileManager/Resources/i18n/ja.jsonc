@@ -461,5 +461,9 @@
   "Choose a file": "ファイルを選択",
   "Choose a folder": "フォルダーを選択",
   "Select this file": "このファイルを選択",
-  "Select this folder": "このフォルダーを選択"
+  "Select this folder": "このフォルダーを選択",
+  "All files": "すべてのファイル",
+  "Supported files": "対応ファイル",
+  "File name:": "ファイル名：",
+  "Files of type:": "ファイルの種類："
 }

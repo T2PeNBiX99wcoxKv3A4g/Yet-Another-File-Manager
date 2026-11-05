@@ -37,6 +37,10 @@ interface GalleryViewProps {
     shortcuts?: ShortcutMap;
     /** The grid size and icon size of the file browser. */
     view: ResolvedView;
+    /** The picker opens a picture as the chosen file instead of handing it to the system. */
+    onPick?: (path: string) => void;
+    /** Reports the checked pictures, so the picker's footer can follow the selection. */
+    onSelectionChange?: (paths: string[]) => void;
 }
 
 /**
@@ -49,6 +53,8 @@ export function GalleryView({
     confirmDelete = false,
     shortcuts,
     view,
+    onPick,
+    onSelectionChange,
 }: GalleryViewProps) {
     const t = useTranslation();
     const [entries, setEntries] = useState<GalleryEntry[]>([]);
@@ -219,8 +225,13 @@ export function GalleryView({
     }), [view]);
 
     const open = useCallback((path: string) => {
+        if (onPick) {
+            onPick(path);
+            return;
+        }
+
         void openFile(path);
-    }, []);
+    }, [onPick]);
 
     /** Pictures arrive newest first, so one calendar day is one contiguous section. */
     const groupOf = useCallback((entry: FileEntry) => {
@@ -263,6 +274,9 @@ export function GalleryView({
                     showCheckboxes={showCheckboxes}
                     openOnSingleClick={openOnSingleClick}
                     shortcuts={shortcuts}
+                    enableShortcuts={!onPick}
+                    readOnly={Boolean(onPick)}
+                    onSelectionChange={onSelectionChange}
                     onSort={() => undefined}
                     onOpen={open}
                     onOpenFile={open}

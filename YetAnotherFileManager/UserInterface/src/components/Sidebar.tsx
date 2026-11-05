@@ -25,6 +25,8 @@ interface SidebarProps {
     version?: number;
     /** Bumped when the recent or frequent history is cleared. */
     historyVersion?: number;
+    /** Built-in pages that have no meaning outside the app, such as the picker omitting Settings. */
+    hiddenViews?: TabKind[];
     onNavigate: (path: string, newTab?: boolean) => void;
     onOpenView: (kind: Exclude<TabKind, "files">) => void;
 }
@@ -43,6 +45,7 @@ export function Sidebar({
     homePath = "",
     version = 0,
     historyVersion = 0,
+    hiddenViews = [],
     onNavigate,
     onOpenView,
 }: SidebarProps) {
@@ -82,18 +85,24 @@ export function Sidebar({
     return (
         <Aside>
             <List>
-                <Item $active={activeKind === "home"} onClick={() => onOpenView("home")} title={t("Overview")} type="button">
-                    <OverviewIcon/>
-                    <Label>{t("Overview")}</Label>
-                </Item>
-                <Item $active={activeKind === "recycle"} onClick={() => onOpenView("recycle")} title={t("Recycle Bin")} type="button">
-                    <TrashIcon/>
-                    <Label>{t("Recycle Bin")}</Label>
-                </Item>
-                <Item $active={activeKind === "gallery"} onClick={() => onOpenView("gallery")} title={t("Gallery")} type="button">
-                    <ImageIcon/>
-                    <Label>{t("Gallery")}</Label>
-                </Item>
+                {!hiddenViews.includes("home") && (
+                    <Item $active={activeKind === "home"} onClick={() => onOpenView("home")} title={t("Overview")} type="button">
+                        <OverviewIcon/>
+                        <Label>{t("Overview")}</Label>
+                    </Item>
+                )}
+                {!hiddenViews.includes("recycle") && (
+                    <Item $active={activeKind === "recycle"} onClick={() => onOpenView("recycle")} title={t("Recycle Bin")} type="button">
+                        <TrashIcon/>
+                        <Label>{t("Recycle Bin")}</Label>
+                    </Item>
+                )}
+                {!hiddenViews.includes("gallery") && (
+                    <Item $active={activeKind === "gallery"} onClick={() => onOpenView("gallery")} title={t("Gallery")} type="button">
+                        <ImageIcon/>
+                        <Label>{t("Gallery")}</Label>
+                    </Item>
+                )}
             </List>
 
             {pinned.map((panel) => (
@@ -179,12 +188,14 @@ export function Sidebar({
                 </Menu>
             ))}
 
-            <Bottom>
-                <Item $active={activeKind === "settings"} onClick={() => onOpenView("settings")} title={t("Settings")} type="button">
-                    <GearIcon/>
-                    <Label>{t("Settings")}</Label>
-                </Item>
-            </Bottom>
+            {!hiddenViews.includes("settings") && (
+                <Bottom>
+                    <Item $active={activeKind === "settings"} onClick={() => onOpenView("settings")} title={t("Settings")} type="button">
+                        <GearIcon/>
+                        <Label>{t("Settings")}</Label>
+                    </Item>
+                </Bottom>
+            )}
         </Aside>
     );
 }

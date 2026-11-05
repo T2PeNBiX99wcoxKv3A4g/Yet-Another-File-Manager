@@ -461,5 +461,9 @@
   "Choose a file": "选择文件",
   "Choose a folder": "选择文件夹",
   "Select this file": "选择此文件",
-  "Select this folder": "选择此文件夹"
+  "Select this folder": "选择此文件夹",
+  "All files": "所有文件",
+  "Supported files": "支持的文件",
+  "File name:": "文件名：",
+  "Files of type:": "文件类型："
 }

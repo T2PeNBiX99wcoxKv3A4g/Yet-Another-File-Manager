@@ -46,6 +46,8 @@ interface OverviewViewProps {
     onDrivesChanged?: () => void;
     /** Bumped when the hidden-files override changes, so folder panels read again. */
     visibilityVersion?: number;
+    /** The picker shows the overview as a browsing page, without the layout editor. */
+    readOnly?: boolean;
 }
 
 const Page = styled.div`
@@ -601,6 +603,7 @@ export function OverviewView({
     onHistoryChanged,
     onDrivesChanged,
     visibilityVersion = 0,
+    readOnly = false,
 }: OverviewViewProps) {
     const t = useTranslation();
     const quick = useQuickAccess();
@@ -1269,7 +1272,8 @@ export function OverviewView({
 
     return (
         <Page>
-            <Toolbar>
+            {!readOnly && (
+                <Toolbar>
                 <Segmented role="group" title={t("Columns")}>
                     {[1, 2, 3, 4, 5].map((count) => (
                         <Segment
@@ -1333,6 +1337,7 @@ export function OverviewView({
                     {editing ? t("Done") : t("Edit")}
                 </Ghost>
             </Toolbar>
+            )}
 
             {driveNotice && <Notice>{driveNotice}</Notice>}
 

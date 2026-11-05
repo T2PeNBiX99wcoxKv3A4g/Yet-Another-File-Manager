@@ -138,6 +138,10 @@ interface FileListProps {
     gridFooter?: ReactNode;
     /** The gallery has no folder of its own, so a right click on blank space does nothing. */
     allowBackgroundMenu?: boolean;
+    /** The picker only chooses entries; no context menu and no drop operations. */
+    readOnly?: boolean;
+    /** Reports the checked paths, so a host that draws its own footer can follow the selection. */
+    onSelectionChange?: (paths: string[]) => void;
 }
 
 interface RowModel {
@@ -158,7 +162,7 @@ export function FileList({
     openOnSingleClick = false, shortcuts = DefaultShortcuts, enableShortcuts = true, refreshToken = 0, onRefresh,
     onClipboardChanged, onTransfer, onAddToTray, onPaste, confirmDelete = false, previewVideoAudio = false,
     previewVideoAutoplay = false, showDetails = true, onPreviewInfo, onActivate,
-    groupOf, onGridScroll, gridFooter, allowBackgroundMenu = true,
+    groupOf, onGridScroll, gridFooter, allowBackgroundMenu = true, readOnly = false, onSelectionChange,
 }: FileListProps) {
     const t = useTranslation();
     const quick = useQuickAccess();
@@ -177,6 +181,8 @@ export function FileList({
     const selectedRef = useRef(selected);
     const rowsRef = useRef<RowModel[]>([]);
     selectedRef.current = selected;
+    // A host that draws its own status bar follows the same selection the grid uses.
+    useEffect(() => onSelectionChange?.([...selected]), [selected, onSelectionChange]);
     const [menu, setMenu] = useState<{ x: number; y: number; paths: string[]; background: boolean } | null>(null);
     const [pendingConfirm, setPendingConfirm] = useState<{
         paths: string[];
@@ -512,6 +518,8 @@ export function FileList({
     }, [currentDirectory]);
 
     const dropOnList = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
+        if (readOnly) return;
+
         const {paths, move} = readDraggedPaths(event);
         const target = dropTarget.current ?? currentDirectory;
         dropTarget.current = null;
@@ -520,11 +528,14 @@ export function FileList({
 
         event.preventDefault();
         onTransfer(paths, target, event.ctrlKey ? false : move);
-    }, [currentDirectory, onTransfer]);
+    }, [currentDirectory, onTransfer, readOnly]);
 
     const openMenu = useCallback((event: ReactMouseEvent, path?: string) => {
         event.preventDefault();
         event.stopPropagation();
+
+        if (readOnly)
+            return;
 
         if (!path && !allowBackgroundMenu)
             return;
