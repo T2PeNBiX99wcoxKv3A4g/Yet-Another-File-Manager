@@ -517,6 +517,8 @@ _ = UpdateService.Instance;
             Localization.Get("Exit"),
             () => manager.ShowMainWindow(),
             () => manager.ShowMainWindow($"{Constants.ViewScheme}settings"),
-            manager.Exit);
+            manager.Exit,
+            manager.ReloadWebView,
+            Localization.Get("Reload interface"));
     }
 }

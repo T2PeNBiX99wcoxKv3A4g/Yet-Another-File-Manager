@@ -252,6 +252,7 @@
   "Reset colors": "色をリセット",
   "Restorable": "復元可能",
   "Restore": "復元",
+  "Reload interface": "画面を再読み込み",
   "Restore to its original folder": "元のフォルダーに復元",
   "Returns the interface to the default blue and indigo theme.": "インターフェースを既定のブルーとインディゴのテーマに戻します。",
   "Save": "保存",
