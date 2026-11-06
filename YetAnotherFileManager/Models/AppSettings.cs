@@ -10,6 +10,7 @@ public sealed record AppSettings(
     bool? SystemIcons,
     bool? CustomFolderIcons,
     bool? WriteDirectoryIndex,
+    List<string>? DirectoryIndexBlacklist,
     Dictionary<string, string>? ExtensionIcons,
     List<string>? QuickAccess,
     int? RecentLimit,
@@ -63,7 +64,7 @@ public sealed record AppSettings(
     bool? ArchiveHandler)
 {
     public static AppSettings Default =>
-        new(true, true, false, [], null, 10, null, ["quick", "frequent", "recent", "home", "drives"], null, 1, null,
+        new(true, true, true, ["**/uv/cache/**"], [], null, 10, null, ["quick", "frequent", "recent", "home", "drives"], null, 1, null,
             null, null, null, null, null, ["quick", "frequent", "recent", "drives"], null, null, true, null, 0, null,
             true, false, false, false, false, null, null, null, null, false, null, null, null, null, null, null, 5,
             "24", null, null, false);
@@ -81,7 +82,7 @@ public sealed record AppSettings(
 
     /// <summary>Keep a <c>.yafm-index.db</c> inside every folder that is browsed.</summary>
     [JsonIgnore]
-    public bool ShouldWriteDirectoryIndex => WriteDirectoryIndex ?? false;
+    public bool ShouldWriteDirectoryIndex => WriteDirectoryIndex ?? true;
 
     /// <summary>Extension (with the dot, lower case) to a built-in icon name or <c>file:&lt;path&gt;</c>.</summary>
     [JsonIgnore]

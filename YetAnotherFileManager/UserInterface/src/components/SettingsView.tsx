@@ -166,6 +166,8 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
     const [newTagName, setNewTagName] = useState("");
     const [newTagColor, setNewTagColor] = useState(DefaultTagColor);
     const [ruleDraft, setRuleDraft] = useState<{ from: string; value: string } | null>(null);
+    const [directoryRuleDraft, setDirectoryRuleDraft] = useState<{ from: string; value: string } | null>(null);
+    const [newDirectoryRule, setNewDirectoryRule] = useState("");
     const [timeDraft, setTimeDraft] = useState<string | null>(null);
     const [recentColors, setRecentColors] = useState<RecentColors>(readRecentColors);
     const [draftPreset, setDraftPreset] = useState<{ name: string; accent: string; secondary: string } | null>(null);
@@ -338,6 +340,35 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
         const paths = await getDefaultProtectedPaths();
         if (paths.length > 0)
             await update({protectedPaths: paths});
+    };
+
+    const commitDirectoryRule = () => {
+        if (!settings || !directoryRuleDraft) return;
+
+        const value = directoryRuleDraft.value.trim();
+        const from = directoryRuleDraft.from;
+        setDirectoryRuleDraft(null);
+        if (!value || value === from) return;
+
+        void update({directoryIndexBlacklist: settings.directoryIndexBlacklist
+            .map((item) => item === from ? value : item)});
+    };
+
+    const addDirectoryRule = () => {
+        const value = newDirectoryRule.trim();
+        if (!settings || !value || settings.directoryIndexBlacklist.includes(value)) return;
+
+        setNewDirectoryRule("");
+        void update({directoryIndexBlacklist: [...settings.directoryIndexBlacklist, value]});
+    };
+
+    const removeDirectoryRule = (pattern: string) => {
+        if (!settings) return;
+        void update({directoryIndexBlacklist: settings.directoryIndexBlacklist.filter((item) => item !== pattern)});
+    };
+
+    const restoreDirectoryRules = () => {
+        void update({directoryIndexBlacklist: ["**/uv/cache/**"]});
     };
 
     /** Saves the custom time pattern when the field loses focus or Enter is pressed. */
@@ -1929,12 +1960,9 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                                 <Note>
                                     {t("Holds icons, cached folder sizes and the folder's last listing, so it opens instantly next time. Hidden and marked as a system file on Windows; skipped where the folder is read-only.")}
                                 </Note>
-                                <Note>
-                                    {t("Python environments, package builds and cache folders always use the central index so sidecar files cannot get bundled into packages.")}
-                                </Note>
                             </RowText>
                             <Toggle
-                                $on={settings?.writeDirectoryIndex ?? false}
+                                $on={settings?.writeDirectoryIndex ?? true}
                                 disabled={!settings}
                                 onClick={() => void update({writeDirectoryIndex: !settings?.writeDirectoryIndex})}
                                 type="button"
@@ -1942,8 +1970,63 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                                 <Knob/>
                             </Toggle>
                         </Row>
+                        <Block>
+                            <BlockHead>
+                                <Label>{t("Directory index blacklist")}</Label>
+                                <Note>{t("Rules are full-path globs: * matches within one path segment and ** crosses folders. Matching folders use the central database instead of creating .yafm-index.db files.")}</Note>
+                            </BlockHead>
+                            <ProtectList>
+                                {(settings?.directoryIndexBlacklist ?? []).map((pattern) => (
+                                    <ProtectRow key={pattern}>
+                                        <ProtectInput
+                                            aria-label={t("Directory index blacklist rule")}
+                                            onBlur={commitDirectoryRule}
+                                            onChange={(event) => setDirectoryRuleDraft({from: pattern, value: event.target.value})}
+                                            onFocus={() => setDirectoryRuleDraft({from: pattern, value: pattern})}
+                                            onKeyDown={(event) => {
+                                                if (event.key === "Enter") {
+                                                    event.preventDefault();
+                                                    commitDirectoryRule();
+                                                } else if (event.key === "Escape") {
+                                                    setDirectoryRuleDraft(null);
+                                                }
+                                            }}
+                                            spellCheck={false}
+                                            value={directoryRuleDraft?.from === pattern ? directoryRuleDraft.value : pattern}
+                                        />
+                                        <ProtectRemove
+                                            onClick={() => removeDirectoryRule(pattern)}
+                                            title={t("Remove")}
+                                            type="button"
+                                        >
+                                            <CrossIcon size={10}/>
+                                        </ProtectRemove>
+                                    </ProtectRow>
+                                ))}
+                            </ProtectList>
+                            <ProtectAdd>
+                                <SmallButton onClick={restoreDirectoryRules} type="button">
+                                    {t("Restore defaults")}
+                                </SmallButton>
+                                <Input
+                                    onChange={(event) => setNewDirectoryRule(event.target.value)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === "Enter") {
+                                            event.preventDefault();
+                                            addDirectoryRule();
+                                        }
+                                    }}
+                                    placeholder="**/uv/cache/**"
+                                    spellCheck={false}
+                                    value={newDirectoryRule}
+                                />
+                                <SmallButton onClick={addDirectoryRule} type="button">
+                                    {t("Add the rule")}
+                                </SmallButton>
+                            </ProtectAdd>
+                        </Block>
                     </Rows>
-                    {!(settings?.writeDirectoryIndex ?? false) && (
+                    {!(settings?.writeDirectoryIndex ?? true) && (
                         <Notice>{folderIndexNotice(t, appInfo?.platform)}</Notice>
                     )}
                 </Section>

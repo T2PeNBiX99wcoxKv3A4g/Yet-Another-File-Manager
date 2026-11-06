@@ -32,53 +32,14 @@ internal static class DirectoryIndex
     /// <summary>Directories whose own index could not be created this session.</summary>
     private static readonly ConcurrentDictionary<string, bool> CentralOnly = new(StringComparer.OrdinalIgnoreCase);
 
-    private static readonly HashSet<string> NoFolderIndexSegments = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".cache", ".temp", ".venv", "venv", "virtualenv", "site-packages", "dist-packages",
-        "__pycache__", "node_modules", "wheels", "pip-cache", "cache"
-    };
-
-    private static readonly string[] PackageMarkers = ["pyproject.toml", "setup.py", "setup.cfg", "PKG-INFO"];
-
     /// <summary>Per-folder files, unless the user moved the data into the central database.</summary>
     private static bool WritesFolderIndex => SettingsService.Instance.Current.ShouldWriteDirectoryIndex;
 
     /// <summary>Whether writes should go to a file in this directory.</summary>
     private static bool HoldsOwnIndex(string directory) =>
-        WritesFolderIndex && !CentralOnly.ContainsKey(directory) && CanWriteFolderIndex(directory);
-
-    /// <summary>
-    ///     Never place a SQLite sidecar in Python environments, wheel caches, build roots or common
-    ///     dependency caches. Package tools may include every file they find in those trees.
-    /// </summary>
-    private static bool CanWriteFolderIndex(string directory)
-    {
-        var full = Path.GetFullPath(directory);
-        var parts = full.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-            StringSplitOptions.RemoveEmptyEntries);
-
-        if (parts.Any(part => NoFolderIndexSegments.Contains(part)
-            || part.EndsWith(".dist-info", StringComparison.OrdinalIgnoreCase)
-            || part.EndsWith(".egg-info", StringComparison.OrdinalIgnoreCase)
-            || part.EndsWith(".whl", StringComparison.OrdinalIgnoreCase)))
-            return false;
-
-        var ancestor = full;
-        for (var depth = 0; depth < 8 && ancestor.Length > 0; depth++)
-        {
-            if (PackageMarkers.Any(marker => File.Exists(Path.Combine(ancestor, marker))))
-                return false;
-
-            var parent = Path.GetDirectoryName(ancestor);
-            if (parent is null || parent == ancestor) break;
-            ancestor = parent;
-        }
-
-        return !Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar)
-            .Equals(full, StringComparison.OrdinalIgnoreCase)
-            && !full.StartsWith(Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar)
-                + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
-    }
+        WritesFolderIndex
+        && !CentralOnly.ContainsKey(directory)
+        && !DirectoryIndexBlacklist.Matches(directory, SettingsService.Instance.Current.DirectoryIndexBlacklist);
 
     /// <summary>
     ///     Whether reads should come from the file in this directory. A directory without an index

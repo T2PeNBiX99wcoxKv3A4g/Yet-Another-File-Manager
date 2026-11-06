@@ -212,6 +212,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                         // The settings page never edits tabs; the window owns them through app.tabs.set.
                         OpenTabs = current.OpenTabs,
                         ActiveTab = current.ActiveTab,
+                        DirectoryIndexBlacklist = settings.DirectoryIndexBlacklist
+                            ?? current.DirectoryIndexBlacklist
+                            ?? YetAnotherFileManager.Services.DirectoryIndexBlacklist.Defaults(),
                         // Only app.scheme.set changes the link registration.
                         LinksEnabled = current.LinksEnabled
                     });

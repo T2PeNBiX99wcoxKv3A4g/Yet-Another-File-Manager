@@ -5,6 +5,7 @@ export interface AppSettings {
     systemIcons: boolean;
     customFolderIcons: boolean;
     writeDirectoryIndex: boolean;
+    directoryIndexBlacklist: string[];
     /** Extension (with the dot, lower case) to a built-in icon name or "file:<path>". */
     extensionIcons: Record<string, string>;
     /** Folders pinned to Quick access, or null for the well-known defaults. */
@@ -97,7 +98,8 @@ export interface ThemePreset {
 const fallback: AppSettings = {
     systemIcons: false,
     customFolderIcons: false,
-    writeDirectoryIndex: false,
+    writeDirectoryIndex: true,
+    directoryIndexBlacklist: ["**/uv/cache/**"],
     extensionIcons: {},
     quickAccess: null,
     recentLimit: 10,
@@ -149,7 +151,8 @@ export async function getSettings(): Promise<AppSettings> {
     return {
         systemIcons: raw?.systemIcons ?? true,
         customFolderIcons: raw?.customFolderIcons ?? true,
-        writeDirectoryIndex: raw?.writeDirectoryIndex ?? false,
+        writeDirectoryIndex: raw?.writeDirectoryIndex ?? true,
+        directoryIndexBlacklist: raw?.directoryIndexBlacklist ?? ["**/uv/cache/**"],
         extensionIcons: raw?.extensionIcons ?? {},
         quickAccess: raw?.quickAccess ?? null,
         recentLimit: raw?.recentLimit ?? 10,
@@ -211,6 +214,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         systemIcons: saved?.systemIcons ?? settings.systemIcons,
         customFolderIcons: saved?.customFolderIcons ?? settings.customFolderIcons,
         writeDirectoryIndex: saved?.writeDirectoryIndex ?? settings.writeDirectoryIndex,
+        directoryIndexBlacklist: saved?.directoryIndexBlacklist ?? settings.directoryIndexBlacklist,
         extensionIcons: saved?.extensionIcons ?? settings.extensionIcons,
         quickAccess: saved?.quickAccess ?? settings.quickAccess,
         recentLimit: saved?.recentLimit ?? settings.recentLimit,
