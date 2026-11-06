@@ -61,6 +61,7 @@ import PlaySvg from "./icons/play.svg?react";
 import PauseSvg from "./icons/pause.svg?react";
 import SplitSvg from "./icons/split.svg?react";
 import PanelSvg from "./icons/panel.svg?react";
+import MenuSvg from "./icons/menu.svg?react";
 
 interface IconProps extends SVGProps<SVGSVGElement> {
     size?: number;
@@ -135,3 +136,4 @@ export const PlayIcon = sized(PlaySvg, 16);
 export const PauseIcon = sized(PauseSvg, 16);
 export const SplitIcon = sized(SplitSvg, 16);
 export const PanelIcon = sized(PanelSvg, 16);
+export const MenuIcon = sized(MenuSvg, 16);

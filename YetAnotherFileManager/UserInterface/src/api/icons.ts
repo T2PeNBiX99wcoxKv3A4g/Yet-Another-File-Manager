@@ -75,10 +75,14 @@ export function useIcon(path: string | null, isDirectory: boolean, large = false
 
         void Native.request<{ dataUrl: string | null }>("fs.icon", {path, directory: isDirectory, large})
             .then((data) => {
-                iconCache.set(id, data.dataUrl);
+                // A missing icon is often a transient race (a folder that was just extracted), so
+                // only real answers are cached. The next mount asks the shell again.
+                if (data.dataUrl) iconCache.set(id, data.dataUrl);
+                else iconCache.delete(id);
+
                 if (alive) setIcon(data.dataUrl);
             }, () => {
-                iconCache.set(id, null);
+                iconCache.delete(id);
                 if (alive) setIcon(null);
             });
 

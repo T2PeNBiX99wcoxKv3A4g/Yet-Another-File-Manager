@@ -44,7 +44,10 @@ import {FileTray, isPathDrag, type TrayItem} from "./components/FileTray";
 import {FileMenu} from "./components/FileMenu";
 import {Wallpaper} from "./components/Wallpaper";
 import {ProtectedDeleteDialog} from "./components/ProtectedDeleteDialog";
+import {MessageDialog} from "./components/MessageDialog";
 import {setProtectedDeleteAsker, type ProtectedDeletePrompt} from "./api/safety";
+import {showMessage} from "./api/dialogs";
+import {clearIconCache} from "./api/icons";
 import type {PageFind} from "./ui/textSearch";
 import {FindBar} from "./components/FindBar";
 import {EmptyFind, matchesName, type FindState} from "./find";
@@ -57,6 +60,7 @@ import {
     GearIcon,
     GlobeIcon,
     ImageIcon,
+    MenuIcon,
     OverviewIcon,
     PlusIcon,
     SearchIcon,
@@ -332,6 +336,11 @@ export default function App() {
         refresh: () => void;
     } | null>(null);
     const [extractMenu, setExtractMenu] = useState<{ x: number; y: number } | null>(null);
+    const [selectionCounts, setSelectionCounts] = useState({primary: 0, secondary: 0});
+    const [selectionMenus, setSelectionMenus] = useState<{
+        primary: { token: number; x: number; y: number } | null;
+        secondary: { token: number; x: number; y: number } | null;
+    }>({primary: null, secondary: null});
     const [renameRequest, setRenameRequest] = useState<{
         directory: string;
         path: string;
@@ -925,6 +934,29 @@ export default function App() {
         setCreateMenu({x: event.clientX, y: event.clientY, directory, refresh});
     };
 
+    const reportSelection = useCallback((pane: "primary" | "secondary", count: number) => {
+        setSelectionCounts((current) => current[pane] === count ? current : {...current, [pane]: count});
+    }, []);
+    const reportPrimarySelection = useCallback((count: number) => reportSelection("primary", count),
+        [reportSelection]);
+    const reportSecondarySelection = useCallback((count: number) => reportSelection("secondary", count),
+        [reportSelection]);
+
+    /** Opens the file list's own context menu from the toolbar, for the current selection. */
+    const requestSelectionMenu = (pane: "primary" | "secondary", event: { clientX: number; clientY: number }) => {
+        if (selectionCounts[pane] === 0)
+            return;
+
+        setSelectionMenus((current) => ({
+            ...current,
+            [pane]: {
+                token: (current[pane]?.token ?? 0) + 1,
+                x: event.clientX,
+                y: event.clientY,
+            },
+        }));
+    };
+
     const createItem = async (extension: string | null, caseSensitive = false) => {
         const menu = createMenu;
         setCreateMenu(null);
@@ -1138,7 +1170,7 @@ export default function App() {
         const result = await transferPaths(paths, target, move);
 
         if (!result.ok) {
-            window.alert(result.error ?? t("The files could not be transferred."));
+            void showMessage(result.error ?? t("The files could not be transferred."));
             return;
         }
 
@@ -1222,7 +1254,7 @@ export default function App() {
 
         if (!result.ok) {
             if (result.error && !result.error.startsWith("Nothing to"))
-                window.alert(result.error);
+                void showMessage(result.error);
 
             return;
         }
@@ -1752,6 +1784,9 @@ export default function App() {
 
             if (targets.length === 0) return;
 
+            // New entries usually mean new icons; a missing shell answer must not stay cached.
+            clearIconCache();
+
             // Only the entries are refreshed; sizes are measured when the folder is entered.
             void listDirectory(changed, false, includeLinks)
                 .then((listing) => {
@@ -1818,7 +1853,7 @@ export default function App() {
                     if (isArchiveLocation(file)) {
                         void extractArchiveEntry(file, archiveEncodingRef.current).then((result) => {
                             if (result.path) void openFile(result.path);
-                            else if (result.error) alert(result.error);
+                            else if (result.error) void showMessage(result.error);
                         });
                         return;
                     }
@@ -1829,7 +1864,9 @@ export default function App() {
                     const folder = tab.listing?.path;
                     if (folder) refreshFolderTabs(folder);
                 }}
+                onSelectionCountChange={primary ? reportPrimarySelection : reportSecondarySelection}
                 onSetTags={(name, tags, colors) => setEntryTagsFor(tab.id, name, tags, colors)}
+                selectionMenuRequest={primary ? selectionMenus.primary : selectionMenus.secondary}
                 onSort={(column) => sortByFor(tab.id, column)}
                 onPaste={pasteFinished}
                 onClipboardChanged={() => void refreshClipboard()}
@@ -1909,11 +1946,12 @@ export default function App() {
     const extractInto = async (target: string) => {
         const result = await extractArchive(activeFolder, target, archiveEncodingRef.current);
         if (!result.ok) {
-            alert(`${t("Could not extract the archive.")}${result.error ? `\n${result.error}` : ""}`);
+            void showMessage(`${t("Could not extract the archive.")}${result.error ? `\n${result.error}` : ""}`);
             return;
         }
 
         refreshFolderTabs(target);
+        clearIconCache();
         void load(active.id, target, true);
     };
 
@@ -2012,6 +2050,19 @@ export default function App() {
             >
                 <SearchIcon/>
             </IconButton>
+
+            {selectionCounts.primary > 0 && (
+                <>
+                    <ToolbarSeparator/>
+                    <IconButton
+                        onClick={(event) => requestSelectionMenu("primary", event)}
+                        title={t("Selection menu")}
+                        type="button"
+                    >
+                        <MenuIcon/>
+                    </IconButton>
+                </>
+            )}
 
             {archived && (
                 <ArchiveActions>
@@ -2216,6 +2267,18 @@ export default function App() {
                                         >
                                             <SearchIcon/>
                                         </IconButton>
+                                        {selectionCounts.primary > 0 && (
+                                            <>
+                                                <ToolbarSeparator/>
+                                                <IconButton
+                                                    onClick={(event) => requestSelectionMenu("primary", event)}
+                                                    title={t("Selection menu")}
+                                                    type="button"
+                                                >
+                                                    <MenuIcon/>
+                                                </IconButton>
+                                            </>
+                                        )}
                                     </PaneToolbar>
                                     {filePane(active, true)}
                                     {activePane === "primary" && findBar}
@@ -2297,6 +2360,18 @@ export default function App() {
                                         >
                                             <SearchIcon/>
                                         </IconButton>
+                                        {selectionCounts.secondary > 0 && (
+                                            <>
+                                                <ToolbarSeparator/>
+                                                <IconButton
+                                                    onClick={(event) => requestSelectionMenu("secondary", event)}
+                                                    title={t("Selection menu")}
+                                                    type="button"
+                                                >
+                                                    <MenuIcon/>
+                                                </IconButton>
+                                            </>
+                                        )}
                                     </PaneToolbar>
                                     {filePane(secondary, false)}
                                     {activePane === "secondary" && findBar}
@@ -2447,7 +2522,7 @@ export default function App() {
                             onSelect: () => void extractActiveArchive("named"),
                         },
                         {
-                            label: t("Auto extract here"),
+                            label: t("Auto extract to the current folder"),
                             onSelect: () => void extractActiveArchive("auto"),
                         },
                     ]}
@@ -2458,8 +2533,7 @@ export default function App() {
             )}
 
             {protectedDelete && (
-                <ProtectedDeleteDialog
-                    delaySeconds={protectedDelete.prompt.delaySeconds}
+                <ProtectedDeleteDialog                    delaySeconds={protectedDelete.prompt.delaySeconds}
                     hits={protectedDelete.prompt.hits}
                     key={protectedDelete.id}
                     onCancel={() => {
@@ -2473,6 +2547,8 @@ export default function App() {
                     permanent={protectedDelete.prompt.permanent}
                 />
             )}
+
+            <MessageDialog/>
 
             <TooltipLayer/>
             <ResizeHandles/>

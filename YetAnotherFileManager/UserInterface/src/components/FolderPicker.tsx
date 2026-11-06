@@ -31,6 +31,7 @@ import {
     CheckIcon,
     CrossIcon,
     FolderIcon,
+    MenuIcon,
     PlusIcon,
     SearchIcon,
 } from "./Icons";
@@ -40,6 +41,7 @@ import {PathBar} from "./PathBar";
 import {SelectMenu} from "./SelectMenu";
 import {Sidebar} from "./Sidebar";
 import {baseName, normalizePath, parentPath} from "../utils/format";
+import {useSelectionMenu} from "../ui/selectionMenu";
 
 interface FolderPickerProps {
     initial?: string;
@@ -64,6 +66,7 @@ export function FolderPicker({
     onCancel, onSelect,
 }: FolderPickerProps) {
     const t = useTranslation();
+    const selectionMenu = useSelectionMenu("picker");
     const isFileMode = mode === "file";
     const supported = extensions ?? [];
     const [path, setPath] = useState(initial);
@@ -557,6 +560,15 @@ export function FolderPicker({
                                 <IconButton onClick={openFind} title={t("Search")} type="button">
                                     <SearchIcon/>
                                 </IconButton>
+                                {selectionMenu.available && (
+                                    <IconButton
+                                        onClick={(event) => selectionMenu.open(event.clientX, event.clientY)}
+                                        title={t("Selection menu")}
+                                        type="button"
+                                    >
+                                        <MenuIcon/>
+                                    </IconButton>
+                                )}
                             </Toolbar>
 
                             {find.open && (
@@ -593,6 +605,7 @@ export function FolderPicker({
                                 onOpenFile={openEntry}
                                 onRefresh={() => setReload((value) => value + 1)}
                                 onSelectionChange={handleSelection}
+                                selectionMenuId="picker"
                                 onSort={() => undefined}
                                 openOnSingleClick={settings?.openOnSingleClick ?? false}
                                 refreshToken={reload}

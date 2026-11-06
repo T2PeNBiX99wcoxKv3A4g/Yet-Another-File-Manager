@@ -21,7 +21,8 @@ import {useTextSearch, type PageFind} from "../ui/textSearch";
 import {requestFolder} from "../folder-picker";
 import {Native, useTranslation} from "@photino-net-utils/bridge";
 import {FileList} from "./FileList";
-import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, GridIcon, ListIcon, PencilIcon, PinIcon, PlusIcon} from "./Icons";
+import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, GridIcon, ListIcon, MenuIcon, PencilIcon, PinIcon, PlusIcon} from "./Icons";
+import {setSelectionMenu, useSelectionMenuGroup} from "../ui/selectionMenu";
 import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
 import {quickPlace, useQuickAccess} from "../quick";
@@ -636,14 +637,17 @@ export function OverviewView({
     const [placeRename, setPlaceRename] = useState<{ path: string; name: string } | null>(null);
     const [driveNotice, setDriveNotice] = useState<string | null>(null);
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
+    const [selectedTarget, setSelectedTarget] = useState<{ path: string; isDirectory: boolean } | null>(null);
+    const selectionMenu = useSelectionMenuGroup("overview");
     const [menu, setMenu] = useState<{ x: number; y: number; target: FileMenuTarget } | null>(null);
 
     /** In the picker, a card selects for the footer instead of opening a tab. */
-    const pickCard = (path: string): boolean => {
+    const pickCard = (path: string, isDirectory = false): boolean => {
         if (!onPick)
             return false;
 
         setSelectedPath(path);
+        setSelectedTarget({path, isDirectory});
         onSelectionChange?.([path]);
         return true;
     };
@@ -652,8 +656,16 @@ export function OverviewView({
         event.preventDefault();
         event.stopPropagation();
         setSelectedPath(path);
+        setSelectedTarget({path, isDirectory});
         setMenu({x: event.clientX, y: event.clientY, target: {path, isDirectory}});
     };
+
+    useEffect(() => {
+        setSelectionMenu("overview", selectedTarget
+            ? (x, y) => setMenu({x, y, target: selectedTarget})
+            : null);
+        return () => setSelectionMenu("overview", null);
+    }, [selectedTarget]);
 
     const openMenuTarget = (path: string, newTab?: boolean) => onOpen(path, newTab);
 
@@ -982,7 +994,7 @@ export function OverviewView({
                                 $plain={false}
                                 $selected={selectedPath === entry.path}
                                 onClick={(event) => {
-                                    if (pickCard(entry.path)) return;
+                                    if (pickCard(entry.path, entry.isDirectory)) return;
                                     if (entry.isDirectory) onOpen(entry.path, wantsNewTab(event));
                                     else void openFile(entry.path);
                                 }}
@@ -1014,7 +1026,7 @@ export function OverviewView({
                                 key={entry.path}
                                 $selected={selectedPath === entry.path}
                                 onClick={(event) => {
-                                    if (pickCard(entry.path)) return;
+                                    if (pickCard(entry.path, entry.isDirectory)) return;
                                     if (entry.isDirectory) onOpen(entry.path, wantsNewTab(event));
                                     else void openFile(entry.path);
                                 }}
@@ -1077,7 +1089,7 @@ export function OverviewView({
                         $plain={false}
                         $selected={selectedPath === drive.name}
                         onClick={(event) => {
-                            if (editingName || !pickCard(drive.name)) {
+                            if (editingName || !pickCard(drive.name, true)) {
                                 if (!editingName) onOpen(drive.name, wantsNewTab(event));
                             }
                         }}
@@ -1102,7 +1114,7 @@ export function OverviewView({
                         key={drive.name}
                         $selected={selectedPath === drive.name}
                         onClick={editingName ? undefined : (event: MouseEvent<HTMLElement>) => {
-                            if (!pickCard(drive.name)) onOpen(drive.name, wantsNewTab(event));
+                            if (!pickCard(drive.name, true)) onOpen(drive.name, wantsNewTab(event));
                         }}
                         onDoubleClick={editingName ? undefined : () => onPick?.(drive.name)}
                         onContextMenu={editingName ? undefined : (event: MouseEvent<HTMLElement>) => openCardMenu(event, drive.name, true)}
@@ -1144,7 +1156,7 @@ export function OverviewView({
                                     $selected={selectedPath === place.path}
                                     {...placeDrop(panel, place.path)}
                                     onClick={(event) => {
-                                        if (!editing && !pickCard(place.path))
+                                        if (!editing && !pickCard(place.path, true))
                                             onOpen(place.path, wantsNewTab(event));
                                     }}
                                     onDoubleClick={() => !editing && onPick?.(place.path)}
@@ -1238,7 +1250,7 @@ export function OverviewView({
                                     $selected={selectedPath === place.path}
                                     {...placeDrop(panel, place.path)}
                                     onClick={(event) => {
-                                        if (!editing && !pickCard(place.path))
+                                        if (!editing && !pickCard(place.path, true))
                                             onOpen(place.path, wantsNewTab(event));
                                     }}
                                     onDoubleClick={() => !editing && onPick?.(place.path)}
@@ -1347,6 +1359,7 @@ export function OverviewView({
                         onSelectionChange={onSelectionChange}
                         openOnSingleClick={settings?.openOnSingleClick ?? false}
                         path={panel.path ?? homePath}
+                        selectionMenuId={`overview:${panel.id}`}
                         showCheckboxes={settings?.showCheckboxes ?? true}
                         visibilityVersion={visibilityVersion}
                     />
@@ -1404,6 +1417,16 @@ export function OverviewView({
                             </PanelMenu>
                         )}
                     </AddMenu>
+                )}
+
+                {selectionMenu.available && (
+                    <IconButton
+                        onClick={(event) => selectionMenu.open(event.clientX, event.clientY)}
+                        title={t("Selection menu")}
+                        type="button"
+                    >
+                        <MenuIcon size={14}/>
+                    </IconButton>
                 )}
 
                 <Ghost
@@ -1713,13 +1736,14 @@ function FrequentBody({mode, onOpen, onContextMenu, onPick, onSelectionChange, v
 }
 
 /** One folder rendered as a panel: a table or a grid of its entries. */
-function FolderBody({path, mode, onOpen, onContextMenu, onPick, onSelectionChange, showCheckboxes, openOnSingleClick, visibilityVersion}: {
+function FolderBody({path, mode, onOpen, onContextMenu, onPick, onSelectionChange, selectionMenuId, showCheckboxes, openOnSingleClick, visibilityVersion}: {
     path: string;
     mode: ViewMode;
     onOpen: (path: string, newTab?: boolean) => void;
     onContextMenu?: (event: MouseEvent<HTMLElement>, path: string, isDirectory: boolean) => void;
     onPick?: (path: string) => void;
     onSelectionChange?: (paths: string[]) => void;
+    selectionMenuId?: string;
     showCheckboxes: boolean;
     openOnSingleClick: boolean;
     visibilityVersion: number;
@@ -1763,6 +1787,7 @@ function FolderBody({path, mode, onOpen, onContextMenu, onPick, onSelectionChang
                     onOpen={onPick ?? onOpen}
                     onOpenFile={onPick ?? ((file) => void openFile(file))}
                     onSelectionChange={onSelectionChange}
+                    selectionMenuId={selectionMenuId}
                     onSort={() => undefined}
                     openOnSingleClick={openOnSingleClick}
                     enableShortcuts={false}

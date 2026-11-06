@@ -12,8 +12,9 @@ import {
 import type {ShortcutMap} from "../shortcuts";
 import {appLocale, formatBytes, formatDate, plural} from "../utils/format";
 import {readStoredNumber, writeStoredNumber} from "../storage";
-import {RefreshIcon} from "./Icons";
+import {RefreshIcon, MenuIcon} from "./Icons";
 import {FileList} from "./FileList";
+import {useSelectionMenu} from "../ui/selectionMenu";
 import {PreviewPane, type PreviewInfo} from "./PreviewPane";
 import {NoFind, matchesName, type FindView} from "../find";
 import type {PageFind} from "../ui/textSearch";
@@ -79,6 +80,7 @@ export function GalleryView({
     videoAutoplay = false,
 }: GalleryViewProps) {
     const t = useTranslation();
+    const selectionMenu = useSelectionMenu("gallery");
     const [entries, setEntries] = useState<GalleryEntry[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -86,7 +88,7 @@ export function GalleryView({
     const [busy, setBusy] = useState(false);
     const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
     const [previewWidth, setPreviewWidth] = useState(() => {
-        const saved = readStoredNumber("yafm.gallery.preview.width", 320);
+        const saved = readStoredNumber("yafm.preview.width", 320);
         return saved >= 220 ? saved : 320;
     });
 
@@ -301,12 +303,21 @@ export function GalleryView({
 
     const resizePreview = (width: number) => {
         setPreviewWidth(width);
-        writeStoredNumber("yafm.gallery.preview.width", width);
+        writeStoredNumber("yafm.preview.width", width);
     };
 
     const previewEntry = selectedPaths.length > 0
         ? entries.find((entry) => entry.path === selectedPaths[0]) ?? null
         : null;
+    const previewExtension = previewEntry?.name.includes(".")
+        ? previewEntry.name.slice(previewEntry.name.lastIndexOf(".") + 1).toUpperCase()
+        : "—";
+    const previewKind = previewEntry && /\.(mp4|webm|mkv|mov|m4v|avi|wmv|ogv)$/i.test(previewEntry.name)
+        ? t("Video")
+        : t("Picture");
+    const previewLocation = previewEntry
+        ? previewEntry.path.slice(0, Math.max(previewEntry.path.lastIndexOf("\\"), previewEntry.path.lastIndexOf("/")))
+        : "";
     const previewInfo: PreviewInfo | null = previewEntry
         ? {
             name: previewEntry.name,
@@ -315,14 +326,13 @@ export function GalleryView({
             size: previewEntry.size,
             modified: previewEntry.modified,
             fields: [
-                {
-                    label: t("Type"),
-                    value: previewEntry.name.includes(".")
-                        ? previewEntry.name.slice(previewEntry.name.lastIndexOf(".") + 1).toUpperCase()
-                        : "—",
-                },
+                {label: t("Type"), value: previewKind},
+                {label: t("Extension"), value: previewExtension},
+                {label: t("Location"), value: previewLocation},
+                {label: t("Full path"), value: previewEntry.path},
                 {label: t("Size"), value: formatBytes(previewEntry.size)},
                 {label: t("Modified"), value: formatDate(previewEntry.modified)},
+                {label: t("Created"), value: "—"},
             ],
         }
         : null;
@@ -335,9 +345,20 @@ export function GalleryView({
                     <Count>{loading ? t("scanning…") : t("{shown} of {total} pictures", {shown: entries.length, total})}</Count>
                 </Heading>
 
-                <IconButton onClick={refresh} title={t("Scan the folders again")} type="button">
-                    <Spin $spinning={busy}><RefreshIcon size={14}/></Spin>
-                </IconButton>
+                <HeaderActions>
+                    <IconButton onClick={refresh} title={t("Scan the folders again")} type="button">
+                        <Spin $spinning={busy}><RefreshIcon size={14}/></Spin>
+                    </IconButton>
+                    {selectionMenu.available && (
+                        <IconButton
+                            onClick={(event) => selectionMenu.open(event.clientX, event.clientY)}
+                            title={t("Selection menu")}
+                            type="button"
+                        >
+                            <MenuIcon size={14}/>
+                        </IconButton>
+                    )}
+                </HeaderActions>
             </Header>
 
             {error && <Message>{error}</Message>}
@@ -359,6 +380,7 @@ export function GalleryView({
                             openOnSingleClick={openOnSingleClick}
                             shortcuts={shortcuts}
                             onSelectionChange={handleSelection}
+                            selectionMenuId="gallery"
                             onSort={() => undefined}
                             onOpen={open}
                             onOpenFile={open}
@@ -448,6 +470,12 @@ const Header = styled.header`
     gap: 16px;
     padding: 14px 22px 9px;
     border-bottom: 1px solid var(--border-color);
+`;
+
+const HeaderActions = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 6px;
 `;
 
 const Heading = styled.div`

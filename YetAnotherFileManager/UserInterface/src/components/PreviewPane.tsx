@@ -3,6 +3,7 @@ import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import {previewText, type TextPreview} from "../api/files";
 import {useIcon, useMediaUrl, usePdfPreview, useThumbnail} from "../api/icons";
+import {readStoredNumber, writeStoredNumber} from "../storage";
 import {FileIcon, FolderIcon, PlayIcon} from "./Icons";
 
 export interface PreviewInfo {
@@ -61,6 +62,11 @@ export function PreviewPane({info, width, onWidth, open = true, videoAudio, vide
     const [pdfFailed, setPdfFailed] = useState(false);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const drag = useRef<{ x: number; width: number } | null>(null);
+    const mediaDrag = useRef<{ y: number; height: number } | null>(null);
+    const [mediaHeight, setMediaHeight] = useState(() => {
+        const saved = readStoredNumber("yafm.preview.media.height", 210);
+        return Math.min(560, Math.max(80, saved));
+    });
     const path = info?.path ?? null;
     const extension = info ? extensionOf(info.name) : "";
     const video = !!info && !info.isDirectory && VideoExtensions.has(extension);
@@ -133,6 +139,26 @@ export function PreviewPane({info, width, onWidth, open = true, videoAudio, vide
         event.currentTarget.releasePointerCapture(event.pointerId);
     };
 
+    const startMedia = (event: ReactPointerEvent) => {
+        mediaDrag.current = {y: event.clientY, height: mediaHeight};
+        event.currentTarget.setPointerCapture(event.pointerId);
+    };
+
+    const moveMedia = (event: ReactPointerEvent) => {
+        const current = mediaDrag.current;
+        if (!current)
+            return;
+
+        const next = Math.max(80, Math.min(560, current.height + event.clientY - current.y));
+        setMediaHeight(next);
+        writeStoredNumber("yafm.preview.media.height", next);
+    };
+
+    const endMedia = (event: ReactPointerEvent) => {
+        mediaDrag.current = null;
+        event.currentTarget.releasePointerCapture(event.pointerId);
+    };
+
     if (!info)
         return (
             <Root>
@@ -179,7 +205,7 @@ export function PreviewPane({info, width, onWidth, open = true, videoAudio, vide
             )}
 
             <Panel style={{width: open ? width : 0}}>
-                <Media>
+                <Media style={{height: mediaHeight}}>
                     {video && media && !videoFailed
                         ? (
                             <VideoStage
@@ -282,6 +308,17 @@ export function PreviewPane({info, width, onWidth, open = true, videoAudio, vide
                                                 : <FileIcon size={64}/>}
                 </Media>
 
+                <MediaSplitter
+                    onDoubleClick={() => {
+                        setMediaHeight(210);
+                        writeStoredNumber("yafm.preview.media.height", 210);
+                    }}
+                    onPointerDown={startMedia}
+                    onPointerMove={moveMedia}
+                    onPointerUp={endMedia}
+                    title={t("Drag to resize; double-click to reset")}
+                />
+
                 <Body>
                     <Name title={info.path}>{info.name}</Name>
                     {selectionNote && <Selection>{selectionNote}</Selection>}
@@ -377,7 +414,6 @@ const Media = styled.div`
     flex-shrink: 0;
     overflow: hidden;
     background: var(--bg-media);
-
     img,
     video {
         display: block;
@@ -392,6 +428,18 @@ const Media = styled.div`
 
     svg {
         color: var(--text-muted);
+    }
+`;
+
+const MediaSplitter = styled.div`
+    height: 7px;
+    flex-shrink: 0;
+    border-top: 1px solid var(--border-color);
+    cursor: row-resize;
+    transition: background 120ms ease;
+
+    &:hover {
+        background: rgba(var(--accent-rgb), 0.25);
     }
 `;
 

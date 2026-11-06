@@ -10,6 +10,7 @@ internal static class ArchiveFormats
     [
         ".zip", ".jar", ".war", ".apk", ".xpi", ".ipa",
         ".7z", ".rar",
-        ".tar", ".gz", ".tgz", ".bz2", ".tbz", ".tbz2", ".xz", ".txz"
+        ".tar", ".gz", ".tgz", ".bz2", ".tbz", ".tbz2", ".xz", ".txz",
+        ".arj", ".ace", ".arc"
     ];
 }

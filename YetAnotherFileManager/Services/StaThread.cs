@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
 namespace YetAnotherFileManager.Services;
@@ -51,7 +52,13 @@ internal static class StaThread
 
     private static void Run()
     {
+        // The shell namespace needs an initialized apartment before it will resolve a real path.
+        CoInitializeEx(IntPtr.Zero, 0x2);
+
         foreach (var work in Work.GetConsumingEnumerable())
             work();
     }
+
+    [DllImport("ole32.dll")]
+    private static extern int CoInitializeEx(IntPtr reserved, uint apartment);
 }

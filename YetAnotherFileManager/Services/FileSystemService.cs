@@ -589,22 +589,30 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     [SupportedOSPlatform("windows")]
     private static async Task<string?> WindowsIconAsync(IconRequest request, AppSettings settings)
     {
+        // Shell icon lookups are native Windows paths: forward slashes make a real-path lookup fail
+        // silently, while the attribute-based lookup happens to work.
+        var path = request.Path.Replace('/', Path.DirectorySeparatorChar);
+
         // A folder's own icon (desktop.ini) is read from its path; the jumbo list is index-based and
         // can hand back a different image for a custom icon, so folders use the HICON directly.
-        if (request.Directory && settings.UseCustomFolderIcons && await HasCustomFolderIconAsync(request.Path)
-            && await StaThread.RunAsync(() => ShellIcon.DataUrl(request.Path, true, false)) is { } custom)
+        if (request.Directory && settings.UseCustomFolderIcons && await HasCustomFolderIconAsync(path)
+            && await StaThread.RunAsync(() => ShellIcon.DataUrl(path, true, false)) is { } custom)
             return custom;
 
         // Shortcuts and executables carry their icon in the file itself, so they must be looked up
         // for real; asking by extension would give every .lnk the same picture.
-        var perFile = !request.Directory && PerFileIconExtensions.Contains(Path.GetExtension(request.Path));
-        var byAttributes = !request.Directory && !perFile;
+        var perFile = !request.Directory && PerFileIconExtensions.Contains(Path.GetExtension(path));
+
+        // Folders are asked by attribute too unless a desktop.ini icon was handled above. A real
+        // folder lookup depends on the shell namespace and quietly returns nothing on some systems;
+        // the attribute lookup always gives the normal Windows folder icon.
+        var byAttributes = !perFile;
 
         // Per-file icon handlers need an STA caller; the thread pool silently gets a generic glyph.
         // Only files use the jumbo list; a folder's HICON is always the right one.
         return await StaThread.RunAsync(() => request.Large && !request.Directory
-            ? ShellIcon.JumboDataUrl(request.Path, false, byAttributes)
-            : ShellIcon.DataUrl(request.Path, request.Directory, byAttributes));
+            ? ShellIcon.JumboDataUrl(path, false, byAttributes)
+            : ShellIcon.DataUrl(path, request.Directory, byAttributes));
     }
 
     /// <summary>An icon file chosen by the user, as a data URL.</summary>

@@ -35,6 +35,8 @@ import {PlaceIcon} from "./PlaceIcon";
 import {TagPicker, DefaultTagColor, inkFor} from "./TagPicker";
 import {BuiltinIcon, iconForName} from "../icons/fileTypes";
 import {readDraggedPaths, writeDraggedPaths, isPathDrag} from "./FileTray";
+import {showMessage} from "../api/dialogs";
+import {setSelectionMenu} from "../ui/selectionMenu";
 
 /** The strip is a glance, not a gallery; thousands of thumbnails would stall the window. */
 const PreviewLimit = 60;
@@ -116,6 +118,12 @@ interface FileListProps {
     readOnly?: boolean;
     /** Reports the checked paths, so a host that draws its own footer can follow the selection. */
     onSelectionChange?: (paths: string[]) => void;
+    /** Reports how many entries are selected, for a toolbar menu button. */
+    onSelectionCountChange?: (count: number) => void;
+    /** Opens this list's context menu for the current selection from a host button. */
+    selectionMenuRequest?: { token: number; x: number; y: number } | null;
+    /** Registry id for a header button that reopens this list's context menu. */
+    selectionMenuId?: string;
     /** A picker that returns one path still uses the checkboxes, but only one at a time. */
     singleSelect?: boolean;
     /** A freshly created path that should enter rename as soon as the listing shows it. */
@@ -142,6 +150,7 @@ export function FileList({
     onClipboardChanged, onTransfer, onAddToTray, onPaste, confirmDelete = false, previewVideoAudio = false,
     previewVideoAutoplay = false, showDetails = true, onPreviewInfo, onActivate,
     groupOf, onGridScroll, gridFooter, allowBackgroundMenu = true, readOnly = false, onSelectionChange,
+    onSelectionCountChange, selectionMenuRequest, selectionMenuId,
     singleSelect = false, pendingRename = null, pendingRenameToken = 0,
 }: FileListProps) {
     const t = useTranslation();
@@ -163,7 +172,24 @@ export function FileList({
     selectedRef.current = selected;
     // A host that draws its own status bar follows the same selection the grid uses.
     useEffect(() => onSelectionChange?.([...selected]), [selected, onSelectionChange]);
+    useEffect(() => onSelectionCountChange?.(selected.size), [selected, onSelectionCountChange]);
+
+    // The toolbar's menu button asks this list to open exactly the menu a right click would.
+    useEffect(() => {
+        const request = selectionMenuRequest;
+        if (!request || request.token === lastSelectionMenu.current)
+            return;
+
+        lastSelectionMenu.current = request.token;
+        const paths = [...selectedRef.current];
+        if (paths.length === 0)
+            return;
+
+        setMenu({x: request.x, y: request.y, paths, background: false});
+        void hasClipboardFiles().then(setCanPaste, () => setCanPaste(false));
+    }, [selectionMenuRequest]);
     const [menu, setMenu] = useState<{ x: number; y: number; paths: string[]; background: boolean } | null>(null);
+    const lastSelectionMenu = useRef(0);
     const [compressDialog, setCompressDialog] = useState<{paths: string[]; name: string} | null>(null);
     const [pendingConfirm, setPendingConfirm] = useState<{
         paths: string[];
@@ -186,6 +212,24 @@ export function FileList({
         writeStoredNumber("yafm.preview.width", width);
     }, []);
     const [canPaste, setCanPaste] = useState(false);
+
+    /** Opens the same menu a right click would, for the current selection. */
+    const openSelectionMenuAt = useCallback((x: number, y: number) => {
+        const paths = [...selectedRef.current];
+        if (paths.length === 0)
+            return;
+
+        setMenu({x, y, paths, background: false});
+        void hasClipboardFiles().then(setCanPaste, () => setCanPaste(false));
+    }, []);
+
+    useEffect(() => {
+        if (!selectionMenuId)
+            return;
+
+        setSelectionMenu(selectionMenuId, selected.size > 0 ? openSelectionMenuAt : null);
+        return () => setSelectionMenu(selectionMenuId, null);
+    }, [selectionMenuId, selected, openSelectionMenuAt]);
 
     // A new folder starts with nothing selected; an operation that renamed a path drops it too.
     useEffect(() => {
@@ -606,7 +650,7 @@ export function FileList({
             onCompress={async (options: CompressOptions) => {
                 const result = await compressPaths(compressDialog.paths, options);
                 if (!result.ok || !result.path) {
-                    window.alert(result.error ?? t("Could not create the archive."));
+                    void showMessage(result.error ?? t("Could not create the archive."));
                     return false;
                 }
 
@@ -628,7 +672,7 @@ export function FileList({
             return;
 
         if (!await pasteInto(directory))
-            window.alert(t("Nothing on the clipboard could be pasted here."));
+            void showMessage(t("Nothing on the clipboard could be pasted here."));
         else {
             refresh();
             onPaste?.();
@@ -644,7 +688,7 @@ export function FileList({
             : await newFile(currentDirectory, extension);
 
         if (!result.ok || result.path === null) {
-            window.alert(result.error ?? t("Could not create the item."));
+            void showMessage(result.error ?? t("Could not create the item."));
             return;
         }
 
@@ -686,7 +730,7 @@ export function FileList({
             clearSelection();
             refresh();
         } else {
-            window.alert(result.error ?? t("Could not rename the entry."));
+            void showMessage(result.error ?? t("Could not rename the entry."));
         }
     }, [clearSelection, refresh, t]);
 
@@ -709,7 +753,7 @@ export function FileList({
             if (result.cancelled)
                 return;
 
-            window.alert(result.error ?? (permanent
+            void showMessage(result.error ?? (permanent
                 ? t("Could not delete the selection.")
                 : t("Could not move the selection to the recycle bin.")));
             return;

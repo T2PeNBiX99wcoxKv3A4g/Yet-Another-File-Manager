@@ -12,11 +12,13 @@ import {
     type RecycleEntry,
 } from "../api/files";
 import {useIcon} from "../api/icons";
+import {showMessage} from "../api/dialogs";
+import {useSelectionMenu, setSelectionMenu} from "../ui/selectionMenu";
 import {matchesName} from "../find";
 import {useTextSearch, type PageFind} from "../ui/textSearch";
 import {formatBytes, formatDate, plural} from "../utils/format";
 import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "../storage";
-import {CheckIcon, CopyIcon, FileIcon, FolderIcon, GearIcon, RefreshIcon, TrashIcon} from "./Icons";
+import {CheckIcon, CopyIcon, FileIcon, FolderIcon, GearIcon, MenuIcon, RefreshIcon, TrashIcon} from "./Icons";
 import RestoreSvg from "./icons/restore.svg?react";
 import {ConfirmDialog} from "./ConfirmDialog";
 import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
@@ -53,6 +55,7 @@ export function RecycleView({
     videoAutoplay = false, platform,
 }: RecycleViewProps) {
     const t = useTranslation();
+    const selectionMenu = useSelectionMenu("recycle");
     const isWindows = platform === "windows";
     const [entries, setEntries] = useState<RecycleEntry[]>([]);
     const [adminEntries, setAdminEntries] = useState<RecycleEntry[]>([]);
@@ -200,7 +203,7 @@ export function RecycleView({
         try {
             const result = await restoreRecycleEntries(ids);
             if (!result.ok)
-                window.alert(plural(t, ids.length, "Restored {done} of 1 item.", "Restored {done} of {total} items.", {done: result.done, total: ids.length}));
+                await showMessage(plural(t, ids.length, "Restored {done} of 1 item.", "Restored {done} of {total} items.", {done: result.done, total: ids.length}));
             setSelected(new Set());
             await reload();
         } finally {
@@ -217,7 +220,7 @@ export function RecycleView({
         try {
             const result = await deleteRecycleEntries(ids);
             if (!result.ok && !result.cancelled)
-                window.alert(plural(t, ids.length, "Deleted {done} of 1 item.", "Deleted {done} of {total} items.", {done: result.done, total: ids.length}));
+                await showMessage(plural(t, ids.length, "Deleted {done} of 1 item.", "Deleted {done} of {total} items.", {done: result.done, total: ids.length}));
             setSelected(new Set());
             await reload();
         } finally {
@@ -294,6 +297,11 @@ export function RecycleView({
 
         setMenu({x: event.clientX, y: event.clientY});
     };
+
+    useEffect(() => {
+        setSelectionMenu("recycle", selected.size > 0 ? (x, y) => setMenu({x, y}) : null);
+        return () => setSelectionMenu("recycle", null);
+    }, [selected]);
 
     // Keyboard handling only applies while this view is mounted. Text fields keep their keys.
     useEffect(() => {
@@ -472,6 +480,15 @@ export function RecycleView({
                     <IconButton onClick={() => void reload()} title={t("Refresh")} type="button">
                         <RefreshIcon size={14}/>
                     </IconButton>
+                    {selectionMenu.available && (
+                        <IconButton
+                            onClick={(event) => selectionMenu.open(event.clientX, event.clientY)}
+                            title={t("Selection menu")}
+                            type="button"
+                        >
+                            <MenuIcon size={14}/>
+                        </IconButton>
+                    )}
                 </Actions>
             </Header>
 

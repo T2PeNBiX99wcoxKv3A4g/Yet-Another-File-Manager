@@ -19,6 +19,7 @@ import {
     type ShellVerb,
 } from "../api/operations";
 import {requestFolder} from "../folder-picker";
+import {showMessage} from "../api/dialogs";
 import {prettyShortcut, type ShortcutMap} from "../shortcuts";
 import {CreateFileTypes} from "../create-types";
 import {baseName, isArchiveLocation} from "../utils/format";
@@ -197,7 +198,7 @@ export function FileMenu({
         };
         const result = await compressPaths(paths, options);
         if (result.ok && result.path) onArchiveCreated?.(result.path, true);
-        else window.alert(result.error ?? t("Could not create the archive."));
+        else void showMessage(result.error ?? t("Could not create the archive."));
     };
 
     const copyAsPath = async (paths: string[]) => {
@@ -214,7 +215,7 @@ export function FileMenu({
         const result = await setCaseSensitive(target.path, !caseState);
 
         if (!result.ok) {
-            window.alert(result.error ?? t("Could not change the case sensitivity."));
+            void showMessage(result.error ?? t("Could not change the case sensitivity."));
             return;
         }
 
@@ -239,7 +240,7 @@ export function FileMenu({
                 `${folder.replace(/[\\/]+$/, "")}\\${name} - link ${attempt}`);
 
         if (!result.ok) {
-            window.alert(result.error ?? t("Could not create the link."));
+            void showMessage(result.error ?? t("Could not create the link."));
             return;
         }
 

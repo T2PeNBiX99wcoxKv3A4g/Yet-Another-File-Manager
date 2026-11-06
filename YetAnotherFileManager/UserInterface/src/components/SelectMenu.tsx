@@ -146,16 +146,20 @@ const Trigger = styled.button<{ $icon?: boolean }>`
     width: ${({$icon}) => $icon ? "34px" : undefined};
     height: 32px;
     padding: ${({$icon}) => $icon ? "0" : "0 9px 0 10px"};
-    border: 1px solid var(--border-color);
+    border: 1px solid transparent;
     border-radius: var(--radius-md);
-    background: var(--bg-input);
+    background: ${({$icon}) => $icon ? "transparent" : "var(--bg-input)"};
     color: var(--text-primary);
     font: inherit;
     font-size: 12px;
     cursor: pointer;
+    transition: border-color 130ms ease, background 130ms ease, color 130ms ease, transform 130ms ease;
 
     &:hover {
-        border-color: var(--border-color-hover);
+        border-color: ${({$icon}) => $icon ? "var(--border-color-hover)" : "var(--border-color-hover)"};
+        background: ${({$icon}) => $icon ? "rgba(var(--accent-rgb), 0.10)" : "var(--bg-input)"};
+        color: var(--text-primary);
+        transform: ${({$icon}) => $icon ? "translateY(-1px)" : "none"};
     }
 
     &:focus-visible {

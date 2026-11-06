@@ -6,6 +6,7 @@ import {setProtectedDeleteAsker, type ProtectedDeletePrompt} from "./api/safety"
 import {applyTheme} from "./theme";
 import {FolderPicker} from "./components/FolderPicker";
 import {ProtectedDeleteDialog} from "./components/ProtectedDeleteDialog";
+import {MessageDialog} from "./components/MessageDialog";
 import {AppIcon, CrossIcon} from "./components/Icons";
 
 interface PickerWindowProps {
@@ -96,6 +97,7 @@ export function PickerWindow({mode, multiple, extensions, initial}: PickerWindow
                 />
             )}
 
+            <MessageDialog/>
             <ResizeHandles/>
         </Host>
     );
