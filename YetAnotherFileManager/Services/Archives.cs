@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Text;
+using SevenZipExtractor;
 using SharpCompress.Archives;
 using SharpCompress.Common;
 using SharpCompress.Readers;
@@ -18,6 +19,18 @@ internal static class Archives
 {
     private static readonly string[] Extensions = ArchiveFormats.Extensions;
 
+    /// <summary>
+    ///     Formats the managed reader does not understand. 7z.dll reads these through the bundled
+    ///     SevenZipExtractor, so the rest of the archive code can treat them as ordinary archives.
+    /// </summary>
+    private static readonly HashSet<string> SevenZipExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".lzh", ".lha", ".cab", ".iso", ".wim", ".swm", ".esd", ".chm", ".msi", ".msp", ".msm",
+        ".udf", ".dmg", ".vhd", ".vhdx", ".vmdk", ".xar", ".z", ".lzma", ".lzma86", ".cpio",
+        ".cramfs", ".rpm", ".deb", ".ar", ".apm", ".nsis", ".squashfs", ".qcow2", ".vdi",
+        ".zst", ".tzst"
+    };
+
     /// <summary>Legacy code pages tried when the archive does not say how its names are encoded.</summary>
     private static readonly int[] DetectCodePages = [932, 936, 950, 949, 1252, 1250, 1251, 1254, 1253, 1256, 1255, 1257, 874, 437];
 
@@ -27,11 +40,22 @@ internal static class Archives
     private static readonly ConcurrentDictionary<string, Workspace> Workspaces = new(StringComparer.OrdinalIgnoreCase);
     private static readonly string TempRoot = Path.Combine(Path.GetTempPath(), "YetAnotherFileManager", "Archives");
 
+    /// <summary>The native 7z.dll the package copies beside the executable.</summary>
+    private static readonly Lazy<string> SevenZipLibrary = new(() =>
+    {
+        var arch = Environment.Is64BitProcess ? "x64" : "x86";
+        var besideArch = Path.Combine(AppContext.BaseDirectory, arch, "7z.dll");
+        return File.Exists(besideArch) ? besideArch : Path.Combine(AppContext.BaseDirectory, "7z.dll");
+    });
+
     static Archives()
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         AppDomain.CurrentDomain.ProcessExit += (_, _) => CleanupWorkspaces();
     }
+
+    private static bool UseSevenZip(string archivePath) =>
+        OperatingSystem.IsWindows() && SevenZipExtensions.Contains(Path.GetExtension(archivePath));
 
     /// <summary>Whether the path itself names an archive file.</summary>
     public static bool IsArchive(string path) =>
@@ -108,6 +132,9 @@ internal static class Archives
     public static FsListPayload List(string archivePath, string inner, int codePage = 0)
     {
         SelectedCodePages[Path.GetFullPath(archivePath)] = codePage;
+
+        if (UseSevenZip(archivePath))
+            return SevenZipList(archivePath, inner);
 
         var prefix = inner.Trim(Path.DirectorySeparatorChar).Replace('\\', '/');
         var folders = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
@@ -194,6 +221,13 @@ internal static class Archives
         var root = Path.GetFullPath(target).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
         Directory.CreateDirectory(root);
 
+        if (UseSevenZip(archivePath))
+        {
+            using var sevenZip = new ArchiveFile(archivePath, SevenZipLibrary.Value);
+            sevenZip.Extract(root, true, null);
+            return;
+        }
+
         using var archive = Open(archivePath, ResolveCodePage(archivePath, codePage));
 
         // Only solid archives and 7z can be walked sequentially; a ZIP is read entry by entry.
@@ -220,10 +254,13 @@ internal static class Archives
         if (TryGetWorkspacePath(virtualPath, out var edited) && File.Exists(edited))
             return edited;
 
-        var resolved = ResolveCodePage(archivePath, codePage);
         var root = Path.Combine(TempRoot, "opened", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
 
+        if (UseSevenZip(archivePath))
+            return SevenZipExtractEntry(archivePath, inner, root);
+
+        var resolved = ResolveCodePage(archivePath, codePage);
         using var archive = Open(archivePath, resolved);
         var normalized = inner.Replace('\\', '/').TrimStart('/');
         var entry = archive.Entries.FirstOrDefault(candidate =>
@@ -238,6 +275,82 @@ internal static class Archives
         using (var output = File.Create(destination))
             input.CopyTo(output);
 
+        return destination;
+    }
+
+    /// <summary>Lists through 7z.dll for the formats the managed reader cannot open.</summary>
+    private static FsListPayload SevenZipList(string archivePath, string inner)
+    {
+        var prefix = inner.Trim(Path.DirectorySeparatorChar).Replace('\\', '/');
+        var folders = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        var files = new List<FileEntry>();
+
+        using var archive = new ArchiveFile(archivePath, SevenZipLibrary.Value);
+
+        foreach (var entry in archive.Entries)
+        {
+            var key = (entry.FileName ?? "").Replace('\\', '/').Trim('/');
+            if (key.Length == 0)
+                continue;
+
+            if (prefix.Length > 0)
+            {
+                if (!key.StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                key = key[(prefix.Length + 1)..];
+            }
+
+            var slash = key.IndexOf('/');
+            if (slash >= 0)
+            {
+                folders.TryAdd(key[..slash], Modified(entry.LastWriteTime));
+                continue;
+            }
+
+            if (entry.IsFolder)
+            {
+                folders.TryAdd(key, Modified(entry.LastWriteTime));
+                continue;
+            }
+
+            files.Add(new FileEntry(key, VirtualPath(archivePath, inner, key), false, (long)entry.Size,
+                Modified(entry.LastWriteTime), false, false, null));
+        }
+
+        var entries = folders
+            .Select(folder => new FileEntry(folder.Key, VirtualPath(archivePath, inner, folder.Key), true,
+                0, folder.Value, false, false, null))
+            .Concat(files)
+            .OrderByDescending(entry => entry.IsDirectory)
+            .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var parentInner = Path.GetDirectoryName(inner) ?? "";
+        return new FsListPayload(
+            VirtualPath(archivePath, inner, ""),
+            inner.Length == 0
+                ? Path.GetDirectoryName(archivePath)
+                : VirtualPath(archivePath, parentInner, ""),
+            entries, new Dictionary<string, long>(), null, new Dictionary<string, List<string>>(),
+            new Dictionary<string, string>(), [], new Dictionary<string, long>());
+    }
+
+    /// <summary>Extracts one entry through 7z.dll.</summary>
+    private static string SevenZipExtractEntry(string archivePath, string inner, string root)
+    {
+        using var archive = new ArchiveFile(archivePath, SevenZipLibrary.Value);
+        var normalized = inner.Replace('\\', '/').TrimStart('/');
+
+        var entry = archive.Entries.FirstOrDefault(candidate =>
+            string.Equals((candidate.FileName ?? "").Replace('\\', '/').TrimStart('/'), normalized,
+                StringComparison.OrdinalIgnoreCase));
+
+        if (entry is null || entry.IsFolder)
+            throw new FileNotFoundException("The file is no longer in the archive.", inner);
+
+        var destination = SafeDestination(root, Path.GetFileName(normalized));
+        entry.Extract(destination, true);
         return destination;
     }
 
