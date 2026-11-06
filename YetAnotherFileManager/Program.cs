@@ -39,6 +39,13 @@ internal static partial class Program
             return;
         }
 
+        // One-off elevated retry when a symbolic-link operation needs SeCreateSymbolicLinkPrivilege.
+        if (OperatingSystem.IsWindows() && args.Contains(Constants.CreateLinkArgument))
+        {
+            Environment.ExitCode = RunCreateLink(args);
+            return;
+        }
+
         // The shell menu is read and invoked in this short-lived helper, so a third-party handler
         // that crashes can never take the window down with it.
         if (OperatingSystem.IsWindows() && args.Contains(Constants.ShellVerbsArgument))
@@ -278,6 +285,18 @@ _ = UpdateService.Instance;
         {
             return 1;
         }
+    }
+
+    /// <summary>Runs a single link creation with the full administrator token, then exits.</summary>
+    [SupportedOSPlatform("windows")]
+    private static int RunCreateLink(string[] args)
+    {
+        var index = Array.IndexOf(args, Constants.CreateLinkArgument);
+        if (index < 0 || index + 3 >= args.Length)
+            return 2;
+
+        var result = FileLinkCreation.Create(args[index + 1], args[index + 2], args[index + 3], true);
+        return result.Ok ? 0 : 1;
     }
 
     private static void RunShellVerbs(string[] args)

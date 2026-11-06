@@ -43,6 +43,9 @@ public static class Constants
     /// </summary>
     public const string CaseSensitiveArgument = "--case-sensitive";
 
+    /// <summary>Elevated one-off helper for creating a link that the normal token could not make.</summary>
+    public const string CreateLinkArgument = "--create-link";
+
     /// <summary>
     ///     Command line pick modes: open the in-app picker as the whole window and print the chosen
     ///     paths, so scripts and other programs can use it instead of the shell dialogs.

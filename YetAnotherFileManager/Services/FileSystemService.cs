@@ -403,7 +403,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             {
                 var request = context.Payload<LinkRequest>();
 
-                return context.Reply("fs.link.create.result", await Task.Run(() => CreateLink(request)));
+                return context.Reply("fs.link.create.result", await CreateLinkAsync(request));
             }
 
             case "fs.preview.text":
@@ -865,8 +865,8 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             DeleteDelaySeconds = Protection.DelaySeconds(settings)
         };
 
-    /// <summary>Creates one link, checking that the source and the link kind make sense.</summary>
-    private static LinkPayload CreateLink(LinkRequest? request)
+    /// <summary>Creates a link normally and asks for elevation only if Windows says it is required.</summary>
+    private static async Task<LinkPayload> CreateLinkAsync(LinkRequest? request)
     {
         if (request is null || request.Source.Length == 0 || request.Link.Length == 0)
             return new LinkPayload(false, null, "No link was given.");
@@ -885,12 +885,25 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             FileLinkCreation.Junction when !isDirectory => "A junction can only point at a folder.",
             FileLinkCreation.SymbolicFile when isDirectory => "A file link cannot point at a folder.",
             FileLinkCreation.SymbolicFolder when !isDirectory => "A folder link cannot point at a file.",
-            _ => FileLinkCreation.Create(request.Kind, request.Source, request.Link),
+            _ => null,
         };
 
-        return error.Length == 0
-            ? new LinkPayload(true, request.Link, null)
-            : new LinkPayload(false, null, error);
+        if (error is not null)
+            return new LinkPayload(false, null, error);
+
+        var result = await Task.Run(() => FileLinkCreation.Create(request.Kind, request.Source, request.Link));
+        if (result.Ok)
+            return new LinkPayload(true, request.Link, null);
+
+        var symbolic = request.Kind is FileLinkCreation.SymbolicFile or FileLinkCreation.SymbolicFolder;
+        var needsElevation = result.ErrorCode is FileLinkCreation.ErrorAccessDenied
+            or FileLinkCreation.ErrorPrivilegeNotHeld;
+
+        if (symbolic && needsElevation
+            && await RunElevatedAsync(Constants.CreateLinkArgument, request.Kind, request.Source, request.Link))
+            return new LinkPayload(true, request.Link, null);
+
+        return new LinkPayload(false, null, result.Error);
     }
 
     /// <summary>

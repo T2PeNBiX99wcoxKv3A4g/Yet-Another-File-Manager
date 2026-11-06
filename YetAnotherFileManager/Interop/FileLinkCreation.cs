@@ -26,43 +26,73 @@ internal static partial class FileLinkCreation
     private const uint OpenReparsePoint = 0x00200000;
     private const uint FsctlSetReparsePoint = 0x000900A4;
     private const uint MountPointTag = 0xA0000003;
+    private const uint SymbolicLinkDirectory = 0x1;
+    private const uint SymbolicLinkAllowUnprivileged = 0x2;
+    internal const int ErrorAccessDenied = 5;
+    private const int ErrorInvalidParameter = 87;
+    internal const int ErrorPrivilegeNotHeld = 1314;
     private static readonly IntPtr InvalidHandle = new(-1);
 
+    internal readonly record struct Result(bool Ok, string Error, int ErrorCode);
+
     /// <summary>Creates <paramref name="link" /> pointing at <paramref name="source" />.</summary>
-    public static string Create(string kind, string source, string link)
+    public static Result Create(string kind, string source, string link, bool elevated = false)
     {
         if (!Directory.Exists(Path.GetDirectoryName(link)))
-            return "The folder for the link does not exist.";
+            return new Result(false, "The folder for the link does not exist.", 0);
 
         if (File.Exists(link) || Directory.Exists(link))
-            return "Something with that name already exists there.";
+            return new Result(false, "Something with that name already exists there.", 0);
 
         try
         {
             switch (kind)
             {
                 case SymbolicFile:
-                    File.CreateSymbolicLink(link, source);
-                    return "";
+                    CreateSymbolicLink(link, source, false, elevated);
+                    return new Result(true, "", 0);
                 case SymbolicFolder:
-                    Directory.CreateSymbolicLink(link, source);
-                    return "";
+                    CreateSymbolicLink(link, source, true, elevated);
+                    return new Result(true, "", 0);
                 case Hard:
                     if (!CreateHardLink(link, source, IntPtr.Zero))
                         throw new IOException("The hard link could not be created.",
                             new Win32Exception(Marshal.GetLastWin32Error()));
-                    return "";
+                    return new Result(true, "", 0);
                 case Junction:
                     CreateJunction(link, source);
-                    return "";
+                    return new Result(true, "", 0);
                 default:
-                    return "Unknown link type.";
+                    return new Result(false, "Unknown link type.", 0);
             }
         }
         catch (Exception ex)
         {
-            return ex.Message;
+            var nativeError = ex;
+            while (nativeError.InnerException is not null) nativeError = nativeError.InnerException;
+            var errorCode = nativeError is Win32Exception win32 ? win32.NativeErrorCode : 0;
+            return new Result(false, ex.Message, errorCode);
         }
+    }
+
+    private static void CreateSymbolicLink(string link, string target, bool directory, bool elevated)
+    {
+        var flags = directory ? SymbolicLinkDirectory : 0u;
+        if (!elevated) flags |= SymbolicLinkAllowUnprivileged;
+
+        if (CreateSymbolicLinkNative(link, target, flags)) return;
+
+        var error = Marshal.GetLastWin32Error();
+
+        // The unprivileged-create flag is not recognized by pre-Creators-Update Windows 10 builds.
+        // Retry without it; if privilege is required, the caller can ask the existing UAC helper.
+        if (!elevated && error == ErrorInvalidParameter)
+        {
+            if (CreateSymbolicLinkNative(link, target, directory ? SymbolicLinkDirectory : 0u)) return;
+            error = Marshal.GetLastWin32Error();
+        }
+
+        throw new IOException("The symbolic link could not be created.", new Win32Exception(error));
     }
 
     private static void CreateJunction(string link, string target)
@@ -138,6 +168,11 @@ internal static partial class FileLinkCreation
         SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool CreateHardLink(string link, string existing, IntPtr security);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateSymbolicLinkW", StringMarshalling = StringMarshalling.Utf16,
+        SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool CreateSymbolicLinkNative(string link, string target, uint flags);
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
