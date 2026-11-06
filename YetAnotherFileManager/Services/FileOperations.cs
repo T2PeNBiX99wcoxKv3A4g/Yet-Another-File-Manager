@@ -10,6 +10,8 @@ using PhotinoNetUtils.Utils;
 using Serilog;
 using YetAnotherFileManager.Interop;
 using YetAnotherFileManager.Messaging;
+using SevenZipSharpBase = SevenZip.SevenZipBase;
+using SevenZipSharpCompressor = SevenZip.SevenZipCompressor;
 
 namespace YetAnotherFileManager.Services;
 
@@ -588,6 +590,9 @@ internal static partial class FileOperations
         if (!Directory.Exists(request.Directory))
             return new PathOperationPayload(false, null, "The destination folder is no longer there.");
 
+        if (NeedsSevenZipCompressor(request))
+            return await CompressWithSevenZipAsync(request, entries);
+
         var (archiveType, compression, extension) = request.Format.ToLowerInvariant() switch
         {
             "zip" => (ArchiveType.Zip, request.Level == 0 ? CompressionType.None : CompressionType.Deflate, ".zip"),
@@ -637,6 +642,172 @@ internal static partial class FileOperations
 
         return result;
     }
+
+    private static bool NeedsSevenZipCompressor(CompressRequest request)
+    {
+        var format = request.Format.ToLowerInvariant();
+        var method = (request.Method ?? "").ToLowerInvariant();
+        var encryption = (request.Encryption ?? "none").ToLowerInvariant();
+        var split = request.SplitSize ?? 0;
+
+        if (format == "zipx")
+            return true;
+
+        if (format is not ("zip" or "7z"))
+            return false;
+
+        if (split > 0)
+            return format == "7z";
+
+        if (encryption is not ("none" or ""))
+            return true;
+
+        return format == "zip" && method is not ("" or "default" or "deflate");
+    }
+
+    private static async Task<PathOperationPayload> CompressWithSevenZipAsync(CompressRequest request,
+        List<string> entries, bool recordHistory = true)
+    {
+        var format = request.Format.ToLowerInvariant();
+        var extension = format switch
+        {
+            "zip" => ".zip",
+            "zipx" => ".zipx",
+            "7z" => ".7z",
+            _ => "",
+        };
+
+        if (extension.Length == 0)
+            return new PathOperationPayload(false, null, "That format cannot be encrypted or split.");
+
+        var split = request.SplitSize ?? 0;
+        if (split > 0 && format != "7z")
+            return new PathOperationPayload(false, null, "Split volumes are currently supported for 7z only.");
+
+        var baseName = request.Name.Trim();
+        if (baseName.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
+            baseName = baseName[..^extension.Length];
+
+        if (baseName.Length == 0 || baseName is "." or ".."
+            || baseName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
+            || Path.GetFileName(baseName) != baseName)
+            return new PathOperationPayload(false, null, "That archive name is not valid.");
+
+        var output = UniquePath(request.Directory, baseName, extension);
+        var files = ArchiveFiles(entries);
+        if (files.Count == 0)
+            return new PathOperationPayload(false, null, "There is nothing to compress.");
+
+        try
+        {
+            SevenZipSharpBase.SetLibraryPath(Archives.SevenZipLibraryPath);
+
+            var compressor = new SevenZipSharpCompressor
+            {
+                ArchiveFormat = format == "7z" ? SevenZip.OutArchiveFormat.SevenZip : SevenZip.OutArchiveFormat.Zip,
+                CompressionMethod = MethodOf(format, request.Method),
+                CompressionLevel = LevelOf(request.Level),
+                IncludeEmptyDirectories = true,
+                VolumeSize = split,
+            };
+
+            var encryption = (request.Encryption ?? "none").ToLowerInvariant();
+            var password = request.Password;
+
+            if (format is "zip" or "zipx" && encryption is not ("none" or ""))
+            {
+                compressor.ZipEncryptionMethod = encryption switch
+                {
+                    "aes128" => SevenZip.ZipEncryptionMethod.Aes128,
+                    "aes192" => SevenZip.ZipEncryptionMethod.Aes192,
+                    "aes256" => SevenZip.ZipEncryptionMethod.Aes256,
+                    _ => SevenZip.ZipEncryptionMethod.ZipCrypto,
+                };
+            }
+
+            var encrypted = password is { Length: > 0 } && encryption is not ("none" or "");
+            await Task.Run(() => compressor.CompressFileDictionary(files, output, encrypted ? password : null));
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Could not create {Archive}", output);
+            Try.Run(() => File.Delete(output));
+            return new PathOperationPayload(false, null, ex.Message);
+        }
+
+        if (recordHistory)
+            FileHistory.Instance.Record($"Compress {Path.GetFileName(output)}",
+                paths: [output],
+                undo: () => DeleteFileStepAsync(output),
+                redo: async () =>
+                {
+                    var redoPath = UniquePath(request.Directory, baseName, extension);
+                    var redo = await CompressWithSevenZipAsync(
+                        request with {Name = Path.GetFileNameWithoutExtension(redoPath)}, entries, false);
+                    if (redo.Ok && redo.Path is { } newPath) output = newPath;
+                    return new FileHistory.Step(redo.Ok, ParentsOf(entries), redo.Error);
+                });
+
+        // A split 7z has no base file; the first volume is the one the user opens.
+        var resultPath = split > 0 && !File.Exists(output) && File.Exists(output + ".001")
+            ? output + ".001"
+            : output;
+
+        return new PathOperationPayload(true, resultPath, null);
+    }
+
+    private static Dictionary<string, string> ArchiveFiles(IReadOnlyList<string> entries)
+    {
+        var files = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var entry in entries)
+        {
+            if (File.Exists(entry))
+            {
+                files[Path.GetFileName(entry)] = entry;
+                continue;
+            }
+
+            if (!Directory.Exists(entry))
+                continue;
+
+            var root = entry.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var baseName = Path.GetFileName(root);
+
+            foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+            {
+                var relative = Path.GetRelativePath(root, file).Replace('\\', '/');
+                files[$"{baseName}/{relative}"] = file;
+            }
+        }
+
+        return files;
+    }
+
+    private static SevenZip.CompressionMethod MethodOf(string format, string? method)
+    {
+        var wanted = (method ?? "").ToLowerInvariant();
+
+        if (wanted == "store") return SevenZip.CompressionMethod.Copy;
+        if (wanted == "bzip2") return SevenZip.CompressionMethod.BZip2;
+        if (wanted == "lzma") return SevenZip.CompressionMethod.Lzma;
+        if (wanted == "ppmd") return SevenZip.CompressionMethod.Ppmd;
+        if (wanted == "deflate64") return SevenZip.CompressionMethod.Deflate64;
+        if (wanted == "lzma2") return SevenZip.CompressionMethod.Lzma2;
+
+        return format == "7z"
+            ? SevenZip.CompressionMethod.Lzma2
+            : format == "zipx" ? SevenZip.CompressionMethod.Lzma : SevenZip.CompressionMethod.Deflate;
+    }
+
+    private static SevenZip.CompressionLevel LevelOf(int level) => level switch
+    {
+        0 => SevenZip.CompressionLevel.None,
+        <= 1 => SevenZip.CompressionLevel.Fast,
+        <= 5 => SevenZip.CompressionLevel.Normal,
+        <= 7 => SevenZip.CompressionLevel.High,
+        _ => SevenZip.CompressionLevel.Ultra,
+    };
 
     private static PathOperationPayload CompressCore(IReadOnlyList<string> paths, string output,
         ArchiveType archiveType, CompressionType compression, int level)

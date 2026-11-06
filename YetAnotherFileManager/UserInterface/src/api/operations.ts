@@ -310,8 +310,15 @@ export async function invokeShellVerb(
 export interface CompressOptions {
     directory: string;
     name: string;
-    format: "zip" | "7z" | "tar" | "tar.gz" | "tar.bz2";
+    format: "zip" | "zipx" | "7z" | "tar" | "tar.gz" | "tar.bz2";
     level: number;
+    /** ZIP/7z compression method, or null for the format default. */
+    method?: string | null;
+    /** "none", "zipcrypto", "aes128", "aes192" or "aes256". */
+    encryption?: string;
+    password?: string;
+    /** Volume size in bytes; 0 keeps one file. */
+    splitSize?: number;
 }
 
 /** Packs selected files into the requested format and destination. */

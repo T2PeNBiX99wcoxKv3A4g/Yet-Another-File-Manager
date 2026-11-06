@@ -264,7 +264,8 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 return context.Reply("fs.list.result",
                     await ListAsync(context.Payload<FsListRequest>()?.Path, context.Payload<FsListRequest>()?.Sizes ?? true,
                         context.Payload<FsListRequest>()?.IncludeLinks ?? false,
-                        context.Payload<FsListRequest>()?.CodePage ?? 0));
+                        context.Payload<FsListRequest>()?.CodePage ?? 0,
+                        context.Payload<FsListRequest>()?.Password));
 
             case "fs.list.cached":
                 return context.Reply("fs.list.cached.result",
@@ -338,7 +339,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 {
                     try
                     {
-                        Archives.Extract(archive, request.Target, request.CodePage ?? 0);
+                        Archives.Extract(archive, request.Target, request.CodePage ?? 0, request.Password);
                         return new ArchiveExtractPayload(true);
                     }
                     catch (Exception ex)
@@ -355,7 +356,8 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 var request = context.Payload<ArchivePathRequest>();
                 try
                 {
-                    var path = await Task.Run(() => Archives.ExtractEntry(request?.Path ?? "", request?.CodePage ?? 0));
+                    var path = await Task.Run(() => Archives.ExtractEntry(request?.Path ?? "", request?.CodePage ?? 0,
+                        request?.Password));
                     return context.Reply("fs.archive.extractEntry.result", new ArchiveOpenPayload(path));
                 }
                 catch (Exception ex)
@@ -1095,14 +1097,14 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     }
 
     private static async Task<FsListPayload> ListAsync(string? path, bool measure = true, bool includeLinks = false,
-        int codePage = 0)
+        int codePage = 0, string? password = null)
     {
         if (Archives.TryListWorkspace(path ?? "", out var workspaceListing))
             return workspaceListing;
 
         // An archive is opened as a virtual folder; its inner path is everything after the archive file.
         if (Archives.TrySplit(path ?? "", out var archivePath, out var inner))
-            return await Task.Run(() => Archives.List(archivePath, inner, codePage));
+            return await Task.Run(() => Archives.List(archivePath, inner, codePage, password));
 
         var target = ResolvePath(path);
         var directory = new DirectoryInfo(target);

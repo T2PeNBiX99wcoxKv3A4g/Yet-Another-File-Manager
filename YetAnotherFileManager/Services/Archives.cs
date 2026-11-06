@@ -26,9 +26,9 @@ internal static class Archives
     private static readonly HashSet<string> SevenZipExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".lzh", ".lha", ".cab", ".iso", ".wim", ".swm", ".esd", ".chm", ".msi", ".msp", ".msm",
-        ".udf", ".dmg", ".vhd", ".vhdx", ".vmdk", ".xar", ".z", ".lzma", ".lzma86", ".cpio",
+        ".zipx", ".udf", ".dmg", ".vhd", ".vhdx", ".vmdk", ".xar", ".z", ".lzma", ".lzma86", ".cpio",
         ".cramfs", ".rpm", ".deb", ".ar", ".apm", ".nsis", ".squashfs", ".qcow2", ".vdi",
-        ".zst", ".tzst"
+        ".zst", ".tzst", ".001"
     };
 
     /// <summary>Legacy code pages tried when the archive does not say how its names are encoded.</summary>
@@ -47,6 +47,8 @@ internal static class Archives
         var besideArch = Path.Combine(AppContext.BaseDirectory, arch, "7z.dll");
         return File.Exists(besideArch) ? besideArch : Path.Combine(AppContext.BaseDirectory, "7z.dll");
     });
+
+    internal static string SevenZipLibraryPath => SevenZipLibrary.Value;
 
     static Archives()
     {
@@ -129,7 +131,7 @@ internal static class Archives
     }
 
     /// <summary>The listing of one folder inside an archive, shaped like a directory listing.</summary>
-    public static FsListPayload List(string archivePath, string inner, int codePage = 0)
+    public static FsListPayload List(string archivePath, string inner, int codePage = 0, string? password = null)
     {
         SelectedCodePages[Path.GetFullPath(archivePath)] = codePage;
 
@@ -140,7 +142,7 @@ internal static class Archives
         var folders = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         var files = new List<FileEntry>();
 
-        using var archive = Open(archivePath, ResolveCodePage(archivePath, codePage));
+        using var archive = Open(archivePath, ResolveCodePage(archivePath, codePage, password), password);
 
         foreach (var entry in archive.Entries)
         {
@@ -216,7 +218,7 @@ internal static class Archives
     }
 
     /// <summary>Extracts the whole archive into <paramref name="target" />.</summary>
-    public static void Extract(string archivePath, string target, int codePage = 0)
+    public static void Extract(string archivePath, string target, int codePage = 0, string? password = null)
     {
         var root = Path.GetFullPath(target).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
         Directory.CreateDirectory(root);
@@ -224,11 +226,11 @@ internal static class Archives
         if (UseSevenZip(archivePath))
         {
             using var sevenZip = new ArchiveFile(archivePath, SevenZipLibrary.Value);
-            sevenZip.Extract(root, true, null);
+            sevenZip.Extract(root, true, password);
             return;
         }
 
-        using var archive = Open(archivePath, ResolveCodePage(archivePath, codePage));
+        using var archive = Open(archivePath, ResolveCodePage(archivePath, codePage, password), password);
 
         // Only solid archives and 7z can be walked sequentially; a ZIP is read entry by entry.
         if (archive.IsSolid || archive.Type == ArchiveType.SevenZip)
@@ -246,7 +248,7 @@ internal static class Archives
     }
 
     /// <summary>Extracts one virtual file to a private temporary folder and returns its real path.</summary>
-    public static string ExtractEntry(string virtualPath, int codePage = 0)
+    public static string ExtractEntry(string virtualPath, int codePage = 0, string? password = null)
     {
         if (!TrySplit(virtualPath, out var archivePath, out var inner) || inner.Length == 0)
             throw new FileNotFoundException("The path does not name a file inside an archive.");
@@ -258,10 +260,10 @@ internal static class Archives
         Directory.CreateDirectory(root);
 
         if (UseSevenZip(archivePath))
-            return SevenZipExtractEntry(archivePath, inner, root);
+            return SevenZipExtractEntry(archivePath, inner, root, password);
 
-        var resolved = ResolveCodePage(archivePath, codePage);
-        using var archive = Open(archivePath, resolved);
+        var resolved = ResolveCodePage(archivePath, codePage, password);
+        using var archive = Open(archivePath, resolved, password);
         var normalized = inner.Replace('\\', '/').TrimStart('/');
         var entry = archive.Entries.FirstOrDefault(candidate =>
             string.Equals((candidate.Key ?? "").Replace('\\', '/').TrimStart('/'), normalized,
@@ -337,7 +339,7 @@ internal static class Archives
     }
 
     /// <summary>Extracts one entry through 7z.dll.</summary>
-    private static string SevenZipExtractEntry(string archivePath, string inner, string root)
+    private static string SevenZipExtractEntry(string archivePath, string inner, string root, string? password)
     {
         using var archive = new ArchiveFile(archivePath, SevenZipLibrary.Value);
         var normalized = inner.Replace('\\', '/').TrimStart('/');
@@ -350,7 +352,17 @@ internal static class Archives
             throw new FileNotFoundException("The file is no longer in the archive.", inner);
 
         var destination = SafeDestination(root, Path.GetFileName(normalized));
-        entry.Extract(destination, true);
+
+        if (password is { Length: > 0 })
+        {
+            using var output = File.Create(destination);
+            entry.Extract(output, password);
+        }
+        else
+        {
+            entry.Extract(destination, false);
+        }
+
         return destination;
     }
 
@@ -598,7 +610,7 @@ internal static class Archives
     ///     names once, and if they look broken it tries the usual legacy code pages and keeps the
     ///     one whose names decode cleanly. The answer is cached until the archive file changes.
     /// </summary>
-    private static int ResolveCodePage(string archivePath, int codePage)
+    private static int ResolveCodePage(string archivePath, int codePage, string? password = null)
     {
         if (codePage > 0)
             return codePage;
@@ -614,13 +626,13 @@ internal static class Archives
         if (Detected.TryGetValue(key, out var cached) && cached.Length == file.Length && cached.Ticks == file.LastWriteTimeUtc.Ticks)
             return cached.CodePage;
 
-        var detected = Detect(archivePath);
+        var detected = Detect(archivePath, password);
         Detected[key] = (file.Length, file.LastWriteTimeUtc.Ticks, detected);
 
         return detected;
     }
 
-    private static int Detect(string archivePath)
+    private static int Detect(string archivePath, string? password = null)
     {
         // Only names with non-ASCII characters say anything about the code page; ASCII names
         // decode the same under every candidate. Reading them all stops at 400 matches.
@@ -632,7 +644,7 @@ internal static class Archives
 
         List<string> names;
 
-        using (var archive = Open(archivePath, 0))
+        using (var archive = Open(archivePath, 0, password))
             names = Names(archive);
 
         if (names.Count == 0)
@@ -651,7 +663,7 @@ internal static class Archives
         {
             try
             {
-                using var archive = Open(archivePath, candidate);
+                using var archive = Open(archivePath, candidate, password);
                 var score = Score(Names(archive));
                 if (score >= bestScore)
                     continue;
@@ -718,8 +730,12 @@ internal static class Archives
         }
     }
 
-    private static IArchive Open(string archivePath, int codePage)
-    {        var options = new ReaderOptions();
+    private static IArchive Open(string archivePath, int codePage, string? password = null)
+    {
+        var options = new ReaderOptions();
+
+        if (password is { Length: > 0 })
+            options.Password = password;
 
         if (codePage > 0)
         {

@@ -45,9 +45,11 @@ import {FileMenu} from "./components/FileMenu";
 import {Wallpaper} from "./components/Wallpaper";
 import {ProtectedDeleteDialog} from "./components/ProtectedDeleteDialog";
 import {MessageDialog} from "./components/MessageDialog";
+import {PasswordDialog} from "./components/PasswordDialog";
 import {setProtectedDeleteAsker, type ProtectedDeletePrompt} from "./api/safety";
-import {showMessage} from "./api/dialogs";
+import {requestArchivePassword, showMessage} from "./api/dialogs";
 import {clearIconCache} from "./api/icons";
+import {getArchivePassword, isArchivePasswordError, setArchivePassword} from "./api/archivePassword";
 import type {PageFind} from "./ui/textSearch";
 import {FindBar} from "./components/FindBar";
 import {EmptyFind, matchesName, type FindState} from "./find";
@@ -278,6 +280,11 @@ function archiveStem(path: string): string {
 
     const dot = name.lastIndexOf(".");
     return dot > 0 ? name.slice(0, dot) : name;
+}
+
+/** The remembered password for whatever archive this virtual path belongs to. */
+function archivePasswordFor(path: string): string | undefined {
+    return isArchiveLocation(path) ? getArchivePassword(path) : undefined;
 }
 
 /** What the folder adds up to: files right away, folders once their size has been measured. */
@@ -650,7 +657,8 @@ export default function App() {
             if (paintCache)
                 void showCached(id, path, current);
 
-            const listing = await listDirectory(path, true, includeLinks, archiveEncodingRef.current);
+            const listing = await listDirectory(path, true, includeLinks, archiveEncodingRef.current,
+                path ? archivePasswordFor(path) : undefined);
             if (!current()) return;
 
             patch(id, (tab) => ({
@@ -679,6 +687,17 @@ export default function App() {
             const cut = Math.max(trimmed.lastIndexOf("\\"), trimmed.lastIndexOf("/"));
             const parent = cut > 0 ? trimmed.slice(0, cut) : null;
             const failure = message(cause);
+
+            if (requested && isArchivePasswordError(failure)) {
+                const archive = archiveFile(requested);
+                const typed = await requestArchivePassword(archive, !!getArchivePassword(archive));
+
+                if (typed) {
+                    setArchivePassword(archive, typed);
+                    if (current()) void load(id, path, keepFresh);
+                    return;
+                }
+            }
 
             patch(id, (tab) => ({
                 listing: {
@@ -745,7 +764,8 @@ export default function App() {
             await showCached(id, target, current);
             if (!current()) return;
 
-            const listing = await listDirectory(target, true, includeLinks, archiveEncodingRef.current);
+            const listing = await listDirectory(target, true, includeLinks, archiveEncodingRef.current,
+                archivePasswordFor(target));
             if (!current()) return;
 
             patch(id, () => ({listing, view: listing.view ?? null, loading: false}));
@@ -754,6 +774,18 @@ export default function App() {
 
             const trimmed = target.replace(/[\\/]+$/, "");
             const cut = Math.max(trimmed.lastIndexOf("\\"), trimmed.lastIndexOf("/"));
+            const failure = message(cause);
+
+            if (isArchivePasswordError(failure)) {
+                const archive = archiveFile(target);
+                const typed = await requestArchivePassword(archive, !!getArchivePassword(archive));
+
+                if (typed) {
+                    setArchivePassword(archive, typed);
+                    if (current()) void goTo(id, target, index);
+                    return;
+                }
+            }
 
             patch(id, () => ({
                 listing: {
@@ -1851,10 +1883,23 @@ export default function App() {
                     }
 
                     if (isArchiveLocation(file)) {
-                        void extractArchiveEntry(file, archiveEncodingRef.current).then((result) => {
+                        void (async () => {
+                            let result = await extractArchiveEntry(file, archiveEncodingRef.current,
+                                archivePasswordFor(file));
+
+                            if (!result.path && isArchivePasswordError(result.error)) {
+                                const archive = archiveFile(file);
+                                const typed = await requestArchivePassword(archive, !!getArchivePassword(archive));
+
+                                if (typed) {
+                                    setArchivePassword(archive, typed);
+                                    result = await extractArchiveEntry(file, archiveEncodingRef.current, typed);
+                                }
+                            }
+
                             if (result.path) void openFile(result.path);
                             else if (result.error) void showMessage(result.error);
-                        });
+                        })();
                         return;
                     }
 
@@ -1930,7 +1975,7 @@ export default function App() {
         if (mode === "auto") {
             const entries = samePath(activeFolder, archive)
                 ? active.listing?.entries ?? []
-                : (await listDirectory(archive, false, false, archiveEncodingRef.current)).entries;
+                : (await listDirectory(archive, false, false, archiveEncodingRef.current, archivePasswordFor(archive))).entries;
             named = !(entries.length === 1 && entries[0].isDirectory);
         }
 
@@ -1944,7 +1989,19 @@ export default function App() {
 
     /** Extraction writes into a folder that all tabs at that path should show immediately. */
     const extractInto = async (target: string) => {
-        const result = await extractArchive(activeFolder, target, archiveEncodingRef.current);
+        let result = await extractArchive(activeFolder, target, archiveEncodingRef.current,
+            archivePasswordFor(activeFolder));
+
+        if (!result.ok && isArchivePasswordError(result.error)) {
+            const archive = archiveFile(activeFolder);
+            const typed = await requestArchivePassword(archive, !!getArchivePassword(archive));
+
+            if (typed) {
+                setArchivePassword(archive, typed);
+                result = await extractArchive(activeFolder, target, archiveEncodingRef.current, typed);
+            }
+        }
+
         if (!result.ok) {
             void showMessage(`${t("Could not extract the archive.")}${result.error ? `\n${result.error}` : ""}`);
             return;
@@ -2549,6 +2606,7 @@ export default function App() {
             )}
 
             <MessageDialog/>
+            <PasswordDialog/>
 
             <TooltipLayer/>
             <ResizeHandles/>

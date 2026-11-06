@@ -173,20 +173,22 @@ export interface FileVisibility {
 
 /** Lists one directory. Omit the path to start at the user's home directory. */
 export async function listDirectory(path?: string, sizes = true, includeLinks = false,
-    codePage = 0): Promise<DirectoryListing> {
-    return await Native.request<DirectoryListing>("fs.list", {path: path ?? null, sizes, includeLinks, codePage});
+    codePage = 0, password?: string): Promise<DirectoryListing> {
+    return await Native.request<DirectoryListing>("fs.list", {path: path ?? null, sizes, includeLinks, codePage, password});
 }
 
 /** Extracts an archive, or a folder inside one, into a folder on disk. */
-export async function extractArchive(path: string, target: string, codePage = 0): Promise<{ ok: boolean; error: string | null }> {
+export async function extractArchive(path: string, target: string, codePage = 0,
+    password?: string): Promise<{ ok: boolean; error: string | null }> {
     return await Native.request<{ ok: boolean; error: string | null }>(
-        "fs.archive.extract", {path, target, codePage});
+        "fs.archive.extract", {path, target, codePage, password});
 }
 
 /** Extracts one archive entry to a temporary file and returns its physical path for the shell. */
-export async function extractArchiveEntry(path: string, codePage = 0): Promise<{ path: string | null; error: string | null }> {
+export async function extractArchiveEntry(path: string, codePage = 0,
+    password?: string): Promise<{ path: string | null; error: string | null }> {
     return await Native.request<{ path: string | null; error: string | null }>(
-        "fs.archive.extractEntry", {path, codePage});
+        "fs.archive.extractEntry", {path, codePage, password});
 }
 
 /** Rebuilds the staged working copy over the original ZIP archive. */

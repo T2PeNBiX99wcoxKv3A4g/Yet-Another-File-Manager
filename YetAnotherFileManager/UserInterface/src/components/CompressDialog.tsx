@@ -9,10 +9,39 @@ import {SelectMenu} from "./SelectMenu";
 
 const Formats: { value: CompressOptions["format"]; label: string; extension: string; level: boolean }[] = [
     {value: "zip", label: "ZIP archive", extension: ".zip", level: true},
+    {value: "zipx", label: "ZIPX archive", extension: ".zipx", level: true},
     {value: "7z", label: "7z archive (LZMA2)", extension: ".7z", level: false},
     {value: "tar", label: "TAR archive", extension: ".tar", level: false},
     {value: "tar.gz", label: "TAR + GZip", extension: ".tar.gz", level: true},
     {value: "tar.bz2", label: "TAR + BZip2", extension: ".tar.bz2", level: false},
+];
+
+const Methods = [
+    {value: "default", label: "Automatic"},
+    {value: "store", label: "Store (no compression)"},
+    {value: "deflate", label: "Deflate"},
+    {value: "deflate64", label: "Deflate64"},
+    {value: "bzip2", label: "BZip2"},
+    {value: "lzma", label: "LZMA"},
+    {value: "ppmd", label: "PPMd"},
+];
+
+const Encryptions = [
+    {value: "none", label: "None"},
+    {value: "zipcrypto", label: "ZipCrypto"},
+    {value: "aes128", label: "AES-128"},
+    {value: "aes192", label: "AES-192"},
+    {value: "aes256", label: "AES-256"},
+];
+
+const Splits = [
+    {value: "0", label: "No split"},
+    {value: String(10 * 1024 * 1024), label: "10 MB"},
+    {value: String(50 * 1024 * 1024), label: "50 MB"},
+    {value: String(100 * 1024 * 1024), label: "100 MB"},
+    {value: String(500 * 1024 * 1024), label: "500 MB"},
+    {value: String(1024 * 1024 * 1024), label: "1 GB"},
+    {value: String(2 * 1024 * 1024 * 1024), label: "2 GB"},
 ];
 
 const Levels = [
@@ -35,6 +64,10 @@ export function CompressDialog({initialDirectory, initialName, onCancel, onCompr
     const [name, setName] = useState(initialName);
     const [format, setFormat] = useState<CompressOptions["format"]>("zip");
     const [level, setLevel] = useState("5");
+    const [method, setMethod] = useState("default");
+    const [encryption, setEncryption] = useState("none");
+    const [password, setPassword] = useState("");
+    const [split, setSplit] = useState("0");
     const [busy, setBusy] = useState(false);
 
     useEffect(() => {
@@ -56,10 +89,24 @@ export function CompressDialog({initialDirectory, initialName, onCancel, onCompr
     }, [onCancel]);
 
     const chosenFormat = Formats.find((item) => item.value === format) ?? Formats[0];
+    const zipFormat = format === "zip" || format === "zipx";
+    const encrypted = encryption !== "none";
+    const canEncrypt = zipFormat || format === "7z";
+    const canSplit = format === "7z";
     const submit = async () => {
         if (busy || !name.trim() || !directory) return;
+        if (encrypted && password.length === 0) return;
         setBusy(true);
-        const ok = await onCompress({directory, name: name.trim(), format, level: chosenFormat.level ? Number(level) : 0});
+        const ok = await onCompress({
+            directory,
+            name: name.trim(),
+            format,
+            level: chosenFormat.level ? Number(level) : 0,
+            method: zipFormat ? method : format === "7z" ? null : null,
+            encryption: canEncrypt ? encryption : "none",
+            password: encrypted ? password : undefined,
+            splitSize: canSplit ? Number(split) : 0,
+        });
         setBusy(false);
         if (ok) onCancel();
     };
@@ -93,6 +140,53 @@ export function CompressDialog({initialDirectory, initialName, onCancel, onCompr
                     />
                 </Field>
                 <Field>
+                    <Label>{t("Method")}</Label>
+                    <SelectMenu
+                        disabled={!zipFormat}
+                        onChange={setMethod}
+                        options={Methods.map((item) => ({...item, label: t(item.label)}))}
+                        value={zipFormat ? method : "default"}
+                        width={236}
+                        zIndex={3700}
+                    />
+                </Field>
+                <Field>
+                    <Label>{t("Encryption")}</Label>
+                    <SelectMenu
+                        disabled={!canEncrypt}
+                        onChange={(value) => {
+                            setEncryption(value);
+                            if (value === "none") setPassword("");
+                        }}
+                        options={Encryptions.map((item) => ({...item, label: t(item.label)}))}
+                        value={canEncrypt ? encryption : "none"}
+                        width={236}
+                        zIndex={3700}
+                    />
+                </Field>
+                {encrypted && (
+                    <Field>
+                        <Label>{t("Password")}</Label>
+                        <NameInput
+                            autoFocus
+                            onChange={(event) => setPassword(event.target.value)}
+                            type="password"
+                            value={password}
+                        />
+                    </Field>
+                )}
+                <Field>
+                    <Label>{t("Split volumes")}</Label>
+                    <SelectMenu
+                        disabled={!canSplit}
+                        onChange={setSplit}
+                        options={Splits.map((item) => ({...item, label: t(item.label)}))}
+                        value={canSplit ? split : "0"}
+                        width={236}
+                        zIndex={3700}
+                    />
+                </Field>
+                <Field>
                     <Label>{t("Compression level")}</Label>
                     <SelectMenu
                         disabled={!chosenFormat.level}
@@ -114,7 +208,8 @@ export function CompressDialog({initialDirectory, initialName, onCancel, onCompr
                 </Field>
                 <Actions>
                     <Button disabled={busy} onClick={onCancel} type="button">{t("Cancel")}</Button>
-                    <Primary disabled={busy || !name.trim()} onClick={() => void submit()} type="button">
+                    <Primary disabled={busy || !name.trim() || (encrypted && password.length === 0)}
+                        onClick={() => void submit()} type="button">
                         {busy ? t("Compressing…") : t("Compress")}
                     </Primary>
                 </Actions>

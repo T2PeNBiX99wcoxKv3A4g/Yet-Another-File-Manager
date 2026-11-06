@@ -18,7 +18,8 @@ internal sealed record UrlPayload(string Url);
 internal sealed record AppInfoPayload(string Version, string Platform, bool Rounded);
 
 /// <summary>Payload for <c>fs.list</c>. An empty path means the user's home directory.</summary>
-internal sealed record FsListRequest(string? Path, bool? Sizes = true, bool? IncludeLinks = false, int? CodePage = null);
+internal sealed record FsListRequest(string? Path, bool? Sizes = true, bool? IncludeLinks = false, int? CodePage = null,
+    string? Password = null);
 
 /// <summary>
 ///     Body for <c>fs.list</c>: the directory that was listed, its parent (null at the root), its
@@ -193,13 +194,13 @@ internal sealed record DeletePayload(
 internal sealed record ProtectedHit(string Path, string Pattern);
 
 /// <summary>Payload for <c>fs.archive.extract</c>: the archive (or a folder inside it) and where to write.</summary>
-internal sealed record ArchiveExtractRequest(string Path, string Target, int? CodePage = null);
+internal sealed record ArchiveExtractRequest(string Path, string Target, int? CodePage = null, string? Password = null);
 
 /// <summary>Body for <c>fs.archive.extract</c>.</summary>
 internal sealed record ArchiveExtractPayload(bool Ok, string? Error = null);
 
 /// <summary>Payload for opening one file or applying edits to an archive.</summary>
-internal sealed record ArchivePathRequest(string Path, int? CodePage = null);
+internal sealed record ArchivePathRequest(string Path, int? CodePage = null, string? Password = null);
 
 /// <summary>Result of rebuilding a staged archive.</summary>
 internal sealed record ArchiveApplyPayload(bool Ok, bool Changed, string? Error = null);
@@ -211,7 +212,16 @@ internal sealed record ArchiveStatusPayload(bool Registered, bool PathMatches, s
 internal sealed record ArchiveOpenPayload(string? Path, string? Error = null);
 
 /// <summary>Selected paths and output options for <c>fs.operation.compress</c>.</summary>
-internal sealed record CompressRequest(List<string> Paths, string Directory, string Name, string Format, int Level);
+internal sealed record CompressRequest(
+    List<string> Paths,
+    string Directory,
+    string Name,
+    string Format,
+    int Level,
+    string? Method = null,
+    string? Encryption = null,
+    string? Password = null,
+    long? SplitSize = null);
 
 /// <summary>Body for <c>app.protection.defaults</c>: the rules a fresh install starts with.</summary>
 internal sealed record ProtectedDefaultsPayload(List<string> Paths);
