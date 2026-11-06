@@ -309,7 +309,7 @@ export async function invokeShellVerb(
 export interface CompressOptions {
     directory: string;
     name: string;
-    format: "zip" | "tar" | "tar.gz" | "tar.bz2";
+    format: "zip" | "7z" | "tar" | "tar.gz" | "tar.bz2";
     level: number;
 }
 

@@ -57,6 +57,7 @@
   "Compression level": "圧縮レベル",
   "Destination": "保存先",
   "ZIP archive": "ZIP アーカイブ",
+  "7z archive (LZMA2)": "7z アーカイブ (LZMA2)",
   "TAR archive": "TAR アーカイブ",
   "TAR + GZip": "TAR + GZip",
   "TAR + BZip2": "TAR + BZip2",

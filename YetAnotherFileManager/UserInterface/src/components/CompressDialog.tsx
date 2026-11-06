@@ -9,6 +9,7 @@ import {SelectMenu} from "./SelectMenu";
 
 const Formats: { value: CompressOptions["format"]; label: string; extension: string; level: boolean }[] = [
     {value: "zip", label: "ZIP archive", extension: ".zip", level: true},
+    {value: "7z", label: "7z archive (LZMA2)", extension: ".7z", level: false},
     {value: "tar", label: "TAR archive", extension: ".tar", level: false},
     {value: "tar.gz", label: "TAR + GZip", extension: ".tar.gz", level: true},
     {value: "tar.bz2", label: "TAR + BZip2", extension: ".tar.bz2", level: false},

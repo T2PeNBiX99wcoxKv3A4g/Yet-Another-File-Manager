@@ -591,6 +591,7 @@ internal static partial class FileOperations
         var (archiveType, compression, extension) = request.Format.ToLowerInvariant() switch
         {
             "zip" => (ArchiveType.Zip, request.Level == 0 ? CompressionType.None : CompressionType.Deflate, ".zip"),
+            "7z" => (ArchiveType.SevenZip, CompressionType.LZMA2, ".7z"),
             "tar" => (ArchiveType.Tar, CompressionType.None, ".tar"),
             "tar.gz" => (ArchiveType.Tar, CompressionType.GZip, ".tar.gz"),
             "tar.bz2" => (ArchiveType.Tar, CompressionType.BZip2, ".tar.bz2"),
@@ -612,7 +613,7 @@ internal static partial class FileOperations
         var output = UniquePath(request.Directory, baseName, extension);
         var sources = entries.ToList();
 
-        var compressionLevel = compression.Value is CompressionType.BZip2 or CompressionType.Xz
+        var compressionLevel = compression.Value is CompressionType.BZip2 or CompressionType.Xz or CompressionType.LZMA2
             ? 0
             : Math.Clamp(request.Level, 0, 9);
         var result = await Task.Run(() => CompressCore(entries, output, archiveType, compression.Value,

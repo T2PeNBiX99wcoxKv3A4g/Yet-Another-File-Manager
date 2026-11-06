@@ -57,6 +57,7 @@
   "Compression level": "壓縮等級",
   "Destination": "目的地",
   "ZIP archive": "ZIP 壓縮檔",
+  "7z archive (LZMA2)": "7z 壓縮檔 (LZMA2)",
   "TAR archive": "TAR 壓縮檔",
   "TAR + GZip": "TAR + GZip",
   "TAR + BZip2": "TAR + BZip2",
