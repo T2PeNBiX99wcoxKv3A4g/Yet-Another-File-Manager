@@ -695,9 +695,31 @@ internal static class Archives
         return score;
     }
 
-    private static IArchive Open(string archivePath, int codePage)
+    /// <summary>Decompresses a compressed tar's outer stream with the native 7z library.</summary>
+    private static bool TryExpandWithSevenZip(string archivePath, string destination)
     {
-        var options = new ReaderOptions();
+        if (!OperatingSystem.IsWindows() || !File.Exists(SevenZipLibrary.Value))
+            return false;
+
+        try
+        {
+            using var archive = new ArchiveFile(archivePath, SevenZipLibrary.Value);
+            var entry = archive.Entries.FirstOrDefault(candidate => !candidate.IsFolder);
+            if (entry is null)
+                return false;
+
+            entry.Extract(destination, false);
+            return File.Exists(destination);
+        }
+        catch
+        {
+            TryDeleteFile(destination);
+            return false;
+        }
+    }
+
+    private static IArchive Open(string archivePath, int codePage)
+    {        var options = new ReaderOptions();
 
         if (codePage > 0)
         {
@@ -715,6 +737,28 @@ internal static class Archives
 
         if (tarCompression.Length > 0)
         {
+            // 7z.dll decompresses the outer gz/bz2/xz stream much faster than the managed streams,
+            // so the tar reader only has to walk the expanded file.
+            var streamDirectory = Path.Combine(TempRoot, "streams");
+            Directory.CreateDirectory(streamDirectory);
+            var expandedPath = Path.Combine(streamDirectory, $"{Guid.NewGuid():N}.tar");
+
+            if (TryExpandWithSevenZip(archivePath, expandedPath))
+            {
+                var stream = new FileStream(expandedPath, FileMode.Open, FileAccess.Read, FileShare.Read,
+                    131072, FileOptions.DeleteOnClose | FileOptions.RandomAccess);
+                options.ExtensionHint = ".tar";
+                try
+                {
+                    return ArchiveFactory.OpenArchive(stream, options);
+                }
+                catch
+                {
+                    stream.Dispose();
+                    throw;
+                }
+            }
+
             var input = File.OpenRead(archivePath);
             Stream decompressed = tarCompression switch
             {
