@@ -304,8 +304,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             {
                 var directory = context.Payload<DirectoryRequest>()?.Directory ?? "";
                 directory = await MapWorkspacePathAsync(directory, true);
-                return context.Reply("fs.clipboard.paste.result",
-                    new OkPayload(await FileOperations.PasteAsync(directory)));
+                var pasted = await FileOperations.PasteAsync(directory);
+                if (pasted) await ApplyArchiveChangesAsync([directory]);
+                return context.Reply("fs.clipboard.paste.result", new OkPayload(pasted));
             }
 
             case "fs.operation.delete":
@@ -318,8 +319,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                     return context.Reply("fs.operation.delete.result", blocked);
 
                 paths = await MapWorkspacePathsAsync(paths);
-                return context.Reply("fs.operation.delete.result",
-                    await FileOperations.DeleteAsync(paths, permanent));
+                var deleted = await FileOperations.DeleteAsync(paths, permanent);
+                if (deleted.Ok) await ApplyArchiveChangesAsync(paths);
+                return context.Reply("fs.operation.delete.result", deleted);
             }
 
             case "fs.archive.extract":
@@ -377,10 +379,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 var request = context.Payload<RenamePathRequest>();
                 var path = await MapWorkspacePathAsync(request?.Path ?? "");
                 var result = await FileOperations.RenameAsync(path, request?.Name ?? "");
-                return context.Reply("fs.operation.rename.result", result with
-                {
-                    Path = result.Path is null ? null : Archives.ToVirtualPath(result.Path)
-                });
+                var virtualPath = result.Path is null ? null : Archives.ToVirtualPath(result.Path);
+                if (result.Ok) await ApplyArchiveChangesAsync([path]);
+                return context.Reply("fs.operation.rename.result", result with {Path = virtualPath});
             }
 
             case "fs.operation.newFolder":
@@ -388,10 +389,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 var request = context.Payload<NewFolderRequest>();
                 var directory = await MapWorkspacePathAsync(request?.Directory ?? "", true);
                 var result = await FileOperations.NewFolderAsync(directory, request?.CaseSensitive ?? false);
-                return context.Reply("fs.operation.newFolder.result", result with
-                {
-                    Path = result.Path is null ? null : Archives.ToVirtualPath(result.Path)
-                });
+                var virtualPath = result.Path is null ? null : Archives.ToVirtualPath(result.Path);
+                if (result.Ok) await ApplyArchiveChangesAsync([directory]);
+                return context.Reply("fs.operation.newFolder.result", result with {Path = virtualPath});
             }
 
             case "fs.operation.newFile":
@@ -399,10 +399,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 var request = context.Payload<NewFileRequest>();
                 var directory = await MapWorkspacePathAsync(request?.Directory ?? "", true);
                 var result = await FileOperations.NewFileAsync(directory, request?.Extension);
-                return context.Reply("fs.operation.newFile.result", result with
-                {
-                    Path = result.Path is null ? null : Archives.ToVirtualPath(result.Path)
-                });
+                var virtualPath = result.Path is null ? null : Archives.ToVirtualPath(result.Path);
+                if (result.Ok) await ApplyArchiveChangesAsync([directory]);
+                return context.Reply("fs.operation.newFile.result", result with {Path = virtualPath});
             }
 
             case "fs.caseSensitive.get":
@@ -445,10 +444,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 var paths = await MapWorkspacePathsAsync(request.Paths);
                 var target = await MapWorkspacePathAsync(request.Target, true);
                 var result = await FileOperations.TransferAsync(request with {Paths = paths, Target = target});
-                return context.Reply("fs.operation.transfer.result", result with
-                {
-                    Created = result.Created.Select(Archives.ToVirtualPath).ToList()
-                });
+                var created = result.Created.Select(Archives.ToVirtualPath).ToList();
+                if (result.Ok) await ApplyArchiveChangesAsync([target]);
+                return context.Reply("fs.operation.transfer.result", result with {Created = created});
             }
 
             case "app.tasks":
@@ -1054,6 +1052,26 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             mapped.Add(await MapWorkspacePathAsync(path));
 
         return mapped;
+    }
+
+    /// <summary>
+    ///     Writes the staged archive back as soon as an edit finishes, so the archive on disk always
+    ///     matches what the view shows and no separate "apply" step is needed.
+    /// </summary>
+    private static async Task ApplyArchiveChangesAsync(IReadOnlyList<string> paths)
+    {
+        var archives = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var path in paths)
+            if (Archives.TryGetArchivePath(path, out var archive))
+                archives.Add(archive);
+
+        foreach (var archive in archives)
+            await Task.Run(() =>
+            {
+                if (!Archives.ApplyChanges(archive, out var error))
+                    Serilog.Log.Warning("Could not write the archive {Path}: {Error}", archive, error);
+            });
     }
 
     private static async Task<FsListPayload> ListAsync(string? path, bool measure = true, bool includeLinks = false,

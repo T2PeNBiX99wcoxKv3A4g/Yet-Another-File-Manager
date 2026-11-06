@@ -71,7 +71,7 @@ interface FileListProps {
     onSetTags?: (name: string, tags: string[], colors?: Record<string, string>) => void;
     onOpen: (path: string, newTab?: boolean) => void;
     /** Double-clicking a file hands it to the system; without this, files are inert. */
-    onOpenFile?: (path: string) => void;
+    onOpenFile?: (path: string, newTab?: boolean) => void;
     /** Show a checkbox in front of every entry. */
     showCheckboxes?: boolean;
     /** Open entries with one click instead of two. */
@@ -519,7 +519,7 @@ export function FileList({
         if (entry.isDirectory)
             onOpen(entry.fullPath, wantsNewTab(event));
         else
-            onOpenFile?.(entry.fullPath);
+            onOpenFile?.(entry.fullPath, wantsNewTab(event));
     }, [onOpen, onOpenFile]);
 
     const editTags = useCallback((entry: FileEntry, x: number, y: number) => {
@@ -1617,7 +1617,7 @@ const GridTile = memo(function GridTile({
     onToggle: (path: string) => void;
     onContextMenu: (event: ReactMouseEvent, path: string) => void;
     onOpen: (path: string, newTab?: boolean) => void;
-    onOpenFile?: (path: string) => void;
+    onOpenFile?: (path: string, newTab?: boolean) => void;
 }) {
     const t = useTranslation();
     const quick = useQuickAccess();
@@ -1654,7 +1654,7 @@ const GridTile = memo(function GridTile({
 
     const open = (event: ReactMouseEvent) => {
         if (row.entry.isDirectory) onOpen(path, wantsNewTab(event));
-        else onOpenFile?.(path);
+        else onOpenFile?.(path, wantsNewTab(event));
     };
 
     return (
@@ -1766,7 +1766,7 @@ function GridContent({
     onToggle: (path: string) => void;
     onContextMenu: (event: ReactMouseEvent, path: string) => void;
     onOpen: (path: string, newTab?: boolean) => void;
-    onOpenFile?: (path: string) => void;
+    onOpenFile?: (path: string, newTab?: boolean) => void;
     onRenameChange?: (value: string) => void;
     onRenameCommit?: () => void;
     onRenameCancel?: () => void;

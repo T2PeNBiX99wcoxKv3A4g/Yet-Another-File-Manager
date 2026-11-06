@@ -118,7 +118,7 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
                                 onChange={() => toggleColumn(column.id)}
                                 type="checkbox"
                             />
-                            <span>{column.label}</span>
+                            <span>{t(column.label)}</span>
                         </Check>
                     ))}
                     <Check>

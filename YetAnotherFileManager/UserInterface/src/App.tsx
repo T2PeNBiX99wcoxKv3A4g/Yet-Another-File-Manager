@@ -11,7 +11,6 @@ import {
     openFile,
     extractArchive,
     extractArchiveEntry,
-    applyArchiveChanges,
     recordVisit,
     saveDirectoryView,
     saveTags,
@@ -39,6 +38,7 @@ import {
 } from "./api/operations";
 import {clearTasks, listTasks, type TaskInfo} from "./api/tasks";
 import {FileList} from "./components/FileList";
+import {ContextMenu} from "./components/ContextMenu";
 import {PreviewPane, type PreviewInfo} from "./components/PreviewPane";
 import {FileTray, isPathDrag, type TrayItem} from "./components/FileTray";
 import {FileMenu} from "./components/FileMenu";
@@ -51,7 +51,6 @@ import {EmptyFind, matchesName, type FindState} from "./find";
 import {QuickAccessProvider, quickName, quickPlace, type QuickAccess} from "./quick";
 import {
     ArchiveIcon,
-    CheckIcon,
     ArrowLeftIcon,
     ArrowRightIcon,
     ArrowUpIcon,
@@ -65,7 +64,6 @@ import {
 import {OverviewView} from "./components/OverviewView";
 import {PathBar} from "./components/PathBar";
 import {SelectMenu} from "./components/SelectMenu";
-import {requestFolder} from "./folder-picker";
 import {RecycleView} from "./components/RecycleView";
 import {SettingsView} from "./components/SettingsView";
 import {GalleryView} from "./components/GalleryView";
@@ -139,6 +137,14 @@ const ArchiveEncodings = [
     {value: "950", label: "繁體中文 (CP950)"},
     {value: "949", label: "한국어 (CP949)"},
     {value: "1252", label: "Western (CP1252)"},
+    {value: "1250", label: "Central European (CP1250)"},
+    {value: "1251", label: "Cyrillic (CP1251)"},
+    {value: "1254", label: "Turkish (CP1254)"},
+    {value: "1253", label: "Greek (CP1253)"},
+    {value: "1256", label: "Arabic (CP1256)"},
+    {value: "1255", label: "Hebrew (CP1255)"},
+    {value: "1257", label: "Baltic (CP1257)"},
+    {value: "874", label: "Thai (CP874)"},
     {value: "65001", label: "UTF-8"},
 ];
 
@@ -255,6 +261,19 @@ function parentOf(path: string): string | null {
     return trimmed.slice(0, cut);
 }
 
+/** The name an archive gets when it is extracted into a folder of its own. */
+function archiveStem(path: string): string {
+    const name = baseName(path);
+    const lower = name.toLowerCase();
+    const compound = [".tar.gz", ".tar.bz2", ".tar.xz"].find((extension) => lower.endsWith(extension));
+
+    if (compound)
+        return name.slice(0, -compound.length);
+
+    const dot = name.lastIndexOf(".");
+    return dot > 0 ? name.slice(0, dot) : name;
+}
+
 /** What the folder adds up to: files right away, folders once their size has been measured. */
 function statusLine(t: Translate, listing: DirectoryListing): string {    const total = listing.entries.reduce((sum, entry) => sum + (entry.isDirectory
         ? listing.folderSizes[entry.name] ?? 0
@@ -310,6 +329,7 @@ export default function App() {
         directory: string;
         refresh: () => void;
     } | null>(null);
+    const [extractMenu, setExtractMenu] = useState<{ x: number; y: number } | null>(null);
     const [renameRequest, setRenameRequest] = useState<{
         directory: string;
         path: string;
@@ -1686,7 +1706,8 @@ export default function App() {
         Native.send({type: "fs.watch", payload: {paths: [location]}});
     }, [kind, location]);
 
-    // A change in the folder that is on screen refreshes it in place, without a spinner or a click.
+    // A change in a folder on screen refreshes every tab showing it in place, so two tabs at the
+    // same path never disagree about an entry that was just deleted, renamed or created.
     useEffect(() => {
         if (!Native.available) return;
 
@@ -1694,25 +1715,26 @@ export default function App() {
             const event = evt as { type?: string; data?: { path?: string } };
             if (event.type !== "fs.changed" || typeof event.data?.path !== "string") return;
 
-            const {tabs, activeId} = stateRef.current;
-            const tab = tabs.find((item) => item.id === activeId);
+            const changed = event.data.path;
+            const targets = stateRef.current.tabs
+                .filter((tab) => kindOf(tab) === "files" && samePath(folderOf(tab), changed));
 
-            if (!tab || kindOf(tab) !== "files" || !samePath(folderOf(tab), event.data.path)) return;
+            if (targets.length === 0) return;
 
             // Only the entries are refreshed; sizes are measured when the folder is entered.
-            // The reply may arrive after the user navigated away, so check the tab again before it
-            // is allowed to paint; otherwise a slow refresh of the old folder jumps the view back.
-            void listDirectory(event.data.path, false, includeLinks)
+            void listDirectory(changed, false, includeLinks)
                 .then((listing) => {
-                    const latest = stateRef.current.tabs.find((item) => item.id === tab.id);
+                    for (const tab of targets) {
+                        const latest = stateRef.current.tabs.find((item) => item.id === tab.id);
 
-                    if (!latest || kindOf(latest) !== "files" || latest.loading)
-                        return;
+                        if (!latest || kindOf(latest) !== "files" || latest.loading)
+                            continue;
 
-                    if (!samePath(folderOf(latest), listing.path))
-                        return;
+                        if (!samePath(folderOf(latest), listing.path))
+                            continue;
 
-                    patch(tab.id, () => ({listing}));
+                        patch(tab.id, () => ({listing}));
+                    }
                 }, () => undefined);
         });
     }, [includeLinks, patch]);
@@ -1751,10 +1773,14 @@ export default function App() {
                     if (newTab) openFiles(path);
                     else void load(tab.id, path);
                 }}
-                onOpenFile={(file) => {
+                onOpenFile={(file, newTab) => {
                     if (isArchivePath(file)) {
-                        if (settings?.archiveHandler ?? false) void load(tab.id, file);
-                        else void openFile(file);
+                        if (settings?.archiveHandler ?? false) {
+                            if (newTab) openFiles(file);
+                            else void load(tab.id, file);
+                        } else {
+                            void openFile(file);
+                        }
                         return;
                     }
 
@@ -1818,11 +1844,31 @@ export default function App() {
     const archived = kind === "files" && isArchiveLocation(activeFolder);
     const archiveWritable = archived && isZipArchiveLocation(activeFolder);
 
-    const extractActiveArchive = async () => {
+    /**
+     * Extracts the whole archive into the folder that holds it, into a folder named after the
+     * archive, or — for "auto" — into a named folder unless the archive already wraps everything
+     * in a single top-level folder.
+     */
+    const extractActiveArchive = async (mode: "here" | "named" | "auto") => {
         if (!archived) return;
 
-        const target = await requestFolder(parentOf(archiveFile(activeFolder)) ?? undefined);
-        if (!target) return;
+        const archive = archiveFile(activeFolder);
+        const parent = parentOf(archive);
+        if (!parent) return;
+
+        let named = mode === "named";
+
+        if (mode === "auto") {
+            const entries = samePath(activeFolder, archive)
+                ? active.listing?.entries ?? []
+                : (await listDirectory(archive, false, false, archiveEncodingRef.current)).entries;
+            named = !(entries.length === 1 && entries[0].isDirectory);
+        }
+
+        const separator = parent.includes("\\") ? "\\" : "/";
+        const target = named
+            ? `${parent.replace(/[\\/]+$/, "")}${separator}${archiveStem(archive)}`
+            : parent;
 
         const result = await extractArchive(activeFolder, target, archiveEncodingRef.current);
         if (!result.ok) {
@@ -1831,18 +1877,6 @@ export default function App() {
         }
 
         void load(active.id, target, true);
-    };
-
-    const applyActiveArchive = async () => {
-        if (!archiveWritable) return;
-
-        const result = await applyArchiveChanges(activeFolder, archiveEncodingRef.current);
-        if (!result.ok) {
-            alert(`${t("Could not apply archive changes.")}${result.error ? `\n${result.error}` : ""}`);
-            return;
-        }
-
-        if (result.changed) void load(active.id, activeFolder, true);
     };
 
     const changeArchiveEncoding = (value: string) => {
@@ -1910,7 +1944,7 @@ export default function App() {
                 path={kind === "files" ? activeFolder : location}
             />
 
-            {kind === "files" && !archived && (
+            {kind === "files" && (!archived || archiveWritable) && (
                 <IconButton
                     onClick={(event) => openCreateMenu(
                         event,
@@ -1937,21 +1971,16 @@ export default function App() {
                 <ArchiveActions>
                     <ToolbarSeparator/>
                     <IconButton
-                        onClick={() => void extractActiveArchive()}
+                        onClick={() => void extractActiveArchive("auto")}
+                        onContextMenu={(event) => {
+                            event.preventDefault();
+                            setExtractMenu({x: event.clientX, y: event.clientY});
+                        }}
                         title={t("Extract archive")}
                         type="button"
                     >
                         <ArchiveIcon/>
                     </IconButton>
-                    {archiveWritable && (
-                        <IconButton
-                            onClick={() => void applyActiveArchive()}
-                            title={t("Apply archive changes")}
-                            type="button"
-                        >
-                            <CheckIcon/>
-                        </IconButton>
-                    )}
                     <SelectMenu
                         onChange={changeArchiveEncoding}
                         options={ArchiveEncodings.map((option) => ({...option, label: t(option.label)}))}
@@ -2353,6 +2382,28 @@ export default function App() {
                     onCreateFile={(extension) => void createItem(extension)}
                     onCreateFolder={(caseSensitive) => void createItem(null, caseSensitive)}
                     shortcuts={shortcuts}
+                />
+            )}
+
+            {extractMenu && (
+                <ContextMenu
+                    items={[
+                        {
+                            label: t("Extract here"),
+                            onSelect: () => void extractActiveArchive("here"),
+                        },
+                        {
+                            label: t("Extract to a folder named after the archive"),
+                            onSelect: () => void extractActiveArchive("named"),
+                        },
+                        {
+                            label: t("Auto extract here"),
+                            onSelect: () => void extractActiveArchive("auto"),
+                        },
+                    ]}
+                    onClose={() => setExtractMenu(null)}
+                    x={extractMenu.x}
+                    y={extractMenu.y}
                 />
             )}
 

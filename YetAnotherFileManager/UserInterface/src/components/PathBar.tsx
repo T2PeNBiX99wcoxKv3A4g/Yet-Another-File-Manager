@@ -78,8 +78,9 @@ export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProp
 
     const commit = (event?: { ctrlKey?: boolean; metaKey?: boolean }) => {
         const target = draft.trim();
+        const newTab = Boolean(event?.ctrlKey || event?.metaKey);
         setEditing(false);
-        if (target.length > 0 && target !== path) onNavigate(target, Boolean(event?.ctrlKey || event?.metaKey));
+        if (target.length > 0 && (target !== path || newTab)) onNavigate(target, newTab);
     };
 
     // Explorer's address bar suggests the folders beside what is being typed. The listing is
@@ -248,7 +249,8 @@ export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProp
                     <CrumbButton
                         onClick={(event) => {
                             event.stopPropagation();
-                            if (crumb.path !== path) onNavigate(crumb.path, event.ctrlKey || event.metaKey);
+                            const newTab = event.ctrlKey || event.metaKey;
+                            if (newTab || crumb.path !== path) onNavigate(crumb.path, newTab);
                         }}
                         type="button"
                     >

@@ -19,7 +19,7 @@ internal static class Archives
     private static readonly string[] Extensions = ArchiveFormats.Extensions;
 
     /// <summary>Legacy code pages tried when the archive does not say how its names are encoded.</summary>
-    private static readonly int[] DetectCodePages = [932, 936, 950, 949, 1252, 437];
+    private static readonly int[] DetectCodePages = [932, 936, 950, 949, 1252, 1250, 1251, 1254, 1253, 1256, 1255, 1257, 874, 437];
 
     private static readonly ConcurrentDictionary<string, (long Length, long Ticks, int CodePage)>
         Detected = new(StringComparer.OrdinalIgnoreCase);
@@ -88,6 +88,20 @@ internal static class Archives
     {
         var root = inner.Length == 0 ? archivePath : Path.Combine(archivePath, inner);
         return name.Length == 0 ? root : Path.Combine(root, name);
+    }
+
+    /// <summary>
+    ///     Finds the archive a path belongs to, also accepting a staging path from an active edit
+    ///     workspace so a finished edit can be written back without knowing which archive it was.
+    /// </summary>
+    public static bool TryGetArchivePath(string path, out string archivePath)
+    {
+        if (TrySplit(path, out archivePath, out _))
+            return true;
+
+        var virtualPath = ToVirtualPath(path);
+        return !string.Equals(virtualPath, path, StringComparison.OrdinalIgnoreCase)
+               && TrySplit(virtualPath, out archivePath, out _);
     }
 
     /// <summary>The listing of one folder inside an archive, shaped like a directory listing.</summary>
@@ -270,6 +284,9 @@ internal static class Archives
         var full = Path.GetFullPath(path);
         foreach (var (archive, workspace) in Workspaces)
         {
+            if (full.Equals(workspace.Root, StringComparison.OrdinalIgnoreCase))
+                return archive;
+
             var prefix = workspace.Root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
             if (!full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 continue;

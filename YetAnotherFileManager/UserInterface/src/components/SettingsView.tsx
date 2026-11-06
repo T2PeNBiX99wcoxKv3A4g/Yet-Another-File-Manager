@@ -2440,7 +2440,6 @@ const Section = styled.section`
     display: flex;
     flex-direction: column;
     gap: 10px;
-    max-width: 900px;
     scroll-margin-top: 10px;
 `;
 
