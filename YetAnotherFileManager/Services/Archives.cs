@@ -16,8 +16,7 @@ namespace YetAnotherFileManager.Services;
 /// </summary>
 internal static class Archives
 {
-    private static readonly string[] Extensions =
-        [".zip", ".7z", ".rar", ".tar", ".gz", ".tgz", ".bz2", ".xz"];
+    private static readonly string[] Extensions = ArchiveFormats.Extensions;
 
     /// <summary>Legacy code pages tried when the archive does not say how its names are encoded.</summary>
     private static readonly int[] DetectCodePages = [932, 936, 950, 949, 1252, 437];
@@ -105,6 +104,11 @@ internal static class Archives
         foreach (var entry in archive.Entries)
         {
             var key = (entry.Key ?? "").Replace('\\', '/').Trim('/');
+
+            // Tar tools commonly prefix every entry with "./"; that is not a traversal.
+            while (key.StartsWith("./", StringComparison.Ordinal))
+                key = key[2..];
+
             if (key.Length == 0 || Path.IsPathRooted(key)
                 || key.Split('/').Any(part => part is ".." or "."))
                 continue;
@@ -573,8 +577,9 @@ internal static class Archives
 
         var tarCompression = Path.GetFileName(archivePath).ToLowerInvariant() switch
         {
-            var name when name.EndsWith(".tar.gz") => "gz",
-            var name when name.EndsWith(".tar.bz2") => "bz2",
+            var name when name.EndsWith(".tar.gz") || name.EndsWith(".tgz") => "gz",
+            var name when name.EndsWith(".tar.bz2") || name.EndsWith(".tbz") || name.EndsWith(".tbz2") => "bz2",
+            var name when name.EndsWith(".tar.xz") || name.EndsWith(".txz") => "xz",
             _ => "",
         };
 
@@ -587,6 +592,7 @@ internal static class Archives
                     SharpCompress.Compressors.CompressionMode.Decompress, options),
                 "bz2" => SharpCompress.Compressors.BZip2.BZip2Stream.Create(input,
                     SharpCompress.Compressors.CompressionMode.Decompress, true, false, false),
+                "xz" => new SharpCompress.Compressors.Xz.XZStream(input),
                 _ => throw new InvalidOperationException("Unsupported tar compression."),
             };
 

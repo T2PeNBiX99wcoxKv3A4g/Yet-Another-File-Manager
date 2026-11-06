@@ -744,17 +744,28 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                                 <State $on={settings?.archiveHandler ?? false}>
                                     {settings?.archiveHandler ? t("Active") : t("Off")}
                                 </State>
-                                <Toggle
-                                    $on={settings?.archiveHandler ?? false}
-                                    disabled={!settings}
-                                    onClick={() => void update({archiveHandler: !settings?.archiveHandler})}
-                                    title={settings?.archiveHandler
-                                        ? t("Stop opening archives with this app")
-                                        : t("Open archives with this app")}
+                                <ActionButton
+                                    disabled={!settings || (settings?.archiveHandler ?? false)}
+                                    onClick={() => void update({archiveHandler: true})}
                                     type="button"
                                 >
-                                    <Knob/>
-                                </Toggle>
+                                    {t("Register")}
+                                </ActionButton>
+                                {appInfo?.platform === "windows" && (
+                                    <ActionButton
+                                        onClick={() => void openUrl("ms-settings:defaultapps")}
+                                        type="button"
+                                    >
+                                        {t("Default apps…")}
+                                    </ActionButton>
+                                )}
+                                <DangerButton
+                                    disabled={!settings || !(settings?.archiveHandler ?? false)}
+                                    onClick={() => void update({archiveHandler: false})}
+                                    type="button"
+                                >
+                                    {t("Unregister")}
+                                </DangerButton>
                             </RowEnd>
                         </Row>
                         <Row>

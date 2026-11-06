@@ -15,8 +15,7 @@ internal static class ArchiveAssociations
 {
     private const string ProgId = "YAFM.Archive";
 
-    private static readonly string[] Extensions =
-        [".zip", ".7z", ".rar", ".tar", ".gz", ".tgz", ".bz2", ".xz"];
+    private static readonly string[] Extensions = ArchiveFormats.Extensions;
 
     public static void Apply(bool enabled) =>
         Try.Run(() =>
