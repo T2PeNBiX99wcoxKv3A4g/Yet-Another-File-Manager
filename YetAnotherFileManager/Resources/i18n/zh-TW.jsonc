@@ -193,6 +193,7 @@
   "Only these folders are scanned, three levels deep.": "只會掃描這些資料夾，深度三層。",
   "Open": "開啟",
   "Open archives with this app": "用此應用程式開啟壓縮檔",
+  "When this is off, opening an archive uses the system's default application instead.": "關閉時，開啟壓縮檔會改用系統預設應用程式。",
   "Open folder": "開啟資料夾",
   "Open in Terminal": "在終端機中開啟",
   "Open in new tab": "在新分頁中開啟",

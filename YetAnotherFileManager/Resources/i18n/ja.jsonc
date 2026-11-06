@@ -193,6 +193,7 @@
   "Only these folders are scanned, three levels deep.": "これらのフォルダーのみを 3 階層までスキャンします。",
   "Open": "開く",
   "Open archives with this app": "このアプリでアーカイブを開く",
+  "When this is off, opening an archive uses the system's default application instead.": "オフのときは、アーカイブをシステムの既定のアプリで開きます。",
   "Open folder": "フォルダーを開く",
   "Open in Terminal": "ターミナルで開く",
   "Open in new tab": "新しいタブで開く",

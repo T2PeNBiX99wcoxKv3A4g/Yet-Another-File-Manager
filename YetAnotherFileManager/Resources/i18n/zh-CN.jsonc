@@ -193,6 +193,7 @@
   "Only these folders are scanned, three levels deep.": "只会扫描这些文件夹，深度三层。",
   "Open": "打开",
   "Open archives with this app": "用此应用打开压缩包",
+  "When this is off, opening an archive uses the system's default application instead.": "关闭时，打开压缩包会改用系统默认应用。",
   "Open folder": "打开文件夹",
   "Open in Terminal": "在终端中打开",
   "Open in new tab": "在新标签页中打开",

@@ -4,6 +4,7 @@ import {useTranslation} from "@photino-net-utils/bridge";
 import {listHistory, undoHistory, type HistoryEntry} from "../api/history";
 import {formatClock} from "../utils/format";
 import {elevatedPanel} from "../ui/panel";
+import {panelInStyle} from "../ui/motion";
 import {ClockIcon, CrossIcon} from "./Icons";
 
 /** The title bar's session history: every recorded file operation, with an undo button per row. */
@@ -110,6 +111,7 @@ const Button = styled.button<{ $active: boolean }>`
     background: ${({$active}) => $active ? "rgba(var(--accent-rgb), 0.12)" : "transparent"};
     color: ${({$active}) => $active ? "var(--accent-primary)" : "var(--text-secondary)"};
     cursor: pointer;
+    transition: background 130ms ease, color 130ms ease;
 
     &:hover {
         background: rgba(var(--accent-rgb), 0.10);
@@ -128,6 +130,7 @@ const Panel = styled.div`
     max-height: 440px;
     overflow: hidden;
     ${elevatedPanel}
+    ${panelInStyle}
 `;
 
 const Head = styled.div`

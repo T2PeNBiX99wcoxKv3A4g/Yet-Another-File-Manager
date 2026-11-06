@@ -1076,6 +1076,16 @@ export default function App() {
         await refreshClipboard();
     }, [refreshClipboard]);
 
+    /**
+     * A paste may have moved entries out of another tab, so every listing is refreshed rather than
+     * only the folder that received the paste. The bumped token also drops stale selections.
+     */
+    const pasteFinished = useCallback(() => {
+        void pruneTray();
+        setVisibilityVersion((version) => version + 1);
+        refreshAll();
+    }, [pruneTray, refreshAll]);
+
     const moveTray = useCallback((position: { x: number; y: number }) => {
         const next = clampTrayPosition(position);
         setTrayPosition(next);
@@ -1743,7 +1753,8 @@ export default function App() {
                 }}
                 onOpenFile={(file) => {
                     if (isArchivePath(file)) {
-                        void load(tab.id, file);
+                        if (settings?.archiveHandler ?? false) void load(tab.id, file);
+                        else void openFile(file);
                         return;
                     }
 
@@ -1762,7 +1773,7 @@ export default function App() {
                 }}
                 onSetTags={(name, tags, colors) => setEntryTagsFor(tab.id, name, tags, colors)}
                 onSort={(column) => sortByFor(tab.id, column)}
-                onPaste={pruneTray}
+                onPaste={pasteFinished}
                 onClipboardChanged={() => void refreshClipboard()}
                 onTransfer={transferTo}
                 onAddToTray={(paths) => void addTrayPaths(paths)}

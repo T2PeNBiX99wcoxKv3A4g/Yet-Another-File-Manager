@@ -5,7 +5,7 @@ import type {TaskInfo} from "../api/tasks";
 import {formatBytes, plural} from "../utils/format";
 import {CheckIcon, StatusIcon, CrossIcon} from "./Icons";
 import {elevatedPanel} from "../ui/panel";
-import {fadeInStyle} from "../ui/motion";
+import {fadeInStyle, panelInStyle} from "../ui/motion";
 
 interface StatusCenterProps {
     tasks: TaskInfo[];
@@ -157,18 +157,7 @@ const Panel = styled.div`
     display: flex;
     flex-direction: column;
     ${elevatedPanel}
-    animation: yafm-activity-in 150ms cubic-bezier(0.22, 1, 0.36, 1);
-
-    @keyframes yafm-activity-in {
-        from {
-            opacity: 0;
-            transform: translateY(-6px) scale(0.985);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
-    }
+    ${panelInStyle}
 `;
 
 const PanelHead = styled.div`

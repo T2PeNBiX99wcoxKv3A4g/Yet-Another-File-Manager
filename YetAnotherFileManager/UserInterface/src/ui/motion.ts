@@ -66,6 +66,18 @@ export const slideDown = keyframes`
     }
 `;
 
+/** The title bar's floating panels, such as the status center and the history. */
+export const panelIn = keyframes`
+    from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.985);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+`;
+
 /** Backdrops behind dialogs. */
 export const fadeIn = keyframes`
     from {
@@ -93,5 +105,6 @@ export const menuInStyle = css`animation: ${menuIn} 130ms cubic-bezier(0.22, 1, 
 export const pageInStyle = css`animation: ${pageIn} 180ms cubic-bezier(0.22, 1, 0.36, 1);`;
 export const slideInRightStyle = css`animation: ${slideInRight} 190ms cubic-bezier(0.22, 1, 0.36, 1);`;
 export const slideDownStyle = css`animation: ${slideDown} 150ms cubic-bezier(0.22, 1, 0.36, 1);`;
+export const panelInStyle = css`animation: ${panelIn} 150ms cubic-bezier(0.22, 1, 0.36, 1);`;
 export const fadeInStyle = css`animation: ${fadeIn} 140ms ease-out;`;
 export const splitLineInStyle = css`animation: ${splitLineIn} 260ms cubic-bezier(0.22, 1, 0.36, 1);`;

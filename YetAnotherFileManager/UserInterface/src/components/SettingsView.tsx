@@ -736,6 +736,9 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                                 <Note>
                                     {t("Registers this app for ZIP, 7z, RAR, TAR and the other archive types on this account, so double-clicking one shows it as a folder here. Windows may still ask once which app to use.")}
                                 </Note>
+                                <Note>
+                                    {t("When this is off, opening an archive uses the system's default application instead.")}
+                                </Note>
                             </RowText>
                             <RowEnd>
                                 <State $on={settings?.archiveHandler ?? false}>
