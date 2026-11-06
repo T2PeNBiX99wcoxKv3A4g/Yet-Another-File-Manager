@@ -244,6 +244,7 @@
   "Register": "注册",
   "Registers this app for yafm:// links, for the current user only. While this is on, the app repairs the entry at every launch.": "仅为当前用户注册此应用处理 yafm:// 链接。开启时，应用会在每次启动时修复此注册项。",
   "Registers this app for ZIP, 7z, RAR, TAR and the other archive types on this account, so double-clicking one shows it as a folder here. Windows may still ask once which app to use.": "为当前用户注册此应用处理 ZIP、7z、RAR、TAR 等压缩包，双击后会在这里以文件夹方式显示。Windows 第一次可能仍会询问要使用哪个应用。",
+  "The registered path points to {path}. Register again to use this build.": "注册的可执行文件路径为 {path}。请重新注册以使用当前版本。",
   "Regular expression": "正则表达式",
   "Remove": "移除",
   "Remove everything from the tray": "从托盘移除所有内容",

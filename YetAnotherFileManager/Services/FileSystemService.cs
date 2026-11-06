@@ -245,6 +245,21 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 return context.Reply("app.scheme.result",
                     new SchemePayload(await SetSchemeAsync(context.Payload<SchemeRequest>()?.Enabled ?? false)));
 
+            case "app.archive.status":
+                return context.Reply("app.archive.status.result", ArchiveAssociations.Status());
+
+            case "app.archive.register":
+                await SettingsService.Instance.UpdateAsync(settings => settings with { ArchiveHandler = true });
+                ArchiveAssociations.Apply(true);
+                WindowManager.Instance.Notify("settings.changed", new OkPayload());
+                return context.Reply("app.archive.register.result", ArchiveAssociations.Status());
+
+            case "app.archive.unregister":
+                await SettingsService.Instance.UpdateAsync(settings => settings with { ArchiveHandler = false });
+                ArchiveAssociations.Apply(false);
+                WindowManager.Instance.Notify("settings.changed", new OkPayload());
+                return context.Reply("app.archive.unregister.result", ArchiveAssociations.Status());
+
             case "fs.list":
                 return context.Reply("fs.list.result",
                     await ListAsync(context.Payload<FsListRequest>()?.Path, context.Payload<FsListRequest>()?.Sizes ?? true,

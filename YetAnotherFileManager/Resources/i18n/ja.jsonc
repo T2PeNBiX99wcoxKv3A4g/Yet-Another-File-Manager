@@ -244,6 +244,7 @@
   "Register": "登録",
   "Registers this app for yafm:// links, for the current user only. While this is on, the app repairs the entry at every launch.": "現在のユーザーのみに対してこのアプリを yafm:// リンクに登録します。オンの間、起動のたびに登録を修復します。",
   "Registers this app for ZIP, 7z, RAR, TAR and the other archive types on this account, so double-clicking one shows it as a folder here. Windows may still ask once which app to use.": "現在のユーザーに対してこのアプリを ZIP、7z、RAR、TAR などのアーカイブに関連付け、ダブルクリックするとここでフォルダーとして表示します。初回は Windows が使用するアプリを確認する場合があります。",
+  "The registered path points to {path}. Register again to use this build.": "登録されている実行ファイルは {path} です。このビルドを使うには再登録してください。",
   "Regular expression": "正規表現",
   "Remove": "削除",
   "Remove everything from the tray": "トレイからすべて削除",

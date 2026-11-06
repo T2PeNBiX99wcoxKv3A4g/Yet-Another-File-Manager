@@ -204,6 +204,9 @@ internal sealed record ArchivePathRequest(string Path, int? CodePage = null);
 /// <summary>Result of rebuilding a staged archive.</summary>
 internal sealed record ArchiveApplyPayload(bool Ok, bool Changed, string? Error = null);
 
+/// <summary>Whether the archive ProgId exists and still points at this executable.</summary>
+internal sealed record ArchiveStatusPayload(bool Registered, bool PathMatches, string? RegisteredPath);
+
 /// <summary>Physical path of a temporary archive entry, or why it could not be extracted.</summary>
 internal sealed record ArchiveOpenPayload(string? Path, string? Error = null);
 

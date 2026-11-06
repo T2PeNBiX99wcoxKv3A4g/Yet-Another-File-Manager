@@ -6,11 +6,15 @@ import {getVisibility, listIndexTasks, type FileVisibility, type IndexTasks} fro
 import {DefaultViewDefaults} from "../api/files";
 import {clearIconCache, useIconFile, useMediaUrl} from "../api/icons";
 import {
+    getArchiveStatus,
     getDefaultProtectedPaths,
     getSettings,
+    registerArchiveHandler,
     saveSettings,
     setEntryIcon,
+    unregisterArchiveHandler,
     type AppSettings,
+    type ArchiveStatus,
 } from "../api/settings";
 import type {AppInfo} from "../api/system";
 import {requestFile, requestFolder} from "../folder-picker";
@@ -158,6 +162,9 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
     const [scheme, setSchemeState] = useState(false);
     const [schemeBusy, setSchemeBusy] = useState(false);
     const [schemeError, setSchemeError] = useState<string | null>(null);
+    const [archiveStatus, setArchiveStatus] = useState<ArchiveStatus | null>(null);
+    const [archiveBusy, setArchiveBusy] = useState(false);
+    const [archiveError, setArchiveError] = useState<string | null>(null);
     const [capturing, setCapturing] = useState<string | null>(null);
     const [tags, setTags] = useState<TagCatalogEntry[]>([]);
     const [editingTag, setEditingTag] = useState<{ name: string; value: string } | null>(null);
@@ -180,6 +187,10 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
     const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
     const defaultView = settings?.defaultView ?? DefaultViewDefaults;
     const customPresets = settings?.themePresets ?? [];
+    const archiveRegistered = archiveStatus
+        ? archiveStatus.registered && archiveStatus.pathMatches
+        : settings?.archiveHandler ?? false;
+    const archivePresent = archiveStatus?.registered ?? settings?.archiveHandler ?? false;
 
     // The shared page search highlights matches and dims or hides sections without any.
     useTextSearch(page, find ?? null, "section", onSearchMatches ?? (() => undefined), [settings]);
@@ -248,6 +259,7 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
         void getVisibility().then(setVisibility, () => setVisibility(null));
         void getSettings().then(setSettings, () => setSettings(null));
         void getScheme().then(setSchemeState, () => setSchemeState(false));
+        void getArchiveStatus().then(setArchiveStatus, () => setArchiveStatus(null));
         void listTags().then(setTags, () => setTags([]));
     }, []);
 
@@ -563,6 +575,47 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
         }
     };
 
+    const registerArchives = async () => {
+        if (archiveBusy) return;
+        setArchiveBusy(true);
+        setArchiveError(null);
+
+        try {
+            const status = await registerArchiveHandler();
+            setArchiveStatus(status);
+            const active = status.registered && status.pathMatches;
+            setSettings((current) => current ? {...current, archiveHandler: active} : current);
+            onSettingsChanged();
+
+            if (!active)
+                setArchiveError("Windows did not accept the archive registration. Try again.");
+        } catch {
+            setArchiveError("The request to Windows failed. Try again.");
+        } finally {
+            setArchiveBusy(false);
+        }
+    };
+
+    const unregisterArchives = async () => {
+        if (archiveBusy) return;
+        setArchiveBusy(true);
+        setArchiveError(null);
+
+        try {
+            const status = await unregisterArchiveHandler();
+            setArchiveStatus(status);
+            setSettings((current) => current ? {...current, archiveHandler: false} : current);
+            onSettingsChanged();
+
+            if (status.registered)
+                setArchiveError("The registration is still there. Try turning it off again.");
+        } catch {
+            setArchiveError("The request to Windows failed. Try again.");
+        } finally {
+            setArchiveBusy(false);
+        }
+    };
+
     const setOverride = async (extension: string, source: string | null) => {
         if (!settings) return;
 
@@ -739,14 +792,21 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                                 <Note>
                                     {t("When this is off, opening an archive uses the system's default application instead.")}
                                 </Note>
+                                {archiveStatus?.registered && !archiveStatus.pathMatches && (
+                                    <TagError>
+                                        {t("The registered path points to {path}. Register again to use this build.",
+                                            {path: archiveStatus.registeredPath ?? "?"})}
+                                    </TagError>
+                                )}
+                                {archiveError && <TagError>{archiveError}</TagError>}
                             </RowText>
                             <RowEnd>
-                                <State $on={settings?.archiveHandler ?? false}>
-                                    {settings?.archiveHandler ? t("Active") : t("Off")}
+                                <State $on={archiveRegistered}>
+                                    {archiveRegistered ? t("Active") : t("Off")}
                                 </State>
                                 <ActionButton
-                                    disabled={!settings || (settings?.archiveHandler ?? false)}
-                                    onClick={() => void update({archiveHandler: true})}
+                                    disabled={!settings || archiveBusy || archiveRegistered}
+                                    onClick={() => void registerArchives()}
                                     type="button"
                                 >
                                     {t("Register")}
@@ -760,8 +820,8 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                                     </ActionButton>
                                 )}
                                 <DangerButton
-                                    disabled={!settings || !(settings?.archiveHandler ?? false)}
-                                    onClick={() => void update({archiveHandler: false})}
+                                    disabled={!settings || archiveBusy || !archivePresent}
+                                    onClick={() => void unregisterArchives()}
                                     type="button"
                                 >
                                     {t("Unregister")}

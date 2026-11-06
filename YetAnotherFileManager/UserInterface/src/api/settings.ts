@@ -204,6 +204,38 @@ export async function getDefaultProtectedPaths(): Promise<string[]> {
     return data.paths ?? [];
 }
 
+export interface ArchiveStatus {
+    /** A ProgId exists for this app. */
+    registered: boolean;
+    /** The registered executable is this exact build, not another copy. */
+    pathMatches: boolean;
+    /** The executable the registration points at, when there is one. */
+    registeredPath: string | null;
+}
+
+const EmptyArchiveStatus: ArchiveStatus = {registered: false, pathMatches: false, registeredPath: null};
+
+/** Reads the current user's archive association and compares its path with this build. */
+export async function getArchiveStatus(): Promise<ArchiveStatus> {
+    if (!Native.available) return EmptyArchiveStatus;
+
+    return await Native.request<ArchiveStatus>("app.archive.status");
+}
+
+/** Registers this executable for the archive formats the app can open. */
+export async function registerArchiveHandler(): Promise<ArchiveStatus> {
+    if (!Native.available) return EmptyArchiveStatus;
+
+    return await Native.request<ArchiveStatus>("app.archive.register");
+}
+
+/** Removes this app's archive registration for the current user. */
+export async function unregisterArchiveHandler(): Promise<ArchiveStatus> {
+    if (!Native.available) return EmptyArchiveStatus;
+
+    return await Native.request<ArchiveStatus>("app.archive.unregister");
+}
+
 /** Stores the settings and answers with what the host actually kept. */
 export async function saveSettings(settings: AppSettings): Promise<AppSettings> {
     if (!Native.available) return settings;

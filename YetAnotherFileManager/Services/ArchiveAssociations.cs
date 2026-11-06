@@ -3,6 +3,7 @@ using Microsoft.Win32;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
 using Serilog;
+using YetAnotherFileManager.Messaging;
 
 namespace YetAnotherFileManager.Services;
 
@@ -23,6 +24,51 @@ internal static class ArchiveAssociations
             if (OperatingSystem.IsWindows())
                 ApplyWindows(enabled);
         }).OnFailure(ex => Log.Warning(ex, "Could not apply the archive associations"));
+
+    /// <summary>
+    ///     Reports the handler currently stored for the app's ProgId. A matching ProgId that points
+    ///     at another copy of the executable is deliberately not treated as this build's registration.
+    /// </summary>
+    public static ArchiveStatusPayload Status()
+    {
+        if (!OperatingSystem.IsWindows())
+            return new ArchiveStatusPayload(false, false, null);
+
+        string? registeredPath = null;
+
+        Try.Run(() =>
+        {
+            using var command = Registry.CurrentUser.OpenSubKey(
+                $@"Software\Classes\{ProgId}\shell\open\command");
+            registeredPath = ExecutableFrom(command?.GetValue(null) as string);
+        }).OnFailure(ex => Log.Debug(ex, "Could not read the archive association status"));
+
+        var current = Environment.ProcessPath;
+        var matches = registeredPath is { Length: > 0 } && current is { Length: > 0 }
+            && Try.Run(() => string.Equals(
+                Path.GetFullPath(registeredPath),
+                Path.GetFullPath(current),
+                StringComparison.OrdinalIgnoreCase)).GetOrElse(_ => false);
+
+        return new ArchiveStatusPayload(registeredPath is { Length: > 0 }, matches, registeredPath);
+    }
+
+    private static string? ExecutableFrom(string? command)
+    {
+        if (string.IsNullOrWhiteSpace(command))
+            return null;
+
+        var trimmed = command.Trim();
+
+        if (trimmed.StartsWith('"'))
+        {
+            var closing = trimmed.IndexOf('"', 1);
+            return closing > 1 ? Environment.ExpandEnvironmentVariables(trimmed[1..closing]) : null;
+        }
+
+        var space = trimmed.IndexOf(' ');
+        return Environment.ExpandEnvironmentVariables(space > 0 ? trimmed[..space] : trimmed);
+    }
 
     [SupportedOSPlatform("windows")]
     private static void ApplyWindows(bool enabled)
