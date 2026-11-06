@@ -129,6 +129,7 @@
   "Hide file tray": "ファイルトレイを隠す",
   "Hide the tray": "トレイを隠す",
   "Holds icons, cached folder sizes and the folder's last listing, so it opens instantly next time. Hidden and marked as a system file on Windows; skipped where the folder is read-only.": "アイコン、キャッシュしたフォルダーサイズ、前回の一覧を保持し、次回すぐに開けるようにします。Windows では非表示かつシステムファイルとして扱われ、読み取り専用のフォルダーではスキップされます。",
+  "Python environments, package builds and cache folders always use the central index so sidecar files cannot get bundled into packages.": "Python 環境、パッケージのビルド先、キャッシュでは中央インデックスを使い、索引ファイルがパッケージに混入するのを防ぎます。",
   "Home": "ホーム",
   "How many recently opened folders the overview lists. 0 hides the section.": "概要に表示する最近開いたフォルダーの数。0 でセクションを隠します。",
   "In this app": "このアプリ内",

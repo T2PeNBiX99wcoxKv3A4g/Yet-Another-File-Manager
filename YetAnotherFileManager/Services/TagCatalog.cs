@@ -247,7 +247,7 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
         foreach (var directory in directories)
         {
             // Indexes store the id, so that is what has to be removed.
-            var removed = await Try.Run(() => FolderIndex.RemoveTagAsync(directory, id));
+            var removed = await Try.Run(() => DirectoryIndex.RemoveTagAsync(directory, id));
             if (!removed.GetOrElse(_ => false))
             {
                 failed.Add(directory);
@@ -296,7 +296,7 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
         // Legacy indexes may still hold the old name; rewrite those, while ids need no change.
         foreach (var directory in directories)
         {
-            var renamed = await Try.Run(() => FolderIndex.RenameTagAsync(directory, name, next));
+            var renamed = await Try.Run(() => DirectoryIndex.RenameTagAsync(directory, name, next));
             if (!renamed.GetOrElse(_ => false))
                 Log.Debug("Could not rename tag {Tag} in {Directory}", name, directory);
         }

@@ -129,6 +129,7 @@
   "Hide file tray": "隐藏文件托盘",
   "Hide the tray": "隐藏托盘",
   "Holds icons, cached folder sizes and the folder's last listing, so it opens instantly next time. Hidden and marked as a system file on Windows; skipped where the folder is read-only.": "保存图标、缓存的文件夹大小和上次的列表，下次打开即可瞬间完成。在 Windows 上为隐藏并标记为系统文件；文件夹只读时会跳过。",
+  "Python environments, package builds and cache folders always use the central index so sidecar files cannot get bundled into packages.": "Python 环境、软件包构建目录和缓存文件夹始终使用中央索引，避免索引旁置文件被打包进软件包。",
   "Home": "主页",
   "How many recently opened folders the overview lists. 0 hides the section.": "概览列出多少个最近打开的文件夹。0 会隐藏此区域。",
   "In this app": "此应用内",

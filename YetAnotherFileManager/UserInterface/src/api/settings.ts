@@ -97,7 +97,7 @@ export interface ThemePreset {
 const fallback: AppSettings = {
     systemIcons: false,
     customFolderIcons: false,
-    writeDirectoryIndex: true,
+    writeDirectoryIndex: false,
     extensionIcons: {},
     quickAccess: null,
     recentLimit: 10,
@@ -149,7 +149,7 @@ export async function getSettings(): Promise<AppSettings> {
     return {
         systemIcons: raw?.systemIcons ?? true,
         customFolderIcons: raw?.customFolderIcons ?? true,
-        writeDirectoryIndex: raw?.writeDirectoryIndex ?? true,
+        writeDirectoryIndex: raw?.writeDirectoryIndex ?? false,
         extensionIcons: raw?.extensionIcons ?? {},
         quickAccess: raw?.quickAccess ?? null,
         recentLimit: raw?.recentLimit ?? 10,

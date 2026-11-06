@@ -1929,9 +1929,12 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                                 <Note>
                                     {t("Holds icons, cached folder sizes and the folder's last listing, so it opens instantly next time. Hidden and marked as a system file on Windows; skipped where the folder is read-only.")}
                                 </Note>
+                                <Note>
+                                    {t("Python environments, package builds and cache folders always use the central index so sidecar files cannot get bundled into packages.")}
+                                </Note>
                             </RowText>
                             <Toggle
-                                $on={settings?.writeDirectoryIndex ?? true}
+                                $on={settings?.writeDirectoryIndex ?? false}
                                 disabled={!settings}
                                 onClick={() => void update({writeDirectoryIndex: !settings?.writeDirectoryIndex})}
                                 type="button"
@@ -1940,7 +1943,7 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                             </Toggle>
                         </Row>
                     </Rows>
-                    {!(settings?.writeDirectoryIndex ?? true) && (
+                    {!(settings?.writeDirectoryIndex ?? false) && (
                         <Notice>{folderIndexNotice(t, appInfo?.platform)}</Notice>
                     )}
                 </Section>
