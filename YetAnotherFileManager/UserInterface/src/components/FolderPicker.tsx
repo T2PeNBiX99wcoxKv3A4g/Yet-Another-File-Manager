@@ -168,6 +168,25 @@ export function FolderPicker({
                 return;
             }
 
+            // Typing anywhere in the list starts a search with that letter, exactly like the file
+            // browser; fields keep their own text.
+            if (event.key.length === 1 && event.key !== " "
+                && !event.ctrlKey && !event.altKey && !event.metaKey) {
+                const target = event.target;
+                if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement
+                    || target instanceof HTMLSelectElement)
+                    return;
+
+                event.preventDefault();
+                setFind((current) => ({
+                    ...current,
+                    open: true,
+                    query: current.open ? current.query + event.key : event.key,
+                }));
+                setFindFocus((token) => token + 1);
+                return;
+            }
+
             if (event.key !== "Enter")
                 return;
 

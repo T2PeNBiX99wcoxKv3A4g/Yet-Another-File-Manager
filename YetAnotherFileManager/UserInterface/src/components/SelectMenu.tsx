@@ -15,13 +15,17 @@ export interface SelectOption {
  * The app's own dropdown. A native <select> would be drawn by the browser, which ignores the
  * theme and looks nothing like the rest of the surface, so the list is rendered in a portal.
  */
-export function SelectMenu({value, options, onChange, disabled, width, zIndex = 3200}: {
+export function SelectMenu({value, options, onChange, disabled, width, icon, tooltip, zIndex = 3200}: {
     value: string;
     options: SelectOption[];
     onChange: (value: string) => void;
     disabled?: boolean;
     /** Width of the button; the menu never gets narrower than it. */
     width?: number;
+    /** Draw the trigger as an icon button instead of showing the selected label. */
+    icon?: ReactNode;
+    /** Tooltip for an icon trigger; the menu itself still shows every label. */
+    tooltip?: string;
     /** Place this menu above a modal that owns the trigger. */
     zIndex?: number;
 }) {
@@ -86,17 +90,20 @@ export function SelectMenu({value, options, onChange, disabled, width, zIndex = 
     return (
         <>
             <Trigger
+                $icon={icon !== undefined}
                 aria-expanded={anchor !== null}
                 aria-haspopup="listbox"
                 disabled={disabled}
                 onClick={toggle}
                 ref={button}
-                style={width ? {width} : undefined}
-                title={current?.title}
+                style={width && !icon ? {width} : undefined}
+                title={tooltip ?? current?.title}
                 type="button"
             >
-                <TriggerLabel>{current?.label ?? ""}</TriggerLabel>
-                <Chevron><ChevronRightIcon size={11}/></Chevron>
+                {icon !== undefined
+                    ? <TriggerIcon>{icon}</TriggerIcon>
+                    : <TriggerLabel>{current?.label ?? ""}</TriggerLabel>}
+                {icon === undefined && <Chevron><ChevronRightIcon size={11}/></Chevron>}
             </Trigger>
             {anchor && createPortal(
                 <Menu
@@ -130,14 +137,15 @@ export function SelectMenu({value, options, onChange, disabled, width, zIndex = 
     );
 }
 
-const Trigger = styled.button`
+const Trigger = styled.button<{ $icon?: boolean }>`
     display: inline-flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: ${({$icon}) => $icon ? "center" : "space-between"};
     gap: 10px;
-    min-width: 120px;
+    min-width: ${({$icon}) => $icon ? "34px" : "120px"};
+    width: ${({$icon}) => $icon ? "34px" : undefined};
     height: 32px;
-    padding: 0 9px 0 10px;
+    padding: ${({$icon}) => $icon ? "0" : "0 9px 0 10px"};
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     background: var(--bg-input);
@@ -166,6 +174,13 @@ const TriggerLabel = styled.span`
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+`;
+
+const TriggerIcon = styled.span`
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    color: var(--text-secondary);
 `;
 
 const Chevron = styled.span`

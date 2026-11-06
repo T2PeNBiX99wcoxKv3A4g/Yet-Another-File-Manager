@@ -61,13 +61,17 @@ public sealed record AppSettings(
     /// <summary>Show ordinary hidden files; null follows Explorer (or off elsewhere).</summary>
     bool? ShowHidden,
     /// <summary>Register this app for the usual archive extensions, per user and reversible.</summary>
-    bool? ArchiveHandler)
+    bool? ArchiveHandler,
+    /// <summary>Preferred width of the standalone folder/file picker window.</summary>
+    int? PickerWindowWidth,
+    /// <summary>Preferred height of the standalone folder/file picker window.</summary>
+    int? PickerWindowHeight)
 {
     public static AppSettings Default =>
         new(true, true, true, ["**/uv/cache/**"], [], null, 10, null, ["quick", "frequent", "recent", "home", "drives"], null, 1, null,
             null, null, null, null, null, ["quick", "frequent", "recent", "drives"], null, null, true, null, 0, null,
             true, false, false, false, false, null, null, null, null, false, null, null, null, null, null, null, 5,
-            "24", null, null, false);
+            "24", null, null, false, 1200, 800);
 
     // The accessors below are derived, so they are kept out of settings.json entirely; only the
     // fields above are stored, and the JSON stays readable and stable.
@@ -178,4 +182,12 @@ public sealed record AppSettings(
     /// <summary>Start a video preview automatically; off means the user presses play.</summary>
     [JsonIgnore]
     public bool AutoplaysPreviewVideo => PreviewVideoAutoplay ?? false;
+
+    /// <summary>Standalone picker width; clamped so the window always stays usable.</summary>
+    [JsonIgnore]
+    public int PickerWidth => Math.Clamp(PickerWindowWidth ?? 1200, 640, 4000);
+
+    /// <summary>Standalone picker height; clamped so the window always stays usable.</summary>
+    [JsonIgnore]
+    public int PickerHeight => Math.Clamp(PickerWindowHeight ?? 800, 400, 3000);
 }

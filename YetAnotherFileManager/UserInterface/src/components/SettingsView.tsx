@@ -174,6 +174,7 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
     const [newTagColor, setNewTagColor] = useState(DefaultTagColor);
     const [ruleDraft, setRuleDraft] = useState<{ from: string; value: string } | null>(null);
     const [directoryRuleDraft, setDirectoryRuleDraft] = useState<{ from: string; value: string } | null>(null);
+    const [newProtectedRule, setNewProtectedRule] = useState("");
     const [newDirectoryRule, setNewDirectoryRule] = useState("");
     const [timeDraft, setTimeDraft] = useState<string | null>(null);
     const [recentColors, setRecentColors] = useState<RecentColors>(readRecentColors);
@@ -311,7 +312,7 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
     };
 
     /** Adds the picked folder to the protected list as a "folder and everything below" rule. */
-    const addProtected = async () => {
+    const addProtectedFolder = async () => {
         if (!settings) return;
 
         const folder = await requestFolder();
@@ -325,6 +326,15 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
             return;
 
         await update({protectedPaths: [...settings.protectedPaths, pattern]});
+    };
+
+    /** Adds a rule exactly as typed, so a name or glob does not need a folder picker. */
+    const addProtectedRule = () => {
+        const value = newProtectedRule.trim();
+        if (!settings || !value || settings.protectedPaths.includes(value)) return;
+
+        setNewProtectedRule("");
+        void update({protectedPaths: [...settings.protectedPaths, value]});
     };
 
     /** Saves the edited rule when the field loses focus or Enter is pressed. */
@@ -372,6 +382,23 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
 
         setNewDirectoryRule("");
         void update({directoryIndexBlacklist: [...settings.directoryIndexBlacklist, value]});
+    };
+
+    /** Adds the picked folder and its subtree as a blacklist rule. */
+    const addDirectoryFolder = async () => {
+        if (!settings) return;
+
+        const folder = await requestFolder();
+        if (!folder) return;
+
+        const separator = appInfo?.platform === "windows" ? "\\" : "/";
+        const base = folder.replace(/[\\/]+$/, "");
+        const pattern = `${base}${separator}**`;
+
+        if (settings.directoryIndexBlacklist.includes(pattern))
+            return;
+
+        await update({directoryIndexBlacklist: [...settings.directoryIndexBlacklist, pattern]});
     };
 
     const removeDirectoryRule = (pattern: string) => {
@@ -735,6 +762,33 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                                     onChange={(code) => void update({language: code})}
                                     options={[SystemLanguage, ...(languages.length > 0 ? languages : [DefaultLanguage])]}
                                     value={settings?.language ?? DefaultLanguage}
+                                />
+                            </RowEnd>
+                        </Row>
+                        <Row>
+                            <RowText>
+                                <Label>{t("Picker window size")}</Label>
+                                <Note>{t("The size the folder and file picker opens at. Width and height are in pixels.")}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <Input
+                                    max={4000}
+                                    min={640}
+                                    onChange={(event) => void update({
+                                        pickerWindowWidth: Math.min(4000, Math.max(640, Number(event.target.value) || 1200)),
+                                    })}
+                                    type="number"
+                                    value={settings?.pickerWindowWidth ?? 1200}
+                                />
+                                <Value>×</Value>
+                                <Input
+                                    max={3000}
+                                    min={400}
+                                    onChange={(event) => void update({
+                                        pickerWindowHeight: Math.min(3000, Math.max(400, Number(event.target.value) || 800)),
+                                    })}
+                                    type="number"
+                                    value={settings?.pickerWindowHeight ?? 800}
                                 />
                             </RowEnd>
                         </Row>
@@ -1301,11 +1355,29 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                                     </ProtectRow>
                                 ))}
                             </ProtectList>
+                            <ProtectNewRule>
+                                <RuleInput
+                                    aria-label={t("New protected rule")}
+                                    onChange={(event) => setNewProtectedRule(event.target.value)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === "Enter") {
+                                            event.preventDefault();
+                                            addProtectedRule();
+                                        }
+                                    }}
+                                    placeholder="*.log"
+                                    spellCheck={false}
+                                    value={newProtectedRule}
+                                />
+                                <SmallButton onClick={addProtectedRule} type="button">
+                                    {t("Add the rule")}
+                                </SmallButton>
+                            </ProtectNewRule>
                             <ProtectAdd>
                                 <SmallButton onClick={() => void restoreProtectedDefaults()} type="button">
                                     {t("Restore defaults")}
                                 </SmallButton>
-                                <SmallButton onClick={() => void addProtected()} type="button">
+                                <SmallButton onClick={() => void addProtectedFolder()} type="button">
                                     {t("Add folder…")}
                                 </SmallButton>
                             </ProtectAdd>
@@ -2078,11 +2150,9 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                                     </ProtectRow>
                                 ))}
                             </ProtectList>
-                            <ProtectAdd>
-                                <SmallButton onClick={restoreDirectoryRules} type="button">
-                                    {t("Restore defaults")}
-                                </SmallButton>
-                                <Input
+                            <ProtectNewRule>
+                                <RuleInput
+                                    aria-label={t("Directory index blacklist rule")}
                                     onChange={(event) => setNewDirectoryRule(event.target.value)}
                                     onKeyDown={(event) => {
                                         if (event.key === "Enter") {
@@ -2096,6 +2166,14 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                                 />
                                 <SmallButton onClick={addDirectoryRule} type="button">
                                     {t("Add the rule")}
+                                </SmallButton>
+                            </ProtectNewRule>
+                            <ProtectAdd>
+                                <SmallButton onClick={restoreDirectoryRules} type="button">
+                                    {t("Restore defaults")}
+                                </SmallButton>
+                                <SmallButton onClick={() => void addDirectoryFolder()} type="button">
+                                    {t("Add folder…")}
                                 </SmallButton>
                             </ProtectAdd>
                         </Block>
@@ -3372,6 +3450,32 @@ const ProtectAdd = styled.div`
     justify-content: flex-end;
     gap: 10px;
     margin-top: 2px;
+`;
+
+/** The new-rule row sits under the list and matches its width, with the add button after it. */
+const ProtectNewRule = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
+`;
+
+const RuleInput = styled.input`
+    flex: 1;
+    min-width: 0;
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    outline: 0;
+
+    &:focus {
+        border-color: var(--border-color-focus);
+        box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.12);
+    }
 `;
 
 const TimeModesRow = styled.div`

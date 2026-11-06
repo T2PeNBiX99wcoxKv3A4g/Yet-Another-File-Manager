@@ -10,9 +10,11 @@ import {
     type ResolvedView,
 } from "../api/files";
 import type {ShortcutMap} from "../shortcuts";
-import {appLocale} from "../utils/format";
+import {appLocale, formatBytes, formatDate, plural} from "../utils/format";
+import {readStoredNumber, writeStoredNumber} from "../storage";
 import {RefreshIcon} from "./Icons";
 import {FileList} from "./FileList";
+import {PreviewPane, type PreviewInfo} from "./PreviewPane";
 import {NoFind, matchesName, type FindView} from "../find";
 import type {PageFind} from "../ui/textSearch";
 
@@ -49,6 +51,12 @@ interface GalleryViewProps {
     onSelectionChange?: (paths: string[]) => void;
     /** Adds the selected pictures to the file tray, like the file browser's menu. */
     onAddToTray?: (paths: string[]) => void;
+    /** Draw the right-side details pane, like the file browser and the recycle bin. */
+    showDetails?: boolean;
+    /** Play a video preview's audio; off means muted. */
+    videoAudio?: boolean;
+    /** Start a video preview automatically; off means the user presses play. */
+    videoAutoplay?: boolean;
 }
 
 /**
@@ -66,6 +74,9 @@ export function GalleryView({
     onPick,
     onSelectionChange,
     onAddToTray,
+    showDetails = true,
+    videoAudio = false,
+    videoAutoplay = false,
 }: GalleryViewProps) {
     const t = useTranslation();
     const [entries, setEntries] = useState<GalleryEntry[]>([]);
@@ -73,6 +84,11 @@ export function GalleryView({
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
+    const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
+    const [previewWidth, setPreviewWidth] = useState(() => {
+        const saved = readStoredNumber("yafm.gallery.preview.width", 320);
+        return saved >= 220 ? saved : 320;
+    });
 
     const entriesRef = useRef<GalleryEntry[]>([]);
     const totalRef = useRef(0);
@@ -278,6 +294,39 @@ export function GalleryView({
         onSearchMatches?.(matching.length);
     }, [matching.length, onSearchMatches]);
 
+    const handleSelection = useCallback((paths: string[]) => {
+        setSelectedPaths(paths);
+        onSelectionChange?.(paths);
+    }, [onSelectionChange]);
+
+    const resizePreview = (width: number) => {
+        setPreviewWidth(width);
+        writeStoredNumber("yafm.gallery.preview.width", width);
+    };
+
+    const previewEntry = selectedPaths.length > 0
+        ? entries.find((entry) => entry.path === selectedPaths[0]) ?? null
+        : null;
+    const previewInfo: PreviewInfo | null = previewEntry
+        ? {
+            name: previewEntry.name,
+            path: previewEntry.path,
+            isDirectory: false,
+            size: previewEntry.size,
+            modified: previewEntry.modified,
+            fields: [
+                {
+                    label: t("Type"),
+                    value: previewEntry.name.includes(".")
+                        ? previewEntry.name.slice(previewEntry.name.lastIndexOf(".") + 1).toUpperCase()
+                        : "—",
+                },
+                {label: t("Size"), value: formatBytes(previewEntry.size)},
+                {label: t("Modified"), value: formatDate(previewEntry.modified)},
+            ],
+        }
+        : null;
+
     return (
         <Page>
             <Header>
@@ -295,29 +344,46 @@ export function GalleryView({
             {!error && !loading && total === 0 && <Message>{t("No pictures found.")}</Message>}
 
             {!error && (loading || total > 0) && (
-                <FileList
-                    confirmDelete={confirmDelete}
-                    find={findView}
-                    listing={loading && entries.length === 0 ? null : listing}
-                    loading={loading}
-                    error={null}
-                    view={galleryView}
-                    showImages={false}
-                    showDetails={false}
-                    showCheckboxes={showCheckboxes}
-                    openOnSingleClick={openOnSingleClick}
-                    shortcuts={shortcuts}
-                    onSelectionChange={onSelectionChange}
-                    onSort={() => undefined}
-                    onOpen={open}
-                    onOpenFile={open}
-                    onRefresh={refresh}
-                    onAddToTray={onAddToTray}
-                    groupOf={groupOf}
-                    onGridScroll={onScroll}
-                    gridFooter={<Sentinel $space={hasMore ? MoreSpace : 1} ref={sentinel}/>}
-                    allowBackgroundMenu={false}
-                />
+                <GalleryBody>
+                    <GridPane>
+                        <FileList
+                            confirmDelete={confirmDelete}
+                            find={findView}
+                            listing={loading && entries.length === 0 ? null : listing}
+                            loading={loading}
+                            error={null}
+                            view={galleryView}
+                            showImages={false}
+                            showDetails={false}
+                            showCheckboxes={showCheckboxes}
+                            openOnSingleClick={openOnSingleClick}
+                            shortcuts={shortcuts}
+                            onSelectionChange={handleSelection}
+                            onSort={() => undefined}
+                            onOpen={open}
+                            onOpenFile={open}
+                            onRefresh={refresh}
+                            onAddToTray={onAddToTray}
+                            groupOf={groupOf}
+                            onGridScroll={onScroll}
+                            gridFooter={<Sentinel $space={hasMore ? MoreSpace : 1} ref={sentinel}/>}
+                            allowBackgroundMenu={false}
+                        />
+                    </GridPane>
+                    {showDetails && (
+                        <PreviewPane
+                            emptyNote={t("Nothing selected.")}
+                            info={previewInfo}
+                            onWidth={resizePreview}
+                            selectionNote={selectedPaths.length > 1
+                                ? plural(t, selectedPaths.length, "1 item selected", "{count} items selected")
+                                : undefined}
+                            videoAudio={videoAudio}
+                            videoAutoplay={videoAutoplay}
+                            width={previewWidth}
+                        />
+                    )}
+                </GalleryBody>
             )}
         </Page>
     );
@@ -358,6 +424,20 @@ const Page = styled.div`
     display: flex;
     flex-direction: column;
     flex: 1;
+    min-height: 0;
+`;
+
+const GalleryBody = styled.div`
+    display: flex;
+    flex: 1;
+    min-height: 0;
+`;
+
+const GridPane = styled.div`
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
     min-height: 0;
 `;
 

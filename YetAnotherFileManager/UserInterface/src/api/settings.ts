@@ -82,6 +82,10 @@ export interface AppSettings {
     timeFormat: string;
     /** Pattern used when timeFormat is "custom". */
     timeFormatPattern: string;
+    /** Preferred width of the standalone folder/file picker window. */
+    pickerWindowWidth: number;
+    /** Preferred height of the standalone folder/file picker window. */
+    pickerWindowHeight: number;
     /** UI language such as "en" or "zh-TW"; null means English, "system" follows the OS. */
     language: string | null;
     /** Colour pairs the user saved; the built-in presets live in the settings page. */
@@ -138,6 +142,8 @@ const fallback: AppSettings = {
     deleteDelaySeconds: 5,
     timeFormat: "24",
     timeFormatPattern: "yyyy/MM/dd HH:mm",
+    pickerWindowWidth: 1200,
+    pickerWindowHeight: 800,
     language: null,
     themePresets: [],
 };
@@ -191,6 +197,8 @@ export async function getSettings(): Promise<AppSettings> {
         deleteDelaySeconds: raw?.deleteDelaySeconds ?? 5,
         timeFormat: raw?.timeFormat ?? "24",
         timeFormatPattern: raw?.timeFormatPattern ?? "yyyy/MM/dd HH:mm",
+        pickerWindowWidth: raw?.pickerWindowWidth ?? 1200,
+        pickerWindowHeight: raw?.pickerWindowHeight ?? 800,
         language: raw?.language ?? null,
         themePresets: raw?.themePresets ?? [],
     };
@@ -285,6 +293,8 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         deleteDelaySeconds: saved?.deleteDelaySeconds ?? settings.deleteDelaySeconds,
         timeFormat: saved?.timeFormat ?? settings.timeFormat,
         timeFormatPattern: saved?.timeFormatPattern ?? settings.timeFormatPattern,
+        pickerWindowWidth: saved?.pickerWindowWidth ?? settings.pickerWindowWidth,
+        pickerWindowHeight: saved?.pickerWindowHeight ?? settings.pickerWindowHeight,
         language: saved?.language ?? settings.language,
         themePresets: saved?.themePresets ?? settings.themePresets,
     };

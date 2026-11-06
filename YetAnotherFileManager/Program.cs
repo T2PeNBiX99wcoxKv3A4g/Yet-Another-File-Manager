@@ -226,9 +226,10 @@ _ = UpdateService.Instance;
         manager.IconPath = AppIcon.EnsureExtracted(typeof(Program).Assembly, Constants.Name);
         manager.Picker = picker;
 
+        var settings = SettingsService.Instance.Current;
         manager.CreateMainWindow(
             Localization.Get(picker.FileMode ? "Choose a file" : "Choose a folder"),
-            1000, 680, 720, 480);
+            settings.PickerWidth, settings.PickerHeight, 720, 480);
 
         manager.Run();
     }

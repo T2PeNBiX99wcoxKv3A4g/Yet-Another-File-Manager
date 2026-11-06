@@ -55,6 +55,7 @@ import {
     ArrowRightIcon,
     ArrowUpIcon,
     GearIcon,
+    GlobeIcon,
     ImageIcon,
     OverviewIcon,
     PlusIcon,
@@ -64,6 +65,7 @@ import {
 import {OverviewView} from "./components/OverviewView";
 import {PathBar} from "./components/PathBar";
 import {SelectMenu} from "./components/SelectMenu";
+import {requestFolder} from "./folder-picker";
 import {RecycleView} from "./components/RecycleView";
 import {SettingsView} from "./components/SettingsView";
 import {GalleryView} from "./components/GalleryView";
@@ -132,10 +134,10 @@ const ClosedTabLimit = 20;
  */
 const ArchiveEncodings = [
     {value: "0", label: "Auto"},
-    {value: "932", label: "日本語 (CP932)"},
-    {value: "936", label: "简体中文 (CP936)"},
-    {value: "950", label: "繁體中文 (CP950)"},
-    {value: "949", label: "한국어 (CP949)"},
+    {value: "932", label: "Japanese (CP932)"},
+    {value: "936", label: "Simplified Chinese (CP936)"},
+    {value: "950", label: "Traditional Chinese (CP950)"},
+    {value: "949", label: "Korean (CP949)"},
     {value: "1252", label: "Western (CP1252)"},
     {value: "1250", label: "Central European (CP1250)"},
     {value: "1251", label: "Cyrillic (CP1251)"},
@@ -770,6 +772,16 @@ export default function App() {
         if (path && !viewKind(path)) void load(tab.id, path);
 
         return tab.id;
+    }, [load]);
+
+    /** Reloads every file tab showing this folder, so two tabs at one path never drift apart. */
+    const refreshFolderTabs = useCallback((path: string) => {
+        for (const tab of stateRef.current.tabs) {
+            if (kindOf(tab) !== "files" || !samePath(folderOf(tab), path))
+                continue;
+
+            void load(tab.id, path, true);
+        }
     }, [load]);
 
     /** The sidebar and the overview replace the page the active tab shows, or open a new tab. */
@@ -1696,15 +1708,34 @@ export default function App() {
         };
     }, [goBack, goForward]);
 
-    // Only the folder on screen is watched; the host tells us when something in it changes.
+    // Every file tab that can be on screen is watched, not just the active one, and an archive tab
+    // watches the folder that holds the archive. A write from another tab, an extraction or an
+    // outside tool therefore reaches every tab that shows the same place.
     useEffect(() => {
         if (!Native.available) return;
 
         // The overview watches its own folders, so this only speaks for a files tab.
         if (kind !== "files") return;
 
-        Native.send({type: "fs.watch", payload: {paths: [location]}});
-    }, [kind, location]);
+        const paths = new Set<string>();
+
+        for (const tab of tabs) {
+            if (kindOf(tab) !== "files") continue;
+
+            const folder = folderOf(tab);
+            if (!folder) continue;
+
+            if (isArchiveLocation(folder)) {
+                const parent = parentOf(archiveFile(folder));
+                if (parent) paths.add(parent);
+            } else {
+                paths.add(folder);
+            }
+        }
+
+        if (paths.size > 0)
+            Native.send({type: "fs.watch", payload: {paths: [...paths]}});
+    }, [kind, location, tabs]);
 
     // A change in a folder on screen refreshes every tab showing it in place, so two tabs at the
     // same path never disagree about an entry that was just deleted, renamed or created.
@@ -1795,7 +1826,8 @@ export default function App() {
                     void openFile(file);
                 }}
                 onRefresh={() => {
-                    if (tab.listing) void load(tab.id, tab.listing.path, true);
+                    const folder = tab.listing?.path;
+                    if (folder) refreshFolderTabs(folder);
                 }}
                 onSetTags={(name, tags, colors) => setEntryTagsFor(tab.id, name, tags, colors)}
                 onSort={(column) => sortByFor(tab.id, column)}
@@ -1847,7 +1879,7 @@ export default function App() {
     /**
      * Extracts the whole archive into the folder that holds it, into a folder named after the
      * archive, or — for "auto" — into a named folder unless the archive already wraps everything
-     * in a single top-level folder.
+     * in a single top-level folder. The toolbar's left click asks for a target instead.
      */
     const extractActiveArchive = async (mode: "here" | "named" | "auto") => {
         if (!archived) return;
@@ -1870,13 +1902,27 @@ export default function App() {
             ? `${parent.replace(/[\\/]+$/, "")}${separator}${archiveStem(archive)}`
             : parent;
 
+        await extractInto(target);
+    };
+
+    /** Extraction writes into a folder that all tabs at that path should show immediately. */
+    const extractInto = async (target: string) => {
         const result = await extractArchive(activeFolder, target, archiveEncodingRef.current);
         if (!result.ok) {
             alert(`${t("Could not extract the archive.")}${result.error ? `\n${result.error}` : ""}`);
             return;
         }
 
+        refreshFolderTabs(target);
         void load(active.id, target, true);
+    };
+
+    /** The toolbar's plain click keeps letting the user choose where the archive goes. */
+    const chooseExtractFolder = async () => {
+        if (!archived) return;
+
+        const target = await requestFolder(parentOf(archiveFile(activeFolder)) ?? undefined);
+        if (target) await extractInto(target);
     };
 
     const changeArchiveEncoding = (value: string) => {
@@ -1971,7 +2017,7 @@ export default function App() {
                 <ArchiveActions>
                     <ToolbarSeparator/>
                     <IconButton
-                        onClick={() => void extractActiveArchive("auto")}
+                        onClick={() => void chooseExtractFolder()}
                         onContextMenu={(event) => {
                             event.preventDefault();
                             setExtractMenu({x: event.clientX, y: event.clientY});
@@ -1982,10 +2028,11 @@ export default function App() {
                         <ArchiveIcon/>
                     </IconButton>
                     <SelectMenu
+                        icon={<GlobeIcon size={15}/>}
                         onChange={changeArchiveEncoding}
                         options={ArchiveEncodings.map((option) => ({...option, label: t(option.label)}))}
+                        tooltip={`${t("Archive encoding")}: ${t(ArchiveEncodings.find((option) => option.value === String(archiveEncoding))?.label ?? "Auto")}`}
                         value={String(archiveEncoding)}
-                        width={116}
                     />
                 </ArchiveActions>
             )}
@@ -2022,7 +2069,7 @@ export default function App() {
                 canSplit={kind === "files"}
                 onToggleSplit={toggleSplit}
                 details={detailsVisible}
-                canDetails={kind === "files" || kind === "recycle"}
+                canDetails={kind === "files" || kind === "recycle" || kind === "gallery"}
                 onToggleDetails={() => setDetailsVisible((visible) => !visible)}
                 shortcuts={shortcuts}
                 view={view}
@@ -2318,6 +2365,9 @@ export default function App() {
                             onAddToTray={(paths) => void addTrayPaths(paths)}
                             shortcuts={shortcuts}
                             showCheckboxes={settings?.showCheckboxes ?? true}
+                            showDetails={detailsVisible}
+                            videoAudio={settings?.previewVideoAudio ?? false}
+                            videoAutoplay={settings?.previewVideoAutoplay ?? false}
                             view={view}
                         />
                     ) : (

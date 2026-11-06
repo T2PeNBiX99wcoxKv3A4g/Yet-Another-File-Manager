@@ -1,9 +1,11 @@
-import {useEffect} from "react";
+import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
 import {Native, ResizeHandles, useTranslation, useWindowDrag} from "@photino-net-utils/bridge";
 import {getSettings} from "./api/settings";
+import {setProtectedDeleteAsker, type ProtectedDeletePrompt} from "./api/safety";
 import {applyTheme} from "./theme";
 import {FolderPicker} from "./components/FolderPicker";
+import {ProtectedDeleteDialog} from "./components/ProtectedDeleteDialog";
 import {AppIcon, CrossIcon} from "./components/Icons";
 
 interface PickerWindowProps {
@@ -20,6 +22,26 @@ interface PickerWindowProps {
 export function PickerWindow({mode, multiple, extensions, initial}: PickerWindowProps) {
     const t = useTranslation();
     const drag = useWindowDrag();
+    const [protectedDelete, setProtectedDelete] = useState<{
+        id: number;
+        prompt: ProtectedDeletePrompt;
+        resolve: (allowed: boolean) => void;
+    } | null>(null);
+    const protectedDeleteId = useRef(0);
+
+    useEffect(() => {
+        // The recovery watcher reloads a page that never reports its first render, which used to
+        // reset the picker to its starting folder after twenty seconds.
+        Native.send({type: "app.ready"});
+    }, []);
+
+    useEffect(() => {
+        setProtectedDeleteAsker((prompt) => new Promise<boolean>((resolve) => {
+            setProtectedDelete({id: ++protectedDeleteId.current, prompt, resolve});
+        }));
+
+        return () => setProtectedDeleteAsker(null);
+    }, []);
 
     useEffect(() => {
         void getSettings().then(
@@ -34,7 +56,12 @@ export function PickerWindow({mode, multiple, extensions, initial}: PickerWindow
                 <Mark><AppIcon size={17}/></Mark>
                 <BarTitle>{mode === "file" ? t("Choose a file") : t("Choose a folder")}</BarTitle>
                 <CloseArea>
-                    <Close onClick={() => Native.send({type: "pick.cancel"})} title={t("Cancel")} type="button">
+                    <Close
+                        onClick={() => Native.send({type: "pick.cancel"})}
+                        onMouseDown={(event) => event.stopPropagation()}
+                        title={t("Cancel")}
+                        type="button"
+                    >
                         <CrossIcon size={12}/>
                     </Close>
                 </CloseArea>
@@ -51,6 +78,23 @@ export function PickerWindow({mode, multiple, extensions, initial}: PickerWindow
                     onSelect={(paths) => Native.send({type: "pick.submit", payload: {paths}})}
                 />
             </Content>
+
+            {protectedDelete && (
+                <ProtectedDeleteDialog
+                    delaySeconds={protectedDelete.prompt.delaySeconds}
+                    hits={protectedDelete.prompt.hits}
+                    key={protectedDelete.id}
+                    onCancel={() => {
+                        protectedDelete.resolve(false);
+                        setProtectedDelete(null);
+                    }}
+                    onConfirm={() => {
+                        protectedDelete.resolve(true);
+                        setProtectedDelete(null);
+                    }}
+                    permanent={protectedDelete.prompt.permanent}
+                />
+            )}
 
             <ResizeHandles/>
         </Host>
