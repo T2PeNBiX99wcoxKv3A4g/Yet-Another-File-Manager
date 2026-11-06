@@ -22,7 +22,8 @@ import {requestFolder} from "../folder-picker";
 import {showMessage} from "../api/dialogs";
 import {prettyShortcut, type ShortcutMap} from "../shortcuts";
 import {CreateFileTypes} from "../create-types";
-import {baseName, isArchiveLocation} from "../utils/format";
+import {baseName, isArchiveLocation, normalizePath} from "../utils/format";
+import {setLinkSource, useLinkSource} from "../ui/linkSource";
 import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
 import {
     ArchiveIcon,
@@ -97,6 +98,7 @@ export function FileMenu({
     onRefresh, onAddToTray, allowCompression = false, onCompressTo, onArchiveCreated,
 }: FileMenuProps) {
     const t = useTranslation();
+    const linkSource = useLinkSource();
     const archiveView = isArchiveLocation(directory);
     const [shell, setShell] = useState<{ verbs: ShellVerb[]; safe: boolean; loading: boolean }>({
         verbs: [], safe: true, loading: false,
@@ -223,21 +225,13 @@ export function FileMenu({
         onRefresh?.();
     };
 
-    /** Sends the link to a folder the user picks; the menu never guesses where it belongs. */
-    const makeLink = async (kind: LinkKind) => {
-        if (!target) return;
+    /** Creates the link under a folder and keeps trying numbered names when one is taken. */
+    const createLinkIn = async (kind: LinkKind, source: string, folder: string, name: string) => {
+        const root = folder.replace(/[\\/]+$/, "");
+        let result = await createLink(kind, source, `${root}\\${name}`);
 
-        const folder = await requestFolder(directory);
-        if (!folder) return;
-
-        const name = target.path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? "link";
-        let result = await createLink(kind, target.path,
-            `${folder.replace(/[\\/]+$/, "")}\\${name} - link`);
-
-        // A link in the same folder needs a free name, so keep trying the numbered ones.
         for (let attempt = 2; !result.ok && /exist/i.test(result.error ?? "") && attempt <= 99; attempt++)
-            result = await createLink(kind, target.path,
-                `${folder.replace(/[\\/]+$/, "")}\\${name} - link ${attempt}`);
+            result = await createLink(kind, source, `${root}\\${name} ${attempt}`);
 
         if (!result.ok) {
             void showMessage(result.error ?? t("Could not create the link."));
@@ -245,6 +239,93 @@ export function FileMenu({
         }
 
         onRefresh?.();
+    };
+
+    /** Sends the link to a folder the user picks; the menu never guesses where it belongs. */
+    const makeLink = async (kind: LinkKind) => {
+        if (!target) return;
+
+        const folder = await requestFolder(directory);
+        if (!folder) return;
+
+        await createLinkIn(kind, target.path, folder, `${baseName(target.path)} - link`);
+    };
+
+    /** Creates a link or copy at the background folder, using the remembered source. */
+    const makeSourceLink = async (kind: LinkKind) => {
+        if (!linkSource) return;
+
+        const name = baseName(linkSource.path);
+        const sourceParent = linkSource.path.replace(/[\\/][^\\/]+$/, "");
+        const copyKind = kind === "smart-mirror" || kind.endsWith("-copy");
+        const sameFolder = normalizePath(sourceParent) === normalizePath(directory);
+
+        // Smart copies can update an existing folder when the destination is elsewhere; in the
+        // source's own folder they need the usual " - link" name to avoid copying onto itself.
+        await createLinkIn(kind, linkSource.path, directory,
+            copyKind && !sameFolder ? name : `${name} - link`);
+    };
+
+    const chooseLinkSource = () => {
+        if (target)
+            setLinkSource({path: target.path, isDirectory: target.isDirectory});
+    };
+
+    /** Background entries that depend on the remembered link source. */
+    const sourceLinkItems = (): ContextMenuItem[] => {
+        if (!linkSource)
+            return [];
+
+        const clear: ContextMenuItem = {
+            label: t("Cancel selected link"),
+            onSelect: () => setLinkSource(null),
+        };
+
+        if (linkSource.isDirectory) {
+            return [
+                clear,
+                {
+                    label: t("Symbolic link"), icon: <FolderIcon size={14}/>, separatorBefore: true,
+                    onSelect: () => void makeSourceLink("symbolic-folder"),
+                },
+                {
+                    label: t("Directory junction"), icon: <FolderIcon size={14}/>,
+                    onSelect: () => void makeSourceLink("junction"),
+                },
+                {
+                    label: t("Smart copy"), icon: <CopyIcon size={14}/>, separatorBefore: true,
+                    onSelect: () => void makeSourceLink("smart-copy"),
+                },
+                {
+                    label: t("Smart mirror"), icon: <CopyIcon size={14}/>,
+                    onSelect: () => void makeSourceLink("smart-mirror"),
+                },
+                {
+                    label: t("Multi-version smart copy"), icon: <CopyIcon size={14}/>,
+                    onSelect: () => void makeSourceLink("multi-version-smart-copy"),
+                },
+                {
+                    label: t("Hardlink copy"), icon: <CopyIcon size={14}/>, separatorBefore: true,
+                    onSelect: () => void makeSourceLink("hard-copy"),
+                },
+                {
+                    label: t("Symbolic link copy"), icon: <CopyIcon size={14}/>,
+                    onSelect: () => void makeSourceLink("symbolic-copy"),
+                },
+            ];
+        }
+
+        return [
+            clear,
+            {
+                label: t("Hard link"), icon: <FileIcon size={14}/>, separatorBefore: true,
+                onSelect: () => void makeSourceLink("hard"),
+            },
+            {
+                label: t("Symbolic link"), icon: <FileIcon size={14}/>,
+                onSelect: () => void makeSourceLink("symbolic-file"),
+            },
+        ];
     };
 
     if (menu.background) {
@@ -284,6 +365,16 @@ export function FileMenu({
                 label: t("New"),
                 icon: <PlusIcon size={14}/>,
                 children: newItems,
+                onSelect: () => undefined,
+            });
+        }
+
+        if (!archiveView) {
+            items.push({
+                label: t("Create link"),
+                icon: <ShareIcon size={14}/>,
+                disabled: !linkSource,
+                children: sourceLinkItems(),
                 onSelect: () => undefined,
             });
         }
@@ -408,27 +499,39 @@ export function FileMenu({
         }
 
         if (!archiveView && single && target) {
-            const links: ContextMenuItem[] = target.isDirectory
-                ? [
-                    {
-                        label: t("Symbolic link"), icon: <FolderIcon size={14}/>,
-                        onSelect: () => void makeLink("symbolic-folder"),
-                    },
-                    {
-                        label: t("Directory junction"), icon: <FolderIcon size={14}/>,
-                        onSelect: () => void makeLink("junction"),
-                    },
-                ]
-                : [
-                    {
-                        label: t("Symbolic link"), icon: <FileIcon size={14}/>,
-                        onSelect: () => void makeLink("symbolic-file"),
-                    },
-                    {
-                        label: t("Hard link"), icon: <FileIcon size={14}/>,
-                        onSelect: () => void makeLink("hard"),
-                    },
-                ];
+            const links: ContextMenuItem[] = [
+                {
+                    label: t("Select link source"), icon: <ShareIcon size={14}/>,
+                    onSelect: chooseLinkSource,
+                },
+                ...(linkSource
+                    ? [{
+                        label: t("Cancel selected link"),
+                        onSelect: () => setLinkSource(null),
+                    }]
+                    : []),
+                ...(target.isDirectory
+                    ? [
+                        {
+                            label: t("Symbolic link"), icon: <FolderIcon size={14}/>, separatorBefore: true,
+                            onSelect: () => void makeLink("symbolic-folder"),
+                        },
+                        {
+                            label: t("Directory junction"), icon: <FolderIcon size={14}/>,
+                            onSelect: () => void makeLink("junction"),
+                        },
+                    ]
+                    : [
+                        {
+                            label: t("Symbolic link"), icon: <FileIcon size={14}/>, separatorBefore: true,
+                            onSelect: () => void makeLink("symbolic-file"),
+                        },
+                        {
+                            label: t("Hard link"), icon: <FileIcon size={14}/>,
+                            onSelect: () => void makeLink("hard"),
+                        },
+                    ]),
+            ];
 
             items.push({
                 label: t("Create link"), icon: <ShareIcon size={14}/>,

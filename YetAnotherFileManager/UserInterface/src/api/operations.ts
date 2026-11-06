@@ -157,7 +157,8 @@ export async function setCaseSensitive(path: string, enabled: boolean): Promise<
 }
 
 /** The kinds of link Windows can create. */
-export type LinkKind = "symbolic-file" | "symbolic-folder" | "hard" | "junction";
+export type LinkKind = "symbolic-file" | "symbolic-folder" | "hard" | "junction"
+    | "hard-copy" | "symbolic-copy" | "smart-copy" | "smart-mirror" | "multi-version-smart-copy";
 
 export interface LinkResult {
     ok: boolean;

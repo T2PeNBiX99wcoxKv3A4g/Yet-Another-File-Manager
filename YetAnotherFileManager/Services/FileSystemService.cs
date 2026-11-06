@@ -903,6 +903,18 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         if (!isDirectory && !File.Exists(request.Source))
             return new LinkPayload(false, null, "The source no longer exists.");
 
+        if (request.Kind is LinkCopy.HardCopy or LinkCopy.SymbolicCopy or LinkCopy.SmartCopy
+            or LinkCopy.SmartMirror or LinkCopy.MultiVersionSmartCopy)
+        {
+            if (!isDirectory)
+                return new LinkPayload(false, null, "A link copy needs a folder source.");
+
+            var copied = await Task.Run(() => LinkCopy.Create(request.Kind, request.Source, request.Link));
+            return copied.Ok
+                ? new LinkPayload(true, request.Link, null)
+                : new LinkPayload(false, null, copied.Error);
+        }
+
         var error = request.Kind switch
         {
             FileLinkCreation.Hard when isDirectory => "A hard link can only point at a file.",

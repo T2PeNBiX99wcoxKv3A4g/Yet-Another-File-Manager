@@ -178,6 +178,7 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
     const [newDirectoryRule, setNewDirectoryRule] = useState("");
     const [timeDraft, setTimeDraft] = useState<string | null>(null);
     const [recentColors, setRecentColors] = useState<RecentColors>(readRecentColors);
+    const [pickerSizeDraft, setPickerSizeDraft] = useState<{ width?: string; height?: string }>({});
     const [draftPreset, setDraftPreset] = useState<{ name: string; accent: string; secondary: string } | null>(null);
     const [updateState, setUpdateState] = useState<UpdateCheck | null>(null);
     const [updateBusy, setUpdateBusy] = useState(false);
@@ -687,6 +688,20 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
         await update({recentLimit: Math.min(Math.max(limit, 0), 50)});
     };
 
+    /** The picker size stays editable while typing; it is clamped only when the field is left. */
+    const commitPickerSize = (field: "width" | "height", rawValue?: string) => {
+        const raw = rawValue ?? pickerSizeDraft[field];
+        if (raw === undefined) return;
+
+        const value = Number(raw);
+        const next = field === "width"
+            ? {pickerWindowWidth: Math.min(4000, Math.max(640, Number.isFinite(value) && value > 0 ? value : 1200))}
+            : {pickerWindowHeight: Math.min(3000, Math.max(400, Number.isFinite(value) && value > 0 ? value : 800))};
+
+        setPickerSizeDraft((current) => ({...current, [field]: undefined}));
+        void update(next);
+    };
+
     const saveGallery = async (paths: string[]) => {
         await update({galleryRoots: paths.length > 0 ? paths : null});
     };
@@ -772,23 +787,29 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                             </RowText>
                             <RowEnd>
                                 <Input
-                                    max={4000}
-                                    min={640}
-                                    onChange={(event) => void update({
-                                        pickerWindowWidth: Math.min(4000, Math.max(640, Number(event.target.value) || 1200)),
-                                    })}
-                                    type="number"
-                                    value={settings?.pickerWindowWidth ?? 1200}
+                                    inputMode="numeric"
+                                    onBlur={(event) => commitPickerSize("width", event.currentTarget.value)}
+                                    onChange={(event) => setPickerSizeDraft((current) => ({
+                                        ...current,
+                                        width: event.target.value.replace(/\D/g, ""),
+                                    }))}
+                                    onKeyDown={(event) => {
+                                        if (event.key === "Enter") event.currentTarget.blur();
+                                    }}
+                                    value={pickerSizeDraft.width ?? String(settings?.pickerWindowWidth ?? 1200)}
                                 />
                                 <Value>×</Value>
                                 <Input
-                                    max={3000}
-                                    min={400}
-                                    onChange={(event) => void update({
-                                        pickerWindowHeight: Math.min(3000, Math.max(400, Number(event.target.value) || 800)),
-                                    })}
-                                    type="number"
-                                    value={settings?.pickerWindowHeight ?? 800}
+                                    inputMode="numeric"
+                                    onBlur={(event) => commitPickerSize("height", event.currentTarget.value)}
+                                    onChange={(event) => setPickerSizeDraft((current) => ({
+                                        ...current,
+                                        height: event.target.value.replace(/\D/g, ""),
+                                    }))}
+                                    onKeyDown={(event) => {
+                                        if (event.key === "Enter") event.currentTarget.blur();
+                                    }}
+                                    value={pickerSizeDraft.height ?? String(settings?.pickerWindowHeight ?? 800)}
                                 />
                             </RowEnd>
                         </Row>
