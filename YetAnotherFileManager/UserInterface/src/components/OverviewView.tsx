@@ -96,7 +96,7 @@ const BuiltinImageBanners = [
 });
 
 /** How far the panels rise into the banner, so the fade has no visible seam. */
-const BannerOverlap = 56;
+const BannerOverlap = 96;
 
 const Page = styled.div<{ $flush?: boolean }>`
     position: relative;
@@ -122,19 +122,21 @@ const Banner = styled.div`
            a solid-colour gradient shows a seam because the page is a gradient too. */
         -webkit-mask-image: linear-gradient(to bottom,
             #000 0%,
-            #000 32%,
-            rgba(0, 0, 0, 0.95) 45%,
-            rgba(0, 0, 0, 0.78) 60%,
-            rgba(0, 0, 0, 0.52) 74%,
-            rgba(0, 0, 0, 0.24) 88%,
+            #000 18%,
+            rgba(0, 0, 0, 0.94) 30%,
+            rgba(0, 0, 0, 0.76) 46%,
+            rgba(0, 0, 0, 0.5) 62%,
+            rgba(0, 0, 0, 0.24) 80%,
+            rgba(0, 0, 0, 0.08) 92%,
             transparent 100%);
         mask-image: linear-gradient(to bottom,
             #000 0%,
-            #000 32%,
-            rgba(0, 0, 0, 0.95) 45%,
-            rgba(0, 0, 0, 0.78) 60%,
-            rgba(0, 0, 0, 0.52) 74%,
-            rgba(0, 0, 0, 0.24) 88%,
+            #000 18%,
+            rgba(0, 0, 0, 0.94) 30%,
+            rgba(0, 0, 0, 0.76) 46%,
+            rgba(0, 0, 0, 0.5) 62%,
+            rgba(0, 0, 0, 0.24) 80%,
+            rgba(0, 0, 0, 0.08) 92%,
             transparent 100%);
     }
 `;
@@ -177,10 +179,14 @@ const BannerPanel = styled.section`
     flex-direction: column;
     gap: 8px;
     margin-bottom: 16px;
-    padding: 12px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    background: var(--bg-card);
+    padding: 10px 12px 14px;
+    /* A soft glass band: a bordered card here would draw a full-width line across the fading art. */
+    background: linear-gradient(to bottom,
+        rgba(var(--bg-rgb), 0) 0%,
+        rgba(var(--bg-rgb), 0.38) 18%,
+        rgba(var(--bg-rgb), 0.38) 82%,
+        rgba(var(--bg-rgb), 0) 100%);
+    backdrop-filter: blur(8px);
 `;
 
 const BannerPanelHead = styled.div`
@@ -892,6 +898,7 @@ export function OverviewView({
     const [menu, setMenu] = useState<{ x: number; y: number; target: FileMenuTarget } | null>(null);
     const [bannerDraft, setBannerDraft] = useState<number | null>(null);
     const bannerDrag = useRef<{ y: number; height: number } | null>(null);
+    const bannerDraftRef = useRef<number | null>(null);
 
     /** In the picker, a card selects for the footer instead of opening a tab. */
     const pickCard = (path: string, isDirectory = false): boolean => {
@@ -1066,13 +1073,22 @@ export function OverviewView({
         const current = bannerDrag.current;
         if (!current) return;
 
-        setBannerDraft(Math.min(900, Math.max(120, current.height + event.clientY - current.y)));
+        const height = Math.min(900, Math.max(120, current.height + event.clientY - current.y));
+        bannerDraftRef.current = height;
+        setBannerDraft(height);
     };
 
     const endBannerDrag = (event: ReactPointerEvent) => {
         bannerDrag.current = null;
-        event.currentTarget.releasePointerCapture(event.pointerId);
-        if (bannerDraft !== null) void save({overviewBannerHeight: bannerDraft});
+        if (event.currentTarget.hasPointerCapture(event.pointerId))
+            event.currentTarget.releasePointerCapture(event.pointerId);
+
+        // Save the last drag position even if the pointer-up arrives before React has rendered the
+        // final move; the ref is updated immediately and is what the user sees.
+        if (bannerDraftRef.current !== null) {
+            void save({overviewBannerHeight: bannerDraftRef.current});
+            bannerDraftRef.current = null;
+        }
     };
 
     const move = (id: string, offset: number) => {        const index = ids.indexOf(id);
@@ -1743,9 +1759,11 @@ export function OverviewView({
                     {editing && (
                         <BannerHandle
                             onDoubleClick={() => {
+                                bannerDraftRef.current = null;
                                 setBannerDraft(null);
                                 void save({overviewBannerHeight: 220});
                             }}
+                            onPointerCancel={endBannerDrag}
                             onPointerDown={startBannerDrag}
                             onPointerMove={moveBanner}
                             onPointerUp={endBannerDrag}

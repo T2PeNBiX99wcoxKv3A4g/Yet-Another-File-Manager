@@ -135,6 +135,15 @@ const ViewNames: Record<string, ViewKind> = {
 
 let nextTabId = 0;
 
+/** Launch paths already opened once; a retried ready message must not open them again. */
+const OpenedStartupPaths = new Set<string>();
+
+/** Tells the host that a launch path was handled, so it stops re-sending it. */
+function acknowledgeStartup(path: string) {
+    OpenedStartupPaths.add(path);
+    Native.send({type: "app.navigate.done", payload: {path}});
+}
+
 /** How many closed tabs Ctrl+Shift+T can walk back through. */
 const ClosedTabLimit = 20;
 
@@ -1468,17 +1477,33 @@ export default function App() {
         pendingStartup.current = [];
         if (paths.length === 0) return;
 
+        // A retried launch path may already have been opened by an earlier mount.
+        const fresh = paths.filter((path) => !OpenedStartupPaths.has(path));
+        for (const path of paths)
+            if (!fresh.includes(path))
+                acknowledgeStartup(path);
+
+        if (fresh.length === 0) return;
+
         const {tabs: current} = stateRef.current;
 
         // With nothing restored, the untouched first tab can show the path instead of staying empty.
         if (!afterRestored && current.length === 1 && current[0].fresh) {
-            openLocation(current[0].id, paths[0]);
-            for (const path of paths.slice(1)) openFiles(path);
+            openLocation(current[0].id, fresh[0]);
+            acknowledgeStartup(fresh[0]);
+            for (const path of fresh.slice(1)) {
+                openFiles(path);
+                acknowledgeStartup(path);
+            }
             return;
         }
 
         // The restored tabs set their own focus, so the last path gets it once that has settled.
-        const last = paths.map((path) => openFiles(path)).at(-1);
+        const last = fresh.map((path) => {
+            const id = openFiles(path);
+            acknowledgeStartup(path);
+            return id;
+        }).at(-1);
         if (last) setTimeout(() => setActiveId(last), 0);
     }, [openFiles, openLocation]);
 
@@ -1531,8 +1556,10 @@ export default function App() {
         const {tabs: current, activeId: currentActive} = stateRef.current;
         const first = current.find((tab) => tab.id === currentActive);
 
-        if (first && kindOf(first) === "files")
-            void load(first.id, undefined, true);
+        // A fresh files tab has not loaded anything yet. A restored tab loads itself, and a startup
+        // path has already taken the tab over; refreshing it with the default folder would undo that.
+        if (first && first.fresh && kindOf(first) === "files")
+            void load(first.id, folderOf(first), true);
 
         reloadPlaces();
         reloadSettings();
@@ -1581,8 +1608,14 @@ export default function App() {
 
             // The settings decide whether there are tabs to restore; until then a startup path
             // waits here so it can be added after them rather than replacing one.
+            if (isStartup && OpenedStartupPaths.has(target)) {
+                acknowledgeStartup(target);
+                return;
+            }
+
             if (isStartup && !restored.current) {
-                pendingStartup.current.push(target);
+                if (!pendingStartup.current.includes(target))
+                    pendingStartup.current.push(target);
                 return;
             }
 
@@ -1594,6 +1627,8 @@ export default function App() {
                 openLocation(focusedTabIdOf(stateRef.current), target);
             else
                 openFiles(target);
+
+            if (isStartup) acknowledgeStartup(target);
         });
 
         Native.send({type: "app.ready"});

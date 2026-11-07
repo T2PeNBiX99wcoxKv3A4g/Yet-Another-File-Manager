@@ -37,8 +37,11 @@ internal sealed class WindowManager : Singleton<WindowManager>
     /// <summary>Whether the interface has reported in; before that, messages crash the web view.</summary>
     private bool _mainWindowReady;
 
-    /// <summary>A path that arrived before the interface was listening for navigation.</summary>
-    private (string Path, bool Startup)? _pendingPath;
+    /// <summary>Paths that arrived before the interface was listening for navigation.</summary>
+    private readonly List<(string Path, bool Startup)> _pendingPaths = [];
+
+    /// <summary>Launch paths, re-sent on every ready until the interface acknowledges them.</summary>
+    private readonly List<string> _startupPaths = [];
 
     /// <summary>
     ///     Set only in a command line pick run. The interface answers <c>pick.submit</c> or
@@ -76,7 +79,16 @@ internal sealed class WindowManager : Singleton<WindowManager>
             case "app.ready":
                 _mainWindowReady = true;
                 // Flushing sends a web message, which has to happen on the UI thread.
-                RunOnMainWindow(FlushPendingPath);
+                RunOnMainWindow(FlushPendingPaths);
+                break;
+
+            case "app.navigate.done":
+                var done = context.Payload<PathPayload>()?.Path;
+                Log.Information("Startup path acknowledged: {Path}", done ?? "(all)");
+                if (done is { Length: > 0 })
+                    _startupPaths.RemoveAll(path => string.Equals(path, done, StringComparison.OrdinalIgnoreCase));
+                else
+                    _startupPaths.Clear();
                 break;
 
             case "pick.submit":
@@ -297,11 +309,14 @@ internal sealed class WindowManager : Singleton<WindowManager>
 
         Log.Information("Opening {Path}", path);
 
+        if (startup && !_startupPaths.Contains(path, StringComparer.OrdinalIgnoreCase))
+            _startupPaths.Add(path);
+
         // Before the first render there is no UI thread to invoke on yet: the window is about to be
-        // shown anyway, and the pending path is flushed when the interface reports ready.
+        // shown anyway, and the pending paths are flushed when the interface reports ready.
         if (!_mainWindowReady)
         {
-            _pendingPath = (path, startup);
+            _pendingPaths.Add((path, startup));
             return;
         }
 
@@ -328,17 +343,28 @@ internal sealed class WindowManager : Singleton<WindowManager>
     /// <summary>Reloads the main UI from the tray's recovery action.</summary>
     public void ReloadWebView() => _webViewRecovery?.Reload();
 
-    private void FlushPendingPath()
+    private void FlushPendingPaths()
     {
-        if (_pendingPath is not { } pending)
-            return;
+        if (_pendingPaths.Count > 0)
+        {
+            var pending = _pendingPaths.ToArray();
+            _pendingPaths.Clear();
 
-        _pendingPath = null;
-        SendNavigation(pending.Path, pending.Startup);
+            foreach (var (path, startup) in pending)
+                SendNavigation(path, startup);
+            return;
+        }
+
+        // React's development StrictMode mounts effects twice: the first ready can race the listener
+        // unsubscribing, losing its navigation. Keep sending the launch paths until the interface
+        // acknowledges them; it ignores paths it already opened.
+        foreach (var path in _startupPaths.ToArray())
+            SendNavigation(path, true);
     }
 
     private void SendNavigation(string path, bool startup)
     {
+        Log.Information("Navigating to {Path} (startup: {Startup})", path, startup);
         var json = NativeBridge.SerializeEvent("app.navigate", new NavigatePayload(path, startup));
 
         // Sending to a web view that is still loading aborts the process; the page asks for its
