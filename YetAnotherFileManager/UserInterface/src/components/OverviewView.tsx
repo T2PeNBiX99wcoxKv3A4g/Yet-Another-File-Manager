@@ -117,10 +117,11 @@ const Banner = styled.div`
         width: 100%;
         height: 100%;
         object-fit: cover;
-        /* Pan the visible crop down as the page scrolls. Unlike a transform this cannot leave a
-           gap at an edge, and the banner's height stays exactly where the user set it. */
-        object-position: 50% calc(20% + var(--banner-scroll, 0px) * 2);
         display: block;
+        /* A small downward drift: the image lags behind the page, but never leaves the frame. */
+        transform: translateY(min(calc(var(--banner-scroll, 0px) * 0.5), 10%)) scale(1.2);
+        transform-origin: center center;
+        will-change: transform;
     }
 `;
 
@@ -128,8 +129,7 @@ const BannerMedia = styled.div`
     position: absolute;
     inset: 0;
     overflow: hidden;
-    /* A long mask on the frame, not the moving image, keeps the fade anchored to the banner.
-       The bottom is fully clear above the overlapping panels, whatever the banner height. */
+    /* The fade belongs to the fixed frame; the moving image cannot drag the edge with it. */
     -webkit-mask-image: linear-gradient(to bottom,
         #000 0%,
         #000 18%,
