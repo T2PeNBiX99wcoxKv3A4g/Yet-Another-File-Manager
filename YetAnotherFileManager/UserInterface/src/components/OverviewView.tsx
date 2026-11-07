@@ -22,7 +22,8 @@ import {requestFile, requestFolder} from "../folder-picker";
 import {useMediaUrl} from "../api/icons";
 import {Native, useTranslation} from "@photino-net-utils/bridge";
 import {FileList} from "./FileList";
-import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, GridIcon, ListIcon, MenuIcon, PencilIcon, PinIcon, PlusIcon} from "./Icons";
+import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, GridIcon, ListIcon, MenuIcon, PencilIcon, PinIcon, PlusIcon, VideoIcon} from "./Icons";
+import {BuiltInBackgrounds, BuiltInVideos, builtInUrl, isBuiltInVideo} from "../backgrounds/concepts";
 import {setSelectionMenu, useSelectionMenuGroup} from "../ui/selectionMenu";
 import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
@@ -66,16 +67,33 @@ interface OverviewViewProps {
     onAddToTray?: (paths: string[]) => void;
 }
 
-function BannerThumb({path}: {path: string}) {
-    const extension = path.split(".").pop()?.toLowerCase() ?? "";
-    const video = ["mp4", "webm", "mkv", "mov", "m4v", "ogv"].includes(extension);
-    const media = useMediaUrl(path, 0, extension ? `.${extension}` : "");
+function BannerThumb({source, poster}: {source: string; poster?: string}) {
+    const extension = source.split(".").pop()?.toLowerCase() ?? "";
+    const file = source.startsWith("builtin:") ? null : source;
+    const media = useMediaUrl(file, 0, extension ? `.${extension}` : "");
+    const src = poster ?? builtInUrl(source) ?? media;
+    const video = !poster && ["mp4", "webm", "mkv", "mov", "m4v", "ogv"].includes(extension);
 
-    if (!media) return null;
+    if (!src) return null;
     return video
-        ? <video autoPlay loop muted playsInline src={media}/>
-        : <img alt="" src={media}/>;
+        ? <video autoPlay loop muted playsInline src={src}/>
+        : <img alt="" src={src}/>;
 }
+
+/** A few built-in concepts, each already drawn in the app's colour presets. */
+const BuiltinImageBanners = [
+    {concept: "aurora", preset: "Indigo"},
+    {concept: "aurora", preset: "Violet"},
+    {concept: "dunes", preset: "Amber"},
+    {concept: "dunes", preset: "Rose"},
+    {concept: "tide", preset: "Teal"},
+    {concept: "tide", preset: "Green"},
+].flatMap(({concept, preset}) => {
+    const variant = BuiltInBackgrounds
+        .find((item) => item.id === concept)?.variants
+        .find((item) => item.preset === preset);
+    return variant ? [variant] : [];
+});
 
 const Page = styled.div<{ $flush?: boolean }>`
     position: relative;
@@ -161,9 +179,15 @@ const BannerChoices = styled.div`
     gap: 8px;
 `;
 
-const BannerChoice = styled.button<{ $active: boolean }>`
+const BannerItem = styled.div`
+    position: relative;
     width: 132px;
     height: 72px;
+`;
+
+const BannerChoice = styled.button<{ $active: boolean }>`
+    width: 100%;
+    height: 100%;
     padding: 0;
     overflow: hidden;
     border: 1px solid ${({$active}) => $active ? "var(--border-color-focus)" : "var(--border-color)"};
@@ -179,6 +203,54 @@ const BannerChoice = styled.button<{ $active: boolean }>`
         object-fit: cover;
         display: block;
     }
+`;
+
+/** The remove badge on a banner the user added; built-in banners do not get one. */
+const BannerRemove = styled.button`
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 50%;
+    background: rgba(6, 8, 16, 0.78);
+    color: #fff;
+    cursor: pointer;
+
+    &:hover {
+        border-color: #e81123;
+        background: #e81123;
+    }
+`;
+
+const PlayBadge = styled.span`
+    position: absolute;
+    right: 5px;
+    bottom: 4px;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(6, 8, 16, 0.66);
+    color: #fff;
+`;
+
+const NoBanner = styled.span`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 100%;
+    height: 100%;
+    color: var(--text-secondary);
+    font-size: 10.5px;
 `;
 
 const AddBanner = styled.button`
@@ -778,9 +850,14 @@ export function OverviewView({
     const [editing, setEditing] = useState(false);
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const bannerPath = settings?.overviewBanner ?? null;
-    const bannerExtension = bannerPath?.split(".").pop()?.toLowerCase() ?? "";
-    const bannerVideo = ["mp4", "webm", "mkv", "mov", "m4v", "ogv"].includes(bannerExtension);
-    const bannerMedia = useMediaUrl(bannerPath, 0, bannerExtension ? `.${bannerExtension}` : "");
+    const bannerBuiltin = bannerPath?.startsWith("builtin:") ?? false;
+    const bannerExtension = bannerBuiltin ? "" : bannerPath?.split(".").pop()?.toLowerCase() ?? "";
+    const bannerVideo = bannerBuiltin
+        ? isBuiltInVideo(bannerPath!)
+        : ["mp4", "webm", "mkv", "mov", "m4v", "ogv"].includes(bannerExtension);
+    const bannerMedia = useMediaUrl(bannerBuiltin ? null : bannerPath, 0,
+        bannerExtension ? `.${bannerExtension}` : "");
+    const bannerSource = bannerPath ? builtInUrl(bannerPath) ?? bannerMedia : null;
     const [iconEditor, setIconEditor] = useState<{ kind: "panel" | "place"; id: string } | null>(null);
     const [addOpen, setAddOpen] = useState(false);
     const [driveRename, setDriveRename] = useState<{ drive: Drive; label: string } | null>(null);
@@ -950,6 +1027,12 @@ export function OverviewView({
     };
 
     const removeBanner = () => void save({overviewBanner: null});
+
+    /** Deletes one of the user's own banner files, clearing the banner when it was the active one. */
+    const removeCustomBanner = (path: string) => void save({
+        overviewBanners: (settings?.overviewBanners ?? []).filter((item) => item !== path),
+        ...(settings?.overviewBanner === path ? {overviewBanner: null} : {}),
+    });
 
     const startBannerDrag = (event: ReactPointerEvent) => {
         bannerDrag.current = {y: event.clientY, height: bannerDraft ?? settings?.overviewBannerHeight ?? 220};
@@ -1632,8 +1715,8 @@ export function OverviewView({
             {settings?.overviewBanner && (
                 <Banner style={{height: bannerDraft ?? settings.overviewBannerHeight ?? 220}}>
                     {bannerVideo
-                        ? <video autoPlay loop muted playsInline src={bannerMedia ?? undefined}/>
-                        : <img alt="" src={bannerMedia ?? undefined}/>}
+                        ? <video autoPlay loop muted playsInline src={bannerSource ?? undefined}/>
+                        : <img alt="" src={bannerSource ?? undefined}/>}
                     {editing && (
                         <BannerHandle
                             onDoubleClick={() => {
@@ -1653,25 +1736,69 @@ export function OverviewView({
                 <BannerPanel>
                     <BannerPanelHead>
                         <BannerPanelTitle>{t("Banners")}</BannerPanelTitle>
-                        {settings?.overviewBanner && (
-                            <Ghost onClick={removeBanner} title={t("Remove banner")} type="button">
-                                <CrossIcon size={12}/>
-                                {t("Remove banner")}
-                            </Ghost>
-                        )}
                     </BannerPanelHead>
                     <BannerChoices>
-                        {(settings?.overviewBanners ?? []).map((path) => (
+                        <BannerItem>
                             <BannerChoice
-                                $active={settings?.overviewBanner === path}
-                                key={path}
-                                onClick={() => void save({overviewBanner: path})}
-                                title={path}
+                                $active={!settings?.overviewBanner}
+                                onClick={removeBanner}
+                                title={t("No banner")}
                                 type="button"
                             >
-                                <BannerThumb path={path}/>
+                                <NoBanner>
+                                    <CrossIcon size={16}/>
+                                    <span>{t("No banner")}</span>
+                                </NoBanner>
                             </BannerChoice>
+                        </BannerItem>
+
+                        {BuiltinImageBanners.map((variant) => (
+                            <BannerItem key={variant.id}>
+                                <BannerChoice
+                                    $active={settings?.overviewBanner === variant.id}
+                                    onClick={() => void save({overviewBanner: variant.id})}
+                                    title={`${t(variant.concept)} · ${t(variant.preset)}`}
+                                    type="button"
+                                >
+                                    <BannerThumb poster={variant.url} source={variant.id}/>
+                                </BannerChoice>
+                            </BannerItem>
                         ))}
+
+                        {BuiltInVideos.map((video) => (
+                            <BannerItem key={video.id}>
+                                <BannerChoice
+                                    $active={settings?.overviewBanner === video.id}
+                                    onClick={() => void save({overviewBanner: video.id})}
+                                    title={t(video.name)}
+                                    type="button"
+                                >
+                                    <BannerThumb poster={video.poster} source={video.id}/>
+                                    <PlayBadge><VideoIcon size={11}/></PlayBadge>
+                                </BannerChoice>
+                            </BannerItem>
+                        ))}
+
+                        {(settings?.overviewBanners ?? []).map((path) => (
+                            <BannerItem key={path}>
+                                <BannerChoice
+                                    $active={settings?.overviewBanner === path}
+                                    onClick={() => void save({overviewBanner: path})}
+                                    title={path}
+                                    type="button"
+                                >
+                                    <BannerThumb source={path}/>
+                                </BannerChoice>
+                                <BannerRemove
+                                    onClick={() => removeCustomBanner(path)}
+                                    title={t("Remove")}
+                                    type="button"
+                                >
+                                    <CrossIcon size={10}/>
+                                </BannerRemove>
+                            </BannerItem>
+                        ))}
+
                         <AddBanner onClick={() => void chooseBanner()} title={t("Add banner…")} type="button">
                             <PlusIcon size={18}/>
                             <span>{t("Add banner…")}</span>

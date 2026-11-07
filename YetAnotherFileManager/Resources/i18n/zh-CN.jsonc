@@ -119,6 +119,7 @@
   "Global hotkey": "全局快捷键",
   "Brings the window forward from anywhere while the app is running. Empty means no global shortcut.": "应用运行期间，无论在哪里按下都会把窗口带到前台。留空表示不启用全局快捷键。",
   "Banners": "横幅",
+  "No banner": "无横幅",
   "Add banner…": "添加横幅…",
   "Change banner…": "更换横幅…",
   "Remove banner": "移除横幅",
