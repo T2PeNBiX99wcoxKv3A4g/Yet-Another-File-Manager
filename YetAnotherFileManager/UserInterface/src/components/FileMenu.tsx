@@ -3,6 +3,7 @@ import {useTranslation} from "@photino-net-utils/bridge";
 import {
     compressPaths,
     createLink,
+    inspectPaths,
     invokeShellVerb,
     listOpenWith,
     listShellVerbs,
@@ -30,6 +31,7 @@ import {
     ArrowRightIcon,
     AppIcon,
     CopyIcon,
+    CrossIcon,
     CutIcon,
     DocumentIcon,
     ExecutableIcon,
@@ -225,13 +227,19 @@ export function FileMenu({
         onRefresh?.();
     };
 
-    /** Creates the link under a folder and keeps trying numbered names when one is taken. */
-    const createLinkIn = async (kind: LinkKind, source: string, folder: string, name: string) => {
+    /** Creates the link under a folder and adds (1)…(9) before the extension only on conflict. */
+    const createLinkIn = async (kind: LinkKind, source: string, folder: string, name: string,
+        allowExisting = false) => {
         const root = folder.replace(/[\\/]+$/, "");
         let result = await createLink(kind, source, `${root}\\${name}`);
 
-        for (let attempt = 2; !result.ok && /exist/i.test(result.error ?? "") && attempt <= 99; attempt++)
-            result = await createLink(kind, source, `${root}\\${name} ${attempt}`);
+        if (!allowExisting && !result.ok && /exist/i.test(result.error ?? "")) {
+            for (let attempt = 1; attempt <= 9; attempt++) {
+                result = await createLink(kind, source, `${root}\\${numberedName(name, attempt)}`);
+                if (result.ok || !/exist/i.test(result.error ?? ""))
+                    break;
+            }
+        }
 
         if (!result.ok) {
             void showMessage(result.error ?? t("Could not create the link."));
@@ -248,83 +256,97 @@ export function FileMenu({
         const folder = await requestFolder(directory);
         if (!folder) return;
 
-        await createLinkIn(kind, target.path, folder, `${baseName(target.path)} - link`);
+        await createLinkIn(kind, target.path, folder, baseName(target.path), kind.endsWith("-copy"));
     };
 
-    /** Creates a link or copy at the background folder, using the remembered source. */
+    /** Creates a link or copy for every remembered source, each beside its own destination name. */
     const makeSourceLink = async (kind: LinkKind) => {
-        if (!linkSource) return;
+        const sources = linkSource?.paths ?? [];
 
-        const name = baseName(linkSource.path);
-        const sourceParent = linkSource.path.replace(/[\\/][^\\/]+$/, "");
-        const copyKind = kind === "smart-mirror" || kind.endsWith("-copy");
-        const sameFolder = normalizePath(sourceParent) === normalizePath(directory);
+        for (const entry of sources) {
+            const actual: LinkKind = kind === "symbolic-file" && entry.isDirectory
+                ? "symbolic-folder"
+                : kind === "symbolic-folder" && !entry.isDirectory ? "symbolic-file" : kind;
 
-        // Smart copies can update an existing folder when the destination is elsewhere; in the
-        // source's own folder they need the usual " - link" name to avoid copying onto itself.
-        await createLinkIn(kind, linkSource.path, directory,
-            copyKind && !sameFolder ? name : `${name} - link`);
+            if (actual === "hard" && entry.isDirectory)
+                continue;
+
+            const copyKind = actual === "smart-copy" || actual === "smart-mirror"
+                || actual === "multi-version-smart-copy" || actual === "hard-copy"
+                || actual === "symbolic-copy";
+            if (copyKind && !entry.isDirectory)
+                continue;
+
+            const sourceParent = entry.path.replace(/[\\/][^\\/]+$/, "");
+            const sameFolder = normalizePath(sourceParent) === normalizePath(directory);
+
+            await createLinkIn(actual, entry.path, directory, baseName(entry.path),
+                copyKind && !sameFolder);
+        }
     };
 
-    const chooseLinkSource = () => {
-        if (target)
-            setLinkSource({path: target.path, isDirectory: target.isDirectory});
+    const chooseLinkSource = async () => {
+        const entries = await inspectPaths(menu?.paths ?? []);
+        const paths = entries.filter((entry) => entry.exists)
+            .map((entry) => ({path: entry.path, isDirectory: entry.isDirectory}));
+
+        if (paths.length > 0)
+            setLinkSource({paths});
     };
 
     /** Background entries that depend on the remembered link source. */
     const sourceLinkItems = (): ContextMenuItem[] => {
-        if (!linkSource)
+        const paths = linkSource?.paths ?? [];
+        if (paths.length === 0)
             return [];
 
+        const anyFile = paths.some((entry) => !entry.isDirectory);
+        const anyDirectory = paths.some((entry) => entry.isDirectory);
         const clear: ContextMenuItem = {
-            label: t("Cancel selected link"),
+            label: t("Cancel selected link"), icon: <CrossIcon size={14}/>,
             onSelect: () => setLinkSource(null),
         };
 
-        if (linkSource.isDirectory) {
-            return [
-                clear,
-                {
-                    label: t("Symbolic link"), icon: <FolderIcon size={14}/>, separatorBefore: true,
-                    onSelect: () => void makeSourceLink("symbolic-folder"),
-                },
-                {
-                    label: t("Directory junction"), icon: <FolderIcon size={14}/>,
-                    onSelect: () => void makeSourceLink("junction"),
-                },
-                {
-                    label: t("Smart copy"), icon: <CopyIcon size={14}/>, separatorBefore: true,
-                    onSelect: () => void makeSourceLink("smart-copy"),
-                },
-                {
-                    label: t("Smart mirror"), icon: <CopyIcon size={14}/>,
-                    onSelect: () => void makeSourceLink("smart-mirror"),
-                },
-                {
-                    label: t("Multi-version smart copy"), icon: <CopyIcon size={14}/>,
-                    onSelect: () => void makeSourceLink("multi-version-smart-copy"),
-                },
-                {
-                    label: t("Hardlink copy"), icon: <CopyIcon size={14}/>, separatorBefore: true,
-                    onSelect: () => void makeSourceLink("hard-copy"),
-                },
-                {
-                    label: t("Symbolic link copy"), icon: <CopyIcon size={14}/>,
-                    onSelect: () => void makeSourceLink("symbolic-copy"),
-                },
-            ];
-        }
-
         return [
             clear,
+            ...(anyFile
+                ? [{
+                    label: t("Hard link"), icon: <FileIcon size={14}/>, separatorBefore: true,
+                    onSelect: () => void makeSourceLink("hard"),
+                }]
+                : []),
             {
-                label: t("Hard link"), icon: <FileIcon size={14}/>, separatorBefore: true,
-                onSelect: () => void makeSourceLink("hard"),
-            },
-            {
-                label: t("Symbolic link"), icon: <FileIcon size={14}/>,
+                label: t("Symbolic link"), icon: <FileIcon size={14}/>, separatorBefore: !anyFile,
                 onSelect: () => void makeSourceLink("symbolic-file"),
             },
+            ...(anyDirectory
+                ? [
+                    {
+                        label: t("Directory junction"), icon: <FolderIcon size={14}/>,
+                        onSelect: () => void makeSourceLink("junction"),
+                    },
+                    {
+                        label: t("Smart copy"), icon: <CopyIcon size={14}/>, separatorBefore: true,
+                        onSelect: () => void makeSourceLink("smart-copy"),
+                    },
+                    {
+                        label: t("Smart mirror"), icon: <CopyIcon size={14}/>,
+                        onSelect: () => void makeSourceLink("smart-mirror"),
+                    },
+                    {
+                        label: t("Multi-version smart copy"), icon: <CopyIcon size={14}/>,
+                        onSelect: () => void makeSourceLink("multi-version-smart-copy"),
+                    },
+                    {
+                        label: t("Hardlink copy"), icon: <CopyIcon size={14}/>, separatorBefore: true,
+                        onSelect: () => void makeSourceLink("hard-copy"),
+                    },
+                    {
+                        label: t("Symbolic link copy"), icon: <CopyIcon size={14}/>,
+                        onSelect: () => void makeSourceLink("symbolic-copy"),
+                    },
+                ]
+                : []),
         ];
     };
 
@@ -489,48 +511,76 @@ export function FileMenu({
 
         if (!archiveView) {
             items.push({
-                label: t("Compress to ZIP"), icon: <ArchiveIcon size={14}/>, separatorBefore: true,
-                onSelect: () => void compressZip(menu.paths),
-            });
-            items.push({
-                label: t("Compress to…"), icon: <ArchiveIcon size={14}/>,
-                onSelect: () => onCompressTo?.(menu.paths, selectedArchiveName()),
+                label: t("Compress"), icon: <ArchiveIcon size={14}/>, separatorBefore: true,
+                children: [
+                    {
+                        label: t("Compress to ZIP"), icon: <ArchiveIcon size={14}/>,
+                        onSelect: () => void compressZip(menu.paths),
+                    },
+                    {
+                        label: t("Compress to…"), icon: <ArchiveIcon size={14}/>,
+                        onSelect: () => onCompressTo?.(menu.paths, selectedArchiveName()),
+                    },
+                ],
+                onSelect: () => undefined,
             });
         }
 
-        if (!archiveView && single && target) {
+        if (!archiveView && (menu?.paths.length ?? 0) > 0) {
             const links: ContextMenuItem[] = [
                 {
                     label: t("Select link source"), icon: <ShareIcon size={14}/>,
-                    onSelect: chooseLinkSource,
+                    onSelect: () => void chooseLinkSource(),
                 },
                 ...(linkSource
                     ? [{
-                        label: t("Cancel selected link"),
+                        label: t("Cancel selected link"), icon: <CrossIcon size={14}/>,
                         onSelect: () => setLinkSource(null),
                     }]
                     : []),
-                ...(target.isDirectory
-                    ? [
-                        {
-                            label: t("Symbolic link"), icon: <FolderIcon size={14}/>, separatorBefore: true,
-                            onSelect: () => void makeLink("symbolic-folder"),
-                        },
-                        {
-                            label: t("Directory junction"), icon: <FolderIcon size={14}/>,
-                            onSelect: () => void makeLink("junction"),
-                        },
-                    ]
-                    : [
-                        {
-                            label: t("Symbolic link"), icon: <FileIcon size={14}/>, separatorBefore: true,
-                            onSelect: () => void makeLink("symbolic-file"),
-                        },
-                        {
-                            label: t("Hard link"), icon: <FileIcon size={14}/>,
-                            onSelect: () => void makeLink("hard"),
-                        },
-                    ]),
+                ...(single && target
+                    ? target.isDirectory
+                        ? [
+                            {
+                                label: t("Symbolic link"), icon: <FolderIcon size={14}/>, separatorBefore: true,
+                                onSelect: () => void makeLink("symbolic-folder"),
+                            },
+                            {
+                                label: t("Directory junction"), icon: <FolderIcon size={14}/>,
+                                onSelect: () => void makeLink("junction"),
+                            },
+                            {
+                                label: t("Smart copy"), icon: <CopyIcon size={14}/>, separatorBefore: true,
+                                onSelect: () => void makeLink("smart-copy"),
+                            },
+                            {
+                                label: t("Smart mirror"), icon: <CopyIcon size={14}/>,
+                                onSelect: () => void makeLink("smart-mirror"),
+                            },
+                            {
+                                label: t("Multi-version smart copy"), icon: <CopyIcon size={14}/>,
+                                onSelect: () => void makeLink("multi-version-smart-copy"),
+                            },
+                            {
+                                label: t("Hardlink copy"), icon: <CopyIcon size={14}/>, separatorBefore: true,
+                                onSelect: () => void makeLink("hard-copy"),
+                            },
+                            {
+                                label: t("Symbolic link copy"), icon: <CopyIcon size={14}/>,
+                                onSelect: () => void makeLink("symbolic-copy"),
+                            },
+                        ]
+                        : [
+                            {
+                                label: t("Symbolic link"), icon: <FileIcon size={14}/>, separatorBefore: true,
+                                onSelect: () => void makeLink("symbolic-file"),
+                            },
+                            {
+                                label: t("Hard link"), icon: <FileIcon size={14}/>,
+                                onSelect: () => void makeLink("hard"),
+                            },
+                        ]
+                    : []),
             ];
 
             items.push({
@@ -693,4 +743,10 @@ function MenuIcon({source}: {source: string | null}) {
         default:
             return <AppIcon size={14}/>;
     }
+}
+
+/** Inserts " (n)" before the extension, keeping the original name and suffix intact. */
+function numberedName(name: string, index: number): string {
+    const dot = name.lastIndexOf(".");
+    return dot > 0 ? `${name.slice(0, dot)} (${index})${name.slice(dot)}` : `${name} (${index})`;
 }

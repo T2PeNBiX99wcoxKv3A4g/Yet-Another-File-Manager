@@ -1,8 +1,12 @@
 import {useSyncExternalStore} from "react";
 
-export interface LinkSource {
+export interface LinkSourceEntry {
     path: string;
     isDirectory: boolean;
+}
+
+export interface LinkSource {
+    paths: LinkSourceEntry[];
 }
 
 let source: LinkSource | null = null;
@@ -23,7 +27,7 @@ function snapshot(): number {
     return version;
 }
 
-/** Remembers the entry chosen as "link source" until the app closes. */
+/** Remembers the entries chosen as "link source" until the app closes. */
 export function setLinkSource(value: LinkSource | null) {
     source = value;
     emit();

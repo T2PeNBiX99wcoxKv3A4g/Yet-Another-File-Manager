@@ -28,6 +28,8 @@ internal static partial class FileOperations
     /// <summary>Text previews stop here, so a huge log cannot freeze the details panel.</summary>
     private const int MaxTextPreviewBytes = 256 * 1024;
 
+    static FileOperations() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
     private static readonly string PreferredDropEffect = "Preferred DropEffect";
 
     /// <summary>The cut made through this app's Linux clipboard, and the list it described.</summary>
@@ -491,9 +493,7 @@ internal static partial class FileOperations
             if (!utf16 && Array.IndexOf(buffer, (byte)0) >= 0)
                 return new TextPreviewPayload(null, false, "This looks like a binary file.");
 
-            using var reader = new StreamReader(new MemoryStream(buffer), Encoding.UTF8, true);
-            var text = await reader.ReadToEndAsync();
-
+            var text = DecodeText(buffer);
             return new TextPreviewPayload(text, info.Length > MaxTextPreviewBytes, null);
         }
         catch (Exception ex)
@@ -503,10 +503,39 @@ internal static partial class FileOperations
         }
     }
 
-    private static Task<FileHistory.Step> DeleteFileAsync(string path) =>
-        Task.Run(() =>
+    /// <summary>Decodes text with BOM first, then the legacy code pages common on Windows.</summary>
+    private static string DecodeText(byte[] buffer)
+    {
+        if (buffer.Length >= 3 && buffer[0] == 0xEF && buffer[1] == 0xBB && buffer[2] == 0xBF)
+            return Encoding.UTF8.GetString(buffer, 3, buffer.Length - 3);
+
+        if (buffer.Length >= 2 && buffer[0] == 0xFF && buffer[1] == 0xFE)
+            return Encoding.Unicode.GetString(buffer, 2, buffer.Length - 2);
+
+        if (buffer.Length >= 2 && buffer[0] == 0xFE && buffer[1] == 0xFF)
+            return Encoding.BigEndianUnicode.GetString(buffer, 2, buffer.Length - 2);
+
+        foreach (var codePage in new[] { 65001, 932, 936, 950, 949, 1252, 1250, 1251, 1254, 1253, 1256, 1255, 1257, 874 })
         {
             try
+            {
+                var encoding = Encoding.GetEncoding(codePage, EncoderFallback.ExceptionFallback,
+                    DecoderFallback.ExceptionFallback);
+                var text = encoding.GetString(buffer);
+                return text.TrimStart('\uFEFF');
+            }
+            catch (DecoderFallbackException)
+            {
+                // This code page cannot explain the bytes; try the next one.
+            }
+        }
+
+        return Encoding.UTF8.GetString(buffer);
+    }
+
+    private static Task<FileHistory.Step> DeleteFileAsync(string path) =>
+        Task.Run(() =>
+        {            try
             {
                 if (!File.Exists(path))
                     return new FileHistory.Step(false, ParentsOf([path]), "The file is no longer there.");

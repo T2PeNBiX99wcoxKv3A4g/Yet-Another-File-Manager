@@ -101,6 +101,7 @@ internal static partial class Program
         // Re-apply the per-user folder association in case it was removed outside the app.
         DefaultFileManager.Apply(SettingsService.Instance.Current.IsDefaultFileManager);
         ArchiveAssociations.Apply(SettingsService.Instance.Current.HandlesArchives);
+        GlobalHotkey.Apply(SettingsService.Instance.Current.GlobalHotkey);
 
         // UI strings come from Resources/i18n; the settings select the language.
         Localization.Initialize(typeof(Program).Assembly, "YetAnotherFileManager.Resources.i18n.",

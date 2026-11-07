@@ -498,7 +498,7 @@ export function FolderPicker({
                                 historyVersion={0}
                                 homePath={places.find((place) => place.kind === "home")?.path ?? ""}
                                 onOpen={(target) => navigate(target)}
-                                onPick={(target) => onSelect([target])}
+                                onPick={isFileMode ? (target) => onSelect([target]) : undefined}
                                 onPlacesChanged={() => undefined}
                                 onRecentCleared={() => undefined}
                                 onSelectionChange={handleSelection}

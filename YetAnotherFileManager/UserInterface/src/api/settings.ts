@@ -86,6 +86,14 @@ export interface AppSettings {
     pickerWindowWidth: number;
     /** Preferred height of the standalone folder/file picker window. */
     pickerWindowHeight: number;
+    /** "relative" or "absolute" for created symbolic links. */
+    linkPathMode: string;
+    /** Image or video shown above the overview panels; null hides it. */
+    overviewBanner: string | null;
+    /** Height of the overview banner in pixels. */
+    overviewBannerHeight: number;
+    /** Global key combination that brings the window forward; empty disables it. */
+    globalHotkey: string | null;
     /** UI language such as "en" or "zh-TW"; null means English, "system" follows the OS. */
     language: string | null;
     /** Colour pairs the user saved; the built-in presets live in the settings page. */
@@ -144,6 +152,10 @@ const fallback: AppSettings = {
     timeFormatPattern: "yyyy/MM/dd HH:mm",
     pickerWindowWidth: 1200,
     pickerWindowHeight: 800,
+    linkPathMode: "relative",
+    overviewBanner: null,
+    overviewBannerHeight: 220,
+    globalHotkey: null,
     language: null,
     themePresets: [],
 };
@@ -199,6 +211,10 @@ export async function getSettings(): Promise<AppSettings> {
         timeFormatPattern: raw?.timeFormatPattern ?? "yyyy/MM/dd HH:mm",
         pickerWindowWidth: raw?.pickerWindowWidth ?? 1200,
         pickerWindowHeight: raw?.pickerWindowHeight ?? 800,
+        linkPathMode: raw?.linkPathMode ?? "relative",
+        overviewBanner: raw?.overviewBanner ?? null,
+        overviewBannerHeight: raw?.overviewBannerHeight ?? 220,
+        globalHotkey: raw?.globalHotkey ?? null,
         language: raw?.language ?? null,
         themePresets: raw?.themePresets ?? [],
     };
@@ -221,11 +237,23 @@ export interface ArchiveStatus {
     registeredPath: string | null;
 }
 
+export interface DefaultManagerStatus {
+    registered: boolean;
+    pathMatches: boolean;
+    registeredPath: string | null;
+}
+
 const EmptyArchiveStatus: ArchiveStatus = {registered: false, pathMatches: false, registeredPath: null};
 
+/** Reads the current user's folder handler and compares its path with this build. */
+export async function getDefaultManagerStatus(): Promise<DefaultManagerStatus> {
+    if (!Native.available) return {registered: false, pathMatches: false, registeredPath: null};
+
+    return await Native.request<DefaultManagerStatus>("app.defaultManager.status");
+}
+
 /** Reads the current user's archive association and compares its path with this build. */
-export async function getArchiveStatus(): Promise<ArchiveStatus> {
-    if (!Native.available) return EmptyArchiveStatus;
+export async function getArchiveStatus(): Promise<ArchiveStatus> {    if (!Native.available) return EmptyArchiveStatus;
 
     return await Native.request<ArchiveStatus>("app.archive.status");
 }
@@ -295,6 +323,10 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         timeFormatPattern: saved?.timeFormatPattern ?? settings.timeFormatPattern,
         pickerWindowWidth: saved?.pickerWindowWidth ?? settings.pickerWindowWidth,
         pickerWindowHeight: saved?.pickerWindowHeight ?? settings.pickerWindowHeight,
+        linkPathMode: saved?.linkPathMode ?? settings.linkPathMode,
+        overviewBanner: saved?.overviewBanner ?? settings.overviewBanner,
+        overviewBannerHeight: saved?.overviewBannerHeight ?? settings.overviewBannerHeight,
+        globalHotkey: saved?.globalHotkey ?? settings.globalHotkey,
         language: saved?.language ?? settings.language,
         themePresets: saved?.themePresets ?? settings.themePresets,
     };

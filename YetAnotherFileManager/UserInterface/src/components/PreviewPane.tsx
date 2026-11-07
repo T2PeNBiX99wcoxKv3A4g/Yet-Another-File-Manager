@@ -2,7 +2,7 @@ import {useEffect, useRef, useState, type PointerEvent as ReactPointerEvent} fro
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import {previewText, type TextPreview} from "../api/files";
-import {useIcon, useMediaUrl, usePdfPreview, useThumbnail} from "../api/icons";
+import {useArchiveEntryPath, useIcon, useMediaUrl, usePdfPreview, useThumbnail} from "../api/icons";
 import {readStoredNumber, writeStoredNumber} from "../storage";
 import {FileIcon, FolderIcon, PlayIcon} from "./Icons";
 
@@ -68,6 +68,7 @@ export function PreviewPane({info, width, onWidth, open = true, videoAudio, vide
         return Math.min(560, Math.max(80, saved));
     });
     const path = info?.path ?? null;
+    const previewPath = useArchiveEntryPath(path);
     const extension = info ? extensionOf(info.name) : "";
     const video = !!info && !info.isDirectory && VideoExtensions.has(extension);
     const audio = !!info && !info.isDirectory && AudioExtensions.has(extension);
@@ -75,11 +76,11 @@ export function PreviewPane({info, width, onWidth, open = true, videoAudio, vide
     const text = !!info && !info.isDirectory && TextExtensions.has(extension);
     const pdf = !!info && !info.isDirectory && extension === "pdf";
 
-    const poster = useThumbnail(video ? path : null, 512, info?.modified ?? 0);
-    const imagePreview = useMediaUrl(image ? path : null, info?.modified ?? 0, extension);
-    const media = useMediaUrl(video || audio ? path : null, info?.modified ?? 0, extension);
-    const pdfPreview = usePdfPreview(pdf ? path : null, info?.modified ?? 0);
-    const icon = useIcon(!video && !audio && !image && !text && !pdf ? path : null, info?.isDirectory ?? false);
+    const poster = useThumbnail(video ? previewPath : null, 512, info?.modified ?? 0);
+    const imagePreview = useMediaUrl(image ? previewPath : null, info?.modified ?? 0, extension);
+    const media = useMediaUrl(video || audio ? previewPath : null, info?.modified ?? 0, extension);
+    const pdfPreview = usePdfPreview(pdf ? previewPath : null, info?.modified ?? 0);
+    const icon = useIcon(!video && !audio && !image && !text && !pdf ? previewPath : null, info?.isDirectory ?? false);
 
     useEffect(() => {
         setVideoFailed(false);
@@ -91,7 +92,7 @@ export function PreviewPane({info, width, onWidth, open = true, videoAudio, vide
     }, [path]);
 
     useEffect(() => {
-        if (!path || !text) {
+        if (!previewPath || !text) {
             setTextPreview(null);
             setTextLoading(false);
             return;
@@ -101,7 +102,7 @@ export function PreviewPane({info, width, onWidth, open = true, videoAudio, vide
         setTextLoading(true);
         setTextPreview(null);
 
-        void previewText(path).then((preview) => {
+        void previewText(previewPath).then((preview) => {
             if (alive) {
                 setTextPreview(preview);
                 setTextLoading(false);
@@ -116,7 +117,7 @@ export function PreviewPane({info, width, onWidth, open = true, videoAudio, vide
         return () => {
             alive = false;
         };
-    }, [path, text]);
+    }, [previewPath, text]);
 
     if (!info && !emptyNote)
         return null;
@@ -413,7 +414,8 @@ const Media = styled.div`
     height: 210px;
     flex-shrink: 0;
     overflow: hidden;
-    background: var(--bg-media);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
     img,
     video {
         display: block;

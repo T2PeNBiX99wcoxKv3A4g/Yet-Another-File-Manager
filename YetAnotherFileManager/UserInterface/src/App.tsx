@@ -49,7 +49,7 @@ import {PasswordDialog} from "./components/PasswordDialog";
 import {setProtectedDeleteAsker, type ProtectedDeletePrompt} from "./api/safety";
 import {requestArchivePassword, showMessage} from "./api/dialogs";
 import {clearIconCache} from "./api/icons";
-import {getArchivePassword, isArchivePasswordError, setArchivePassword} from "./api/archivePassword";
+import {clearArchivePassword, getArchivePassword, isArchivePasswordError, setArchivePassword} from "./api/archivePassword";
 import type {PageFind} from "./ui/textSearch";
 import {FindBar} from "./components/FindBar";
 import {EmptyFind, matchesName, type FindState} from "./find";
@@ -1889,7 +1889,9 @@ export default function App() {
 
                             if (!result.path && isArchivePasswordError(result.error)) {
                                 const archive = archiveFile(file);
-                                const typed = await requestArchivePassword(archive, !!getArchivePassword(archive));
+                                const stored = getArchivePassword(archive);
+                                if (stored) clearArchivePassword(archive);
+                                const typed = await requestArchivePassword(archive, !!stored);
 
                                 if (typed) {
                                     setArchivePassword(archive, typed);
@@ -1994,7 +1996,9 @@ export default function App() {
 
         if (!result.ok && isArchivePasswordError(result.error)) {
             const archive = archiveFile(activeFolder);
-            const typed = await requestArchivePassword(archive, !!getArchivePassword(archive));
+            const stored = getArchivePassword(archive);
+            if (stored) clearArchivePassword(archive);
+            const typed = await requestArchivePassword(archive, !!stored);
 
             if (typed) {
                 setArchivePassword(archive, typed);
@@ -2214,7 +2218,7 @@ export default function App() {
                     currentPath={kind === "files" ? location : ""}
                     drives={drives}
                     historyVersion={historyVersion}
-                    onNavigate={(path) => navigate(path)}
+                    onNavigate={navigate}
                     onOpenView={openView}
                     homePath={places.find((place) => place.kind === "home")?.path ?? ""}
                     places={places}

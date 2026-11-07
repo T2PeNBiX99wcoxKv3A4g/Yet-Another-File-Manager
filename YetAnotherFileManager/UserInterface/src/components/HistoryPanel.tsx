@@ -1,13 +1,13 @@
 import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
-import {useTranslation} from "@photino-net-utils/bridge";
+import {useTranslation, type Translate} from "@photino-net-utils/bridge";
 import {listHistory, undoHistory, type HistoryEntry} from "../api/history";
 import {formatClock} from "../utils/format";
 import {elevatedPanel} from "../ui/panel";
 import {panelInStyle} from "../ui/motion";
-import {ClockIcon, CrossIcon} from "./Icons";
+import {ClockIcon, CrossIcon, ArchiveIcon, CopyIcon, PencilIcon, PlusIcon, TrashIcon, ArrowRightIcon} from "./Icons";
 
-/** The title bar's session history: every recorded file operation, with an undo button per row. */
+/** The panel's session history, newest first, with an undo button per row. */
 export function HistoryPanel() {
     const t = useTranslation();
     const [open, setOpen] = useState(false);
@@ -69,7 +69,10 @@ export function HistoryPanel() {
                                 {entries.map((entry) => (
                                     <Row key={entry.id}>
                                         <RowHead>
-                                            <Name>{entry.label}</Name>
+                                            <Name>
+                                                <HistoryIcon label={entry.label}/>
+                                                {historyLabel(t, entry.label)}
+                                            </Name>
                                             <Time>{formatClock(entry.at)}</Time>
                                         </RowHead>
                                         {entry.paths.length > 0 && (
@@ -80,7 +83,7 @@ export function HistoryPanel() {
                                         )}
                                         <Actions>
                                             <Undo
-                                                disabled={!entry.applied || busy}
+                                                disabled={!entry.applied || !entry.restorable || busy}
                                                 onClick={() => void undo(entry.id)}
                                                 type="button"
                                             >
@@ -95,6 +98,37 @@ export function HistoryPanel() {
             )}
         </Root>
     );
+}
+
+function historyLabel(t: Translate, label: string): string {
+    if (label === "New folder") return t("New folder");
+    if (label === "New file") return t("New file");
+
+    const counted = label.match(/^(Move|Copy|Delete) (\d+) item\(s\)$/);
+    if (counted) {
+        const action = counted[1];
+        const count = Number(counted[2]);
+        const key = action === "Move" ? "Move {count} items"
+            : action === "Copy" ? "Copy {count} items" : "Delete {count} items";
+        return t(key, {count});
+    }
+
+    const compress = label.match(/^Compress (.+)$/);
+    if (compress) return `${t("Compress")} ${compress[1]}`;
+
+    const rename = label.match(/^Rename (.+)$/);
+    if (rename) return `${t("Rename")} ${rename[1]}`;
+
+    return label;
+}
+
+function HistoryIcon({label}: {label: string}) {
+    if (label.startsWith("Delete")) return <TrashIcon size={13}/>;
+    if (label.startsWith("Move") || label.startsWith("Copy")) return <CopyIcon size={13}/>;
+    if (label.startsWith("Rename")) return <PencilIcon size={13}/>;
+    if (label.startsWith("Compress")) return <ArchiveIcon size={13}/>;
+    if (label.startsWith("New")) return <PlusIcon size={13}/>;
+    return <ArrowRightIcon size={13}/>;
 }
 
 const Root = styled.div`
@@ -205,12 +239,20 @@ const RowHead = styled.div`
 `;
 
 const Name = styled.span`
+    display: flex;
+    align-items: center;
+    gap: 6px;
     min-width: 0;
     overflow: hidden;
     color: var(--text-primary);
     font-size: 12px;
     text-overflow: ellipsis;
     white-space: nowrap;
+
+    svg {
+        flex-shrink: 0;
+        color: var(--text-muted);
+    }
 `;
 
 const Time = styled.span`

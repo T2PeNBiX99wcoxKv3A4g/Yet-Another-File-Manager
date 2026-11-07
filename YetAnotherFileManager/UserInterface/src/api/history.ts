@@ -8,6 +8,8 @@ export interface HistoryEntry {
     at: number;
     /** True while the operation is still applied; false for entries already undone. */
     applied: boolean;
+    /** False when the files it would restore are no longer there. */
+    restorable: boolean;
 }
 
 export async function listHistory(): Promise<HistoryEntry[]> {

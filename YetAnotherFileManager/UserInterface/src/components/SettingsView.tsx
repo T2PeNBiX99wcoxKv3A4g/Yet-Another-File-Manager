@@ -7,6 +7,7 @@ import {DefaultViewDefaults} from "../api/files";
 import {clearIconCache, useIconFile, useMediaUrl} from "../api/icons";
 import {
     getArchiveStatus,
+    getDefaultManagerStatus,
     getDefaultProtectedPaths,
     getSettings,
     registerArchiveHandler,
@@ -15,9 +16,11 @@ import {
     unregisterArchiveHandler,
     type AppSettings,
     type ArchiveStatus,
+    type DefaultManagerStatus,
 } from "../api/settings";
 import type {AppInfo} from "../api/system";
 import {requestFile, requestFolder} from "../folder-picker";
+import {SelectMenu} from "./SelectMenu";
 import {useTextSearch, type PageFind} from "../ui/textSearch";
 import {checkUpdate, getMemory, getScheme, getUpdateStatus, openUrl, setScheme, trimMemory,
     type MemoryUsage, type UpdateCheck} from "../api/system";
@@ -163,9 +166,11 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
     const [schemeBusy, setSchemeBusy] = useState(false);
     const [schemeError, setSchemeError] = useState<string | null>(null);
     const [archiveStatus, setArchiveStatus] = useState<ArchiveStatus | null>(null);
+    const [defaultManagerStatus, setDefaultManagerStatus] = useState<DefaultManagerStatus | null>(null);
     const [archiveBusy, setArchiveBusy] = useState(false);
     const [archiveError, setArchiveError] = useState<string | null>(null);
     const [capturing, setCapturing] = useState<string | null>(null);
+    const [capturingGlobal, setCapturingGlobal] = useState(false);
     const [tags, setTags] = useState<TagCatalogEntry[]>([]);
     const [editingTag, setEditingTag] = useState<{ name: string; value: string } | null>(null);
     const [tagBusy, setTagBusy] = useState(false);
@@ -193,6 +198,9 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
         ? archiveStatus.registered && archiveStatus.pathMatches
         : settings?.archiveHandler ?? false;
     const archivePresent = archiveStatus?.registered ?? settings?.archiveHandler ?? false;
+    const defaultManagerRegistered = defaultManagerStatus
+        ? defaultManagerStatus.registered && defaultManagerStatus.pathMatches
+        : settings?.defaultFileManager ?? false;
 
     // The shared page search highlights matches and dims or hides sections without any.
     useTextSearch(page, find ?? null, "section", onSearchMatches ?? (() => undefined), [settings]);
@@ -262,6 +270,7 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
         void getSettings().then(setSettings, () => setSettings(null));
         void getScheme().then(setSchemeState, () => setSchemeState(false));
         void getArchiveStatus().then(setArchiveStatus, () => setArchiveStatus(null));
+        void getDefaultManagerStatus().then(setDefaultManagerStatus, () => setDefaultManagerStatus(null));
         void listTags().then(setTags, () => setTags([]));
     }, []);
 
@@ -683,6 +692,30 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
         return () => window.removeEventListener("keydown", record, true);
     }, [capturing, settings]);
 
+    // The global hotkey uses the same recorder, but stores a single combination.
+    useEffect(() => {
+        if (!capturingGlobal) return;
+
+        const record = (event: KeyboardEvent) => {
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (event.key === "Escape") {
+                setCapturingGlobal(false);
+                return;
+            }
+
+            const combo = comboOf(event);
+            if (!combo) return;
+
+            setCapturingGlobal(false);
+            void update({globalHotkey: combo});
+        };
+
+        window.addEventListener("keydown", record, true);
+        return () => window.removeEventListener("keydown", record, true);
+    }, [capturingGlobal, settings]);
+
     /** Recent items are a display preference, stored like every other setting. */
     const setRecentLimit = async (limit: number) => {
         await update({recentLimit: Math.min(Math.max(limit, 0), 50)});
@@ -815,6 +848,49 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                         </Row>
                         <Row>
                             <RowText>
+                                <Label>{t("Link paths")}</Label>
+                                <Note>{t("Relative links keep working when the link and its target move together. Absolute links always store the full target path.")}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <SelectMenu
+                                    disabled={!settings}
+                                    onChange={(value) => void update({linkPathMode: value})}
+                                    options={[
+                                        {value: "relative", label: t("Relative")},
+                                        {value: "absolute", label: t("Absolute")},
+                                    ]}
+                                    value={settings?.linkPathMode ?? "relative"}
+                                    width={160}
+                                />
+                            </RowEnd>
+                        </Row>
+                        <Row>
+                            <RowText>
+                                <Label>{t("Global hotkey")}</Label>
+                                <Note>{t("Brings the window forward from anywhere while the app is running. Empty means no global shortcut.")}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <KeyButton
+                                    $listening={capturingGlobal}
+                                    disabled={!settings}
+                                    onClick={() => setCapturingGlobal(true)}
+                                    type="button"
+                                >
+                                    {capturingGlobal
+                                        ? t("Press a key…")
+                                        : settings?.globalHotkey
+                                            ? prettyShortcut(settings.globalHotkey)
+                                            : t("None")}
+                                </KeyButton>
+                                {settings?.globalHotkey && (
+                                    <SmallButton onClick={() => void update({globalHotkey: null})} type="button">
+                                        {t("Clear")}
+                                    </SmallButton>
+                                )}
+                            </RowEnd>
+                        </Row>
+                        <Row>
+                            <RowText>
                                 <Label>{t("Open yafm:// links")}</Label>
                                 <Note>
                                     {t("Registers this app for yafm:// links, for the current user only. While this is on, the app repairs the entry at every launch.")}
@@ -840,16 +916,29 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                                 <Note>
                                     {t("Registers this app for folder opens on this account. Explorer stays available from the context menu; on Linux this sets the inode/directory default.")}
                                 </Note>
+                                {defaultManagerStatus?.registered && !defaultManagerStatus.pathMatches && (
+                                    <TagError>
+                                        {t("The registered path points to {path}. Register again to use this build.",
+                                            {path: defaultManagerStatus.registeredPath ?? "?"})}
+                                    </TagError>
+                                )}
                             </RowText>
                             <RowEnd>
-                                <State $on={settings?.defaultFileManager ?? false}>
-                                    {settings?.defaultFileManager ? t("Active") : t("Off")}
+                                <State $on={defaultManagerRegistered}>
+                                    {defaultManagerRegistered ? t("Active") : t("Off")}
                                 </State>
                                 <Toggle
-                                    $on={settings?.defaultFileManager ?? false}
+                                    $on={defaultManagerRegistered}
                                     disabled={!settings}
-                                    onClick={() => void update({defaultFileManager: !settings?.defaultFileManager})}
-                                    title={settings?.defaultFileManager
+                                    onClick={() => void (async () => {
+                                        const enable = defaultManagerStatus?.registered && !defaultManagerStatus.pathMatches
+                                            ? true
+                                            : !settings?.defaultFileManager;
+                                        await update({defaultFileManager: enable});
+                                        setDefaultManagerStatus(await getDefaultManagerStatus()
+                                            .catch(() => null));
+                                    })()}
+                                    title={defaultManagerRegistered
                                         ? t("Stop using this app for folders")
                                         : t("Use this app for folders")}
                                     type="button"

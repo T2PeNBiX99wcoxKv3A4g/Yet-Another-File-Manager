@@ -21,5 +21,5 @@ export function clearArchivePassword(path: string) {
 
 /** SharpCompress phrases the failure differently per encryption method. */
 export function isArchivePasswordError(message: string | null | undefined): boolean {
-    return !!message && /password|encrypt/i.test(message);
+    return !!message && /password|encrypt|cannot determine compressed stream|unsupported|format/i.test(message);
 }

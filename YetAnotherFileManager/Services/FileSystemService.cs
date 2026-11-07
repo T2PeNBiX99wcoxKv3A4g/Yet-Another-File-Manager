@@ -222,6 +222,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                     // The localization provider reloads the string table when the language changes.
                     DefaultFileManager.Apply(saved.IsDefaultFileManager);
                     ArchiveAssociations.Apply(saved.HandlesArchives);
+                    GlobalHotkey.Apply(saved.GlobalHotkey);
                     WindowManager.Instance.Notify("settings.changed", new OkPayload());
                     return context.Reply("app.settings.result", WithProtection(saved));
                 }
@@ -247,6 +248,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
             case "app.archive.status":
                 return context.Reply("app.archive.status.result", ArchiveAssociations.Status());
+
+            case "app.defaultManager.status":
+                return context.Reply("app.defaultManager.status.result", DefaultFileManager.Status());
 
             case "app.archive.register":
                 await SettingsService.Instance.UpdateAsync(settings => settings with { ArchiveHandler = true });
@@ -929,7 +933,16 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         if (error is not null)
             return new LinkPayload(false, null, error);
 
-        var result = await Task.Run(() => FileLinkCreation.Create(request.Kind, request.Source, request.Link));
+        var sourceToWrite = request.Source;
+        if (request.Kind is FileLinkCreation.SymbolicFile or FileLinkCreation.SymbolicFolder
+            && SettingsService.Instance.Current.UsesRelativeLinks)
+        {
+            var linkDirectory = Path.GetDirectoryName(Path.GetFullPath(request.Link));
+            if (linkDirectory is { Length: > 0 })
+                sourceToWrite = Path.GetRelativePath(linkDirectory, Path.GetFullPath(request.Source));
+        }
+
+        var result = await Task.Run(() => FileLinkCreation.Create(request.Kind, sourceToWrite, request.Link));
         if (result.Ok)
             return new LinkPayload(true, request.Link, null);
 
@@ -938,7 +951,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             or FileLinkCreation.ErrorPrivilegeNotHeld;
 
         if (symbolic && needsElevation
-            && await RunElevatedAsync(Constants.CreateLinkArgument, request.Kind, request.Source, request.Link))
+            && await RunElevatedAsync(Constants.CreateLinkArgument, request.Kind, sourceToWrite, request.Link))
             return new LinkPayload(true, request.Link, null);
 
         return new LinkPayload(false, null, result.Error);

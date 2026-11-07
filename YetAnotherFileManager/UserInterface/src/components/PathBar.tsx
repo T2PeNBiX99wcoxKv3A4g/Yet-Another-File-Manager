@@ -3,10 +3,12 @@ import {createPortal} from "react-dom";
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import {listDirectory, type Place} from "../api/files";
+import {openWith} from "../api/operations";
 import {useQuickAccess} from "../quick";
 import {CheckIcon, ChevronRightIcon, CrossIcon} from "./Icons";
 import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
+import {ContextMenu} from "./ContextMenu";
 import {elevatedPanel} from "../ui/panel";
 
 interface PathBarProps {
@@ -42,6 +44,7 @@ export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProp
     const [suggestions, setSuggestions] = useState<{ name: string; path: string }[]>([]);
     const [activeSuggestion, setActiveSuggestion] = useState(0);
     const [anchor, setAnchor] = useState<{ left: number; top: number; width: number } | null>(null);
+    const [crumbMenu, setCrumbMenu] = useState<{ x: number; y: number; path: string } | null>(null);
     const input = useRef<HTMLInputElement | null>(null);
     const wrap = useRef<HTMLDivElement | null>(null);
     const lastFocus = useRef(0);
@@ -242,6 +245,7 @@ export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProp
         : crumbsFor(path, quick.places);
 
     return (
+        <>
         <Trail onClick={start} title={t("Click to type a path")}>
             {crumbs.map((crumb, index) => (
                 <Crumb key={crumb.path} $last={index === crumbs.length - 1}>
@@ -251,6 +255,11 @@ export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProp
                             event.stopPropagation();
                             const newTab = event.ctrlKey || event.metaKey;
                             if (newTab || crumb.path !== path) onNavigate(crumb.path, newTab);
+                        }}
+                        onContextMenu={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setCrumbMenu({x: event.clientX, y: event.clientY, path: crumb.path});
                         }}
                         type="button"
                     >
@@ -262,6 +271,24 @@ export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProp
                 </Crumb>
             ))}
         </Trail>
+        {crumbMenu && (
+            <ContextMenu
+                items={[
+                    {
+                        label: t("Open in new tab"),
+                        onSelect: () => onNavigate(crumbMenu.path, true),
+                    },
+                    {
+                        label: t("Open with…"),
+                        onSelect: () => void openWith(crumbMenu.path),
+                    },
+                ]}
+                onClose={() => setCrumbMenu(null)}
+                x={crumbMenu.x}
+                y={crumbMenu.y}
+            />
+        )}
+        </>
     );
 }
 

@@ -1,5 +1,8 @@
 import {useEffect, useState} from "react";
 import {Native} from "@photino-net-utils/bridge";
+import {extractArchiveEntry} from "./files";
+import {getArchivePassword} from "./archivePassword";
+import {isArchiveLocation} from "../utils/format";
 
 const iconCache = new Map<string, string | null>();
 const fileCache = new Map<string, string | null>();
@@ -92,6 +95,39 @@ export function useIcon(path: string | null, isDirectory: boolean, large = false
     }, [id, path, isDirectory, large, revision]);
 
     return icon;
+}
+
+/** A physical path for previewing a file that lives inside an archive. */
+export function useArchiveEntryPath(path: string | null): string | null {
+    const [resolved, setResolved] = useState<string | null>(path);
+
+    useEffect(() => {
+        if (!path) {
+            setResolved(null);
+            return;
+        }
+
+        if (!isArchiveLocation(path)) {
+            setResolved(path);
+            return;
+        }
+
+        let alive = true;
+        void extractArchiveEntry(path, 0, getArchivePassword(path)).then(
+            (result) => {
+                if (alive) setResolved(result.path ?? null);
+            },
+            () => {
+                if (alive) setResolved(null);
+            },
+        );
+
+        return () => {
+            alive = false;
+        };
+    }, [path]);
+
+    return resolved;
 }
 
 /** An image file the user picked as an icon, as a data URL. */

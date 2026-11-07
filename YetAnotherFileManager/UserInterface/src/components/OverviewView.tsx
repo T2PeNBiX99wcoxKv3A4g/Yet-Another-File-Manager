@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState, type DragEvent, type MouseEvent} from "react";
+import {useEffect, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent as ReactPointerEvent} from "react";
 import styled from "styled-components";
 import {
     clearFrequent,
@@ -18,7 +18,8 @@ import {
 } from "../api/files";
 import {getSettings, saveSettings, type AppSettings} from "../api/settings";
 import {useTextSearch, type PageFind} from "../ui/textSearch";
-import {requestFolder} from "../folder-picker";
+import {requestFile, requestFolder} from "../folder-picker";
+import {useMediaUrl} from "../api/icons";
 import {Native, useTranslation} from "@photino-net-utils/bridge";
 import {FileList} from "./FileList";
 import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, GridIcon, ListIcon, MenuIcon, PencilIcon, PinIcon, PlusIcon} from "./Icons";
@@ -70,6 +71,36 @@ const Page = styled.div`
     min-height: 0;
     overflow-y: auto;
     padding: 14px 26px 34px;
+`;
+
+const Banner = styled.div`
+    position: relative;
+    margin: -14px -26px 18px;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+
+    img,
+    video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+`;
+
+const BannerHandle = styled.div`
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 10px;
+    cursor: row-resize;
+    background: rgba(var(--accent-rgb), 0.18);
+
+    &:hover {
+        background: rgba(var(--accent-rgb), 0.38);
+    }
 `;
 
 const Toolbar = styled.div`
@@ -631,6 +662,10 @@ export function OverviewView({
     const quick = useQuickAccess();
     const [editing, setEditing] = useState(false);
     const [settings, setSettings] = useState<AppSettings | null>(null);
+    const bannerPath = settings?.overviewBanner ?? null;
+    const bannerExtension = bannerPath?.split(".").pop()?.toLowerCase() ?? "";
+    const bannerVideo = ["mp4", "webm", "mkv", "mov", "m4v", "ogv"].includes(bannerExtension);
+    const bannerMedia = useMediaUrl(bannerPath, 0, bannerExtension ? `.${bannerExtension}` : "");
     const [iconEditor, setIconEditor] = useState<{ kind: "panel" | "place"; id: string } | null>(null);
     const [addOpen, setAddOpen] = useState(false);
     const [driveRename, setDriveRename] = useState<{ drive: Drive; label: string } | null>(null);
@@ -640,6 +675,8 @@ export function OverviewView({
     const [selectedTarget, setSelectedTarget] = useState<{ path: string; isDirectory: boolean } | null>(null);
     const selectionMenu = useSelectionMenuGroup("overview");
     const [menu, setMenu] = useState<{ x: number; y: number; target: FileMenuTarget } | null>(null);
+    const [bannerDraft, setBannerDraft] = useState<number | null>(null);
+    const bannerDrag = useRef<{ y: number; height: number } | null>(null);
 
     /** In the picker, a card selects for the footer instead of opening a tab. */
     const pickCard = (path: string, isDirectory = false): boolean => {
@@ -787,8 +824,33 @@ export function OverviewView({
         onLayoutChanged?.();
     };
 
-    const move = (id: string, offset: number) => {
-        const index = ids.indexOf(id);
+    const chooseBanner = async () => {
+        const file = await requestFile([".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif",
+            ".mp4", ".webm", ".mkv", ".mov", ".m4v"]);
+        if (file) await save({overviewBanner: file});
+    };
+
+    const removeBanner = () => void save({overviewBanner: null});
+
+    const startBannerDrag = (event: ReactPointerEvent) => {
+        bannerDrag.current = {y: event.clientY, height: bannerDraft ?? settings?.overviewBannerHeight ?? 220};
+        event.currentTarget.setPointerCapture(event.pointerId);
+    };
+
+    const moveBanner = (event: ReactPointerEvent) => {
+        const current = bannerDrag.current;
+        if (!current) return;
+
+        setBannerDraft(Math.min(900, Math.max(120, current.height + event.clientY - current.y)));
+    };
+
+    const endBannerDrag = (event: ReactPointerEvent) => {
+        bannerDrag.current = null;
+        event.currentTarget.releasePointerCapture(event.pointerId);
+        if (bannerDraft !== null) void save({overviewBannerHeight: bannerDraft});
+    };
+
+    const move = (id: string, offset: number) => {        const index = ids.indexOf(id);
         const target = index + offset;
         if (index < 0 || target < 0 || target >= ids.length) return;
 
@@ -1386,6 +1448,20 @@ export function OverviewView({
                 </Segmented>
 
                 {editing && (
+                    <>
+                        <Ghost onClick={() => void chooseBanner()} title={t("Choose banner")} type="button">
+                            <PlusIcon size={12}/>
+                            {settings?.overviewBanner ? t("Change banner…") : t("Add banner…")}
+                        </Ghost>
+                        {settings?.overviewBanner && (
+                            <Ghost onClick={removeBanner} title={t("Remove banner")} type="button">
+                                <CrossIcon size={12}/>
+                            </Ghost>
+                        )}
+                    </>
+                )}
+
+                {editing && (
                     <AddMenu>
                         <Ghost
                             onClick={() => setAddOpen((current) => !current)}
@@ -1447,6 +1523,26 @@ export function OverviewView({
             )}
 
             {driveNotice && <Notice>{driveNotice}</Notice>}
+
+            {settings?.overviewBanner && (
+                <Banner style={{height: bannerDraft ?? settings.overviewBannerHeight ?? 220}}>
+                    {bannerVideo
+                        ? <video autoPlay loop muted playsInline src={bannerMedia ?? undefined}/>
+                        : <img alt="" src={bannerMedia ?? undefined}/>}
+                    {editing && (
+                        <BannerHandle
+                            onDoubleClick={() => {
+                                setBannerDraft(null);
+                                void save({overviewBannerHeight: 220});
+                            }}
+                            onPointerDown={startBannerDrag}
+                            onPointerMove={moveBanner}
+                            onPointerUp={endBannerDrag}
+                            title={t("Drag to resize; double-click to reset")}
+                        />
+                    )}
+                </Banner>
+            )}
 
             <Panels ref={panelsRef} $columns={columns}>
                 {panels

@@ -52,8 +52,15 @@ internal sealed class FileHistory : Singleton<FileHistory>
         lock (_entries)
         {
             return new HistoryListPayload(
-                [.. _entries.Select((entry, index) => new HistoryEntryPayload(
-                    entry.Id, entry.Label, entry.Paths, entry.At, index < _index)).Reverse()]);
+                [.. _entries.Select((entry, index) =>
+                {
+                    var applied = index < _index;
+                    var restorable = applied && (entry.Label.StartsWith("Delete ", StringComparison.Ordinal)
+                        || entry.Paths.Count == 0
+                        || entry.Paths.Any(path => File.Exists(path) || Directory.Exists(path)));
+
+                    return new HistoryEntryPayload(entry.Id, entry.Label, entry.Paths, entry.At, applied, restorable);
+                }).Reverse()]);
         }
     }
 

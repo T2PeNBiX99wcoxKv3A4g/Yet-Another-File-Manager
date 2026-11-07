@@ -208,6 +208,9 @@ internal sealed record ArchiveApplyPayload(bool Ok, bool Changed, string? Error 
 /// <summary>Whether the archive ProgId exists and still points at this executable.</summary>
 internal sealed record ArchiveStatusPayload(bool Registered, bool PathMatches, string? RegisteredPath);
 
+/// <summary>Whether the current user's folder handler still points at this executable.</summary>
+internal sealed record DefaultManagerStatusPayload(bool Registered, bool PathMatches, string? RegisteredPath);
+
 /// <summary>Physical path of a temporary archive entry, or why it could not be extracted.</summary>
 internal sealed record ArchiveOpenPayload(string? Path, string? Error = null);
 
@@ -302,7 +305,8 @@ internal sealed record HistoryEntryPayload(
     string Label,
     IReadOnlyList<string> Paths,
     long At,
-    bool Applied);
+    bool Applied,
+    bool Restorable = true);
 
 /// <summary>Body for <c>fs.history.list</c>: the session's operations, newest first.</summary>
 internal sealed record HistoryListPayload(IReadOnlyList<HistoryEntryPayload> Entries);

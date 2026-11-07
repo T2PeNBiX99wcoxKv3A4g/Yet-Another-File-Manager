@@ -5,6 +5,8 @@ using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
 using Serilog;
 
+using YetAnotherFileManager.Messaging;
+
 namespace YetAnotherFileManager.Services;
 
 /// <summary>
@@ -35,6 +37,49 @@ internal static class DefaultFileManager
             else if (OperatingSystem.IsLinux())
                 ApplyLinux(enabled);
         }).OnFailure(ex => Log.Warning(ex, "Could not apply the default file manager choice"));
+
+    /// <summary>Whether the registered folder command still points at this executable.</summary>
+    public static DefaultManagerStatusPayload Status()
+    {
+        if (!OperatingSystem.IsWindows())
+            return new DefaultManagerStatusPayload(false, false, null);
+
+        string? registeredPath = null;
+        var active = false;
+
+        Try.Run(() =>
+        {
+            using var shell = Registry.CurrentUser.OpenSubKey(DirectoryShell);
+            active = string.Equals(shell?.GetValue(null) as string, "open", StringComparison.OrdinalIgnoreCase);
+
+            using var command = Registry.CurrentUser.OpenSubKey(DirectoryCommand);
+            registeredPath = ExecutableFrom(command?.GetValue(null) as string);
+        }).OnFailure(ex => Log.Debug(ex, "Could not read the default file manager status"));
+
+        var current = Environment.ProcessPath;
+        var matches = registeredPath is { Length: > 0 } && current is { Length: > 0 }
+            && Try.Run(() => string.Equals(Path.GetFullPath(registeredPath), Path.GetFullPath(current),
+                StringComparison.OrdinalIgnoreCase)).GetOrElse(_ => false);
+
+        return new DefaultManagerStatusPayload(active && registeredPath is { Length: > 0 }, matches, registeredPath);
+    }
+
+    private static string? ExecutableFrom(string? command)
+    {
+        if (string.IsNullOrWhiteSpace(command))
+            return null;
+
+        var trimmed = command.Trim();
+
+        if (trimmed.StartsWith('"'))
+        {
+            var closing = trimmed.IndexOf('"', 1);
+            return closing > 1 ? Environment.ExpandEnvironmentVariables(trimmed[1..closing]) : null;
+        }
+
+        var space = trimmed.IndexOf(' ');
+        return Environment.ExpandEnvironmentVariables(space > 0 ? trimmed[..space] : trimmed);
+    }
 
     [SupportedOSPlatform("windows")]
     private static void ApplyWindows(bool enabled)
