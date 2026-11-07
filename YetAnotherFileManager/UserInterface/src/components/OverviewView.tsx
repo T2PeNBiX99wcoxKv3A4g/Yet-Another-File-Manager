@@ -117,32 +117,31 @@ const Banner = styled.div`
         width: 100%;
         height: 100%;
         object-fit: cover;
+        /* Pan the visible crop down as the page scrolls. Unlike a transform this cannot leave a
+           gap at an edge, and the banner's height stays exactly where the user set it. */
+        object-position: 50% calc(20% + var(--banner-scroll, 0px) * 2);
         display: block;
-        /* A tiny parallax keeps the artwork moving a little slower than the page while scrolling. */
-        transform: translateY(calc(var(--banner-scroll, 0px) * -0.05)) scale(1.12);
-        transform-origin: center center;
-        will-change: transform;
-        /* A long mask, so the artwork dissolves into whatever the page paints behind it;
-           a solid-colour gradient shows a seam because the page is a gradient too. */
-        -webkit-mask-image: linear-gradient(to bottom,
-            #000 0%,
-            #000 18%,
-            rgba(0, 0, 0, 0.94) 30%,
-            rgba(0, 0, 0, 0.76) 46%,
-            rgba(0, 0, 0, 0.5) 62%,
-            rgba(0, 0, 0, 0.24) 80%,
-            rgba(0, 0, 0, 0.08) 92%,
-            transparent 100%);
-        mask-image: linear-gradient(to bottom,
-            #000 0%,
-            #000 18%,
-            rgba(0, 0, 0, 0.94) 30%,
-            rgba(0, 0, 0, 0.76) 46%,
-            rgba(0, 0, 0, 0.5) 62%,
-            rgba(0, 0, 0, 0.24) 80%,
-            rgba(0, 0, 0, 0.08) 92%,
-            transparent 100%);
     }
+`;
+
+const BannerMedia = styled.div`
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    /* A long mask on the frame, not the moving image, keeps the fade anchored to the banner.
+       The bottom is fully clear above the overlapping panels, whatever the banner height. */
+    -webkit-mask-image: linear-gradient(to bottom,
+        #000 0%,
+        #000 18%,
+        rgba(0, 0, 0, 0.9) 32%,
+        rgba(0, 0, 0, 0.6) 50%,
+        transparent calc(100% - min(120px, 40%)));
+    mask-image: linear-gradient(to bottom,
+        #000 0%,
+        #000 18%,
+        rgba(0, 0, 0, 0.9) 32%,
+        rgba(0, 0, 0, 0.6) 50%,
+        transparent calc(100% - min(120px, 40%)));
 `;
 
 const BannerHandle = styled.div`
@@ -905,7 +904,6 @@ export function OverviewView({
     const bannerDraftRef = useRef<number | null>(null);
     const pageRef = useRef<HTMLDivElement | null>(null);
     const bannerHeight = bannerDraft ?? settings?.overviewBannerHeight ?? 220;
-    const bannerShrink = Math.min(72, bannerHeight * 0.18);
 
     /** In the picker, a card selects for the footer instead of opening a tab. */
     const pickCard = (path: string, isDirectory = false): boolean => {
@@ -1782,12 +1780,12 @@ export function OverviewView({
             {driveNotice && <Notice>{driveNotice}</Notice>}
 
             {settings?.overviewBanner && (
-                <Banner style={{
-                    height: `calc(${bannerHeight}px - min(var(--banner-scroll, 0px) * 0.16, ${bannerShrink}px))`,
-                }}>
-                    {bannerVideo
-                        ? <video autoPlay loop muted playsInline src={bannerSource ?? undefined}/>
-                        : <img alt="" src={bannerSource ?? undefined}/>}
+                <Banner style={{height: `${bannerHeight}px`}}>
+                    <BannerMedia>
+                        {bannerVideo
+                            ? <video autoPlay loop muted playsInline src={bannerSource ?? undefined}/>
+                            : <img alt="" src={bannerSource ?? undefined}/>}
+                    </BannerMedia>
                     {editing && (
                         <BannerHandle
                             onDoubleClick={() => {
