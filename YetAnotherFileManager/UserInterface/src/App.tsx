@@ -27,10 +27,13 @@ import {getSettings, saveOpenTabs, saveSettings, type AppSettings} from "./api/s
 import {getAppInfo, getUpdateStatus, type AppInfo, type UpdateCheck} from "./api/system";
 import {
     copyPaths,
+    compressPaths,
+    deletePaths,
     getClipboardFiles,
     inspectPaths,
     newFile,
     newFolder,
+    pasteInto,
     redoFileOperation,
     transferPaths,
     undoFileOperation,
@@ -42,6 +45,7 @@ import {ContextMenu} from "./components/ContextMenu";
 import {PreviewPane, type PreviewInfo} from "./components/PreviewPane";
 import {FileTray, isPathDrag, type TrayItem} from "./components/FileTray";
 import {FileMenu} from "./components/FileMenu";
+import {CompressDialog} from "./components/CompressDialog";
 import {Wallpaper} from "./components/Wallpaper";
 import {ProtectedDeleteDialog} from "./components/ProtectedDeleteDialog";
 import {MessageDialog} from "./components/MessageDialog";
@@ -343,6 +347,8 @@ export default function App() {
         refresh: () => void;
     } | null>(null);
     const [extractMenu, setExtractMenu] = useState<{ x: number; y: number } | null>(null);
+    const [pathMenu, setPathMenu] = useState<{ x: number; y: number; path: string } | null>(null);
+    const [pathCompress, setPathCompress] = useState<{ paths: string[]; name: string } | null>(null);
     const [selectionCounts, setSelectionCounts] = useState({primary: 0, secondary: 0});
     const [selectionMenus, setSelectionMenus] = useState<{
         primary: { token: number; x: number; y: number } | null;
@@ -2085,6 +2091,7 @@ export default function App() {
                 focusToken={locationFocus}
                 icon={viewIcon}
                 label={kind === "files" ? undefined : t(viewTitles[kind])}
+                onContextMenu={kind === "files" ? (path, x, y) => setPathMenu({x, y, path}) : undefined}
                 onNavigate={navigate}
                 path={kind === "files" ? activeFolder : location}
             />
@@ -2304,6 +2311,7 @@ export default function App() {
                                         </IconButton>
                                         <PathBar
                                             focusToken={activePane === "primary" ? locationFocus : undefined}
+                                            onContextMenu={(path, x, y) => setPathMenu({x, y, path})}
                                             onNavigate={(path, newTab) => newTab
                                                 ? openFiles(path)
                                                 : void load(active.id, path)}
@@ -2397,6 +2405,7 @@ export default function App() {
                                         </IconButton>
                                         <PathBar
                                             focusToken={activePane === "secondary" ? locationFocus : undefined}
+                                            onContextMenu={(path, x, y) => setPathMenu({x, y, path})}
                                             onNavigate={(path, newTab) => newTab
                                                 ? openFiles(path)
                                                 : void load(secondary.id, path)}
@@ -2568,6 +2577,44 @@ export default function App() {
                     onCreateFile={(extension) => void createItem(extension)}
                     onCreateFolder={(caseSensitive) => void createItem(null, caseSensitive)}
                     shortcuts={shortcuts}
+                />
+            )}
+
+            {pathMenu && (
+                <FileMenu
+                    allowCompression
+                    directory={parentOf(pathMenu.path) ?? pathMenu.path}
+                    menu={{x: pathMenu.x, y: pathMenu.y, paths: [pathMenu.path]}}
+                    onAddToTray={(paths) => void addTrayPaths(paths)}
+                    onArchiveCreated={(created) => {
+                        if (created) refreshFolderTabs(parentOf(pathMenu.path) ?? pathMenu.path);
+                    }}
+                    onClose={() => setPathMenu(null)}
+                    onCompressTo={(paths, name) => setPathCompress({paths, name})}
+                    onCopy={(paths, cut) => void copyPaths(paths, cut)}
+                    onDelete={(paths) => void deletePaths(paths, false)
+                        .then(() => refreshFolderTabs(parentOf(pathMenu.path) ?? pathMenu.path))}
+                    onOpen={(path, newTab) => newTab ? openFiles(path) : void load(active.id, path)}
+                    onOpenFile={(path) => void openFile(path)}
+                    onPaste={(path) => void pasteInto(path).then((ok) => {
+                        if (ok) refreshFolderTabs(path);
+                    })}
+                    onRefresh={() => refreshFolderTabs(pathMenu.path)}
+                    shortcuts={shortcuts}
+                    target={{path: pathMenu.path, isDirectory: true}}
+                />
+            )}
+
+            {pathCompress && (
+                <CompressDialog
+                    initialDirectory={parentOf(pathMenu?.path ?? activeFolder) ?? activeFolder}
+                    initialName={pathCompress.name}
+                    onCancel={() => setPathCompress(null)}
+                    onCompress={async (options) => {
+                        const result = await compressPaths(pathCompress.paths, options);
+                        if (!result.ok && result.error) void showMessage(result.error);
+                        return result.ok;
+                    }}
                 />
             )}
 

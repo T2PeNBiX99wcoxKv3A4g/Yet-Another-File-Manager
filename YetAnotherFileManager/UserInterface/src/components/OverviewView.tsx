@@ -66,6 +66,17 @@ interface OverviewViewProps {
     onAddToTray?: (paths: string[]) => void;
 }
 
+function BannerThumb({path}: {path: string}) {
+    const extension = path.split(".").pop()?.toLowerCase() ?? "";
+    const video = ["mp4", "webm", "mkv", "mov", "m4v", "ogv"].includes(extension);
+    const media = useMediaUrl(path, 0, extension ? `.${extension}` : "");
+
+    if (!media) return null;
+    return video
+        ? <video autoPlay loop muted playsInline src={media}/>
+        : <img alt="" src={media}/>;
+}
+
 const Page = styled.div`
     flex: 1;
     min-height: 0;
@@ -100,6 +111,71 @@ const BannerHandle = styled.div`
 
     &:hover {
         background: rgba(var(--accent-rgb), 0.38);
+    }
+`;
+
+const BannerPanel = styled.section`
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+`;
+
+const BannerPanelTitle = styled.span`
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+`;
+
+const BannerChoices = styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+`;
+
+const BannerChoice = styled.button<{ $active: boolean }>`
+    width: 132px;
+    height: 72px;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid ${({$active}) => $active ? "var(--border-color-focus)" : "var(--border-color)"};
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    box-shadow: ${({$active}) => $active ? "0 0 0 2px rgba(var(--accent-rgb), 0.25)" : "none"};
+    cursor: pointer;
+
+    img,
+    video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+`;
+
+const AddBanner = styled.button`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    width: 132px;
+    height: 72px;
+    border: 1px dashed var(--border-color-hover);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 10px;
+    cursor: pointer;
+
+    &:hover {
+        border-color: var(--border-color-focus);
+        color: var(--text-primary);
     }
 `;
 
@@ -827,7 +903,11 @@ export function OverviewView({
     const chooseBanner = async () => {
         const file = await requestFile([".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif",
             ".mp4", ".webm", ".mkv", ".mov", ".m4v"]);
-        if (file) await save({overviewBanner: file});
+        if (!file) return;
+
+        const banners = settings?.overviewBanners ?? [];
+        await save({overviewBanner: file,
+            overviewBanners: banners.includes(file) ? banners : [...banners, file]});
     };
 
     const removeBanner = () => void save({overviewBanner: null});
@@ -1542,6 +1622,29 @@ export function OverviewView({
                         />
                     )}
                 </Banner>
+            )}
+
+            {editing && (
+                <BannerPanel>
+                    <BannerPanelTitle>{t("Banners")}</BannerPanelTitle>
+                    <BannerChoices>
+                        {(settings?.overviewBanners ?? []).map((path) => (
+                            <BannerChoice
+                                $active={settings?.overviewBanner === path}
+                                key={path}
+                                onClick={() => void save({overviewBanner: path})}
+                                title={path}
+                                type="button"
+                            >
+                                <BannerThumb path={path}/>
+                            </BannerChoice>
+                        ))}
+                        <AddBanner onClick={() => void chooseBanner()} title={t("Add banner…")} type="button">
+                            <PlusIcon size={18}/>
+                            <span>{t("Add banner…")}</span>
+                        </AddBanner>
+                    </BannerChoices>
+                </BannerPanel>
             )}
 
             <Panels ref={panelsRef} $columns={columns}>

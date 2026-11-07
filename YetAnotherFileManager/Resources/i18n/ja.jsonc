@@ -118,6 +118,7 @@
   "Link paths": "リンクのパス",
   "Global hotkey": "グローバルホットキー",
   "Brings the window forward from anywhere while the app is running. Empty means no global shortcut.": "アプリの実行中はどこで押してもウィンドウを前面に出します。空欄ならグローバルショートカットを使いません。",
+  "Banners": "バナー",
   "Add banner…": "バナーを追加…",
   "Change banner…": "バナーを変更…",
   "Remove banner": "バナーを削除",

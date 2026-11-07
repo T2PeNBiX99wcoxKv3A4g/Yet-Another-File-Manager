@@ -20,6 +20,8 @@ interface PathBarProps {
     /** A bump opens the editor, which is how Ctrl+L replaces the location. */
     focusToken?: number;
     onNavigate: (path: string, newTab?: boolean) => void;
+    /** Opens the host's full directory menu; without it a small local menu is used. */
+    onContextMenu?: (path: string, x: number, y: number) => void;
 }
 
 interface Crumb {
@@ -36,7 +38,7 @@ interface Crumb {
  * platform and the text box always uses forward slashes, which every supported OS accepts.
  * A folder that has a Quick access name shows that name and its icon instead of its real ones.
  */
-export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProps) {
+export function PathBar({path, label, icon, focusToken, onNavigate, onContextMenu}: PathBarProps) {
     const t = useTranslation();
     const quick = useQuickAccess();
     const [editing, setEditing] = useState(false);
@@ -259,7 +261,8 @@ export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProp
                         onContextMenu={(event) => {
                             event.preventDefault();
                             event.stopPropagation();
-                            setCrumbMenu({x: event.clientX, y: event.clientY, path: crumb.path});
+                            if (onContextMenu) onContextMenu(crumb.path, event.clientX, event.clientY);
+                            else setCrumbMenu({x: event.clientX, y: event.clientY, path: crumb.path});
                         }}
                         type="button"
                     >

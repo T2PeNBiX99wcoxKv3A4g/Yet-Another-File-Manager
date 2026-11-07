@@ -652,8 +652,19 @@ internal static class FolderIndex
             foreach (var suffix in new[] { "", "-wal", "-shm" })
             {
                 var path = PathFor(directory) + suffix;
-                await Task.Run(() => Try.Run(() => File.Delete(path))
-                    .OnFailure(ex => Log.Debug(ex, "Could not remove {Path}", path)));
+                await Task.Run(() => Try.Run(() =>
+                {
+                    if (!File.Exists(path))
+                        return;
+
+                    // Hidden and System do not block a delete; ReadOnly does. The app never writes
+                    // a read-only index, but one copied from elsewhere may carry the flag.
+                    var attributes = File.GetAttributes(path);
+                    if (attributes.HasFlag(FileAttributes.ReadOnly))
+                        File.SetAttributes(path, attributes & ~FileAttributes.ReadOnly);
+
+                    File.Delete(path);
+                }).OnFailure(ex => Log.Debug(ex, "Could not remove {Path}", path)));
             }
 
             Unusable.TryRemove(directory, out _);
