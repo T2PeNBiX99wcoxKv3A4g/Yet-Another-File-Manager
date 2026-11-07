@@ -23,6 +23,7 @@ const Methods = [
     {value: "deflate64", label: "Deflate64"},
     {value: "bzip2", label: "BZip2"},
     {value: "lzma", label: "LZMA"},
+    {value: "xz", label: "XZ"},
     {value: "ppmd", label: "PPMd"},
 ];
 
@@ -92,7 +93,7 @@ export function CompressDialog({initialDirectory, initialName, onCancel, onCompr
     const zipFormat = format === "zip" || format === "zipx";
     const encrypted = encryption !== "none";
     const canEncrypt = zipFormat || format === "7z";
-    const canSplit = format === "7z";
+    const canSplit = format === "zip" || format === "7z";
     const submit = async () => {
         if (busy || !name.trim() || !directory) return;
         if (encrypted && password.length === 0) return;

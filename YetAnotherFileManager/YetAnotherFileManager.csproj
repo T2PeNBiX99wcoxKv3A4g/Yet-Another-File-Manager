@@ -69,6 +69,12 @@
         <None Include="..\installer\windows\yafm.cmd" Link="yafm.cmd" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     </ItemGroup>
 
+    <ItemGroup>
+        <!-- 7z.exe handles the ZIP variants 7z.dll's wrapper cannot write: XZ-in-ZIP and split ZIP. -->
+        <None Include="Native\7z\**" Link="7z\%(RecursiveDir)%(Filename)%(Extension)"
+              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+
     <!-- Rust handles bulk filesystem work: the gallery scan, ZIP creation, measuring and deleting
          trees. The library is required, so the build stops when cargo is missing or the crate does
          not compile, and the file is copied beside the executable. -->

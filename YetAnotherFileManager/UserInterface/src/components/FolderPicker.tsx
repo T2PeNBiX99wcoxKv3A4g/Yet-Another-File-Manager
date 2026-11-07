@@ -23,6 +23,7 @@ import {elevatedPanel} from "../ui/panel";
 import {fadeInStyle, popInStyle} from "../ui/motion";
 import {FileMenu} from "./FileMenu";
 import {FileList} from "./FileList";
+import {PreviewPane, type PreviewInfo} from "./PreviewPane";
 import {FindBar} from "./FindBar";
 import {
     ArrowLeftIcon,
@@ -90,6 +91,7 @@ export function FolderPicker({
     const [renamePath, setRenamePath] = useState<string | null>(null);
     const [renameToken, setRenameToken] = useState(0);
     const [settings, setSettings] = useState<AppSettings | null>(null);
+    const [previewInfo, setPreviewInfo] = useState<PreviewInfo | null>(null);
 
     useEffect(() => {
         void getSettings().then(setSettings, () => setSettings(null));
@@ -383,9 +385,14 @@ export function FolderPicker({
         // The new entry has to be visible before FileList can focus its rename box.
         setFind((current) => ({...current, open: false, query: ""}));
         if (extension !== null) setAllFiles(true);
-        setRenamePath(result.path);
-        setRenameToken((token) => token + 1);
         setReload((value) => value + 1);
+
+        // Let the refreshed listing paint first; otherwise the rename request can be consumed
+        // before the new entry is in the list, especially from the context menu.
+        window.setTimeout(() => {
+            setRenamePath(result.path);
+            setRenameToken((token) => token + 1);
+        }, 120);
     };
 
     const openFind = () => {
@@ -605,6 +612,7 @@ export function FolderPicker({
                                 onOpenFile={openEntry}
                                 onRefresh={() => setReload((value) => value + 1)}
                                 onSelectionChange={handleSelection}
+                                onPreviewInfo={setPreviewInfo}
                                 selectionMenuId="picker"
                                 onSort={() => undefined}
                                 openOnSingleClick={settings?.openOnSingleClick ?? false}
@@ -617,6 +625,18 @@ export function FolderPicker({
                                 singleSelect={!multiple}
                                 view={pickerView}
                             />
+
+                            {selected.size > 0 && previewInfo && (
+                                <PreviewRow>
+                                    <PreviewPane
+                                        info={previewInfo}
+                                        onWidth={() => undefined}
+                                        videoAudio={settings?.previewVideoAudio ?? false}
+                                        videoAutoplay={settings?.previewVideoAutoplay ?? false}
+                                        width={320}
+                                    />
+                                </PreviewRow>
+                            )}
 
                             {selectionBar(typeName)}
                         </>
@@ -785,8 +805,18 @@ const IconButton = styled.button`
     }
 `;
 
-const Footer = styled.footer`
+/** The picker's preview strip sits between the list and the name box. */
+const PreviewRow = styled.div`
     display: flex;
+    flex-shrink: 0;
+    height: 190px;
+    min-height: 0;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    overflow: hidden;
+`;
+
+const Footer = styled.footer`    display: flex;
     flex-direction: column;
     gap: 10px;
     padding: 12px 16px;

@@ -140,7 +140,7 @@ export function FileMenu({
 
         const openWithToken = ++openWithRequest.current;
 
-        if (!archiveView && single && target && !target.isDirectory) {
+        if (!archiveView && single && target) {
             setOpenWithApps({recommended: [], other: [], loading: true});
             void listOpenWith(target.path).then(
                 (result) => {
@@ -465,7 +465,7 @@ export function FileMenu({
                 });
         }
 
-        if (!archiveView && single && target && !target.isDirectory) {
+        if (!archiveView && single && target) {
             const children: ContextMenuItem[] = [];
 
             if (openWithApps.loading) {

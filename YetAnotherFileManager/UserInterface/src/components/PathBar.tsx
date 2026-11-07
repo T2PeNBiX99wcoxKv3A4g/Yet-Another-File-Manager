@@ -3,7 +3,7 @@ import {createPortal} from "react-dom";
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import {listDirectory, type Place} from "../api/files";
-import {openWith} from "../api/operations";
+import {openWith, showProperties} from "../api/operations";
 import {useQuickAccess} from "../quick";
 import {CheckIcon, ChevronRightIcon, CrossIcon} from "./Icons";
 import {PathIcon} from "./PathIcon";
@@ -275,12 +275,24 @@ export function PathBar({path, label, icon, focusToken, onNavigate}: PathBarProp
             <ContextMenu
                 items={[
                     {
+                        label: t("Open"),
+                        onSelect: () => onNavigate(crumbMenu.path),
+                    },
+                    {
                         label: t("Open in new tab"),
                         onSelect: () => onNavigate(crumbMenu.path, true),
                     },
                     {
                         label: t("Open with…"),
                         onSelect: () => void openWith(crumbMenu.path),
+                    },
+                    {
+                        label: t("Copy path"),
+                        onSelect: () => void navigator.clipboard.writeText(crumbMenu.path),
+                    },
+                    {
+                        label: t("Properties"),
+                        onSelect: () => void showProperties([crumbMenu.path]),
                     },
                 ]}
                 onClose={() => setCrumbMenu(null)}
