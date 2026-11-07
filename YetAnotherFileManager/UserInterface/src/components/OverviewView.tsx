@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent as ReactPointerEvent} from "react";
+import {useEffect, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent as ReactPointerEvent} from "react";
 import styled from "styled-components";
 import {
     clearFrequent,
@@ -80,6 +80,141 @@ function BannerThumb({source, poster}: {source: string; poster?: string}) {
         : <img alt="" src={src}/>;
 }
 
+interface BannerFramingProps {
+    source: string;
+    video: boolean;
+    height: number;
+    offset: number;
+    onCancel: () => void;
+    onSave: (offset: number) => void;
+}
+
+/** Shows the whole image and a frame the user can slide to choose the banner's visible part. */
+function BannerFraming({source, video, height, offset, onCancel, onSave}: BannerFramingProps) {
+    const t = useTranslation();
+    const media = useRef<HTMLImageElement | HTMLVideoElement | null>(null);
+    const drag = useRef<{ y: number; top: number } | null>(null);
+    const initialized = useRef(false);
+    const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
+    const [display, setDisplay] = useState<{ width: number; height: number } | null>(null);
+    const [top, setTop] = useState(0);
+
+    const measure = () => {
+        const element = media.current;
+        if (!element) return;
+
+        const width = element instanceof HTMLVideoElement ? element.videoWidth : element.naturalWidth;
+        const height = element instanceof HTMLVideoElement ? element.videoHeight : element.naturalHeight;
+        const rect = element.getBoundingClientRect();
+
+        // The bundled concepts are SVG data URLs and may not report a useful intrinsic size.
+        const fallback = source.startsWith("data:image/svg");
+        if (width > 0 && height > 0)
+            setNatural({width, height});
+        else if (fallback)
+            setNatural({width: 1920, height: 1080});
+
+        if (rect.width > 0 && rect.height > 0)
+            setDisplay({width: rect.width, height: rect.height});
+    };
+
+    const frameHeight = display && natural
+        ? Math.min(display.height, height * (display.width / natural.width))
+        : 0;
+    const maxTop = Math.max(0, (display?.height ?? 0) - frameHeight);
+
+    useEffect(() => {
+        if (!display || !natural || initialized.current) return;
+
+        initialized.current = true;
+        setTop(Math.min(maxTop, Math.max(0, offset * maxTop)));
+    }, [display, natural, maxTop, offset]);
+
+    useEffect(() => {
+        const onResize = () => measure();
+        window.addEventListener("resize", onResize);
+        return () => window.removeEventListener("resize", onResize);
+    }, []);
+
+    const startDrag = (event: ReactPointerEvent) => {
+        drag.current = {y: event.clientY, top};
+        event.currentTarget.setPointerCapture(event.pointerId);
+    };
+
+    const moveDrag = (event: ReactPointerEvent) => {
+        const current = drag.current;
+        if (!current) return;
+
+        setTop(Math.min(maxTop, Math.max(0, current.top + event.clientY - current.y)));
+    };
+
+    const endDrag = (event: ReactPointerEvent) => {
+        drag.current = null;
+        if (event.currentTarget.hasPointerCapture(event.pointerId))
+            event.currentTarget.releasePointerCapture(event.pointerId);
+    };
+
+    return (
+        <FramingOverlay onPointerDown={(event) => {
+            if (event.target === event.currentTarget) onCancel();
+        }}>
+            <FramingPanel>
+                <FramingHead>
+                    <span>{t("Adjust banner framing")}</span>
+                    <CloseButton onClick={onCancel} title={t("Cancel")} type="button">
+                        <CrossIcon size={12}/>
+                    </CloseButton>
+                </FramingHead>
+                <FramingHint>{t("Drag the frame to choose the visible part.")}</FramingHint>
+
+                <FramingStage>
+                    {video
+                        ? <video
+                            muted
+                            onLoadedMetadata={(event) => {
+                                measure();
+                                event.currentTarget.currentTime = Math.min(0.1, event.currentTarget.duration || 0);
+                            }}
+                            playsInline
+                            preload="metadata"
+                            ref={(element) => { media.current = element; }}
+                            src={source}
+                        />
+                        : <img
+                            alt=""
+                            draggable={false}
+                            onLoad={measure}
+                            ref={(element) => { media.current = element; }}
+                            src={source}
+                        />}
+                    {frameHeight > 0 && (
+                        <FramingWindow
+                            onPointerCancel={endDrag}
+                            onPointerDown={startDrag}
+                            onPointerMove={moveDrag}
+                            onPointerUp={endDrag}
+                            style={{height: frameHeight, top}}
+                        >
+                            <FramingGrip/>
+                        </FramingWindow>
+                    )}
+                </FramingStage>
+
+                <FramingActions>
+                    <Button onClick={onCancel} type="button">{t("Cancel")}</Button>
+                    <Button
+                        $primary
+                        onClick={() => onSave(maxTop > 0 ? top / maxTop : offset)}
+                        type="button"
+                    >
+                        {t("Save")}
+                    </Button>
+                </FramingActions>
+            </FramingPanel>
+        </FramingOverlay>
+    );
+}
+
 /** A few built-in concepts, each already drawn in the app's colour presets. */
 const BuiltinImageBanners = [
     {concept: "aurora", preset: "Indigo"},
@@ -118,10 +253,8 @@ const Banner = styled.div`
         height: 100%;
         object-fit: cover;
         display: block;
-        /* A small downward drift: the image lags behind the page, but never leaves the frame. */
-        transform: translateY(min(calc(var(--banner-scroll, 0px) * 0.5), 10%)) scale(1.2);
-        transform-origin: center center;
-        will-change: transform;
+        /* The chosen crop starts at --banner-offset and drifts down as the page scrolls. */
+        object-position: 50% calc(var(--banner-offset, 30%) + var(--banner-progress, 0) * var(--banner-drift, 20%));
     }
 `;
 
@@ -283,6 +416,133 @@ const NoBanner = styled.span`
     height: 100%;
     color: var(--text-secondary);
     font-size: 10.5px;
+`;
+
+const FramingOverlay = styled.div`
+    position: fixed;
+    inset: 0;
+    z-index: 4000;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(var(--bg-rgb), 0.72);
+    backdrop-filter: blur(6px);
+`;
+
+const FramingPanel = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: min(960px, 94vw);
+    max-height: 92vh;
+    overflow-y: auto;
+    padding: 16px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    box-shadow: var(--accent-glow);
+`;
+
+const FramingHead = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+`;
+
+const FramingHint = styled.p`
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 11px;
+`;
+
+const FramingStage = styled.div`
+    position: relative;
+    align-self: center;
+    width: 100%;
+    overflow: hidden;
+    border-radius: var(--radius-sm);
+    background: var(--bg-media);
+
+    img,
+    video {
+        display: block;
+        width: 100%;
+        height: auto;
+        user-select: none;
+        pointer-events: none;
+    }
+`;
+
+const FramingWindow = styled.div`
+    position: absolute;
+    right: 0;
+    left: 0;
+    border-top: 2px solid var(--accent-primary);
+    border-bottom: 2px solid var(--accent-primary);
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+    cursor: grab;
+    touch-action: none;
+
+    &:active {
+        cursor: grabbing;
+    }
+`;
+
+const FramingGrip = styled.span`
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 72px;
+    height: 4px;
+    transform: translate(-50%, -50%);
+    border-radius: 999px;
+    background: var(--accent-primary);
+    box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.55);
+`;
+
+const FramingActions = styled.div`
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+`;
+
+const Button = styled.button<{ $primary?: boolean }>`
+    padding: 6px 12px;
+    border: 1px solid ${({$primary}) => $primary ? "var(--border-color-focus)" : "var(--border-color)"};
+    border-radius: var(--radius-sm);
+    background: ${({$primary}) => $primary ? "rgba(var(--accent-rgb), 0.18)" : "transparent"};
+    color: ${({$primary}) => $primary ? "var(--text-primary)" : "var(--text-secondary)"};
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+
+    &:hover {
+        border-color: var(--border-color-focus);
+        color: var(--text-primary);
+    }
+`;
+
+const CloseButton = styled.button`
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+
+    &:hover {
+        border-color: var(--border-color);
+        background: var(--bg-card-hover);
+        color: var(--text-primary);
+    }
 `;
 
 const AddBanner = styled.button`
@@ -904,6 +1164,11 @@ export function OverviewView({
     const bannerDraftRef = useRef<number | null>(null);
     const pageRef = useRef<HTMLDivElement | null>(null);
     const bannerHeight = bannerDraft ?? settings?.overviewBannerHeight ?? 220;
+    const bannerHeightRef = useRef(bannerHeight);
+    bannerHeightRef.current = bannerHeight;
+    const bannerOffset = Math.min(1, Math.max(0, settings?.overviewBannerOffset ?? 0.3));
+    const bannerDrift = Math.min(20, Math.max(0, (1 - bannerOffset) * 100));
+    const [framing, setFraming] = useState(false);
 
     /** In the picker, a card selects for the footer instead of opening a tab. */
     const pickCard = (path: string, isDirectory = false): boolean => {
@@ -946,7 +1211,8 @@ export function OverviewView({
         let frame = 0;
         const update = () => {
             frame = 0;
-            page.style.setProperty("--banner-scroll", `${Math.min(page.scrollTop, 480)}px`);
+            const progress = Math.min(page.scrollTop / Math.max(bannerHeightRef.current, 1), 1);
+            page.style.setProperty("--banner-progress", `${progress}`);
         };
         const onScroll = () => {
             if (frame === 0) frame = window.requestAnimationFrame(update);
@@ -1780,7 +2046,11 @@ export function OverviewView({
             {driveNotice && <Notice>{driveNotice}</Notice>}
 
             {settings?.overviewBanner && (
-                <Banner style={{height: `${bannerHeight}px`}}>
+                <Banner style={{
+                    height: `${bannerHeight}px`,
+                    "--banner-offset": `${bannerOffset * 100}%`,
+                    "--banner-drift": `${bannerDrift}%`,
+                } as CSSProperties}>
                     <BannerMedia>
                         {bannerVideo
                             ? <video autoPlay loop muted playsInline src={bannerSource ?? undefined}/>
@@ -1808,6 +2078,12 @@ export function OverviewView({
                 <BannerPanel>
                     <BannerPanelHead>
                         <BannerPanelTitle>{t("Banners")}</BannerPanelTitle>
+                        {settings?.overviewBanner && (
+                            <Ghost onClick={() => setFraming(true)} title={t("Adjust framing…")} type="button">
+                                <PencilIcon size={12}/>
+                                {t("Adjust framing…")}
+                            </Ghost>
+                        )}
                     </BannerPanelHead>
                     <BannerChoices>
                         <BannerItem>
@@ -2007,6 +2283,20 @@ export function OverviewView({
                     })}
             </Panels>
             </Content>
+
+            {framing && bannerSource && (
+                <BannerFraming
+                    height={bannerHeight}
+                    offset={bannerOffset}
+                    onCancel={() => setFraming(false)}
+                    onSave={(value) => {
+                        void save({overviewBannerOffset: value});
+                        setFraming(false);
+                    }}
+                    source={bannerSource}
+                    video={bannerVideo}
+                />
+            )}
 
             {menu && (
                 <FileMenu

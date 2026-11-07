@@ -94,6 +94,8 @@ export interface AppSettings {
     overviewBannerHeight: number;
     /** Custom banner media the user added. */
     overviewBanners: string[];
+    /** Vertical crop of the overview banner, 0 = top, 1 = bottom. */
+    overviewBannerOffset: number;
     /** Global key combination that brings the window forward; empty disables it. */
     globalHotkey: string | null;
     /** UI language such as "en" or "zh-TW"; null means English, "system" follows the OS. */
@@ -158,6 +160,7 @@ const fallback: AppSettings = {
     overviewBanner: null,
     overviewBannerHeight: 220,
     overviewBanners: [],
+    overviewBannerOffset: 0.3,
     globalHotkey: null,
     language: null,
     themePresets: [],
@@ -218,6 +221,7 @@ export async function getSettings(): Promise<AppSettings> {
         overviewBanner: raw?.overviewBanner ?? null,
         overviewBannerHeight: raw?.overviewBannerHeight ?? 220,
         overviewBanners: raw?.overviewBanners ?? [],
+        overviewBannerOffset: raw?.overviewBannerOffset ?? 0.3,
         globalHotkey: raw?.globalHotkey ?? null,
         language: raw?.language ?? null,
         themePresets: raw?.themePresets ?? [],
@@ -331,6 +335,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         overviewBanner: saved?.overviewBanner ?? settings.overviewBanner,
         overviewBannerHeight: saved?.overviewBannerHeight ?? settings.overviewBannerHeight,
         overviewBanners: saved?.overviewBanners ?? settings.overviewBanners,
+        overviewBannerOffset: saved?.overviewBannerOffset ?? settings.overviewBannerOffset,
         globalHotkey: saved?.globalHotkey ?? settings.globalHotkey,
         language: saved?.language ?? settings.language,
         themePresets: saved?.themePresets ?? settings.themePresets,
