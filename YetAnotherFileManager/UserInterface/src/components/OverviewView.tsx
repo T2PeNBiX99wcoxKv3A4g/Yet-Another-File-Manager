@@ -107,12 +107,12 @@ function BannerFraming({source, video, height, offset, onCancel, onSave}: Banner
         const height = element instanceof HTMLVideoElement ? element.videoHeight : element.naturalHeight;
         const rect = element.getBoundingClientRect();
 
-        // The bundled concepts are SVG data URLs and may not report a useful intrinsic size.
-        const fallback = source.startsWith("data:image/svg");
-        if (width > 0 && height > 0)
-            setNatural({width, height});
-        else if (fallback)
+        // The bundled concepts are SVG data URLs and report a tiny intrinsic size; their real
+        // design space is 1920x1080.
+        if (source.startsWith("data:image/svg"))
             setNatural({width: 1920, height: 1080});
+        else if (width > 0 && height > 0)
+            setNatural({width, height});
 
         if (rect.width > 0 && rect.height > 0)
             setDisplay({width: rect.width, height: rect.height});
@@ -135,6 +135,12 @@ function BannerFraming({source, video, height, offset, onCancel, onSave}: Banner
         window.addEventListener("resize", onResize);
         return () => window.removeEventListener("resize", onResize);
     }, []);
+
+    // Cached images and SVG data URLs can finish before the load handler is attached.
+    useEffect(() => {
+        const frame = window.requestAnimationFrame(measure);
+        return () => window.cancelAnimationFrame(frame);
+    }, [source, video]);
 
     const startDrag = (event: ReactPointerEvent) => {
         drag.current = {y: event.clientY, top};
@@ -250,11 +256,11 @@ const Banner = styled.div`
     img,
     video {
         width: 100%;
-        height: 100%;
-        object-fit: cover;
+        height: auto;
         display: block;
-        /* The chosen crop starts at --banner-offset and drifts down as the page scrolls. */
-        object-position: 50% calc(var(--banner-offset, 30%) + var(--banner-progress, 0) * var(--banner-drift, 20%));
+        /* The image starts at the chosen crop and slides down as the page scrolls. */
+        transform: translateY(calc(var(--banner-progress, 0) * var(--banner-move, 0px) - var(--banner-base, 0px)));
+        will-change: transform;
     }
 `;
 
@@ -1163,11 +1169,19 @@ export function OverviewView({
     const bannerDrag = useRef<{ y: number; height: number } | null>(null);
     const bannerDraftRef = useRef<number | null>(null);
     const pageRef = useRef<HTMLDivElement | null>(null);
+    const bannerRef = useRef<HTMLDivElement | null>(null);
+    const bannerImageRef = useRef<HTMLImageElement | null>(null);
     const bannerHeight = bannerDraft ?? settings?.overviewBannerHeight ?? 220;
     const bannerHeightRef = useRef(bannerHeight);
     bannerHeightRef.current = bannerHeight;
+    const [bannerWidth, setBannerWidth] = useState(0);
+    const [mediaSize, setMediaSize] = useState<{ width: number; height: number } | null>(null);
     const bannerOffset = Math.min(1, Math.max(0, settings?.overviewBannerOffset ?? 0.3));
-    const bannerDrift = Math.min(20, Math.max(0, (1 - bannerOffset) * 100));
+    const bannerSpare = mediaSize && bannerWidth > 0
+        ? Math.max(0, mediaSize.height * (bannerWidth / mediaSize.width) - bannerHeight)
+        : 0;
+    const bannerBase = bannerSpare * bannerOffset;
+    const bannerMove = Math.min(bannerHeight * 0.5, bannerBase);
     const [framing, setFraming] = useState(false);
 
     /** In the picker, a card selects for the footer instead of opening a tab. */
@@ -1225,6 +1239,35 @@ export function OverviewView({
             if (frame !== 0) window.cancelAnimationFrame(frame);
         };
     }, []);
+
+    // A new banner has its own natural size; the old crop cannot be reused until it loads.
+    useEffect(() => {
+        if (bannerBuiltin && !bannerVideo) {
+            // Bundled concepts are SVG data URLs; they report a tiny default intrinsic size and
+            // their load event may already have fired before React attached the handler.
+            setMediaSize({width: 1920, height: 1080});
+            return;
+        }
+
+        setMediaSize(null);
+        const image = bannerImageRef.current;
+        if (image?.complete && image.naturalWidth > 0)
+            setMediaSize({width: image.naturalWidth, height: image.naturalHeight});
+    }, [bannerPath, bannerBuiltin, bannerVideo]);
+
+    // The image is rendered at the banner's width, so its spare vertical room decides how far it
+    // can move without exposing an edge.
+    useEffect(() => {
+        const element = bannerRef.current;
+        if (!element) return;
+
+        const update = () => setBannerWidth(element.clientWidth);
+        update();
+
+        const observer = new ResizeObserver(update);
+        observer.observe(element);
+        return () => observer.disconnect();
+    }, [settings?.overviewBanner]);
 
     // Any click outside an open icon list closes it, the way a menu should.
     useEffect(() => {
@@ -2046,15 +2089,40 @@ export function OverviewView({
             {driveNotice && <Notice>{driveNotice}</Notice>}
 
             {settings?.overviewBanner && (
-                <Banner style={{
-                    height: `${bannerHeight}px`,
-                    "--banner-offset": `${bannerOffset * 100}%`,
-                    "--banner-drift": `${bannerDrift}%`,
-                } as CSSProperties}>
+                <Banner
+                    ref={bannerRef}
+                    style={{
+                        height: `${bannerHeight}px`,
+                        "--banner-base": `${bannerBase}px`,
+                        "--banner-move": `${bannerMove}px`,
+                    } as CSSProperties}
+                >
                     <BannerMedia>
                         {bannerVideo
-                            ? <video autoPlay loop muted playsInline src={bannerSource ?? undefined}/>
-                            : <img alt="" src={bannerSource ?? undefined}/>}
+                            ? <video
+                                autoPlay
+                                loop
+                                muted
+                                onLoadedMetadata={(event) => {
+                                    if (event.currentTarget.videoWidth > 0 && event.currentTarget.videoHeight > 0)
+                                        setMediaSize({
+                                            width: event.currentTarget.videoWidth,
+                                            height: event.currentTarget.videoHeight,
+                                        });
+                                }}
+                                playsInline
+                                src={bannerSource ?? undefined}
+                            />
+                            : <img
+                                alt=""
+                                onLoad={(event) => {
+                                    const width = bannerBuiltin ? 1920 : event.currentTarget.naturalWidth || 1920;
+                                    const height = bannerBuiltin ? 1080 : event.currentTarget.naturalHeight || 1080;
+                                    setMediaSize({width, height});
+                                }}
+                                ref={bannerImageRef}
+                                src={bannerSource ?? undefined}
+                            />}
                     </BannerMedia>
                     {editing && (
                         <BannerHandle
