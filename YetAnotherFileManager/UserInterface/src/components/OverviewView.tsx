@@ -77,18 +77,18 @@ function BannerThumb({path}: {path: string}) {
         : <img alt="" src={media}/>;
 }
 
-const Page = styled.div`
+const Page = styled.div<{ $flush?: boolean }>`
+    position: relative;
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 14px 26px 34px;
+    padding: ${({$flush}) => $flush ? "0 26px 34px" : "14px 26px 34px"};
 `;
 
 const Banner = styled.div`
     position: relative;
-    margin: -14px -26px 18px;
+    margin: 0 -26px 18px;
     overflow: hidden;
-    border-bottom: 1px solid var(--border-color);
     background: var(--bg-secondary);
 
     img,
@@ -98,6 +98,22 @@ const Banner = styled.div`
         object-fit: cover;
         display: block;
     }
+
+    /* Let the artwork dissolve into the page instead of ending on a hard edge. */
+    &::after {
+        content: "";
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 1;
+        height: 48%;
+        background: linear-gradient(to bottom,
+            rgba(var(--bg-rgb), 0) 0%,
+            rgba(var(--bg-rgb), 0.55) 45%,
+            var(--bg-primary) 100%);
+        pointer-events: none;
+    }
 `;
 
 const BannerHandle = styled.div`
@@ -105,6 +121,7 @@ const BannerHandle = styled.div`
     right: 0;
     bottom: 0;
     left: 0;
+    z-index: 2;
     height: 10px;
     cursor: row-resize;
     background: rgba(var(--accent-rgb), 0.18);
@@ -123,6 +140,13 @@ const BannerPanel = styled.section`
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     background: var(--bg-card);
+`;
+
+const BannerPanelHead = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
 `;
 
 const BannerPanelTitle = styled.span`
@@ -179,13 +203,28 @@ const AddBanner = styled.button`
     }
 `;
 
-const Toolbar = styled.div`
+const Toolbar = styled.div<{ $overlay?: boolean }>`
     display: flex;
     align-items: center;
     justify-content: flex-end;
     gap: 8px;
     flex-wrap: wrap;
-    padding-bottom: 14px;
+
+    ${({$overlay}) => $overlay
+        ? `
+            position: absolute;
+            z-index: 10;
+            top: 10px;
+            right: 18px;
+            padding: 4px;
+            border: 1px solid rgba(var(--accent-rgb), 0.14);
+            border-radius: var(--radius-md);
+            background: rgba(var(--bg-rgb), 0.42);
+            backdrop-filter: blur(14px) saturate(1.2);
+            -webkit-backdrop-filter: blur(14px) saturate(1.2);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+        `
+        : "padding-bottom: 14px;"}
 `;
 
 const Segmented = styled.div`
@@ -1510,9 +1549,9 @@ export function OverviewView({
     };
 
     return (
-        <Page>
+        <Page $flush={!!settings?.overviewBanner}>
             {!readOnly && (
-                <Toolbar>
+                <Toolbar $overlay={!!settings?.overviewBanner}>
                 <Segmented role="group" title={t("Columns")}>
                     {[1, 2, 3, 4, 5].map((count) => (
                         <Segment
@@ -1526,20 +1565,6 @@ export function OverviewView({
                         </Segment>
                     ))}
                 </Segmented>
-
-                {editing && (
-                    <>
-                        <Ghost onClick={() => void chooseBanner()} title={t("Choose banner")} type="button">
-                            <PlusIcon size={12}/>
-                            {settings?.overviewBanner ? t("Change banner…") : t("Add banner…")}
-                        </Ghost>
-                        {settings?.overviewBanner && (
-                            <Ghost onClick={removeBanner} title={t("Remove banner")} type="button">
-                                <CrossIcon size={12}/>
-                            </Ghost>
-                        )}
-                    </>
-                )}
 
                 {editing && (
                     <AddMenu>
@@ -1626,7 +1651,15 @@ export function OverviewView({
 
             {editing && (
                 <BannerPanel>
-                    <BannerPanelTitle>{t("Banners")}</BannerPanelTitle>
+                    <BannerPanelHead>
+                        <BannerPanelTitle>{t("Banners")}</BannerPanelTitle>
+                        {settings?.overviewBanner && (
+                            <Ghost onClick={removeBanner} title={t("Remove banner")} type="button">
+                                <CrossIcon size={12}/>
+                                {t("Remove banner")}
+                            </Ghost>
+                        )}
+                    </BannerPanelHead>
                     <BannerChoices>
                         {(settings?.overviewBanners ?? []).map((path) => (
                             <BannerChoice

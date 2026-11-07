@@ -23,7 +23,6 @@ import {elevatedPanel} from "../ui/panel";
 import {fadeInStyle, popInStyle} from "../ui/motion";
 import {FileMenu} from "./FileMenu";
 import {FileList} from "./FileList";
-import {PreviewPane, type PreviewInfo} from "./PreviewPane";
 import {FindBar} from "./FindBar";
 import {
     ArrowLeftIcon,
@@ -53,6 +52,9 @@ interface FolderPickerProps {
     extensions?: string[];
     /** Render as the whole window (the CLI picker) instead of a modal. */
     inline?: boolean;
+    /** The window title bar owns the view controls, so it passes the resolved view in. */
+    fileView?: ResolvedView;
+    showImages?: boolean;
     places?: Place[];
     onCancel: () => void;
     onSelect: (paths: string[]) => void;
@@ -64,7 +66,7 @@ interface FolderPickerProps {
  */
 export function FolderPicker({
     initial = "", mode = "folder", multiple = false, extensions, inline = false, places: suppliedPlaces,
-    onCancel, onSelect,
+    fileView, showImages, onCancel, onSelect,
 }: FolderPickerProps) {
     const t = useTranslation();
     const selectionMenu = useSelectionMenu("picker");
@@ -91,7 +93,7 @@ export function FolderPicker({
     const [renamePath, setRenamePath] = useState<string | null>(null);
     const [renameToken, setRenameToken] = useState(0);
     const [settings, setSettings] = useState<AppSettings | null>(null);
-    const [previewInfo, setPreviewInfo] = useState<PreviewInfo | null>(null);
+    const [stripHeight, setStripHeight] = useState(DefaultViewDefaults.imageStripHeight);
 
     useEffect(() => {
         void getSettings().then(setSettings, () => setSettings(null));
@@ -313,14 +315,17 @@ export function FolderPicker({
         [find, findCurrent, findHits],
     );
 
-    const pickerView: ResolvedView = {
-        mode: settings?.defaultView?.mode ?? "list",
-        iconSize: settings?.defaultView?.iconSize ?? DefaultViewDefaults.iconSize,
-        gridSize: settings?.defaultView?.gridSize ?? DefaultViewDefaults.gridSize,
+    const viewDefaults = settings?.defaultView ?? DefaultViewDefaults;
+    const pickerView: ResolvedView = fileView ?? {
+        mode: viewDefaults.mode,
+        iconSize: viewDefaults.iconSize,
+        gridSize: viewDefaults.gridSize,
         sort: "name",
         sortDescending: false,
-        columns: settings?.defaultView?.columns ?? DefaultViewDefaults.columns ?? ["type", "size", "modified"],
+        columns: viewDefaults.columns ?? ["type", "size", "modified"],
     };
+    // The strip belongs to the list; a grid already shows the pictures themselves.
+    const stripVisible = (showImages ?? viewDefaults.showImages) && pickerView.mode === "list";
 
     const typed = fileName.trim();
     const typedPath = typed.length > 0
@@ -606,13 +611,14 @@ export function FolderPicker({
                                 enableShortcuts
                                 error={error}
                                 find={findView}
+                                imageStripHeight={stripHeight}
                                 loading={loading}
                                 listing={pickerListing}
+                                onImageStripHeight={setStripHeight}
                                 onOpen={openEntry}
                                 onOpenFile={openEntry}
                                 onRefresh={() => setReload((value) => value + 1)}
                                 onSelectionChange={handleSelection}
-                                onPreviewInfo={setPreviewInfo}
                                 selectionMenuId="picker"
                                 onSort={() => undefined}
                                 openOnSingleClick={settings?.openOnSingleClick ?? false}
@@ -621,22 +627,10 @@ export function FolderPicker({
                                 pendingRenameToken={renameToken}
                                 showCheckboxes={settings?.showCheckboxes ?? true}
                                 showDetails={false}
-                                showImages={false}
+                                showImages={stripVisible}
                                 singleSelect={!multiple}
                                 view={pickerView}
                             />
-
-                            {selected.size > 0 && previewInfo && (
-                                <PreviewRow>
-                                    <PreviewPane
-                                        info={previewInfo}
-                                        onWidth={() => undefined}
-                                        videoAudio={settings?.previewVideoAudio ?? false}
-                                        videoAutoplay={settings?.previewVideoAutoplay ?? false}
-                                        width={320}
-                                    />
-                                </PreviewRow>
-                            )}
 
                             {selectionBar(typeName)}
                         </>
@@ -805,17 +799,7 @@ const IconButton = styled.button`
     }
 `;
 
-/** The picker's preview strip sits between the list and the name box. */
-const PreviewRow = styled.div`
-    display: flex;
-    flex-shrink: 0;
-    height: 190px;
-    min-height: 0;
-    border-top: 1px solid var(--border-color);
-    background: var(--bg-secondary);
-    overflow: hidden;
-`;
-
+/** The picker's name box and buttons. */
 const Footer = styled.footer`    display: flex;
     flex-direction: column;
     gap: 10px;

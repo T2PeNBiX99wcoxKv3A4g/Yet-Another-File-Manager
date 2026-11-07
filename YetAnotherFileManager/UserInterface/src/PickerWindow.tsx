@@ -1,10 +1,12 @@
 import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
 import {Native, ResizeHandles, useTranslation, useWindowDrag} from "@photino-net-utils/bridge";
-import {getSettings} from "./api/settings";
+import {getSettings, type AppSettings} from "./api/settings";
+import {DefaultViewDefaults, type DirectoryView, type ResolvedView} from "./api/files";
 import {setProtectedDeleteAsker, type ProtectedDeletePrompt} from "./api/safety";
 import {applyTheme} from "./theme";
 import {FolderPicker} from "./components/FolderPicker";
+import {ViewMenu} from "./components/ViewMenu";
 import {ProtectedDeleteDialog} from "./components/ProtectedDeleteDialog";
 import {MessageDialog} from "./components/MessageDialog";
 import {AppIcon, CrossIcon} from "./components/Icons";
@@ -23,6 +25,11 @@ interface PickerWindowProps {
 export function PickerWindow({mode, multiple, extensions, initial}: PickerWindowProps) {
     const t = useTranslation();
     const drag = useWindowDrag();
+    const [settings, setSettings] = useState<AppSettings | null>(null);
+    // The picker's view is a session choice; it starts from the app defaults and is not saved.
+    const [viewOverrides, setViewOverrides] = useState<Partial<DirectoryView>>({});
+    const [columns, setColumns] = useState<string[] | null>(null);
+    const [showImages, setShowImages] = useState<boolean | null>(null);
     const [protectedDelete, setProtectedDelete] = useState<{
         id: number;
         prompt: ProtectedDeletePrompt;
@@ -46,16 +53,38 @@ export function PickerWindow({mode, multiple, extensions, initial}: PickerWindow
 
     useEffect(() => {
         void getSettings().then(
-            (settings) => applyTheme(settings.accentColor, settings.secondaryColor),
+            (value) => {
+                setSettings(value);
+                applyTheme(value.accentColor, value.secondaryColor);
+            },
             () => undefined,
         );
     }, []);
+
+    const viewDefaults = settings?.defaultView ?? DefaultViewDefaults;
+    const view: ResolvedView = {
+        mode: viewOverrides.mode ?? viewDefaults.mode,
+        iconSize: viewOverrides.iconSize ?? viewDefaults.iconSize,
+        gridSize: viewOverrides.gridSize ?? viewDefaults.gridSize,
+        sort: "name",
+        sortDescending: false,
+        columns: columns ?? viewDefaults.columns ?? ["type", "size", "modified"],
+    };
+    const changeView = (change: Partial<DirectoryView>) =>
+        setViewOverrides((current) => ({...current, ...change}));
 
     return (
         <Host>
             <Bar {...drag}>
                 <Mark><AppIcon size={17}/></Mark>
                 <BarTitle>{mode === "file" ? t("Choose a file") : t("Choose a folder")}</BarTitle>
+                <ViewMenu
+                    onChange={changeView}
+                    onColumns={setColumns}
+                    onShowImages={setShowImages}
+                    showImages={showImages ?? viewDefaults.showImages}
+                    view={view}
+                />
                 <CloseArea>
                     <Close
                         onClick={() => Native.send({type: "pick.cancel"})}
@@ -77,6 +106,8 @@ export function PickerWindow({mode, multiple, extensions, initial}: PickerWindow
                     multiple={multiple}
                     onCancel={() => Native.send({type: "pick.cancel"})}
                     onSelect={(paths) => Native.send({type: "pick.submit", payload: {paths}})}
+                    showImages={showImages ?? viewDefaults.showImages}
+                    fileView={view}
                 />
             </Content>
 
