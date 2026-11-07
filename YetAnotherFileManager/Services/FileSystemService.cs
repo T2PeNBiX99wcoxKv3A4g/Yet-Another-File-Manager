@@ -1125,6 +1125,11 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         if (!directory.Exists)
             throw new DirectoryNotFoundException($"'{target}' is not a directory.");
 
+        // A folder that moved to the central database may still contain an old hidden index from
+        // before the rule was added; remove it so tools that scan the folder do not trip over it.
+        if (DirectoryIndexBlacklist.Matches(directory.FullName, SettingsService.Instance.Current.DirectoryIndexBlacklist))
+            await FolderIndex.DeleteFilesAsync(directory.FullName);
+
         // Explorer's own switches, so the listing matches what the user's file manager shows.
         var (showHidden, showSystem) = await Task.Run(() => (FileVisibility.ShowHidden, FileVisibility.ShowSystem));
 

@@ -417,7 +417,7 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
     };
 
     const restoreDirectoryRules = () => {
-        void update({directoryIndexBlacklist: ["**/uv/cache/**"]});
+        void update({directoryIndexBlacklist: ["**/uv/cache/**", "**/scoop/buckets/**"]});
     };
 
     /** Saves the custom time pattern when the field loses focus or Enter is pressed. */
