@@ -118,6 +118,10 @@ const Banner = styled.div`
         height: 100%;
         object-fit: cover;
         display: block;
+        /* A tiny parallax keeps the artwork moving a little slower than the page while scrolling. */
+        transform: translateY(calc(var(--banner-scroll, 0px) * -0.05)) scale(1.12);
+        transform-origin: center center;
+        will-change: transform;
         /* A long mask, so the artwork dissolves into whatever the page paints behind it;
            a solid-colour gradient shows a seam because the page is a gradient too. */
         -webkit-mask-image: linear-gradient(to bottom,
@@ -899,6 +903,9 @@ export function OverviewView({
     const [bannerDraft, setBannerDraft] = useState<number | null>(null);
     const bannerDrag = useRef<{ y: number; height: number } | null>(null);
     const bannerDraftRef = useRef<number | null>(null);
+    const pageRef = useRef<HTMLDivElement | null>(null);
+    const bannerHeight = bannerDraft ?? settings?.overviewBannerHeight ?? 220;
+    const bannerShrink = Math.min(72, bannerHeight * 0.18);
 
     /** In the picker, a card selects for the footer instead of opening a tab. */
     const pickCard = (path: string, isDirectory = false): boolean => {
@@ -930,6 +937,29 @@ export function OverviewView({
 
     useEffect(() => {
         void getSettings().then(setSettings, () => setSettings(null));
+    }, []);
+
+    // Scroll-linked banner motion. Updating a CSS variable avoids re-rendering the whole overview
+    // for every wheel tick, while the banner and its media still move on the same frame as the page.
+    useEffect(() => {
+        const page = pageRef.current;
+        if (!page) return;
+
+        let frame = 0;
+        const update = () => {
+            frame = 0;
+            page.style.setProperty("--banner-scroll", `${Math.min(page.scrollTop, 480)}px`);
+        };
+        const onScroll = () => {
+            if (frame === 0) frame = window.requestAnimationFrame(update);
+        };
+
+        page.addEventListener("scroll", onScroll, {passive: true});
+        update();
+        return () => {
+            page.removeEventListener("scroll", onScroll);
+            if (frame !== 0) window.cancelAnimationFrame(frame);
+        };
     }, []);
 
     // Any click outside an open icon list closes it, the way a menu should.
@@ -1065,7 +1095,7 @@ export function OverviewView({
     });
 
     const startBannerDrag = (event: ReactPointerEvent) => {
-        bannerDrag.current = {y: event.clientY, height: bannerDraft ?? settings?.overviewBannerHeight ?? 220};
+        bannerDrag.current = {y: event.clientY, height: bannerHeight};
         event.currentTarget.setPointerCapture(event.pointerId);
     };
 
@@ -1671,7 +1701,7 @@ export function OverviewView({
     };
 
     return (
-        <Page $flush={!!settings?.overviewBanner}>
+        <Page $flush={!!settings?.overviewBanner} ref={pageRef}>
             {!readOnly && (
                 <Toolbar $overlay={!!settings?.overviewBanner}>
                 <Segmented role="group" title={t("Columns")}>
@@ -1752,7 +1782,9 @@ export function OverviewView({
             {driveNotice && <Notice>{driveNotice}</Notice>}
 
             {settings?.overviewBanner && (
-                <Banner style={{height: bannerDraft ?? settings.overviewBannerHeight ?? 220}}>
+                <Banner style={{
+                    height: `calc(${bannerHeight}px - min(var(--banner-scroll, 0px) * 0.16, ${bannerShrink}px))`,
+                }}>
                     {bannerVideo
                         ? <video autoPlay loop muted playsInline src={bannerSource ?? undefined}/>
                         : <img alt="" src={bannerSource ?? undefined}/>}

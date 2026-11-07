@@ -38,6 +38,7 @@ internal static class Archives
         Detected = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, int> SelectedCodePages = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, Workspace> Workspaces = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, string> ExtractedNested = new(StringComparer.OrdinalIgnoreCase);
     private static readonly string TempRoot = Path.Combine(Path.GetTempPath(), "YetAnotherFileManager", "Archives");
 
     /// <summary>The native 7z.dll the package copies beside the executable.</summary>
@@ -130,19 +131,129 @@ internal static class Archives
                && TrySplit(virtualPath, out archivePath, out _);
     }
 
+    /// <summary>
+    ///     Walks archive entries that are themselves archives. A zip inside a zip is extracted to a
+    ///     private temp file first, so the path stays virtual for the interface while the reader gets
+    ///     a real archive file to open.
+    /// </summary>
+    private static (string ArchivePath, string Inner) ResolveNested(
+        string archivePath, string inner, int codePage, string? password)
+    {
+        var remaining = NormalizeKey(inner);
+        var currentArchive = archivePath;
+        var currentInner = "";
+        var currentCodePage = codePage;
+
+        while (remaining.Length > 0)
+        {
+            var slash = remaining.IndexOf('/');
+            var segment = slash >= 0 ? remaining[..slash] : remaining;
+            var rest = slash >= 0 ? remaining[(slash + 1)..] : "";
+            var candidate = currentInner.Length == 0 ? segment : $"{currentInner}/{segment}";
+
+            if (IsArchive(segment))
+            {
+                var key = NestedKey(currentArchive, candidate, currentCodePage);
+                var extracted = ExtractedNested.GetOrAdd(key,
+                    _ => ExtractNested(currentArchive, candidate, currentCodePage, password) ?? "");
+
+                if (extracted.Length > 0)
+                {
+                    currentArchive = extracted;
+                    currentInner = "";
+                    currentCodePage = 0;
+                    remaining = rest;
+                    continue;
+                }
+            }
+
+            currentInner = candidate;
+            remaining = rest;
+        }
+
+        return (currentArchive, currentInner);
+    }
+
+    /// <summary>Extracts a nested archive entry, or returns null when the entry is really a folder.</summary>
+    private static string? ExtractNested(string archivePath, string inner, int codePage, string? password)
+    {
+        var root = Path.Combine(TempRoot, "nested", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var normalized = NormalizeKey(inner);
+
+        try
+        {
+            if (UseSevenZip(archivePath))
+            {
+                using var archive = new ArchiveFile(archivePath, SevenZipLibrary.Value);
+                var entry = archive.Entries.FirstOrDefault(candidate =>
+                    !candidate.IsFolder
+                    && string.Equals(NormalizeKey(candidate.FileName), normalized, StringComparison.OrdinalIgnoreCase));
+
+                if (entry is null)
+                {
+                    Directory.Delete(root, true);
+                    return null;
+                }
+
+                return SevenZipExtractEntry(archivePath, normalized, root, password);
+            }
+
+            using var managed = Open(archivePath, ResolveCodePage(archivePath, codePage, password), password);
+            var file = managed.Entries.FirstOrDefault(candidate =>
+                !candidate.IsDirectory
+                && string.Equals(NormalizeKey(candidate.Key), normalized, StringComparison.OrdinalIgnoreCase));
+
+            if (file is null)
+            {
+                Directory.Delete(root, true);
+                return null;
+            }
+
+            var destination = SafeDestination(root, Path.GetFileName(normalized));
+            using var input = file.OpenEntryStream();
+            using var output = File.Create(destination);
+            input.CopyTo(output);
+            return destination;
+        }
+        catch
+        {
+            try
+            {
+                Directory.Delete(root, true);
+            }
+            catch
+            {
+                // The temp folder is harmless if another handle still holds it.
+            }
+
+            throw;
+        }
+    }
+
+    private static string NestedKey(string archivePath, string inner, int codePage)
+    {
+        var info = new FileInfo(archivePath);
+        return $"{archivePath}|{info.Length}|{info.LastWriteTimeUtc.Ticks}|{codePage}|{inner}";
+    }
+
+    private static string NormalizeKey(string? key) =>
+        (key ?? "").Replace('\\', '/').Trim('/');
+
     /// <summary>The listing of one folder inside an archive, shaped like a directory listing.</summary>
     public static FsListPayload List(string archivePath, string inner, int codePage = 0, string? password = null)
     {
         SelectedCodePages[Path.GetFullPath(archivePath)] = codePage;
+        var (physicalArchive, physicalInner) = ResolveNested(archivePath, inner, codePage, password);
 
-        if (UseSevenZip(archivePath))
-            return SevenZipList(archivePath, inner);
+        if (UseSevenZip(physicalArchive))
+            return SevenZipList(archivePath, inner, physicalArchive, physicalInner);
 
-        var prefix = inner.Trim(Path.DirectorySeparatorChar).Replace('\\', '/');
+        var prefix = physicalInner.Trim(Path.DirectorySeparatorChar).Replace('\\', '/');
         var folders = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         var files = new List<FileEntry>();
 
-        using var archive = Open(archivePath, ResolveCodePage(archivePath, codePage, password), password);
+        using var archive = Open(physicalArchive, ResolveCodePage(physicalArchive, codePage, password), password);
 
         foreach (var entry in archive.Entries)
         {
@@ -256,9 +367,15 @@ internal static class Archives
         if (TryGetWorkspacePath(virtualPath, out var edited) && File.Exists(edited))
             return edited;
 
+        var (physicalArchive, physicalInner) = ResolveNested(archivePath, inner, codePage, password);
         var root = Path.Combine(TempRoot, "opened", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
+        return ExtractDirect(physicalArchive, physicalInner, root, codePage, password);
+    }
 
+    private static string ExtractDirect(string archivePath, string inner, string root,
+        int codePage, string? password)
+    {
         if (UseSevenZip(archivePath))
             return SevenZipExtractEntry(archivePath, inner, root, password);
 
@@ -281,13 +398,14 @@ internal static class Archives
     }
 
     /// <summary>Lists through 7z.dll for the formats the managed reader cannot open.</summary>
-    private static FsListPayload SevenZipList(string archivePath, string inner)
+    private static FsListPayload SevenZipList(string archivePath, string inner,
+        string physicalArchive, string physicalInner)
     {
-        var prefix = inner.Trim(Path.DirectorySeparatorChar).Replace('\\', '/');
+        var prefix = physicalInner.Trim(Path.DirectorySeparatorChar).Replace('\\', '/');
         var folders = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         var files = new List<FileEntry>();
 
-        using var archive = new ArchiveFile(archivePath, SevenZipLibrary.Value);
+        using var archive = new ArchiveFile(physicalArchive, SevenZipLibrary.Value);
 
         foreach (var entry in archive.Entries)
         {
