@@ -75,9 +75,10 @@ export function PickerWindow({mode, multiple, extensions, initial}: PickerWindow
 
     return (
         <Host>
-            <Bar {...drag}>
+            <Bar>
                 <Mark><AppIcon size={17}/></Mark>
-                <BarTitle>{mode === "file" ? t("Choose a file") : t("Choose a folder")}</BarTitle>
+                {/* Only the title drags; a bar-wide handler would swallow the view menu's clicks. */}
+                <BarTitle {...drag}>{mode === "file" ? t("Choose a file") : t("Choose a folder")}</BarTitle>
                 <ViewMenu
                     onChange={changeView}
                     onColumns={setColumns}

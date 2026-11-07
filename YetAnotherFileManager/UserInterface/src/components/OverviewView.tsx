@@ -95,6 +95,9 @@ const BuiltinImageBanners = [
     return variant ? [variant] : [];
 });
 
+/** How far the panels rise into the banner, so the fade has no visible seam. */
+const BannerOverlap = 56;
+
 const Page = styled.div<{ $flush?: boolean }>`
     position: relative;
     flex: 1;
@@ -107,7 +110,7 @@ const Banner = styled.div`
     position: relative;
     margin: 0 -26px 18px;
     overflow: hidden;
-    background: var(--bg-secondary);
+    background: transparent;
 
     img,
     video {
@@ -115,38 +118,58 @@ const Banner = styled.div`
         height: 100%;
         object-fit: cover;
         display: block;
-    }
-
-    /* Let the artwork dissolve into the page instead of ending on a hard edge. */
-    &::after {
-        content: "";
-        position: absolute;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        z-index: 1;
-        height: 48%;
-        background: linear-gradient(to bottom,
-            rgba(var(--bg-rgb), 0) 0%,
-            rgba(var(--bg-rgb), 0.55) 45%,
-            var(--bg-primary) 100%);
-        pointer-events: none;
+        /* A long mask, so the artwork dissolves into whatever the page paints behind it;
+           a solid-colour gradient shows a seam because the page is a gradient too. */
+        -webkit-mask-image: linear-gradient(to bottom,
+            #000 0%,
+            #000 32%,
+            rgba(0, 0, 0, 0.95) 45%,
+            rgba(0, 0, 0, 0.78) 60%,
+            rgba(0, 0, 0, 0.52) 74%,
+            rgba(0, 0, 0, 0.24) 88%,
+            transparent 100%);
+        mask-image: linear-gradient(to bottom,
+            #000 0%,
+            #000 32%,
+            rgba(0, 0, 0, 0.95) 45%,
+            rgba(0, 0, 0, 0.78) 60%,
+            rgba(0, 0, 0, 0.52) 74%,
+            rgba(0, 0, 0, 0.24) 88%,
+            transparent 100%);
     }
 `;
 
 const BannerHandle = styled.div`
     position: absolute;
     right: 0;
-    bottom: 0;
+    bottom: ${BannerOverlap}px;
     left: 0;
     z-index: 2;
-    height: 10px;
+    display: grid;
+    place-items: center;
+    height: 14px;
     cursor: row-resize;
-    background: rgba(var(--accent-rgb), 0.18);
+    background: transparent;
 
-    &:hover {
-        background: rgba(var(--accent-rgb), 0.38);
+    /* A small centred grip; a full-width bar reads as a separator line. */
+    &::before {
+        content: "";
+        width: 88px;
+        height: 3px;
+        border-radius: 999px;
+        background: rgba(var(--accent-rgb), 0.35);
+        transition: background 120ms ease;
     }
+
+    &:hover::before {
+        background: rgba(var(--accent-rgb), 0.7);
+    }
+`;
+
+const Content = styled.div<{ $overlap?: boolean }>`
+    position: relative;
+    z-index: 2;
+    margin-top: ${({$overlap}) => $overlap ? `-${BannerOverlap}px` : "0"};
 `;
 
 const BannerPanel = styled.section`
@@ -1732,6 +1755,7 @@ export function OverviewView({
                 </Banner>
             )}
 
+            <Content $overlap={!!settings?.overviewBanner}>
             {editing && (
                 <BannerPanel>
                     <BannerPanelHead>
@@ -1934,6 +1958,7 @@ export function OverviewView({
                         );
                     })}
             </Panels>
+            </Content>
 
             {menu && (
                 <FileMenu
