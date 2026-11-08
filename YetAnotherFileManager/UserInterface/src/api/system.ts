@@ -85,3 +85,26 @@ export async function setScheme(enabled: boolean): Promise<boolean> {
     const data = await Native.request<{ registered: boolean }>("app.scheme.set", {enabled});
     return data.registered;
 }
+/** How the app is registered to start with the user's session. */
+export interface StartupStatus {
+    supported: boolean;
+    mode: "none" | "shortcut" | "task";
+    active: boolean;
+    error: string | null;
+}
+
+const EmptyStartup: StartupStatus = {supported: false, mode: "none", active: false, error: null};
+
+/** Reads the startup entry without changing anything. */
+export async function getStartup(): Promise<StartupStatus> {
+    if (!Native.available) return EmptyStartup;
+
+    return await Native.request<StartupStatus>("app.startup");
+}
+
+/** Creates or removes the chosen startup mechanism and returns what the host really has. */
+export async function setStartup(mode: "none" | "shortcut" | "task"): Promise<StartupStatus> {
+    if (!Native.available) return EmptyStartup;
+
+    return await Native.request<StartupStatus>("app.startup.set", {mode});
+}

@@ -104,8 +104,14 @@ export interface AppSettings {
     themePresets: ThemePreset[];
     /** Font family per role id (see fonts.ts); missing roles use the built-in font. */
     fonts: Record<string, string>;
-    /** Port the web file server uses; null means a free port between 6000 and 9000. */
+    /** "random" (the OS picks a free port) or "custom". */
+    sharePortMode: string;
+    /** Port used when sharePortMode is "custom"; null means a free port. */
     sharePort: number | null;
+    /** "none", "shortcut" or "task": how the app joins the user's login session. */
+    startupMode: string | null;
+    /** Start in the tray instead of showing the window at launch. */
+    startHidden: boolean;
 }
 
 /** A named colour pair the user saved from the settings page. */
@@ -169,7 +175,10 @@ const fallback: AppSettings = {
     language: null,
     themePresets: [],
     fonts: {},
+    sharePortMode: "random",
     sharePort: null,
+    startupMode: null,
+    startHidden: false,
 };
 
 /** The interface settings, persisted by the host. */
@@ -232,7 +241,10 @@ export async function getSettings(): Promise<AppSettings> {
         language: raw?.language ?? null,
         themePresets: raw?.themePresets ?? [],
         fonts: raw?.fonts ?? {},
+        sharePortMode: raw?.sharePortMode ?? "random",
         sharePort: raw?.sharePort ?? null,
+        startupMode: raw?.startupMode ?? null,
+        startHidden: raw?.startHidden ?? false,
     };
 }
 
@@ -348,7 +360,10 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         language: saved?.language ?? settings.language,
         themePresets: saved?.themePresets ?? settings.themePresets,
         fonts: saved?.fonts ?? settings.fonts,
+        sharePortMode: saved?.sharePortMode ?? settings.sharePortMode,
         sharePort: saved?.sharePort ?? settings.sharePort,
+        startupMode: saved?.startupMode ?? settings.startupMode,
+        startHidden: saved?.startHidden ?? settings.startHidden,
     };
 }
 

@@ -80,14 +80,20 @@ public sealed record AppSettings(
     string? GlobalHotkey,
     /// <summary>Font family per interface role, by role id; null or missing uses the built-in font.</summary>
     Dictionary<string, string>? Fonts,
-    /// <summary>Port the web file server uses; null picks a free port between 6000 and 9000.</summary>
-    int? SharePort)
+    /// <summary>"random" (the OS picks a free port) or "custom" for <see cref="SharePort" />.</summary>
+    string? SharePortMode,
+    /// <summary>Port used when <see cref="SharePortMode" /> is custom; null or 0 picks a free port.</summary>
+    int? SharePort,
+    /// <summary>"none", "shortcut" or "task": how the app joins the user's login session.</summary>
+    string? StartupMode,
+    /// <summary>Start in the tray instead of showing the window at launch.</summary>
+    bool? StartHidden)
 {
     public static AppSettings Default =>
         new(true, true, true, ["**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null, ["quick", "frequent", "recent", "home", "drives"], null, 1, null,
             null, null, null, null, null, ["quick", "frequent", "recent", "drives"], null, null, true, null, 0, null,
             true, false, false, false, false, null, null, null, null, false, null, null, null, null, null, null, 5,
-            "24", null, null, false, 1200, 800, "relative", null, 220, [], 0.3, null, null, null);
+            "24", null, null, false, 1200, 800, "relative", null, 220, [], 0.3, null, null, null, null, null, null);
 
     // The accessors below are derived, so they are kept out of settings.json entirely; only the
     // fields above are stored, and the JSON stays readable and stable.
@@ -214,4 +220,23 @@ public sealed record AppSettings(
     /// <summary>Overview banner height; clamped so it always leaves room for the panels.</summary>
     [JsonIgnore]
     public int BannerHeight => Math.Clamp(OverviewBannerHeight ?? 220, 120, 900);
+
+    /// <summary>"random" or "custom"; anything else falls back to the random port.</summary>
+    [JsonIgnore]
+    public bool UsesCustomSharePort =>
+        string.Equals(SharePortMode, "custom", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The custom port, or null when the OS should pick a free one.</summary>
+    [JsonIgnore]
+    public int? CustomSharePort =>
+        UsesCustomSharePort && SharePort is >= 1 and <= 65535 ? SharePort : null;
+
+    /// <summary>"none", "shortcut" or "task"; anything unknown means no startup entry.</summary>
+    [JsonIgnore]
+    public string Startup =>
+        StartupMode is "shortcut" or "task" ? StartupMode : "none";
+
+    /// <summary>Whether the window starts in the tray instead of opening on screen.</summary>
+    [JsonIgnore]
+    public bool StartsHidden => StartHidden ?? false;
 }

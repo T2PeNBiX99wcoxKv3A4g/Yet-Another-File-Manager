@@ -456,5 +456,11 @@ internal sealed record ShareDownloadRequest(string DeviceId, string ShareId, str
 /// <summary>Body for <c>share.download</c>: the local copy, or why it failed.</summary>
 internal sealed record ShareDownloadPayload(string? LocalPath, string? Error);
 
-/// <summary>Payload for <c>share.port</c>: the web server port, or null to pick one automatically.</summary>
-internal sealed record SharePortRequest(int? Port);
+/// <summary>Payload for <c>share.port</c>: "random" or "custom" and the custom port.</summary>
+internal sealed record SharePortRequest(string? Mode, int? Port);
+
+/// <summary>Payload for <c>app.startup.set</c>: "none", "shortcut" or "task".</summary>
+internal sealed record StartupSetRequest(string? Mode);
+
+/// <summary>Body for <c>app.startup</c>: the supported platforms, the mode, and whether it exists.</summary>
+internal sealed record StartupStatusPayload(bool Supported, string Mode, bool Active, string? Error);

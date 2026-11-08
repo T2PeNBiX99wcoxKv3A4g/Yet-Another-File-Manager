@@ -106,10 +106,14 @@ internal sealed class ShareService : Singleton<ShareService>
 
     private async Task<NativeResponse?> SetPortAsync(NativeContext context)
     {
-        var port = context.Payload<SharePortRequest>()?.Port;
+        var request = context.Payload<SharePortRequest>();
+        var custom = string.Equals(request?.Mode, "custom", StringComparison.OrdinalIgnoreCase);
+        var port = request?.Port is >= 1 and <= 65535 ? request.Port : null;
+
         await SettingsService.Instance.UpdateAsync(settings => settings with
         {
-            SharePort = port is >= 1024 and <= 65535 ? port : null
+            SharePortMode = custom ? "custom" : "random",
+            SharePort = custom ? port : null
         });
 
         await WebShareServer.Instance.ApplyAsync();

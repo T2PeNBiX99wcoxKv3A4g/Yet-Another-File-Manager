@@ -256,3 +256,8 @@ export function driveName(drive: { name: string; label: string }): string {
     // Linux volumes have no drive letter; their mount point is the name the user recognizes.
     return letter ? `${drive.label || "Local Disk"}${letter}` : drive.label || drive.name;
 }
+
+/** An http(s) address; used for wallpapers and banners loaded from the network. */
+export function isRemoteUrl(value: string | null | undefined): boolean {
+    return !!value && /^https?:\/\//i.test(value);
+}

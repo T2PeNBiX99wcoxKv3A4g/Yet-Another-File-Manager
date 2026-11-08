@@ -10,6 +10,7 @@ import {PlaceIcon} from "./PlaceIcon";
 import {StatusCenter} from "./StatusCenter";
 import {HistoryPanel} from "./HistoryPanel";
 import {SharePanel} from "./SharePanel";
+import {CountBadge} from "./CountBadge";
 import {ViewMenu} from "./ViewMenu";
 import type {TaskInfo} from "../api/tasks";
 import {isArchiveLocation, isZipArchiveLocation} from "../utils/format";
@@ -261,7 +262,7 @@ export function TitleBar({
                     type="button"
                 >
                     <PackageIcon size={14}/>
-                    {trayCount > 0 && <TrayBadge>{trayCount > 9 ? "9+" : trayCount}</TrayBadge>}
+                    {trayCount > 0 && <CountBadge>{trayCount > 9 ? "9+" : trayCount}</CountBadge>}
                 </TrayButton>
                 <HistoryPanel/>
                 <SharePanel currentFolder={currentFolder}/>
@@ -562,22 +563,6 @@ const UtilityButton = styled.button<{ $active: boolean }>`
         opacity: 0.35;
         cursor: default;
     }
-`;
-
-const TrayBadge = styled.span`
-    position: absolute;
-    top: 6px;
-    right: 2px;
-    min-width: 13px;
-    height: 13px;
-    padding: 0 3px;
-    border-radius: 999px;
-    background: var(--accent-primary);
-    color: #fff;
-    font-family: var(--font-mono);
-    font-size: 8px;
-    line-height: 13px;
-    text-align: center;
 `;
 
 const ControlButton = styled.button`

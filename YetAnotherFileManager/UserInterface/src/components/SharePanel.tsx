@@ -12,6 +12,7 @@ import {openUrl} from "../api/system";
 import {elevatedPanel} from "../ui/panel";
 import {panelInStyle} from "../ui/motion";
 import {AppIcon, CrossIcon, GlobeIcon, PlusIcon, ServerIcon} from "./Icons";
+import {CountBadge} from "./CountBadge";
 
 /** The title bar's share panel: the folders this device offers and how each one is reachable. */
 export function SharePanel({currentFolder}: { currentFolder: string }) {
@@ -38,6 +39,15 @@ export function SharePanel({currentFolder}: { currentFolder: string }) {
         };
     }, [open]);
 
+    // The badge has to be right before the panel is ever opened, so the count is refreshed even
+    // while it stays closed.
+    useEffect(() => {
+        const load = () => void getShares().then(setList, () => undefined);
+        load();
+        const timer = window.setInterval(load, 5000);
+        return () => window.clearInterval(timer);
+    }, []);
+
     const run = async (action: () => Promise<ShareList>) => {
         setBusy(true);
         try {
@@ -59,6 +69,9 @@ export function SharePanel({currentFolder}: { currentFolder: string }) {
                 type="button"
             >
                 <ServerIcon size={15}/>
+                {list && list.shares.length > 0 && (
+                    <CountBadge>{list.shares.length > 9 ? "9+" : list.shares.length}</CountBadge>
+                )}
             </Button>
 
             {open && (
@@ -153,6 +166,7 @@ const Root = styled.div`
 `;
 
 const Button = styled.button<{ $active: boolean }>`
+    position: relative;
     display: grid;
     place-items: center;
     width: 38px;

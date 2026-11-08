@@ -23,7 +23,7 @@ import {useMediaUrl} from "../api/icons";
 import {Native, useTranslation} from "@photino-net-utils/bridge";
 import {FileList} from "./FileList";
 import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, GlobeIcon, GridIcon, ListIcon, MenuIcon, PencilIcon, PinIcon, PlusIcon, ServerIcon, VideoIcon} from "./Icons";
-import {BuiltInBackgrounds, BuiltInVideos, builtInUrl, isBuiltInVideo} from "../backgrounds/concepts";
+import {BuiltInVideos, BuiltinBanners, builtInUrl, isBuiltInVideo} from "../backgrounds/concepts";
 import {setSelectionMenu, useSelectionMenuGroup} from "../ui/selectionMenu";
 import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
@@ -31,7 +31,7 @@ import {quickPlace, useQuickAccess} from "../quick";
 import {copyPaths} from "../api/operations";
 import {DefaultShortcuts} from "../shortcuts";
 import {FileMenu, type FileMenuTarget} from "./FileMenu";
-import {baseName, driveLetter, driveName, formatBytes, plural, usageTone} from "../utils/format";
+import {baseName, driveLetter, driveName, formatBytes, isRemoteUrl, plural, usageTone} from "../utils/format";
 import {wantsNewTab} from "../shortcuts";
 import {buildPanels, PanelGlyph, type Panel, type PanelKind, type ViewMode} from "../panels";
 import {IconPicker} from "./IconPicker";
@@ -69,10 +69,11 @@ interface OverviewViewProps {
 }
 
 function BannerThumb({source, poster}: {source: string; poster?: string}) {
-    const extension = source.split(".").pop()?.toLowerCase() ?? "";
-    const file = source.startsWith("builtin:") ? null : source;
+    const remote = isRemoteUrl(source);
+    const extension = source.split(/[?#]/)[0].split(".").pop()?.toLowerCase() ?? "";
+    const file = source.startsWith("builtin:") || remote ? null : source;
     const media = useMediaUrl(file, 0, extension ? `.${extension}` : "");
-    const src = poster ?? builtInUrl(source) ?? media;
+    const src = poster ?? builtInUrl(source) ?? (remote ? source : media);
     const video = !poster && ["mp4", "webm", "mkv", "mov", "m4v", "ogv"].includes(extension);
 
     if (!src) return null;
@@ -222,21 +223,6 @@ function BannerFraming({source, video, height, offset, onCancel, onSave}: Banner
     );
 }
 
-/** A few built-in concepts, each already drawn in the app's colour presets. */
-const BuiltinImageBanners = [
-    {concept: "aurora", preset: "Indigo"},
-    {concept: "aurora", preset: "Violet"},
-    {concept: "dunes", preset: "Amber"},
-    {concept: "dunes", preset: "Rose"},
-    {concept: "tide", preset: "Teal"},
-    {concept: "tide", preset: "Green"},
-].flatMap(({concept, preset}) => {
-    const variant = BuiltInBackgrounds
-        .find((item) => item.id === concept)?.variants
-        .find((item) => item.preset === preset);
-    return variant ? [variant] : [];
-});
-
 /** How far the panels rise into the banner, so the fade has no visible seam. */
 const BannerOverlap = 150;
 
@@ -371,6 +357,55 @@ const BannerChoices = styled.div`
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+`;
+
+const BannerUrlRow = styled.div`
+    display: flex;
+    gap: 6px;
+    align-items: center;
+`;
+
+const BannerUrlInput = styled.input`
+    flex: 1;
+    min-width: 0;
+    height: 28px;
+    padding: 0 9px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 11px;
+    outline: none;
+
+    &:focus {
+        border-color: var(--border-color-focus);
+    }
+
+    &::placeholder {
+        color: var(--text-muted);
+    }
+`;
+
+const BannerUrlButton = styled.button`
+    height: 28px;
+    padding: 0 12px;
+    border: 1px solid var(--border-color-focus);
+    border-radius: var(--radius-sm);
+    background: rgba(var(--accent-rgb), 0.12);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 10.5px;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+        background: rgba(var(--accent-rgb), 0.22);
+    }
+
+    &:disabled {
+        opacity: 0.45;
+        cursor: default;
+    }
 `;
 
 const BannerItem = styled.div`
@@ -710,6 +745,18 @@ const Section = styled.section`
     flex-direction: column;
     gap: 10px;
     min-width: 0;
+    animation: yafm-overview-in 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+
+    @keyframes yafm-overview-in {
+        from {
+            opacity: 0;
+            transform: translateY(7px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
 `;
 
 const Head = styled.div`
@@ -1268,13 +1315,22 @@ export function OverviewView({
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const bannerPath = settings?.overviewBanner ?? null;
     const bannerBuiltin = bannerPath?.startsWith("builtin:") ?? false;
-    const bannerExtension = bannerBuiltin ? "" : bannerPath?.split(".").pop()?.toLowerCase() ?? "";
+    const bannerRemote = bannerPath?.startsWith("url:")
+        ? bannerPath.slice(4)
+        : isRemoteUrl(bannerPath) ? bannerPath! : null;
+    const bannerFile = bannerBuiltin || bannerRemote ? "" : bannerPath ?? "";
+    const bannerExtension = bannerBuiltin
+        ? ""
+        : bannerRemote
+            ? bannerRemote.split(/[?#]/)[0].split(".").pop()?.toLowerCase() ?? ""
+            : bannerFile.split(/[?#]/)[0].split(".").pop()?.toLowerCase() ?? "";
     const bannerVideo = bannerBuiltin
         ? isBuiltInVideo(bannerPath!)
         : ["mp4", "webm", "mkv", "mov", "m4v", "ogv"].includes(bannerExtension);
-    const bannerMedia = useMediaUrl(bannerBuiltin ? null : bannerPath, 0,
+    const bannerMedia = useMediaUrl(bannerFile.length > 0 ? bannerFile : null, 0,
         bannerExtension ? `.${bannerExtension}` : "");
-    const bannerSource = bannerPath ? builtInUrl(bannerPath) ?? bannerMedia : null;
+    const bannerSource = bannerPath ? builtInUrl(bannerPath) ?? bannerRemote ?? bannerMedia : null;
+    const [bannerUrl, setBannerUrl] = useState("");
     const [iconEditor, setIconEditor] = useState<{ kind: "panel" | "place"; id: string } | null>(null);
     const [addOpen, setAddOpen] = useState(false);
     const [driveRename, setDriveRename] = useState<{ drive: Drive; label: string } | null>(null);
@@ -1313,7 +1369,7 @@ export function OverviewView({
     const bannerSpare = Math.max(0, naturalHeight * bannerScale - bannerWindow);
     const bannerTravel = Math.min(BannerSlack, bannerSpare / 2, Math.max(20, bannerHeight * 0.42));
     const bannerShift = bannerTravel + bannerOffset * Math.max(0, bannerSpare - bannerTravel * 2);
-    const bannerOverlap = Math.round(Math.min(BannerOverlap, bannerHeight * 0.58));
+    const bannerOverlap = Math.round(Math.min(BannerOverlap, bannerHeight * 0.25));
     const [framing, setFraming] = useState(false);
 
     /** In the picker, a card selects for the footer instead of opening a tab. */
@@ -1538,12 +1594,27 @@ export function OverviewView({
             overviewBanners: banners.includes(file) ? banners : [...banners, file]});
     };
 
+    /** Adds a banner by URL; the list keeps the raw address so the thumbnail can reuse it. */
+    const addBannerUrl = async () => {
+        const url = bannerUrl.trim();
+        if (!settings || !isRemoteUrl(url)) return;
+
+        const banners = settings.overviewBanners ?? [];
+        setBannerUrl("");
+        await save({
+            overviewBanner: `url:${url}`,
+            overviewBanners: banners.includes(url) ? banners : [...banners, url],
+        });
+    };
+
     const removeBanner = () => void save({overviewBanner: null});
 
     /** Deletes one of the user's own banner files, clearing the banner when it was the active one. */
     const removeCustomBanner = (path: string) => void save({
         overviewBanners: (settings?.overviewBanners ?? []).filter((item) => item !== path),
-        ...(settings?.overviewBanner === path ? {overviewBanner: null} : {}),
+        ...(settings?.overviewBanner === path || settings?.overviewBanner === `url:${path}`
+            ? {overviewBanner: null}
+            : {}),
     });
 
     const startBannerDrag = (event: ReactPointerEvent) => {
@@ -2422,7 +2493,7 @@ export function OverviewView({
                             </BannerChoice>
                         </BannerItem>
 
-                        {BuiltinImageBanners.map((variant) => (
+                        {BuiltinBanners.map((variant) => (
                             <BannerItem key={variant.id}>
                                 <BannerChoice
                                     $active={settings?.overviewBanner === variant.id}
@@ -2452,8 +2523,11 @@ export function OverviewView({
                         {(settings?.overviewBanners ?? []).map((path) => (
                             <BannerItem key={path}>
                                 <BannerChoice
-                                    $active={settings?.overviewBanner === path}
-                                    onClick={() => void save({overviewBanner: path})}
+                                    $active={settings?.overviewBanner === path
+                                        || settings?.overviewBanner === `url:${path}`}
+                                    onClick={() => void save({
+                                        overviewBanner: isRemoteUrl(path) ? `url:${path}` : path
+                                    })}
                                     title={path}
                                     type="button"
                                 >
@@ -2474,6 +2548,23 @@ export function OverviewView({
                             <span>{t("Add banner…")}</span>
                         </AddBanner>
                     </BannerChoices>
+                    <BannerUrlRow>
+                        <BannerUrlInput
+                            onChange={(event) => setBannerUrl(event.target.value)}
+                            onKeyDown={(event) => {
+                                if (event.key === "Enter") void addBannerUrl();
+                            }}
+                            placeholder="https://…"
+                            value={bannerUrl}
+                        />
+                        <BannerUrlButton
+                            disabled={!isRemoteUrl(bannerUrl)}
+                            onClick={() => void addBannerUrl()}
+                            type="button"
+                        >
+                            {t("Add URL")}
+                        </BannerUrlButton>
+                    </BannerUrlRow>
                 </BannerPanel>
             )}
 

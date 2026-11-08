@@ -4,6 +4,7 @@ import {useTranslation} from "@photino-net-utils/bridge";
 import type {TaskInfo} from "../api/tasks";
 import {formatBytes, plural} from "../utils/format";
 import {CheckIcon, StatusIcon, CrossIcon} from "./Icons";
+import {CountBadge} from "./CountBadge";
 import {elevatedPanel} from "../ui/panel";
 import {fadeInStyle, panelInStyle} from "../ui/motion";
 
@@ -20,6 +21,7 @@ export function StatusCenter({tasks, onClear, open, onOpenChange}: StatusCenterP
     const t = useTranslation();
     const root = useRef<HTMLDivElement | null>(null);
     const running = tasks.filter((task) => task.state === "running").length;
+    const total = tasks.length;
 
     useEffect(() => {
         if (!open) return;
@@ -41,7 +43,7 @@ export function StatusCenter({tasks, onClear, open, onOpenChange}: StatusCenterP
                 type="button"
             >
                 <StatusIcon size={13}/>
-                {running > 0 && <Badge>{running > 9 ? "9+" : running}</Badge>}
+                {total > 0 && <CountBadge>{total > 9 ? "9+" : total}</CountBadge>}
             </ActivityButton>
 
             {open && (
@@ -127,23 +129,6 @@ const ActivityButton = styled.button<{ $active: boolean }>`
         background: rgba(var(--accent-rgb), 0.10);
         color: var(--text-primary);
     }
-`;
-
-const Badge = styled.span`
-    position: absolute;
-    top: 6px;
-    right: 5px;
-    min-width: 13px;
-    height: 13px;
-    padding: 0 3px;
-    border-radius: 999px;
-    background: var(--accent-gradient);
-    box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.5);
-    color: #fff;
-    font-family: var(--font-mono);
-    font-size: 8px;
-    line-height: 13px;
-    text-align: center;
 `;
 
 const Panel = styled.div`

@@ -1,3 +1,4 @@
+import {resolve} from "node:path";
 import {defineConfig} from "vite";
 import react from "@vitejs/plugin-react";
 import svgr from "vite-plugin-svgr";
@@ -13,5 +14,11 @@ export default defineConfig({
     build: {
         outDir: "build",
         emptyOutDir: true,
+        rollupOptions: {
+            input: {
+                main: resolve("index.html"),
+                share: resolve("share.html"),
+            },
+        },
     },
 });

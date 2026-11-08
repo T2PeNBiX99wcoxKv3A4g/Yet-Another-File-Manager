@@ -99,9 +99,9 @@ export async function removeSharePeer(deviceId: string): Promise<void> {
 }
 
 /** Changes the browser file server's port; null picks a free one in the default range. */
-export async function setSharePort(port: number | null): Promise<void> {
+export async function setSharePort(port: number | null, mode: "random" | "custom"): Promise<void> {
     if (!Native.available) return;
-    await Native.request("share.port", {port});
+    await Native.request("share.port", {mode, port});
 }
 
 const ShareScheme = "share://";

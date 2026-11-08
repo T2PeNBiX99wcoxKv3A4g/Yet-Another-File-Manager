@@ -1,15 +1,22 @@
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
-using System.Text;
-using System.Text.Encodings.Web;
+using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
 using Serilog;
+using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
 using YetAnotherFileManager.Security;
 
@@ -22,8 +29,10 @@ namespace YetAnotherFileManager.Services;
 /// </summary>
 internal sealed class WebShareServer : Singleton<WebShareServer>
 {
-    private static readonly HtmlEncoder Html = HtmlEncoder.Default;
+    private static readonly FileExtensionContentTypeProvider ContentTypes = new();
+    private static IFileProvider? Files { get; set; }
     private WebApplication? _app;
+    private int? _requestedPort;
 
     public bool Running => _app is not null;
 
@@ -42,7 +51,12 @@ internal sealed class WebShareServer : Singleton<WebShareServer>
         ];
     }
 
-    /// <summary>Reconciles the server with the current share list and the stored port.</summary>
+    /// <summary>
+    ///     Reconciles the server with the current share list and the port mode. Random mode asks the
+    ///     OS for one free port the first time a web share appears; every later web share keeps the
+    ///     same server until the last one is removed. Custom mode tries the stored port and falls
+    ///     back to a random one when it is occupied.
+    /// </summary>
     public async Task ApplyAsync()
     {
         var hasWebShare = ShareStore.Instance.All.Any(share => share.Mode == "web");
@@ -52,20 +66,63 @@ internal sealed class WebShareServer : Singleton<WebShareServer>
             return;
         }
 
-        var desired = SettingsService.Instance.Current.SharePort ?? 0;
-        if (_app is not null && (desired == 0 || desired == Port))
+        var settings = SettingsService.Instance.Current;
+        var requested = settings.UsesCustomSharePort ? settings.CustomSharePort : null;
+
+        if (requested is not null && !IsFree(requested.Value))
+        {
+            Log.Warning("Custom share port {Port} is already in use; asking the OS for a free one", requested);
+            requested = null;
+        }
+
+        if (_app is not null && _requestedPort == requested)
             return;
 
         await StopAsync();
 
-        var port = ResolvePort(desired);
-        if (port != desired)
+        try
         {
-            await SettingsService.Instance.UpdateAsync(settings => settings with {SharePort = port});
-            Log.Information("Using port {Port} for the share web server", port);
+            await StartAsync(requested ?? 0);
+            _requestedPort = requested;
+        }
+        catch (Exception ex) when (requested is not null)
+        {
+            Log.Warning(ex, "Custom share port {Port} is unavailable; asking the OS for a free one", requested);
+            await StartAsync(0);
+            _requestedPort = requested;
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "The share web server could not start");
+        }
+    }
+
+    private static bool IsFree(int port) =>
+        Try.Run(() =>
+        {
+            var listener = new TcpListener(IPAddress.Any, port);
+            listener.Start();
+            listener.Stop();
+            return true;
+        }).GetOrElse(_ => false);
+
+    private async Task StartAsync(int port)
+    {
+        if (Files is null)
+        {
+            var embedded = new ManifestEmbeddedFileProvider(typeof(WebShareServer).Assembly, "Resources/wwwroot");
+            var physical = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+            Files = Directory.Exists(physical)
+                ? new CompositeFileProvider(new PhysicalFileProvider(physical), embedded)
+                : embedded;
         }
 
-        var builder = WebApplication.CreateSlimBuilder();
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            ContentRootPath = Constants.DataDirectory,
+            WebRootPath = Path.Combine(Constants.DataDirectory, "shareweb")
+        });
+
         builder.Logging.ClearProviders();
         builder.WebHost.ConfigureKestrel(options =>
         {
@@ -79,19 +136,33 @@ internal sealed class WebShareServer : Singleton<WebShareServer>
         try
         {
             await app.StartAsync();
-            _app = app;
-            Port = port;
-            Log.Information("Share web server listening on port {Port}", port);
         }
-        catch (Exception ex)
+        catch
         {
-            Log.Warning(ex, "Could not start the share web server on port {Port}", port);
             await app.DisposeAsync();
+            throw;
         }
+
+        _app = app;
+        Port = BoundPort(app, port);
+        Log.Information("Share web server listening on port {Port}", Port);
+    }
+
+    private static int BoundPort(WebApplication app, int fallback)
+    {
+        var address = app.Services.GetRequiredService<IServer>()
+            .Features.Get<IServerAddressesFeature>()?
+            .Addresses.FirstOrDefault();
+
+        return address is not null && Uri.TryCreate(address, UriKind.Absolute, out var uri) && uri.Port > 0
+            ? uri.Port
+            : fallback;
     }
 
     public async Task StopAsync()
     {
+        _requestedPort = null;
+
         if (_app is null)
             return;
 
@@ -118,115 +189,194 @@ internal sealed class WebShareServer : Singleton<WebShareServer>
         }
     }
 
-    /// <summary>A stored port when it is usable, otherwise a free one in the 6000-9000 range.</summary>
-    private static int ResolvePort(int preferred)
-    {
-        if (preferred is >= 1024 and <= 65535 && IsFree(preferred))
-            return preferred;
-
-        for (var attempt = 0; attempt < 80; attempt++)
-        {
-            var candidate = Random.Shared.Next(6000, 9000);
-            if (IsFree(candidate))
-                return candidate;
-        }
-
-        return 0;
-    }
-
-    private static bool IsFree(int port) =>
-        Try.Run(() =>
-        {
-            var listener = new TcpListener(IPAddress.Any, port);
-            listener.Start();
-            listener.Stop();
-            return true;
-        }).GetOrElse(_ => false);
-
     private async Task HandleAsync(HttpContext context)
     {
         try
         {
-            var path = context.Request.Path.Value ?? "/";
+            var path = (context.Request.Path.Value ?? "/").TrimEnd('/');
+            if (path.Length == 0)
+                path = "/";
 
-            if (path is "/" or "" or "/index.html")
+            if (path is "/" or "/share.html")
             {
-                await WriteIndexAsync(context);
+                await ServeStaticAsync(context, "share.html");
                 return;
             }
 
-            if (path.StartsWith("/s/", StringComparison.OrdinalIgnoreCase))
+            if (path.Equals("/health", StringComparison.OrdinalIgnoreCase))
             {
-                await HandleShareAsync(context, path);
+                await context.Response.WriteAsync("ok");
                 return;
             }
 
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
-            await context.Response.WriteAsync("Not found");
+            if (path.Equals("/api/config", StringComparison.OrdinalIgnoreCase))
+            {
+                var settings = SettingsService.Instance.Current;
+                await WriteJsonAsync(context, new ShareWebConfigPayload(Constants.DisplayName,
+                        ShareIdentity.Instance.DeviceName, settings.AccentColor, settings.SecondaryColor,
+                        AppInfoService.Version),
+                    AppJsonContext.Default.ShareWebConfigPayload);
+                return;
+            }
+
+            if (path.Equals("/api/shares", StringComparison.OrdinalIgnoreCase))
+            {
+                var shares = ShareStore.Instance.All
+                    .Where(share => share.Mode == "web")
+                    .Select(share => new ShareWebShare(share.Id, share.Name))
+                    .ToList();
+
+                await WriteJsonAsync(context, new ShareWebSharesPayload(shares),
+                    AppJsonContext.Default.ShareWebSharesPayload);
+                return;
+            }
+
+            if (path.StartsWith("/api/browse/", StringComparison.OrdinalIgnoreCase))
+            {
+                await BrowseAsync(context, path["/api/browse/".Length..]);
+                return;
+            }
+
+            if (path.StartsWith("/api/upload/", StringComparison.OrdinalIgnoreCase) &&
+                HttpMethods.IsPost(context.Request.Method))
+            {
+                await UploadAsync(context, path["/api/upload/".Length..]);
+                return;
+            }
+
+            if (path.StartsWith("/file/", StringComparison.OrdinalIgnoreCase))
+            {
+                await DownloadAsync(context, path["/file/".Length..]);
+                return;
+            }
+
+            if (path.StartsWith("/assets/", StringComparison.OrdinalIgnoreCase))
+            {
+                await ServeStaticAsync(context, path.TrimStart('/'));
+                return;
+            }
+
+            await WriteErrorAsync(context, StatusCodes.Status404NotFound, "Not found.");
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "A share web request failed");
             if (!context.Response.HasStarted)
-                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                await WriteErrorAsync(context, StatusCodes.Status500InternalServerError, ex.Message);
         }
     }
 
-    private static async Task WriteIndexAsync(HttpContext context)
+    private static ShareEntry? FindWebShare(string id) =>
+        ShareStore.Instance.All.FirstOrDefault(share =>
+            string.Equals(share.Id, id, StringComparison.Ordinal) && share.Mode == "web");
+
+    private static async Task BrowseAsync(HttpContext context, string rest)
     {
-        var shares = ShareStore.Instance.All.Where(share => share.Mode == "web").ToList();
-
-        var rows = new StringBuilder();
-        foreach (var share in shares)
-            rows.Append($"<li><a href=\"/s/{Uri.EscapeDataString(share.Id)}/\">{Html.Encode(share.Name)}</a>"
-                        + $"<small>{Html.Encode(share.Path)}</small></li>");
-
-        var body = $"""
-                    <h1>{Html.Encode(ShareIdentity.Instance.DeviceName)}</h1>
-                    <p class="muted">Shared folders on this device.</p>
-                    <ul class="shares">{(rows.Length == 0 ? "<li class=\"muted\">No web shares.</li>" : rows.ToString())}</ul>
-                    """;
-
-        await WritePageAsync(context, "Shared folders", body);
-    }
-
-    private static async Task HandleShareAsync(HttpContext context, string path)
-    {
-        var rest = path["/s/".Length..];
         var cut = rest.IndexOf('/');
         var id = Uri.UnescapeDataString(cut < 0 ? rest : rest[..cut]);
-        var relative = cut < 0 ? "" : Uri.UnescapeDataString(rest[(cut + 1)..]).Replace('\\', '/').Trim('/');
+        var relative = SharePaths.Clean(context.Request.Query["path"]);
 
-        var share = ShareStore.Instance.All.FirstOrDefault(item =>
-            string.Equals(item.Id, id, StringComparison.Ordinal) && item.Mode == "web");
+        var share = FindWebShare(id);
         if (share is null)
         {
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
-            await context.Response.WriteAsync("This folder is not shared.");
+            await WriteErrorAsync(context, StatusCodes.Status404NotFound, "This folder is not shared.");
             return;
         }
 
         var target = SharePaths.Resolve(share.Path, relative);
-        if (target is null)
+        if (target is null || !Directory.Exists(target))
         {
-            context.Response.StatusCode = StatusCodes.Status403Forbidden;
-            await context.Response.WriteAsync("That path is outside the shared folder.");
+            await WriteErrorAsync(context, StatusCodes.Status404NotFound, "That folder no longer exists.");
             return;
         }
 
-        if (Directory.Exists(target))
+        List<ShareWebEntry> entries;
+        try
         {
-            if (HttpMethods.IsPost(context.Request.Method))
-                await UploadAsync(context, share, relative, target);
+            entries = new DirectoryInfo(target).EnumerateFileSystemInfos()
+                .OrderByDescending(entry => entry is DirectoryInfo)
+                .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(entry =>
+                {
+                    var child = relative.Length == 0 ? entry.Name : $"{relative}/{entry.Name}";
+                    var directory = entry is DirectoryInfo;
 
-            await WriteListingAsync(context, share, relative, target);
+                    return new ShareWebEntry(entry.Name, directory,
+                        directory ? 0 : ((FileInfo)entry).Length,
+                        new DateTimeOffset(entry.LastWriteTimeUtc).ToUnixTimeMilliseconds(), child);
+                })
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            await WriteErrorAsync(context, StatusCodes.Status403Forbidden, ex.Message);
             return;
         }
 
-        if (!File.Exists(target))
+        await WriteJsonAsync(context,
+            new ShareWebListingPayload(share.Id, share.Name, relative, SharePaths.ParentOf(relative), entries),
+            AppJsonContext.Default.ShareWebListingPayload);
+    }
+
+    private static async Task UploadAsync(HttpContext context, string rest)
+    {
+        var cut = rest.IndexOf('/');
+        var id = Uri.UnescapeDataString(cut < 0 ? rest : rest[..cut]);
+        var relative = SharePaths.Clean(context.Request.Query["path"]);
+
+        var share = FindWebShare(id);
+        if (share is null)
         {
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
-            await context.Response.WriteAsync("Not found.");
+            await WriteErrorAsync(context, StatusCodes.Status404NotFound, "This folder is not shared.");
+            return;
+        }
+
+        var target = SharePaths.Resolve(share.Path, relative);
+        if (target is null || !Directory.Exists(target))
+        {
+            await WriteErrorAsync(context, StatusCodes.Status404NotFound, "That folder no longer exists.");
+            return;
+        }
+
+        var form = await context.Request.ReadFormAsync();
+        var saved = 0;
+
+        foreach (var file in form.Files)
+        {
+            var name = Path.GetFileName(file.FileName);
+            if (name.Length == 0)
+                continue;
+
+            var destination = SharePaths.Resolve(share.Path,
+                relative.Length == 0 ? name : $"{relative}/{name}");
+            if (destination is null)
+                continue;
+
+            await using var stream = File.Create(destination);
+            await file.CopyToAsync(stream);
+            saved++;
+        }
+
+        await WriteJsonAsync(context, new ShareWebUploadPayload(saved), AppJsonContext.Default.ShareWebUploadPayload);
+    }
+
+    private static async Task DownloadAsync(HttpContext context, string rest)
+    {
+        var cut = rest.IndexOf('/');
+        var id = Uri.UnescapeDataString(cut < 0 ? rest : rest[..cut]);
+        var relative = cut < 0 ? "" : Uri.UnescapeDataString(rest[(cut + 1)..]).Replace('\\', '/').Trim('/');
+
+        var share = FindWebShare(id);
+        if (share is null)
+        {
+            await WriteErrorAsync(context, StatusCodes.Status404NotFound, "This folder is not shared.");
+            return;
+        }
+
+        var target = SharePaths.Resolve(share.Path, relative);
+        if (target is null || !File.Exists(target))
+        {
+            await WriteErrorAsync(context, StatusCodes.Status404NotFound, "That file no longer exists.");
             return;
         }
 
@@ -236,157 +386,43 @@ internal sealed class WebShareServer : Singleton<WebShareServer>
         await context.Response.SendFileAsync(target);
     }
 
-    private static async Task UploadAsync(HttpContext context, ShareEntry share, string relative, string target)
+    private async Task ServeStaticAsync(HttpContext context, string relative)
     {
-        var form = await context.Request.ReadFormAsync();
-
-        foreach (var file in form.Files)
+        if (relative.Contains("..", StringComparison.Ordinal) || Files is null)
         {
-            var name = Path.GetFileName(file.FileName);
-            if (name.Length == 0)
-                continue;
-
-            var destination = SharePaths.Resolve(share.Path, string.IsNullOrEmpty(relative) ? name : $"{relative}/{name}");
-            if (destination is null)
-                continue;
-
-            await using var stream = File.Create(destination);
-            await file.CopyToAsync(stream);
-        }
-
-        context.Response.Redirect($"/s/{Uri.EscapeDataString(share.Id)}/{UrlPath(relative)}");
-    }
-
-    private static async Task WriteListingAsync(HttpContext context, ShareEntry share, string relative, string target)
-    {
-        var parent = SharePaths.ParentOf(relative);
-        var crumbs = new StringBuilder($"<a href=\"/s/{Uri.EscapeDataString(share.Id)}/\">{Html.Encode(share.Name)}</a>");
-
-        var accumulated = "";
-        foreach (var part in relative.Split('/', StringSplitOptions.RemoveEmptyEntries))
-        {
-            accumulated = accumulated.Length == 0 ? part : $"{accumulated}/{part}";
-            crumbs.Append($" / <a href=\"/s/{Uri.EscapeDataString(share.Id)}/{UrlPath(accumulated)}\">{Html.Encode(part)}</a>");
-        }
-
-        var rows = new StringBuilder();
-        if (parent is not null)
-            rows.Append($"<tr><td><a href=\"/s/{Uri.EscapeDataString(share.Id)}/{UrlPath(parent)}\">..</a></td><td></td><td></td></tr>");
-
-        DirectoryInfo directory;
-        try
-        {
-            directory = new DirectoryInfo(target);
-        }
-        catch (Exception)
-        {
-            context.Response.StatusCode = StatusCodes.Status403Forbidden;
-            await context.Response.WriteAsync("This folder cannot be read.");
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
 
-        var entries = directory.EnumerateFileSystemInfos()
-            .OrderByDescending(entry => entry is DirectoryInfo)
-            .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase);
-
-        foreach (var entry in entries)
+        var info = Files.GetFileInfo(relative);
+        if (!info.Exists || info.IsDirectory)
         {
-            var child = accumulated.Length == 0 ? entry.Name : $"{accumulated}/{entry.Name}";
-            var href = $"/s/{Uri.EscapeDataString(share.Id)}/{UrlPath(child)}" + (entry is DirectoryInfo ? "/" : "");
-            var size = entry is FileInfo file ? FormatBytes(file.Length) : "";
-            var modified = entry.LastWriteTime.ToString("yyyy-MM-dd HH:mm");
-
-            rows.Append($"<tr><td><a href=\"{href}\">{Html.Encode(entry.Name)}{(entry is DirectoryInfo ? "/" : "")}</a></td>"
-                        + $"<td>{size}</td><td>{modified}</td></tr>");
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
         }
 
-        if (rows.Length == 0)
-            rows.Append("<tr><td class=\"muted\" colspan=\"3\">This folder is empty.</td></tr>");
+        context.Response.ContentType = ContentTypes.TryGetContentType(info.Name, out var type)
+            ? type
+            : "application/octet-stream";
+        context.Response.Headers.CacheControl = relative == "share.html"
+            ? "no-cache"
+            : "public, max-age=31536000, immutable";
 
-        var action = $"/s/{Uri.EscapeDataString(share.Id)}/{UrlPath(relative)}";
-        var body = $"""
-                    <nav>{crumbs}</nav>
-                    <table>
-                        <thead><tr><th>Name</th><th>Size</th><th>Modified</th></tr></thead>
-                        <tbody>{rows}</tbody>
-                    </table>
-                    <form class="upload" enctype="multipart/form-data" method="post" action="{action}">
-                        <strong>Upload files</strong>
-                        <input multiple name="files" type="file">
-                        <button type="submit">Upload</button>
-                    </form>
-                    """;
-
-        await WritePageAsync(context, share.Name, body);
+        await using var stream = info.CreateReadStream();
+        await stream.CopyToAsync(context.Response.Body);
     }
 
-    private static async Task WritePageAsync(HttpContext context, string title, string body)
+    private static async Task WriteJsonAsync<T>(HttpContext context, T payload, JsonTypeInfo<T> typeInfo)
     {
-        var html = $"""
-                    <!doctype html>
-                    <html lang="en">
-                    <head>
-                    <meta charset="utf-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1">
-                    <title>{Html.Encode(title)}</title>
-                    <style>
-                    {SharePageStyle}
-                    </style>
-                    </head>
-                    <body><main>{body}</main></body>
-                    </html>
-                    """;
-
-        context.Response.ContentType = "text/html; charset=utf-8";
-        await context.Response.WriteAsync(html);
+        context.Response.ContentType = "application/json; charset=utf-8";
+        await JsonSerializer.SerializeAsync(context.Response.Body, payload, typeInfo);
     }
 
-    private const string SharePageStyle = """
-                                         :root { color-scheme: dark; }
-                                         * { box-sizing: border-box; }
-                                         body { margin: 0; padding: 28px; background: #0b0f19; color: #e7ecf5;
-                                           font: 14px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-                                         main { max-width: 960px; margin: 0 auto; }
-                                         h1 { margin: 0 0 4px; font-size: 22px; }
-                                         .muted { color: #8b96ab; }
-                                         nav { margin: 0 0 18px; padding: 10px 12px; border: 1px solid #232c3f;
-                                           border-radius: 10px; background: #111827; overflow-wrap: anywhere; }
-                                         nav a, td a { color: #8ab4ff; text-decoration: none; }
-                                         nav a:hover, td a:hover { text-decoration: underline; }
-                                         table { width: 100%; border-collapse: collapse; background: #111827;
-                                           border: 1px solid #232c3f; border-radius: 10px; overflow: hidden; }
-                                         th, td { padding: 9px 12px; border-bottom: 1px solid #1d2637; text-align: left; }
-                                         th { color: #8b96ab; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
-                                         tr:last-child td { border-bottom: 0; }
-                                         td:nth-child(2), td:nth-child(3) { width: 1%; white-space: nowrap; color: #8b96ab; }
-                                         .upload { margin: 18px 0 0; padding: 14px; display: flex; flex-wrap: wrap; gap: 10px;
-                                           align-items: center; border: 1px solid #232c3f; border-radius: 10px; background: #111827; }
-                                         .upload strong { width: 100%; }
-                                         input[type=file] { flex: 1; min-width: 200px; color: #aab4c5; }
-                                         button { padding: 7px 16px; border: 0; border-radius: 8px; background: #3b82f6;
-                                           color: #fff; font: inherit; cursor: pointer; }
-                                         ul.shares { list-style: none; padding: 0; margin: 18px 0; display: grid; gap: 10px; }
-                                         ul.shares li { padding: 14px; border: 1px solid #232c3f; border-radius: 10px; background: #111827; }
-                                         ul.shares li a { color: #8ab4ff; font-size: 15px; text-decoration: none; }
-                                         ul.shares li small { display: block; margin-top: 3px; color: #8b96ab; overflow-wrap: anywhere; }
-                                         """;
-
-    private static string UrlPath(string relative) =>
-        string.Join('/', relative.Split('/', StringSplitOptions.RemoveEmptyEntries).Select(Uri.EscapeDataString));
-
-    private static string FormatBytes(long value)
+    private static async Task WriteErrorAsync(HttpContext context, int status, string message)
     {
-        string[] units = ["B", "KB", "MB", "GB", "TB"];
-        double size = value;
-        var unit = 0;
-
-        while (size >= 1024 && unit < units.Length - 1)
-        {
-            size /= 1024;
-            unit++;
-        }
-
-        return $"{size:0.#} {units[unit]}";
+        context.Response.StatusCode = status;
+        await WriteJsonAsync(context, new ShareWebErrorPayload(message),
+            AppJsonContext.Default.ShareWebErrorPayload);
     }
 
     private static IEnumerable<string> LanAddresses() =>

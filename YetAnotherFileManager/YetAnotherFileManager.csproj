@@ -37,6 +37,8 @@
     <ItemGroup>
         <PackageReference Include="JetBrains.Annotations" Version="2026.2.0" />
         <PackageReference Include="BouncyCastle.Cryptography" Version="2.7.0" />
+        <!-- PhotinoNETUtils creates the startup shortcut with this library. -->
+        <PackageReference Include="securifybv.ShellLink" Version="0.1.0" />
         <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
         <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="10.0.14" />
         <PackageReference Include="Docnet.Core" Version="2.6.0" />

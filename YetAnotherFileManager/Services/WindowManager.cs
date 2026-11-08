@@ -37,6 +37,9 @@ internal sealed class WindowManager : Singleton<WindowManager>
     /// <summary>Whether the interface has reported in; before that, messages crash the web view.</summary>
     private bool _mainWindowReady;
 
+    /// <summary>Set when the window should stay hidden until its web view has rendered.</summary>
+    private bool _hideWhenRendered;
+
     /// <summary>Paths that arrived before the interface was listening for navigation.</summary>
     private readonly List<(string Path, bool Startup)> _pendingPaths = [];
 
@@ -60,6 +63,9 @@ internal sealed class WindowManager : Singleton<WindowManager>
     /// <summary>Address the window loads the interface from, set before the window is created.</summary>
     public string AppUrl { get; set; } = "";
 
+    /// <summary>Whether the window is shown at startup instead of hiding to the tray.</summary>
+    public bool ShowMainWindowOnStartup { get; set; } = true;
+
     /// <summary>Path to the extracted icon for the window, or null to keep the default.</summary>
     public string? IconPath { get; set; }
 
@@ -80,6 +86,7 @@ internal sealed class WindowManager : Singleton<WindowManager>
                 _mainWindowReady = true;
                 // Flushing sends a web message, which has to happen on the UI thread.
                 RunOnMainWindow(FlushPendingPaths);
+                HideWhenRendered();
                 break;
 
             case "app.navigate.done":
@@ -220,6 +227,9 @@ internal sealed class WindowManager : Singleton<WindowManager>
             .SetSize(new(width, height))
             .SetMinSize(minWidth, minHeight)
             .Center()
+            // Starting hidden keeps the window in the task switcher for a moment instead of
+            // flashing on screen; the interface hides it for good once it has rendered.
+            .SetMinimized(!ShowMainWindowOnStartup)
             .SetContextMenuEnabled(false)
             .RegisterWebMessageReceivedHandler((sender, message) =>
                 _ = NativeBridge.HandleMessageAsync(sender as PhotinoWindow, message))
@@ -258,6 +268,13 @@ internal sealed class WindowManager : Singleton<WindowManager>
             {
                 LinuxWindow.UseClientSideFrame(window.Title);
                 DrawsWindowCorners = LinuxWindow.EnableTransparency(window.Title);
+            }
+
+            if (!ShowMainWindowOnStartup)
+            {
+                _hideWhenRendered = true;
+                Log.Information("Starting hidden; the window stays minimised until its interface has rendered");
+                _ = Task.Delay(TimeSpan.FromSeconds(10)).ContinueWith(_ => HideWhenRendered());
             }
 
             MainWindowCreated?.Invoke();
@@ -342,6 +359,20 @@ internal sealed class WindowManager : Singleton<WindowManager>
 
     /// <summary>Reloads the main UI from the tray's recovery action.</summary>
     public void ReloadWebView() => _webViewRecovery?.Reload();
+
+    /// <summary>
+    ///     Hides the window once its interface has reported in. A window hidden before the web view
+    ///     renders can come back blank, which is why the native window starts minimised and only
+    ///     leaves the taskbar here (or after the ten-second fallback).
+    /// </summary>
+    private void HideWhenRendered()
+    {
+        if (!_hideWhenRendered || _mainWindow is not { } window)
+            return;
+
+        _hideWhenRendered = false;
+        RunOnMainWindow(() => Hide(window));
+    }
 
     private void FlushPendingPaths()
     {

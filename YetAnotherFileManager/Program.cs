@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -43,6 +44,14 @@ internal static partial class Program
         if (OperatingSystem.IsWindows() && args.Contains(Constants.CreateLinkArgument))
         {
             Environment.ExitCode = RunCreateLink(args);
+            return;
+        }
+
+        // The logon task needs an administrator token, so the window asks for a one-off elevated
+        // copy of the app to create or remove it.
+        if (OperatingSystem.IsWindows() && args.Contains(Constants.StartupTaskArgument))
+        {
+            Environment.ExitCode = RunStartupTask(args);
             return;
         }
 
@@ -165,9 +174,10 @@ internal static partial class Program
 
             // Touching each singleton constructs it, which is what registers its message handlers.
             _ = AppInfoService.Instance;
-_ = UpdateService.Instance;
+            _ = UpdateService.Instance;
             _ = FileSystemService.Instance;
             _ = ThumbnailServer.Instance;
+            _ = StartupService.Instance;
 
             // A cleanup tool or another profile can wipe the per-user entry, so the stored choice is
             // applied again on every launch.
@@ -177,6 +187,11 @@ _ = UpdateService.Instance;
             var manager = WindowManager.Instance;
             manager.AppUrl = appUrl;
             manager.IconPath = AppIcon.EnsureExtracted(typeof(Program).Assembly, Constants.Name);
+
+            // Without a tray the window is the only way back in, so it always shows there.
+            var hasTray = OperatingSystem.IsWindows() ||
+                          OperatingSystem.IsLinux() && LinuxDiagnostics.AppIndicatorLibrary is not null;
+            manager.ShowMainWindowOnStartup = !SettingsService.Instance.Current.StartsHidden || !hasTray;
 
             using var tray = CreateTray(manager.IconPath);
 
@@ -305,6 +320,56 @@ _ = UpdateService.Instance;
 
         var result = FileLinkCreation.Create(args[index + 1], args[index + 2], args[index + 3], true);
         return result.Ok ? 0 : 1;
+    }
+
+    /// <summary>Creates or deletes the Windows logon task with the helper's administrator token.</summary>
+    [SupportedOSPlatform("windows")]
+    private static int RunStartupTask(string[] args)
+    {
+        var index = Array.IndexOf(args, Constants.StartupTaskArgument);
+        if (index < 0 || index + 1 >= args.Length)
+            return 2;
+
+        var executable = Environment.ProcessPath;
+        if (executable is null)
+            return 1;
+
+        var start = new ProcessStartInfo("schtasks")
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+
+        if (args[index + 1] == "create")
+        {
+            foreach (var argument in new[]
+                     {
+                         "/Create", "/SC", "ONLOGON", "/IT", "/TN", Constants.Name,
+                         "/TR", $"\"{executable}\"", "/RL", "LIMITED", "/F"
+                     })
+                start.ArgumentList.Add(argument);
+        }
+        else
+        {
+            foreach (var argument in new[] {"/Delete", "/TN", Constants.Name, "/F"})
+                start.ArgumentList.Add(argument);
+        }
+
+        try
+        {
+            using var process = Process.Start(start);
+            if (process is null)
+                return 1;
+
+            process.WaitForExit();
+            return process.ExitCode;
+        }
+        catch
+        {
+            return 1;
+        }
     }
 
     private static void RunShellVerbs(string[] args)
@@ -489,7 +554,14 @@ _ = UpdateService.Instance;
     {
         if (!OperatingSystem.IsLinux())
         {
-            WindowManager.Instance.CloseToTray = tray.Start();
+            var manager = WindowManager.Instance;
+            var started = tray.Start();
+            manager.CloseToTray = started;
+
+            // Starting hidden is only safe when the tray can bring the window back.
+            if (!started && !manager.ShowMainWindowOnStartup)
+                manager.ShowMainWindow();
+
             return;
         }
 
@@ -508,7 +580,15 @@ _ = UpdateService.Instance;
             for (var attempt = 0; attempt < 100 && !TrayIconFactory.IsToolkitReady; attempt++)
                 await Task.Delay(100);
 
-            WindowManager.Instance.RunOnMainWindow(() => { WindowManager.Instance.CloseToTray = tray.Start(); });
+            WindowManager.Instance.RunOnMainWindow(() =>
+            {
+                var manager = WindowManager.Instance;
+                var started = tray.Start();
+                manager.CloseToTray = started;
+
+                if (!started && !manager.ShowMainWindowOnStartup)
+                    manager.ShowMainWindow();
+            });
         });
 
     /// <summary>The platform's tray icon, or a no-op stand-in when there is none.</summary>

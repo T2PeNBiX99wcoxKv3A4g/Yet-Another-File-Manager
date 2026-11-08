@@ -22,8 +22,8 @@ import type {AppInfo} from "../api/system";
 import {requestFile, requestFolder} from "../folder-picker";
 import {SelectMenu} from "./SelectMenu";
 import {useTextSearch, type PageFind} from "../ui/textSearch";
-import {checkUpdate, getMemory, getScheme, getUpdateStatus, openUrl, setScheme, trimMemory,
-    type MemoryUsage, type UpdateCheck} from "../api/system";
+import {checkUpdate, getMemory, getScheme, getStartup, getUpdateStatus, openUrl, setScheme,
+    setStartup as setStartupEntry, trimMemory, type MemoryUsage, type StartupStatus, type UpdateCheck} from "../api/system";
 import {createTag, deleteTag, listTags, renameTag, setTagColor, type TagCatalogEntry} from "../api/tags";
 import {CheckIcon, ChevronRightIcon, CrossIcon, PlusIcon, TrashIcon, VideoIcon} from "./Icons";
 import {IconPicker} from "./IconPicker";
@@ -36,7 +36,7 @@ import {GlobalTag} from "./GlobalTag";
 import {ViewColumns} from "./FileList";
 import {BuiltInBackgrounds, BuiltInVideos} from "../backgrounds/concepts";
 import {isVideoPath} from "./Wallpaper";
-import {baseName, DefaultTimePattern, formatBytes, formatDateWith, plural, usageTone} from "../utils/format";
+import {baseName, DefaultTimePattern, formatBytes, formatDateWith, isRemoteUrl, plural, usageTone} from "../utils/format";
 import {readStoredJson, writeStoredJson} from "../storage";
 import {FontRoles, listFonts} from "../fonts";
 import {FontPicker} from "./FontPicker";
@@ -119,6 +119,7 @@ const LocaleNames: Record<string, string> = {
 /** The sections the table of contents jumps to; the ids are what the list shows. */
 const SettingSections: { id: string; label: string }[] = [
     {id: "application", label: "Application"},
+    {id: "startup", label: "Startup"},
     {id: "fonts", label: "Fonts"},
     {id: "time", label: "Time format"},
     {id: "updates", label: "Updates"},
@@ -196,6 +197,10 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
     const [activeSection, setActiveSection] = useState(SettingSections[0].id);
     const [fonts, setFonts] = useState<string[]>([]);
     const [portDraft, setPortDraft] = useState<string | null>(null);
+    const [startup, setStartup] = useState<StartupStatus | null>(null);
+    const [startupError, setStartupError] = useState<string | null>(null);
+    const [startupBusy, setStartupBusy] = useState(false);
+    const [backgroundUrl, setBackgroundUrl] = useState("");
     const page = useRef<HTMLDivElement | null>(null);
     const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
     const defaultView = settings?.defaultView ?? DefaultViewDefaults;
@@ -271,6 +276,11 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
         void listFonts().then(setFonts, () => setFonts([]));
     }, []);
 
+    // The startup entry lives outside the settings, so its real state is read from the host.
+    useEffect(() => {
+        void getStartup().then(setStartup, () => setStartup(null));
+    }, []);
+
     // The footer already asked on start, so this normally answers from the backend's cache.
     useEffect(() => {
         void getUpdateStatus().then(setUpdateState, () => undefined);
@@ -322,13 +332,29 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
         });
     };
 
+    /** Adds a picture or video by URL; the source is stored with a "url:" marker. */
+    const addBackgroundUrl = async () => {
+        const url = backgroundUrl.trim();
+        if (!settings || !isRemoteUrl(url)) return;
+
+        const known = settings.backgroundCustom ?? [];
+        setBackgroundUrl("");
+        await update({
+            backgroundCustom: known.includes(url) ? known : [...known, url],
+            backgroundSource: `url:${url}`,
+        });
+    };
+
     /** Removing the selected wallpaper falls back to the plain window. */
     const removeBackground = (path: string) => {
         if (!settings) return;
 
+        const active = settings.backgroundSource;
         void update({
             backgroundCustom: settings.backgroundCustom.filter((item) => item !== path),
-            backgroundSource: settings.backgroundSource === `file:${path}` ? null : settings.backgroundSource,
+            backgroundSource: active === `file:${path}` || active === `url:${path}` || active === path
+                ? null
+                : active,
         });
     };
 
@@ -747,13 +773,39 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
     };
 
     /** An empty field means "pick a free port"; the host restarts the browser server either way. */
+    /** A custom port below 1 is not a port; the host falls back to a random one. */
     const commitSharePort = async (raw: string) => {
         const value = Number(raw.trim());
-        const port = Number.isFinite(value) && value >= 1024 && value <= 65535 ? Math.round(value) : null;
+        const port = Number.isFinite(value) && value >= 1 && value <= 65535 ? Math.round(value) : null;
 
         setPortDraft(null);
-        await update({sharePort: port});
-        await setSharePort(port);
+        await update({sharePortMode: "custom", sharePort: port});
+        await setSharePort(port, "custom");
+    };
+
+    const changeSharePortMode = async (mode: string) => {
+        const custom = mode === "custom";
+        const port = custom ? settings?.sharePort ?? 8080 : null;
+
+        await update({sharePortMode: custom ? "custom" : "random", sharePort: port});
+        await setSharePort(port, custom ? "custom" : "random");
+    };
+
+    const changeStartup = async (mode: string) => {
+        const next = mode === "shortcut" || mode === "task" ? mode : "none";
+
+        setStartupBusy(true);
+        setStartupError(null);
+        try {
+            const result = await setStartupEntry(next);
+            setStartup(result);
+            setStartupError(result.error);
+
+            if (!result.error)
+                await update({startupMode: next});
+        } finally {
+            setStartupBusy(false);
+        }
     };
 
     const saveGallery = async (paths: string[]) => {
@@ -878,22 +930,42 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>{t("Share web server port")}</Label>
-                                <Note>{t("The port the browser file server listens on. Leave it empty to pick a free port between 6000 and 9000 automatically.")}</Note>
+                                <Label>{t("Web server port")}</Label>
+                                <Note>{t("Random asks the operating system for one free port when the first web share starts, and every web share keeps using it. Custom always tries the port below.")}</Note>
                             </RowText>
                             <RowEnd>
-                                <Input
-                                    inputMode="numeric"
-                                    onBlur={(event) => void commitSharePort(event.currentTarget.value)}
-                                    onChange={(event) => setPortDraft(event.target.value.replace(/\D/g, ""))}
-                                    onKeyDown={(event) => {
-                                        if (event.key === "Enter") event.currentTarget.blur();
-                                    }}
-                                    placeholder={t("Automatic")}
-                                    value={portDraft ?? (settings?.sharePort ? String(settings.sharePort) : "")}
+                                <SelectMenu
+                                    disabled={!settings}
+                                    onChange={(value) => void changeSharePortMode(value)}
+                                    options={[
+                                        {value: "random", label: t("Random")},
+                                        {value: "custom", label: t("Custom port")},
+                                    ]}
+                                    value={settings?.sharePortMode ?? "random"}
+                                    width={160}
                                 />
                             </RowEnd>
                         </Row>
+                        {settings?.sharePortMode === "custom" && (
+                            <Row>
+                                <RowText>
+                                    <Label>{t("Custom port")}</Label>
+                                    <Note>{t("A number from 1 to 65535. If it is already in use the app asks for a free port instead.")}</Note>
+                                </RowText>
+                                <RowEnd>
+                                    <Input
+                                        inputMode="numeric"
+                                        onBlur={(event) => void commitSharePort(event.currentTarget.value)}
+                                        onChange={(event) => setPortDraft(event.target.value.replace(/\D/g, ""))}
+                                        onKeyDown={(event) => {
+                                            if (event.key === "Enter") event.currentTarget.blur();
+                                        }}
+                                        placeholder="8080"
+                                        value={portDraft ?? (settings?.sharePort ? String(settings.sharePort) : "")}
+                                    />
+                                </RowEnd>
+                            </Row>
+                        )}
                         <Row>
                             <RowText>
                                 <Label>{t("Link paths")}</Label>
@@ -1055,6 +1127,52 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                             >
                                 <Knob/>
                             </Toggle>
+                        </Row>
+                    </Rows>
+                </Section>
+
+                <Section ref={anchor("startup")}>
+                    <Head
+                        note="How the app joins your login session, and whether it opens quietly in the tray."
+                        title="Startup"
+                    />
+                    <Rows>
+                        <Row>
+                            <RowText>
+                                <Label>{t("Start with the computer")}</Label>
+                                <Note>{t("A shortcut uses the Startup folder (or XDG autostart). A task uses Task Scheduler (or a systemd user service), which starts earlier and is usually faster.")}</Note>
+                                {startupError && <TagError>{startupError}</TagError>}
+                                {startup && !startup.supported && <TagError>{t("This platform cannot create a per-user startup entry.")}</TagError>}
+                            </RowText>
+                            <RowEnd>
+                                <SelectMenu
+                                    disabled={!settings || startupBusy || (startup !== null && !startup.supported)}
+                                    onChange={(value) => void changeStartup(value)}
+                                    options={[
+                                        {value: "none", label: t("None")},
+                                        {value: "shortcut", label: t("Shortcut")},
+                                        {value: "task", label: t("Scheduled task")},
+                                    ]}
+                                    value={startup?.mode ?? settings?.startupMode ?? "none"}
+                                    width={170}
+                                />
+                            </RowEnd>
+                        </Row>
+                        <Row>
+                            <RowText>
+                                <Label>{t("Start hidden in the tray")}</Label>
+                                <Note>{t("Launch straight to the tray icon instead of showing the window. The tray menu opens it again.")}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <Toggle
+                                    $on={settings?.startHidden ?? false}
+                                    disabled={!settings}
+                                    onClick={() => void update({startHidden: !settings?.startHidden})}
+                                    type="button"
+                                >
+                                    <Knob/>
+                                </Toggle>
+                            </RowEnd>
                         </Row>
                     </Rows>
                 </Section>
@@ -1446,10 +1564,14 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                                     <VariantRow>
                                         {(settings?.backgroundCustom ?? []).map((path) => (
                                             <CustomWallpaper
-                                                active={settings?.backgroundSource === `file:${path}`}
+                                                active={settings?.backgroundSource === `file:${path}`
+                                                    || settings?.backgroundSource === `url:${path}`
+                                                    || settings?.backgroundSource === path}
                                                 key={path}
                                                 onRemove={() => removeBackground(path)}
-                                                onSelect={() => void update({backgroundSource: `file:${path}`})}
+                                                onSelect={() => void update({
+                                                    backgroundSource: isRemoteUrl(path) ? `url:${path}` : `file:${path}`
+                                                })}
                                                 path={path}
                                             />
                                         ))}
@@ -1469,6 +1591,29 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                                 </GalleryGroup>
                             </Gallery>
                         </Block>
+                        <Row>
+                            <RowText>
+                                <Label>{t("Image or video URL")}</Label>
+                                <Note>{t("Paste a direct http(s) link. The picture or video is loaded from the network each time the window starts.")}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <Input
+                                    onChange={(event) => setBackgroundUrl(event.target.value)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === "Enter") void addBackgroundUrl();
+                                    }}
+                                    placeholder="https://…"
+                                    value={backgroundUrl}
+                                />
+                                <SmallButton
+                                    disabled={!isRemoteUrl(backgroundUrl)}
+                                    onClick={() => void addBackgroundUrl()}
+                                    type="button"
+                                >
+                                    {t("Add")}
+                                </SmallButton>
+                            </RowEnd>
+                        </Row>
                         <Row>
                             <Label>{t("Blur")}</Label>
                             <RowEnd>
@@ -2518,8 +2663,10 @@ function CustomWallpaper({path, active, onSelect, onRemove}: {
     onRemove: () => void;
 }) {
     const t = useTranslation();
-    const url = useMediaUrl(path);
-    const video = isVideoPath(path);
+    const remote = isRemoteUrl(path);
+    const media = useMediaUrl(remote ? null : path);
+    const url = remote ? path : media;
+    const video = isVideoPath(path.split(/[?#]/)[0]);
 
     return (
         <CustomItem>

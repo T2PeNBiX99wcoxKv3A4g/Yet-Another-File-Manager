@@ -1462,7 +1462,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
         var resolved = await Task.WhenAll(shortcuts.Select(async entry =>
         {
-            var (target, valid) = await StaThread.RunAsync(() => ShellLink.Resolve(entry.FullPath));
+            var (target, valid) = await StaThread.RunAsync(() => Interop.ShellLink.Resolve(entry.FullPath));
             return entry with { LinkTarget = target, LinkValid = valid };
         }));
 
