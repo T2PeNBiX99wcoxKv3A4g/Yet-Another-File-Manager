@@ -98,6 +98,12 @@ internal static partial class Program
         SettingsService.Instance.InitializeAsync().GetAwaiter().GetResult();
         FileVisibility.SetHidden(SettingsService.Instance.Current.ShowHidden);
 
+        // Local sharing: reads the stored folders and peers and starts discovery, the encrypted
+        // listener and (when a web share exists) the browser file server. A picker is a separate
+        // short-lived process and must not take the share ports from the main window.
+        if (picker is null)
+            ShareService.Instance.InitializeAsync().GetAwaiter().GetResult();
+
         // Re-apply the per-user folder association in case it was removed outside the app.
         DefaultFileManager.Apply(SettingsService.Instance.Current.IsDefaultFileManager);
         ArchiveAssociations.Apply(SettingsService.Instance.Current.HandlesArchives);

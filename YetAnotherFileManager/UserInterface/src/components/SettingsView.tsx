@@ -38,6 +38,9 @@ import {BuiltInBackgrounds, BuiltInVideos} from "../backgrounds/concepts";
 import {isVideoPath} from "./Wallpaper";
 import {baseName, DefaultTimePattern, formatBytes, formatDateWith, plural, usageTone} from "../utils/format";
 import {readStoredJson, writeStoredJson} from "../storage";
+import {FontRoles, listFonts} from "../fonts";
+import {FontPicker} from "./FontPicker";
+import {setSharePort} from "../api/share";
 
 interface SettingsViewProps {
     appInfo: AppInfo | null;
@@ -116,6 +119,7 @@ const LocaleNames: Record<string, string> = {
 /** The sections the table of contents jumps to; the ids are what the list shows. */
 const SettingSections: { id: string; label: string }[] = [
     {id: "application", label: "Application"},
+    {id: "fonts", label: "Fonts"},
     {id: "time", label: "Time format"},
     {id: "updates", label: "Updates"},
     {id: "colors", label: "Colors"},
@@ -190,6 +194,8 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
     const [updateError, setUpdateError] = useState(false);
     const [colorStart, setColorStart] = useState<{ role: ColorRole; color: string } | null>(null);
     const [activeSection, setActiveSection] = useState(SettingSections[0].id);
+    const [fonts, setFonts] = useState<string[]>([]);
+    const [portDraft, setPortDraft] = useState<string | null>(null);
     const page = useRef<HTMLDivElement | null>(null);
     const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
     const defaultView = settings?.defaultView ?? DefaultViewDefaults;
@@ -258,6 +264,11 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
     // The translation files that exist, for the language picker; the list does not change at runtime.
     useEffect(() => {
         void loadStrings().then((payload) => setLanguages(payload.available), () => setLanguages([]));
+    }, []);
+
+    // The system font list is read once; a font installed later needs a restart to appear.
+    useEffect(() => {
+        void listFonts().then(setFonts, () => setFonts([]));
     }, []);
 
     // The footer already asked on start, so this normally answers from the backend's cache.
@@ -735,6 +746,16 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
         void update(next);
     };
 
+    /** An empty field means "pick a free port"; the host restarts the browser server either way. */
+    const commitSharePort = async (raw: string) => {
+        const value = Number(raw.trim());
+        const port = Number.isFinite(value) && value >= 1024 && value <= 65535 ? Math.round(value) : null;
+
+        setPortDraft(null);
+        await update({sharePort: port});
+        await setSharePort(port);
+    };
+
     const saveGallery = async (paths: string[]) => {
         await update({galleryRoots: paths.length > 0 ? paths : null});
     };
@@ -780,6 +801,15 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
         } finally {
             setBusy(false);
         }
+    };
+
+    const setFont = async (id: string, family: string | null) => {
+        const fonts = {...settings?.fonts};
+
+        if (family) fonts[id] = family;
+        else delete fonts[id];
+
+        await update({fonts});
     };
 
     return (
@@ -843,6 +873,24 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                                         if (event.key === "Enter") event.currentTarget.blur();
                                     }}
                                     value={pickerSizeDraft.height ?? String(settings?.pickerWindowHeight ?? 800)}
+                                />
+                            </RowEnd>
+                        </Row>
+                        <Row>
+                            <RowText>
+                                <Label>{t("Share web server port")}</Label>
+                                <Note>{t("The port the browser file server listens on. Leave it empty to pick a free port between 6000 and 9000 automatically.")}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <Input
+                                    inputMode="numeric"
+                                    onBlur={(event) => void commitSharePort(event.currentTarget.value)}
+                                    onChange={(event) => setPortDraft(event.target.value.replace(/\D/g, ""))}
+                                    onKeyDown={(event) => {
+                                        if (event.key === "Enter") event.currentTarget.blur();
+                                    }}
+                                    placeholder={t("Automatic")}
+                                    value={portDraft ?? (settings?.sharePort ? String(settings.sharePort) : "")}
                                 />
                             </RowEnd>
                         </Row>
@@ -1007,6 +1055,44 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                             >
                                 <Knob/>
                             </Toggle>
+                        </Row>
+                    </Rows>
+                </Section>
+
+                <Section ref={anchor("fonts")}>
+                    <Head
+                        note="Choose the font each part of the interface uses. Every font installed on this system is listed, each one drawn in its own face."
+                        title="Fonts"
+                    />
+                    <Rows>
+                        {FontRoles.map((role) => (
+                            <Row key={role.id}>
+                                <RowText>
+                                    <Label>{t(role.label)}</Label>
+                                    <Note>{t("Falls back to {font} until another family is chosen.", {font: t(role.fallback)})}</Note>
+                                </RowText>
+                                <RowEnd>
+                                    <FontPicker
+                                        defaultLabel={t(role.fallback)}
+                                        disabled={!settings}
+                                        fonts={fonts}
+                                        onChange={(family) => void setFont(role.id, family)}
+                                        sample={role.sample}
+                                        value={settings?.fonts?.[role.id] ?? null}
+                                    />
+                                </RowEnd>
+                            </Row>
+                        ))}
+                        <Row>
+                            <RowText>
+                                <Label>{t("Reset")}</Label>
+                                <Note>{t("Back to the app's built-in font for every role.")}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <ActionButton onClick={() => void update({fonts: {}})} type="button">
+                                    {t("Reset")}
+                                </ActionButton>
+                            </RowEnd>
                         </Row>
                     </Rows>
                 </Section>

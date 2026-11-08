@@ -385,6 +385,7 @@ const Panel = styled.aside`
     min-height: 0;
     overflow: hidden;
     background: var(--bg-secondary);
+    font-family: var(--font-details), var(--font-cjk);
     transition: width 180ms cubic-bezier(0.22, 1, 0.36, 1);
 `;
 
@@ -529,7 +530,7 @@ const TextBox = styled.div`
 const Pre = styled.pre`
     margin: 0;
     color: var(--text-secondary);
-    font-family: var(--font-mono);
+    font-family: var(--font-preview), var(--font-cjk);
     font-size: 10px;
     line-height: 1.5;
     white-space: pre-wrap;

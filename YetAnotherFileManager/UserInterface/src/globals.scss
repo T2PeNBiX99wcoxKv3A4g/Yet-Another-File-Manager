@@ -13,6 +13,12 @@ html {
   --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Arial;
   --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, "SFMono-Regular", Menlo,
   var(--font-cjk);
+  // Per-role families. Each one falls back to the app font until the user picks another.
+  --font-title: var(--font-sans);
+  --font-names: var(--font-sans);
+  --font-details: var(--font-sans);
+  --font-path: var(--font-mono);
+  --font-preview: var(--font-mono);
 
   font-family: var(--font-sans), var(--font-cjk);
 
@@ -78,6 +84,11 @@ html:lang(ja) {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+// Headings follow the title role, so the "Titles" font choice reaches every page title.
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-title), var(--font-cjk);
 }
 
 // WebKitGTK paints its own themed background on buttons, which shows through the app's translucent

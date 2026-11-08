@@ -2168,6 +2168,7 @@ const Wrapper = styled.div`
     min-height: 0;
     min-width: 0;
     flex: 1;
+    font-family: var(--font-names), var(--font-cjk);
 `;
 
 const Head = styled.div`

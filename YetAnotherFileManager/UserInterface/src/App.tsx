@@ -87,7 +87,10 @@ import {buildPanels} from "./panels";
 import {Native, ResizeHandles, useTranslation, useWindowCorners, type Translate} from "@photino-net-utils/bridge";
 import {applyTimeFormat, archiveFile, baseName, formatBytes, isArchiveLocation, isArchivePath, isZipArchiveLocation, normalizePath, plural} from "./utils/format";
 import {applyTheme} from "./theme";
+import {applyFonts} from "./fonts";
 import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "./storage";
+import {isShareLocation, listSharedDirectory, openSharedFile, parseShareLocation, shareLocation, respondSharePair} from "./api/share";
+import {SharePairDialog} from "./components/SharePairDialog";
 import {fadeInStyle, pageInStyle, splitLineInStyle} from "./ui/motion";
 import {
     comboOf,
@@ -267,6 +270,16 @@ function samePath(left: string, right: string): boolean {
 
 /** The parent of a folder path, even before its listing has arrived. */
 function parentOf(path: string): string | null {
+    const share = parseShareLocation(path);
+
+    if (share) {
+        if (share.path.length === 0)
+            return null;
+
+        const parent = share.path.split("/").slice(0, -1).join("/");
+        return shareLocation(share.deviceId, share.shareId, parent);
+    }
+
     const trimmed = path.replace(/[\\/]+$/, "");
     if (trimmed.length === 0)
         return null;
@@ -313,6 +326,7 @@ export default function App() {
     const t = useTranslation();
     const [tabs, setTabs] = useState<Tab[]>(() => [createTab()]);
     const [activeId, setActiveId] = useState(() => tabs[0].id);
+    const [sharePair, setSharePair] = useState<{ requestId: string; deviceName: string; code: string } | null>(null);
     const [splitRatio, setSplitRatio] = useState(() => {
         const saved = readStoredNumber("yafm.split.ratio", 0.5);
         return saved >= 0.2 && saved <= 0.8 ? saved : 0.5;
@@ -420,6 +434,11 @@ export default function App() {
     useEffect(() => {
         applyTheme(settings?.accentColor, settings?.secondaryColor);
     }, [settings?.accentColor, settings?.secondaryColor]);
+
+    // Font choices live on the root element, so every component picks them up through its role.
+    useEffect(() => {
+        applyFonts(settings?.fonts);
+    }, [settings?.fonts]);
 
     // Dates are formatted by a tiny shared module, so it has to follow the settings before render.
     useEffect(() => {
@@ -614,6 +633,8 @@ export default function App() {
      * disk to show something. The live listing takes over right after.
      */
     const showCached = useCallback(async (id: string, path: string | undefined, current: () => boolean) => {
+        if (path && isShareLocation(path)) return;
+
         try {
             const cached = await listDirectoryCached(path, includeLinks);
             if (!current() || !cached.listing) return;
@@ -672,8 +693,10 @@ export default function App() {
             if (paintCache)
                 void showCached(id, path, current);
 
-            const listing = await listDirectory(path, true, includeLinks, archiveEncodingRef.current,
-                path ? archivePasswordFor(path) : undefined);
+            const listing = path && isShareLocation(path)
+                ? await listSharedDirectory(path)
+                : await listDirectory(path, true, includeLinks, archiveEncodingRef.current,
+                    path ? archivePasswordFor(path) : undefined);
             if (!current()) return;
 
             patch(id, (tab) => ({
@@ -688,7 +711,7 @@ export default function App() {
             }));
 
             // A refresh shows the same folder again; only a real navigation counts as a visit.
-            if (!keepFresh)
+            if (!keepFresh && !isShareLocation(listing.path))
                 void recordVisit(listing.path).then(() => setHistoryVersion((version) => version + 1));
         } catch (cause) {
             if (!current()) return;
@@ -698,9 +721,7 @@ export default function App() {
             // "empty" note, instead of dropping the whole file view.
             const tabBefore = stateRef.current.tabs.find((item) => item.id === id);
             const requested = path && path.length > 0 ? path : tabBefore ? folderOf(tabBefore) : "";
-            const trimmed = requested.replace(/[\\/]+$/, "");
-            const cut = Math.max(trimmed.lastIndexOf("\\"), trimmed.lastIndexOf("/"));
-            const parent = cut > 0 ? trimmed.slice(0, cut) : null;
+            const parent = parentOf(requested);
             const failure = message(cause);
 
             if (requested && isArchivePasswordError(failure)) {
@@ -776,19 +797,20 @@ export default function App() {
         patch(id, () => ({index, listing: null, loading: true, error: null}));
 
         try {
-            await showCached(id, target, current);
+            if (!isShareLocation(target))
+                await showCached(id, target, current);
             if (!current()) return;
 
-            const listing = await listDirectory(target, true, includeLinks, archiveEncodingRef.current,
-                archivePasswordFor(target));
+            const listing = isShareLocation(target)
+                ? await listSharedDirectory(target)
+                : await listDirectory(target, true, includeLinks, archiveEncodingRef.current,
+                    archivePasswordFor(target));
             if (!current()) return;
 
             patch(id, () => ({listing, view: listing.view ?? null, loading: false}));
         } catch (cause) {
             if (!current()) return;
 
-            const trimmed = target.replace(/[\\/]+$/, "");
-            const cut = Math.max(trimmed.lastIndexOf("\\"), trimmed.lastIndexOf("/"));
             const failure = message(cause);
 
             if (isArchivePasswordError(failure)) {
@@ -805,7 +827,7 @@ export default function App() {
             patch(id, () => ({
                 listing: {
                     path: target,
-                    parent: cut > 0 ? trimmed.slice(0, cut) : null,
+                    parent: parentOf(target),
                     entries: [],
                     folderSizes: {},
                     view: null,
@@ -1579,6 +1601,39 @@ export default function App() {
         });
     }, []);
 
+    // Pairing requests from another device, and the code this device's own pairing shows.
+    useEffect(() => {
+        if (!Native.available) return;
+
+        return Native.on((evt) => {
+            const event = evt as {
+                type?: string;
+                data?: { requestId?: string; deviceName?: string; code?: string; ok?: boolean; error?: string };
+            };
+
+            switch (event.type) {
+                case "share.pair.request":
+                    if (event.data?.requestId && event.data.code)
+                        setSharePair({
+                            requestId: event.data.requestId,
+                            deviceName: event.data.deviceName ?? "",
+                            code: event.data.code,
+                        });
+                    break;
+
+                case "share.pair.code":
+                    if (event.data?.code)
+                        void showMessage(t("Pairing code: {code}", {code: event.data.code}));
+                    break;
+
+                case "share.pair.result":
+                    if (event.data?.ok === false)
+                        void showMessage(event.data.error ?? t("Pairing failed."));
+                    break;
+            }
+        });
+    }, [t]);
+
     // Free space changes while the app runs; keep the bars honest without asking for a refresh.
     useEffect(() => {
         const timer = setInterval(reloadDrives, 30_000);
@@ -1828,7 +1883,7 @@ export default function App() {
             if (kindOf(tab) !== "files") continue;
 
             const folder = folderOf(tab);
-            if (!folder) continue;
+            if (!folder || isShareLocation(folder)) continue;
 
             if (isArchiveLocation(folder)) {
                 const parent = parentOf(archiveFile(folder));
@@ -1907,12 +1962,17 @@ export default function App() {
                 listing={tab.listing}
                 loading={tab.loading}
                 onImageStripHeight={setImageStripHeight}
-                readOnly={archive && !archiveWritable}
+                readOnly={(archive && !archiveWritable) || isShareLocation(tab.listing?.path ?? "")}
                 onOpen={(path, newTab) => {
                     if (newTab) openFiles(path);
                     else void load(tab.id, path);
                 }}
                 onOpenFile={(file, newTab) => {
+                    if (isShareLocation(file)) {
+                        void openSharedFile(file).catch((error) => void showMessage(message(error)));
+                        return;
+                    }
+
                     if (isArchivePath(file)) {
                         if (settings?.archiveHandler ?? false) {
                             if (newTab) openFiles(file);
@@ -2225,6 +2285,7 @@ export default function App() {
                 details={detailsVisible}
                 canDetails={kind === "files" || kind === "recycle" || kind === "gallery"}
                 onToggleDetails={() => setDetailsVisible((visible) => !visible)}
+                currentFolder={kind === "files" && !isShareLocation(activeFolder) ? activeFolder : ""}
                 shortcuts={shortcuts}
                 view={view}
                 tabs={tabs.filter((tab) => !tab.hidden).map((tab) => {
@@ -2693,6 +2754,20 @@ export default function App() {
 
             <MessageDialog/>
             <PasswordDialog/>
+            {sharePair && (
+                <SharePairDialog
+                    code={sharePair.code}
+                    deviceName={sharePair.deviceName}
+                    onAccept={() => {
+                        void respondSharePair(sharePair.requestId, true);
+                        setSharePair(null);
+                    }}
+                    onReject={() => {
+                        void respondSharePair(sharePair.requestId, false);
+                        setSharePair(null);
+                    }}
+                />
+            )}
 
             <TooltipLayer/>
             <ResizeHandles/>

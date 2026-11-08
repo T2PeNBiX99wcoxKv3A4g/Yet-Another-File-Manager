@@ -28,13 +28,17 @@ internal sealed class AppInfoService : Singleton<AppInfoService>
     public AppInfoService() => NativeBridge.MessageReceived += HandleMessageAsync;
 
     private static Task<NativeResponse?> HandleMessageAsync(NativeContext context) =>
-        Task.FromResult(context.Request.Type switch
+        context.Request.Type switch
         {
-            "app.info" => context.Reply("app.info.result",
-                new AppInfoPayload(Version, Platform, WindowManager.Instance.DrawsWindowCorners)),
-            "app.openUrl" => OpenUrl(context),
-            _ => (NativeResponse?)null
-        });
+            "app.info" => Task.FromResult<NativeResponse?>(context.Reply("app.info.result",
+                new AppInfoPayload(Version, Platform, WindowManager.Instance.DrawsWindowCorners))),
+            "app.fonts" => FontsAsync(context),
+            "app.openUrl" => Task.FromResult<NativeResponse?>(OpenUrl(context)),
+            _ => Task.FromResult<NativeResponse?>(null)
+        };
+
+    private static async Task<NativeResponse?> FontsAsync(NativeContext context) =>
+        context.Reply("app.fonts.result", new FontsPayload(await FontCatalog.GetAsync()));
 
     /// <summary>Hands a URL to the shell, so the release page opens in the user's browser.</summary>
     private static NativeResponse OpenUrl(NativeContext context)

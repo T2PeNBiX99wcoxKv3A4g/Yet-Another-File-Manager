@@ -378,6 +378,7 @@ const Trail = styled.div`
     border-radius: var(--radius-md);
     overflow: hidden;
     cursor: text;
+    font-family: var(--font-path), var(--font-cjk);
     transition: border-color 130ms ease, background 130ms ease, box-shadow 130ms ease;
 
     &:hover {

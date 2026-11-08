@@ -9,6 +9,7 @@ import {isPathDrag, readDraggedPaths} from "./FileTray";
 import {PlaceIcon} from "./PlaceIcon";
 import {StatusCenter} from "./StatusCenter";
 import {HistoryPanel} from "./HistoryPanel";
+import {SharePanel} from "./SharePanel";
 import {ViewMenu} from "./ViewMenu";
 import type {TaskInfo} from "../api/tasks";
 import {isArchiveLocation, isZipArchiveLocation} from "../utils/format";
@@ -57,6 +58,8 @@ interface TitleBarProps {
     canDetails: boolean;
     onToggleDetails: () => void;
     shortcuts: ShortcutMap;
+    /** The folder the active tab shows, so the share panel can add it. */
+    currentFolder: string;
 }
 
 export function TitleBar({
@@ -64,7 +67,7 @@ export function TitleBar({
     view, onViewChange, onColumns, showImages, onShowImages, tasks, onClearTasks,
     activityOpen, onActivityOpenChange,
     trayCount, trayVisible, onToggleTray,
-    split, canSplit, onToggleSplit, details, canDetails, onToggleDetails, shortcuts,
+    split, canSplit, onToggleSplit, details, canDetails, onToggleDetails, shortcuts, currentFolder,
 }: TitleBarProps) {
     const t = useTranslation();
     const controls = useWindowControls();
@@ -261,6 +264,7 @@ export function TitleBar({
                     {trayCount > 0 && <TrayBadge>{trayCount > 9 ? "9+" : trayCount}</TrayBadge>}
                 </TrayButton>
                 <HistoryPanel/>
+                <SharePanel currentFolder={currentFolder}/>
                 <StatusCenter
                     tasks={tasks}
                     onClear={onClearTasks}
@@ -326,6 +330,7 @@ const Bar = styled.header`
     flex-shrink: 0;
     background: rgba(var(--bg-rgb), 0.96);
     border-bottom: 1px solid var(--border-color);
+    font-family: var(--font-title), var(--font-cjk);
     user-select: none;
     -webkit-user-select: none;
 

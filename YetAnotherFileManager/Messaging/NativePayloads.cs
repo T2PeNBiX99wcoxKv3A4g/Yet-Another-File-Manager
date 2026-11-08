@@ -17,6 +17,9 @@ internal sealed record UrlPayload(string Url);
 /// <summary>Body for <c>app.info</c>.</summary>
 internal sealed record AppInfoPayload(string Version, string Platform, bool Rounded);
 
+/// <summary>Body for <c>app.fonts</c>: every family the operating system offers.</summary>
+internal sealed record FontsPayload(IReadOnlyList<string> Fonts);
+
 /// <summary>Payload for <c>fs.list</c>. An empty path means the user's home directory.</summary>
 internal sealed record FsListRequest(string? Path, bool? Sizes = true, bool? IncludeLinks = false, int? CodePage = null,
     string? Password = null);
@@ -393,3 +396,65 @@ public sealed class TagRecord
     public string? Color { get; set; }
     public List<string> Directories { get; set; } = [];
 }
+
+// ---- sharing --------------------------------------------------------------------------------
+
+/// <summary>Body for <c>share.list</c>: the folders this device shares and the web server state.</summary>
+internal sealed record ShareListPayload(
+    IReadOnlyList<ShareEntry> Shares,
+    bool WebRunning,
+    int WebPort,
+    IReadOnlyList<string> Urls,
+    string DeviceId,
+    string DeviceName,
+    string Fingerprint);
+
+/// <summary>Payload for <c>share.add</c>: a folder and how it is shared.</summary>
+internal sealed record ShareAddRequest(string? Path, string? Mode);
+
+/// <summary>Payload for <c>share.remove</c> and <c>share.mode</c>.</summary>
+internal sealed record ShareIdRequest(string Id);
+
+/// <summary>Payload for <c>share.mode</c>: the share and its new mode.</summary>
+internal sealed record ShareModeRequest(string Id, string Mode);
+
+/// <summary>Body for <c>share.peers</c> and the pushed <c>share.peers</c> event.</summary>
+internal sealed record SharePeersPayload(IReadOnlyList<SharePeerInfo> Peers);
+
+/// <summary>Payload for <c>share.pair.start</c>: a discovered device's address.</summary>
+internal sealed record SharePairStartRequest(string Host, int Port);
+
+/// <summary>Payload for <c>share.pair.respond</c>: the prompt and the user's answer.</summary>
+internal sealed record SharePairRespondRequest(string RequestId, bool Accept);
+
+/// <summary>Pushed when another device asks to pair.</summary>
+internal sealed record SharePairRequestPayload(string RequestId, string DeviceId, string DeviceName, string Code);
+
+/// <summary>Pushed to the device that started a pairing, so it can show the same code.</summary>
+internal sealed record SharePairCodePayload(string Code, string DeviceId, string DeviceName);
+
+/// <summary>Pushed when a pairing finishes or fails.</summary>
+internal sealed record SharePairResultPayload(bool Ok, string? DeviceId, string? DeviceName, string? Error);
+
+/// <summary>Payload for <c>share.peer.remove</c>.</summary>
+internal sealed record SharePeerRemoveRequest(string DeviceId);
+
+/// <summary>Payload for <c>share.browse</c>: a paired device's share and relative folder.</summary>
+internal sealed record ShareBrowseRequest(string DeviceId, string ShareId, string? Path);
+
+/// <summary>Body for <c>share.browse</c>: one remote folder.</summary>
+internal sealed record ShareBrowsePayload(
+    string DeviceId,
+    string ShareId,
+    string Path,
+    string? Parent,
+    IReadOnlyList<FileEntry> Entries);
+
+/// <summary>Payload for <c>share.download</c>: a file inside a paired device's share.</summary>
+internal sealed record ShareDownloadRequest(string DeviceId, string ShareId, string Path);
+
+/// <summary>Body for <c>share.download</c>: the local copy, or why it failed.</summary>
+internal sealed record ShareDownloadPayload(string? LocalPath, string? Error);
+
+/// <summary>Payload for <c>share.port</c>: the web server port, or null to pick one automatically.</summary>
+internal sealed record SharePortRequest(int? Port);

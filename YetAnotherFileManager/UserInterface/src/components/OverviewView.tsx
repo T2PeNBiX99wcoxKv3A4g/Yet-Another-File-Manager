@@ -22,7 +22,7 @@ import {requestFile, requestFolder} from "../folder-picker";
 import {useMediaUrl} from "../api/icons";
 import {Native, useTranslation} from "@photino-net-utils/bridge";
 import {FileList} from "./FileList";
-import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, GridIcon, ListIcon, MenuIcon, PencilIcon, PinIcon, PlusIcon, VideoIcon} from "./Icons";
+import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, GlobeIcon, GridIcon, ListIcon, MenuIcon, PencilIcon, PinIcon, PlusIcon, ServerIcon, VideoIcon} from "./Icons";
 import {BuiltInBackgrounds, BuiltInVideos, builtInUrl, isBuiltInVideo} from "../backgrounds/concepts";
 import {setSelectionMenu, useSelectionMenuGroup} from "../ui/selectionMenu";
 import {PathIcon} from "./PathIcon";
@@ -35,6 +35,7 @@ import {baseName, driveLetter, driveName, formatBytes, plural, usageTone} from "
 import {wantsNewTab} from "../shortcuts";
 import {buildPanels, PanelGlyph, type Panel, type PanelKind, type ViewMode} from "../panels";
 import {IconPicker} from "./IconPicker";
+import {pairShareDevice, refreshSharePeers, shareLocation, type SharePeerInfo} from "../api/share";
 
 interface OverviewViewProps {
     places: Place[];
@@ -237,7 +238,13 @@ const BuiltinImageBanners = [
 });
 
 /** How far the panels rise into the banner, so the fade has no visible seam. */
-const BannerOverlap = 96;
+const BannerOverlap = 150;
+
+/** Extra room above and below the artwork, so it can move without exposing an edge. */
+const BannerSlack = 120;
+
+/** How far below the frame the artwork keeps dissolving into the page. */
+const BannerFade = 200;
 
 const Page = styled.div<{ $flush?: boolean }>`
     position: relative;
@@ -249,46 +256,62 @@ const Page = styled.div<{ $flush?: boolean }>`
 
 const Banner = styled.div`
     position: relative;
-    margin: 0 -26px 18px;
-    overflow: hidden;
+    margin: 0 -26px 0;
+    /* The artwork continues past the frame and dissolves there, so nothing is clipped at the
+       bottom edge and there is no line where the picture ends and the page begins. */
+    overflow: visible;
     background: transparent;
+`;
+
+const BannerArt = styled.div`
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: calc(100% + ${BannerFade}px);
+    overflow: hidden;
+    pointer-events: none;
+    /* Opaque for the whole frame, then a long fade over the extra strip. The stops use the frame
+       height, not a percentage, so a tall banner never fades inside its own picture. */
+    -webkit-mask-image: linear-gradient(to bottom,
+        #000 0,
+        #000 calc(100% - ${BannerFade}px),
+        rgba(0, 0, 0, 0.88) calc(100% - ${Math.round(BannerFade * 0.72)}px),
+        rgba(0, 0, 0, 0.56) calc(100% - ${Math.round(BannerFade * 0.44)}px),
+        rgba(0, 0, 0, 0.24) calc(100% - ${Math.round(BannerFade * 0.18)}px),
+        transparent 100%);
+    mask-image: linear-gradient(to bottom,
+        #000 0,
+        #000 calc(100% - ${BannerFade}px),
+        rgba(0, 0, 0, 0.88) calc(100% - ${Math.round(BannerFade * 0.72)}px),
+        rgba(0, 0, 0, 0.56) calc(100% - ${Math.round(BannerFade * 0.44)}px),
+        rgba(0, 0, 0, 0.24) calc(100% - ${Math.round(BannerFade * 0.18)}px),
+        transparent 100%);
 
     img,
     video {
-        width: 100%;
+        position: absolute;
+        top: 0;
+        left: 50%;
+        width: var(--banner-image-width, 100%);
+        max-width: none;
         height: auto;
         display: block;
-        /* The image starts at the chosen crop and slides down as the page scrolls. */
-        transform: translateY(calc(var(--banner-progress, 0) * var(--banner-move, 0px) - var(--banner-base, 0px)));
+        transform-origin: center top;
+        /* A slow upward drift plus a slight zoom keeps the picture moving even when the crop has
+           no spare room; the zoom guarantees the edges are never exposed. */
+        transform: translate(-50%, calc(-1 * (var(--banner-image-shift, 0px) + var(--banner-progress, 0) * var(--banner-travel, 0px))))
+        scale(calc(1 + var(--banner-progress, 0) * 0.05));
         will-change: transform;
     }
-`;
-
-const BannerMedia = styled.div`
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-    /* The fade belongs to the fixed frame; the moving image cannot drag the edge with it. */
-    -webkit-mask-image: linear-gradient(to bottom,
-        #000 0%,
-        #000 18%,
-        rgba(0, 0, 0, 0.9) 32%,
-        rgba(0, 0, 0, 0.6) 50%,
-        transparent calc(100% - min(120px, 40%)));
-    mask-image: linear-gradient(to bottom,
-        #000 0%,
-        #000 18%,
-        rgba(0, 0, 0, 0.9) 32%,
-        rgba(0, 0, 0, 0.6) 50%,
-        transparent calc(100% - min(120px, 40%)));
 `;
 
 const BannerHandle = styled.div`
     position: absolute;
     right: 0;
-    bottom: ${BannerOverlap}px;
+    bottom: var(--banner-overlap, ${BannerOverlap}px);
     left: 0;
-    z-index: 2;
+    z-index: 5;
     display: grid;
     place-items: center;
     height: 14px;
@@ -310,10 +333,10 @@ const BannerHandle = styled.div`
     }
 `;
 
-const Content = styled.div<{ $overlap?: boolean }>`
+const Content = styled.div<{ $overlap?: number }>`
     position: relative;
     z-index: 2;
-    margin-top: ${({$overlap}) => $overlap ? `-${BannerOverlap}px` : "0"};
+    margin-top: ${({$overlap}) => $overlap ? `-${$overlap}px` : "0"};
 `;
 
 const BannerPanel = styled.section`
@@ -1122,6 +1145,102 @@ const Empty = styled.p`
     text-align: center;
 `;
 
+const ShareGroups = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+`;
+
+const ManualPair = styled.div`
+    display: flex;
+    gap: 6px;
+    align-items: center;
+`;
+
+const ManualInput = styled.input`
+    flex: 1;
+    min-width: 0;
+    height: 28px;
+    padding: 0 9px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 11px;
+    outline: none;
+
+    &:focus {
+        border-color: var(--border-color-focus);
+    }
+
+    &::placeholder {
+        color: var(--text-muted);
+    }
+`;
+
+const ShareGroup = styled.section`
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 10px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: rgba(var(--bg-rgb), 0.28);
+`;
+
+const SharePeerHead = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 2px 6px;
+    border-bottom: 1px solid var(--border-color);
+
+    svg {
+        flex-shrink: 0;
+        color: var(--accent-primary);
+    }
+`;
+
+const SharePeerName = styled.strong`
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-primary);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
+const PeerState = styled.span<{ $online: boolean }>`
+    margin-left: auto;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: ${({$online}) => $online ? "rgba(var(--accent-rgb), 0.14)" : "rgba(148, 163, 184, 0.12)"};
+    color: ${({$online}) => $online ? "var(--accent-primary)" : "var(--text-muted)"};
+    font-size: 9.5px;
+    white-space: nowrap;
+`;
+
+const PairButton = styled.button`
+    padding: 3px 10px;
+    border: 1px solid var(--border-color-focus);
+    border-radius: 999px;
+    background: rgba(var(--accent-rgb), 0.12);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 10px;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+        background: rgba(var(--accent-rgb), 0.22);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+`;
+
 export function OverviewView({
     places,
     drives,
@@ -1161,6 +1280,9 @@ export function OverviewView({
     const [driveRename, setDriveRename] = useState<{ drive: Drive; label: string } | null>(null);
     const [placeRename, setPlaceRename] = useState<{ path: string; name: string } | null>(null);
     const [driveNotice, setDriveNotice] = useState<string | null>(null);
+    const [sharePeers, setSharePeers] = useState<SharePeerInfo[]>([]);
+    const [shareBusy, setShareBusy] = useState<string | null>(null);
+    const [manualAddress, setManualAddress] = useState("");
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
     const [selectedTarget, setSelectedTarget] = useState<{ path: string; isDirectory: boolean } | null>(null);
     const selectionMenu = useSelectionMenuGroup("overview");
@@ -1177,11 +1299,21 @@ export function OverviewView({
     const [bannerWidth, setBannerWidth] = useState(0);
     const [mediaSize, setMediaSize] = useState<{ width: number; height: number } | null>(null);
     const bannerOffset = Math.min(1, Math.max(0, settings?.overviewBannerOffset ?? 0.3));
-    const bannerSpare = mediaSize && bannerWidth > 0
-        ? Math.max(0, mediaSize.height * (bannerWidth / mediaSize.width) - bannerHeight)
-        : 0;
-    const bannerBase = bannerSpare * bannerOffset;
-    const bannerMove = Math.min(bannerHeight * 0.5, bannerBase);
+    // The artwork is rendered at the banner's width. When that leaves too little vertical room to
+    // drift, it is widened (up to 2.6x) so there is always slack above and below the visible
+    // window; the slow zoom covers the rare image that is still too short.
+    const bannerWindow = bannerHeight + BannerFade;
+    const naturalHeight = mediaSize && bannerWidth > 0
+        ? mediaSize.height * (bannerWidth / mediaSize.width)
+        : bannerWindow;
+    const bannerScale = naturalHeight > 0 && naturalHeight < bannerWindow + BannerSlack * 2
+        ? (bannerWindow + BannerSlack * 2) / naturalHeight
+        : 1;
+    const bannerImageWidth = Math.max(1, Math.round(bannerWidth * bannerScale));
+    const bannerSpare = Math.max(0, naturalHeight * bannerScale - bannerWindow);
+    const bannerTravel = Math.min(BannerSlack, bannerSpare / 2, Math.max(20, bannerHeight * 0.42));
+    const bannerShift = bannerTravel + bannerOffset * Math.max(0, bannerSpare - bannerTravel * 2);
+    const bannerOverlap = Math.round(Math.min(BannerOverlap, bannerHeight * 0.58));
     const [framing, setFraming] = useState(false);
 
     /** In the picker, a card selects for the footer instead of opening a tab. */
@@ -1214,6 +1346,19 @@ export function OverviewView({
 
     useEffect(() => {
         void getSettings().then(setSettings, () => setSettings(null));
+    }, []);
+
+    // Sharing devices are pushed by the host whenever discovery or a catalogue changes.
+    useEffect(() => {
+        if (!Native.available) return;
+
+        void refreshSharePeers().then(setSharePeers, () => undefined);
+
+        return Native.on((evt) => {
+            const event = evt as { type?: string; data?: { peers?: SharePeerInfo[] } };
+            if (event.type === "share.peers" && event.data?.peers)
+                setSharePeers(event.data.peers);
+        });
     }, []);
 
     // Scroll-linked banner motion. Updating a CSS variable avoids re-rendering the whole overview
@@ -1778,8 +1923,114 @@ export function OverviewView({
         return panel.view === "grid" ? <Places>{items}</Places> : <Rows>{items}</Rows>;
     };
 
+    /** Devices found on the network; a paired one lists the folders it offers the app. */
+    const renderShare = () => {
+        const pair = async (peer: SharePeerInfo) => {
+            setShareBusy(peer.id);
+            try {
+                await pairShareDevice(peer.host, peer.port);
+            } finally {
+                setShareBusy(null);
+            }
+        };
+
+        /** Direct pairing covers networks where broadcast discovery is blocked. */
+        const pairManual = async () => {
+            const value = manualAddress.trim();
+            const cut = value.lastIndexOf(":");
+
+            if (cut <= 0)
+                return;
+
+            const host = value.slice(0, cut).replace(/^\[|\]$/g, "");
+            const port = Number(value.slice(cut + 1));
+
+            if (!Number.isFinite(port) || port <= 0 || port > 65535)
+                return;
+
+            setShareBusy("manual");
+            try {
+                await pairShareDevice(host, port);
+            } finally {
+                setShareBusy(null);
+            }
+        };
+
+        return (
+            <ShareGroups>
+                <ManualPair>
+                    <ManualInput
+                        onChange={(event) => setManualAddress(event.target.value)}
+                        onKeyDown={(event) => {
+                            if (event.key === "Enter") void pairManual();
+                        }}
+                        placeholder={t("Address, e.g. 192.168.1.20:45701")}
+                        value={manualAddress}
+                    />
+                    <PairButton
+                        disabled={shareBusy !== null || !manualAddress.includes(":")}
+                        onClick={() => void pairManual()}
+                        type="button"
+                    >
+                        {shareBusy === "manual" ? t("Pairing…") : t("Pair by address")}
+                    </PairButton>
+                </ManualPair>
+
+                {sharePeers.length === 0 && (
+                    <Empty>{t("No sharing devices on this network yet. Pair one by address or share a folder from the title bar.")}</Empty>
+                )}
+
+                {sharePeers.map((peer) => (
+                    <ShareGroup key={peer.id}>
+                        <SharePeerHead>
+                            <ServerIcon size={14}/>
+                            <SharePeerName title={peer.host}>{peer.name}</SharePeerName>
+                            <PeerState $online={peer.online}>
+                                {peer.paired
+                                    ? (peer.online ? t("Paired") : t("Offline"))
+                                    : t("Not paired")}
+                            </PeerState>
+                            {!peer.paired && peer.online && (
+                                <PairButton
+                                    disabled={shareBusy === peer.id}
+                                    onClick={() => void pair(peer)}
+                                    type="button"
+                                >
+                                    {shareBusy === peer.id ? t("Pairing…") : t("Pair")}
+                                </PairButton>
+                            )}
+                        </SharePeerHead>
+
+                        {peer.paired && peer.shares.length === 0 && (
+                            <Meta>{t("No folders are shared with the app on this device.")}</Meta>
+                        )}
+
+                        {peer.shares.map((share) => (
+                            <Row
+                                key={share.id}
+                                onClick={(event) => onOpen(shareLocation(peer.id, share.id), wantsNewTab(event))}
+                                title={`${peer.name} · ${share.name}`}
+                                type="button"
+                            >
+                                <ServerIcon size={14}/>
+                                <RowText>
+                                    <strong>{share.name}</strong>
+                                    <Meta>{peer.name}</Meta>
+                                </RowText>
+                                <GlobeIcon size={12}/>
+                            </Row>
+                        ))}
+                    </ShareGroup>
+                ))}
+            </ShareGroups>
+        );
+    };
+
     const body = (panel: Panel) => {
         switch (panel.kind) {
+            case "share":
+                return renderShare();
+
             case "quick": {
                 const items = quickItems(panel);
 
@@ -2038,7 +2289,7 @@ export function OverviewView({
                         </Ghost>
                         {addOpen && (
                             <PanelMenu onPointerDown={(event) => event.stopPropagation()}>
-                                {(["quick", "recent", "frequent", "home", "drives", "folder"] as PanelKind[]).map((kind) => (
+                                {(["quick", "recent", "frequent", "home", "drives", "share", "folder"] as PanelKind[]).map((kind) => (
                                     <PanelMenuItem
                                         key={kind}
                                         onClick={() => {
@@ -2051,7 +2302,8 @@ export function OverviewView({
                                             : kind === "recent" ? t("Recent")
                                                 : kind === "frequent" ? t("Frequent")
                                                     : kind === "home" ? t("Home")
-                                                        : kind === "drives" ? t("This PC") : t("Folder…")}
+                                                        : kind === "drives" ? t("This PC")
+                                                            : kind === "share" ? t("Shared") : t("Folder…")}
                                     </PanelMenuItem>
                                 ))}
                             </PanelMenu>
@@ -2093,11 +2345,13 @@ export function OverviewView({
                     ref={bannerRef}
                     style={{
                         height: `${bannerHeight}px`,
-                        "--banner-base": `${bannerBase}px`,
-                        "--banner-move": `${bannerMove}px`,
+                        "--banner-image-width": `${bannerImageWidth}px`,
+                        "--banner-image-shift": `${bannerShift}px`,
+                        "--banner-travel": `${bannerTravel}px`,
+                        "--banner-overlap": `${bannerOverlap}px`,
                     } as CSSProperties}
                 >
-                    <BannerMedia>
+                    <BannerArt>
                         {bannerVideo
                             ? <video
                                 autoPlay
@@ -2123,7 +2377,7 @@ export function OverviewView({
                                 ref={bannerImageRef}
                                 src={bannerSource ?? undefined}
                             />}
-                    </BannerMedia>
+                    </BannerArt>
                     {editing && (
                         <BannerHandle
                             onDoubleClick={() => {
@@ -2141,7 +2395,7 @@ export function OverviewView({
                 </Banner>
             )}
 
-            <Content $overlap={!!settings?.overviewBanner}>
+            <Content $overlap={settings?.overviewBanner ? bannerOverlap : 0}>
             {editing && (
                 <BannerPanel>
                     <BannerPanelHead>

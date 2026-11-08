@@ -102,6 +102,10 @@ export interface AppSettings {
     language: string | null;
     /** Colour pairs the user saved; the built-in presets live in the settings page. */
     themePresets: ThemePreset[];
+    /** Font family per role id (see fonts.ts); missing roles use the built-in font. */
+    fonts: Record<string, string>;
+    /** Port the web file server uses; null means a free port between 6000 and 9000. */
+    sharePort: number | null;
 }
 
 /** A named colour pair the user saved from the settings page. */
@@ -164,6 +168,8 @@ const fallback: AppSettings = {
     globalHotkey: null,
     language: null,
     themePresets: [],
+    fonts: {},
+    sharePort: null,
 };
 
 /** The interface settings, persisted by the host. */
@@ -225,6 +231,8 @@ export async function getSettings(): Promise<AppSettings> {
         globalHotkey: raw?.globalHotkey ?? null,
         language: raw?.language ?? null,
         themePresets: raw?.themePresets ?? [],
+        fonts: raw?.fonts ?? {},
+        sharePort: raw?.sharePort ?? null,
     };
 }
 
@@ -339,6 +347,8 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         globalHotkey: saved?.globalHotkey ?? settings.globalHotkey,
         language: saved?.language ?? settings.language,
         themePresets: saved?.themePresets ?? settings.themePresets,
+        fonts: saved?.fonts ?? settings.fonts,
+        sharePort: saved?.sharePort ?? settings.sharePort,
     };
 }
 

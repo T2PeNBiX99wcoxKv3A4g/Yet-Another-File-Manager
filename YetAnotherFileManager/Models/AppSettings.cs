@@ -77,13 +77,17 @@ public sealed record AppSettings(
     /// <summary>Vertical crop of the overview banner, 0 = top, 1 = bottom.</summary>
     double? OverviewBannerOffset,
     /// <summary>Global key combination that brings the window forward; empty disables it.</summary>
-    string? GlobalHotkey)
+    string? GlobalHotkey,
+    /// <summary>Font family per interface role, by role id; null or missing uses the built-in font.</summary>
+    Dictionary<string, string>? Fonts,
+    /// <summary>Port the web file server uses; null picks a free port between 6000 and 9000.</summary>
+    int? SharePort)
 {
     public static AppSettings Default =>
         new(true, true, true, ["**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null, ["quick", "frequent", "recent", "home", "drives"], null, 1, null,
             null, null, null, null, null, ["quick", "frequent", "recent", "drives"], null, null, true, null, 0, null,
             true, false, false, false, false, null, null, null, null, false, null, null, null, null, null, null, 5,
-            "24", null, null, false, 1200, 800, "relative", null, 220, [], 0.3, null);
+            "24", null, null, false, 1200, 800, "relative", null, 220, [], 0.3, null, null, null);
 
     // The accessors below are derived, so they are kept out of settings.json entirely; only the
     // fields above are stored, and the JSON stays readable and stable.
