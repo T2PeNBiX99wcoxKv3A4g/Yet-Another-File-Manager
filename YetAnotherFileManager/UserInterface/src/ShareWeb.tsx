@@ -1,7 +1,16 @@
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import styled, {createGlobalStyle} from "styled-components";
 import {applyTheme} from "./theme";
 import {formatBytes} from "./utils/format";
+import {
+    detectShareLanguage,
+    hasSavedShareLanguage,
+    normalizeShareLanguage,
+    rememberShareLanguage,
+    ShareLanguages,
+    shareStrings,
+    type ShareLanguage,
+} from "./share-i18n";
 
 interface ShareWebConfig {
     app: string;
@@ -9,6 +18,7 @@ interface ShareWebConfig {
     accent: string | null;
     secondary: string | null;
     version: string;
+    language: string | null;
 }
 
 interface ShareWebShare {
@@ -52,7 +62,32 @@ const Page = createGlobalStyle`
 
 /** The browser-facing file server: one page that lists the web shares and lets visitors browse,
  *  download and upload, drawn with the same theme tokens as the desktop app. */
+type SortColumn = "name" | "size" | "modified";
+
+interface SortState {
+    column: SortColumn;
+    descending: boolean;
+}
+
+function readFlag(key: string): boolean {
+    try {
+        return localStorage.getItem(key) === "1";
+    } catch {
+        return false;
+    }
+}
+
+function writeFlag(key: string, value: boolean): void {
+    try {
+        localStorage.setItem(key, value ? "1" : "0");
+    } catch {
+        // The toggle still applies to this visit.
+    }
+}
+
 export function ShareWeb() {
+    const [language, setLanguage] = useState<ShareLanguage>(detectShareLanguage);
+    const t = shareStrings(language);
     const [config, setConfig] = useState<ShareWebConfig | null>(null);
     const [shares, setShares] = useState<ShareWebShare[]>([]);
     const [active, setActive] = useState<string | null>(null);
@@ -60,7 +95,24 @@ export function ShareWeb() {
     const [busy, setBusy] = useState(true);
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [showHidden, setShowHidden] = useState(() => readFlag("yafm.share.hidden"));
+    const [showSystem, setShowSystem] = useState(() => readFlag("yafm.share.system"));
+    const [sort, setSort] = useState<SortState>(() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem("yafm.share.sort") ?? "null") as SortState | null;
+            if (saved && ["name", "size", "modified"].includes(saved.column))
+                return saved;
+        } catch {
+            // Fall through to the default A-Z order.
+        }
+
+        return {column: "name", descending: false};
+    });
     const upload = useRef<HTMLInputElement | null>(null);
+
+    useEffect(() => {
+        document.documentElement.lang = language;
+    }, [language]);
 
     useEffect(() => {
         void (async () => {
@@ -69,6 +121,10 @@ export function ShareWeb() {
                 setConfig(next);
                 applyTheme(next.accent, next.secondary);
                 document.title = `${next.device} · ${next.app}`;
+
+                // A visitor's own choice wins; otherwise follow the app's language setting.
+                if (!hasSavedShareLanguage() && next.language)
+                    setLanguage(normalizeShareLanguage(next.language));
             } catch {
                 // The page works with the default theme even when the header config fails.
             }
@@ -86,12 +142,13 @@ export function ShareWeb() {
         })();
     }, []);
 
-    const load = async (shareId: string, path: string) => {
+    const load = async (shareId: string, path: string, hidden = showHidden, system = showSystem) => {
         setBusy(true);
         setError(null);
         try {
             const data = await getJson<ShareWebListing>(
-                `/api/browse/${encodeURIComponent(shareId)}?path=${encodeURIComponent(path)}`);
+                `/api/browse/${encodeURIComponent(shareId)}?path=${encodeURIComponent(path)}`
+                + `&hidden=${hidden ? 1 : 0}&system=${system ? 1 : 0}`);
             setListing(data);
         } catch (cause) {
             setError(message(cause));
@@ -110,6 +167,51 @@ export function ShareWeb() {
         setActive(id);
         setListing(null);
     };
+
+    const toggleHidden = (value: boolean) => {
+        setShowHidden(value);
+        writeFlag("yafm.share.hidden", value);
+        if (active)
+            void load(active, listing?.path ?? "", value, showSystem);
+    };
+
+    const toggleSystem = (value: boolean) => {
+        setShowSystem(value);
+        writeFlag("yafm.share.system", value);
+        if (active)
+            void load(active, listing?.path ?? "", showHidden, value);
+    };
+
+    const toggleSort = (column: SortColumn) => {
+        const next: SortState = sort.column === column
+            ? {column, descending: !sort.descending}
+            : {column, descending: false};
+
+        setSort(next);
+        try {
+            localStorage.setItem("yafm.share.sort", JSON.stringify(next));
+        } catch {
+            // Sorting still applies for this visit.
+        }
+    };
+
+    const entries = useMemo(() => {
+        const list = [...(listing?.entries ?? [])];
+        const direction = sort.descending ? -1 : 1;
+
+        return list.sort((left, right) => {
+            if (left.isDirectory !== right.isDirectory)
+                return left.isDirectory ? -1 : 1;
+
+            const result = sort.column === "name"
+                ? left.name.localeCompare(right.name, undefined, {numeric: true, sensitivity: "base"})
+                : sort.column === "size"
+                    ? left.size - right.size
+                    : left.modified - right.modified;
+
+            return result * direction;
+        });
+    }, [listing, sort]);
 
     const uploadFiles = async (files: FileList | null) => {
         if (!active || !files || files.length === 0)
@@ -146,13 +248,32 @@ export function ShareWeb() {
         <Root>
             <Page/>
             <Header>
-                <Brand>
-                    <Logo><FolderGlyph size={22}/></Logo>
-                    <BrandText>
-                        <h1>{config?.device ?? "Shared folders"}</h1>
-                        <span>{config?.app ?? "Yet Another File Manager"}{config?.version ? ` · v${config.version}` : ""}</span>
-                    </BrandText>
-                </Brand>
+                <HeaderTop>
+                    <Brand>
+                        <Logo><img alt="" src="/app-icon"/></Logo>
+                        <BrandText>
+                            <h1>{config?.device ?? t.sharedFolders}</h1>
+                            <span>{config?.app ?? "Yet Another File Manager"}{config?.version ? ` · v${config.version}` : ""}</span>
+                        </BrandText>
+                    </Brand>
+
+                    <HeaderActions>
+                        <LanguageSelect
+                            aria-label={t.language}
+                            onChange={(event) => {
+                                const next = event.target.value as ShareLanguage;
+                                setLanguage(next);
+                                rememberShareLanguage(next);
+                            }}
+                            title={t.language}
+                            value={language}
+                        >
+                            {ShareLanguages.map((item) => (
+                                <option key={item.id} value={item.id}>{item.label}</option>
+                            ))}
+                        </LanguageSelect>
+                    </HeaderActions>
+                </HeaderTop>
 
                 <Tabs>
                     {shares.map((share) => (
@@ -172,7 +293,7 @@ export function ShareWeb() {
                 {error && <Notice>{error}</Notice>}
 
                 {shares.length === 0
-                    ? <Empty>No folders are shared over the web on this device.</Empty>
+                    ? <Empty>{t.noShares}</Empty>
                     : (
                         <>
                             <Toolbar>
@@ -181,7 +302,7 @@ export function ShareWeb() {
                                         onClick={() => active && void load(active, "")}
                                         type="button"
                                     >
-                                        {listing?.name ?? "Shared folders"}
+                                        {listing?.name ?? t.sharedFolders}
                                     </Crumb>
                                     {crumbs.map((part, index) => (
                                         <CrumbGroup key={`${part}-${index}`}>
@@ -198,10 +319,26 @@ export function ShareWeb() {
                                 </Crumbs>
 
                                 <Actions>
+                                    <ToggleLabel title={t.showHidden}>
+                                        <input
+                                            checked={showHidden}
+                                            onChange={(event) => toggleHidden(event.currentTarget.checked)}
+                                            type="checkbox"
+                                        />
+                                        {t.showHidden}
+                                    </ToggleLabel>
+                                    <ToggleLabel title={t.showSystem}>
+                                        <input
+                                            checked={showSystem}
+                                            onChange={(event) => toggleSystem(event.currentTarget.checked)}
+                                            type="checkbox"
+                                        />
+                                        {t.showSystem}
+                                    </ToggleLabel>
                                     {path.length > 0 && (
                                         <ToolButton
                                             onClick={() => active && void load(active, crumbs.slice(0, -1).join("/"))}
-                                            title="Up one folder"
+                                            title={t.up}
                                             type="button"
                                         >
                                             <ArrowUpGlyph size={15}/>
@@ -210,7 +347,7 @@ export function ShareWeb() {
                                     <ToolButton
                                         disabled={busy}
                                         onClick={() => active && void load(active, path)}
-                                        title="Refresh"
+                                        title={t.refresh}
                                         type="button"
                                     >
                                         <RefreshGlyph size={15}/>
@@ -218,10 +355,11 @@ export function ShareWeb() {
                                     <UploadButton
                                         disabled={uploading || !listing}
                                         onClick={() => upload.current?.click()}
+                                        title={t.upload}
                                         type="button"
                                     >
                                         <UploadGlyph size={14}/>
-                                        {uploading ? "Uploading…" : "Upload"}
+                                        {uploading ? t.uploading : t.upload}
                                     </UploadButton>
                                     <input
                                         hidden
@@ -235,19 +373,34 @@ export function ShareWeb() {
 
                             <ListCard>
                                 {busy && !listing
-                                    ? <Empty>Reading…</Empty>
-                                    : listing && listing.entries.length > 0
+                                    ? <Empty>{t.reading}</Empty>
+                                    : entries.length > 0
                                         ? (
                                             <Table>
                                                 <thead>
                                                 <tr>
-                                                    <th>Name</th>
-                                                    <th>Size</th>
-                                                    <th>Modified</th>
+                                                    <th>
+                                                        <SortButton onClick={() => toggleSort("name")} type="button">
+                                                            {t.name}
+                                                            <SortMark>{sort.column === "name" ? (sort.descending ? "▼" : "▲") : ""}</SortMark>
+                                                        </SortButton>
+                                                    </th>
+                                                    <th>
+                                                        <SortButton onClick={() => toggleSort("size")} type="button">
+                                                            {t.size}
+                                                            <SortMark>{sort.column === "size" ? (sort.descending ? "▼" : "▲") : ""}</SortMark>
+                                                        </SortButton>
+                                                    </th>
+                                                    <th>
+                                                        <SortButton onClick={() => toggleSort("modified")} type="button">
+                                                            {t.modified}
+                                                            <SortMark>{sort.column === "modified" ? (sort.descending ? "▼" : "▲") : ""}</SortMark>
+                                                        </SortButton>
+                                                    </th>
                                                 </tr>
                                                 </thead>
                                                 <tbody>
-                                                {listing.entries.map((entry) => (
+                                                {entries.map((entry) => (
                                                     <tr key={entry.path}>
                                                         <td>
                                                             {entry.isDirectory
@@ -263,26 +416,24 @@ export function ShareWeb() {
                                                                 : (
                                                                     <Download
                                                                         href={fileUrl(active ?? "", entry.path)}
-                                                                        title={`Download ${entry.name}`}
+                                                                        title={`${t.download} ${entry.name}`}
                                                                     >
                                                                         <FileGlyph size={16}/>
                                                                         <NameText>{entry.name}</NameText>
                                                                     </Download>
                                                                 )}
                                                         </td>
-                                                        <td data-label="Size">{entry.isDirectory ? "—" : formatBytes(entry.size)}</td>
-                                                        <td data-label="Modified">{formatDate(entry.modified)}</td>
+                                                        <td data-label={t.size}>{entry.isDirectory ? "—" : formatBytes(entry.size)}</td>
+                                                        <td data-label={t.modified}>{formatDate(entry.modified)}</td>
                                                     </tr>
                                                 ))}
                                                 </tbody>
                                             </Table>
                                         )
-                                        : <Empty>{busy ? "Reading…" : "This folder is empty."}</Empty>}
+                                        : <Empty>{busy ? t.reading : t.empty}</Empty>}
                             </ListCard>
 
-                            <Footnote>
-                                Click a file to download it. Uploaded files are written into the folder you are viewing.
-                            </Footnote>
+                            <Footnote>{t.footnote}</Footnote>
                         </>
                     )}
             </Main>
@@ -388,6 +539,38 @@ const Header = styled.header`
     margin: 0 auto 22px;
 `;
 
+const HeaderTop = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+`;
+
+const HeaderActions = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 8px;
+`;
+
+const LanguageSelect = styled.select`
+    height: 32px;
+    padding: 0 9px;
+    border: 1px solid var(--border-color);
+    border-radius: 9px;
+    background: rgba(var(--bg-rgb), 0.5);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+
+    &:hover,
+    &:focus {
+        border-color: var(--border-color-hover);
+        color: var(--text-primary);
+        outline: none;
+    }
+`;
+
 const Brand = styled.div`
     display: flex;
     align-items: center;
@@ -397,13 +580,20 @@ const Brand = styled.div`
 const Logo = styled.span`
     display: grid;
     place-items: center;
-    width: 44px;
-    height: 44px;
+    width: 46px;
+    height: 46px;
+    overflow: hidden;
     border: 1px solid var(--border-color);
-    border-radius: 12px;
+    border-radius: 13px;
     background: rgba(var(--accent-rgb), 0.10);
     color: var(--accent-primary);
     box-shadow: 0 0 28px rgba(var(--accent-rgb), 0.14);
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
 `;
 
 const BrandText = styled.div`
@@ -517,6 +707,35 @@ const Actions = styled.div`
     display: flex;
     align-items: center;
     gap: 7px;
+    flex-wrap: wrap;
+`;
+
+const ToggleLabel = styled.label`
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 9px;
+    border: 1px solid var(--border-color);
+    border-radius: 9px;
+    background: rgba(var(--bg-rgb), 0.42);
+    color: var(--text-muted);
+    font-size: 11px;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+
+    &:hover {
+        border-color: var(--border-color-hover);
+        color: var(--text-secondary);
+    }
+
+    input {
+        width: 13px;
+        height: 13px;
+        accent-color: var(--accent-primary);
+        cursor: pointer;
+    }
 `;
 
 const ToolButton = styled.button`
@@ -622,6 +841,29 @@ const Table = styled.table`
             display: none;
         }
     }
+`;
+
+const SortButton = styled.button`
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    cursor: pointer;
+
+    &:hover {
+        color: var(--text-primary);
+    }
+`;
+
+const SortMark = styled.span`
+    color: var(--accent-primary);
+    font-size: 8px;
 `;
 
 const NameButton = styled.button`

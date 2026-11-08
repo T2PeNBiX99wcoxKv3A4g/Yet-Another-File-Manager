@@ -9,7 +9,8 @@ internal sealed record ShareWebConfigPayload(
     string Device,
     string? Accent,
     string? Secondary,
-    string Version);
+    string Version,
+    string Language);
 
 /// <summary>One web-shared folder in the browser page's list.</summary>
 internal sealed record ShareWebShare(string Id, string Name);

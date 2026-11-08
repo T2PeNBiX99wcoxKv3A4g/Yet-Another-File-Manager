@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using PhotinoNetUtils.Extensions;
+using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Utils;
 using Serilog;
 using YetAnotherFileManager.Messaging;
@@ -30,6 +31,8 @@ namespace YetAnotherFileManager.Services;
 internal sealed class WebShareServer : Singleton<WebShareServer>
 {
     private static readonly FileExtensionContentTypeProvider ContentTypes = new();
+    private static readonly Lazy<IFileProvider> IconFiles = new(() =>
+        new ManifestEmbeddedFileProvider(typeof(WebShareServer).Assembly, "Resources"));
     private static IFileProvider? Files { get; set; }
     private WebApplication? _app;
     private int? _requestedPort;
@@ -203,6 +206,12 @@ internal sealed class WebShareServer : Singleton<WebShareServer>
                 return;
             }
 
+            if (path.Equals("/app-icon", StringComparison.OrdinalIgnoreCase))
+            {
+                await ServeAppIconAsync(context);
+                return;
+            }
+
             if (path.Equals("/health", StringComparison.OrdinalIgnoreCase))
             {
                 await context.Response.WriteAsync("ok");
@@ -214,7 +223,7 @@ internal sealed class WebShareServer : Singleton<WebShareServer>
                 var settings = SettingsService.Instance.Current;
                 await WriteJsonAsync(context, new ShareWebConfigPayload(Constants.DisplayName,
                         ShareIdentity.Instance.DeviceName, settings.AccentColor, settings.SecondaryColor,
-                        AppInfoService.Version),
+                        AppInfoService.Version, Localization.CurrentLanguage),
                     AppJsonContext.Default.ShareWebConfigPayload);
                 return;
             }
@@ -293,7 +302,11 @@ internal sealed class WebShareServer : Singleton<WebShareServer>
         List<ShareWebEntry> entries;
         try
         {
+            var showHidden = context.Request.Query["hidden"] == "1";
+            var showSystem = context.Request.Query["system"] == "1";
+
             entries = new DirectoryInfo(target).EnumerateFileSystemInfos()
+                .Where(entry => ShouldShow(entry, showHidden, showSystem))
                 .OrderByDescending(entry => entry is DirectoryInfo)
                 .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
                 .Select(entry =>
@@ -316,6 +329,17 @@ internal sealed class WebShareServer : Singleton<WebShareServer>
         await WriteJsonAsync(context,
             new ShareWebListingPayload(share.Id, share.Name, relative, SharePaths.ParentOf(relative), entries),
             AppJsonContext.Default.ShareWebListingPayload);
+    }
+
+    private static bool ShouldShow(FileSystemInfo entry, bool showHidden, bool showSystem)
+    {
+        var attributes = entry.Attributes;
+
+        if (!showHidden && (attributes.HasFlag(FileAttributes.Hidden) ||
+                            OperatingSystem.IsLinux() && entry.Name.StartsWith('.')))
+            return false;
+
+        return showSystem || !attributes.HasFlag(FileAttributes.System);
     }
 
     private static async Task UploadAsync(HttpContext context, string rest)
@@ -384,6 +408,21 @@ internal sealed class WebShareServer : Singleton<WebShareServer>
         context.Response.Headers.ContentDisposition =
             $"attachment; filename*=UTF-8''{Uri.EscapeDataString(Path.GetFileName(target))}";
         await context.Response.SendFileAsync(target);
+    }
+
+    private static async Task ServeAppIconAsync(HttpContext context)
+    {
+        var info = IconFiles.Value.GetFileInfo("icon.png");
+        if (!info.Exists || info.IsDirectory)
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        context.Response.ContentType = "image/png";
+        context.Response.Headers.CacheControl = "public, max-age=86400";
+        await using var stream = info.CreateReadStream();
+        await stream.CopyToAsync(context.Response.Body);
     }
 
     private async Task ServeStaticAsync(HttpContext context, string relative)
