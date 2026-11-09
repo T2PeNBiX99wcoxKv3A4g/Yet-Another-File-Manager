@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.3.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.2.1..v0.3.0) - 2026-11-09
+
+### ⛰️  Features
+
+- Mark cut entries and restore the default panels - ([6052c53](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/6052c53ddb7756ffcd5a59308bed7d571a6ced0a))
+
+### 🐛 Bug Fixes
+
+- Give the duplicated translation keys one name each - ([3f55a07](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/3f55a075d391d03895fdc920e2f9819c4dad285f))
+- Start scripts from their own folder - ([554fb18](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/554fb181e923a923c6ecb10d00a8214ea5bb2ebe))
+- Keep one Start Menu shortcut, named after the app - ([79ae02c](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/79ae02c4ad80bca8849106ba0be09c295e30eae0))
+
+### 📚 Documentation
+
+- Mention the restore-default-panels button - ([1da382f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1da382fd4fcdf7d4985f69c4c513350e6a8dc993))
+- Shorten the site description - ([27dc9bb](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/27dc9bbcdc631d18b119e3b69da340583708ec03))
+- Cover sharing, the file tray and the missing menu actions - ([83f01c8](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/83f01c8b8770e1e10c02c8cd768f84a5e6715973))
+- Bring the settings page in line with the app - ([1869463](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1869463e1f5bce21f3aa704ab7821b241d272e94))
+- Cover archives on the site - ([86ade49](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/86ade49b8e5970fa37168087670a239951706672))
+
+### ⚙️ Miscellaneous Tasks
+
+- Update the vendored PhotinoNETUtils build - ([2aae4de](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/2aae4def36a9654ed4f1b3491e4f4e18af249b80))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([9be447a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/9be447aab36cfdb3b410728cf5d43a6789221026))
+
+
 ## [0.2.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.2.0..v0.2.1) - 2026-11-09
 
 ### 🐛 Bug Fixes
