@@ -275,7 +275,15 @@ internal sealed class WindowManager : Singleton<WindowManager>
         window.RegisterWindowCreatedHandler((_, _) =>
         {
             if (OperatingSystem.IsWindows())
+            {
                 WindowFrame.RemoveTitleBar(window.WindowHandle);
+
+                // Photino registers for notifications by writing a Start Menu shortcut named after
+                // the executable; the installer writes one named after the app, so the copy is
+                // renamed or removed here and only one entry stays.
+                if (Picker is null)
+                    StartMenuShortcut.Adopt(Constants.WindowTitle, Constants.Name);
+            }
             else if (OperatingSystem.IsLinux())
             {
                 LinuxWindow.UseClientSideFrame(window.Title);

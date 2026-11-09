@@ -23,7 +23,8 @@ internal sealed class StartupService : Singleton<StartupService>
         Constants.Name,
         "app",
         Constants.WindowTitle,
-        "yafm");
+        "yafm",
+        Constants.DisplayName);
 
     public StartupService()
     {
