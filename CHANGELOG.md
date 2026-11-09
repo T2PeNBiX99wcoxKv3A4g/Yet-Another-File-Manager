@@ -1,5 +1,153 @@
 # Changelog
 
+## [0.2.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.1.1..v0.2.0) - 2026-11-09
+
+### ⛰️  Features
+
+- Create ZIP and 7z archives in Rust - ([bf69a6e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/bf69a6ea97e07b8b1881b4b8c2eed4b355265f3a))
+- Write XZ ZIPs without the 7-Zip command line - ([38a76f3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/38a76f3cf29158c6eaadfc7f0918b5d912778e48))
+- Paste clipboard text and images as files - ([bf91d82](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/bf91d82b44880968b8b136d27aa88fbb5201e79a))
+- Offer folder actions on the empty file view - ([adebc69](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/adebc69e07ae8e79c07e5fd78341213cae401ba8))
+- Add a log folder shortcut and polish favorites and archive labels - ([d1e3768](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d1e37682a371ee4f9e9383fccb3cbe665a6979e9))
+- Filter folder open-with apps and toggle favorites in the menu - ([42fe0dd](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/42fe0ddba8020f95e53b9b9d61d0614d7a81257e))
+- Add archive extraction actions to the file context menu - ([92a3fa4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/92a3fa466957ffa2375a81fc234ce44d09690942))
+- Clear archive temporary files when the last tab closes - ([7c90631](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7c906310b2a102bb9033da84a9862321a458a984))
+- Show encrypted archive hints and restyle link targets - ([7de2d6f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7de2d6f0dac58a681199a171e716f411745184de))
+- Mark encrypted archives and add a favorites overview panel - ([9068a02](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/9068a02e3fe6f7c09f2cd1d07fd1731bcdbd113b))
+- Polish the web share page and tighten the overview overlap - ([7d39e68](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7d39e68bed457ed57c203d77956e72621385240d))
+- Add startup options, title bar badges and a browser share UI - ([fb8f5e9](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/fb8f5e963832d9c8b2d1e9f94137e617c5901ebf))
+- Restyle the overview banner and add custom fonts and LAN sharing - ([2bb28c4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/2bb28c43d270b88b38a31749e1f8e8a58b6b4d3a))
+- Add a banner framing editor and continuous scroll drift - ([01da617](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/01da61769c7a281a9188a7b74e2e52b69a364e9d))
+- Open nested archives and add a scroll banner effect - ([7704986](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7704986eaca2d22e0cc3d7aff1c29765039075ac))
+- Add built-in banner choices and custom banner removal - ([d357e23](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d357e23252bd8ee5fc962c4c15b308ba7be943b9))
+- Polish the overview banner and picker views - ([0ddf9c3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/0ddf9c33ec0282b9e2c4e41d12bf8acd2cffabc7))
+- Reuse the full directory menu in the address bar and add banner choices - ([aa08a23](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/aa08a2359c40c151a93d0489aaf6b999afecc427))
+- Add ZIP XZ and split creation, picker previews - ([624fc09](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/624fc0938a09eb9daeae06ba849929f591c618df))
+- Polish menus, links, previews and overview banner - ([6e73169](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/6e73169832ab4380aefb5482fc1b7577e0c7550a))
+- Add archive passwords and stronger Explorer handover - ([7bc961a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7bc961a79e9d2c9d6e1a644df1253a845f1c0563))
+- Add a remembered link source and copy variants - ([ab5988c](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/ab5988ca9f073801478d0991f5203d6a05c89c0b))
+- Read every 7-Zip container format through 7z.dll - ([d2368b4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d2368b4f6544a5b520bb82fa9e5c3b7a863595d4))
+- Unify details, menus and archive support - ([3ba854e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/3ba854e768e2cbdec1286a0a2bdd318d97f8ac4d))
+- Polish picker, gallery and archive toolbar - ([03ee837](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/03ee837cee94c085644d1ed0eed733585b61fb75))
+- Improve archive editing, extraction and tab handling - ([181346d](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/181346ded4f80d446ce918c43fa38be4a6183927))
+- Register supported archive formats from settings - ([49a2938](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/49a293803d477f61c243cd30b73d02f639d347dc))
+- Configure folder index blacklist - ([dd2b9ae](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/dd2b9ae4aa6a00bf3eaf4726d565521cb19b72df))
+- Recover blank WebView and add tray reload - ([c104fe1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c104fe1977b704709a16a572140eb93b2d50b630))
+- Add 7z as a compression format - ([323c9d0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/323c9d039d868469165c4689aa63924918c255e5))
+- Add configurable compression and tab drop targets - ([7eca7df](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7eca7dfcffceb96c161bef2a1dc0b96e7110ea3c))
+- Edit zip contents through a staged workspace - ([c8624a4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c8624a4fed08e3f4c3baa825d2bf49417f3f5387))
+- Browse archives, create case-sensitive folders and links - ([248efd1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/248efd1d7c39ff9264d8f61f28c26172dea48a42))
+- Share the file browser's search behaviour with every page - ([d9b2730](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d9b2730691b63075b93b87ec35c51233fe980cc6))
+- Floating search for overview, gallery, recycle and settings - ([7db6371](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7db6371d686661e398d52823a96ad827acdacfc0))
+- Configurable 24-hour and custom time formats - ([0344d0e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/0344d0e2be9276a47ec134e09a56b54b3e4cd03f))
+- Ctrl-click sidebar views into new tabs - ([a04d524](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/a04d524f709e15c23915e629e73ccc60108f2e2a))
+- Full-path glob protection rules and restore defaults - ([3cb2f97](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/3cb2f979983d399fe282f034d67e540c0f85e605))
+- Glob-style protection rules and a merged wallpaper gallery - ([7bf3530](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7bf35309a966c1dbab192c14f791636596550df1))
+- Hold deletes inside protected folders behind a countdown - ([5bd0ae6](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/5bd0ae62297ed0bf0cad2adb0ab618413024e3ab))
+- Wallpaper variants, built-in video loops and a standalone picker - ([0f781bd](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/0f781bd5b36c4f74585fa2a0573a7df7b545df69))
+- Add full-window wallpaper backgrounds - ([5656468](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/5656468062db811d587e1049047feb9427045f5f))
+- Add operation history and unify creation menus - ([20abfde](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/20abfdeb7a84bfa7cc654a8136bd3c1a1d69623a))
+- Share the file list, search and menus with the picker - ([774794e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/774794ef4cb3de0e35412ce12eb3a588f74ced09))
+- Use the app sidebar and pages in the picker - ([ed3f502](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/ed3f502ce15d8bc3adc410ba82ea23ca4797223e))
+- Add command-line pick modes and refine the picker - ([8e5ba30](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/8e5ba30137d76acbdea36baadfe66e9eaf1ebf12))
+- Extract shell menu icons and drop the last shell pickers - ([0261e87](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/0261e87bc6cf0db46153ed2a6b5a00dfd2adde4a))
+- Use the in-app picker for files too - ([73c2cab](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/73c2cabc9645df4a671e9a0d9aee0566a42f8ea0))
+- Read the full shell menu in a native Rust helper - ([1ca755d](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1ca755de74025ebcca7872db9f367fb62084377f))
+- Add the yafm command, default manager, and folder picker - ([cfabab5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/cfabab58ba7c005268757e86164285f7cce85c08))
+- Share files with the Linux clipboard and use KDE icons - ([e7efd11](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/e7efd110f772aea4e832a4748d67903fcfecc30b))
+- Complete the tray, address bar, motion, and Linux support - ([15e7817](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/15e7817ec8ddfd08d4065d10c2474cb1afc3508b))
+- Add a settings entry to the tray menu - ([c7d2066](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c7d20669237fe02b461ba3dd8298cb9328e45411))
+- Honour the recycle bin policy and recycle long paths - ([c4551b7](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c4551b7b99a5caeeb9ed2d6316434f1a249a8f31))
+- Delete without the shell and reopen closed tabs - ([4f1d633](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/4f1d633c388970342ba595552fcd83a7db1c1072))
+- Add global tags and a clearer update prompt - ([5b2632e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/5b2632e7c8ddeff923de4fb702b1ca68ed92aedb))
+- Add select-all checkboxes and an update checker - ([587e5ec](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/587e5ecfa5c8fa810fe616e48ac02f0329b4c88c))
+
+### 🐛 Bug Fixes
+
+- Read every part of a split archive - ([f26d742](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/f26d7425facfc93c1eb26e163b8a07966743a62c))
+- Translate the remaining interface and operation messages - ([eba6dfc](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/eba6dfc346f762ff913dd69c931a69282e11034e))
+- Localize names of pasted text and image files - ([c4fd2f5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c4fd2f5087213d0103b8f07b3b7eb5cd04113560))
+- Keep every watched surface refreshing - ([93324e2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/93324e29e1c7ff964543b1c95a4ff1eacfe58b36))
+- Show path launches and remove manual refresh - ([32be7e0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/32be7e0a94fd304e33711d1685c670a67adab7c0))
+- Clarify case-sensitive entries and clean up the crumb menu - ([5644941](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/56449412bbe30452990aea1bfd6d979d0e782008))
+- Keep the banner motion moving to the end of the overview - ([1e7761f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1e7761fed738af520bb00326ff01496a1a3e82fd))
+- Adjust banner panel offset in overview view - ([4448d4b](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/4448d4bb9d1bc1b680f750549c00c8036f8a322c))
+- Add a little more room below the overview banner - ([63b60ed](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/63b60ed73e69d3a5c59566faa4f167dad215ea35))
+- Widen link target chips and lower the overview panels - ([102a92b](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/102a92b9583e28882673fbc4494bddf8bac88d76))
+- Move the banner image down and make built-in framing work - ([4c9f54c](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/4c9f54c68e235ec94814517ae26278e32efdb6f3))
+- Restore the banner look with a small downward drift - ([b237dce](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b237dce8f3c14082b141516a91b53d37fe09c09a))
+- Make the overview banner scroll motion visible - ([93e704e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/93e704e9ab614c277a825462a44db86c8e77a459))
+- Open startup paths reliably and finish banner blending - ([538977e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/538977e4f2497dc68f933b94237984f6143e7211))
+- Blend the overview banner and restore picker title-bar clicks - ([d94d4bc](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d94d4bc3137405e111ce1a60546790f938c383fa))
+- Keep index databases out of scoop buckets - ([e5792b0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/e5792b0912d02245ff2b454dcf76ceb99954f593))
+- Report archive registration only when it points at this build - ([d6567f3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d6567f3fb41ccacd83e1c0d8165e2ae6b47f5e50))
+- Respect archive handler and refresh after paste - ([24e1f00](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/24e1f005e8e4e7d2fbac94737a190a4a5f3c5cef))
+- Keep directory indexes out of Python package trees - ([a76333b](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/a76333bdd60f9ff64f6fe7222b7350d49d36f959))
+- Retry symbolic link creation with UAC when needed - ([b573ef0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b573ef073eae6dc7945028f9434d73dc07b9506e))
+- Hide non-matching gallery pictures while searching - ([f940e57](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/f940e576cca8ec55d04480b93b663989bc088d8d))
+- Keep protection defaults in environment-variable form - ([039d68d](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/039d68d41e7d220a5ba8b36d3c95194549796c50))
+- Make the picker window strictly read-only - ([d07656a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d07656aa1a22bd0f4c0d594bdf023f978d492e5b))
+- Give the status center its own activity icon - ([c97a926](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c97a926d0a02ccf0aaee73d6293e8fbf2699254e))
+- Drop the broken split animation and add ctrl-click navigation - ([b33c4bc](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b33c4bcefd50171f9fe0b62d96b0bc5db4631165))
+- Keep the history panel current while it is open - ([e8337c2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/e8337c2a9796e2b844fad6585e15d13bed207178))
+- Animate the split view closed as well - ([5c51f34](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/5c51f34c71325b05b1054ccca4217fee1c1e86ad))
+- Align the picker with the app and add index task details - ([0ed2872](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/0ed2872dba068b53534dafa0f5c13d05314eef2b))
+- Rename a new folder or file in the main view too - ([fb3f23e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/fb3f23e6e391e81611b8eec0f7c53dcbce7ede27))
+- Rename a new folder or file as soon as it exists - ([18c224f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/18c224f22f3e14aaee0b0e75f1b2805bce0d91cd))
+- Keep the recycle details pane visible when nothing is selected - ([e6e516e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/e6e516ef55cd34780ac3c97913571e817c3c20f4))
+- Show the select-all checkbox in the recycle bin - ([8d54128](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/8d541289b8128111c787bc61fe74cedd93c66fea))
+- Let the Linux trash handle ordinary deletes - ([0da4628](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/0da4628746f49192ac47bf4cf73e9b6ddbaa7f77))
+- Restore the backdrop blur on WebKit - ([1dafb52](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1dafb52377ca2a4377310c7b31ed251d314d23c1))
+- Keep the path completion list above the file list - ([b084c06](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b084c064305541cfb09f5e0791ec463a5acff29f))
+- List real volumes and render image thumbnails on Linux - ([1d63b2a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1d63b2a9b480e3e754eb952fc78c986b6b9cc64c))
+
+### 🚜 Refactor
+
+- Apply code formatting and cleanup across services - ([42b64ec](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/42b64ec3ef84f9157ab4611081109fc6b63353c5))
+- Read the archive code page probe with TryGet - ([38938fc](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/38938fc335c8ef42f1c4b142a9cdb5ec5192a403))
+- Mark a failed code page with null instead of -1 - ([20a337a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/20a337ab9c6ab9a5312875261ba4047fef2f89fc))
+- Report silent failures with Try.Run - ([38c46e7](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/38c46e7fd9d53abb5208ff42e6094a51c080e1ef))
+- Split clipboard and archive/link handlers into modules - ([475f7fa](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/475f7fabd265158842de5fb5cebfe8331ce17146))
+- Share path, view and registry helpers - ([42f4893](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/42f4893823fd06d8c301bbe2de861eaa0d10d31a))
+- Share one associations backup file - ([4d8004c](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/4d8004c3aaf43197680b18177f08111fe2e48b0b))
+- Store archive association backups in one file - ([587a310](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/587a310457fadcd17cf952be63461d6029643151))
+- Share one context menu across files, gallery and overview - ([f777372](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/f777372f8822472f61750dd9379a00463de037a2))
+- Mark platform-specific helpers with SupportedOSPlatform - ([bbfc2b2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/bbfc2b2c8a0ff6f5bbd80c861cd6dee1f7a45092))
+- Split the Rust helper by job - ([a840ba9](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/a840ba90a0c760d45e37e47b0ec7ad08890167ca))
+- Require the Rust helper instead of falling back - ([d564c62](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d564c62eaf0480ddf5da09d956f5d053c12e5e5a))
+
+### 📚 Documentation
+
+- Mention the Linux clipboard and icon theme helpers - ([2eff89b](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/2eff89b7027da7a9c83085013da7e9ad002d522a))
+- Describe the global tag catalogue - ([920aa82](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/920aa8239cb1beeecbf6caa4a65fc65ab3dbc853))
+
+### ⚡ Performance
+
+- Write zip64 only where an archive needs it - ([9aab53d](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/9aab53dafc5ddf08c42b2376f478557c88db09f0))
+- Paint a cached folder from one index open - ([821baf8](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/821baf8f8be0a5fd7153654bc4d26e51295a594b))
+- Give the folder on screen the index first - ([64df0e3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/64df0e3d90e1a830d5306161c365b058aae80270))
+- Expand compressed tar streams with the native 7z library - ([6ae826a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/6ae826ab03f81a2eaf796854130ee6240310ab8d))
+
+### ⚙️ Miscellaneous Tasks
+
+- Let Dependabot update the Rust crates like the rest - ([6bcd59f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/6bcd59f83cd580f32d3e7ea1052e07539e8d4753))
+- Track the Rust dependencies too - ([1c041c3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1c041c3dde2014b76ae7e960129038be3898b088))
+- Update the interface packages - ([003d73a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/003d73afd565296e623d6596199949ccb053126f))
+- Format SVG icons and TS/TSX files for consistent line lengths and spacing - ([841dc40](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/841dc409ab776996caa5ade6e0596c5103b76015))
+- Update PhotinoNETUtils binary - ([06a9409](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/06a94098ef36b54e9f1d20dc46cedf4a92b713ef))
+- Update the vendored PhotinoNETUtils build - ([668d7ab](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/668d7ab9db4373a27c6c9aaea75e0952c28cb493))
+- Add picker launch profiles - ([4440eff](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/4440effb776ea5087aee74650aa2c112d7f770de))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([7e20654](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7e206546bad714b453cc9eeee29b1c4b62a3f709))
+
+### Build
+
+- Refresh the web assets for the banner motion change - ([119e960](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/119e9604f814c979481e7d5d694058da8c7dc67b))
+- Prefer the cargo rustup keeps in CARGO_HOME - ([7d41557](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7d41557e94579ae15f0a111a7e3736bbf2bf1d53))
+
+
 ## [0.1.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.1.0..v0.1.1) - 2026-11-04
 
 ### 🐛 Bug Fixes
