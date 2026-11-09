@@ -290,20 +290,20 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
             case "fs.clipboard.copy":
                 return context.Reply("fs.clipboard.copy.result",
-                    new OkPayload(FileOperations.CopyToClipboard(
+                    new OkPayload(ClipboardService.Copy(
                         await MapWorkspacePathsAsync(context.Payload<PathsPayload>()?.Paths ?? []), false)));
 
             case "fs.clipboard.cut":
                 return context.Reply("fs.clipboard.cut.result",
-                    new OkPayload(FileOperations.CopyToClipboard(
+                    new OkPayload(ClipboardService.Copy(
                         await MapWorkspacePathsAsync(context.Payload<PathsPayload>()?.Paths ?? []), true)));
 
             case "fs.clipboard.hasFiles":
                 return context.Reply("fs.clipboard.hasFiles.result",
-                    new ClipboardFilesPayload(FileOperations.ClipboardHasFiles()));
+                    new ClipboardFilesPayload(ClipboardService.HasContent()));
 
             case "fs.clipboard.files":
-                return context.Reply("fs.clipboard.files.result", FileOperations.ReadClipboardPayload());
+                return context.Reply("fs.clipboard.files.result", ClipboardService.ReadPayload());
 
             case "fs.paths.info":
                 return context.Reply("fs.paths.info.result",
@@ -568,14 +568,6 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 return null;
         }
     }
-
-    [SupportedOSPlatform("windows")]
-    private static Task<OpenWithProgramsPayload> ReadOpenWithAsync(string path) =>
-        StaThread.RunAsync(() => AssociatedPrograms.Read(path));
-
-    [SupportedOSPlatform("windows")]
-    private static Task<bool> OpenWithProgramAsync(string filePath, string programPath) =>
-        StaThread.RunAsync(() => AssociatedPrograms.Open(filePath, programPath));
 
     /// <summary>The icon the shell would show, or null when the settings and the shell have none.</summary>
     private static async Task<string?> IconAsync(IconRequest? request)    {
@@ -905,68 +897,6 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             DeleteDelaySeconds = Protection.DelaySeconds(settings)
         };
 
-    /// <summary>Creates a link normally and asks for elevation only if Windows says it is required.</summary>
-    private static async Task<LinkPayload> CreateLinkAsync(LinkRequest? request)
-    {
-        if (request is null || request.Source.Length == 0 || request.Link.Length == 0)
-            return new LinkPayload(false, null, Localization.Get("No link was given."));
-
-        if (!OperatingSystem.IsWindows())
-            return new LinkPayload(false, null, Localization.Get("Creating links is a Windows feature."));
-
-        var isDirectory = Directory.Exists(request.Source);
-
-        if (!isDirectory && !File.Exists(request.Source))
-            return new LinkPayload(false, null, Localization.Get("The source no longer exists."));
-
-        if (request.Kind is LinkCopy.HardCopy or LinkCopy.SymbolicCopy or LinkCopy.SmartCopy
-            or LinkCopy.SmartMirror or LinkCopy.MultiVersionSmartCopy)
-        {
-            if (!isDirectory)
-                return new LinkPayload(false, null, Localization.Get("A link copy needs a folder source."));
-
-            var copied = await Task.Run(() => LinkCopy.Create(request.Kind, request.Source, request.Link));
-            return copied.Ok
-                ? new LinkPayload(true, request.Link, null)
-                : new LinkPayload(false, null, copied.Error);
-        }
-
-        var error = request.Kind switch
-        {
-            FileLinkCreation.Hard when isDirectory => "A hard link can only point at a file.",
-            FileLinkCreation.Junction when !isDirectory => "A junction can only point at a folder.",
-            FileLinkCreation.SymbolicFile when isDirectory => "A file link cannot point at a folder.",
-            FileLinkCreation.SymbolicFolder when !isDirectory => "A folder link cannot point at a file.",
-            _ => null,
-        };
-
-        if (error is not null)
-            return new LinkPayload(false, null, error);
-
-        var sourceToWrite = request.Source;
-        if (request.Kind is FileLinkCreation.SymbolicFile or FileLinkCreation.SymbolicFolder
-            && SettingsService.Instance.Current.UsesRelativeLinks)
-        {
-            var linkDirectory = Path.GetDirectoryName(Path.GetFullPath(request.Link));
-            if (linkDirectory is { Length: > 0 })
-                sourceToWrite = Path.GetRelativePath(linkDirectory, Path.GetFullPath(request.Source));
-        }
-
-        var result = await Task.Run(() => FileLinkCreation.Create(request.Kind, sourceToWrite, request.Link));
-        if (result.Ok)
-            return new LinkPayload(true, request.Link, null);
-
-        var symbolic = request.Kind is FileLinkCreation.SymbolicFile or FileLinkCreation.SymbolicFolder;
-        var needsElevation = result.ErrorCode is FileLinkCreation.ErrorAccessDenied
-            or FileLinkCreation.ErrorPrivilegeNotHeld;
-
-        if (symbolic && needsElevation
-            && await RunElevatedAsync(Constants.CreateLinkArgument, request.Kind, sourceToWrite, request.Link))
-            return new LinkPayload(true, request.Link, null);
-
-        return new LinkPayload(false, null, result.Error);
-    }
-
     /// <summary>
     ///     Blocks a delete that touches a protected path until the window confirms it after the
     ///     configured delay. Null means the operation may run; otherwise the body is the reply.
@@ -1062,62 +992,6 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
     private static string TempReportPath() =>
         Path.Combine(Path.GetTempPath(), $"yafm-orphans-{Guid.NewGuid():N}.json");
-
-    /// <summary>Lists a directory. A missing path starts at the user's home directory.</summary>
-    /// <summary>Maps virtual archive entries to a writable per-archive staging directory.</summary>
-    private static async Task<string> MapWorkspacePathAsync(string path, bool directory = false)
-    {
-        if (!Archives.TrySplit(path, out var archivePath, out _))
-            return path;
-
-        // The archive file itself remains a normal file unless the caller is treating it as the
-        // virtual root directory (paste, drag-and-drop, or create-folder target).
-        if (!directory && string.Equals(Path.GetFullPath(path), Path.GetFullPath(archivePath),
-                StringComparison.OrdinalIgnoreCase))
-            return path;
-
-        return await Archives.WorkspacePathAsync(path) ?? path;
-    }
-
-    private static async Task<string> ResolveArchiveEntryAsync(string path)
-    {
-        if (Archives.TryGetWorkspacePath(path, out var staged) && File.Exists(staged))
-            return staged;
-
-        if (Archives.TrySplit(path, out _, out var inner) && inner.Length > 0)
-            return await Task.Run(() => Archives.ExtractEntry(path));
-
-        return path;
-    }
-
-    private static async Task<List<string>> MapWorkspacePathsAsync(IReadOnlyList<string> paths)
-    {
-        var mapped = new List<string>(paths.Count);
-        foreach (var path in paths)
-            mapped.Add(await MapWorkspacePathAsync(path));
-
-        return mapped;
-    }
-
-    /// <summary>
-    ///     Writes the staged archive back as soon as an edit finishes, so the archive on disk always
-    ///     matches what the view shows and no separate "apply" step is needed.
-    /// </summary>
-    private static async Task ApplyArchiveChangesAsync(IReadOnlyList<string> paths)
-    {
-        var archives = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var path in paths)
-            if (Archives.TryGetArchivePath(path, out var archive))
-                archives.Add(archive);
-
-        foreach (var archive in archives)
-            await Task.Run(() =>
-            {
-                if (!Archives.ApplyChanges(archive, out var error))
-                    Serilog.Log.Warning("Could not write the archive {Path}: {Error}", archive, error);
-            });
-    }
 
     private static async Task<FsListPayload> ListAsync(string? path, bool measure = true, bool includeLinks = false,
         int codePage = 0, string? password = null)
