@@ -130,6 +130,10 @@ export function FileMenu({
 
     const single = menu?.paths.length === 1;
     const shellPaths = menu?.background ? (directory ? [directory] : []) : menu?.paths ?? [];
+    /** The folder the menu acts on when it was opened over empty space. */
+    const casePath = menu?.background
+        ? directory || null
+        : single && target?.isDirectory ? target.path : null;
 
     useEffect(() => {
         if (!menu) {
@@ -173,13 +177,13 @@ export function FileMenu({
 
     // The case flag lives on the folder itself, so it is read when the menu opens.
     useEffect(() => {
-        if (!menu || menu.background || !single || !target?.isDirectory) {
+        if (!menu || archiveView || !casePath) {
             setCaseState(null);
             return;
         }
 
         let alive = true;
-        void isCaseSensitive(target.path).then(
+        void isCaseSensitive(casePath).then(
             (enabled) => {
                 if (alive) setCaseState(enabled);
             },
@@ -191,7 +195,7 @@ export function FileMenu({
         return () => {
             alive = false;
         };
-    }, [menu, single, target?.path, target?.isDirectory]);
+    }, [menu, casePath, archiveView]);
 
     if (!menu)
         return null;
@@ -199,21 +203,26 @@ export function FileMenu({
     const items: ContextMenuItem[] = [];
     const quick: ContextMenuItem[] = [];
     const favoriteSet = new Set((favoritePaths ?? []).map(normalizePath));
-    const allFavorites = menu.paths.length > 0
-        && menu.paths.every((path) => favoriteSet.has(normalizePath(path)));
+    const favoriteTargets = menu.background ? (directory ? [directory] : []) : menu.paths;
+    const allFavorites = favoriteTargets.length > 0
+        && favoriteTargets.every((path) => favoriteSet.has(normalizePath(path)));
 
     const selectedArchiveName = () => {
-        if (!single || !target) return "Archive";
-        const name = baseName(target.path);
-        if (target.isDirectory) return name;
-        const dot = name.lastIndexOf(".");
-        return dot > 0 ? name.slice(0, dot) : name;
+        if (!target) return "Archive";
+        return archiveNameFor(target.path, target.isDirectory);
     };
 
-    const compressZip = async (paths: string[]) => {
+    const archiveNameFor = (path: string, isDirectory: boolean) => {
+        const name = baseName(path);
+        if (isDirectory) return name || "Archive";
+        const dot = name.lastIndexOf(".");
+        return dot > 0 ? name.slice(0, dot) : name || "Archive";
+    };
+
+    const compressZip = async (paths: string[], name = selectedArchiveName()) => {
         const options: CompressOptions = {
             directory,
-            name: selectedArchiveName(),
+            name,
             format: "zip",
             level: 5,
         };
@@ -231,9 +240,9 @@ export function FileMenu({
     };
 
     const toggleCaseSensitivity = async () => {
-        if (!target || caseState === null) return;
+        if (!casePath || caseState === null) return;
 
-        const result = await setCaseSensitive(target.path, !caseState);
+        const result = await setCaseSensitive(casePath, !caseState);
 
         if (!result.ok) {
             void showMessage(result.error ?? t("Could not change the case sensitivity."));
@@ -420,6 +429,46 @@ export function FileMenu({
 
         if (creationOnly)
             return <ContextMenu items={items} onClose={onClose} quick={quick} x={menu.x} y={menu.y}/>;
+
+        // The empty area belongs to the folder the view shows, so it offers the same harmless
+        // folder actions as right-clicking that folder in its parent. Delete and rename stay out:
+        // they would move the view itself out from under the user.
+        if (!archiveView && onOpen) {
+            items.push({
+                label: t("Open in new tab"), icon: <PlusIcon size={14}/>,
+                onSelect: () => onOpen(directory, true),
+            });
+        }
+
+        items.push({
+            label: t("Copy as path"), icon: <CopyIcon size={14}/>,
+            onSelect: () => void copyAsPath([directory]),
+        });
+
+        if (onAddToTray) {
+            items.push({
+                label: t("Add to file tray"), icon: <PackageIcon size={14}/>,
+                onSelect: () => onAddToTray([directory]),
+            });
+        }
+
+        if (!archiveView && (allFavorites ? onRemoveFavorite : onAddFavorite)) {
+            items.push({
+                label: allFavorites ? t("Remove from favorites") : t("Add to favorites"),
+                icon: allFavorites ? <HeartMinusIcon size={14}/> : <HeartIcon size={14}/>,
+                onSelect: () => allFavorites
+                    ? onRemoveFavorite?.([directory])
+                    : onAddFavorite?.([directory]),
+            });
+        }
+
+        if (!archiveView && caseState !== null) {
+            items.push({
+                label: t("Case-sensitive names"), icon: <CaseSensitiveIcon size={14}/>,
+                checked: caseState,
+                onSelect: () => void toggleCaseSensitivity(),
+            });
+        }
 
         if (!archiveView && allowCompression) {
             items.push({
@@ -659,15 +708,15 @@ export function FileMenu({
                 label: allFavorites ? t("Remove from favorites") : t("Add to favorites"),
                 icon: allFavorites ? <HeartMinusIcon size={14}/> : <HeartIcon size={14}/>,
                 onSelect: () => allFavorites
-                    ? onRemoveFavorite?.(menu.paths)
-                    : onAddFavorite?.(menu.paths),
+                    ? onRemoveFavorite?.(favoriteTargets)
+                    : onAddFavorite?.(favoriteTargets),
             });
         }
 
         if (!archiveView)
             items.push({
                 label: t("Show in Explorer"), icon: <FolderIcon size={14}/>, separatorBefore: true,
-                onSelect: () => void showInExplorer(menu.paths[0]),
+                onSelect: () => void showInExplorer(favoriteTargets[0]),
             });
 
         if (onCopy) {
