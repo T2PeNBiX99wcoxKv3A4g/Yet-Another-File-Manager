@@ -587,8 +587,8 @@ export function RecycleView({
                                     <NameCell>
                                         <EntryIcon entry={entry}/>
                                         <span>{entry.name}</span>
-                                        {entry.isOrphan && <Tag>{t("metadata only")}</Tag>}
-                                        {entry.owner && <Tag $other>{t("other profile")}</Tag>}
+                                        {entry.isOrphan && <Tag>{t("Metadata only")}</Tag>}
+                                        {entry.owner && <Tag $other>{t("Other profile")}</Tag>}
                                     </NameCell>
                                     <Origin>{entry.originalPath}</Origin>
                                     <Deleted>{formatDate(entry.deleted)}</Deleted>

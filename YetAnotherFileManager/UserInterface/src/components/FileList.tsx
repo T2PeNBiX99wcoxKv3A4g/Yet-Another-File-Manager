@@ -1539,16 +1539,16 @@ function gridIconSize(gridSize: number): number {
 
 /** Human labels for the file categories the extension map knows. */
 const TypeLabels: Record<string, string> = {
-    file: "file",
-    folder: "folder",
-    text: "text file",
+    file: "File",
+    folder: "Folder",
+    text: "Text file",
     code: "source file",
     image: "image",
-    video: "video",
-    audio: "audio",
+    video: "Video",
+    audio: "Audio",
     archive: "archive",
     pdf: "PDF",
-    executable: "application",
+    executable: "Application",
     font: "font",
     database: "database",
     config: "configuration",

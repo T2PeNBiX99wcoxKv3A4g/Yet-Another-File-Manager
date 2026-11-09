@@ -371,7 +371,7 @@ export function FileTray({
                         <SectionHead $clipboard>
                             {t("Clipboard")}
                             <Count>{clipboardItems.length}</Count>
-                            {clipboardMove && <CutTag>{t("cut")}</CutTag>}
+                            {clipboardMove && <CutTag>{t("Cut")}</CutTag>}
                         </SectionHead>
                         {clipboardItems.map((item) => row(item, clipboardMove))}
                     </>
