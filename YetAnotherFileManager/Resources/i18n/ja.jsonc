@@ -725,5 +725,8 @@
   "Add file": "ファイルを追加",
   "Pin any file here": "任意のファイルをここに固定",
   "Pin any folder here": "任意のフォルダーをここに固定",
-  "No favorites yet. Right-click any file or folder and add it here.": "お気に入りはまだありません。任意のファイルまたはフォルダーを右クリックして追加できます。"
+  "No favorites yet. Right-click any file or folder and add it here.": "お気に入りはまだありません。任意のファイルまたはフォルダーを右クリックして追加できます。",
+  "Logs": "ログ",
+  "Application logs and crash details. Open the folder here to inspect them without leaving the app.": "アプリのログとクラッシュ情報です。アプリを離れずにここからフォルダーを開いて確認できます。",
+  "Open log folder": "ログフォルダーを開く"
 }

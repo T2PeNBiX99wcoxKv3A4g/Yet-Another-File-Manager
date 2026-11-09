@@ -47,6 +47,8 @@ interface SettingsViewProps {
     /** A section the footer's update dot asked for. */
     focusSection?: string | null;
     onSettingsChanged: () => void;
+    /** Opens a folder in the app's own browser instead of an external program. */
+    onOpenFolder: (path: string) => void;
     /** The page search; matching text is highlighted, other sections dim or hide. */
     find?: PageFind | null;
     /** Reports how many sections matched, for the find bar's counter. */
@@ -156,7 +158,7 @@ function readRecentColors(): RecentColors {
     };
 }
 
-export function SettingsView({appInfo, focusSection, onSettingsChanged, find, onSearchMatches}: SettingsViewProps) {
+export function SettingsView({appInfo, focusSection, onSettingsChanged, onOpenFolder, find, onSearchMatches}: SettingsViewProps) {
     const t = useTranslation();
     const [languages, setLanguages] = useState<string[]>([]);
     const [visibility, setVisibility] = useState<FileVisibility | null>(null);
@@ -880,6 +882,21 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, find, on
                         <Row>
                             <Label>{t("Platform")}</Label>
                             <Value>{appInfo?.platform ?? "—"}</Value>
+                        </Row>
+                        <Row>
+                            <RowText>
+                                <Label>{t("Logs")}</Label>
+                                <Note>{t("Application logs and crash details. Open the folder here to inspect them without leaving the app.")}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <ActionButton
+                                    disabled={!appInfo?.logDirectory}
+                                    onClick={() => appInfo?.logDirectory && onOpenFolder(appInfo.logDirectory)}
+                                    type="button"
+                                >
+                                    {t("Open log folder")}
+                                </ActionButton>
+                            </RowEnd>
                         </Row>
                         <Row>
                             <RowText>

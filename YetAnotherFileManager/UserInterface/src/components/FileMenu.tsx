@@ -39,6 +39,7 @@ import {
     FolderIcon,
     GearIcon,
     HeartIcon,
+    HeartMinusIcon,
     PackageIcon,
     PasteIcon,
     PencilIcon,
@@ -655,7 +656,7 @@ export function FileMenu({
         if (!archiveView && (allFavorites ? onRemoveFavorite : onAddFavorite)) {
             items.push({
                 label: allFavorites ? t("Remove from favorites") : t("Add to favorites"),
-                icon: <HeartIcon size={14}/>,
+                icon: allFavorites ? <HeartMinusIcon size={14}/> : <HeartIcon size={14}/>,
                 onSelect: () => allFavorites
                     ? onRemoveFavorite?.(menu.paths)
                     : onAddFavorite?.(menu.paths),

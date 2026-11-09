@@ -2334,7 +2334,7 @@ export default function App() {
                     {archiveEncrypted && (
                         <ArchiveEncrypted title={t("This archive is encrypted and asks for a password when opened.")}>
                             <LockIcon size={12}/>
-                            {t("Encrypted archive")}
+                            {t("Encrypted")}
                         </ArchiveEncrypted>
                     )}
                     <IconButton
@@ -2709,6 +2709,7 @@ export default function App() {
                             focusSection={settingsFocus}
                             onSearchMatches={setViewFindTotal}
                             onSettingsChanged={reloadSettings}
+                            onOpenFolder={openFiles}
                         />
                     ) : kind === "gallery" ? (
                         <GalleryView

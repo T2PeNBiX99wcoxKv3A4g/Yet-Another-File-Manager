@@ -725,5 +725,8 @@
   "Add file": "新建文件",
   "Pin any file here": "在此固定任意文件",
   "Pin any folder here": "在此固定任意文件夹",
-  "No favorites yet. Right-click any file or folder and add it here.": "还没有收藏。右键单击任意文件或文件夹即可添加到这里。"
+  "No favorites yet. Right-click any file or folder and add it here.": "还没有收藏。右键单击任意文件或文件夹即可添加到这里。",
+  "Logs": "日志",
+  "Application logs and crash details. Open the folder here to inspect them without leaving the app.": "应用日志和崩溃信息。可以直接在这里打开文件夹查看，无需离开软件。",
+  "Open log folder": "打开日志文件夹"
 }

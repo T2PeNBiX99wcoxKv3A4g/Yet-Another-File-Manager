@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using JetBrains.Annotations;
+using PhotinoNetUtils;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Messaging;
+using PhotinoNetUtils.Platform;
 using PhotinoNetUtils.Utils;
 using YetAnotherFileManager.Messaging;
 
@@ -31,7 +33,7 @@ internal sealed class AppInfoService : Singleton<AppInfoService>
         context.Request.Type switch
         {
             "app.info" => Task.FromResult<NativeResponse?>(context.Reply("app.info.result",
-                new AppInfoPayload(Version, Platform, WindowManager.Instance.DrawsWindowCorners))),
+                new AppInfoPayload(Version, Platform, WindowManager.Instance.DrawsWindowCorners, LogDirectory()))),
             "app.fonts" => FontsAsync(context),
             "app.openUrl" => Task.FromResult<NativeResponse?>(OpenUrl(context)),
             _ => Task.FromResult<NativeResponse?>(null)
@@ -39,6 +41,23 @@ internal sealed class AppInfoService : Singleton<AppInfoService>
 
     private static async Task<NativeResponse?> FontsAsync(NativeContext context) =>
         context.Reply("app.fonts.result", new FontsPayload(await FontCatalog.GetAsync()));
+
+    /// <summary>The folder Serilog writes to; created so the settings page can always open it.</summary>
+    private static string LogDirectory()
+    {
+        var directory = AppPaths.LogDirectory(Constants.Name);
+
+        try
+        {
+            Directory.CreateDirectory(directory);
+        }
+        catch
+        {
+            // A read-only or missing parent is reported by the folder view, not here.
+        }
+
+        return directory;
+    }
 
     /// <summary>Hands a URL to the shell, so the release page opens in the user's browser.</summary>
     private static NativeResponse OpenUrl(NativeContext context)

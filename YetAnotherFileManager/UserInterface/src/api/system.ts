@@ -5,6 +5,8 @@ export interface AppInfo {
     platform: string;
     /** True when the interface has to paint the window's rounded corners itself (Linux). */
     rounded: boolean;
+    /** Where the application writes its logs; empty in a browser. */
+    logDirectory: string;
 }
 
 export interface MemoryUsage {
@@ -22,7 +24,7 @@ const EmptyMemory: MemoryUsage = {managed: 0, private: 0, workingSet: 0, availab
 
 /** Reads the app version declared in the csproj, plus the host platform id. */
 export async function getAppInfo(): Promise<AppInfo> {
-    if (!Native.available) return {version: "dev", platform: "web", rounded: false};
+    if (!Native.available) return {version: "dev", platform: "web", rounded: false, logDirectory: ""};
 
     return await Native.request<AppInfo>("app.info");
 }
