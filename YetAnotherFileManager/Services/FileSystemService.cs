@@ -1155,12 +1155,11 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
         var (showHidden, showSystem) = await Task.Run(() => (FileVisibility.ShowHidden, FileVisibility.ShowSystem));
 
-        var entries = await DirectoryIndex.ListingAsync(directory.FullName);
+        // The saved rows and the icon table may be newer than each other; one connection reads both.
+        var (entries, metadata) = await DirectoryIndex.ReadCachedAsync(directory.FullName);
         if (entries is null)
             return new(false, null);
 
-        // The saved rows carry the icon of the last scan; the icon table may be newer.
-        var metadata = await DirectoryIndex.ReadMetadataAsync(directory.FullName);
         var icons = metadata.Icons;
         var sizes = metadata.Sizes;
         var view = metadata.View;

@@ -92,6 +92,19 @@ internal static class DirectoryIndex
     public static Task<List<FileEntry>?> ListingAsync(string directory) =>
         ReadsOwnIndex(directory) ? FolderIndex.ListingAsync(directory) : CentralIndex.Instance.ListingAsync(directory);
 
+    /// <summary>
+    ///     The saved listing and the rest of the index together. A folder that keeps its own database
+    ///     is opened once for both, so painting it from the cache costs one open instead of two.
+    /// </summary>
+    public static async Task<(List<FileEntry>? Entries, MetadataSnapshot Metadata)> ReadCachedAsync(string directory)
+    {
+        if (ReadsOwnIndex(directory))
+            return await FolderIndex.ReadCachedAsync(directory);
+
+        var entries = await CentralIndex.Instance.ListingAsync(directory);
+        return (entries, await ReadMetadataAsync(directory));
+    }
+
     /// <summary>How this directory is shown, or null when it inherits the app's default.</summary>
     public static Task<DirectoryView?> ViewAsync(string directory) =>
         ReadsOwnIndex(directory) ? FolderIndex.ViewAsync(directory) : CentralIndex.Instance.ViewAsync(directory);
