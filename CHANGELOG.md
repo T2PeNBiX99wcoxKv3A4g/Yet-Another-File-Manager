@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.2.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.2.0..v0.2.1) - 2026-11-09
+
+### 🐛 Bug Fixes
+
+- Build the installer with one file per component - ([f507c5b](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/f507c5b220b8c96bc5c9297316d4f91fdee5d7f5))
+
+### 📚 Documentation
+
+- Stop listing the languages in the site feature text - ([e4d7af0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/e4d7af0a9cdd695ab9cfd938656e38ccb9288772))
+
+### ⚙️ Miscellaneous Tasks
+
+- Drop the how-it-works section from the site - ([2c83a53](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/2c83a5355b04658efa8d37b78f2b8ba4752c187b))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([4b30b20](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/4b30b208e435d2197c731816e10e679bd0e6fe20))
+
+## New Contributors ❤️
+
+* @dependabot[bot] made their first contribution
+
 ## [0.2.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.1.1..v0.2.0) - 2026-11-09
 
 ### ⛰️  Features
