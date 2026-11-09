@@ -1,5 +1,4 @@
 using System.Runtime.Versioning;
-using System.Text.Json;
 using Microsoft.Win32;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
@@ -78,40 +77,43 @@ internal static class ArchiveAssociations
         if (Environment.ProcessPath is not { Length: > 0 } executable)
             return;
 
-        var backups = ReadBackups();
+        var backups = AssociationBackupStore.Read();
 
         if (!enabled)
         {
             // Restore every extension this app ever touched, including ones a newer build no
             // longer handles.
-            foreach (var backup in backups)
+            foreach (var backup in backups.Archive)
                 RestoreExtension(backup.Extension, backup.Value);
 
-            // An extension handled now may have lost its backup (for example if an old file was
-            // deleted); remove only this app's own value there instead of guessing.
-            foreach (var extension in Extensions.Where(extension => backups.All(
+            // An extension handled now may have no backup; remove only this app's own value there
+            // instead of guessing.
+            foreach (var extension in Extensions.Where(extension => backups.Archive.All(
                          backup => !string.Equals(backup.Extension, extension, StringComparison.OrdinalIgnoreCase))))
                 RestoreExtension(extension, null);
 
+            backups.Archive.Clear();
+            AssociationBackupStore.Write(backups);
+
             DeleteKey($@"Software\Classes\{ProgId}");
             DeleteKey(@"Software\Classes\Applications\YetAnotherFileManager.exe");
-            DeleteBackups();
             return;
         }
 
-        var changed = !File.Exists(BackupPath);
+        var changed = false;
 
         foreach (var extension in Extensions)
         {
-            if (backups.Any(backup => string.Equals(backup.Extension, extension, StringComparison.OrdinalIgnoreCase)))
+            if (backups.Archive.Any(backup =>
+                    string.Equals(backup.Extension, extension, StringComparison.OrdinalIgnoreCase)))
                 continue;
 
-            backups.Add(new ArchiveAssociationBackup(extension, ReadCurrentDefault(extension)));
+            backups.Archive.Add(new ArchiveAssociationBackup(extension, ReadCurrentDefault(extension)));
             changed = true;
         }
 
         // Save the original values before touching the registry; a crash must not lose them.
-        if (changed && !WriteBackups(backups))
+        if (changed && !AssociationBackupStore.Write(backups))
             return;
 
         using (var progId = Registry.CurrentUser.CreateSubKey($@"Software\Classes\{ProgId}"))
@@ -156,8 +158,6 @@ internal static class ArchiveAssociations
         }
     }
 
-    private static string BackupPath => Path.Combine(Constants.SettingsDirectory, "archive-associations.json");
-
     [SupportedOSPlatform("windows")]
     private static void DeleteKey(string keyPath) =>
         Try.Run(() => Registry.CurrentUser.DeleteSubKeyTree(keyPath, false));
@@ -170,86 +170,6 @@ internal static class ArchiveAssociations
             .GetOrNull();
 
         return string.Equals(value, ProgId, StringComparison.OrdinalIgnoreCase) ? null : value;
-    }
-
-    /// <summary>Reads the single backup file, adopting any old one-file-per-extension backups.</summary>
-    private static List<ArchiveAssociationBackup> ReadBackups()
-    {
-        var backups = new List<ArchiveAssociationBackup>();
-
-        if (File.Exists(BackupPath))
-        {
-            try
-            {
-                var json = File.ReadAllText(BackupPath);
-                if (JsonSerializer.Deserialize(json, AppJsonContext.Default.ListArchiveAssociationBackup) is { } saved)
-                    backups = saved;
-            }
-            catch (Exception ex)
-            {
-                Log.Warning(ex, "Could not read {Path}", BackupPath);
-            }
-        }
-
-        var legacy = new List<(string File, string Extension)>();
-
-        try
-        {
-            foreach (var file in Directory.EnumerateFiles(Constants.SettingsDirectory, "archive-assoc*.txt"))
-            {
-                var name = Path.GetFileName(file);
-                if (!name.StartsWith("archive-assoc", StringComparison.OrdinalIgnoreCase)
-                    || !name.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                var extension = name["archive-assoc".Length..^".txt".Length];
-                if (extension.Length == 0)
-                    continue;
-
-                legacy.Add((file, extension));
-
-                if (backups.Any(backup => string.Equals(backup.Extension, extension, StringComparison.OrdinalIgnoreCase)))
-                    continue;
-
-                backups.Add(new ArchiveAssociationBackup(extension, ParseLegacyBackup(File.ReadAllText(file))));
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Debug(ex, "Could not read the old archive association backups");
-        }
-
-        if (legacy.Count > 0 && WriteBackups(backups))
-            foreach (var (file, _) in legacy)
-                Try.Run(() => File.Delete(file)).OnFailure(ex => Log.Debug(ex, "Could not remove {Path}", file));
-
-        return backups;
-    }
-
-    private static string? ParseLegacyBackup(string text)
-    {
-        var parts = text.Replace("\r\n", "\n").Split('\n', 2);
-
-        if (parts[0] == "0")
-            return null;
-
-        return parts.Length > 1 ? parts[1] : "";
-    }
-
-    private static bool WriteBackups(List<ArchiveAssociationBackup> backups)
-    {
-        try
-        {
-            Directory.CreateDirectory(Constants.SettingsDirectory);
-            File.WriteAllText(BackupPath,
-                JsonSerializer.Serialize(backups, AppJsonContext.Default.ListArchiveAssociationBackup));
-            return true;
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "Could not save {Path}", BackupPath);
-            return false;
-        }
     }
 
     [SupportedOSPlatform("windows")]
@@ -274,17 +194,5 @@ internal static class ArchiveAssociations
             using var openWith = key.OpenSubKey("OpenWithProgids", true);
             openWith?.DeleteValue(ProgId, false);
         }).OnFailure(ex => Log.Warning(ex, "Could not restore the association for {Extension}", extension));
-    }
-
-    private static void DeleteBackups()
-    {
-        Try.Run(() =>
-        {
-            if (File.Exists(BackupPath))
-                File.Delete(BackupPath);
-
-            foreach (var file in Directory.EnumerateFiles(Constants.SettingsDirectory, "archive-assoc*.txt"))
-                File.Delete(file);
-        }).OnFailure(ex => Log.Warning(ex, "Could not remove the archive association backups"));
     }
 }

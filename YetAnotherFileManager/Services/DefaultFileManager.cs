@@ -6,6 +6,7 @@ using PhotinoNetUtils.Utils;
 using Serilog;
 
 using YetAnotherFileManager.Messaging;
+using YetAnotherFileManager.Models;
 
 namespace YetAnotherFileManager.Services;
 
@@ -89,13 +90,31 @@ internal static class DefaultFileManager
 
         if (enabled)
         {
-            Backup("default-manager-directory.txt", DirectoryCommand);
-            Backup("default-manager-folder.txt", FolderCommand);
-            Backup("default-manager-directory-shell.txt", DirectoryShell);
-            Backup("default-manager-folder-shell.txt", FolderShell);
-            Backup("default-manager-drive.txt", DriveCommand);
-            Backup("default-manager-drive-shell.txt", DriveShell);
-            Backup("default-manager-wine.txt", WinECommand);
+            var backups = AssociationBackupStore.Read();
+            var changed = false;
+
+            foreach (var keyPath in new[]
+                     {
+                         DirectoryCommand, FolderCommand, DirectoryShell, FolderShell,
+                         DriveCommand, DriveShell, WinECommand
+                     })
+            {
+                if (backups.DefaultManager.Any(backup =>
+                        string.Equals(backup.Key, keyPath, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+
+                var existed = Try.Run(() => Registry.CurrentUser.OpenSubKey(keyPath) is not null)
+                    .GetOrElse(_ => false);
+                var value = Try.Run(() => Registry.CurrentUser.OpenSubKey(keyPath)?.GetValue(null) as string)
+                    .GetOrNull();
+
+                backups.DefaultManager.Add(new RegistryAssociationBackup(keyPath, existed, value));
+                changed = true;
+            }
+
+            // Save the original values before touching the registry; a crash must not lose them.
+            if (changed && !AssociationBackupStore.Write(backups))
+                return;
 
             SetDefault(DirectoryShell, "open");
             SetDefault(FolderShell, "open");
@@ -111,17 +130,18 @@ internal static class DefaultFileManager
             return;
         }
 
-        Restore("default-manager-directory.txt", DirectoryCommand);
-        Restore("default-manager-folder.txt", FolderCommand);
-        Restore("default-manager-directory-shell.txt", DirectoryShell);
-        Restore("default-manager-folder-shell.txt", FolderShell);
-        Restore("default-manager-drive.txt", DriveCommand);
-        Restore("default-manager-drive-shell.txt", DriveShell);
-        Restore("default-manager-wine.txt", WinECommand);
+        var store = AssociationBackupStore.Read();
+
+        foreach (var backup in store.DefaultManager)
+            RestoreKey(backup);
+
         DeleteKey(DirectoryVerb);
         DeleteKey(FolderVerb);
         DeleteKey(DriveVerb);
         DeleteKey(BackgroundVerb);
+
+        store.DefaultManager.Clear();
+        AssociationBackupStore.Write(store);
     }
 
     [SupportedOSPlatform("linux")]
@@ -153,27 +173,30 @@ internal static class DefaultFileManager
                 """);
         }
 
-        var backup = BackupFile("default-manager-linux.txt");
+        var store = AssociationBackupStore.Read();
 
         if (enabled)
         {
-            if (!File.Exists(backup))
-                File.WriteAllText(backup, Run("xdg-mime", ["query", "default", "inode/directory"]).Trim());
+            if (store.LinuxDefaultManager is null)
+            {
+                store.LinuxDefaultManager = Run("xdg-mime", ["query", "default", "inode/directory"]).Trim();
+                if (!AssociationBackupStore.Write(store))
+                    return;
+            }
 
             Run("xdg-mime", ["default", "yafm.desktop", "inode/directory"]);
             return;
         }
 
-        if (!File.Exists(backup))
+        if (store.LinuxDefaultManager is null)
             return;
 
         // Restore the handler the user had before this setting was turned on.
-        var previous = File.ReadAllText(backup).Trim();
+        if (store.LinuxDefaultManager.Length > 0)
+            Run("xdg-mime", ["default", store.LinuxDefaultManager, "inode/directory"]);
 
-        if (previous.Length > 0)
-            Run("xdg-mime", ["default", previous, "inode/directory"]);
-
-        File.Delete(backup);
+        store.LinuxDefaultManager = null;
+        AssociationBackupStore.Write(store);
     }
 
     [SupportedOSPlatform("windows")]
@@ -219,41 +242,23 @@ internal static class DefaultFileManager
         Try.Run(() => Registry.CurrentUser.DeleteSubKeyTree(keyPath, false));
 
     [SupportedOSPlatform("windows")]
-    private static void Backup(string file, string keyPath)
+    private static void RestoreKey(RegistryAssociationBackup backup)
     {
-        var path = BackupFile(file);
-        if (File.Exists(path))
-            return;
-
-        var existed = Try.Run(() => Registry.CurrentUser.OpenSubKey(keyPath) is not null).GetOrElse(_ => false);
-        var value = Try.Run(() => Registry.CurrentUser.OpenSubKey(keyPath)?.GetValue(null) as string).GetOrNull();
-
-        File.WriteAllText(path, existed ? $"1\n{value ?? ""}" : "0");
-    }
-
-    [SupportedOSPlatform("windows")]
-    private static void Restore(string file, string keyPath)
-    {
-        var path = BackupFile(file);
-        if (!File.Exists(path))
-            return;
-
-        var lines = File.ReadAllText(path).Split('\n', 2);
-
-        if (lines[0] == "0")
+        if (!backup.Existed)
         {
-            DeleteKey(keyPath);
+            DeleteKey(backup.Key);
+            return;
         }
+
+        using var key = Registry.CurrentUser.CreateSubKey(backup.Key);
+        if (key is null)
+            return;
+
+        if (backup.Value is null)
+            key.DeleteValue(null, false);
         else
-        {
-            using var key = Registry.CurrentUser.CreateSubKey(keyPath);
-            key?.SetValue(null, lines.Length > 1 ? lines[1] : "");
-        }
-
-        File.Delete(path);
+            key.SetValue(null, backup.Value);
     }
-
-    private static string BackupFile(string name) => Path.Combine(Constants.SettingsDirectory, name);
 
     private static string Run(string command, string[] arguments) =>
         Try.Run(() =>

@@ -38,6 +38,21 @@ public sealed record FavoriteEntry(string Path, string Name, bool IsDirectory);
 /// </summary>
 public sealed record ArchiveAssociationBackup(string Extension, string? Value);
 
+/// <summary>
+///     One registry key's default value before this app changed it. <paramref name="Existed" />
+///     false means the key itself did not exist and has to be removed again.
+/// </summary>
+public sealed record RegistryAssociationBackup(string Key, bool Existed, string? Value);
+
+/// <summary>The single associations.json file: archive handlers and the default-manager choices.</summary>
+public sealed class AssociationBackupFile
+{
+    public List<ArchiveAssociationBackup> Archive { get; set; } = [];
+    public List<RegistryAssociationBackup> DefaultManager { get; set; } = [];
+    /// <summary>The Linux <c>inode/directory</c> handler; null when it was never stored.</summary>
+    public string? LinuxDefaultManager { get; set; }
+}
+
 /// <summary>A folder (or, later, a file) that was opened recently.</summary>
 public sealed record RecentEntry(string Path, string Name, bool IsDirectory, long At);
 
