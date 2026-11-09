@@ -20,7 +20,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 png = "0.18"
 sevenz-rust2 = { version = "0.25", default-features = false, features = ["compress", "aes256", "util"] }
-base64 = "0.22"
+base64 = "0.23"
 # The XZ method inside a ZIP, which 7-Zip writes and Windows cannot, plus the other methods and
 # the encryption the managed writer cannot produce.
 zip = { version = "9", default-features = false, features = [
