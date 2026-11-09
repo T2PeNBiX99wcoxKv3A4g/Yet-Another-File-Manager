@@ -87,13 +87,15 @@ public sealed record AppSettings(
     /// <summary>"none", "shortcut" or "task": how the app joins the user's login session.</summary>
     string? StartupMode,
     /// <summary>Start in the tray instead of showing the window at launch.</summary>
-    bool? StartHidden)
+    bool? StartHidden,
+    /// <summary>Files and folders pinned to the overview's Favorites panel.</summary>
+    List<FavoriteEntry>? Favorites)
 {
     public static AppSettings Default =>
-        new(true, true, true, ["**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null, ["quick", "frequent", "recent", "home", "drives"], null, 1, null,
+        new(true, true, true, ["**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null, ["quick", "frequent", "recent", "home", "drives", "share", "favorites"], null, 1, null,
             null, null, null, null, null, ["quick", "frequent", "recent", "drives"], null, null, true, null, 0, null,
             true, false, false, false, false, null, null, null, null, false, null, null, null, null, null, null, 5,
-            "24", null, null, false, 1200, 800, "relative", null, 220, [], 0.3, null, null, null, null, null, null);
+            "24", null, null, false, 1200, 800, "relative", null, 220, [], 0.3, null, null, null, null, null, null, null);
 
     // The accessors below are derived, so they are kept out of settings.json entirely; only the
     // fields above are stored, and the JSON stays readable and stable.

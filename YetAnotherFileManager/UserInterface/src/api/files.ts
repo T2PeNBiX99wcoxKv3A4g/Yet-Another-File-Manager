@@ -19,6 +19,8 @@ export interface FileEntry {
     linkValid: boolean | null;
     /** How many names point at the same file (hard links); 0 for a directory. */
     linkCount: number;
+    /** True when an archive needs a password; null/omitted for ordinary entries. */
+    isEncrypted?: boolean | null;
 }
 
 /** How a directory is shown. Stored with the directory, or as the app's default. */

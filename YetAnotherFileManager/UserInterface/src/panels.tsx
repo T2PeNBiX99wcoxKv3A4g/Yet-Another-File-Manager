@@ -45,7 +45,7 @@ import {
     VideosIcon,
 } from "./components/Icons";
 
-export type PanelKind = "quick" | "recent" | "frequent" | "home" | "drives" | "folder" | "share";
+export type PanelKind = "quick" | "recent" | "frequent" | "home" | "drives" | "folder" | "share" | "favorites";
 export type ViewMode = "list" | "grid";
 
 /** One block on the overview; several blocks of the same kind are allowed. */
@@ -61,10 +61,10 @@ export interface Panel {
     pinned: boolean;
 }
 
-export const DefaultPanels = ["quick", "frequent", "recent", "home", "drives"];
+export const DefaultPanels = ["quick", "frequent", "recent", "home", "drives", "share", "favorites"];
 
 /** Panel kinds that can be stored in the layout. */
-export const KnownPanels = [...DefaultPanels, "share"];
+export const KnownPanels = [...DefaultPanels];
 
 export const DefaultTitles: Record<string, string> = {
     quick: "Quick access",
@@ -73,6 +73,7 @@ export const DefaultTitles: Record<string, string> = {
     home: "Home",
     drives: "Drives",
     share: "Shared",
+    favorites: "Favorites",
 };
 
 /** Built-in icons a panel or a Quick access folder can be given. */
@@ -119,6 +120,7 @@ export const PanelIcons: Record<string, (size: number) => ReactNode> = {
     globe: (size) => <GlobeIcon size={size}/>,
     heart: (size) => <HeartIcon size={size}/>,
     share: (size) => <ServerIcon size={size}/>,
+    favorites: (size) => <HeartIcon size={size}/>,
 };
 
 /** The kind of a panel id: "quick", "quick:2", "folder:D:\x". */
@@ -189,6 +191,8 @@ export function PanelGlyph({panel, size = 16}: { panel: Pick<Panel, "icon" | "ki
             return <HomeIcon size={size}/>;
         case "share":
             return <ServerIcon size={size}/>;
+        case "favorites":
+            return <HeartIcon size={size}/>;
         default:
             return <FolderIcon size={size}/>;
     }

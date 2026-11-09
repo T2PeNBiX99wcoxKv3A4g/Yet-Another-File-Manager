@@ -17,7 +17,8 @@ public sealed record FileEntry(
     long Created = 0,
     string? LinkTarget = null,
     bool? LinkValid = null,
-    int LinkCount = 1);
+    int LinkCount = 1,
+    bool? IsEncrypted = null);
 
 /// <summary>A shortcut to a well-known folder, shown in the sidebar.</summary>
 public sealed record PlaceEntry(string Name, string Path, string Kind, string? Icon = null);
@@ -27,6 +28,9 @@ public sealed record DriveEntry(string Name, string Label, string? Format, long 
 
 /// <summary>One picture in the gallery.</summary>
 public sealed record GalleryEntry(string Path, string Name, long Modified, long Size);
+
+/// <summary>A file or folder pinned to the overview's Favorites panel.</summary>
+public sealed record FavoriteEntry(string Path, string Name, bool IsDirectory);
 
 /// <summary>A folder (or, later, a file) that was opened recently.</summary>
 public sealed record RecentEntry(string Path, string Name, bool IsDirectory, long At);

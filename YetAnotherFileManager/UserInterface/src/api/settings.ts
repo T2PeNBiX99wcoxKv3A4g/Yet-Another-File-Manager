@@ -112,6 +112,15 @@ export interface AppSettings {
     startupMode: string | null;
     /** Start in the tray instead of showing the window at launch. */
     startHidden: boolean;
+    /** Files and folders pinned to the overview's Favorites panel. */
+    favorites: FavoriteEntry[];
+}
+
+/** A file or folder pinned to the overview's Favorites panel. */
+export interface FavoriteEntry {
+    path: string;
+    name: string;
+    isDirectory: boolean;
 }
 
 /** A named colour pair the user saved from the settings page. */
@@ -179,6 +188,7 @@ const fallback: AppSettings = {
     sharePort: null,
     startupMode: null,
     startHidden: false,
+    favorites: [],
 };
 
 /** The interface settings, persisted by the host. */
@@ -245,6 +255,7 @@ export async function getSettings(): Promise<AppSettings> {
         sharePort: raw?.sharePort ?? null,
         startupMode: raw?.startupMode ?? null,
         startHidden: raw?.startHidden ?? false,
+        favorites: raw?.favorites ?? [],
     };
 }
 
@@ -364,6 +375,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         sharePort: saved?.sharePort ?? settings.sharePort,
         startupMode: saved?.startupMode ?? settings.startupMode,
         startHidden: saved?.startHidden ?? settings.startHidden,
+        favorites: saved?.favorites ?? settings.favorites,
     };
 }
 

@@ -16,6 +16,7 @@ import type {TaskInfo} from "../api/tasks";
 import {isArchiveLocation, isZipArchiveLocation} from "../utils/format";
 import {
     AppIcon,
+    ArchiveIcon,
     FolderIcon,
     GearIcon,
     HomeIcon,
@@ -313,7 +314,7 @@ function TabGlyph({tab}: { tab: TabInfo }) {
         case "recycle":
             return <TrashIcon size={13}/>;
         default:
-            return <FilesTabGlyph place={tab.place}/>;
+            return tab.archive ? <ArchiveIcon size={13}/> : <FilesTabGlyph place={tab.place}/>;
     }
 }
 

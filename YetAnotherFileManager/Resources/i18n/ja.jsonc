@@ -713,5 +713,15 @@
   "This platform cannot create a per-user startup entry.": "このプラットフォームではユーザーごとのスタートアップ項目を作成できません。",
   "Scheduled task": "スケジュールされたタスク",
   "Start hidden in the tray": "トレイで非表示のまま起動",
-  "Launch straight to the tray icon instead of showing the window. The tray menu opens it again.": "ウィンドウを表示せず、トレイアイコンで起動します。トレイメニューから再度開けます。"
+  "Launch straight to the tray icon instead of showing the window. The tray menu opens it again.": "ウィンドウを表示せず、トレイアイコンで起動します。トレイメニューから再度開けます。",
+  "Encrypted": "暗号化済み",
+  "This archive is encrypted and asks for a password when opened.": "このアーカイブは暗号化されており、開くときにパスワードが必要です。",
+  "Password required": "パスワードが必要",
+  "Favorites": "お気に入り",
+  "Add to favorites": "お気に入りに追加",
+  "Remove from favorites": "お気に入りから削除",
+  "Add file": "ファイルを追加",
+  "Pin any file here": "任意のファイルをここに固定",
+  "Pin any folder here": "任意のフォルダーをここに固定",
+  "No favorites yet. Right-click any file or folder and add it here.": "お気に入りはまだありません。任意のファイルまたはフォルダーを右クリックして追加できます。"
 }

@@ -42,6 +42,8 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(FileEntry))]
 [JsonSerializable(typeof(List<FileEntry>))]
 [JsonSerializable(typeof(FileEntry[]))]
+[JsonSerializable(typeof(FavoriteEntry))]
+[JsonSerializable(typeof(List<FavoriteEntry>))]
 [JsonSerializable(typeof(ShareEntry))]
 [JsonSerializable(typeof(List<ShareEntry>))]
 [JsonSerializable(typeof(ShareEntry[]))]

@@ -713,5 +713,15 @@
   "This platform cannot create a per-user startup entry.": "此平台無法建立每位使用者的啟動項目。",
   "Scheduled task": "排程工作",
   "Start hidden in the tray": "啟動時隱藏到托盤",
-  "Launch straight to the tray icon instead of showing the window. The tray menu opens it again.": "啟動後直接縮到托盤圖示，不顯示視窗；托盤選單可再次開啟。"
+  "Launch straight to the tray icon instead of showing the window. The tray menu opens it again.": "啟動後直接縮到托盤圖示，不顯示視窗；托盤選單可再次開啟。",
+  "Encrypted": "已加密",
+  "This archive is encrypted and asks for a password when opened.": "此壓縮檔已加密，開啟時會要求輸入密碼。",
+  "Password required": "需要密碼",
+  "Favorites": "收藏",
+  "Add to favorites": "加入收藏",
+  "Remove from favorites": "從收藏中移除",
+  "Add file": "新增檔案",
+  "Pin any file here": "在此固定任意檔案",
+  "Pin any folder here": "在此固定任意資料夾",
+  "No favorites yet. Right-click any file or folder and add it here.": "尚無收藏。於任何檔案或資料夾按右鍵即可加入這裡。"
 }

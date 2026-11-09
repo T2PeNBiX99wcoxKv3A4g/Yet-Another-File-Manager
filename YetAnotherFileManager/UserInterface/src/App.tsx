@@ -862,6 +862,30 @@ export default function App() {
         }
     }, [load]);
 
+    /**
+     * Renames one entry in every tab that shows it. The directory read that follows confirms it, but
+     * the row already points at the new path, so a quick second rename cannot name a gone entry.
+     */
+    const renameInListings = useCallback((from: string, to: string) => {
+        const name = baseName(to);
+
+        for (const tab of stateRef.current.tabs) {
+            if (!tab.listing?.entries.some((entry) => samePath(entry.fullPath, from)))
+                continue;
+
+            patch(tab.id, (current) => {
+                const listing = current.listing;
+                if (!listing)
+                    return {};
+
+                const entries = listing.entries.map((entry) =>
+                    samePath(entry.fullPath, from) ? {...entry, name, fullPath: to} : entry);
+
+                return {listing: {...listing, entries}};
+            });
+        }
+    }, [patch]);
+
     /** The sidebar and the overview replace the page the active tab shows, or open a new tab. */
     const openView = useCallback((next: ViewKind, newTab = false) => {
         if (newTab) {
@@ -1124,6 +1148,27 @@ export default function App() {
         setTrayItems((current) => current.filter((item) => !remove.has(item.path)));
     }, []);
 
+    /** Pins any file or folder — wherever it lives — to the overview's Favorites panel. */
+    const addFavoritePaths = useCallback(async (paths: string[]) => {
+        const current = settingsRef.current;
+        if (!current) return;
+
+        const entries = await inspectPaths(paths);
+        if (entries.length === 0) return;
+
+        const known = new Set((current.favorites ?? []).map((entry) => normalizePath(entry.path)));
+        const added = entries
+            .filter((entry) => !known.has(normalizePath(entry.path)))
+            .map((entry) => ({path: entry.path, name: entry.name, isDirectory: entry.isDirectory}));
+
+        if (added.length === 0) return;
+
+        const next = {...current, favorites: [...(current.favorites ?? []), ...added]};
+        setSettings(next);
+        await saveSettings(next);
+        setSettingsVersion((value) => value + 1);
+    }, []);
+
     const clearTrayItems = useCallback(() => setTrayItems([]), []);
 
     const clipboardSequence = useRef(-1);
@@ -1265,14 +1310,16 @@ export default function App() {
 
             const next = event.data.tasks;
 
-            // A delete shows the panel, so its progress and any refusal are seen. A small one may
-            // already be finished by the time the first notification arrives.
-            const started = next.some((task) => task.kind === "delete"
-                && !tasksRef.current.some((old) => old.id === task.id));
+            // Open for a new operation and again when one finishes or fails. Progress updates do
+            // not change the state, so they cannot keep re-opening a panel the user just closed.
+            const stateChanged = next.some((task) => {
+                const previous = tasksRef.current.find((old) => old.id === task.id);
+                return !previous || previous.state !== task.state;
+            });
 
             tasksRef.current = next;
             setTasks(next);
-            if (started) setActivityOpen(true);
+            if (stateChanged) setActivityOpen(true);
         });
     }, []);
 
@@ -2012,6 +2059,7 @@ export default function App() {
                     const folder = tab.listing?.path;
                     if (folder) refreshFolderTabs(folder);
                 }}
+                onRename={renameInListings}
                 onSelectionCountChange={primary ? reportPrimarySelection : reportSecondarySelection}
                 onSetTags={(name, tags, colors) => setEntryTagsFor(tab.id, name, tags, colors)}
                 selectionMenuRequest={primary ? selectionMenus.primary : selectionMenus.secondary}
@@ -2020,6 +2068,7 @@ export default function App() {
                 onClipboardChanged={() => void refreshClipboard()}
                 onTransfer={transferTo}
                 onAddToTray={(paths) => void addTrayPaths(paths)}
+                onAddFavorite={(paths) => void addFavoritePaths(paths)}
                 openOnSingleClick={settings?.openOnSingleClick ?? false}
                 pendingRename={renameRequest
                     && primary === (activePane === "primary")
@@ -2301,6 +2350,7 @@ export default function App() {
                         kind: tabKind,
                         path: partner ? `${folder}  |  ${partnerFolder}` : folder,
                         place: tabKind === "files" ? quickPlace(quickAccess, folder) : undefined,
+                        archive: tabKind === "files" && isArchiveLocation(folder),
                         split: Boolean(partner),
                         title: tabKind === "files"
                             ? quickName(quickAccess, folder, baseName(folder) || t("Files"))
@@ -2580,6 +2630,8 @@ export default function App() {
                             onDrivesChanged={reloadDrives}
                             onHistoryChanged={() => setHistoryVersion((current) => current + 1)}
                             onAddToTray={(paths) => void addTrayPaths(paths)}
+                            onAddFavorite={(paths) => void addFavoritePaths(paths)}
+                            settingsVersion={settingsVersion}
                             onOpen={navigate}
                             onLayoutChanged={reloadSettings}
                             onPlacesChanged={setPlaces}
@@ -2604,6 +2656,7 @@ export default function App() {
                             onSearchMatches={setViewFindTotal}
                             openOnSingleClick={settings?.openOnSingleClick ?? false}
                             onAddToTray={(paths) => void addTrayPaths(paths)}
+                            onAddFavorite={(paths) => void addFavoritePaths(paths)}
                             shortcuts={shortcuts}
                             showCheckboxes={settings?.showCheckboxes ?? true}
                             showDetails={detailsVisible}
@@ -2682,6 +2735,7 @@ export default function App() {
                     directory={parentOf(pathMenu.path) ?? pathMenu.path}
                     menu={{x: pathMenu.x, y: pathMenu.y, paths: [pathMenu.path]}}
                     onAddToTray={(paths) => void addTrayPaths(paths)}
+                    onAddFavorite={(paths) => void addFavoritePaths(paths)}
                     onArchiveCreated={(created) => {
                         if (created) refreshFolderTabs(parentOf(pathMenu.path) ?? pathMenu.path);
                     }}

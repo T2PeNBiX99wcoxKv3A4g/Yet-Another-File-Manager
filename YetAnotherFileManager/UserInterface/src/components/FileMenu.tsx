@@ -38,6 +38,7 @@ import {
     FileIcon,
     FolderIcon,
     GearIcon,
+    HeartIcon,
     PackageIcon,
     PasteIcon,
     PencilIcon,
@@ -85,6 +86,8 @@ interface FileMenuProps {
     creationOnly?: boolean;
     onRefresh?: () => void;
     onAddToTray?: (paths: string[]) => void;
+    /** Pins the selected files and folders to the overview's Favorites panel. */
+    onAddFavorite?: (paths: string[]) => void;
     allowCompression?: boolean;
     onCompressTo?: (paths: string[], name: string) => void;
     onArchiveCreated?: (path: string, rename: boolean) => void;
@@ -97,7 +100,7 @@ interface FileMenuProps {
 export function FileMenu({
     menu, directory, target, shortcuts, canPaste = false, onClose,
     onOpen, onOpenFile, onRename, onDelete, onCopy, onPaste, onCreateFolder, onCreateFile, creationOnly = false,
-    onRefresh, onAddToTray, allowCompression = false, onCompressTo, onArchiveCreated,
+    onRefresh, onAddToTray, onAddFavorite, allowCompression = false, onCompressTo, onArchiveCreated,
 }: FileMenuProps) {
     const t = useTranslation();
     const linkSource = useLinkSource();
@@ -607,6 +610,13 @@ export function FileMenu({
             items.push({
                 label: t("Add to file tray"), icon: <PackageIcon size={14}/>,
                 onSelect: () => onAddToTray(menu.paths),
+            });
+        }
+
+        if (onAddFavorite && !archiveView) {
+            items.push({
+                label: t("Add to favorites"), icon: <HeartIcon size={14}/>,
+                onSelect: () => onAddFavorite(menu.paths),
             });
         }
 

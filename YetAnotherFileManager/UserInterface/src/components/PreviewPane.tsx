@@ -132,7 +132,8 @@ export function PreviewPane({info, width, onWidth, open = true, videoAudio, vide
         if (!current)
             return;
 
-        onWidth(Math.max(220, Math.min(560, current.width + current.x - event.clientX)));
+        // No upper bound: a large monitor may need a panel wider than the old 560px limit.
+        onWidth(Math.max(220, current.width + current.x - event.clientX));
     };
 
     const end = (event: ReactPointerEvent) => {
@@ -234,37 +235,33 @@ export function PreviewPane({info, width, onWidth, open = true, videoAudio, vide
                                     src={media}
                                 />
 
-                                {!playing && (
-                                    <CenterPlay onClick={toggleVideo} title={t("Play")} type="button">
-                                        <PlayIcon size={28}/>
-                                    </CenterPlay>
-                                )}
+                                <CenterPlay $visible={!playing} onClick={toggleVideo} title={t("Play")} type="button">
+                                    <PlayIcon size={28}/>
+                                </CenterPlay>
 
-                                {videoHover && (
-                                    <VideoControls onClick={(event) => event.stopPropagation()}>
-                                        <Times>
-                                            <span>{formatTime(position)}</span>
-                                            <span>{formatTime(duration)}</span>
-                                        </Times>
-                                        <Range
-                                            aria-label={t("Seek")}
-                                            max={duration || 0}
-                                            min={0}
-                                            onChange={(event) => {
-                                                const element = videoRef.current;
-                                                if (!element)
-                                                    return;
+                                <VideoControls $visible={videoHover} onClick={(event) => event.stopPropagation()}>
+                                    <Times>
+                                        <span>{formatTime(position)}</span>
+                                        <span>{formatTime(duration)}</span>
+                                    </Times>
+                                    <Range
+                                        aria-label={t("Seek")}
+                                        max={duration || 0}
+                                        min={0}
+                                        onChange={(event) => {
+                                            const element = videoRef.current;
+                                            if (!element)
+                                                return;
 
-                                                const next = Number(event.target.value);
-                                                element.currentTime = next;
-                                                setPosition(next);
-                                            }}
-                                            step={0.1}
-                                            type="range"
-                                            value={Math.min(position, duration || 0)}
-                                        />
-                                    </VideoControls>
-                                )}
+                                            const next = Number(event.target.value);
+                                            element.currentTime = next;
+                                            setPosition(next);
+                                        }}
+                                        step={0.1}
+                                        type="range"
+                                        value={Math.min(position, duration || 0)}
+                                    />
+                                </VideoControls>
                             </VideoStage>
                         )
                         : audio && media
@@ -460,7 +457,7 @@ const VideoStage = styled.div`
     }
 `;
 
-const CenterPlay = styled.button`
+const CenterPlay = styled.button<{ $visible: boolean }>`
     position: absolute;
     display: grid;
     place-items: center;
@@ -474,6 +471,11 @@ const CenterPlay = styled.button`
     cursor: pointer;
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
+    opacity: ${({$visible}) => $visible ? 1 : 0};
+    transform: ${({$visible}) => $visible ? "scale(1)" : "scale(0.82)"};
+    pointer-events: ${({$visible}) => $visible ? "auto" : "none"};
+    transition: opacity 180ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+        background 140ms ease, border-color 140ms ease;
 
     svg {
         margin-left: 3px;
@@ -484,10 +486,11 @@ const CenterPlay = styled.button`
     &:hover {
         border-color: var(--border-color-focus);
         background: rgba(var(--bg-rgb), 0.86);
+        transform: scale(1.06);
     }
 `;
 
-const VideoControls = styled.div`
+const VideoControls = styled.div<{ $visible: boolean }>`
     position: absolute;
     right: 0;
     bottom: 0;
@@ -497,6 +500,10 @@ const VideoControls = styled.div`
     gap: 4px;
     padding: 24px 10px 8px;
     background: linear-gradient(to top, rgba(var(--bg-rgb), 0.92), rgba(var(--bg-rgb), 0));
+    opacity: ${({$visible}) => $visible ? 1 : 0};
+    transform: translateY(${({$visible}) => $visible ? "0" : "8px"});
+    pointer-events: ${({$visible}) => $visible ? "auto" : "none"};
+    transition: opacity 160ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 `;
 
 const Times = styled.div`

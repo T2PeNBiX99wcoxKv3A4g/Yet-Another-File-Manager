@@ -66,6 +66,10 @@ interface OverviewViewProps {
     onSelectionChange?: (paths: string[]) => void;
     /** Adds an entry to the file tray, like the file browser's menu. */
     onAddToTray?: (paths: string[]) => void;
+    /** Pins an entry to the Favorites panel from the overview's own context menu. */
+    onAddFavorite?: (paths: string[]) => void;
+    /** Bumped when the app reloaded settings, so the favorites (and layout) stay in step. */
+    settingsVersion?: number;
 }
 
 function BannerThumb({source, poster}: {source: string; poster?: string}) {
@@ -1308,6 +1312,8 @@ export function OverviewView({
     onPick,
     onSelectionChange,
     onAddToTray,
+    onAddFavorite,
+    settingsVersion = 0,
 }: OverviewViewProps) {
     const t = useTranslation();
     const quick = useQuickAccess();
@@ -1371,7 +1377,7 @@ export function OverviewView({
     const bannerShift = bannerTravel + bannerOffset * Math.max(0, bannerSpare - bannerTravel * 2);
     // Only the top edge of the panels sits inside the banner's bottom quarter; the rest stays on
     // the page surface.
-    const bannerOverlap = Math.round(Math.min(88, bannerHeight * 0.12));
+    const bannerOverlap = Math.round(Math.min(70, bannerHeight * 0.10));
     const [framing, setFraming] = useState(false);
 
     /** In the picker, a card selects for the footer instead of opening a tab. */
@@ -1404,7 +1410,7 @@ export function OverviewView({
 
     useEffect(() => {
         void getSettings().then(setSettings, () => setSettings(null));
-    }, []);
+    }, [settingsVersion]);
 
     // Sharing devices are pushed by the host whenever discovery or a catalogue changes.
     useEffect(() => {
@@ -1907,6 +1913,171 @@ export function OverviewView({
             );
     };
 
+    /** Favorites are any files or folders at any path; the panel only remembers them. */
+    const renderFavorites = (panel: Panel) => {
+        const favorites = settings?.favorites ?? [];
+
+        const removeFavorite = async (path: string) => {
+            await save({favorites: favorites.filter((entry) => entry.path !== path)});
+        };
+
+        const pin = async (path: string | null, isDirectory: boolean) => {
+            if (!path || favorites.some((entry) => entry.path.toLowerCase() === path.toLowerCase()))
+                return;
+
+            await save({favorites: [...favorites, {path, name: baseName(path) || path, isDirectory}]});
+        };
+
+        const openFavorite = (event: MouseEvent<HTMLElement>, path: string, isDirectory: boolean) => {
+            if (editing || pickCard(path, isDirectory)) return;
+
+            if (isDirectory) onOpen(path, wantsNewTab(event));
+            else void openFile(path);
+        };
+
+        const addButtons = editing ? (
+            <>
+                <AddFolder
+                    $row={panel.view === "list"}
+                    onClick={() => void requestFile().then((path) => pin(path, false))}
+                    title={t("Pin any file here")}
+                    type="button"
+                >
+                    {panel.view === "list"
+                        ? <PlusIcon size={15}/>
+                        : <Glyph><PlusIcon size={15}/></Glyph>}
+                    {panel.view === "list"
+                        ? (
+                            <RowText>
+                                <strong>{t("Add file")}</strong>
+                                <Meta>{t("Pin any file here")}</Meta>
+                            </RowText>
+                        )
+                        : (
+                            <CardText>
+                                <strong>{t("Add file")}</strong>
+                                <Meta>{t("Pin any file here")}</Meta>
+                            </CardText>
+                        )}
+                </AddFolder>
+                <AddFolder
+                    $row={panel.view === "list"}
+                    onClick={() => void requestFolder().then((path) => pin(path, true))}
+                    title={t("Pin any folder here")}
+                    type="button"
+                >
+                    {panel.view === "list"
+                        ? <PlusIcon size={15}/>
+                        : <Glyph><PlusIcon size={15}/></Glyph>}
+                    {panel.view === "list"
+                        ? (
+                            <RowText>
+                                <strong>{t("Add folder")}</strong>
+                                <Meta>{t("Pin any folder here")}</Meta>
+                            </RowText>
+                        )
+                        : (
+                            <CardText>
+                                <strong>{t("Add folder")}</strong>
+                                <Meta>{t("Pin any folder here")}</Meta>
+                            </CardText>
+                        )}
+                </AddFolder>
+            </>
+        ) : null;
+
+        if (favorites.length === 0 && !editing)
+            return <Empty>{t("No favorites yet. Right-click any file or folder and add it here.")}</Empty>;
+
+        if (panel.view === "grid")
+            return (
+                <Places>
+                    {favorites.map((entry) => {
+                        const place = quickPlace(quick, entry.path);
+
+                        return (
+                            <Card
+                                key={entry.path}
+                                $plain={editing}
+                                $selected={selectedPath === entry.path}
+                                onClick={(event) => openFavorite(event, entry.path, entry.isDirectory)}
+                                onDoubleClick={() => !editing && onPick?.(entry.path)}
+                                onContextMenu={(event) => !editing && openCardMenu(event, entry.path, entry.isDirectory)}
+                                title={entry.path}
+                            >
+                                {editing && (
+                                    <RemovePlaceButton
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            void removeFavorite(entry.path);
+                                        }}
+                                        title={t("Remove from favorites")}
+                                        type="button"
+                                    >
+                                        <CrossIcon size={11}/>
+                                    </RemovePlaceButton>
+                                )}
+                                <Glyph>
+                                    {place && quick.useIcons
+                                        ? <PlaceIcon place={place} size={18}/>
+                                        : <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.path} size={18}/>}
+                                </Glyph>
+                                <CardText>
+                                    <strong>{place?.name || entry.name}</strong>
+                                    <Meta>{entry.path}</Meta>
+                                </CardText>
+                            </Card>
+                        );
+                    })}
+
+                    {addButtons}
+                </Places>
+            );
+
+        return (
+            <Rows>
+                {favorites.map((entry) => {
+                    const place = quickPlace(quick, entry.path);
+
+                    return (
+                        <Row
+                            key={entry.path}
+                            $selected={selectedPath === entry.path}
+                            onClick={(event) => openFavorite(event, entry.path, entry.isDirectory)}
+                            onDoubleClick={() => !editing && onPick?.(entry.path)}
+                            onContextMenu={(event) => !editing && openCardMenu(event, entry.path, entry.isDirectory)}
+                            title={entry.path}
+                            type="button"
+                        >
+                            {place && quick.useIcons
+                                ? <PlaceIcon place={place} size={15}/>
+                                : <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.path} size={15}/>}
+                            <RowText>
+                                <strong>{place?.name || entry.name}</strong>
+                                <Meta>{entry.path}</Meta>
+                            </RowText>
+                            {editing && (
+                                <RemovePlaceButton
+                                    $inline
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        void removeFavorite(entry.path);
+                                    }}
+                                    title={t("Remove from favorites")}
+                                    type="button"
+                                >
+                                    <CrossIcon size={11}/>
+                                </RemovePlaceButton>
+                            )}
+                        </Row>
+                    );
+                })}
+
+                {addButtons}
+            </Rows>
+        );
+    };
+
     /** Drives are one kind: the same volumes, shown as cards or rows, with one empty state. */
     const renderDrives = (panel: Panel) => {
         if (drives.length === 0)
@@ -2103,6 +2274,9 @@ export function OverviewView({
         switch (panel.kind) {
             case "share":
                 return renderShare();
+
+            case "favorites":
+                return renderFavorites(panel);
 
             case "quick": {
                 const items = quickItems(panel);
@@ -2362,7 +2536,7 @@ export function OverviewView({
                         </Ghost>
                         {addOpen && (
                             <PanelMenu onPointerDown={(event) => event.stopPropagation()}>
-                                {(["quick", "recent", "frequent", "home", "drives", "share", "folder"] as PanelKind[]).map((kind) => (
+                                {(["quick", "recent", "frequent", "home", "drives", "share", "favorites", "folder"] as PanelKind[]).map((kind) => (
                                     <PanelMenuItem
                                         key={kind}
                                         onClick={() => {
@@ -2376,7 +2550,8 @@ export function OverviewView({
                                                 : kind === "frequent" ? t("Frequent")
                                                     : kind === "home" ? t("Home")
                                                         : kind === "drives" ? t("This PC")
-                                                            : kind === "share" ? t("Shared") : t("Folder…")}
+                                                            : kind === "share" ? t("Shared")
+                                                                : kind === "favorites" ? t("Favorites") : t("Folder…")}
                                     </PanelMenuItem>
                                 ))}
                             </PanelMenu>
@@ -2720,6 +2895,7 @@ export function OverviewView({
                     onClose={() => setMenu(null)}
                     onCopy={(paths, cut) => void copyPaths(paths, cut)}
                     onAddToTray={onAddToTray}
+                    onAddFavorite={onAddFavorite}
                     onOpen={openMenuTarget}
                     onOpenFile={(path) => onPick ? onPick(path) : void openFile(path)}
                     shortcuts={DefaultShortcuts}
@@ -2898,6 +3074,16 @@ function FolderBody({path, mode, onOpen, onContextMenu, onPick, onSelectionChang
         listDirectory(path).then(setListing, () => setListing(null));
     }, [path, visibilityVersion]);
 
+    const reload = () => void listDirectory(path, false).then(setListing, () => undefined);
+
+    const applyRename = (from: string, to: string) => setListing((current) => current && ({
+        ...current,
+        entries: current.entries.map((entry) =>
+            entry.fullPath.toLowerCase() === from.toLowerCase()
+                ? {...entry, name: baseName(to), fullPath: to}
+                : entry),
+    }));
+
     // The folder is one of the ones the overview watches, so it keeps itself current.
     useEffect(() => {
         if (!Native.available) return;
@@ -2923,6 +3109,8 @@ function FolderBody({path, mode, onOpen, onContextMenu, onPick, onSelectionChang
                     loading={false}
                     onOpen={onPick ?? onOpen}
                     onOpenFile={onPick ?? ((file) => void openFile(file))}
+                    onRefresh={reload}
+                    onRename={applyRename}
                     onSelectionChange={onSelectionChange}
                     selectionMenuId={selectionMenuId}
                     onSort={() => undefined}

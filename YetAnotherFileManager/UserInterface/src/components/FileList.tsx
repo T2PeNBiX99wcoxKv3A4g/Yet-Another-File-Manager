@@ -26,7 +26,7 @@ import {quickPlace, useQuickAccess} from "../quick";
 import {baseName, formatBytes, formatDate, plural} from "../utils/format";
 import {readStoredNumber, writeStoredNumber} from "../storage";
 import {useTranslation, type Translate} from "@photino-net-utils/bridge";
-import {CheckIcon, FolderIcon} from "./Icons";
+import {CheckIcon, FolderIcon, LockIcon} from "./Icons";
 import {FileMenu} from "./FileMenu";
 import {CompressDialog} from "./CompressDialog";
 import {ConfirmDialog} from "./ConfirmDialog";
@@ -86,12 +86,16 @@ interface FileListProps {
     refreshToken?: number;
     /** Reloads the folder after an operation changed it. */
     onRefresh?: () => void;
+    /** Applies a successful rename to the owner's listing, so a stale row cannot be renamed again. */
+    onRename?: (from: string, to: string) => void;
     /** Called after a copy or cut put files on the system clipboard. */
     onClipboardChanged?: () => void;
     /** Moves or copies dropped paths into a folder. */
     onTransfer?: (paths: string[], target: string, move: boolean) => void;
     /** Adds the selection to the floating file tray without dragging it. */
     onAddToTray?: (paths: string[]) => void;
+    /** Pins the selection to the overview's Favorites panel. */
+    onAddFavorite?: (paths: string[]) => void;
     /** Called after a paste, so the tray can drop entries the move consumed. */
     onPaste?: () => void;
     /** Ask before moving items to the recycle bin. Shift+Del always asks. */
@@ -147,7 +151,8 @@ export function FileList({
     listing, loading, error, find = NoFind, view, showImages, imageStripHeight = DefaultStripHeight,
     onImageStripHeight, onSort, onSetTags, onOpen, onOpenFile, showCheckboxes = true,
     openOnSingleClick = false, shortcuts = DefaultShortcuts, enableShortcuts = true, refreshToken = 0, onRefresh,
-    onClipboardChanged, onTransfer, onAddToTray, onPaste, confirmDelete = false, previewVideoAudio = false,
+    onRename,
+    onClipboardChanged, onTransfer, onAddToTray, onAddFavorite, onPaste, confirmDelete = false, previewVideoAudio = false,
     previewVideoAutoplay = false, showDetails = true, onPreviewInfo, onActivate,
     groupOf, onGridScroll, gridFooter, allowBackgroundMenu = true, readOnly = false, onSelectionChange,
     onSelectionCountChange, selectionMenuRequest, selectionMenuId,
@@ -728,11 +733,17 @@ export function FileList({
 
         if (result.ok) {
             clearSelection();
+            // The row keeps the old path until the folder is read again, which made an immediate
+            // second rename fail; the owner renames it in its listing right away.
+            if (result.path) onRename?.(target.path, result.path);
             refresh();
+            // Windows can still be settling the directory entry; a second read a moment later
+            // guarantees the name on disk is the one on screen.
+            window.setTimeout(() => refresh(), 250);
         } else {
             void showMessage(result.error ?? t("Could not rename the entry."));
         }
-    }, [clearSelection, refresh, t]);
+    }, [clearSelection, onRename, refresh, t]);
 
     const remove = async (paths: string[], permanent = false) => {
         if ((permanent || confirmDelete) && !await askDelete(paths, permanent))
@@ -985,6 +996,9 @@ export function FileList({
             created: previewEntry.created,
             fields: [
                 {label: t("Type"), value: typeLabel(previewEntry, t)},
+                ...(previewEntry.isEncrypted
+                    ? [{label: t("Encryption"), value: t("Password required")}]
+                    : []),
                 {label: t("Extension"), value: previewEntry.isDirectory ? "—" : extension},
                 {label: t("Location"), value: listing.path},
                 {label: t("Full path"), value: previewEntry.fullPath},
@@ -1133,6 +1147,7 @@ export function FileList({
                     allowCompression
                     menu={menu}
                     onAddToTray={onAddToTray}
+                    onAddFavorite={onAddFavorite}
                     onArchiveCreated={archiveCreated}
                     onClose={closeMenu}
                     onCompressTo={(paths, name) => setCompressDialog({paths, name})}
@@ -1333,6 +1348,7 @@ export function FileList({
                     allowCompression
                     menu={menu}
                     onAddToTray={onAddToTray}
+                    onAddFavorite={onAddFavorite}
                     onArchiveCreated={archiveCreated}
                     onClose={closeMenu}
                     onCompressTo={(paths, name) => setCompressDialog({paths, name})}
@@ -1553,6 +1569,7 @@ function sizeOf(entry: FileEntry, folderSizes: Record<string, number>): string {
  * desktop.ini when that is enabled), then the built-in icon for the file type.
  */
 function EntryIcon({entry, size = 18}: { entry: FileEntry; size?: number }) {
+    const t = useTranslation();
     const slot = useRef<HTMLSpanElement | null>(null);
     const [onScreen, setOnScreen] = useState(false);
 
@@ -1594,6 +1611,11 @@ function EntryIcon({entry, size = 18}: { entry: FileEntry; size?: number }) {
                         : entry.isDirectory
                             ? <FolderIcon size={size}/>
                             : <BuiltinIcon name={iconForName(entry.name)} size={size}/>}
+            {entry.isEncrypted && (
+                <EncryptedMark title={t("This archive is encrypted and asks for a password when opened.")}>
+                    <LockIcon size={Math.max(8, Math.round(size * 0.52))}/>
+                </EncryptedMark>
+            )}
         </IconSlot>
     );
 }
@@ -1774,6 +1796,12 @@ const GridTile = memo(function GridTile({
                             <Highlighted name={row.label} ranges={row.ranges}/>
                         </TileName>
                     )}
+                {row.entry.isEncrypted && (
+                    <EncryptedBadge title={t("This archive is encrypted and asks for a password when opened.")}>
+                        <LockIcon size={9}/>
+                        {t("Encrypted")}
+                    </EncryptedBadge>
+                )}
                 <TileMeta>
                     {row.entry.isDirectory
                         ? (itemCount === undefined
@@ -1997,6 +2025,12 @@ const ListRow = memo(function ListRow({
                             <Highlighted name={row.label} ranges={row.ranges}/>
                         </NameText>
                     )}
+                {row.entry.isEncrypted && (
+                    <EncryptedBadge title={t("This archive is encrypted and asks for a password when opened.")}>
+                        <LockIcon size={9}/>
+                        {t("Encrypted")}
+                    </EncryptedBadge>
+                )}
                 {showTarget && row.entry.linkTarget && (
                     <LinkTo title={row.entry.linkTarget}>→ {row.entry.linkTarget}</LinkTo>
                 )}
@@ -2036,6 +2070,7 @@ const ListRow = memo(function ListRow({
 });
 
 const IconSlot = styled.span<{ $size?: number }>`
+    position: relative;
     display: grid;
     place-items: center;
     width: ${({$size = 18}) => $size}px;
@@ -2048,6 +2083,26 @@ const IconSlot = styled.span<{ $size?: number }>`
 
     img {
         display: block;
+    }
+`;
+
+/** Sits on the icon itself, so an encrypted archive is obvious even in a dense list. */
+const EncryptedMark = styled.span`
+    position: absolute;
+    right: -4px;
+    bottom: -4px;
+    display: grid;
+    place-items: center;
+    width: 14px;
+    height: 14px;
+    border: 1px solid var(--bg-primary);
+    border-radius: 50%;
+    background: #fbbf24;
+    color: #1f2937;
+
+    svg {
+        color: inherit;
+        stroke-width: 2.4;
     }
 `;
 
@@ -2365,6 +2420,24 @@ const NameText = styled.span<{ $broken?: boolean }>`
     color: ${({$broken}) => $broken ? "#f87171" : "inherit"};
     text-decoration: ${({$broken}) => $broken ? "line-through" : "none"};
     text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
+/** A deliberate, high-contrast marker: an encrypted archive must be obvious before opening. */
+const EncryptedBadge = styled.span`
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+    padding: 1px 6px;
+    border: 1px solid rgba(251, 191, 36, 0.5);
+    border-radius: 999px;
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+    font-size: 8.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
     white-space: nowrap;
 `;
 

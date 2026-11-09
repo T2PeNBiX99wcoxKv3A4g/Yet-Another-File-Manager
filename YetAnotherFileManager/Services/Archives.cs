@@ -64,6 +64,61 @@ internal static class Archives
     public static bool IsArchive(string path) =>
         Extensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
 
+    private static readonly ConcurrentDictionary<string, (long Length, long Ticks, bool Encrypted)>
+        EncryptionCache = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    ///     Whether the archive needs a password. The answer is cached by file size and write time, so
+    ///     listing a folder with several archives only pays for opening each one once per change.
+    /// </summary>
+    public static bool IsEncrypted(string archivePath)
+    {
+        try
+        {
+            var info = new FileInfo(archivePath);
+            if (!info.Exists)
+                return false;
+
+            if (EncryptionCache.TryGetValue(info.FullName, out var cached) &&
+                cached.Length == info.Length && cached.Ticks == info.LastWriteTimeUtc.Ticks)
+                return cached.Encrypted;
+
+            var encrypted = DetectEncryption(archivePath);
+            EncryptionCache[info.FullName] = (info.Length, info.LastWriteTimeUtc.Ticks, encrypted);
+            return encrypted;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool DetectEncryption(string archivePath)
+    {
+        try
+        {
+            if (UseSevenZip(archivePath))
+            {
+                using var sevenZip = new ArchiveFile(archivePath, SevenZipLibrary.Value);
+                return sevenZip.Entries.Any(entry => entry.IsEncrypted);
+            }
+
+            using var archive = ArchiveFactory.OpenArchive(archivePath, new ReaderOptions());
+            return archive.IsEncrypted || archive.Entries.Any(entry => entry.IsEncrypted);
+        }
+        catch (Exception ex) when (ex is SharpCompress.Common.CryptographicException ||
+                                   ex.Message.Contains("password", StringComparison.OrdinalIgnoreCase) ||
+                                   ex.Message.Contains("encrypt", StringComparison.OrdinalIgnoreCase))
+        {
+            // An archive that will not even open without a password is definitely encrypted.
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     /// <summary>Whether any segment of the path is an archive file.</summary>
     public static bool IsArchiveLocation(string path) =>
         Extensions.Any(extension => path.Contains($"{extension}{Path.DirectorySeparatorChar}",

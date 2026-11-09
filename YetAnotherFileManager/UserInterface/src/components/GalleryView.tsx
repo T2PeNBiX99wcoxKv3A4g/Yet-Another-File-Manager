@@ -52,6 +52,8 @@ interface GalleryViewProps {
     onSelectionChange?: (paths: string[]) => void;
     /** Adds the selected pictures to the file tray, like the file browser's menu. */
     onAddToTray?: (paths: string[]) => void;
+    /** Pins the selected pictures to the overview's Favorites panel. */
+    onAddFavorite?: (paths: string[]) => void;
     /** Draw the right-side details pane, like the file browser and the recycle bin. */
     showDetails?: boolean;
     /** Play a video preview's audio; off means muted. */
@@ -75,6 +77,7 @@ export function GalleryView({
     onPick,
     onSelectionChange,
     onAddToTray,
+    onAddFavorite,
     showDetails = true,
     videoAudio = false,
     videoAutoplay = false,
@@ -386,6 +389,7 @@ export function GalleryView({
                             onOpenFile={open}
                             onRefresh={refresh}
                             onAddToTray={onAddToTray}
+                            onAddFavorite={onAddFavorite}
                             groupOf={groupOf}
                             onGridScroll={onScroll}
                             gridFooter={<Sentinel $space={hasMore ? MoreSpace : 1} ref={sentinel}/>}

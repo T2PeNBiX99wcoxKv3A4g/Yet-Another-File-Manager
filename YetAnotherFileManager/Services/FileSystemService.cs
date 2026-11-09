@@ -1170,7 +1170,14 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             Parallel.For(0, infos.Count, index =>
             {
                 var info = infos[index];
-                built[index] = ToEntry(info, icons.GetValueOrDefault(info.Name), links.GetValueOrDefault(info.FullName));
+                var entry = ToEntry(info, icons.GetValueOrDefault(info.Name), links.GetValueOrDefault(info.FullName));
+
+                // Only archive files pay for opening the container; the result is cached by its
+                // size and timestamp, so a folder listing is not re-reading the same archive.
+                if (!entry.IsDirectory && Archives.IsArchive(info.Name))
+                    entry = entry with {IsEncrypted = Archives.IsEncrypted(info.FullName)};
+
+                built[index] = entry;
             });
 
             return built
