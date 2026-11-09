@@ -728,5 +728,9 @@
   "No favorites yet. Right-click any file or folder and add it here.": "お気に入りはまだありません。任意のファイルまたはフォルダーを右クリックして追加できます。",
   "Logs": "ログ",
   "Application logs and crash details. Open the folder here to inspect them without leaving the app.": "アプリのログとクラッシュ情報です。アプリを離れずにここからフォルダーを開いて確認できます。",
-  "Open log folder": "ログフォルダーを開く"
+  "Open log folder": "ログフォルダーを開く",
+  "Pasted text": "貼り付けたテキスト",
+  "Pasted image": "貼り付けた画像",
+  "Paste text": "テキストを貼り付け",
+  "Paste image": "画像を貼り付け"
 }

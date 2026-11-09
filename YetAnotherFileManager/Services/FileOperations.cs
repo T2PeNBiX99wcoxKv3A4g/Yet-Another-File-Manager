@@ -8,6 +8,7 @@ using SharpCompress.Common;
 using SharpCompress.Writers;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Interop;
+using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Utils;
 using Serilog;
 using YetAnotherFileManager.Interop;
@@ -147,13 +148,25 @@ internal static partial class FileOperations
     private static async Task<bool> PasteContentAsync(string directory)
     {
         if (ReadClipboardImage() is { Length: > 0 } image)
-            return await CreatePastedFileAsync(directory, "Pasted image", ".png", image, "Paste image");
+            return await CreatePastedFileAsync(directory, PastedName("Pasted image", "Pasted image"), ".png", image,
+                "Paste image");
 
         if (ReadClipboardText() is { Length: > 0 } text)
-            return await CreatePastedFileAsync(directory, "Pasted text", ".txt", Encoding.UTF8.GetBytes(text),
-                "Paste text");
+            return await CreatePastedFileAsync(directory, PastedName("Pasted text", "Pasted text"), ".txt",
+                Encoding.UTF8.GetBytes(text), "Paste text");
 
         return false;
+    }
+
+    /// <summary>The file name stem in the current UI language, safe for a real file name.</summary>
+    private static string PastedName(string key, string fallback)
+    {
+        var name = Localization.Get(key).Trim();
+
+        foreach (var invalid in Path.GetInvalidFileNameChars())
+            name = name.Replace(invalid, '_');
+
+        return name.Length > 0 ? name : fallback;
     }
 
     private static async Task<bool> CreatePastedFileAsync(string directory, string baseName, string extension,

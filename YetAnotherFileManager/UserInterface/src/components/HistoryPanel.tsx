@@ -103,6 +103,8 @@ export function HistoryPanel() {
 function historyLabel(t: Translate, label: string): string {
     if (label === "New folder") return t("New folder");
     if (label === "New file") return t("New file");
+    if (label === "Paste text") return t("Paste text");
+    if (label === "Paste image") return t("Paste image");
 
     const counted = label.match(/^(Move|Copy|Delete) (\d+) item\(s\)$/);
     if (counted) {
