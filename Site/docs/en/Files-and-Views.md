@@ -44,9 +44,12 @@ Right-click a file, a folder or the empty background:
 - **Open**, **Open in new tab**, **Open with** (including the shell's own *Open with* dialog).
 - **Cut**, **Copy**, **Paste**, **Paste into folder**.
 - **Rename** (`F2`), **Delete** (`Del`), **Delete permanently** (`Shift+Del`).
-- **New folder** (`F10`), **Compress to ZIP**, **Copy as path**.
+- **New folder** (`Ctrl+Shift+N`, or `F10`), **Compress to ZIP**, **Compress to…**, **Copy as path**.
 - **Show in Explorer**, **Open in Terminal**, **Properties**.
 
 Delete moves items to the recycle bin by default; permanent deletion is a separate action and can be
 made to ask first in [Settings](Settings-and-Shortcuts). Undo and redo cover the operations made in
 the current session.
+
+Archives open as folders here, and can be unpacked or created from the same menu; see
+[Archives](Archives).
