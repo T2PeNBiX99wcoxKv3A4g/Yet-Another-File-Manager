@@ -91,6 +91,10 @@ interface FileMenuProps {
     onAddToTray?: (paths: string[]) => void;
     /** Pins the selected files and folders to the overview's Favorites panel. */
     onAddFavorite?: (paths: string[]) => void;
+    /** Removes the selected paths from Favorites when they are already pinned. */
+    onRemoveFavorite?: (paths: string[]) => void;
+    /** Normalized favorite paths, so the menu can offer the opposite action. */
+    favoritePaths?: string[];
     /** Extracts one archive to the chosen place; "choose" asks for a folder first. */
     onExtractArchive?: (path: string, mode: ArchiveExtractMode) => void;
     allowCompression?: boolean;
@@ -105,7 +109,7 @@ interface FileMenuProps {
 export function FileMenu({
     menu, directory, target, shortcuts, canPaste = false, onClose,
     onOpen, onOpenFile, onRename, onDelete, onCopy, onPaste, onCreateFolder, onCreateFile, creationOnly = false,
-    onRefresh, onAddToTray, onAddFavorite, onExtractArchive, allowCompression = false, onCompressTo, onArchiveCreated,
+    onRefresh, onAddToTray, onAddFavorite, onRemoveFavorite, favoritePaths, onExtractArchive, allowCompression = false, onCompressTo, onArchiveCreated,
 }: FileMenuProps) {
     const t = useTranslation();
     const linkSource = useLinkSource();
@@ -192,6 +196,9 @@ export function FileMenu({
 
     const items: ContextMenuItem[] = [];
     const quick: ContextMenuItem[] = [];
+    const favoriteSet = new Set((favoritePaths ?? []).map(normalizePath));
+    const allFavorites = menu.paths.length > 0
+        && menu.paths.every((path) => favoriteSet.has(normalizePath(path)));
 
     const selectedArchiveName = () => {
         if (!single || !target) return "Archive";
@@ -645,10 +652,13 @@ export function FileMenu({
             });
         }
 
-        if (onAddFavorite && !archiveView) {
+        if (!archiveView && (allFavorites ? onRemoveFavorite : onAddFavorite)) {
             items.push({
-                label: t("Add to favorites"), icon: <HeartIcon size={14}/>,
-                onSelect: () => onAddFavorite(menu.paths),
+                label: allFavorites ? t("Remove from favorites") : t("Add to favorites"),
+                icon: <HeartIcon size={14}/>,
+                onSelect: () => allFavorites
+                    ? onRemoveFavorite?.(menu.paths)
+                    : onAddFavorite?.(menu.paths),
             });
         }
 

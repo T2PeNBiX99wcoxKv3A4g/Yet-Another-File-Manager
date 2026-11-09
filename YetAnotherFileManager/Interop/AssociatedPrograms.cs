@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using Microsoft.Win32;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
 using Serilog;
@@ -28,25 +29,51 @@ internal static unsafe partial class AssociatedPrograms
             || (!File.Exists(filePath) && !Directory.Exists(filePath)))
             return new OpenWithProgramsPayload([], []);
 
-        var association = Directory.Exists(filePath) ? "Directory" : Path.GetExtension(filePath);
-        if (string.IsNullOrEmpty(association))
+        var isDirectory = Directory.Exists(filePath);
+        string[] associations = isDirectory ? ["Folder", "Directory"] : [Path.GetExtension(filePath)];
+
+        if (!isDirectory && string.IsNullOrEmpty(associations[0]))
             return new OpenWithProgramsPayload([], []);
 
         var ole = OleInitialize(IntPtr.Zero);
 
         try
         {
-            var recommended = ReadHandlers(association, FilterRecommended);
-            var other = ReadHandlers(association, FilterAll);
+            var recommended = new List<OpenWithProgram>();
+            var other = new List<OpenWithProgram>();
+
+            // A folder has two associations; Windows splits its handlers between them.
+            foreach (var association in associations)
+            {
+                recommended.AddRange(ReadHandlers(association, FilterRecommended));
+                other.AddRange(ReadHandlers(association, FilterAll));
+            }
+
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            recommended = recommended.Where(program => seen.Add(KeyOf(program))).ToList();
 
-            recommended = recommended
-                .Where(program => seen.Add(program.Path.Length > 0 ? program.Path : program.Name))
-                .ToList();
+            if (isDirectory)
+            {
+                // "Open with" for a folder otherwise includes every wildcard file handler, so the
+                // menu filled up with Notepad, IDEs and media players that cannot open a folder.
+                // Keep only programs that registered a Directory/Folder shell verb.
+                var handlers = DirectoryHandlerExecutables();
+                if (handlers is not null)
+                    other = other.Where(program => IsDirectoryHandler(program, handlers)).ToList();
+            }
 
-            other = other
-                .Where(program => seen.Add(program.Path.Length > 0 ? program.Path : program.Name))
-                .ToList();
+            other = other.Where(program => seen.Add(KeyOf(program))).ToList();
+
+            if (isDirectory)
+            {
+                // Explorer is the shell's default folder action, not an Open with handler, so it is
+                // missing from the enumeration even though it is the obvious alternative.
+                var explorer = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+                    "explorer.exe");
+                var program = new OpenWithProgram("File Explorer", explorer, IconFor(explorer));
+                if (File.Exists(explorer) && seen.Add(KeyOf(program)))
+                    recommended.Add(program);
+            }
 
             return new OpenWithProgramsPayload(recommended, other);
         }
@@ -60,6 +87,81 @@ internal static unsafe partial class AssociatedPrograms
             if (ole >= 0)
                 OleUninitialize();
         }
+    }
+
+    private static string KeyOf(OpenWithProgram program) =>
+        program.Path.Length > 0 ? program.Path : program.Name;
+
+    /// <summary>
+    ///     Executable names registered under the Directory and Folder shell verbs. These are the
+    ///     programs that actually accept a folder; wildcard file handlers are deliberately absent.
+    /// </summary>
+    private static HashSet<string>? DirectoryHandlerExecutables()
+    {
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            foreach (var root in new[]{Registry.CurrentUser, Registry.LocalMachine})
+            foreach (var association in new[]{"Directory", "Folder"})
+            {
+                using var shell = root.OpenSubKey($@"Software\Classes\{association}\shell");
+                if (shell is null)
+                    continue;
+
+                foreach (var verb in shell.GetSubKeyNames())
+                {
+                    using var command = shell.OpenSubKey($@"{verb}\command");
+                    if (command?.GetValue(null) is string value)
+                        AddExecutable(names, value);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Could not read the directory shell verbs");
+            return null;
+        }
+
+        return names;
+    }
+
+    private static void AddExecutable(HashSet<string> names, string command)
+    {
+        var expanded = Environment.ExpandEnvironmentVariables(command.Trim());
+        if (expanded.Length == 0)
+            return;
+
+        string executable;
+        if (expanded[0] == '"')
+        {
+            var end = expanded.IndexOf('"', 1);
+            if (end <= 1)
+                return;
+            executable = expanded[1..end];
+        }
+        else
+        {
+            var end = expanded.IndexOf(' ');
+            executable = end > 0 ? expanded[..end] : expanded;
+        }
+
+        executable = executable.Trim();
+        if (executable.Length == 0)
+            return;
+
+        names.Add(Path.GetFileName(executable));
+        if (Path.IsPathRooted(executable))
+            names.Add(Path.GetFullPath(executable));
+    }
+
+    private static bool IsDirectoryHandler(OpenWithProgram program, HashSet<string> names)
+    {
+        if (program.Path.Length == 0
+            || !program.Path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return names.Contains(program.Path) || names.Contains(Path.GetFileName(program.Path));
     }
 
     /// <summary>Runs the chosen application with the file, or answers false when it is not a plain exe.</summary>

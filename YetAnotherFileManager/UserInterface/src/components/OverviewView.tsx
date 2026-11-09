@@ -89,6 +89,10 @@ interface OverviewViewProps {
     onAddToTray?: (paths: string[]) => void;
     /** Pins an entry to the Favorites panel from the overview's own context menu. */
     onAddFavorite?: (paths: string[]) => void;
+    /** Removes an entry from Favorites when it is already pinned. */
+    onRemoveFavorite?: (paths: string[]) => void;
+    /** Normalized favorite paths, so the menu can pick Add or Remove. */
+    favoritePaths?: string[];
     /** Extracts an archive selected in a folder panel. */
     onExtractArchive?: (path: string, mode: ArchiveExtractMode) => void;
     /** Bumped when the app reloaded settings, so the favorites (and layout) stay in step. */
@@ -1336,6 +1340,8 @@ export function OverviewView({
     onSelectionChange,
     onAddToTray,
     onAddFavorite,
+    onRemoveFavorite,
+    favoritePaths,
     onExtractArchive,
     settingsVersion = 0,
 }: OverviewViewProps) {
@@ -2922,6 +2928,8 @@ export function OverviewView({
                     onCopy={(paths, cut) => void copyPaths(paths, cut)}
                     onAddToTray={onAddToTray}
                     onAddFavorite={onAddFavorite}
+                    onRemoveFavorite={onRemoveFavorite}
+                    favoritePaths={favoritePaths}
                     onExtractArchive={onExtractArchive}
                     onOpen={openMenuTarget}
                     onOpenFile={(path) => onPick ? onPick(path) : void openFile(path)}

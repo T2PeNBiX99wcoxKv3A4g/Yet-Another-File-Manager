@@ -55,6 +55,10 @@ interface GalleryViewProps {
     onAddToTray?: (paths: string[]) => void;
     /** Pins the selected pictures to the overview's Favorites panel. */
     onAddFavorite?: (paths: string[]) => void;
+    /** Removes the selected pictures from Favorites. */
+    onRemoveFavorite?: (paths: string[]) => void;
+    /** Normalized favorite paths, so the menu can pick Add or Remove. */
+    favoritePaths?: string[];
     /** Extracts an archive selected in the gallery. */
     onExtractArchive?: (path: string, mode: ArchiveExtractMode) => void;
     /** Draw the right-side details pane, like the file browser and the recycle bin. */
@@ -81,6 +85,8 @@ export function GalleryView({
     onSelectionChange,
     onAddToTray,
     onAddFavorite,
+    onRemoveFavorite,
+    favoritePaths,
     onExtractArchive,
     showDetails = true,
     videoAudio = false,
@@ -394,6 +400,8 @@ export function GalleryView({
                             onRefresh={refresh}
                             onAddToTray={onAddToTray}
                             onAddFavorite={onAddFavorite}
+                            onRemoveFavorite={onRemoveFavorite}
+                            favoritePaths={favoritePaths}
                             onExtractArchive={onExtractArchive}
                             groupOf={groupOf}
                             onGridScroll={onScroll}

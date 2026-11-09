@@ -352,6 +352,10 @@ export default function App() {
     const [recent, setRecent] = useState<RecentEntry[]>([]);
     const [recentLimit, setRecentLimit] = useState(10);
     const [settings, setSettings] = useState<AppSettings | null>(null);
+    /** Normalized favorite paths; the context menu offers Remove for entries already pinned. */
+    const favoritePaths = useMemo(
+        () => (settings?.favorites ?? []).map((entry) => normalizePath(entry.path)),
+        [settings?.favorites]);
     const [historyVersion, setHistoryVersion] = useState(0);
     const [shortcuts, setShortcuts] = useState<ShortcutMap>(DefaultShortcuts);
     const [settingsVersion, setSettingsVersion] = useState(0);
@@ -1185,6 +1189,21 @@ export default function App() {
         if (added.length === 0) return;
 
         const next = {...current, favorites: [...(current.favorites ?? []), ...added]};
+        setSettings(next);
+        await saveSettings(next);
+        setSettingsVersion((value) => value + 1);
+    }, []);
+
+    /** Drops the selected paths from the overview's Favorites panel. */
+    const removeFavoritePaths = useCallback(async (paths: string[]) => {
+        const current = settingsRef.current;
+        if (!current) return;
+
+        const remove = new Set(paths.map(normalizePath));
+        const favorites = (current.favorites ?? []).filter((entry) => !remove.has(normalizePath(entry.path)));
+        if (favorites.length === (current.favorites ?? []).length) return;
+
+        const next = {...current, favorites};
         setSettings(next);
         await saveSettings(next);
         setSettingsVersion((value) => value + 1);
@@ -2090,6 +2109,8 @@ export default function App() {
                 onTransfer={transferTo}
                 onAddToTray={(paths) => void addTrayPaths(paths)}
                 onAddFavorite={(paths) => void addFavoritePaths(paths)}
+                onRemoveFavorite={(paths) => void removeFavoritePaths(paths)}
+                favoritePaths={favoritePaths}
                 onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
                 openOnSingleClick={settings?.openOnSingleClick ?? false}
                 pendingRename={renameRequest
@@ -2668,6 +2689,8 @@ export default function App() {
                             onHistoryChanged={() => setHistoryVersion((current) => current + 1)}
                             onAddToTray={(paths) => void addTrayPaths(paths)}
                             onAddFavorite={(paths) => void addFavoritePaths(paths)}
+                            onRemoveFavorite={(paths) => void removeFavoritePaths(paths)}
+                            favoritePaths={favoritePaths}
                             onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
                             settingsVersion={settingsVersion}
                             onOpen={navigate}
@@ -2695,6 +2718,8 @@ export default function App() {
                             openOnSingleClick={settings?.openOnSingleClick ?? false}
                             onAddToTray={(paths) => void addTrayPaths(paths)}
                             onAddFavorite={(paths) => void addFavoritePaths(paths)}
+                            onRemoveFavorite={(paths) => void removeFavoritePaths(paths)}
+                            favoritePaths={favoritePaths}
                             onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
                             shortcuts={shortcuts}
                             showCheckboxes={settings?.showCheckboxes ?? true}
@@ -2775,6 +2800,8 @@ export default function App() {
                     menu={{x: pathMenu.x, y: pathMenu.y, paths: [pathMenu.path]}}
                     onAddToTray={(paths) => void addTrayPaths(paths)}
                     onAddFavorite={(paths) => void addFavoritePaths(paths)}
+                    onRemoveFavorite={(paths) => void removeFavoritePaths(paths)}
+                    favoritePaths={favoritePaths}
                     onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
                     onArchiveCreated={(created) => {
                         if (created) refreshFolderTabs(parentOf(pathMenu.path) ?? pathMenu.path);

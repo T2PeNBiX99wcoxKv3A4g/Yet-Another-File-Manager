@@ -96,6 +96,10 @@ interface FileListProps {
     onAddToTray?: (paths: string[]) => void;
     /** Pins the selection to the overview's Favorites panel. */
     onAddFavorite?: (paths: string[]) => void;
+    /** Removes the selection from Favorites; shown when every selected path is already pinned. */
+    onRemoveFavorite?: (paths: string[]) => void;
+    /** Normalized favorite paths, so the menu can pick Add or Remove. */
+    favoritePaths?: string[];
     /** Extracts an archive selected in the list to the chosen place. */
     onExtractArchive?: (path: string, mode: ArchiveExtractMode) => void;
     /** Called after a paste, so the tray can drop entries the move consumed. */
@@ -154,7 +158,7 @@ export function FileList({
     onImageStripHeight, onSort, onSetTags, onOpen, onOpenFile, showCheckboxes = true,
     openOnSingleClick = false, shortcuts = DefaultShortcuts, enableShortcuts = true, refreshToken = 0, onRefresh,
     onRename,
-    onClipboardChanged, onTransfer, onAddToTray, onAddFavorite, onExtractArchive, onPaste, confirmDelete = false, previewVideoAudio = false,
+    onClipboardChanged, onTransfer, onAddToTray, onAddFavorite, onRemoveFavorite, favoritePaths, onExtractArchive, onPaste, confirmDelete = false, previewVideoAudio = false,
     previewVideoAutoplay = false, showDetails = true, onPreviewInfo, onActivate,
     groupOf, onGridScroll, gridFooter, allowBackgroundMenu = true, readOnly = false, onSelectionChange,
     onSelectionCountChange, selectionMenuRequest, selectionMenuId,
@@ -1150,6 +1154,8 @@ export function FileList({
                     menu={menu}
                     onAddToTray={onAddToTray}
                     onAddFavorite={onAddFavorite}
+                    onRemoveFavorite={onRemoveFavorite}
+                    favoritePaths={favoritePaths}
                     onExtractArchive={onExtractArchive}
                     onArchiveCreated={archiveCreated}
                     onClose={closeMenu}
@@ -1352,6 +1358,8 @@ export function FileList({
                     menu={menu}
                     onAddToTray={onAddToTray}
                     onAddFavorite={onAddFavorite}
+                    onRemoveFavorite={onRemoveFavorite}
+                    favoritePaths={favoritePaths}
                     onExtractArchive={onExtractArchive}
                     onArchiveCreated={archiveCreated}
                     onClose={closeMenu}
