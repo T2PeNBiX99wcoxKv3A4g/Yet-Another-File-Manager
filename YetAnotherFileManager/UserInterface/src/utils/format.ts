@@ -5,7 +5,7 @@ import type {Translate} from "@photino-net-utils/bridge";
  * carrying a "(s)" marker. Languages without plural forms translate both keys the same way.
  */
 export function plural(t: Translate, count: number, one: string, many: string,
-    params: Record<string, string | number> = {}): string {
+                       params: Record<string, string | number> = {}): string {
     return t(count === 1 ? one : many, {count, ...params});
 }
 
@@ -54,7 +54,7 @@ export function formatDate(unixMilliseconds: number): string {
 
 /** Same as formatDate but with an explicit format, for the settings preview. */
 export function formatDateWith(unixMilliseconds: number, format: string | null | undefined,
-    pattern: string | null | undefined): string {
+                               pattern: string | null | undefined): string {
     if (unixMilliseconds <= 0) return "—";
 
     const date = new Date(unixMilliseconds);

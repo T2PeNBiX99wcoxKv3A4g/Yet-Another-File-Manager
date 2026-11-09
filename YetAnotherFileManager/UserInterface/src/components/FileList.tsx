@@ -1,40 +1,48 @@
 import {
-    memo, useCallback, useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent,
+    type DragEvent as ReactDragEvent,
+    memo,
     type MouseEvent as ReactMouseEvent,
-    type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject,
+    type PointerEvent as ReactPointerEvent,
+    type ReactNode,
+    type RefObject,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
 } from "react";
 import styled from "styled-components";
-import {wantsNewTab, isTyping, comboOf, DefaultShortcuts, type ShortcutMap} from "../shortcuts";
+import {comboOf, DefaultShortcuts, isTyping, type ShortcutMap, wantsNewTab} from "../shortcuts";
 import type {DirectoryListing, FileEntry, Place, ResolvedView} from "../api/files";
 import {useIcon, useIconFile, useThumbnail} from "../api/icons";
 import {
+    type CompressOptions,
     compressPaths,
     copyPaths,
     deletePaths,
     hasClipboardFiles,
-    newFolder,
     newFile,
+    newFolder,
     openTerminal,
     pasteInto,
     renamePath,
-    type CompressOptions,
     showProperties,
 } from "../api/operations";
-import {NoFind, rangesOf, type FindView} from "../find";
-import {canPreview, previewKindOf, PreviewKindLabels} from "../preview";
+import {type FindView, NoFind, rangesOf} from "../find";
+import {canPreview, PreviewKindLabels, previewKindOf} from "../preview";
 import {quickPlace, useQuickAccess} from "../quick";
 import {baseName, formatBytes, formatDate, plural} from "../utils/format";
 import {readStoredNumber, writeStoredNumber} from "../storage";
-import {useTranslation, type Translate} from "@photino-net-utils/bridge";
+import {type Translate, useTranslation} from "@photino-net-utils/bridge";
 import {CheckIcon, FolderIcon, LinkIcon, LockIcon} from "./Icons";
-import {FileMenu, type ArchiveExtractMode} from "./FileMenu";
+import {type ArchiveExtractMode, FileMenu} from "./FileMenu";
 import {CompressDialog} from "./CompressDialog";
 import {ConfirmDialog} from "./ConfirmDialog";
-import {PreviewPane, type PreviewInfo} from "./PreviewPane";
+import {type PreviewInfo, PreviewPane} from "./PreviewPane";
 import {PlaceIcon} from "./PlaceIcon";
-import {TagPicker, DefaultTagColor, inkFor} from "./TagPicker";
+import {DefaultTagColor, inkFor, TagPicker} from "./TagPicker";
 import {BuiltinIcon, iconForName} from "../icons/fileTypes";
-import {readDraggedPaths, writeDraggedPaths, isPathDrag} from "./FileTray";
+import {isPathDrag, readDraggedPaths, writeDraggedPaths} from "./FileTray";
 import {showMessage} from "../api/dialogs";
 import {setSelectionMenu} from "../ui/selectionMenu";
 
@@ -154,16 +162,52 @@ const DefaultStripHeight = 190;
 const MinStripHeight = 120;
 
 export function FileList({
-    listing, loading, error, find = NoFind, view, showImages, imageStripHeight = DefaultStripHeight,
-    onImageStripHeight, onSort, onSetTags, onOpen, onOpenFile, showCheckboxes = true,
-    openOnSingleClick = false, shortcuts = DefaultShortcuts, enableShortcuts = true, refreshToken = 0, onRefresh,
-    onRename,
-    onClipboardChanged, onTransfer, onAddToTray, onAddFavorite, onRemoveFavorite, favoritePaths, onExtractArchive, onPaste, confirmDelete = false, previewVideoAudio = false,
-    previewVideoAutoplay = false, showDetails = true, onPreviewInfo, onActivate,
-    groupOf, onGridScroll, gridFooter, allowBackgroundMenu = true, readOnly = false, onSelectionChange,
-    onSelectionCountChange, selectionMenuRequest, selectionMenuId,
-    singleSelect = false, pendingRename = null, pendingRenameToken = 0,
-}: FileListProps) {
+                             listing,
+                             loading,
+                             error,
+                             find = NoFind,
+                             view,
+                             showImages,
+                             imageStripHeight = DefaultStripHeight,
+                             onImageStripHeight,
+                             onSort,
+                             onSetTags,
+                             onOpen,
+                             onOpenFile,
+                             showCheckboxes = true,
+                             openOnSingleClick = false,
+                             shortcuts = DefaultShortcuts,
+                             enableShortcuts = true,
+                             refreshToken = 0,
+                             onRefresh,
+                             onRename,
+                             onClipboardChanged,
+                             onTransfer,
+                             onAddToTray,
+                             onAddFavorite,
+                             onRemoveFavorite,
+                             favoritePaths,
+                             onExtractArchive,
+                             onPaste,
+                             confirmDelete = false,
+                             previewVideoAudio = false,
+                             previewVideoAutoplay = false,
+                             showDetails = true,
+                             onPreviewInfo,
+                             onActivate,
+                             groupOf,
+                             onGridScroll,
+                             gridFooter,
+                             allowBackgroundMenu = true,
+                             readOnly = false,
+                             onSelectionChange,
+                             onSelectionCountChange,
+                             selectionMenuRequest,
+                             selectionMenuId,
+                             singleSelect = false,
+                             pendingRename = null,
+                             pendingRenameToken = 0,
+                         }: FileListProps) {
     const t = useTranslation();
     const quick = useQuickAccess();
     const currentRow = useRef<HTMLDivElement | null>(null);
@@ -201,7 +245,7 @@ export function FileList({
     }, [selectionMenuRequest]);
     const [menu, setMenu] = useState<{ x: number; y: number; paths: string[]; background: boolean } | null>(null);
     const lastSelectionMenu = useRef(0);
-    const [compressDialog, setCompressDialog] = useState<{paths: string[]; name: string} | null>(null);
+    const [compressDialog, setCompressDialog] = useState<{ paths: string[]; name: string } | null>(null);
     const [pendingConfirm, setPendingConfirm] = useState<{
         paths: string[];
         permanent: boolean;
@@ -1047,7 +1091,8 @@ export function FileList({
     const menuEntry = menuTargetPath ? rows.find((row) => row.entry.fullPath === menuTargetPath)?.entry : undefined;
     const menuTarget = menuEntry ? {path: menuEntry.fullPath, isDirectory: menuEntry.isDirectory} : null;
 
-    const previewInfo = selectionInfo ?? directoryInfo;    const previewInfoRef = useRef(onPreviewInfo);
+    const previewInfo = selectionInfo ?? directoryInfo;
+    const previewInfoRef = useRef(onPreviewInfo);
     previewInfoRef.current = onPreviewInfo;
 
     useEffect(() => {
@@ -1075,106 +1120,106 @@ export function FileList({
         return (
             <SplitPane onPointerDown={onActivate}>
                 <Wrapper>
-                <GridBody
-                    onClick={(event) => {
-                        if (!(event.target instanceof Element) || !event.target.closest("[data-path]"))
-                            clearSelection();
-                    }}
-                    onContextMenu={(event) => openMenu(event)}
-                    onDragOver={overListDrag}
-                    onDragStart={startListDrag}
-                    onDrop={dropOnList}
-                    onScroll={(event) => {
-                        onGridScroll?.(event.currentTarget);
-                        growRows(event.currentTarget);
-                    }}
-                >
-                    {showCheckboxes && rows.length > 0 && (
-                        <GridSelectAll>
-                            <SelectAll
-                                $checked={!singleSelect && allSelected}
-                                $partial={!singleSelect && someSelected}
-                                aria-label={allSelected ? t("Select none") : t("Select all")}
-                                disabled={singleSelect}
-                                onClick={toggleAll}
-                                title={allSelected ? t("Select none") : t("Select all")}
-                                type="button"
-                            >
-                                {allSelected ? <CheckIcon size={10}/> : someSelected ? <Dash/> : null}
-                            </SelectAll>
-                            <span>{allSelected ? t("Select none") : t("Select all")}</span>
-                        </GridSelectAll>
-                    )}
+                    <GridBody
+                        onClick={(event) => {
+                            if (!(event.target instanceof Element) || !event.target.closest("[data-path]"))
+                                clearSelection();
+                        }}
+                        onContextMenu={(event) => openMenu(event)}
+                        onDragOver={overListDrag}
+                        onDragStart={startListDrag}
+                        onDrop={dropOnList}
+                        onScroll={(event) => {
+                            onGridScroll?.(event.currentTarget);
+                            growRows(event.currentTarget);
+                        }}
+                    >
+                        {showCheckboxes && rows.length > 0 && (
+                            <GridSelectAll>
+                                <SelectAll
+                                    $checked={!singleSelect && allSelected}
+                                    $partial={!singleSelect && someSelected}
+                                    aria-label={allSelected ? t("Select none") : t("Select all")}
+                                    disabled={singleSelect}
+                                    onClick={toggleAll}
+                                    title={allSelected ? t("Select none") : t("Select all")}
+                                    type="button"
+                                >
+                                    {allSelected ? <CheckIcon size={10}/> : someSelected ? <Dash/> : null}
+                                </SelectAll>
+                                <span>{allSelected ? t("Select none") : t("Select all")}</span>
+                            </GridSelectAll>
+                        )}
 
-                    {loading && !listing
-                        ? <Tiles $size={view.gridSize}><PlaceholderTiles size={view.gridSize}/></Tiles>
-                        : <GridContent
-                            counts={listing?.counts}
-                            currentPath={searching ? find.currentPath : null}
-                            groups={groups}
-                            gridSize={view.gridSize}
-                            innerRef={currentRow}
-                            onContextMenu={openMenu}
+                        {loading && !listing
+                            ? <Tiles $size={view.gridSize}><PlaceholderTiles size={view.gridSize}/></Tiles>
+                            : <GridContent
+                                counts={listing?.counts}
+                                currentPath={searching ? find.currentPath : null}
+                                groups={groups}
+                                gridSize={view.gridSize}
+                                innerRef={currentRow}
+                                onContextMenu={openMenu}
+                                onOpen={onOpen}
+                                onOpenFile={onOpenFile}
+                                onRenameCancel={cancelRename}
+                                onRenameChange={changeRename}
+                                onRenameCommit={commitRename}
+                                onSelect={selectRow}
+                                onToggle={toggleRow}
+                                openOnSingleClick={openOnSingleClick}
+                                renaming={renaming}
+                                searching={searching}
+                                selected={selected}
+                                showCheckboxes={showCheckboxes}
+                                showTarget={showTarget}
+                            />}
+
+                        {!loading && listing && rows.length === 0 && (
+                            <EmptyCell>
+                                <Muted>
+                                    {error ?? (searching && find.mode === "hide"
+                                        ? t("No entries match the search.")
+                                        : t("This folder is empty."))}
+                                </Muted>
+                            </EmptyCell>
+                        )}
+
+                        {gridFooter}
+                    </GridBody>
+
+                    {menu && (
+                        <FileMenu
+                            canPaste={canPaste}
+                            directory={currentDirectory}
+                            allowCompression
+                            menu={menu}
+                            onAddToTray={onAddToTray}
+                            onAddFavorite={onAddFavorite}
+                            onRemoveFavorite={onRemoveFavorite}
+                            favoritePaths={favoritePaths}
+                            onExtractArchive={onExtractArchive}
+                            onArchiveCreated={archiveCreated}
+                            onClose={closeMenu}
+                            onCompressTo={(paths, name) => setCompressDialog({paths, name})}
+                            onCopy={copy}
+                            onCreateFile={(extension) => void createEntry(extension)}
+                            onCreateFolder={(caseSensitive) => void createEntry(null, caseSensitive)}
+                            onDelete={remove}
                             onOpen={onOpen}
                             onOpenFile={onOpenFile}
-                            onRenameCancel={cancelRename}
-                            onRenameChange={changeRename}
-                            onRenameCommit={commitRename}
-                            onSelect={selectRow}
-                            onToggle={toggleRow}
-                            openOnSingleClick={openOnSingleClick}
-                            renaming={renaming}
-                            searching={searching}
-                            selected={selected}
-                            showCheckboxes={showCheckboxes}
-                            showTarget={showTarget}
-                        />}
-
-                    {!loading && listing && rows.length === 0 && (
-                        <EmptyCell>
-                            <Muted>
-                                {error ?? (searching && find.mode === "hide"
-                                    ? t("No entries match the search.")
-                                    : t("This folder is empty."))}
-                            </Muted>
-                        </EmptyCell>
+                            onPaste={paste}
+                            onRefresh={refresh}
+                            onRename={(path) => {
+                                const target = rows.find((row) => row.entry.fullPath === path)?.entry;
+                                if (target) rename(target);
+                            }}
+                            shortcuts={shortcuts}
+                            target={menuTarget}
+                        />
                     )}
-
-                    {gridFooter}
-                </GridBody>
-
-                {menu && (
-                <FileMenu
-                    canPaste={canPaste}
-                    directory={currentDirectory}
-                    allowCompression
-                    menu={menu}
-                    onAddToTray={onAddToTray}
-                    onAddFavorite={onAddFavorite}
-                    onRemoveFavorite={onRemoveFavorite}
-                    favoritePaths={favoritePaths}
-                    onExtractArchive={onExtractArchive}
-                    onArchiveCreated={archiveCreated}
-                    onClose={closeMenu}
-                    onCompressTo={(paths, name) => setCompressDialog({paths, name})}
-                    onCopy={copy}
-                    onCreateFile={(extension) => void createEntry(extension)}
-                    onCreateFolder={(caseSensitive) => void createEntry(null, caseSensitive)}
-                    onDelete={remove}
-                    onOpen={onOpen}
-                    onOpenFile={onOpenFile}
-                    onPaste={paste}
-                    onRefresh={refresh}
-                    onRename={(path) => {
-                        const target = rows.find((row) => row.entry.fullPath === path)?.entry;
-                        if (target) rename(target);
-                    }}
-                    shortcuts={shortcuts}
-                    target={menuTarget}
-                />
-            )}
-                {compressDialogElement}
-                {confirmDialog}
+                    {compressDialogElement}
+                    {confirmDialog}
                 </Wrapper>
                 {previewPane}
             </SplitPane>
@@ -1183,202 +1228,203 @@ export function FileList({
     return (
         <SplitPane onPointerDown={onActivate}>
             <Wrapper>
-            <Head
-                onScroll={(event) => {
-                    if (body.current && body.current.scrollLeft !== event.currentTarget.scrollLeft)
-                        body.current.scrollLeft = event.currentTarget.scrollLeft;
-                }}
-                ref={head}
-                style={{gridTemplateColumns: template}}
-            >
-                <HeaderName>
-                    {showCheckboxes && (
-                        <SelectAll
-                            $checked={!singleSelect && allSelected}
-                            $partial={!singleSelect && someSelected}
-                            aria-label={allSelected ? t("Select none") : t("Select all")}
-                            disabled={singleSelect}
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                toggleAll();
-                            }}
-                            title={allSelected ? t("Select none") : t("Select all")}
-                            type="button"
-                        >
-                            {allSelected ? <CheckIcon size={10}/> : someSelected ? <Dash/> : null}
-                        </SelectAll>
-                    )}
-                    <HeaderButton onClick={() => onSort("name")} type="button">
-                        {t("Name")}{markOf(view, "name")}
-                    </HeaderButton>
-                </HeaderName>
-                {visible.map((column) => (
-                    <HeaderButton key={column.id} onClick={() => onSort(column.id)} type="button">
-                        {t(column.label)}{markOf(view, column.id)}
-                    </HeaderButton>
-                ))}
-            </Head>
-
-            <Body
-                onClick={(event) => {
-                    if (event.target === event.currentTarget) clearSelection();
-                }}
-                onContextMenu={(event) => openMenu(event)}
-                onDragOver={overListDrag}
-                onDragStart={startListDrag}
-                onDrop={dropOnList}
-                onScroll={(event) => {
-                    if (head.current && head.current.scrollLeft !== event.currentTarget.scrollLeft)
-                        head.current.scrollLeft = event.currentTarget.scrollLeft;
-
-                    const node = event.currentTarget;
-                    setListWindow((current) => current.top === node.scrollTop && current.height === node.clientHeight
-                        ? current
-                        : {top: node.scrollTop, height: node.clientHeight});
-                }}
-                ref={body}
-            >
-                {loading && !listing
-                    ? <PlaceholderRows template={template} columns={visible.length}/>
-                    : (
-                        <>
-                            {windowStart > 0 && <div style={{height: windowStart * rowHeight}}/>}
-                            {windowRows.map((row) => {
-                                const path = row.entry.fullPath;
-
-                                return (
-                                    <ListRow
-                                        current={searching && path === find.currentPath}
-                                        dim={searching && row.ranges === null}
-                                        height={rowHeight}
-                                        iconSize={view.iconSize}
-                                        innerRef={currentRow}
-                                        key={path}
-                                        listing={listing!}
-                                        onContextMenu={openMenu}
-                                        onOpen={openRow}
-                                        onRenameCancel={cancelRename}
-                                        onRenameChange={changeRename}
-                                        onRenameCommit={commitRename}
-                                        onSelect={selectRow}
-                                        onTagEdit={editTags}
-                                        onToggle={toggleRow}
-                                        openOnSingleClick={openOnSingleClick}
-                                        renaming={renaming?.path === path ? {value: renaming.value} : null}
-                                        row={row}
-                                        selected={selected.has(path)}
-                                        showCheckboxes={showCheckboxes}
-                                        showTarget={showTarget}
-                                        template={template}
-                                        visible={visible}
-                                    />
-                                );
-                            })}
-                            {windowEnd < rows.length && <div style={{height: (rows.length - windowEnd) * rowHeight}}/>}
-                        </>
-                    )}
-
-                {!loading && listing && rows.length === 0 && (
-                    <Center>
-                        <Muted>
-                            {error ?? (searching && find.mode === "hide"
-                                ? t("No entries match the search.")
-                                : t("This folder is empty."))}
-                        </Muted>
-                    </Center>
-                )}
-            </Body>
-
-            {showImages && previews.length > 0 && (
-                <>
-                    <Splitter
-                        onDoubleClick={resetStripHeight}
-                        onPointerDown={startStripDrag}
-                        onPointerMove={dragStrip}
-                        onPointerUp={endStripDrag}
-                        title={t("Drag to resize; double-click to reset")}
-                    />
-                    <Strip style={{height: stripHeight}}>
-                        <StripHead>
-                            {t("Preview")}
-                            <StripCount>
-                                {previewTotal > PreviewLimit
-                                    ? `${shownPreviews.length} / ${previewTotal}`
-                                    : previewTotal}
-                            </StripCount>
-                        </StripHead>
-                        <GridBody
-                            onClick={(event) => {
-                                if (!(event.target instanceof Element) || !event.target.closest("[data-path]"))
-                                    clearSelection();
-                            }}
-                            onContextMenu={(event) => openMenu(event)}
-                        >
-                            <GridContent
-                                counts={listing?.counts}
-                                currentPath={searching ? find.currentPath : null}
-                                groups={previewGroups}
-                                gridSize={view.gridSize}
-                                onContextMenu={openMenu}
-                                onOpen={onOpen}
-                                onOpenFile={onOpenFile}
-                                onSelect={selectRow}
-                                onToggle={toggleRow}
-                                openOnSingleClick={openOnSingleClick}
-                                searching={searching}
-                                selected={selected}
-                                showCheckboxes={showCheckboxes}
-                                showTarget={showTarget}
-                            />
-                        </GridBody>
-                    </Strip>
-                </>
-            )}
-
-            {tagTarget && listing && (
-                <TagPicker
-                    allTags={listing.allTags}
-                    colors={listing.tagColors}
-                    onChange={(tags, colors) => onSetTags?.(tagTarget.entry.name, tags, colors)}
-                    onClose={() => setTagTarget(null)}
-                    tags={listing.tags[tagTarget.entry.name] ?? []}
-                    x={tagTarget.x}
-                    y={tagTarget.y}
-                />
-            )}
-
-            {menu && (
-                <FileMenu
-                    canPaste={canPaste}
-                    directory={currentDirectory}
-                    allowCompression
-                    menu={menu}
-                    onAddToTray={onAddToTray}
-                    onAddFavorite={onAddFavorite}
-                    onRemoveFavorite={onRemoveFavorite}
-                    favoritePaths={favoritePaths}
-                    onExtractArchive={onExtractArchive}
-                    onArchiveCreated={archiveCreated}
-                    onClose={closeMenu}
-                    onCompressTo={(paths, name) => setCompressDialog({paths, name})}
-                    onCopy={copy}
-                    onCreateFile={(extension) => void createEntry(extension)}
-                    onCreateFolder={(caseSensitive) => void createEntry(null, caseSensitive)}
-                    onDelete={remove}
-                    onOpen={onOpen}
-                    onOpenFile={onOpenFile}
-                    onPaste={paste}
-                    onRefresh={refresh}
-                    onRename={(path) => {
-                        const target = rows.find((row) => row.entry.fullPath === path)?.entry;
-                        if (target) rename(target);
+                <Head
+                    onScroll={(event) => {
+                        if (body.current && body.current.scrollLeft !== event.currentTarget.scrollLeft)
+                            body.current.scrollLeft = event.currentTarget.scrollLeft;
                     }}
-                    shortcuts={shortcuts}
-                    target={menuTarget}
-                />
-            )}
-            {compressDialogElement}
-            {confirmDialog}
+                    ref={head}
+                    style={{gridTemplateColumns: template}}
+                >
+                    <HeaderName>
+                        {showCheckboxes && (
+                            <SelectAll
+                                $checked={!singleSelect && allSelected}
+                                $partial={!singleSelect && someSelected}
+                                aria-label={allSelected ? t("Select none") : t("Select all")}
+                                disabled={singleSelect}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    toggleAll();
+                                }}
+                                title={allSelected ? t("Select none") : t("Select all")}
+                                type="button"
+                            >
+                                {allSelected ? <CheckIcon size={10}/> : someSelected ? <Dash/> : null}
+                            </SelectAll>
+                        )}
+                        <HeaderButton onClick={() => onSort("name")} type="button">
+                            {t("Name")}{markOf(view, "name")}
+                        </HeaderButton>
+                    </HeaderName>
+                    {visible.map((column) => (
+                        <HeaderButton key={column.id} onClick={() => onSort(column.id)} type="button">
+                            {t(column.label)}{markOf(view, column.id)}
+                        </HeaderButton>
+                    ))}
+                </Head>
+
+                <Body
+                    onClick={(event) => {
+                        if (event.target === event.currentTarget) clearSelection();
+                    }}
+                    onContextMenu={(event) => openMenu(event)}
+                    onDragOver={overListDrag}
+                    onDragStart={startListDrag}
+                    onDrop={dropOnList}
+                    onScroll={(event) => {
+                        if (head.current && head.current.scrollLeft !== event.currentTarget.scrollLeft)
+                            head.current.scrollLeft = event.currentTarget.scrollLeft;
+
+                        const node = event.currentTarget;
+                        setListWindow((current) => current.top === node.scrollTop && current.height === node.clientHeight
+                            ? current
+                            : {top: node.scrollTop, height: node.clientHeight});
+                    }}
+                    ref={body}
+                >
+                    {loading && !listing
+                        ? <PlaceholderRows template={template} columns={visible.length}/>
+                        : (
+                            <>
+                                {windowStart > 0 && <div style={{height: windowStart * rowHeight}}/>}
+                                {windowRows.map((row) => {
+                                    const path = row.entry.fullPath;
+
+                                    return (
+                                        <ListRow
+                                            current={searching && path === find.currentPath}
+                                            dim={searching && row.ranges === null}
+                                            height={rowHeight}
+                                            iconSize={view.iconSize}
+                                            innerRef={currentRow}
+                                            key={path}
+                                            listing={listing!}
+                                            onContextMenu={openMenu}
+                                            onOpen={openRow}
+                                            onRenameCancel={cancelRename}
+                                            onRenameChange={changeRename}
+                                            onRenameCommit={commitRename}
+                                            onSelect={selectRow}
+                                            onTagEdit={editTags}
+                                            onToggle={toggleRow}
+                                            openOnSingleClick={openOnSingleClick}
+                                            renaming={renaming?.path === path ? {value: renaming.value} : null}
+                                            row={row}
+                                            selected={selected.has(path)}
+                                            showCheckboxes={showCheckboxes}
+                                            showTarget={showTarget}
+                                            template={template}
+                                            visible={visible}
+                                        />
+                                    );
+                                })}
+                                {windowEnd < rows.length &&
+                                    <div style={{height: (rows.length - windowEnd) * rowHeight}}/>}
+                            </>
+                        )}
+
+                    {!loading && listing && rows.length === 0 && (
+                        <Center>
+                            <Muted>
+                                {error ?? (searching && find.mode === "hide"
+                                    ? t("No entries match the search.")
+                                    : t("This folder is empty."))}
+                            </Muted>
+                        </Center>
+                    )}
+                </Body>
+
+                {showImages && previews.length > 0 && (
+                    <>
+                        <Splitter
+                            onDoubleClick={resetStripHeight}
+                            onPointerDown={startStripDrag}
+                            onPointerMove={dragStrip}
+                            onPointerUp={endStripDrag}
+                            title={t("Drag to resize; double-click to reset")}
+                        />
+                        <Strip style={{height: stripHeight}}>
+                            <StripHead>
+                                {t("Preview")}
+                                <StripCount>
+                                    {previewTotal > PreviewLimit
+                                        ? `${shownPreviews.length} / ${previewTotal}`
+                                        : previewTotal}
+                                </StripCount>
+                            </StripHead>
+                            <GridBody
+                                onClick={(event) => {
+                                    if (!(event.target instanceof Element) || !event.target.closest("[data-path]"))
+                                        clearSelection();
+                                }}
+                                onContextMenu={(event) => openMenu(event)}
+                            >
+                                <GridContent
+                                    counts={listing?.counts}
+                                    currentPath={searching ? find.currentPath : null}
+                                    groups={previewGroups}
+                                    gridSize={view.gridSize}
+                                    onContextMenu={openMenu}
+                                    onOpen={onOpen}
+                                    onOpenFile={onOpenFile}
+                                    onSelect={selectRow}
+                                    onToggle={toggleRow}
+                                    openOnSingleClick={openOnSingleClick}
+                                    searching={searching}
+                                    selected={selected}
+                                    showCheckboxes={showCheckboxes}
+                                    showTarget={showTarget}
+                                />
+                            </GridBody>
+                        </Strip>
+                    </>
+                )}
+
+                {tagTarget && listing && (
+                    <TagPicker
+                        allTags={listing.allTags}
+                        colors={listing.tagColors}
+                        onChange={(tags, colors) => onSetTags?.(tagTarget.entry.name, tags, colors)}
+                        onClose={() => setTagTarget(null)}
+                        tags={listing.tags[tagTarget.entry.name] ?? []}
+                        x={tagTarget.x}
+                        y={tagTarget.y}
+                    />
+                )}
+
+                {menu && (
+                    <FileMenu
+                        canPaste={canPaste}
+                        directory={currentDirectory}
+                        allowCompression
+                        menu={menu}
+                        onAddToTray={onAddToTray}
+                        onAddFavorite={onAddFavorite}
+                        onRemoveFavorite={onRemoveFavorite}
+                        favoritePaths={favoritePaths}
+                        onExtractArchive={onExtractArchive}
+                        onArchiveCreated={archiveCreated}
+                        onClose={closeMenu}
+                        onCompressTo={(paths, name) => setCompressDialog({paths, name})}
+                        onCopy={copy}
+                        onCreateFile={(extension) => void createEntry(extension)}
+                        onCreateFolder={(caseSensitive) => void createEntry(null, caseSensitive)}
+                        onDelete={remove}
+                        onOpen={onOpen}
+                        onOpenFile={onOpenFile}
+                        onPaste={paste}
+                        onRefresh={refresh}
+                        onRename={(path) => {
+                            const target = rows.find((row) => row.entry.fullPath === path)?.entry;
+                            if (target) rename(target);
+                        }}
+                        shortcuts={shortcuts}
+                        target={menuTarget}
+                    />
+                )}
+                {compressDialogElement}
+                {confirmDialog}
             </Wrapper>
             {previewPane}
         </SplitPane>
@@ -1670,10 +1716,26 @@ function PlaceholderTiles({size}: { size: number }) {
 
 /** One rectangular grid tile: a content preview, or the entry's icon, with a caption underneath. */
 const GridTile = memo(function GridTile({
-    row, current, dim, iconSize, itemCount, showTarget, innerRef, selected, showCheckboxes, openOnSingleClick,
-    renaming, onRenameChange, onRenameCommit, onRenameCancel,
-    onSelect, onToggle, onContextMenu, onOpen, onOpenFile,
-}: {
+                                            row,
+                                            current,
+                                            dim,
+                                            iconSize,
+                                            itemCount,
+                                            showTarget,
+                                            innerRef,
+                                            selected,
+                                            showCheckboxes,
+                                            openOnSingleClick,
+                                            renaming,
+                                            onRenameChange,
+                                            onRenameCommit,
+                                            onRenameCancel,
+                                            onSelect,
+                                            onToggle,
+                                            onContextMenu,
+                                            onOpen,
+                                            onOpenFile,
+                                        }: {
     row: RowModel;
     current: boolean;
     dim: boolean;
@@ -1831,10 +1893,26 @@ const GridTile = memo(function GridTile({
 
 /** The sections of tiles, shared by the full grid and the preview panel under the list. */
 function GridContent({
-    groups, gridSize, counts, showTarget, searching, currentPath, innerRef, selected, showCheckboxes,
-    openOnSingleClick, renaming, onSelect, onToggle, onContextMenu, onOpen, onOpenFile,
-    onRenameChange, onRenameCommit, onRenameCancel,
-}: {
+                         groups,
+                         gridSize,
+                         counts,
+                         showTarget,
+                         searching,
+                         currentPath,
+                         innerRef,
+                         selected,
+                         showCheckboxes,
+                         openOnSingleClick,
+                         renaming,
+                         onSelect,
+                         onToggle,
+                         onContextMenu,
+                         onOpen,
+                         onOpenFile,
+                         onRenameChange,
+                         onRenameCommit,
+                         onRenameCancel,
+                     }: {
     groups: RowGroup[];
     gridSize: number;
     counts?: Record<string, number>;
@@ -1900,8 +1978,8 @@ function GridContent({
 
 /** Explorer-style inline name editor; the base name is selected, the extension is not. */
 function RenameInput({
-    value, onChange, onCommit, onCancel,
-}: {
+                         value, onChange, onCommit, onCancel,
+                     }: {
     value: string;
     onChange: (value: string) => void;
     onCommit: () => void;
@@ -1949,11 +2027,11 @@ function RenameInput({
  * when the listing, the columns or the selection do.
  */
 const ListRow = memo(function ListRow({
-    row, current, dim, selected, showCheckboxes, showTarget, openOnSingleClick,
-    iconSize, height, template, visible, listing, innerRef, renaming,
-    onSelect, onToggle, onContextMenu, onOpen, onTagEdit,
-    onRenameChange, onRenameCommit, onRenameCancel,
-}: {
+                                          row, current, dim, selected, showCheckboxes, showTarget, openOnSingleClick,
+                                          iconSize, height, template, visible, listing, innerRef, renaming,
+                                          onSelect, onToggle, onContextMenu, onOpen, onTagEdit,
+                                          onRenameChange, onRenameCommit, onRenameCancel,
+                                      }: {
     row: RowModel;
     current: boolean;
     dim: boolean;
@@ -2138,12 +2216,12 @@ const SelectAll = styled.button<{ $checked: boolean; $partial: boolean }>`
     flex-shrink: 0;
     padding: 0;
     border: 1px solid ${({$checked, $partial}) => $checked || $partial
-        ? "var(--border-color-focus)"
-        : "var(--border-color-hover)"};
+            ? "var(--border-color-focus)"
+            : "var(--border-color-hover)"};
     border-radius: 4px;
     background: ${({$checked, $partial}) => $checked || $partial
-        ? "rgba(var(--accent-rgb), 0.8)"
-        : "transparent"};
+            ? "rgba(var(--accent-rgb), 0.8)"
+            : "transparent"};
     color: #fff;
     cursor: pointer;
     transition: background 100ms ease, border-color 100ms ease;
@@ -2151,8 +2229,8 @@ const SelectAll = styled.button<{ $checked: boolean; $partial: boolean }>`
     &:hover {
         border-color: var(--border-color-focus);
         background: ${({$checked, $partial}) => $checked || $partial
-            ? "rgba(var(--accent-rgb), 0.9)"
-            : "rgba(148, 163, 184, 0.16)"};
+                ? "rgba(var(--accent-rgb), 0.9)"
+                : "rgba(148, 163, 184, 0.16)"};
     }
 
     &:disabled {
@@ -2255,6 +2333,7 @@ const Head = styled.div`
     &::-webkit-scrollbar {
         height: 0;
     }
+
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -2405,8 +2484,8 @@ const Row = styled.div<{ $height: number; $hidden: boolean; $dim: boolean; $curr
     border: 1px solid ${({$selected}) => $selected ? "rgba(var(--accent-rgb), 0.35)" : "transparent"};
     border-radius: var(--radius-md);
     background: ${({$current, $selected}) => $current
-        ? "rgba(var(--accent-rgb), 0.14)"
-        : $selected ? "rgba(var(--accent-rgb), 0.09)" : "transparent"};
+            ? "rgba(var(--accent-rgb), 0.14)"
+            : $selected ? "rgba(var(--accent-rgb), 0.09)" : "transparent"};
     box-shadow: ${({$current}) => $current ? "inset 3px 0 0 var(--accent-primary)" : "none"};
     font-size: 13px;
     color: var(--text-secondary);
@@ -2567,18 +2646,18 @@ const Tile = styled.div<{ $dim: boolean; $current: boolean; $selected: boolean }
     min-width: 0;
     overflow: hidden;
     border: 1px solid ${({$current, $selected}) => $current
-        ? "rgba(var(--accent-rgb), 0.5)"
-        : $selected ? "rgba(var(--accent-rgb), 0.4)" : "var(--border-color)"};
+            ? "rgba(var(--accent-rgb), 0.5)"
+            : $selected ? "rgba(var(--accent-rgb), 0.4)" : "var(--border-color)"};
     border-radius: var(--radius-lg);
     background: ${({$current, $selected}) => $current
-        ? "rgba(var(--accent-rgb), 0.14)"
-        : $selected ? "rgba(var(--accent-rgb), 0.1)" : "var(--bg-primary)"};
+            ? "rgba(var(--accent-rgb), 0.14)"
+            : $selected ? "rgba(var(--accent-rgb), 0.1)" : "var(--bg-primary)"};
     opacity: ${({$dim}) => $dim ? 0.3 : 1};
     cursor: default;
     user-select: none;
     content-visibility: auto;
     transition: background 120ms ease, border-color 120ms ease, opacity 120ms ease,
-        transform 140ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 140ms ease;
+    transform 140ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 140ms ease;
 
     &:hover {
         background: var(--bg-card-hover);

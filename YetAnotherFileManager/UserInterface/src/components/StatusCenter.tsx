@@ -3,7 +3,7 @@ import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import type {TaskInfo} from "../api/tasks";
 import {formatBytes, plural} from "../utils/format";
-import {CheckIcon, StatusIcon, CrossIcon} from "./Icons";
+import {CheckIcon, CrossIcon, StatusIcon} from "./Icons";
 import {CountBadge} from "./CountBadge";
 import {elevatedPanel} from "../ui/panel";
 import {fadeInStyle, panelInStyle} from "../ui/motion";
@@ -241,8 +241,8 @@ const Row = styled.div`
     padding: 8px;
     border-radius: var(--radius-md);
     transition: background 130ms ease;
-    ${fadeInStyle}
 
+    ${fadeInStyle}
     & + & {
         border-top: 1px solid var(--border-color);
     }
@@ -267,11 +267,11 @@ const State = styled.span<{ $state: string }>`
     flex-shrink: 0;
     border-radius: 50%;
     background: ${({$state}) => $state === "failed"
-        ? "rgba(239, 68, 68, 0.18)"
-        : $state === "done" ? "rgba(34, 197, 94, 0.16)" : "rgba(var(--accent-rgb), 0.18)"};
+            ? "rgba(239, 68, 68, 0.18)"
+            : $state === "done" ? "rgba(34, 197, 94, 0.16)" : "rgba(var(--accent-rgb), 0.18)"};
     color: ${({$state}) => $state === "failed"
-        ? "#f87171"
-        : $state === "done" ? "#4ade80" : "var(--accent-primary)"};
+            ? "#f87171"
+            : $state === "done" ? "#4ade80" : "var(--accent-primary)"};
 `;
 
 const Spin = styled.span`

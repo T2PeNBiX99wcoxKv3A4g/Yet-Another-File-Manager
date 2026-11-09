@@ -177,20 +177,26 @@ export interface FileVisibility {
 
 /** Lists one directory. Omit the path to start at the user's home directory. */
 export async function listDirectory(path?: string, sizes = true, includeLinks = false,
-    codePage = 0, password?: string): Promise<DirectoryListing> {
-    return await Native.request<DirectoryListing>("fs.list", {path: path ?? null, sizes, includeLinks, codePage, password});
+                                    codePage = 0, password?: string): Promise<DirectoryListing> {
+    return await Native.request<DirectoryListing>("fs.list", {
+        path: path ?? null,
+        sizes,
+        includeLinks,
+        codePage,
+        password
+    });
 }
 
 /** Extracts an archive, or a folder inside one, into a folder on disk. */
 export async function extractArchive(path: string, target: string, codePage = 0,
-    password?: string): Promise<{ ok: boolean; error: string | null }> {
+                                     password?: string): Promise<{ ok: boolean; error: string | null }> {
     return await Native.request<{ ok: boolean; error: string | null }>(
         "fs.archive.extract", {path, target, codePage, password});
 }
 
 /** Extracts one archive entry to a temporary file and returns its physical path for the shell. */
 export async function extractArchiveEntry(path: string, codePage = 0,
-    password?: string): Promise<{ path: string | null; error: string | null }> {
+                                          password?: string): Promise<{ path: string | null; error: string | null }> {
     return await Native.request<{ path: string | null; error: string | null }>(
         "fs.archive.extractEntry", {path, codePage, password});
 }
@@ -257,7 +263,10 @@ export async function saveTags(
  * The listing saved the last time this folder was opened, so the window can paint it before the
  * disk is walked again. `listing` is null when the folder was never cached.
  */
-export async function listDirectoryCached(path?: string, includeLinks = false): Promise<{ cached: boolean; listing: DirectoryListing | null }> {
+export async function listDirectoryCached(path?: string, includeLinks = false): Promise<{
+    cached: boolean;
+    listing: DirectoryListing | null
+}> {
     if (!Native.available) return {cached: false, listing: null};
 
     return await Native.request<{ cached: boolean; listing: DirectoryListing | null }>(

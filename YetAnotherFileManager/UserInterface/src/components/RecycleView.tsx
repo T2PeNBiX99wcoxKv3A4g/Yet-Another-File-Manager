@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent} from "react";
+import {type MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import {
@@ -7,22 +7,22 @@ import {
     listOrphansAsAdmin,
     listRecycle,
     purgeOrphansAsAdmin,
+    type RecycleEntry,
     restoreRecycleEntries,
     showRecycleProperties,
-    type RecycleEntry,
 } from "../api/files";
 import {useIcon} from "../api/icons";
 import {showMessage} from "../api/dialogs";
-import {useSelectionMenu, setSelectionMenu} from "../ui/selectionMenu";
+import {setSelectionMenu, useSelectionMenu} from "../ui/selectionMenu";
 import {matchesName} from "../find";
-import {useTextSearch, type PageFind} from "../ui/textSearch";
+import {type PageFind, useTextSearch} from "../ui/textSearch";
 import {formatBytes, formatDate, plural} from "../utils/format";
 import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "../storage";
 import {CheckIcon, CopyIcon, FileIcon, FolderIcon, GearIcon, MenuIcon, RefreshIcon, TrashIcon} from "./Icons";
 import RestoreSvg from "./icons/restore.svg?react";
 import {ConfirmDialog} from "./ConfirmDialog";
 import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
-import {PreviewPane, type PreviewInfo} from "./PreviewPane";
+import {type PreviewInfo, PreviewPane} from "./PreviewPane";
 
 type SortColumn = "name" | "original" | "deleted" | "size" | "type";
 
@@ -51,9 +51,15 @@ interface RecycleViewProps {
  * presents what the host read and asks it for restore/delete.
  */
 export function RecycleView({
-    onOpenLocation, find, onSearchMatches, showDetails = true, onShowDetails, videoAudio = false,
-    videoAutoplay = false, platform,
-}: RecycleViewProps) {
+                                onOpenLocation,
+                                find,
+                                onSearchMatches,
+                                showDetails = true,
+                                onShowDetails,
+                                videoAudio = false,
+                                videoAutoplay = false,
+                                platform,
+                            }: RecycleViewProps) {
     const t = useTranslation();
     const selectionMenu = useSelectionMenu("recycle");
     const isWindows = platform === "windows";
@@ -217,7 +223,10 @@ export function RecycleView({
         try {
             const result = await restoreRecycleEntries(ids);
             if (!result.ok)
-                await showMessage(plural(t, ids.length, "Restored {done} of 1 item.", "Restored {done} of {total} items.", {done: result.done, total: ids.length}));
+                await showMessage(plural(t, ids.length, "Restored {done} of 1 item.", "Restored {done} of {total} items.", {
+                    done: result.done,
+                    total: ids.length
+                }));
             setSelected(new Set());
             await reload();
         } finally {
@@ -234,7 +243,10 @@ export function RecycleView({
         try {
             const result = await deleteRecycleEntries(ids);
             if (!result.ok && !result.cancelled)
-                await showMessage(plural(t, ids.length, "Deleted {done} of 1 item.", "Deleted {done} of {total} items.", {done: result.done, total: ids.length}));
+                await showMessage(plural(t, ids.length, "Deleted {done} of 1 item.", "Deleted {done} of {total} items.", {
+                    done: result.done,
+                    total: ids.length
+                }));
             setSelected(new Set());
             await reload();
         } finally {
@@ -893,12 +905,12 @@ const SelectAll = styled.button<{ $checked: boolean; $partial: boolean }>`
     height: 15px;
     padding: 0;
     border: 1px solid ${({$checked, $partial}) => $checked || $partial
-        ? "var(--border-color-focus)"
-        : "var(--border-color-hover)"};
+            ? "var(--border-color-focus)"
+            : "var(--border-color-hover)"};
     border-radius: 4px;
     background: ${({$checked, $partial}) => $checked || $partial
-        ? "var(--accent-primary)"
-        : "transparent"};
+            ? "var(--accent-primary)"
+            : "transparent"};
     color: #fff;
     cursor: pointer;
     transition: border-color 120ms ease, background 120ms ease;

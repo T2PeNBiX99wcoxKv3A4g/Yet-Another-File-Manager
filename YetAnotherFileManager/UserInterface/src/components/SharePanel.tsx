@@ -1,13 +1,7 @@
 import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
-import {
-    addShare,
-    getShares,
-    removeShare,
-    setShareMode,
-    type ShareList,
-} from "../api/share";
+import {addShare, getShares, removeShare, setShareMode, type ShareList,} from "../api/share";
 import {openUrl} from "../api/system";
 import {elevatedPanel} from "../ui/panel";
 import {samePath} from "../utils/format";

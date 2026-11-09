@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState, type PointerEvent as ReactPointerEvent} from "react";
+import {type PointerEvent as ReactPointerEvent, useEffect, useRef, useState} from "react";
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import {previewText, type TextPreview} from "../api/files";
@@ -50,7 +50,16 @@ const TextExtensions = new Set([
  * The right-side details pane shared by the file browser and the recycle bin. The media area shows
  * an image, a playable video/audio file, or the entry's icon; the splitter on its left resizes it.
  */
-export function PreviewPane({info, width, onWidth, open = true, videoAudio, videoAutoplay, selectionNote, emptyNote}: PreviewPaneProps) {
+export function PreviewPane({
+                                info,
+                                width,
+                                onWidth,
+                                open = true,
+                                videoAudio,
+                                videoAutoplay,
+                                selectionNote,
+                                emptyNote
+                            }: PreviewPaneProps) {
     const t = useTranslation();
     const [videoFailed, setVideoFailed] = useState(false);
     const [playing, setPlaying] = useState(false);
@@ -285,28 +294,28 @@ export function PreviewPane({info, width, onWidth, open = true, videoAudio, vide
                                         ? <FileIcon size={64}/>
                                         : text
                                             ? (
-                                        <TextBox>
-                                            {textLoading || !textPreview
-                                                ? <TextNote>{t("Loading…")}</TextNote>
-                                                : textPreview.error
-                                                    ? <TextNote>{textPreview.error}</TextNote>
-                                                    : (
-                                                        <>
-                                                            <Pre>{textPreview.text}</Pre>
-                                                            {textPreview.truncated && (
-                                                                <TextNote>{t("Showing the first 256 KB.")}</TextNote>
+                                                <TextBox>
+                                                    {textLoading || !textPreview
+                                                        ? <TextNote>{t("Loading…")}</TextNote>
+                                                        : textPreview.error
+                                                            ? <TextNote>{textPreview.error}</TextNote>
+                                                            : (
+                                                                <>
+                                                                    <Pre>{textPreview.text}</Pre>
+                                                                    {textPreview.truncated && (
+                                                                        <TextNote>{t("Showing the first 256 KB.")}</TextNote>
+                                                                    )}
+                                                                </>
                                                             )}
-                                                        </>
-                                                    )}
-                                        </TextBox>
-                                    )
-                                    : video && poster
-                                        ? <img alt="" src={poster}/>
-                                        : icon
-                                            ? <img alt="" src={icon}/>
-                                            : info.isDirectory
-                                                ? <FolderIcon size={64}/>
-                                                : <FileIcon size={64}/>}
+                                                </TextBox>
+                                            )
+                                            : video && poster
+                                                ? <img alt="" src={poster}/>
+                                                : icon
+                                                    ? <img alt="" src={icon}/>
+                                                    : info.isDirectory
+                                                        ? <FolderIcon size={64}/>
+                                                        : <FileIcon size={64}/>}
                 </Media>
 
                 <MediaSplitter
@@ -419,6 +428,7 @@ const Media = styled.div`
     overflow: hidden;
     border-bottom: 1px solid var(--border-color);
     background: var(--bg-secondary);
+
     img,
     video {
         display: block;
@@ -480,7 +490,7 @@ const CenterPlay = styled.button<{ $visible: boolean }>`
     transform: ${({$visible}) => $visible ? "scale(1)" : "scale(0.82)"};
     pointer-events: ${({$visible}) => $visible ? "auto" : "none"};
     transition: opacity 180ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
-        background 140ms ease, border-color 140ms ease;
+    background 140ms ease, border-color 140ms ease;
 
     svg {
         margin-left: 3px;

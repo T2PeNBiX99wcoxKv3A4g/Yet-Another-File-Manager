@@ -87,6 +87,7 @@ export async function setScheme(enabled: boolean): Promise<boolean> {
     const data = await Native.request<{ registered: boolean }>("app.scheme.set", {enabled});
     return data.registered;
 }
+
 /** How the app is registered to start with the user's session. */
 export interface StartupStatus {
     supported: boolean;

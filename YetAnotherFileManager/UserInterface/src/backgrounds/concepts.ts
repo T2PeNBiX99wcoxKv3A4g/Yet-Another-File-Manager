@@ -4,7 +4,7 @@ import driftPoster from "./videos/drift.jpg";
 import driftVideo from "./videos/drift.mp4";
 import emberPoster from "./videos/ember.jpg";
 import emberVideo from "./videos/ember.mp4";
-import {ThemePresets, type ThemePreset} from "../themePresets";
+import {type ThemePreset, ThemePresets} from "../themePresets";
 
 /**
  * The built-in wallpapers are drawn from the same palettes the theme presets use, so every
@@ -120,6 +120,7 @@ function drawBanner(concept: BannerConceptId, preset: ThemePreset): string {
 /* ---------------------------------------------------------------------------------------------- */
 /* Banner concepts. They share the preset colours but use strong silhouettes so a small vertical   */
 /* scroll is easy to see against the dark surface.                                                 */
+
 /* ---------------------------------------------------------------------------------------------- */
 
 function ridgeline({accent, secondary}: ThemePreset): string {
@@ -232,6 +233,7 @@ function orbit({accent, secondary}: ThemePreset): string {
 
 /* ---------------------------------------------------------------------------------------------- */
 /* Colour helpers: the templates need darker versions of the preset colours, not just the two.    */
+
 /* ---------------------------------------------------------------------------------------------- */
 
 function rgb(hex: string): [number, number, number] {
@@ -260,6 +262,7 @@ function mix(a: string, b: string, amount: number): string {
 /* The three concepts. Each one takes the preset's two colours and tints its own dark base, so    */
 /* the gold dunes stay gold while a violet preset turns them violet.  The blur filters keep a      */
 /* wide region (x/y = -120%, 340% wide) or the glow gets a visible square edge where it is cut.   */
+
 /* ---------------------------------------------------------------------------------------------- */
 
 function aurora({accent, secondary}: ThemePreset): string {

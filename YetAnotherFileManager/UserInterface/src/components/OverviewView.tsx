@@ -52,7 +52,7 @@ import {PlaceIcon} from "./PlaceIcon";
 import {quickPlace, useQuickAccess} from "../quick";
 import {copyPaths} from "../api/operations";
 import {DefaultShortcuts, wantsNewTab} from "../shortcuts";
-import {FileMenu, type ArchiveExtractMode, type FileMenuTarget} from "./FileMenu";
+import {type ArchiveExtractMode, FileMenu, type FileMenuTarget} from "./FileMenu";
 import {baseName, driveLetter, driveName, formatBytes, isRemoteUrl, plural, samePath, usageTone} from "../utils/format";
 import {buildPanels, type Panel, PanelGlyph, type PanelKind, type ViewMode} from "../panels";
 import {IconPicker} from "./IconPicker";
@@ -99,7 +99,7 @@ interface OverviewViewProps {
     settingsVersion?: number;
 }
 
-function BannerThumb({source, poster}: {source: string; poster?: string}) {
+function BannerThumb({source, poster}: { source: string; poster?: string }) {
     const remote = isRemoteUrl(source);
     const extension = source.split(/[?#]/)[0].split(".").pop()?.toLowerCase() ?? "";
     const file = source.startsWith("builtin:") || remote ? null : source;
@@ -216,14 +216,18 @@ function BannerFraming({source, video, height, offset, onCancel, onSave}: Banner
                             }}
                             playsInline
                             preload="metadata"
-                            ref={(element) => { media.current = element; }}
+                            ref={(element) => {
+                                media.current = element;
+                            }}
                             src={source}
                         />
                         : <img
                             alt=""
                             draggable={false}
                             onLoad={measure}
-                            ref={(element) => { media.current = element; }}
+                            ref={(element) => {
+                                media.current = element;
+                            }}
                             src={source}
                         />}
                     {frameHeight > 0 && (
@@ -291,19 +295,19 @@ const BannerArt = styled.div`
     /* Opaque for the whole frame, then a long fade over the extra strip. The stops use the frame
        height, not a percentage, so a tall banner never fades inside its own picture. */
     -webkit-mask-image: linear-gradient(to bottom,
-        #000 0,
-        #000 calc(100% - ${BannerFade}px),
-        rgba(0, 0, 0, 0.88) calc(100% - ${Math.round(BannerFade * 0.72)}px),
-        rgba(0, 0, 0, 0.56) calc(100% - ${Math.round(BannerFade * 0.44)}px),
-        rgba(0, 0, 0, 0.24) calc(100% - ${Math.round(BannerFade * 0.18)}px),
-        transparent 100%);
+    #000 0,
+    #000 calc(100% - ${BannerFade}px),
+    rgba(0, 0, 0, 0.88) calc(100% - ${Math.round(BannerFade * 0.72)}px),
+    rgba(0, 0, 0, 0.56) calc(100% - ${Math.round(BannerFade * 0.44)}px),
+    rgba(0, 0, 0, 0.24) calc(100% - ${Math.round(BannerFade * 0.18)}px),
+    transparent 100%);
     mask-image: linear-gradient(to bottom,
-        #000 0,
-        #000 calc(100% - ${BannerFade}px),
-        rgba(0, 0, 0, 0.88) calc(100% - ${Math.round(BannerFade * 0.72)}px),
-        rgba(0, 0, 0, 0.56) calc(100% - ${Math.round(BannerFade * 0.44)}px),
-        rgba(0, 0, 0, 0.24) calc(100% - ${Math.round(BannerFade * 0.18)}px),
-        transparent 100%);
+    #000 0,
+    #000 calc(100% - ${BannerFade}px),
+    rgba(0, 0, 0, 0.88) calc(100% - ${Math.round(BannerFade * 0.72)}px),
+    rgba(0, 0, 0, 0.56) calc(100% - ${Math.round(BannerFade * 0.44)}px),
+    rgba(0, 0, 0, 0.24) calc(100% - ${Math.round(BannerFade * 0.18)}px),
+    transparent 100%);
 
     img,
     video {
@@ -317,8 +321,7 @@ const BannerArt = styled.div`
         transform-origin: center top;
         /* A slow upward drift plus a slight zoom keeps the picture moving even when the crop has
            no spare room; the zoom guarantees the edges are never exposed. */
-        transform: translate(-50%, calc(-1 * (var(--banner-image-shift, 0px) + var(--banner-progress, 0) * var(--banner-travel, 0px))))
-        scale(calc(1 + var(--banner-progress, 0) * 0.05));
+        transform: translate(-50%, calc(-1 * (var(--banner-image-shift, 0px) + var(--banner-progress, 0) * var(--banner-travel, 0px)))) scale(calc(1 + var(--banner-progress, 0) * 0.05));
         will-change: transform;
     }
 `;
@@ -336,6 +339,7 @@ const BannerHandle = styled.div`
     background: transparent;
 
     /* A small centred grip; a full-width bar reads as a separator line. */
+
     &::before {
         content: "";
         width: 88px;
@@ -364,10 +368,10 @@ const BannerPanel = styled.section`
     padding: 10px 12px 14px;
     /* A soft glass band: a bordered card here would draw a full-width line across the fading art. */
     background: linear-gradient(to bottom,
-        rgba(var(--bg-rgb), 0) 0%,
-        rgba(var(--bg-rgb), 0.38) 18%,
-        rgba(var(--bg-rgb), 0.38) 82%,
-        rgba(var(--bg-rgb), 0) 100%);
+    rgba(var(--bg-rgb), 0) 0%,
+    rgba(var(--bg-rgb), 0.38) 18%,
+    rgba(var(--bg-rgb), 0.38) 82%,
+    rgba(var(--bg-rgb), 0) 100%);
     backdrop-filter: blur(8px);
 `;
 
@@ -670,7 +674,7 @@ const Toolbar = styled.div<{ $overlay?: boolean }>`
     flex-wrap: wrap;
 
     ${({$overlay}) => $overlay
-        ? `
+            ? `
             position: absolute;
             z-index: 10;
             top: 10px;
@@ -683,7 +687,7 @@ const Toolbar = styled.div<{ $overlay?: boolean }>`
             -webkit-backdrop-filter: blur(14px) saturate(1.2);
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
         `
-        : "padding-bottom: 14px;"}
+            : "padding-bottom: 14px;"}
 `;
 
 const Segmented = styled.div`
@@ -884,10 +888,9 @@ const Card = styled.div<{ $plain: boolean; $selected?: boolean }>`
     text-align: left;
     cursor: ${({$plain}) => $plain ? "default" : "pointer"};
     transition: background 130ms ease, border-color 130ms ease, transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
-        box-shadow 140ms ease;
+    box-shadow 140ms ease;
 
     ${({$selected}) => $selected ? "box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.16);" : ""}
-
     &:hover {
         border-color: ${({$plain}) => $plain ? "var(--border-color)" : "var(--border-color-hover)"};
         background: ${({$plain}) => $plain ? "var(--bg-card)" : "var(--bg-card-hover)"};
@@ -1116,7 +1119,6 @@ const IconTrigger = styled.button`
 `;
 
 
-
 /** Removes a folder from one Quick access panel; only shown while the overview is being edited. */
 const RemovePlaceButton = styled.button<{ $inline?: boolean }>`
     position: ${({$inline}) => $inline ? "static" : "absolute"};
@@ -1320,31 +1322,31 @@ const PairButton = styled.button`
 `;
 
 export function OverviewView({
-    places,
-    drives,
-    recent,
-    recentLimit,
-    homePath,
-    historyVersion,
-    onOpen,
-    onPlacesChanged,
-    onRecentCleared,
-    onLayoutChanged,
-    onHistoryChanged,
-    onDrivesChanged,
-    visibilityVersion = 0,
-    find,
-    onSearchMatches,
-    readOnly = false,
-    onPick,
-    onSelectionChange,
-    onAddToTray,
-    onAddFavorite,
-    onRemoveFavorite,
-    favoritePaths,
-    onExtractArchive,
-    settingsVersion = 0,
-}: OverviewViewProps) {
+                                 places,
+                                 drives,
+                                 recent,
+                                 recentLimit,
+                                 homePath,
+                                 historyVersion,
+                                 onOpen,
+                                 onPlacesChanged,
+                                 onRecentCleared,
+                                 onLayoutChanged,
+                                 onHistoryChanged,
+                                 onDrivesChanged,
+                                 visibilityVersion = 0,
+                                 find,
+                                 onSearchMatches,
+                                 readOnly = false,
+                                 onPick,
+                                 onSelectionChange,
+                                 onAddToTray,
+                                 onAddFavorite,
+                                 onRemoveFavorite,
+                                 favoritePaths,
+                                 onExtractArchive,
+                                 settingsVersion = 0,
+                             }: OverviewViewProps) {
     const t = useTranslation();
     const quick = useQuickAccess();
     const [editing, setEditing] = useState(false);
@@ -1633,8 +1635,10 @@ export function OverviewView({
         if (!file) return;
 
         const banners = settings?.overviewBanners ?? [];
-        await save({overviewBanner: file,
-            overviewBanners: banners.includes(file) ? banners : [...banners, file]});
+        await save({
+            overviewBanner: file,
+            overviewBanners: banners.includes(file) ? banners : [...banners, file]
+        });
     };
 
     /** Adds a banner by URL; the list keeps the raw address so the thumbnail can reuse it. */
@@ -1687,7 +1691,8 @@ export function OverviewView({
         }
     };
 
-    const move = (id: string, offset: number) => {        const index = ids.indexOf(id);
+    const move = (id: string, offset: number) => {
+        const index = ids.indexOf(id);
         const target = index + offset;
         if (index < 0 || target < 0 || target >= ids.length) return;
 
@@ -1713,9 +1718,11 @@ export function OverviewView({
         // No stored list yet: start from the panels' default pin state, not from nothing.
         const pinned = settings?.overviewPinned ?? panels.filter((panel) => panel.pinned).map((panel) => panel.id);
 
-        void save({overviewPinned: panels.find((panel) => panel.id === id)?.pinned
-            ? pinned.filter((item) => item !== id)
-            : [...pinned, id]});
+        void save({
+            overviewPinned: panels.find((panel) => panel.id === id)?.pinned
+                ? pinned.filter((item) => item !== id)
+                : [...pinned, id]
+        });
     };
 
     /** Deletes the panel outright; any kind can be added again from the toolbar. */
@@ -1723,7 +1730,7 @@ export function OverviewView({
         setIconEditor(null);
 
         // Deleting a panel forgets everything that belonged to it, so a new one starts clean.
-        const without = <T,>(record: Record<string, T> | null | undefined) => {
+        const without = <T, >(record: Record<string, T> | null | undefined) => {
             const next = {...record};
             delete next[id];
             return next;
@@ -1904,7 +1911,8 @@ export function OverviewView({
                                 <Glyph>
                                     {place && quick.useIcons
                                         ? <PlaceIcon place={place} size={18}/>
-                                        : <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.path} size={18}/>}
+                                        : <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.path}
+                                                    size={18}/>}
                                 </Glyph>
                                 <CardText>
                                     <strong>{place?.name || entry.name}</strong>
@@ -1936,7 +1944,8 @@ export function OverviewView({
                             >
                                 {place && quick.useIcons
                                     ? <PlaceIcon place={place} size={15}/>
-                                    : <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.path} size={15}/>}
+                                    : <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.path}
+                                                size={15}/>}
                                 <RowText>
                                     <strong>{place?.name || entry.name}</strong>
                                     <Meta>{entry.path}</Meta>
@@ -2055,7 +2064,8 @@ export function OverviewView({
                                 <Glyph>
                                     {place && quick.useIcons
                                         ? <PlaceIcon place={place} size={18}/>
-                                        : <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.path} size={18}/>}
+                                        : <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.path}
+                                                    size={18}/>}
                                 </Glyph>
                                 <CardText>
                                     <strong>{place?.name || entry.name}</strong>
@@ -2086,7 +2096,8 @@ export function OverviewView({
                         >
                             {place && quick.useIcons
                                 ? <PlaceIcon place={place} size={15}/>
-                                : <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.path} size={15}/>}
+                                : <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.path}
+                                            size={15}/>}
                             <RowText>
                                 <strong>{place?.name || entry.name}</strong>
                                 <Meta>{entry.path}</Meta>
@@ -2144,7 +2155,10 @@ export function OverviewView({
                     <PencilIcon size={11}/>
                 </RenameButton>
             );
-            const meta = <Meta>{t("{free} free of {total}", {free: formatBytes(drive.freeSpace), total: formatBytes(drive.totalSize)})}</Meta>;
+            const meta = <Meta>{t("{free} free of {total}", {
+                free: formatBytes(drive.freeSpace),
+                total: formatBytes(drive.totalSize)
+            })}</Meta>;
 
             return panel.view === "grid"
                 ? (
@@ -2353,7 +2367,10 @@ export function OverviewView({
                                             <IconTrigger
                                                 onClick={(event) => {
                                                     event.stopPropagation();
-                                                    setIconEditor(isPlaceIconOpen(place.path) ? null : {kind: "place", id: place.path});
+                                                    setIconEditor(isPlaceIconOpen(place.path) ? null : {
+                                                        kind: "place",
+                                                        id: place.path
+                                                    });
                                                 }}
                                                 onPointerDown={(event) => event.stopPropagation()}
                                                 title={t("Change icon")}
@@ -2405,7 +2422,8 @@ export function OverviewView({
                             ))}
 
                             {editing && (
-                                <AddFolder onClick={() => void addPlace(panel)} title={t("Pin a folder here")} type="button">
+                                <AddFolder onClick={() => void addPlace(panel)} title={t("Pin a folder here")}
+                                           type="button">
                                     <Glyph><PlusIcon size={15}/></Glyph>
                                     <CardText>
                                         <strong>{t("Add folder")}</strong>
@@ -2436,7 +2454,10 @@ export function OverviewView({
                                             <IconTrigger
                                                 onClick={(event) => {
                                                     event.stopPropagation();
-                                                    setIconEditor(isPlaceIconOpen(place.path) ? null : {kind: "place", id: place.path});
+                                                    setIconEditor(isPlaceIconOpen(place.path) ? null : {
+                                                        kind: "place",
+                                                        id: place.path
+                                                    });
                                                 }}
                                                 onPointerDown={(event) => event.stopPropagation()}
                                                 title={t("Change icon")}
@@ -2501,7 +2522,8 @@ export function OverviewView({
                             ))}
 
                             {editing && (
-                                <AddFolder $row onClick={() => void addPlace(panel)} title={t("Pin a folder here")} type="button">
+                                <AddFolder $row onClick={() => void addPlace(panel)} title={t("Pin a folder here")}
+                                           type="button">
                                     <PlusIcon size={15}/>
                                     <RowText>
                                         <strong>{t("Add folder")}</strong>
@@ -2514,7 +2536,8 @@ export function OverviewView({
             }
 
             case "frequent":
-                return <FrequentBody mode={panel.view} onContextMenu={openCardMenu} onOpen={onOpen} onPick={onPick} onSelectionChange={onSelectionChange} version={historyVersion}/>;
+                return <FrequentBody mode={panel.view} onContextMenu={openCardMenu} onOpen={onOpen} onPick={onPick}
+                                     onSelectionChange={onSelectionChange} version={historyVersion}/>;
 
             case "recent":
                 return renderRecent(panel);
@@ -2544,81 +2567,81 @@ export function OverviewView({
         <Page $flush={!!settings?.overviewBanner} ref={pageRef}>
             {!readOnly && (
                 <Toolbar $overlay={!!settings?.overviewBanner}>
-                <Segmented role="group" title={t("Columns")}>
-                    {[1, 2, 3, 4, 5].map((count) => (
-                        <Segment
-                            key={count}
-                            $active={columns === count}
-                            onClick={() => void save({overviewColumns: count})}
-                            title={plural(t, count, "1 column", "{count} columns")}
+                    <Segmented role="group" title={t("Columns")}>
+                        {[1, 2, 3, 4, 5].map((count) => (
+                            <Segment
+                                key={count}
+                                $active={columns === count}
+                                onClick={() => void save({overviewColumns: count})}
+                                title={plural(t, count, "1 column", "{count} columns")}
+                                type="button"
+                            >
+                                {count}
+                            </Segment>
+                        ))}
+                    </Segmented>
+
+                    {editing && (
+                        <AddMenu>
+                            <Ghost
+                                onClick={() => setAddOpen((current) => !current)}
+                                onPointerDown={(event) => event.stopPropagation()}
+                                title={t("Add a panel")}
+                                type="button"
+                            >
+                                <PlusIcon size={12}/>
+                                {t("Add panel ▾")}
+                            </Ghost>
+                            {addOpen && (
+                                <PanelMenu onPointerDown={(event) => event.stopPropagation()}>
+                                    {(["quick", "recent", "frequent", "home", "drives", "share", "favorites", "folder"] as PanelKind[]).map((kind) => (
+                                        <PanelMenuItem
+                                            key={kind}
+                                            onClick={() => {
+                                                setAddOpen(false);
+                                                void addBlock(kind);
+                                            }}
+                                            type="button"
+                                        >
+                                            {kind === "quick" ? t("Quick access")
+                                                : kind === "recent" ? t("Recent")
+                                                    : kind === "frequent" ? t("Frequent")
+                                                        : kind === "home" ? t("Home")
+                                                            : kind === "drives" ? t("This PC")
+                                                                : kind === "share" ? t("Shared")
+                                                                    : kind === "favorites" ? t("Favorites") : t("Folder…")}
+                                        </PanelMenuItem>
+                                    ))}
+                                </PanelMenu>
+                            )}
+                        </AddMenu>
+                    )}
+
+                    {selectionMenu.available && (
+                        <IconButton
+                            onClick={(event) => selectionMenu.open(event.clientX, event.clientY)}
+                            title={t("Selection menu")}
                             type="button"
                         >
-                            {count}
-                        </Segment>
-                    ))}
-                </Segmented>
+                            <MenuIcon size={14}/>
+                        </IconButton>
+                    )}
 
-                {editing && (
-                    <AddMenu>
-                        <Ghost
-                            onClick={() => setAddOpen((current) => !current)}
-                            onPointerDown={(event) => event.stopPropagation()}
-                            title={t("Add a panel")}
-                            type="button"
-                        >
-                            <PlusIcon size={12}/>
-                            {t("Add panel ▾")}
-                        </Ghost>
-                        {addOpen && (
-                            <PanelMenu onPointerDown={(event) => event.stopPropagation()}>
-                                {(["quick", "recent", "frequent", "home", "drives", "share", "favorites", "folder"] as PanelKind[]).map((kind) => (
-                                    <PanelMenuItem
-                                        key={kind}
-                                        onClick={() => {
-                                            setAddOpen(false);
-                                            void addBlock(kind);
-                                        }}
-                                        type="button"
-                                    >
-                                        {kind === "quick" ? t("Quick access")
-                                            : kind === "recent" ? t("Recent")
-                                                : kind === "frequent" ? t("Frequent")
-                                                    : kind === "home" ? t("Home")
-                                                        : kind === "drives" ? t("This PC")
-                                                            : kind === "share" ? t("Shared")
-                                                                : kind === "favorites" ? t("Favorites") : t("Folder…")}
-                                    </PanelMenuItem>
-                                ))}
-                            </PanelMenu>
-                        )}
-                    </AddMenu>
-                )}
-
-                {selectionMenu.available && (
-                    <IconButton
-                        onClick={(event) => selectionMenu.open(event.clientX, event.clientY)}
-                        title={t("Selection menu")}
+                    <Ghost
+                        onClick={() => {
+                            setEditing((current) => !current);
+                            setAddOpen(false);
+                            setIconEditor(null);
+                            setPlaceRename(null);
+                            setDriveRename(null);
+                        }}
+                        title={editing ? t("Done") : t("Edit")}
                         type="button"
                     >
-                        <MenuIcon size={14}/>
-                    </IconButton>
-                )}
-
-                <Ghost
-                    onClick={() => {
-                        setEditing((current) => !current);
-                        setAddOpen(false);
-                        setIconEditor(null);
-                        setPlaceRename(null);
-                        setDriveRename(null);
-                    }}
-                    title={editing ? t("Done") : t("Edit")}
-                    type="button"
-                >
-                    {editing ? <CheckIcon size={13}/> : <PencilIcon size={13}/>}
-                    {editing ? t("Done") : t("Edit")}
-                </Ghost>
-            </Toolbar>
+                        {editing ? <CheckIcon size={13}/> : <PencilIcon size={13}/>}
+                        {editing ? t("Done") : t("Edit")}
+                    </Ghost>
+                </Toolbar>
             )}
 
             {driveNotice && <Notice>{driveNotice}</Notice>}
@@ -2679,234 +2702,239 @@ export function OverviewView({
             )}
 
             <Content $offset={settings?.overviewBanner ? bannerPanelOffset : 0}>
-            {editing && (
-                <BannerPanel>
-                    <BannerPanelHead>
-                        <BannerPanelTitle>{t("Banners")}</BannerPanelTitle>
-                        {settings?.overviewBanner && (
-                            <Ghost onClick={() => setFraming(true)} title={t("Adjust framing…")} type="button">
-                                <PencilIcon size={12}/>
-                                {t("Adjust framing…")}
-                            </Ghost>
-                        )}
-                    </BannerPanelHead>
-                    <BannerChoices>
-                        <BannerItem>
-                            <BannerChoice
-                                $active={!settings?.overviewBanner}
-                                onClick={removeBanner}
-                                title={t("No banner")}
+                {editing && (
+                    <BannerPanel>
+                        <BannerPanelHead>
+                            <BannerPanelTitle>{t("Banners")}</BannerPanelTitle>
+                            {settings?.overviewBanner && (
+                                <Ghost onClick={() => setFraming(true)} title={t("Adjust framing…")} type="button">
+                                    <PencilIcon size={12}/>
+                                    {t("Adjust framing…")}
+                                </Ghost>
+                            )}
+                        </BannerPanelHead>
+                        <BannerChoices>
+                            <BannerItem>
+                                <BannerChoice
+                                    $active={!settings?.overviewBanner}
+                                    onClick={removeBanner}
+                                    title={t("No banner")}
+                                    type="button"
+                                >
+                                    <NoBanner>
+                                        <CrossIcon size={16}/>
+                                        <span>{t("No banner")}</span>
+                                    </NoBanner>
+                                </BannerChoice>
+                            </BannerItem>
+
+                            {BuiltinBanners.map((variant) => (
+                                <BannerItem key={variant.id}>
+                                    <BannerChoice
+                                        $active={settings?.overviewBanner === variant.id}
+                                        onClick={() => void save({overviewBanner: variant.id})}
+                                        title={`${t(variant.concept)} · ${t(variant.preset)}`}
+                                        type="button"
+                                    >
+                                        <BannerThumb poster={variant.url} source={variant.id}/>
+                                    </BannerChoice>
+                                </BannerItem>
+                            ))}
+
+                            {BuiltInVideos.map((video) => (
+                                <BannerItem key={video.id}>
+                                    <BannerChoice
+                                        $active={settings?.overviewBanner === video.id}
+                                        onClick={() => void save({overviewBanner: video.id})}
+                                        title={t(video.name)}
+                                        type="button"
+                                    >
+                                        <BannerThumb poster={video.poster} source={video.id}/>
+                                        <PlayBadge><VideoIcon size={11}/></PlayBadge>
+                                    </BannerChoice>
+                                </BannerItem>
+                            ))}
+
+                            {(settings?.overviewBanners ?? []).map((path) => (
+                                <BannerItem key={path}>
+                                    <BannerChoice
+                                        $active={settings?.overviewBanner === path
+                                            || settings?.overviewBanner === `url:${path}`}
+                                        onClick={() => void save({
+                                            overviewBanner: isRemoteUrl(path) ? `url:${path}` : path
+                                        })}
+                                        title={path}
+                                        type="button"
+                                    >
+                                        <BannerThumb source={path}/>
+                                    </BannerChoice>
+                                    <BannerRemove
+                                        onClick={() => removeCustomBanner(path)}
+                                        title={t("Remove")}
+                                        type="button"
+                                    >
+                                        <CrossIcon size={10}/>
+                                    </BannerRemove>
+                                </BannerItem>
+                            ))}
+
+                            <AddBanner onClick={() => void chooseBanner()} title={t("Add banner…")} type="button">
+                                <PlusIcon size={18}/>
+                                <span>{t("Add banner…")}</span>
+                            </AddBanner>
+                        </BannerChoices>
+                        <BannerUrlRow>
+                            <BannerUrlInput
+                                onChange={(event) => setBannerUrl(event.target.value)}
+                                onKeyDown={(event) => {
+                                    if (event.key === "Enter") void addBannerUrl();
+                                }}
+                                placeholder="https://…"
+                                value={bannerUrl}
+                            />
+                            <BannerUrlButton
+                                disabled={!isRemoteUrl(bannerUrl)}
+                                onClick={() => void addBannerUrl()}
                                 type="button"
                             >
-                                <NoBanner>
-                                    <CrossIcon size={16}/>
-                                    <span>{t("No banner")}</span>
-                                </NoBanner>
-                            </BannerChoice>
-                        </BannerItem>
+                                {t("Add URL")}
+                            </BannerUrlButton>
+                        </BannerUrlRow>
+                    </BannerPanel>
+                )}
 
-                        {BuiltinBanners.map((variant) => (
-                            <BannerItem key={variant.id}>
-                                <BannerChoice
-                                    $active={settings?.overviewBanner === variant.id}
-                                    onClick={() => void save({overviewBanner: variant.id})}
-                                    title={`${t(variant.concept)} · ${t(variant.preset)}`}
-                                    type="button"
-                                >
-                                    <BannerThumb poster={variant.url} source={variant.id}/>
-                                </BannerChoice>
-                            </BannerItem>
-                        ))}
+                <Panels ref={panelsRef} $columns={columns}>
+                    {panels
+                        .map((panel) => {
+                            const index = ids.indexOf(panel.id);
 
-                        {BuiltInVideos.map((video) => (
-                            <BannerItem key={video.id}>
-                                <BannerChoice
-                                    $active={settings?.overviewBanner === video.id}
-                                    onClick={() => void save({overviewBanner: video.id})}
-                                    title={t(video.name)}
-                                    type="button"
-                                >
-                                    <BannerThumb poster={video.poster} source={video.id}/>
-                                    <PlayBadge><VideoIcon size={11}/></PlayBadge>
-                                </BannerChoice>
-                            </BannerItem>
-                        ))}
-
-                        {(settings?.overviewBanners ?? []).map((path) => (
-                            <BannerItem key={path}>
-                                <BannerChoice
-                                    $active={settings?.overviewBanner === path
-                                        || settings?.overviewBanner === `url:${path}`}
-                                    onClick={() => void save({
-                                        overviewBanner: isRemoteUrl(path) ? `url:${path}` : path
-                                    })}
-                                    title={path}
-                                    type="button"
-                                >
-                                    <BannerThumb source={path}/>
-                                </BannerChoice>
-                                <BannerRemove
-                                    onClick={() => removeCustomBanner(path)}
-                                    title={t("Remove")}
-                                    type="button"
-                                >
-                                    <CrossIcon size={10}/>
-                                </BannerRemove>
-                            </BannerItem>
-                        ))}
-
-                        <AddBanner onClick={() => void chooseBanner()} title={t("Add banner…")} type="button">
-                            <PlusIcon size={18}/>
-                            <span>{t("Add banner…")}</span>
-                        </AddBanner>
-                    </BannerChoices>
-                    <BannerUrlRow>
-                        <BannerUrlInput
-                            onChange={(event) => setBannerUrl(event.target.value)}
-                            onKeyDown={(event) => {
-                                if (event.key === "Enter") void addBannerUrl();
-                            }}
-                            placeholder="https://…"
-                            value={bannerUrl}
-                        />
-                        <BannerUrlButton
-                            disabled={!isRemoteUrl(bannerUrl)}
-                            onClick={() => void addBannerUrl()}
-                            type="button"
-                        >
-                            {t("Add URL")}
-                        </BannerUrlButton>
-                    </BannerUrlRow>
-                </BannerPanel>
-            )}
-
-            <Panels ref={panelsRef} $columns={columns}>
-                {panels
-                    .map((panel) => {
-                        const index = ids.indexOf(panel.id);
-
-                        return (
-                            <Section key={panel.id}>
-                                <Head>
-                                    <HeadStart>
-                                        <IconAnchor>
-                                            {editing ? (
-                                                <IconTrigger
-                                                    onClick={() => setIconEditor(isPanelIconOpen(panel.id) ? null : {kind: "panel", id: panel.id})}
-                                                    onPointerDown={(event) => event.stopPropagation()}
-                                                    title={t("Change icon")}
-                                                    type="button"
-                                                >
+                            return (
+                                <Section key={panel.id}>
+                                    <Head>
+                                        <HeadStart>
+                                            <IconAnchor>
+                                                {editing ? (
+                                                    <IconTrigger
+                                                        onClick={() => setIconEditor(isPanelIconOpen(panel.id) ? null : {
+                                                            kind: "panel",
+                                                            id: panel.id
+                                                        })}
+                                                        onPointerDown={(event) => event.stopPropagation()}
+                                                        title={t("Change icon")}
+                                                        type="button"
+                                                    >
+                                                        <PanelGlyph panel={panel} size={15}/>
+                                                    </IconTrigger>
+                                                ) : (
                                                     <PanelGlyph panel={panel} size={15}/>
-                                                </IconTrigger>
-                                            ) : (
-                                                <PanelGlyph panel={panel} size={15}/>
+                                                )}
+                                                {isPanelIconOpen(panel.id) && (
+                                                    <IconPicker
+                                                        onPick={(icon) => setIcon(panel.id, icon)}
+                                                        value={panel.icon}
+                                                    />
+                                                )}
+                                            </IconAnchor>
+
+                                            {editing
+                                                ? (
+                                                    <TitleInput
+                                                        defaultValue={panel.title}
+                                                        onBlur={(event) => rename(panel.id, event.target.value)}
+                                                        onKeyDown={(event) => {
+                                                            if (event.key === "Enter") (event.target as HTMLInputElement).blur();
+                                                        }}
+                                                    />
+                                                )
+                                                : <Title>{t(panel.title)}</Title>}
+                                        </HeadStart>
+
+                                        <HeadEnd>
+                                            {!editing && panel.kind === "recent" && (
+                                                <Ghost onClick={() => void clearRecent().then(onRecentCleared)}
+                                                       title={t("Clear")} type="button">
+                                                    {t("Clear")}
+                                                </Ghost>
                                             )}
-                                            {isPanelIconOpen(panel.id) && (
-                                                <IconPicker
-                                                    onPick={(icon) => setIcon(panel.id, icon)}
-                                                    value={panel.icon}
-                                                />
+
+                                            {!editing && panel.kind === "frequent" && (
+                                                <Ghost
+                                                    onClick={() => void clearFrequent().then(() => onHistoryChanged?.())}
+                                                    title={t("Clear the frequent list")}
+                                                    type="button"
+                                                >
+                                                    {t("Clear")}
+                                                </Ghost>
                                             )}
-                                        </IconAnchor>
 
-                                        {editing
-                                            ? (
-                                                <TitleInput
-                                                    defaultValue={panel.title}
-                                                    onBlur={(event) => rename(panel.id, event.target.value)}
-                                                    onKeyDown={(event) => {
-                                                        if (event.key === "Enter") (event.target as HTMLInputElement).blur();
-                                                    }}
-                                                />
-                                            )
-                                            : <Title>{t(panel.title)}</Title>}
-                                    </HeadStart>
+                                            {!editing && (panel.kind === "home" || panel.kind === "folder") && (
+                                                <Ghost onClick={() => onOpen(panel.path ?? homePath)}
+                                                       title={t("Open folder")} type="button">
+                                                    {t("Open")}
+                                                </Ghost>
+                                            )}
 
-                                    <HeadEnd>
-                                        {!editing && panel.kind === "recent" && (
-                                            <Ghost onClick={() => void clearRecent().then(onRecentCleared)} title={t("Clear")} type="button">
-                                                {t("Clear")}
-                                            </Ghost>
-                                        )}
+                                            {editing && (
+                                                <>
+                                                    <IconButton
+                                                        $active={panel.pinned}
+                                                        onClick={() => togglePin(panel.id)}
+                                                        title={panel.pinned ? t("Unpin from the sidebar") : t("Pin to the sidebar")}
+                                                        type="button"
+                                                    >
+                                                        <PinIcon size={12}/>
+                                                    </IconButton>
+                                                    <IconButton
+                                                        $active={panel.view === "list"}
+                                                        onClick={() => setView(panel.id, "list")}
+                                                        title={t("List")}
+                                                        type="button"
+                                                    >
+                                                        <ListIcon size={13}/>
+                                                    </IconButton>
+                                                    <IconButton
+                                                        $active={panel.view === "grid"}
+                                                        onClick={() => setView(panel.id, "grid")}
+                                                        title={t("Grid")}
+                                                        type="button"
+                                                    >
+                                                        <GridIcon size={13}/>
+                                                    </IconButton>
+                                                    <IconButton
+                                                        disabled={index === 0}
+                                                        onClick={() => move(panel.id, -1)}
+                                                        title={t("Move up")}
+                                                        type="button"
+                                                    >
+                                                        <ArrowUpIcon size={12}/>
+                                                    </IconButton>
+                                                    <IconButton
+                                                        disabled={index === ids.length - 1}
+                                                        onClick={() => move(panel.id, 1)}
+                                                        title={t("Move down")}
+                                                        type="button"
+                                                    >
+                                                        <ArrowUpIcon size={12}/>
+                                                    </IconButton>
+                                                    <IconButton
+                                                        onClick={() => remove(panel.id)}
+                                                        title={t("Remove panel")}
+                                                        type="button"
+                                                    >
+                                                        <CrossIcon size={12}/>
+                                                    </IconButton>
+                                                </>
+                                            )}
+                                        </HeadEnd>
+                                    </Head>
 
-                                        {!editing && panel.kind === "frequent" && (
-                                            <Ghost
-                                                onClick={() => void clearFrequent().then(() => onHistoryChanged?.())}
-                                                title={t("Clear the frequent list")}
-                                                type="button"
-                                            >
-                                                {t("Clear")}
-                                            </Ghost>
-                                        )}
-
-                                        {!editing && (panel.kind === "home" || panel.kind === "folder") && (
-                                            <Ghost onClick={() => onOpen(panel.path ?? homePath)} title={t("Open folder")} type="button">
-                                                {t("Open")}
-                                            </Ghost>
-                                        )}
-
-                                        {editing && (
-                                            <>
-                                                <IconButton
-                                                    $active={panel.pinned}
-                                                    onClick={() => togglePin(panel.id)}
-                                                    title={panel.pinned ? t("Unpin from the sidebar") : t("Pin to the sidebar")}
-                                                    type="button"
-                                                >
-                                                    <PinIcon size={12}/>
-                                                </IconButton>
-                                                <IconButton
-                                                    $active={panel.view === "list"}
-                                                    onClick={() => setView(panel.id, "list")}
-                                                    title={t("List")}
-                                                    type="button"
-                                                >
-                                                    <ListIcon size={13}/>
-                                                </IconButton>
-                                                <IconButton
-                                                    $active={panel.view === "grid"}
-                                                    onClick={() => setView(panel.id, "grid")}
-                                                    title={t("Grid")}
-                                                    type="button"
-                                                >
-                                                    <GridIcon size={13}/>
-                                                </IconButton>
-                                                <IconButton
-                                                    disabled={index === 0}
-                                                    onClick={() => move(panel.id, -1)}
-                                                    title={t("Move up")}
-                                                    type="button"
-                                                >
-                                                    <ArrowUpIcon size={12}/>
-                                                </IconButton>
-                                                <IconButton
-                                                    disabled={index === ids.length - 1}
-                                                    onClick={() => move(panel.id, 1)}
-                                                    title={t("Move down")}
-                                                    type="button"
-                                                >
-                                                    <ArrowUpIcon size={12}/>
-                                                </IconButton>
-                                                <IconButton
-                                                    onClick={() => remove(panel.id)}
-                                                    title={t("Remove panel")}
-                                                    type="button"
-                                                >
-                                                    <CrossIcon size={12}/>
-                                                </IconButton>
-                                            </>
-                                        )}
-                                    </HeadEnd>
-                                </Head>
-
-                                {panel.kind === "home" || panel.kind === "folder"
-                                    ? body(panel)
-                                    : <Scroller>{body(panel)}</Scroller>}
-                            </Section>
-                        );
-                    })}
-            </Panels>
+                                    {panel.kind === "home" || panel.kind === "folder"
+                                        ? body(panel)
+                                        : <Scroller>{body(panel)}</Scroller>}
+                                </Section>
+                            );
+                        })}
+                </Panels>
             </Content>
 
             {framing && bannerSource && (
@@ -2955,7 +2983,8 @@ function InlineEditor({value, onChange, onCommit, onCancel, maxLength = 120}: {
     const t = useTranslation();
 
     return (
-        <InlineEditorBox onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()}>
+        <InlineEditorBox onClick={(event) => event.stopPropagation()}
+                         onPointerDown={(event) => event.stopPropagation()}>
             <input
                 autoFocus
                 maxLength={maxLength}
@@ -3080,7 +3109,18 @@ function FrequentBody({mode, onOpen, onContextMenu, onPick, onSelectionChange, v
 }
 
 /** One folder rendered as a panel: a table or a grid of its entries. */
-function FolderBody({path, mode, onOpen, onContextMenu, onPick, onSelectionChange, selectionMenuId, showCheckboxes, openOnSingleClick, visibilityVersion}: {
+function FolderBody({
+                        path,
+                        mode,
+                        onOpen,
+                        onContextMenu,
+                        onPick,
+                        onSelectionChange,
+                        selectionMenuId,
+                        showCheckboxes,
+                        openOnSingleClick,
+                        visibilityVersion
+                    }: {
     path: string;
     mode: ViewMode;
     onOpen: (path: string, newTab?: boolean) => void;
@@ -3185,7 +3225,8 @@ function FolderBody({path, mode, onOpen, onContextMenu, onPick, onSelectionChang
                                 >
                                     {place && quick.useIcons
                                         ? <PlaceIcon place={place} size={16}/>
-                                        : <PathIcon isDirectory={entry.isDirectory} name={entry.name} path={entry.fullPath} size={16}/>}
+                                        : <PathIcon isDirectory={entry.isDirectory} name={entry.name}
+                                                    path={entry.fullPath} size={16}/>}
                                     <span>{place?.name || entry.name}</span>
                                 </Tile>
                             );

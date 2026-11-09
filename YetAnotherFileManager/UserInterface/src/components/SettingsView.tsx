@@ -1,11 +1,13 @@
 import {useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
-import {loadStrings, useTranslation, type Translate} from "@photino-net-utils/bridge";
+import {loadStrings, type Translate, useTranslation} from "@photino-net-utils/bridge";
 import styled, {css} from "styled-components";
-import {getVisibility, listIndexTasks, type FileVisibility, type IndexTasks} from "../api/files";
-import {DefaultViewDefaults} from "../api/files";
+import {DefaultViewDefaults, type FileVisibility, getVisibility, type IndexTasks, listIndexTasks} from "../api/files";
 import {clearIconCache, useIconFile, useMediaUrl} from "../api/icons";
 import {
+    type AppSettings,
+    type ArchiveStatus,
+    type DefaultManagerStatus,
     getArchiveStatus,
     getDefaultManagerStatus,
     getDefaultProtectedPaths,
@@ -14,16 +16,25 @@ import {
     saveSettings,
     setEntryIcon,
     unregisterArchiveHandler,
-    type AppSettings,
-    type ArchiveStatus,
-    type DefaultManagerStatus,
 } from "../api/settings";
 import type {AppInfo} from "../api/system";
+import {
+    checkUpdate,
+    getMemory,
+    getScheme,
+    getStartup,
+    getUpdateStatus,
+    type MemoryUsage,
+    openUrl,
+    setScheme,
+    setStartup as setStartupEntry,
+    type StartupStatus,
+    trimMemory,
+    type UpdateCheck
+} from "../api/system";
 import {requestFile, requestFolder} from "../folder-picker";
 import {SelectMenu} from "./SelectMenu";
-import {useTextSearch, type PageFind} from "../ui/textSearch";
-import {checkUpdate, getMemory, getScheme, getStartup, getUpdateStatus, openUrl, setScheme,
-    setStartup as setStartupEntry, trimMemory, type MemoryUsage, type StartupStatus, type UpdateCheck} from "../api/system";
+import {type PageFind, useTextSearch} from "../ui/textSearch";
 import {createTag, deleteTag, listTags, renameTag, setTagColor, type TagCatalogEntry} from "../api/tags";
 import {CheckIcon, ChevronRightIcon, CrossIcon, PlusIcon, TrashIcon, VideoIcon} from "./Icons";
 import {IconPicker} from "./IconPicker";
@@ -36,7 +47,15 @@ import {GlobalTag} from "./GlobalTag";
 import {ViewColumns} from "./FileList";
 import {BuiltInBackgrounds, BuiltInVideos} from "../backgrounds/concepts";
 import {isVideoPath} from "./Wallpaper";
-import {baseName, DefaultTimePattern, formatBytes, formatDateWith, isRemoteUrl, plural, usageTone} from "../utils/format";
+import {
+    baseName,
+    DefaultTimePattern,
+    formatBytes,
+    formatDateWith,
+    isRemoteUrl,
+    plural,
+    usageTone
+} from "../utils/format";
 import {readStoredJson, writeStoredJson} from "../storage";
 import {FontRoles, listFonts} from "../fonts";
 import {FontPicker} from "./FontPicker";
@@ -57,8 +76,16 @@ interface SettingsViewProps {
 
 /** The actions the interface can bind; the ids are what settings.json stores. */
 const ShortcutRows: { id: keyof ShortcutMap; label: string; note: string }[] = [
-    {id: "goBack", label: "Back", note: "The previous folder in this tab. The mouse back button and the browser back key always work."},
-    {id: "goForward", label: "Forward", note: "The next folder in this tab. The mouse forward button and the browser forward key always work."},
+    {
+        id: "goBack",
+        label: "Back",
+        note: "The previous folder in this tab. The mouse back button and the browser back key always work."
+    },
+    {
+        id: "goForward",
+        label: "Forward",
+        note: "The next folder in this tab. The mouse forward button and the browser forward key always work."
+    },
     {id: "goUp", label: "Up one level", note: "Opens the folder that contains the current one."},
     {id: "home", label: "Home folder", note: "Jumps to the user's home folder, like Alt+Home in Dolphin."},
     {id: "find", label: "Search", note: "Opens the floating search box. Typing a letter in a folder opens it too."},
@@ -74,17 +101,33 @@ const ShortcutRows: { id: keyof ShortcutMap; label: string; note: string }[] = [
     {id: "undo", label: "Undo", note: "Undoes the last file operation in this session."},
     {id: "redo", label: "Redo", note: "Repeats the operation that was just undone."},
     {id: "delete", label: "Move to recycle bin", note: "Delete is Del by default, not Ctrl+D."},
-    {id: "deletePermanently", label: "Delete permanently", note: "Bypasses the recycle bin; Dolphin uses Shift+Delete."},
+    {
+        id: "deletePermanently",
+        label: "Delete permanently",
+        note: "Bypasses the recycle bin; Dolphin uses Shift+Delete."
+    },
     {id: "rename", label: "Rename", note: "Renames the single selected entry."},
     {id: "selectAll", label: "Select all", note: "Selects every entry in the current folder."},
-    {id: "invertSelection", label: "Invert selection", note: "Selects everything that is not selected; Dolphin uses Ctrl+Shift+A."},
+    {
+        id: "invertSelection",
+        label: "Invert selection",
+        note: "Selects everything that is not selected; Dolphin uses Ctrl+Shift+A."
+    },
     {id: "open", label: "Open", note: "Opens the selected folder or file."},
     {id: "newFolder", label: "New folder", note: "Creates a folder in the current directory. F10 also works."},
     {id: "properties", label: "Properties", note: "Opens the shell properties sheet."},
     {id: "iconsView", label: "Icons view", note: "Switches the folder to the grid view."},
     {id: "detailsView", label: "Details view", note: "Switches the folder to the list view."},
-    {id: "terminal", label: "Open terminal", note: "Opens Windows Terminal in the current folder; Dolphin uses F4 for its terminal panel."},
-    {id: "hidden", label: "Show hidden files", note: "Toggles ordinary hidden files for this session. Alt+. also works; system files still follow Explorer."},
+    {
+        id: "terminal",
+        label: "Open terminal",
+        note: "Opens Windows Terminal in the current folder; Dolphin uses F4 for its terminal panel."
+    },
+    {
+        id: "hidden",
+        label: "Show hidden files",
+        note: "Toggles ordinary hidden files for this session. Alt+. also works; system files still follow Explorer."
+    },
     {id: "splitView", label: "Split view", note: "Shows the next file tab beside the current one; F3 in Dolphin."},
     {id: "openInNewTab", label: "Open in a new tab", note: "Hold this while clicking a folder."},
 ];
@@ -157,7 +200,14 @@ function readRecentColors(): RecentColors {
     };
 }
 
-export function SettingsView({appInfo, focusSection, onSettingsChanged, onOpenFolder, find, onSearchMatches}: SettingsViewProps) {
+export function SettingsView({
+                                 appInfo,
+                                 focusSection,
+                                 onSettingsChanged,
+                                 onOpenFolder,
+                                 find,
+                                 onSearchMatches
+                             }: SettingsViewProps) {
     const t = useTranslation();
     const [languages, setLanguages] = useState<string[]>([]);
     const [visibility, setVisibility] = useState<FileVisibility | null>(null);
@@ -420,8 +470,10 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, onOpenFo
         setDirectoryRuleDraft(null);
         if (!value || value === from) return;
 
-        void update({directoryIndexBlacklist: settings.directoryIndexBlacklist
-            .map((item) => item === from ? value : item)});
+        void update({
+            directoryIndexBlacklist: settings.directoryIndexBlacklist
+                .map((item) => item === from ? value : item)
+        });
     };
 
     const addDirectoryRule = () => {
@@ -522,7 +574,11 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, onOpenFo
 
         const name = draftPreset.name.trim()
             || `${draftPreset.accent.toUpperCase()} / ${draftPreset.secondary.toUpperCase()}`;
-        const presets = [...settings.themePresets, {name, accent: draftPreset.accent, secondary: draftPreset.secondary}];
+        const presets = [...settings.themePresets, {
+            name,
+            accent: draftPreset.accent,
+            secondary: draftPreset.secondary
+        }];
 
         setDraftPreset(null);
         await update({themePresets: presets});
@@ -1158,7 +1214,8 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, onOpenFo
                                 <Label>{t("Start with the computer")}</Label>
                                 <Note>{t("A shortcut uses the Startup folder (or XDG autostart). A task uses Task Scheduler (or a systemd user service), which starts earlier and is usually faster.")}</Note>
                                 {startupError && <TagError>{startupError}</TagError>}
-                                {startup && !startup.supported && <TagError>{t("This platform cannot create a per-user startup entry.")}</TagError>}
+                                {startup && !startup.supported &&
+                                    <TagError>{t("This platform cannot create a per-user startup entry.")}</TagError>}
                             </RowText>
                             <RowEnd>
                                 <SelectMenu
@@ -1409,7 +1466,10 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, onOpenFo
                                             <PresetInput
                                                 autoFocus
                                                 maxLength={24}
-                                                onChange={(event) => setDraftPreset({...draftPreset, name: event.target.value})}
+                                                onChange={(event) => setDraftPreset({
+                                                    ...draftPreset,
+                                                    name: event.target.value
+                                                })}
                                                 onKeyDown={(event) => {
                                                     if (event.key === "Enter") {
                                                         event.preventDefault();
@@ -1689,7 +1749,10 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, onOpenFo
                                         <ProtectInput
                                             aria-label={t("Protected path")}
                                             onBlur={commitRule}
-                                            onChange={(event) => setRuleDraft({from: pattern, value: event.target.value})}
+                                            onChange={(event) => setRuleDraft({
+                                                from: pattern,
+                                                value: event.target.value
+                                            })}
                                             onFocus={() => setRuleDraft({from: pattern, value: pattern})}
                                             onKeyDown={(event) => {
                                                 if (event.key === "Enter") {
@@ -1847,10 +1910,12 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, onOpenFo
                                                 <Note>{t("Press Enter to save, Escape to cancel.")}</Note>
                                             </RowText>
                                             <RowEnd>
-                                                <SmallButton disabled={tagBusy} onClick={() => void saveTagName()} type="button">
+                                                <SmallButton disabled={tagBusy} onClick={() => void saveTagName()}
+                                                             type="button">
                                                     {t("Save")}
                                                 </SmallButton>
-                                                <SmallButton disabled={tagBusy} onClick={() => setEditingTag(null)} type="button">
+                                                <SmallButton disabled={tagBusy} onClick={() => setEditingTag(null)}
+                                                             type="button">
                                                     {t("Cancel")}
                                                 </SmallButton>
                                             </RowEnd>
@@ -2189,7 +2254,10 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, onOpenFo
                             <Note>
                                 {memory
                                     ? t("Committed of {available} the runtime can use; {resident} is resident. The webview runs in its own process.",
-                                        {available: formatBytes(memory.available), resident: formatBytes(memory.workingSet)})
+                                        {
+                                            available: formatBytes(memory.available),
+                                            resident: formatBytes(memory.workingSet)
+                                        })
                                     : t("Reading the current usage…")}
                             </Note>
                         </Gauge>
@@ -2261,7 +2329,7 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, onOpenFo
                                 <Input
                                     max={50}
                                     min={0}
-                                    onChange={(event) => void setRecentLimit(Number(event.target.value))}                                type="number"
+                                    onChange={(event) => void setRecentLimit(Number(event.target.value))} type="number"
                                     value={settings?.recentLimit ?? 10}
                                 />
                             </RowEnd>
@@ -2484,7 +2552,10 @@ export function SettingsView({appInfo, focusSection, onSettingsChanged, onOpenFo
                                         <ProtectInput
                                             aria-label={t("Directory index blacklist rule")}
                                             onBlur={commitDirectoryRule}
-                                            onChange={(event) => setDirectoryRuleDraft({from: pattern, value: event.target.value})}
+                                            onChange={(event) => setDirectoryRuleDraft({
+                                                from: pattern,
+                                                value: event.target.value
+                                            })}
                                             onFocus={() => setDirectoryRuleDraft({from: pattern, value: pattern})}
                                             onKeyDown={(event) => {
                                                 if (event.key === "Enter") {
@@ -2607,8 +2678,12 @@ function IndexTaskList() {
     useEffect(() => {
         let alive = true;
         const load = () => listIndexTasks().then(
-            (result) => { if (alive) setTasks(result); },
-            () => { if (alive) setTasks(null); },
+            (result) => {
+                if (alive) setTasks(result);
+            },
+            () => {
+                if (alive) setTasks(null);
+            },
         );
 
         load();
@@ -3213,7 +3288,6 @@ const TocItem = styled.button<{ $active: boolean }>`
             box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.16);
         }
     `}
-
     &:hover {
         background: var(--bg-card-hover);
         color: var(--text-primary);

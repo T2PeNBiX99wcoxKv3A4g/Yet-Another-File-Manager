@@ -1,9 +1,9 @@
 import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
 import {Native, ResizeHandles, useTranslation, useWindowDrag} from "@photino-net-utils/bridge";
-import {getSettings, type AppSettings} from "./api/settings";
+import {type AppSettings, getSettings} from "./api/settings";
 import {DefaultViewDefaults, type DirectoryView, type ResolvedView} from "./api/files";
-import {setProtectedDeleteAsker, type ProtectedDeletePrompt} from "./api/safety";
+import {type ProtectedDeletePrompt, setProtectedDeleteAsker} from "./api/safety";
 import {applyTheme} from "./theme";
 import {FolderPicker} from "./components/FolderPicker";
 import {ViewMenu} from "./components/ViewMenu";

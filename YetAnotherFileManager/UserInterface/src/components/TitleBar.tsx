@@ -1,7 +1,6 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import styled from "styled-components";
-import {useTranslation} from "@photino-net-utils/bridge";
-import {useWindowControls, useWindowDrag} from "@photino-net-utils/bridge";
+import {useTranslation, useWindowControls, useWindowDrag} from "@photino-net-utils/bridge";
 import type {TabInfo} from "../tabs";
 import type {DirectoryView, ResolvedView} from "../api/files";
 import {prettyShortcut, type ShortcutMap} from "../shortcuts";
@@ -65,19 +64,41 @@ interface TitleBarProps {
 }
 
 export function TitleBar({
-    tabs, activeId, onSelect, onClose, onNewTab, onReorder, onTransferToTab,
-    view, onViewChange, onColumns, showImages, onShowImages, tasks, onClearTasks,
-    activityOpen, onActivityOpenChange,
-    trayCount, trayVisible, onToggleTray,
-    split, canSplit, onToggleSplit, details, canDetails, onToggleDetails, shortcuts, currentFolder,
-}: TitleBarProps) {
+                             tabs,
+                             activeId,
+                             onSelect,
+                             onClose,
+                             onNewTab,
+                             onReorder,
+                             onTransferToTab,
+                             view,
+                             onViewChange,
+                             onColumns,
+                             showImages,
+                             onShowImages,
+                             tasks,
+                             onClearTasks,
+                             activityOpen,
+                             onActivityOpenChange,
+                             trayCount,
+                             trayVisible,
+                             onToggleTray,
+                             split,
+                             canSplit,
+                             onToggleSplit,
+                             details,
+                             canDetails,
+                             onToggleDetails,
+                             shortcuts,
+                             currentFolder,
+                         }: TitleBarProps) {
     const t = useTranslation();
     const controls = useWindowControls();
     const drag = useWindowDrag();
     const [overflow, setOverflow] = useState({left: false, right: false});
     const [dragging, setDragging] = useState<string | null>(null);
     const [dropTab, setDropTab] = useState<string | null>(null);
-    const tabHover = useRef<{id: string; timer: number} | null>(null);
+    const tabHover = useRef<{ id: string; timer: number } | null>(null);
     const scroller = useRef<HTMLDivElement | null>(null);
     const activeTab = useRef<HTMLButtonElement | null>(null);
 
@@ -418,8 +439,8 @@ const Tab = styled.button<{ $active: boolean; $dragging: boolean; $split: boolea
     flex: 0 0 auto;
     padding: 0 6px 0 10px;
     border: 1px solid ${({$dropTarget, $active}) => $dropTarget
-        ? "var(--accent-primary)"
-        : $active ? "var(--border-color)" : "transparent"};
+            ? "var(--accent-primary)"
+            : $active ? "var(--border-color)" : "transparent"};
     border-bottom: 0;
     border-radius: 9px 9px 0 0;
     background: ${({$active}) => $active ? "rgba(var(--accent-rgb), 0.10)" : "transparent"};
@@ -429,8 +450,8 @@ const Tab = styled.button<{ $active: boolean; $dragging: boolean; $split: boolea
     cursor: pointer;
     opacity: ${({$dragging}) => $dragging ? 0.45 : 1};
     box-shadow: ${({$dropTarget, $active}) => $dropTarget
-        ? "inset 0 -2px 0 var(--accent-primary), 0 0 12px rgba(var(--accent-rgb), 0.22)"
-        : $active ? "inset 0 -2px 0 var(--accent-primary)" : "none"};
+            ? "inset 0 -2px 0 var(--accent-primary), 0 0 12px rgba(var(--accent-rgb), 0.22)"
+            : $active ? "inset 0 -2px 0 var(--accent-primary)" : "none"};
     transition: background 120ms ease, color 120ms ease, opacity 120ms ease, box-shadow 120ms ease;
 
     svg {

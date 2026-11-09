@@ -210,7 +210,7 @@ export function CompressDialog({initialDirectory, initialName, onCancel, onCompr
                 <Actions>
                     <Button disabled={busy} onClick={onCancel} type="button">{t("Cancel")}</Button>
                     <Primary disabled={busy || !name.trim() || (encrypted && password.length === 0)}
-                        onClick={() => void submit()} type="button">
+                             onClick={() => void submit()} type="button">
                         {busy ? t("Compressing…") : t("Compress")}
                     </Primary>
                 </Actions>
@@ -278,7 +278,9 @@ const NameInput = styled.input`
     font: inherit;
     font-size: 12px;
 
-    &:focus { border-color: var(--border-color-focus); }
+    &:focus {
+        border-color: var(--border-color-focus);
+    }
 `;
 
 const Extension = styled.span`
@@ -323,8 +325,16 @@ const Button = styled.button`
     font: inherit;
     font-size: 11px;
     cursor: pointer;
-    &:hover:not(:disabled) { border-color: var(--border-color-hover); color: var(--text-primary); }
-    &:disabled { opacity: 0.5; cursor: default; }
+
+    &:hover:not(:disabled) {
+        border-color: var(--border-color-hover);
+        color: var(--text-primary);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
 `;
 
 const Primary = styled(Button)`

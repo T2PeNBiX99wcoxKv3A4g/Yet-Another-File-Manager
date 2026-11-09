@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode} from "react";
+import {type MouseEvent as ReactMouseEvent, type ReactNode, useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
 import {elevatedPanel} from "../ui/panel";

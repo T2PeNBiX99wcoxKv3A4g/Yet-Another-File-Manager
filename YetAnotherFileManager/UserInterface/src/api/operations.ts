@@ -65,7 +65,7 @@ export async function transferPaths(paths: string[], target: string, move: boole
 export async function inspectPaths(paths: string[]): Promise<ClipboardEntry[]> {
     if (!Native.available || paths.length === 0) return [];
 
-    const data = await Native.request<{entries: ClipboardEntry[]}>("fs.paths.info", {paths});
+    const data = await Native.request<{ entries: ClipboardEntry[] }>("fs.paths.info", {paths});
     return data.entries;
 }
 

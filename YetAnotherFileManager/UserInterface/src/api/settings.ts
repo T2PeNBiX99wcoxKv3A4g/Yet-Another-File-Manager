@@ -292,7 +292,8 @@ export async function getDefaultManagerStatus(): Promise<DefaultManagerStatus> {
 }
 
 /** Reads the current user's archive association and compares its path with this build. */
-export async function getArchiveStatus(): Promise<ArchiveStatus> {    if (!Native.available) return EmptyArchiveStatus;
+export async function getArchiveStatus(): Promise<ArchiveStatus> {
+    if (!Native.available) return EmptyArchiveStatus;
 
     return await Native.request<ArchiveStatus>("app.archive.status");
 }

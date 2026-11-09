@@ -1,11 +1,20 @@
-import {useEffect, useLayoutEffect, useRef, useState, type ReactNode} from "react";
+import {type ReactNode, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import {listDirectory, type Place} from "../api/files";
 import {openWith, showProperties} from "../api/operations";
 import {useQuickAccess} from "../quick";
-import {ArrowRightIcon, CheckIcon, ChevronRightIcon, CopyIcon, CrossIcon, ExecutableIcon, GearIcon, PlusIcon} from "./Icons";
+import {
+    ArrowRightIcon,
+    CheckIcon,
+    ChevronRightIcon,
+    CopyIcon,
+    CrossIcon,
+    ExecutableIcon,
+    GearIcon,
+    PlusIcon
+} from "./Icons";
 import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
 import {ContextMenu} from "./ContextMenu";
@@ -250,79 +259,80 @@ export function PathBar({path, label, icon, focusToken, onNavigate, onContextMen
 
     return (
         <>
-        <Trail onClick={start} title={t("Click to type a path")}>
-            {crumbs.map((crumb, index) => (
-                <Crumb key={crumb.path} $last={index === crumbs.length - 1}>
-                    {index > 0 && <Chevron><ChevronRightIcon size={9}/></Chevron>}
-                    <CrumbButton
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            const newTab = event.ctrlKey || event.metaKey;
-                            if (newTab || crumb.path !== path) onNavigate(crumb.path, newTab);
-                        }}
-                        onContextMenu={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            if (onContextMenu) onContextMenu(crumb.path, event.clientX, event.clientY);
-                            else setCrumbMenu({x: event.clientX, y: event.clientY, path: crumb.path});
-                        }}
-                        type="button"
-                    >
-                        {crumb.place
-                            ? <CrumbGlyph><PlaceIcon place={crumb.place} size={13}/></CrumbGlyph>
-                            : crumb.icon && <CrumbGlyph>{crumb.icon}</CrumbGlyph>}
-                        {crumb.label}
-                    </CrumbButton>
-                </Crumb>
-            ))}
-        </Trail>
-        {crumbMenu && (
-            <ContextMenu
-                items={[
-                    {
-                        label: t("Open"),
-                        icon: <ArrowRightIcon size={14}/>,
-                        onSelect: () => onNavigate(crumbMenu.path),
-                    },
-                    {
-                        label: t("Open in new tab"),
-                        icon: <PlusIcon size={14}/>,
-                        onSelect: () => onNavigate(crumbMenu.path, true),
-                    },
-                    {
-                        label: t("Copy as path"),
-                        icon: <CopyIcon size={14}/>,
-                        separatorBefore: true,
-                        onSelect: () => void navigator.clipboard.writeText(crumbMenu.path),
-                    },
-                    // yafm:// pages are not file system objects, so neither the shell's
-                    // "Open with" nor the shell's Properties dialog can do anything for them.
-                    ...(!isViewLocation(crumbMenu.path)
-                        ? []
-                        : [
-                            {
-                                label: t("Open with…"),
-                                icon: <ExecutableIcon size={14}/>,
-                                onSelect: () => void openWith(crumbMenu.path),
-                            },
-                            {
-                                label: t("Properties"),
-                                icon: <GearIcon size={14}/>,
-                                onSelect: () => void showProperties([crumbMenu.path]),
-                            },
-                        ]),
-                ]}
-                onClose={() => setCrumbMenu(null)}
-                x={crumbMenu.x}
-                y={crumbMenu.y}
-            />
-        )}
+            <Trail onClick={start} title={t("Click to type a path")}>
+                {crumbs.map((crumb, index) => (
+                    <Crumb key={crumb.path} $last={index === crumbs.length - 1}>
+                        {index > 0 && <Chevron><ChevronRightIcon size={9}/></Chevron>}
+                        <CrumbButton
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                const newTab = event.ctrlKey || event.metaKey;
+                                if (newTab || crumb.path !== path) onNavigate(crumb.path, newTab);
+                            }}
+                            onContextMenu={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                if (onContextMenu) onContextMenu(crumb.path, event.clientX, event.clientY);
+                                else setCrumbMenu({x: event.clientX, y: event.clientY, path: crumb.path});
+                            }}
+                            type="button"
+                        >
+                            {crumb.place
+                                ? <CrumbGlyph><PlaceIcon place={crumb.place} size={13}/></CrumbGlyph>
+                                : crumb.icon && <CrumbGlyph>{crumb.icon}</CrumbGlyph>}
+                            {crumb.label}
+                        </CrumbButton>
+                    </Crumb>
+                ))}
+            </Trail>
+            {crumbMenu && (
+                <ContextMenu
+                    items={[
+                        {
+                            label: t("Open"),
+                            icon: <ArrowRightIcon size={14}/>,
+                            onSelect: () => onNavigate(crumbMenu.path),
+                        },
+                        {
+                            label: t("Open in new tab"),
+                            icon: <PlusIcon size={14}/>,
+                            onSelect: () => onNavigate(crumbMenu.path, true),
+                        },
+                        {
+                            label: t("Copy as path"),
+                            icon: <CopyIcon size={14}/>,
+                            separatorBefore: true,
+                            onSelect: () => void navigator.clipboard.writeText(crumbMenu.path),
+                        },
+                        // yafm:// pages are not file system objects, so neither the shell's
+                        // "Open with" nor the shell's Properties dialog can do anything for them.
+                        ...(!isViewLocation(crumbMenu.path)
+                            ? []
+                            : [
+                                {
+                                    label: t("Open with…"),
+                                    icon: <ExecutableIcon size={14}/>,
+                                    onSelect: () => void openWith(crumbMenu.path),
+                                },
+                                {
+                                    label: t("Properties"),
+                                    icon: <GearIcon size={14}/>,
+                                    onSelect: () => void showProperties([crumbMenu.path]),
+                                },
+                            ]),
+                    ]}
+                    onClose={() => setCrumbMenu(null)}
+                    x={crumbMenu.x}
+                    y={crumbMenu.y}
+                />
+            )}
         </>
     );
 }
 
 /** Splits a path into clickable ancestors, keeping the Windows drive root intact. */
-function breadcrumbs(path: string): Crumb[] {    const separator = path.includes("\\") ? "\\" : "/";
+function breadcrumbs(path: string): Crumb[] {
+    const separator = path.includes("\\") ? "\\" : "/";
     const parts = path.split(/[\\/]/).filter((part) => part.length > 0);
     const crumbs: Crumb[] = [];
 

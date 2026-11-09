@@ -20,10 +20,28 @@ export const FontRoles: FontRole[] = [
     {id: "ui", label: "Interface", sample: "Yet Another File Manager", variable: "--font-sans", fallback: "Inter"},
     {id: "title", label: "Titles", sample: "Overview · Settings", variable: "--font-title", fallback: "Interface"},
     {id: "names", label: "File names", sample: "holiday-photo.jpg", variable: "--font-names", fallback: "Interface"},
-    {id: "details", label: "Details panel", sample: "Size · Modified · Attributes", variable: "--font-details", fallback: "Interface"},
-    {id: "path", label: "Address bar", sample: "C:\\Users\\me\\Documents", variable: "--font-path", fallback: "Monospace"},
+    {
+        id: "details",
+        label: "Details panel",
+        sample: "Size · Modified · Attributes",
+        variable: "--font-details",
+        fallback: "Interface"
+    },
+    {
+        id: "path",
+        label: "Address bar",
+        sample: "C:\\Users\\me\\Documents",
+        variable: "--font-path",
+        fallback: "Monospace"
+    },
     {id: "mono", label: "Monospace", sample: "const answer = 42;", variable: "--font-mono", fallback: "JetBrains Mono"},
-    {id: "preview", label: "Text preview", sample: "The quick brown fox jumps over the lazy dog.", variable: "--font-preview", fallback: "Monospace"},
+    {
+        id: "preview",
+        label: "Text preview",
+        sample: "The quick brown fox jumps over the lazy dog.",
+        variable: "--font-preview",
+        fallback: "Monospace"
+    },
 ];
 
 /** Quotes a family name so spaces and punctuation survive the CSS parser. */

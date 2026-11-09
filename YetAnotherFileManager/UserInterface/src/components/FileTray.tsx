@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent} from "react";
+import {type DragEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState} from "react";
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import {PathIcon} from "./PathIcon";
@@ -123,9 +123,20 @@ export function writeDraggedPaths(event: { dataTransfer: DataTransfer }, paths: 
  * that live in different folders into one target.
  */
 export function FileTray({
-    items, clipboardItems, clipboardMove, visible, position, currentDirectory, onPosition, onAdd, onRemove,
-    onClear, onClose, onCopyToClipboard, onTransfer,
-}: FileTrayProps) {
+                             items,
+                             clipboardItems,
+                             clipboardMove,
+                             visible,
+                             position,
+                             currentDirectory,
+                             onPosition,
+                             onAdd,
+                             onRemove,
+                             onClear,
+                             onClose,
+                             onCopyToClipboard,
+                             onTransfer,
+                         }: FileTrayProps) {
     const t = useTranslation();
     const [selected, setSelected] = useState<Set<string>>(() => new Set());
     const [dragging, setDragging] = useState(false);
@@ -333,7 +344,8 @@ export function FileTray({
                     <Count>{total}</Count>
                 </Title>
                 <HeadActions onPointerDown={(event) => event.stopPropagation()}>
-                    <SmallButton onClick={toggleAll} title={allSelected ? t("Select none") : t("Select all")} type="button">
+                    <SmallButton onClick={toggleAll} title={allSelected ? t("Select none") : t("Select all")}
+                                 type="button">
                         {allSelected ? t("None") : t("All")}
                     </SmallButton>
                     <SmallButton onClick={onClear} title={t("Remove everything from the tray")} type="button">
@@ -604,8 +616,8 @@ const FootButton = styled.button<{ $danger?: boolean; $plain?: boolean }>`
     min-width: 78px;
     padding: 5px 6px;
     border: 1px solid ${({$danger, $plain}) => $danger
-        ? "rgba(248, 113, 113, 0.35)"
-        : $plain ? "var(--border-color)" : "transparent"};
+            ? "rgba(248, 113, 113, 0.35)"
+            : $plain ? "var(--border-color)" : "transparent"};
     border-radius: var(--radius-sm);
     background: ${({$danger, $plain}) => $danger || $plain ? "transparent" : "var(--accent-gradient)"};
     color: ${({$danger, $plain}) => $danger ? "#fca5a5" : $plain ? "var(--text-secondary)" : "#fff"};
@@ -616,11 +628,11 @@ const FootButton = styled.button<{ $danger?: boolean; $plain?: boolean }>`
 
     &:hover:not(:disabled) {
         border-color: ${({$danger, $plain}) => $danger
-            ? "rgba(248, 113, 113, 0.6)"
-            : $plain ? "var(--border-color-hover)" : "transparent"};
+                ? "rgba(248, 113, 113, 0.6)"
+                : $plain ? "var(--border-color-hover)" : "transparent"};
         background: ${({$danger, $plain}) => $danger
-            ? "rgba(248, 113, 113, 0.14)"
-            : $plain ? "rgba(var(--accent-rgb), 0.10)" : "var(--accent-gradient)"};
+                ? "rgba(248, 113, 113, 0.14)"
+                : $plain ? "rgba(var(--accent-rgb), 0.10)" : "var(--accent-gradient)"};
         color: ${({$danger, $plain}) => $danger ? "#fecaca" : $plain ? "var(--text-primary)" : "#fff"};
         filter: ${({$danger, $plain}) => $danger || $plain ? "none" : "brightness(1.08)"};
     }

@@ -1,23 +1,23 @@
 import {useEffect, useRef, useState} from "react";
 import {useTranslation} from "@photino-net-utils/bridge";
 import {
+    type CompressOptions,
     compressPaths,
     createLink,
     inspectPaths,
     invokeShellVerb,
+    isCaseSensitive,
+    type LinkKind,
     listOpenWith,
     listShellVerbs,
     openTerminal,
     openWith,
     openWithProgram,
+    type OpenWithProgram,
     setCaseSensitive,
-    isCaseSensitive,
+    type ShellVerb,
     showInExplorer,
     showProperties,
-    type LinkKind,
-    type CompressOptions,
-    type OpenWithProgram,
-    type ShellVerb,
 } from "../api/operations";
 import {requestFolder} from "../folder-picker";
 import {showMessage} from "../api/dialogs";
@@ -27,9 +27,9 @@ import {baseName, isArchiveLocation, isArchivePath, normalizePath} from "../util
 import {setLinkSource, useLinkSource} from "../ui/linkSource";
 import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
 import {
+    AppIcon,
     ArchiveIcon,
     ArrowRightIcon,
-    AppIcon,
     CaseSensitiveIcon,
     CopyIcon,
     CrossIcon,
@@ -108,10 +108,31 @@ interface FileMenuProps {
  * extension and "open with" lookups, so every surface shows the same actions in the same order.
  */
 export function FileMenu({
-    menu, directory, target, shortcuts, canPaste = false, onClose,
-    onOpen, onOpenFile, onRename, onDelete, onCopy, onPaste, onCreateFolder, onCreateFile, creationOnly = false,
-    onRefresh, onAddToTray, onAddFavorite, onRemoveFavorite, favoritePaths, onExtractArchive, allowCompression = false, onCompressTo, onArchiveCreated,
-}: FileMenuProps) {
+                             menu,
+                             directory,
+                             target,
+                             shortcuts,
+                             canPaste = false,
+                             onClose,
+                             onOpen,
+                             onOpenFile,
+                             onRename,
+                             onDelete,
+                             onCopy,
+                             onPaste,
+                             onCreateFolder,
+                             onCreateFile,
+                             creationOnly = false,
+                             onRefresh,
+                             onAddToTray,
+                             onAddFavorite,
+                             onRemoveFavorite,
+                             favoritePaths,
+                             onExtractArchive,
+                             allowCompression = false,
+                             onCompressTo,
+                             onArchiveCreated,
+                         }: FileMenuProps) {
     const t = useTranslation();
     const linkSource = useLinkSource();
     const archiveView = isArchiveLocation(directory);
@@ -254,7 +275,7 @@ export function FileMenu({
 
     /** Creates the link under a folder and adds (1)…(9) before the extension only on conflict. */
     const createLinkIn = async (kind: LinkKind, source: string, folder: string, name: string,
-        allowExisting = false) => {
+                                allowExisting = false) => {
         const root = folder.replace(/[\\/]+$/, "");
         let result = await createLink(kind, source, `${root}\\${name}`);
 
@@ -560,7 +581,8 @@ export function FileMenu({
                     children.push({
                         label: app.name,
                         group: t("Suggested apps"),
-                        icon: app.icon ? <img alt="" height={14} src={app.icon} width={14}/> : <ExecutableIcon size={14}/>,
+                        icon: app.icon ? <img alt="" height={14} src={app.icon} width={14}/> :
+                            <ExecutableIcon size={14}/>,
                         onSelect: () => void openWithProgram(target.path, app.path).then((opened) => {
                             if (!opened) void openWith(target.path);
                         }),
@@ -571,7 +593,8 @@ export function FileMenu({
                     children.push({
                         label: app.name,
                         group: t("Other apps"),
-                        icon: app.icon ? <img alt="" height={14} src={app.icon} width={14}/> : <ExecutableIcon size={14}/>,
+                        icon: app.icon ? <img alt="" height={14} src={app.icon} width={14}/> :
+                            <ExecutableIcon size={14}/>,
                         onSelect: () => void openWithProgram(target.path, app.path).then((opened) => {
                             if (!opened) void openWith(target.path);
                         }),
@@ -804,7 +827,7 @@ export function FileMenu({
     return <ContextMenu items={items} onClose={onClose} quick={quick} x={menu.x} y={menu.y}/>;
 }
 
-function MenuIcon({source}: {source: string | null}) {
+function MenuIcon({source}: { source: string | null }) {
     if (!source) return null;
     if (source.startsWith("data:")) return <img alt="" height={14} src={source} width={14}/>;
 

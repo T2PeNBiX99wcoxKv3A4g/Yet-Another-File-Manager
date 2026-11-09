@@ -33,9 +33,9 @@ interface FindBarProps {
  * taking a row from the toolbar, so it can be as wide as the query needs.
  */
 export function FindBar({
-    query, mode, matchCase, regex, total, current, focusToken, compact = false, placeholder,
-    onQuery, onPrevious, onNext, onMatchCase, onRegex, onMode, onClose,
-}: FindBarProps) {
+                            query, mode, matchCase, regex, total, current, focusToken, compact = false, placeholder,
+                            onQuery, onPrevious, onNext, onMatchCase, onRegex, onMode, onClose,
+                        }: FindBarProps) {
     const t = useTranslation();
     const input = useRef<HTMLInputElement | null>(null);
     const label = placeholder ?? t("Search this folder");

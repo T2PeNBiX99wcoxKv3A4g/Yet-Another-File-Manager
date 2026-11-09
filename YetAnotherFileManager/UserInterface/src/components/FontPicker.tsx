@@ -24,7 +24,7 @@ interface FontPickerProps {
  */
 export function FontPicker({value, fonts, defaultLabel, sample, disabled, onChange}: FontPickerProps) {
     const t = useTranslation();
-    const [anchor, setAnchor] = useState<{left: number; width: number; top: number; maxHeight: number} | null>(null);
+    const [anchor, setAnchor] = useState<{ left: number; width: number; top: number; maxHeight: number } | null>(null);
     const [query, setQuery] = useState("");
     const button = useRef<HTMLButtonElement | null>(null);
     const search = useRef<HTMLInputElement | null>(null);

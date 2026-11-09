@@ -20,7 +20,7 @@ export async function listTags(): Promise<TagCatalogEntry[]> {
 export async function deleteTag(name: string): Promise<boolean> {
     if (!Native.available || !name) return false;
 
-    const data = await Native.request<{ ok: boolean }>("app.tags.delete", { name });
+    const data = await Native.request<{ ok: boolean }>("app.tags.delete", {name});
     return data.ok;
 }
 
@@ -44,6 +44,6 @@ export async function setTagColor(name: string, color: string): Promise<boolean>
 export async function renameTag(name: string, next: string): Promise<boolean> {
     if (!Native.available || !name || !next) return false;
 
-    const data = await Native.request<{ ok: boolean }>("app.tags.rename", { oldName: name, newName: next });
+    const data = await Native.request<{ ok: boolean }>("app.tags.rename", {oldName: name, newName: next});
     return data.ok;
 }

@@ -7,9 +7,9 @@ import {
     hasSavedShareLanguage,
     normalizeShareLanguage,
     rememberShareLanguage,
+    type ShareLanguage,
     ShareLanguages,
     shareStrings,
-    type ShareLanguage,
 } from "./share-i18n";
 
 interface ShareWebConfig {
@@ -392,7 +392,8 @@ export function ShareWeb() {
                                                         </SortButton>
                                                     </th>
                                                     <th>
-                                                        <SortButton onClick={() => toggleSort("modified")} type="button">
+                                                        <SortButton onClick={() => toggleSort("modified")}
+                                                                    type="button">
                                                             {t.modified}
                                                             <SortMark>{sort.column === "modified" ? (sort.descending ? "▼" : "▲") : ""}</SortMark>
                                                         </SortButton>
@@ -479,15 +480,18 @@ function formatDate(value: number): string {
 
 function FolderGlyph({size}: { size: number }) {
     return (
-        <svg fill="none" height={size} stroke="currentColor" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width={size}>
-            <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2.5h7.5A2.5 2.5 0 0 1 21 10v7a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17z"/>
+        <svg fill="none" height={size} stroke="currentColor" strokeLinejoin="round" strokeWidth="1.5"
+             viewBox="0 0 24 24" width={size}>
+            <path
+                d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2.5h7.5A2.5 2.5 0 0 1 21 10v7a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17z"/>
         </svg>
     );
 }
 
 function FileGlyph({size}: { size: number }) {
     return (
-        <svg fill="none" height={size} stroke="currentColor" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width={size}>
+        <svg fill="none" height={size} stroke="currentColor" strokeLinejoin="round" strokeWidth="1.5"
+             viewBox="0 0 24 24" width={size}>
             <path d="M6 3.5h8l4 4V20a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 5 20V5A1.5 1.5 0 0 1 6 3.5Z"/>
             <path d="M14 3.5V8h4"/>
         </svg>
@@ -496,7 +500,8 @@ function FileGlyph({size}: { size: number }) {
 
 function RefreshGlyph({size}: { size: number }) {
     return (
-        <svg fill="none" height={size} stroke="currentColor" strokeLinecap="round" strokeWidth="1.6" viewBox="0 0 24 24" width={size}>
+        <svg fill="none" height={size} stroke="currentColor" strokeLinecap="round" strokeWidth="1.6" viewBox="0 0 24 24"
+             width={size}>
             <path d="M20 11a8 8 0 1 0-2.3 6.7"/>
             <path d="M20 4v7h-7"/>
         </svg>
@@ -505,7 +510,8 @@ function RefreshGlyph({size}: { size: number }) {
 
 function UploadGlyph({size}: { size: number }) {
     return (
-        <svg fill="none" height={size} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" viewBox="0 0 24 24" width={size}>
+        <svg fill="none" height={size} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"
+             strokeWidth="1.6" viewBox="0 0 24 24" width={size}>
             <path d="M12 16V4"/>
             <path d="m7 9 5-5 5 5"/>
             <path d="M5 16v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3"/>
@@ -515,7 +521,8 @@ function UploadGlyph({size}: { size: number }) {
 
 function ArrowUpGlyph({size}: { size: number }) {
     return (
-        <svg fill="none" height={size} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" viewBox="0 0 24 24" width={size}>
+        <svg fill="none" height={size} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"
+             strokeWidth="1.6" viewBox="0 0 24 24" width={size}>
             <path d="M12 19V5"/>
             <path d="m6 11 6-6 6 6"/>
         </svg>
@@ -525,10 +532,9 @@ function ArrowUpGlyph({size}: { size: number }) {
 const Root = styled.div`
     min-height: 100vh;
     padding: 28px clamp(16px, 4vw, 48px) 48px;
-    background:
-        radial-gradient(1100px 620px at 8% -12%, rgba(var(--accent-secondary-rgb), 0.14), transparent 62%),
-        radial-gradient(900px 520px at 108% 16%, rgba(var(--accent-rgb), 0.10), transparent 58%),
-        linear-gradient(180deg, var(--bg-primary), var(--bg-media));
+    background: radial-gradient(1100px 620px at 8% -12%, rgba(var(--accent-secondary-rgb), 0.14), transparent 62%),
+    radial-gradient(900px 520px at 108% 16%, rgba(var(--accent-rgb), 0.10), transparent 58%),
+    linear-gradient(180deg, var(--bg-primary), var(--bg-media));
 `;
 
 const Header = styled.header`

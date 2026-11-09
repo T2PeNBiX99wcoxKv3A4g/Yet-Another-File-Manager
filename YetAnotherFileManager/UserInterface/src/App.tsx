@@ -3,32 +3,33 @@ import styled from "styled-components";
 import {
     DefaultView,
     DefaultViewDefaults,
+    type DirectoryListing,
+    type DirectoryView,
+    type Drive,
+    extractArchive,
+    extractArchiveEntry,
     listDirectory,
     listDirectoryCached,
     listDrives,
     listPlaces,
     listRecent,
     openFile,
-    extractArchive,
-    extractArchiveEntry,
+    type Place,
+    type RecentEntry,
     recordVisit,
     releaseArchives,
+    type ResolvedView,
     saveDirectoryView,
     saveTags,
     toggleHiddenFiles,
-    type DirectoryListing,
-    type DirectoryView,
-    type Drive,
-    type Place,
-    type RecentEntry,
-    type ResolvedView,
     type ViewDefaults,
 } from "./api/files";
-import {getSettings, saveOpenTabs, saveSettings, type AppSettings} from "./api/settings";
-import {getAppInfo, getUpdateStatus, type AppInfo, type UpdateCheck} from "./api/system";
+import {type AppSettings, getSettings, saveOpenTabs, saveSettings} from "./api/settings";
+import {type AppInfo, getAppInfo, getUpdateStatus, type UpdateCheck} from "./api/system";
 import {
-    copyPaths,
+    type ClipboardFiles,
     compressPaths,
+    copyPaths,
     deletePaths,
     getClipboardFiles,
     inspectPaths,
@@ -38,12 +39,11 @@ import {
     redoFileOperation,
     transferPaths,
     undoFileOperation,
-    type ClipboardFiles,
 } from "./api/operations";
 import {clearTasks, listTasks, type TaskInfo} from "./api/tasks";
 import {FileList} from "./components/FileList";
 import {ContextMenu} from "./components/ContextMenu";
-import {PreviewPane, type PreviewInfo} from "./components/PreviewPane";
+import {type PreviewInfo, PreviewPane} from "./components/PreviewPane";
 import {FileTray, isPathDrag, type TrayItem} from "./components/FileTray";
 import {FileMenu} from "./components/FileMenu";
 import {CompressDialog} from "./components/CompressDialog";
@@ -51,14 +51,19 @@ import {Wallpaper} from "./components/Wallpaper";
 import {ProtectedDeleteDialog} from "./components/ProtectedDeleteDialog";
 import {MessageDialog} from "./components/MessageDialog";
 import {PasswordDialog} from "./components/PasswordDialog";
-import {setProtectedDeleteAsker, type ProtectedDeletePrompt} from "./api/safety";
+import {type ProtectedDeletePrompt, setProtectedDeleteAsker} from "./api/safety";
 import {requestArchivePassword, showMessage} from "./api/dialogs";
 import {clearIconCache, refreshIconCache} from "./api/icons";
-import {clearArchivePassword, getArchivePassword, isArchivePasswordError, setArchivePassword} from "./api/archivePassword";
+import {
+    clearArchivePassword,
+    getArchivePassword,
+    isArchivePasswordError,
+    setArchivePassword
+} from "./api/archivePassword";
 import type {PageFind} from "./ui/textSearch";
 import {FindBar} from "./components/FindBar";
-import {EmptyFind, matchesName, type FindState} from "./find";
-import {QuickAccessProvider, quickName, quickPlace, type QuickAccess} from "./quick";
+import {EmptyFind, type FindState, matchesName} from "./find";
+import {type QuickAccess, QuickAccessProvider, quickName, quickPlace} from "./quick";
 import {
     ArchiveIcon,
     ArrowLeftIcon,
@@ -84,14 +89,32 @@ import {GalleryView} from "./components/GalleryView";
 import {Sidebar} from "./components/Sidebar";
 import {TitleBar} from "./components/TitleBar";
 import {TooltipLayer} from "./components/TooltipLayer";
-import {viewTitles, type TabKind} from "./tabs";
+import {type TabKind, viewTitles} from "./tabs";
 import {buildPanels} from "./panels";
-import {Native, ResizeHandles, useTranslation, useWindowCorners, type Translate} from "@photino-net-utils/bridge";
-import {applyTimeFormat, archiveFile, baseName, formatBytes, isArchiveLocation, isArchivePath, isZipArchiveLocation, normalizePath, plural, samePath} from "./utils/format";
+import {Native, ResizeHandles, type Translate, useTranslation, useWindowCorners} from "@photino-net-utils/bridge";
+import {
+    applyTimeFormat,
+    archiveFile,
+    baseName,
+    formatBytes,
+    isArchiveLocation,
+    isArchivePath,
+    isZipArchiveLocation,
+    normalizePath,
+    plural,
+    samePath
+} from "./utils/format";
 import {applyTheme} from "./theme";
 import {applyFonts} from "./fonts";
 import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "./storage";
-import {isShareLocation, listSharedDirectory, openSharedFile, parseShareLocation, shareLocation, respondSharePair} from "./api/share";
+import {
+    isShareLocation,
+    listSharedDirectory,
+    openSharedFile,
+    parseShareLocation,
+    respondSharePair,
+    shareLocation
+} from "./api/share";
 import {SharePairDialog} from "./components/SharePairDialog";
 import {fadeInStyle, pageInStyle, splitLineInStyle} from "./ui/motion";
 import {
@@ -100,10 +123,10 @@ import {
     isTyping,
     prettyShortcut,
     setClickModifier,
-    wantsNewTab,
     type ShortcutMap,
+    wantsNewTab,
 } from "./shortcuts";
-import {parseLocation, viewKind, viewLocation, type ViewKind} from "./views";
+import {parseLocation, viewKind, type ViewKind, viewLocation} from "./views";
 
 /**
  * Every tab is a list of locations; a location is either a folder path or a <c>yafm://</c> link to
@@ -274,7 +297,8 @@ function archivePasswordFor(path: string): string | undefined {
 }
 
 /** What the folder adds up to: files right away, folders once their size has been measured. */
-function statusLine(t: Translate, listing: DirectoryListing): string {    const total = listing.entries.reduce((sum, entry) => sum + (entry.isDirectory
+function statusLine(t: Translate, listing: DirectoryListing): string {
+    const total = listing.entries.reduce((sum, entry) => sum + (entry.isDirectory
         ? listing.folderSizes[entry.name] ?? 0
         : Math.max(entry.size, 0)), 0);
 
@@ -1481,7 +1505,7 @@ export default function App() {
 
     /** Adds or removes one entry's tags; the folder index keeps them, so this stays optimistic. */
     const setEntryTagsFor = useCallback((id: string, name: string, tags: string[],
-        colors?: Record<string, string>) => {
+                                         colors?: Record<string, string>) => {
         const tab = stateRef.current.tabs.find((item) => item.id === id);
         if (!tab || kindOf(tab) !== "files" || !tab.listing) return;
 
@@ -2134,8 +2158,8 @@ export default function App() {
                 onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
                 openOnSingleClick={settings?.openOnSingleClick ?? false}
                 pendingRename={renameRequest
-                    && primary === (activePane === "primary")
-                    && samePath(renameRequest.directory, tab.listing?.path ?? "")
+                && primary === (activePane === "primary")
+                && samePath(renameRequest.directory, tab.listing?.path ?? "")
                     ? renameRequest.path
                     : null}
                 pendingRenameToken={renameRequest?.token ?? 0}
@@ -2148,7 +2172,7 @@ export default function App() {
         );
     };
 
-    const findBar = find.open && (        <FindBar
+    const findBar = find.open && (<FindBar
             current={findCurrent}
             focusToken={findFocus}
             matchCase={find.matchCase}
@@ -2386,534 +2410,537 @@ export default function App() {
 
     return (
         <QuickAccessProvider value={quickAccess}>
-        <Root $rounded={corners}>
-            <Wallpaper settings={settings}/>
-            <TitleBar
-                activeId={active.id}
-                onClose={closeTab}
-                onNewTab={() => openFiles()}
-                onReorder={moveTab}
-                onTransferToTab={transferTo}
-                onSelect={setActiveId}
-                onViewChange={changeView}
-                onColumns={setColumns}
-                onShowImages={setShowImages}
-                showImages={showImages}
-                tasks={tasks}
-                onClearTasks={clearFinishedTasks}
-                activityOpen={activityOpen}
-                onActivityOpenChange={setActivityOpen}
-                trayCount={trayItems.length + clipboardItems.length}
-                trayVisible={trayVisible}
-                onToggleTray={toggleTray}
-                split={splitActive}
-                canSplit={kind === "files"}
-                onToggleSplit={toggleSplit}
-                details={detailsVisible}
-                canDetails={kind === "files" || kind === "recycle" || kind === "gallery"}
-                onToggleDetails={() => setDetailsVisible((visible) => !visible)}
-                currentFolder={kind === "files" && !isShareLocation(activeFolder) ? activeFolder : ""}
-                shortcuts={shortcuts}
-                view={view}
-                tabs={tabs.filter((tab) => !tab.hidden).map((tab) => {
-                    const tabKind = kindOf(tab);
-                    const folder = folderOf(tab);
-                    const partner = tab.splitWith
-                        ? tabs.find((item) => item.id === tab.splitWith)
-                        : undefined;
-                    const partnerFolder = partner ? folderOf(partner) : "";
-
-                    return {
-                        id: tab.id,
-                        kind: tabKind,
-                        path: partner ? `${folder}  |  ${partnerFolder}` : folder,
-                        place: tabKind === "files" ? quickPlace(quickAccess, folder) : undefined,
-                        archive: tabKind === "files" && isArchiveLocation(folder),
-                        split: Boolean(partner),
-                        title: tabKind === "files"
-                            ? quickName(quickAccess, folder, baseName(folder) || t("Files"))
-                            : t(viewTitles[tabKind]),
-                        partner: partner
-                            ? {
-                                title: quickName(quickAccess, partnerFolder, baseName(partnerFolder) || t("Files")),
-                                place: quickPlace(quickAccess, partnerFolder),
-                            }
-                            : undefined,
-                    };
-                })}
-            />
-
-            <Body>
-                <Sidebar
-                    activeKind={kind}
-                    currentPath={kind === "files" ? location : ""}
-                    drives={drives}
-                    historyVersion={historyVersion}
-                    onNavigate={navigate}
-                    onOpenView={openView}
-                    homePath={places.find((place) => place.kind === "home")?.path ?? ""}
-                    places={places}
-                    recent={recent}
-                    recentLimit={recentLimit}
-                    version={settingsVersion}
-                />
-
-                <Main>
-                    {kind !== "files" && mainToolbar}
-
-                    <ViewShell key={kind}>
-                    {kind !== "files" && viewFind.open && (
-                        <FindBar
-                            current={viewFindIndex}
-                            focusToken={viewFindFocus}
-                            matchCase={viewFind.matchCase}
-                            mode={viewFind.mode}
-                            onClose={closeViewFind}
-                            onMatchCase={() => setViewFind((current) => ({...current, matchCase: !current.matchCase}))}
-                            onMode={() => setViewFind((current) => ({
-                                ...current,
-                                mode: current.mode === "dim" ? "hide" : "dim",
-                            }))}
-                            onNext={() => stepViewFind(1)}
-                            onPrevious={() => stepViewFind(-1)}
-                            onQuery={(query) => setViewFind((current) => ({...current, query}))}
-                            onRegex={() => setViewFind((current) => ({...current, regex: !current.regex}))}
-                            placeholder={t("Search")}
-                            query={viewFind.query}
-                            regex={viewFind.regex}
-                            total={viewFindTotal}
-                        />
-                    )}
-                    {kind === "files" ? (
-                        splitActive && secondary ? (
-                            <Split ref={splitRef}>
-                                <Pane style={{flex: splitRatio}}>
-                                    <PaneToolbar
-                                        $active={activePane === "primary"}
-                                        onPointerDown={() => setActivePane("primary")}
-                                    >
-                                        <IconButton
-                                            data-shortcut={prettyShortcut(shortcuts.goBack)}
-                                            disabled={!canBack}
-                                            onClick={(event) => {
-                                                const index = active.index - 1;
-                                                if (index < 0) return;
-                                                if (wantsNewTab(event)) openFiles(active.history[index]);
-                                                else void goTo(active.id, active.history[index], index);
-                                            }}
-                                            title={t("Back")}
-                                            type="button"
-                                        >
-                                            <ArrowLeftIcon/>
-                                        </IconButton>
-                                        <IconButton
-                                            data-shortcut={prettyShortcut(shortcuts.goForward)}
-                                            disabled={!canForward}
-                                            onClick={(event) => {
-                                                const index = active.index + 1;
-                                                if (index >= active.history.length) return;
-                                                if (wantsNewTab(event)) openFiles(active.history[index]);
-                                                else void goTo(active.id, active.history[index], index);
-                                            }}
-                                            title={t("Forward")}
-                                            type="button"
-                                        >
-                                            <ArrowRightIcon/>
-                                        </IconButton>
-                                        <IconButton
-                                            data-shortcut={prettyShortcut(shortcuts.goUp)}
-                                            disabled={!activeParent}
-                                            onClick={(event) => {
-                                                if (!activeParent) return;
-                                                if (wantsNewTab(event)) openFiles(activeParent);
-                                                else void load(active.id, activeParent);
-                                            }}
-                                            title={t("Up one level")}
-                                            type="button"
-                                        >
-                                            <ArrowUpIcon/>
-                                        </IconButton>
-                                        <PathBar
-                                            focusToken={activePane === "primary" ? locationFocus : undefined}
-                                            onContextMenu={(path, x, y) => setPathMenu({x, y, path})}
-                                            onNavigate={(path, newTab) => newTab
-                                                ? openFiles(path)
-                                                : void load(active.id, path)}
-                                            path={activeFolder}
-                                        />
-                                        <IconButton
-                                            onClick={(event) => openCreateMenu(
-                                                event,
-                                                activeFolder,
-                                                () => void load(active.id, activeFolder, true),
-                                            )}
-                                            title={t("New folder or file")}
-                                            type="button"
-                                        >
-                                            <PlusIcon/>
-                                        </IconButton>
-                                        <IconButton
-                                            data-shortcut={prettyShortcut(shortcuts.find)}
-                                            onClick={openFind}
-                                            title={t("Search")}
-                                            type="button"
-                                        >
-                                            <SearchIcon/>
-                                        </IconButton>
-                                        {selectionCounts.primary > 0 && (
-                                            <>
-                                                <ToolbarSeparator/>
-                                                <IconButton
-                                                    onClick={(event) => requestSelectionMenu("primary", event)}
-                                                    title={t("Selection menu")}
-                                                    type="button"
-                                                >
-                                                    <MenuIcon/>
-                                                </IconButton>
-                                            </>
-                                        )}
-                                    </PaneToolbar>
-                                    {filePane(active, true)}
-                                    {activePane === "primary" && findBar}
-                                </Pane>
-                                <SplitDivider
-                                    onDoubleClick={() => setSplitRatio(0.5)}
-                                    onPointerDown={startSplitDrag}
-                                    title={t("Drag to resize; double-click to reset")}
-                                />
-                                <Pane $enter style={{flex: 1 - splitRatio}}>
-                                    <PaneToolbar
-                                        $active={activePane === "secondary"}
-                                        onPointerDown={() => setActivePane("secondary")}
-                                    >
-                                        <IconButton
-                                            data-shortcut={prettyShortcut(shortcuts.goBack)}
-                                            disabled={secondary.index <= 0}
-                                            onClick={(event) => {
-                                                const index = secondary.index - 1;
-                                                if (index < 0) return;
-                                                if (wantsNewTab(event)) openFiles(secondary.history[index]);
-                                                else void goTo(secondary.id, secondary.history[index], index);
-                                            }}
-                                            title={t("Back")}
-                                            type="button"
-                                        >
-                                            <ArrowLeftIcon/>
-                                        </IconButton>
-                                        <IconButton
-                                            data-shortcut={prettyShortcut(shortcuts.goForward)}
-                                            disabled={secondary.index >= secondary.history.length - 1}
-                                            onClick={(event) => {
-                                                const index = secondary.index + 1;
-                                                if (index >= secondary.history.length) return;
-                                                if (wantsNewTab(event)) openFiles(secondary.history[index]);
-                                                else void goTo(secondary.id, secondary.history[index], index);
-                                            }}
-                                            title={t("Forward")}
-                                            type="button"
-                                        >
-                                            <ArrowRightIcon/>
-                                        </IconButton>
-                                        <IconButton
-                                            data-shortcut={prettyShortcut(shortcuts.goUp)}
-                                            disabled={!secondaryParent}
-                                            onClick={(event) => {
-                                                if (!secondaryParent) return;
-                                                if (wantsNewTab(event)) openFiles(secondaryParent);
-                                                else void load(secondary.id, secondaryParent);
-                                            }}
-                                            title={t("Up one level")}
-                                            type="button"
-                                        >
-                                            <ArrowUpIcon/>
-                                        </IconButton>
-                                        <PathBar
-                                            focusToken={activePane === "secondary" ? locationFocus : undefined}
-                                            onContextMenu={(path, x, y) => setPathMenu({x, y, path})}
-                                            onNavigate={(path, newTab) => newTab
-                                                ? openFiles(path)
-                                                : void load(secondary.id, path)}
-                                            path={secondaryFolder}
-                                        />
-                                        <IconButton
-                                            onClick={(event) => openCreateMenu(
-                                                event,
-                                                secondaryFolder,
-                                                () => void load(secondary.id, secondaryFolder, true),
-                                            )}
-                                            title={t("New folder or file")}
-                                            type="button"
-                                        >
-                                            <PlusIcon/>
-                                        </IconButton>
-                                        <IconButton
-                                            data-shortcut={prettyShortcut(shortcuts.find)}
-                                            onClick={openFind}
-                                            title={t("Search")}
-                                            type="button"
-                                        >
-                                            <SearchIcon/>
-                                        </IconButton>
-                                        {selectionCounts.secondary > 0 && (
-                                            <>
-                                                <ToolbarSeparator/>
-                                                <IconButton
-                                                    onClick={(event) => requestSelectionMenu("secondary", event)}
-                                                    title={t("Selection menu")}
-                                                    type="button"
-                                                >
-                                                    <MenuIcon/>
-                                                </IconButton>
-                                            </>
-                                        )}
-                                    </PaneToolbar>
-                                    {filePane(secondary, false)}
-                                    {activePane === "secondary" && findBar}
-                                </Pane>
-                                <PreviewPane
-                                    info={detailsInfo}
-                                    onWidth={resizeDetails}
-                                    open={detailsVisible}
-                                    videoAudio={settings?.previewVideoAudio ?? false}
-                                    videoAutoplay={settings?.previewVideoAutoplay ?? false}
-                                    width={detailsWidth}
-                                />
-                            </Split>
-                        ) : (
-                            <FileArea>
-                                <FileColumn>
-                                    {mainToolbar}
-                                    <Files>
-                                        {filePane(active, true)}
-                                        {findBar}
-                                    </Files>
-                                </FileColumn>
-                                <PreviewPane
-                                    info={primaryPreview}
-                                    onWidth={resizeDetails}
-                                    open={detailsVisible}
-                                    videoAudio={settings?.previewVideoAudio ?? false}
-                                    videoAutoplay={settings?.previewVideoAutoplay ?? false}
-                                    width={detailsWidth}
-                                />
-                            </FileArea>
-                        )
-                    ) : kind === "home" ? (
-                        <OverviewView
-                            drives={drives}
-                            find={pageFind}
-                            historyVersion={historyVersion}
-                            onSearchMatches={setViewFindTotal}
-                            homePath={places.find((place) => place.kind === "home")?.path ?? ""}
-                            onDrivesChanged={reloadDrives}
-                            onHistoryChanged={() => setHistoryVersion((current) => current + 1)}
-                            onAddToTray={(paths) => void addTrayPaths(paths)}
-                            onAddFavorite={(paths) => void addFavoritePaths(paths)}
-                            onRemoveFavorite={(paths) => void removeFavoritePaths(paths)}
-                            favoritePaths={favoritePaths}
-                            onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
-                            settingsVersion={settingsVersion}
-                            onOpen={navigate}
-                            onLayoutChanged={reloadSettings}
-                            onPlacesChanged={setPlaces}
-                            onRecentCleared={reloadRecent}
-                            places={places}
-                            recent={recent}
-                            recentLimit={recentLimit}
-                            visibilityVersion={visibilityVersion}
-                        />
-                    ) : kind === "settings" ? (
-                        <SettingsView
-                            appInfo={appInfo}
-                            find={pageFind}
-                            focusSection={settingsFocus}
-                            onSearchMatches={setViewFindTotal}
-                            onSettingsChanged={reloadSettings}
-                            onOpenFolder={openFiles}
-                        />
-                    ) : kind === "gallery" ? (
-                        <GalleryView
-                            confirmDelete={settings?.confirmDelete ?? false}
-                            find={pageFind}
-                            onSearchMatches={setViewFindTotal}
-                            openOnSingleClick={settings?.openOnSingleClick ?? false}
-                            onAddToTray={(paths) => void addTrayPaths(paths)}
-                            onAddFavorite={(paths) => void addFavoritePaths(paths)}
-                            onRemoveFavorite={(paths) => void removeFavoritePaths(paths)}
-                            favoritePaths={favoritePaths}
-                            onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
-                            shortcuts={shortcuts}
-                            showCheckboxes={settings?.showCheckboxes ?? true}
-                            showDetails={detailsVisible}
-                            videoAudio={settings?.previewVideoAudio ?? false}
-                            videoAutoplay={settings?.previewVideoAutoplay ?? false}
-                            view={view}
-                        />
-                    ) : (
-                        <RecycleView
-                            find={pageFind}
-                            onOpenLocation={navigate}
-                            onShowDetails={() => setDetailsVisible(true)}
-                            platform={appInfo?.platform}
-                            showDetails={detailsVisible}
-                            videoAudio={settings?.previewVideoAudio ?? false}
-                            videoAutoplay={settings?.previewVideoAutoplay ?? false}
-                        />
-                    )}
-                    </ViewShell>
-
-                    <StatusBar>
-                        <span>{kind === "files" && active.listing ? statusLine(t, active.listing) : ""}</span>
-                        {appInfo ? (
-                            <StatusRight>
-                                <span>v{appInfo.version} · {appInfo.platform}</span>
-                                {update?.available && (
-                                    <UpdatePill
-                                        onClick={() => {
-                                            setSettingsFocus("updates");
-                                            openView("settings");
-                                        }}
-                                        title={t("Version {version} is available.", {version: update.latest})}
-                                        type="button"
-                                    >
-                                        <UpdateDot/>
-                                        {t("Update available")}
-                                    </UpdatePill>
-                                )}
-                            </StatusRight>
-                        ) : <span>{t("browser preview")}</span>}
-                    </StatusBar>
-                </Main>
-            </Body>
-
-            <FileTray
-                clipboardItems={clipboardItems}
-                clipboardMove={clipboardMove}
-                currentDirectory={kind === "files" ? location : ""}
-                items={trayItems}
-                onAdd={(paths) => void addTrayPaths(paths)}
-                onClear={clearTrayItems}
-                onClose={() => setTrayVisible(false)}
-                onCopyToClipboard={(paths) => void copyTrayToClipboard(paths)}
-                onPosition={moveTray}
-                onRemove={removeTrayItems}
-                onTransfer={transferTo}
-                position={trayPosition}
-                visible={trayVisible}
-            />
-
-            {createMenu && (
-                <FileMenu
-                    creationOnly
-                    directory={createMenu.directory}
-                    menu={{x: createMenu.x, y: createMenu.y, paths: [], background: true}}
-                    onClose={() => setCreateMenu(null)}
-                    onCreateFile={(extension) => void createItem(extension)}
-                    onCreateFolder={(caseSensitive) => void createItem(null, caseSensitive)}
+            <Root $rounded={corners}>
+                <Wallpaper settings={settings}/>
+                <TitleBar
+                    activeId={active.id}
+                    onClose={closeTab}
+                    onNewTab={() => openFiles()}
+                    onReorder={moveTab}
+                    onTransferToTab={transferTo}
+                    onSelect={setActiveId}
+                    onViewChange={changeView}
+                    onColumns={setColumns}
+                    onShowImages={setShowImages}
+                    showImages={showImages}
+                    tasks={tasks}
+                    onClearTasks={clearFinishedTasks}
+                    activityOpen={activityOpen}
+                    onActivityOpenChange={setActivityOpen}
+                    trayCount={trayItems.length + clipboardItems.length}
+                    trayVisible={trayVisible}
+                    onToggleTray={toggleTray}
+                    split={splitActive}
+                    canSplit={kind === "files"}
+                    onToggleSplit={toggleSplit}
+                    details={detailsVisible}
+                    canDetails={kind === "files" || kind === "recycle" || kind === "gallery"}
+                    onToggleDetails={() => setDetailsVisible((visible) => !visible)}
+                    currentFolder={kind === "files" && !isShareLocation(activeFolder) ? activeFolder : ""}
                     shortcuts={shortcuts}
-                />
-            )}
+                    view={view}
+                    tabs={tabs.filter((tab) => !tab.hidden).map((tab) => {
+                        const tabKind = kindOf(tab);
+                        const folder = folderOf(tab);
+                        const partner = tab.splitWith
+                            ? tabs.find((item) => item.id === tab.splitWith)
+                            : undefined;
+                        const partnerFolder = partner ? folderOf(partner) : "";
 
-            {pathMenu && (
-                <FileMenu
-                    allowCompression
-                    directory={parentOf(pathMenu.path) ?? pathMenu.path}
-                    menu={{x: pathMenu.x, y: pathMenu.y, paths: [pathMenu.path]}}
-                    onAddToTray={(paths) => void addTrayPaths(paths)}
-                    onAddFavorite={(paths) => void addFavoritePaths(paths)}
-                    onRemoveFavorite={(paths) => void removeFavoritePaths(paths)}
-                    favoritePaths={favoritePaths}
-                    onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
-                    onArchiveCreated={(created) => {
-                        if (created) refreshFolderTabs(parentOf(pathMenu.path) ?? pathMenu.path);
-                    }}
-                    onClose={() => setPathMenu(null)}
-                    onCompressTo={(paths, name) => setPathCompress({paths, name})}
-                    onCopy={(paths, cut) => void copyPaths(paths, cut)}
-                    onDelete={(paths) => void deletePaths(paths, false)
-                        .then(() => refreshFolderTabs(parentOf(pathMenu.path) ?? pathMenu.path))}
-                    onOpen={(path, newTab) => newTab ? openFiles(path) : void load(active.id, path)}
-                    onOpenFile={(path) => void openFile(path)}
-                    onPaste={(path) => void pasteInto(path).then((ok) => {
-                        if (ok) refreshFolderTabs(path);
+                        return {
+                            id: tab.id,
+                            kind: tabKind,
+                            path: partner ? `${folder}  |  ${partnerFolder}` : folder,
+                            place: tabKind === "files" ? quickPlace(quickAccess, folder) : undefined,
+                            archive: tabKind === "files" && isArchiveLocation(folder),
+                            split: Boolean(partner),
+                            title: tabKind === "files"
+                                ? quickName(quickAccess, folder, baseName(folder) || t("Files"))
+                                : t(viewTitles[tabKind]),
+                            partner: partner
+                                ? {
+                                    title: quickName(quickAccess, partnerFolder, baseName(partnerFolder) || t("Files")),
+                                    place: quickPlace(quickAccess, partnerFolder),
+                                }
+                                : undefined,
+                        };
                     })}
-                    onRefresh={() => refreshFolderTabs(pathMenu.path)}
-                    shortcuts={shortcuts}
-                    target={{path: pathMenu.path, isDirectory: true}}
                 />
-            )}
 
-            {pathCompress && (
-                <CompressDialog
-                    initialDirectory={parentOf(pathMenu?.path ?? activeFolder) ?? activeFolder}
-                    initialName={pathCompress.name}
-                    onCancel={() => setPathCompress(null)}
-                    onCompress={async (options) => {
-                        const result = await compressPaths(pathCompress.paths, options);
-                        if (!result.ok && result.error) void showMessage(result.error);
-                        return result.ok;
-                    }}
+                <Body>
+                    <Sidebar
+                        activeKind={kind}
+                        currentPath={kind === "files" ? location : ""}
+                        drives={drives}
+                        historyVersion={historyVersion}
+                        onNavigate={navigate}
+                        onOpenView={openView}
+                        homePath={places.find((place) => place.kind === "home")?.path ?? ""}
+                        places={places}
+                        recent={recent}
+                        recentLimit={recentLimit}
+                        version={settingsVersion}
+                    />
+
+                    <Main>
+                        {kind !== "files" && mainToolbar}
+
+                        <ViewShell key={kind}>
+                            {kind !== "files" && viewFind.open && (
+                                <FindBar
+                                    current={viewFindIndex}
+                                    focusToken={viewFindFocus}
+                                    matchCase={viewFind.matchCase}
+                                    mode={viewFind.mode}
+                                    onClose={closeViewFind}
+                                    onMatchCase={() => setViewFind((current) => ({
+                                        ...current,
+                                        matchCase: !current.matchCase
+                                    }))}
+                                    onMode={() => setViewFind((current) => ({
+                                        ...current,
+                                        mode: current.mode === "dim" ? "hide" : "dim",
+                                    }))}
+                                    onNext={() => stepViewFind(1)}
+                                    onPrevious={() => stepViewFind(-1)}
+                                    onQuery={(query) => setViewFind((current) => ({...current, query}))}
+                                    onRegex={() => setViewFind((current) => ({...current, regex: !current.regex}))}
+                                    placeholder={t("Search")}
+                                    query={viewFind.query}
+                                    regex={viewFind.regex}
+                                    total={viewFindTotal}
+                                />
+                            )}
+                            {kind === "files" ? (
+                                splitActive && secondary ? (
+                                    <Split ref={splitRef}>
+                                        <Pane style={{flex: splitRatio}}>
+                                            <PaneToolbar
+                                                $active={activePane === "primary"}
+                                                onPointerDown={() => setActivePane("primary")}
+                                            >
+                                                <IconButton
+                                                    data-shortcut={prettyShortcut(shortcuts.goBack)}
+                                                    disabled={!canBack}
+                                                    onClick={(event) => {
+                                                        const index = active.index - 1;
+                                                        if (index < 0) return;
+                                                        if (wantsNewTab(event)) openFiles(active.history[index]);
+                                                        else void goTo(active.id, active.history[index], index);
+                                                    }}
+                                                    title={t("Back")}
+                                                    type="button"
+                                                >
+                                                    <ArrowLeftIcon/>
+                                                </IconButton>
+                                                <IconButton
+                                                    data-shortcut={prettyShortcut(shortcuts.goForward)}
+                                                    disabled={!canForward}
+                                                    onClick={(event) => {
+                                                        const index = active.index + 1;
+                                                        if (index >= active.history.length) return;
+                                                        if (wantsNewTab(event)) openFiles(active.history[index]);
+                                                        else void goTo(active.id, active.history[index], index);
+                                                    }}
+                                                    title={t("Forward")}
+                                                    type="button"
+                                                >
+                                                    <ArrowRightIcon/>
+                                                </IconButton>
+                                                <IconButton
+                                                    data-shortcut={prettyShortcut(shortcuts.goUp)}
+                                                    disabled={!activeParent}
+                                                    onClick={(event) => {
+                                                        if (!activeParent) return;
+                                                        if (wantsNewTab(event)) openFiles(activeParent);
+                                                        else void load(active.id, activeParent);
+                                                    }}
+                                                    title={t("Up one level")}
+                                                    type="button"
+                                                >
+                                                    <ArrowUpIcon/>
+                                                </IconButton>
+                                                <PathBar
+                                                    focusToken={activePane === "primary" ? locationFocus : undefined}
+                                                    onContextMenu={(path, x, y) => setPathMenu({x, y, path})}
+                                                    onNavigate={(path, newTab) => newTab
+                                                        ? openFiles(path)
+                                                        : void load(active.id, path)}
+                                                    path={activeFolder}
+                                                />
+                                                <IconButton
+                                                    onClick={(event) => openCreateMenu(
+                                                        event,
+                                                        activeFolder,
+                                                        () => void load(active.id, activeFolder, true),
+                                                    )}
+                                                    title={t("New folder or file")}
+                                                    type="button"
+                                                >
+                                                    <PlusIcon/>
+                                                </IconButton>
+                                                <IconButton
+                                                    data-shortcut={prettyShortcut(shortcuts.find)}
+                                                    onClick={openFind}
+                                                    title={t("Search")}
+                                                    type="button"
+                                                >
+                                                    <SearchIcon/>
+                                                </IconButton>
+                                                {selectionCounts.primary > 0 && (
+                                                    <>
+                                                        <ToolbarSeparator/>
+                                                        <IconButton
+                                                            onClick={(event) => requestSelectionMenu("primary", event)}
+                                                            title={t("Selection menu")}
+                                                            type="button"
+                                                        >
+                                                            <MenuIcon/>
+                                                        </IconButton>
+                                                    </>
+                                                )}
+                                            </PaneToolbar>
+                                            {filePane(active, true)}
+                                            {activePane === "primary" && findBar}
+                                        </Pane>
+                                        <SplitDivider
+                                            onDoubleClick={() => setSplitRatio(0.5)}
+                                            onPointerDown={startSplitDrag}
+                                            title={t("Drag to resize; double-click to reset")}
+                                        />
+                                        <Pane $enter style={{flex: 1 - splitRatio}}>
+                                            <PaneToolbar
+                                                $active={activePane === "secondary"}
+                                                onPointerDown={() => setActivePane("secondary")}
+                                            >
+                                                <IconButton
+                                                    data-shortcut={prettyShortcut(shortcuts.goBack)}
+                                                    disabled={secondary.index <= 0}
+                                                    onClick={(event) => {
+                                                        const index = secondary.index - 1;
+                                                        if (index < 0) return;
+                                                        if (wantsNewTab(event)) openFiles(secondary.history[index]);
+                                                        else void goTo(secondary.id, secondary.history[index], index);
+                                                    }}
+                                                    title={t("Back")}
+                                                    type="button"
+                                                >
+                                                    <ArrowLeftIcon/>
+                                                </IconButton>
+                                                <IconButton
+                                                    data-shortcut={prettyShortcut(shortcuts.goForward)}
+                                                    disabled={secondary.index >= secondary.history.length - 1}
+                                                    onClick={(event) => {
+                                                        const index = secondary.index + 1;
+                                                        if (index >= secondary.history.length) return;
+                                                        if (wantsNewTab(event)) openFiles(secondary.history[index]);
+                                                        else void goTo(secondary.id, secondary.history[index], index);
+                                                    }}
+                                                    title={t("Forward")}
+                                                    type="button"
+                                                >
+                                                    <ArrowRightIcon/>
+                                                </IconButton>
+                                                <IconButton
+                                                    data-shortcut={prettyShortcut(shortcuts.goUp)}
+                                                    disabled={!secondaryParent}
+                                                    onClick={(event) => {
+                                                        if (!secondaryParent) return;
+                                                        if (wantsNewTab(event)) openFiles(secondaryParent);
+                                                        else void load(secondary.id, secondaryParent);
+                                                    }}
+                                                    title={t("Up one level")}
+                                                    type="button"
+                                                >
+                                                    <ArrowUpIcon/>
+                                                </IconButton>
+                                                <PathBar
+                                                    focusToken={activePane === "secondary" ? locationFocus : undefined}
+                                                    onContextMenu={(path, x, y) => setPathMenu({x, y, path})}
+                                                    onNavigate={(path, newTab) => newTab
+                                                        ? openFiles(path)
+                                                        : void load(secondary.id, path)}
+                                                    path={secondaryFolder}
+                                                />
+                                                <IconButton
+                                                    onClick={(event) => openCreateMenu(
+                                                        event,
+                                                        secondaryFolder,
+                                                        () => void load(secondary.id, secondaryFolder, true),
+                                                    )}
+                                                    title={t("New folder or file")}
+                                                    type="button"
+                                                >
+                                                    <PlusIcon/>
+                                                </IconButton>
+                                                <IconButton
+                                                    data-shortcut={prettyShortcut(shortcuts.find)}
+                                                    onClick={openFind}
+                                                    title={t("Search")}
+                                                    type="button"
+                                                >
+                                                    <SearchIcon/>
+                                                </IconButton>
+                                                {selectionCounts.secondary > 0 && (
+                                                    <>
+                                                        <ToolbarSeparator/>
+                                                        <IconButton
+                                                            onClick={(event) => requestSelectionMenu("secondary", event)}
+                                                            title={t("Selection menu")}
+                                                            type="button"
+                                                        >
+                                                            <MenuIcon/>
+                                                        </IconButton>
+                                                    </>
+                                                )}
+                                            </PaneToolbar>
+                                            {filePane(secondary, false)}
+                                            {activePane === "secondary" && findBar}
+                                        </Pane>
+                                        <PreviewPane
+                                            info={detailsInfo}
+                                            onWidth={resizeDetails}
+                                            open={detailsVisible}
+                                            videoAudio={settings?.previewVideoAudio ?? false}
+                                            videoAutoplay={settings?.previewVideoAutoplay ?? false}
+                                            width={detailsWidth}
+                                        />
+                                    </Split>
+                                ) : (
+                                    <FileArea>
+                                        <FileColumn>
+                                            {mainToolbar}
+                                            <Files>
+                                                {filePane(active, true)}
+                                                {findBar}
+                                            </Files>
+                                        </FileColumn>
+                                        <PreviewPane
+                                            info={primaryPreview}
+                                            onWidth={resizeDetails}
+                                            open={detailsVisible}
+                                            videoAudio={settings?.previewVideoAudio ?? false}
+                                            videoAutoplay={settings?.previewVideoAutoplay ?? false}
+                                            width={detailsWidth}
+                                        />
+                                    </FileArea>
+                                )
+                            ) : kind === "home" ? (
+                                <OverviewView
+                                    drives={drives}
+                                    find={pageFind}
+                                    historyVersion={historyVersion}
+                                    onSearchMatches={setViewFindTotal}
+                                    homePath={places.find((place) => place.kind === "home")?.path ?? ""}
+                                    onDrivesChanged={reloadDrives}
+                                    onHistoryChanged={() => setHistoryVersion((current) => current + 1)}
+                                    onAddToTray={(paths) => void addTrayPaths(paths)}
+                                    onAddFavorite={(paths) => void addFavoritePaths(paths)}
+                                    onRemoveFavorite={(paths) => void removeFavoritePaths(paths)}
+                                    favoritePaths={favoritePaths}
+                                    onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
+                                    settingsVersion={settingsVersion}
+                                    onOpen={navigate}
+                                    onLayoutChanged={reloadSettings}
+                                    onPlacesChanged={setPlaces}
+                                    onRecentCleared={reloadRecent}
+                                    places={places}
+                                    recent={recent}
+                                    recentLimit={recentLimit}
+                                    visibilityVersion={visibilityVersion}
+                                />
+                            ) : kind === "settings" ? (
+                                <SettingsView
+                                    appInfo={appInfo}
+                                    find={pageFind}
+                                    focusSection={settingsFocus}
+                                    onSearchMatches={setViewFindTotal}
+                                    onSettingsChanged={reloadSettings}
+                                    onOpenFolder={openFiles}
+                                />
+                            ) : kind === "gallery" ? (
+                                <GalleryView
+                                    confirmDelete={settings?.confirmDelete ?? false}
+                                    find={pageFind}
+                                    onSearchMatches={setViewFindTotal}
+                                    openOnSingleClick={settings?.openOnSingleClick ?? false}
+                                    onAddToTray={(paths) => void addTrayPaths(paths)}
+                                    onAddFavorite={(paths) => void addFavoritePaths(paths)}
+                                    onRemoveFavorite={(paths) => void removeFavoritePaths(paths)}
+                                    favoritePaths={favoritePaths}
+                                    onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
+                                    shortcuts={shortcuts}
+                                    showCheckboxes={settings?.showCheckboxes ?? true}
+                                    showDetails={detailsVisible}
+                                    videoAudio={settings?.previewVideoAudio ?? false}
+                                    videoAutoplay={settings?.previewVideoAutoplay ?? false}
+                                    view={view}
+                                />
+                            ) : (
+                                <RecycleView
+                                    find={pageFind}
+                                    onOpenLocation={navigate}
+                                    onShowDetails={() => setDetailsVisible(true)}
+                                    platform={appInfo?.platform}
+                                    showDetails={detailsVisible}
+                                    videoAudio={settings?.previewVideoAudio ?? false}
+                                    videoAutoplay={settings?.previewVideoAutoplay ?? false}
+                                />
+                            )}
+                        </ViewShell>
+
+                        <StatusBar>
+                            <span>{kind === "files" && active.listing ? statusLine(t, active.listing) : ""}</span>
+                            {appInfo ? (
+                                <StatusRight>
+                                    <span>v{appInfo.version} · {appInfo.platform}</span>
+                                    {update?.available && (
+                                        <UpdatePill
+                                            onClick={() => {
+                                                setSettingsFocus("updates");
+                                                openView("settings");
+                                            }}
+                                            title={t("Version {version} is available.", {version: update.latest})}
+                                            type="button"
+                                        >
+                                            <UpdateDot/>
+                                            {t("Update available")}
+                                        </UpdatePill>
+                                    )}
+                                </StatusRight>
+                            ) : <span>{t("browser preview")}</span>}
+                        </StatusBar>
+                    </Main>
+                </Body>
+
+                <FileTray
+                    clipboardItems={clipboardItems}
+                    clipboardMove={clipboardMove}
+                    currentDirectory={kind === "files" ? location : ""}
+                    items={trayItems}
+                    onAdd={(paths) => void addTrayPaths(paths)}
+                    onClear={clearTrayItems}
+                    onClose={() => setTrayVisible(false)}
+                    onCopyToClipboard={(paths) => void copyTrayToClipboard(paths)}
+                    onPosition={moveTray}
+                    onRemove={removeTrayItems}
+                    onTransfer={transferTo}
+                    position={trayPosition}
+                    visible={trayVisible}
                 />
-            )}
 
-            {extractMenu && (
-                <ContextMenu
-                    items={[
-                        {
-                            label: t("Extract here"),
-                            onSelect: () => void extractActiveArchive("here"),
-                        },
-                        {
-                            label: t("Extract to a folder named after the archive"),
-                            onSelect: () => void extractActiveArchive("named"),
-                        },
-                        {
-                            label: t("Auto extract to the current folder"),
-                            onSelect: () => void extractActiveArchive("auto"),
-                        },
-                    ]}
-                    onClose={() => setExtractMenu(null)}
-                    x={extractMenu.x}
-                    y={extractMenu.y}
-                />
-            )}
+                {createMenu && (
+                    <FileMenu
+                        creationOnly
+                        directory={createMenu.directory}
+                        menu={{x: createMenu.x, y: createMenu.y, paths: [], background: true}}
+                        onClose={() => setCreateMenu(null)}
+                        onCreateFile={(extension) => void createItem(extension)}
+                        onCreateFolder={(caseSensitive) => void createItem(null, caseSensitive)}
+                        shortcuts={shortcuts}
+                    />
+                )}
 
-            {protectedDelete && (
-                <ProtectedDeleteDialog                    delaySeconds={protectedDelete.prompt.delaySeconds}
-                    hits={protectedDelete.prompt.hits}
-                    key={protectedDelete.id}
-                    onCancel={() => {
-                        protectedDelete.resolve(false);
-                        setProtectedDelete(null);
-                    }}
-                    onConfirm={() => {
-                        protectedDelete.resolve(true);
-                        setProtectedDelete(null);
-                    }}
-                    permanent={protectedDelete.prompt.permanent}
-                />
-            )}
+                {pathMenu && (
+                    <FileMenu
+                        allowCompression
+                        directory={parentOf(pathMenu.path) ?? pathMenu.path}
+                        menu={{x: pathMenu.x, y: pathMenu.y, paths: [pathMenu.path]}}
+                        onAddToTray={(paths) => void addTrayPaths(paths)}
+                        onAddFavorite={(paths) => void addFavoritePaths(paths)}
+                        onRemoveFavorite={(paths) => void removeFavoritePaths(paths)}
+                        favoritePaths={favoritePaths}
+                        onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
+                        onArchiveCreated={(created) => {
+                            if (created) refreshFolderTabs(parentOf(pathMenu.path) ?? pathMenu.path);
+                        }}
+                        onClose={() => setPathMenu(null)}
+                        onCompressTo={(paths, name) => setPathCompress({paths, name})}
+                        onCopy={(paths, cut) => void copyPaths(paths, cut)}
+                        onDelete={(paths) => void deletePaths(paths, false)
+                            .then(() => refreshFolderTabs(parentOf(pathMenu.path) ?? pathMenu.path))}
+                        onOpen={(path, newTab) => newTab ? openFiles(path) : void load(active.id, path)}
+                        onOpenFile={(path) => void openFile(path)}
+                        onPaste={(path) => void pasteInto(path).then((ok) => {
+                            if (ok) refreshFolderTabs(path);
+                        })}
+                        onRefresh={() => refreshFolderTabs(pathMenu.path)}
+                        shortcuts={shortcuts}
+                        target={{path: pathMenu.path, isDirectory: true}}
+                    />
+                )}
 
-            <MessageDialog/>
-            <PasswordDialog/>
-            {sharePair && (
-                <SharePairDialog
-                    code={sharePair.code}
-                    deviceName={sharePair.deviceName}
-                    onAccept={() => {
-                        void respondSharePair(sharePair.requestId, true);
-                        setSharePair(null);
-                    }}
-                    onReject={() => {
-                        void respondSharePair(sharePair.requestId, false);
-                        setSharePair(null);
-                    }}
-                />
-            )}
+                {pathCompress && (
+                    <CompressDialog
+                        initialDirectory={parentOf(pathMenu?.path ?? activeFolder) ?? activeFolder}
+                        initialName={pathCompress.name}
+                        onCancel={() => setPathCompress(null)}
+                        onCompress={async (options) => {
+                            const result = await compressPaths(pathCompress.paths, options);
+                            if (!result.ok && result.error) void showMessage(result.error);
+                            return result.ok;
+                        }}
+                    />
+                )}
 
-            <TooltipLayer/>
-            <ResizeHandles/>
-        </Root>
+                {extractMenu && (
+                    <ContextMenu
+                        items={[
+                            {
+                                label: t("Extract here"),
+                                onSelect: () => void extractActiveArchive("here"),
+                            },
+                            {
+                                label: t("Extract to a folder named after the archive"),
+                                onSelect: () => void extractActiveArchive("named"),
+                            },
+                            {
+                                label: t("Auto extract to the current folder"),
+                                onSelect: () => void extractActiveArchive("auto"),
+                            },
+                        ]}
+                        onClose={() => setExtractMenu(null)}
+                        x={extractMenu.x}
+                        y={extractMenu.y}
+                    />
+                )}
+
+                {protectedDelete && (
+                    <ProtectedDeleteDialog delaySeconds={protectedDelete.prompt.delaySeconds}
+                                           hits={protectedDelete.prompt.hits}
+                                           key={protectedDelete.id}
+                                           onCancel={() => {
+                                               protectedDelete.resolve(false);
+                                               setProtectedDelete(null);
+                                           }}
+                                           onConfirm={() => {
+                                               protectedDelete.resolve(true);
+                                               setProtectedDelete(null);
+                                           }}
+                                           permanent={protectedDelete.prompt.permanent}
+                    />
+                )}
+
+                <MessageDialog/>
+                <PasswordDialog/>
+                {sharePair && (
+                    <SharePairDialog
+                        code={sharePair.code}
+                        deviceName={sharePair.deviceName}
+                        onAccept={() => {
+                            void respondSharePair(sharePair.requestId, true);
+                            setSharePair(null);
+                        }}
+                        onReject={() => {
+                            void respondSharePair(sharePair.requestId, false);
+                            setSharePair(null);
+                        }}
+                    />
+                )}
+
+                <TooltipLayer/>
+                <ResizeHandles/>
+            </Root>
         </QuickAccessProvider>
     );
 }
@@ -2934,8 +2961,8 @@ const Root = styled.div<{ $rounded: boolean }>`
     /* An undecorated window gets no frame from the compositor, so the corners are drawn here. */
     border-radius: ${({$rounded}) => ($rounded ? "12px" : "0")};
     box-shadow: ${({$rounded}) => ($rounded
-        ? "inset 0 0 0 1px var(--border-color), 0 24px 70px rgba(0, 0, 0, 0.38)"
-        : "none")};
+            ? "inset 0 0 0 1px var(--border-color), 0 24px 70px rgba(0, 0, 0, 0.38)"
+            : "none")};
 `;
 
 const Body = styled.div`
@@ -2944,10 +2971,9 @@ const Body = styled.div`
     display: flex;
     flex: 1;
     min-height: 0;
-    background:
-        radial-gradient(1200px 650px at 12% -10%, rgba(var(--accent-secondary-rgb), 0.12), transparent 60%),
-        radial-gradient(900px 520px at 110% 18%, rgba(var(--accent-rgb), 0.09), transparent 55%),
-        linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-media) 100%);
+    background: radial-gradient(1200px 650px at 12% -10%, rgba(var(--accent-secondary-rgb), 0.12), transparent 60%),
+    radial-gradient(900px 520px at 110% 18%, rgba(var(--accent-rgb), 0.09), transparent 55%),
+    linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-media) 100%);
 
     html.has-wallpaper & {
         background: linear-gradient(180deg, rgba(var(--bg-rgb), 0.12), rgba(var(--bg-rgb), 0.3));

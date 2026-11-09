@@ -2,22 +2,22 @@ import {startTransition, useCallback, useEffect, useMemo, useRef, useState} from
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import {
-    listGallery,
-    openFile,
     type DirectoryListing,
     type FileEntry,
     type GalleryEntry,
+    listGallery,
+    openFile,
     type ResolvedView,
 } from "../api/files";
 import type {ShortcutMap} from "../shortcuts";
 import {appLocale, formatBytes, formatDate, plural} from "../utils/format";
 import {readStoredNumber, writeStoredNumber} from "../storage";
-import {RefreshIcon, MenuIcon} from "./Icons";
+import {MenuIcon, RefreshIcon} from "./Icons";
 import {FileList} from "./FileList";
 import type {ArchiveExtractMode} from "./FileMenu";
 import {useSelectionMenu} from "../ui/selectionMenu";
-import {PreviewPane, type PreviewInfo} from "./PreviewPane";
-import {NoFind, matchesName, type FindView} from "../find";
+import {type PreviewInfo, PreviewPane} from "./PreviewPane";
+import {type FindView, matchesName, NoFind} from "../find";
 import type {PageFind} from "../ui/textSearch";
 
 /** How many pictures one request carries; the rest are prefetched before the bottom is reached. */
@@ -74,24 +74,24 @@ interface GalleryViewProps {
  * keyboard handling and the context menu are the file browser's own grid, not a copy of it.
  */
 export function GalleryView({
-    openOnSingleClick = false,
-    showCheckboxes = true,
-    confirmDelete = false,
-    shortcuts,
-    view,
-    find,
-    onSearchMatches,
-    onPick,
-    onSelectionChange,
-    onAddToTray,
-    onAddFavorite,
-    onRemoveFavorite,
-    favoritePaths,
-    onExtractArchive,
-    showDetails = true,
-    videoAudio = false,
-    videoAutoplay = false,
-}: GalleryViewProps) {
+                                openOnSingleClick = false,
+                                showCheckboxes = true,
+                                confirmDelete = false,
+                                shortcuts,
+                                view,
+                                find,
+                                onSearchMatches,
+                                onPick,
+                                onSelectionChange,
+                                onAddToTray,
+                                onAddFavorite,
+                                onRemoveFavorite,
+                                favoritePaths,
+                                onExtractArchive,
+                                showDetails = true,
+                                videoAudio = false,
+                                videoAutoplay = false,
+                            }: GalleryViewProps) {
     const t = useTranslation();
     const selectionMenu = useSelectionMenu("gallery");
     const [entries, setEntries] = useState<GalleryEntry[]>([]);
@@ -355,7 +355,10 @@ export function GalleryView({
             <Header>
                 <Heading>
                     <span>{t("Gallery")}</span>
-                    <Count>{loading ? t("scanning…") : t("{shown} of {total} pictures", {shown: entries.length, total})}</Count>
+                    <Count>{loading ? t("scanning…") : t("{shown} of {total} pictures", {
+                        shown: entries.length,
+                        total
+                    })}</Count>
                 </Heading>
 
                 <HeaderActions>

@@ -1,11 +1,11 @@
 import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
-import {useTranslation, type Translate} from "@photino-net-utils/bridge";
-import {listHistory, undoHistory, type HistoryEntry} from "../api/history";
+import {type Translate, useTranslation} from "@photino-net-utils/bridge";
+import {type HistoryEntry, listHistory, undoHistory} from "../api/history";
 import {formatClock} from "../utils/format";
 import {elevatedPanel} from "../ui/panel";
 import {panelInStyle} from "../ui/motion";
-import {ClockIcon, CrossIcon, ArchiveIcon, CopyIcon, PencilIcon, PlusIcon, TrashIcon, ArrowRightIcon} from "./Icons";
+import {ArchiveIcon, ArrowRightIcon, ClockIcon, CopyIcon, CrossIcon, PencilIcon, PlusIcon, TrashIcon} from "./Icons";
 
 /** The panel's session history, newest first, with an undo button per row. */
 export function HistoryPanel() {
@@ -124,7 +124,7 @@ function historyLabel(t: Translate, label: string): string {
     return label;
 }
 
-function HistoryIcon({label}: {label: string}) {
+function HistoryIcon({label}: { label: string }) {
     if (label.startsWith("Delete")) return <TrashIcon size={13}/>;
     if (label.startsWith("Move") || label.startsWith("Copy")) return <CopyIcon size={13}/>;
     if (label.startsWith("Rename")) return <PencilIcon size={13}/>;

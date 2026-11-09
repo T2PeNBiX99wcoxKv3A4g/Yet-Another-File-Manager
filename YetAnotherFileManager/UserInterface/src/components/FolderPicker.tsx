@@ -5,20 +5,20 @@ import {Native, useTranslation} from "@photino-net-utils/bridge";
 import {
     DefaultView,
     DefaultViewDefaults,
+    type DirectoryListing,
+    type Drive,
     listDirectory,
     listDrives,
     listPlaces,
     listRecent,
-    type DirectoryListing,
-    type Drive,
     type Place,
     type RecentEntry,
     type ResolvedView,
 } from "../api/files";
-import {getSettings, type AppSettings} from "../api/settings";
+import {type AppSettings, getSettings} from "../api/settings";
 import {DefaultShortcuts} from "../shortcuts";
 import {newFile, newFolder} from "../api/operations";
-import {EmptyFind, matchesName, type FindState} from "../find";
+import {EmptyFind, type FindState, matchesName} from "../find";
 import {elevatedPanel} from "../ui/panel";
 import {fadeInStyle, popInStyle} from "../ui/motion";
 import {FileMenu} from "./FileMenu";
@@ -65,9 +65,17 @@ interface FolderPickerProps {
  * and colour system; the bottom holds the editable name box and, in file mode, the type filter.
  */
 export function FolderPicker({
-    initial = "", mode = "folder", multiple = false, extensions, inline = false, places: suppliedPlaces,
-    fileView, showImages, onCancel, onSelect,
-}: FolderPickerProps) {
+                                 initial = "",
+                                 mode = "folder",
+                                 multiple = false,
+                                 extensions,
+                                 inline = false,
+                                 places: suppliedPlaces,
+                                 fileView,
+                                 showImages,
+                                 onCancel,
+                                 onSelect,
+                             }: FolderPickerProps) {
     const t = useTranslation();
     const selectionMenu = useSelectionMenu("picker");
     const isFileMode = mode === "file";
@@ -593,8 +601,14 @@ export function FolderPicker({
                                         setFind((current) => ({...current, open: false, query: ""}));
                                         setFindIndex(0);
                                     }}
-                                    onMatchCase={() => setFind((current) => ({...current, matchCase: !current.matchCase}))}
-                                    onMode={() => setFind((current) => ({...current, mode: current.mode === "dim" ? "hide" : "dim"}))}
+                                    onMatchCase={() => setFind((current) => ({
+                                        ...current,
+                                        matchCase: !current.matchCase
+                                    }))}
+                                    onMode={() => setFind((current) => ({
+                                        ...current,
+                                        mode: current.mode === "dim" ? "hide" : "dim"
+                                    }))}
                                     onNext={() => stepFind(1)}
                                     onPrevious={() => stepFind(-1)}
                                     onQuery={(query) => setFind((current) => ({...current, query}))}

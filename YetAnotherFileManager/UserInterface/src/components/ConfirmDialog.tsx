@@ -19,8 +19,8 @@ interface ConfirmDialogProps {
  * different theme, and it blocks the web view; this one is part of the interface.
  */
 export function ConfirmDialog({
-    open, title, message, confirmLabel, danger = false, onConfirm, onCancel,
-}: ConfirmDialogProps) {
+                                  open, title, message, confirmLabel, danger = false, onConfirm, onCancel,
+                              }: ConfirmDialogProps) {
     const t = useTranslation();
     const confirm = useRef<HTMLButtonElement | null>(null);
 

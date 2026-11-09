@@ -1,15 +1,24 @@
 import {useEffect, useState} from "react";
-import {useTranslation} from "@photino-net-utils/bridge";
+import {Native, useTranslation} from "@photino-net-utils/bridge";
 import styled from "styled-components";
-import {listDirectory, listFrequent, openFile, type DirectoryListing, type Drive, type FileEntry, type FrequentEntry, type Place, type RecentEntry} from "../api/files";
-import {getSettings, type AppSettings} from "../api/settings";
+import {
+    type DirectoryListing,
+    type Drive,
+    type FileEntry,
+    type FrequentEntry,
+    listDirectory,
+    listFrequent,
+    openFile,
+    type Place,
+    type RecentEntry
+} from "../api/files";
+import {type AppSettings, getSettings} from "../api/settings";
 import type {TabKind} from "../tabs";
-import {buildPanels, PanelGlyph, type Panel} from "../panels";
+import {buildPanels, type Panel, PanelGlyph} from "../panels";
 import {DriveIcon, GearIcon, ImageIcon, OverviewIcon, TrashIcon} from "./Icons";
 import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
 import {quickPlace, useQuickAccess} from "../quick";
-import {Native} from "@photino-net-utils/bridge";
 import {baseName, driveName, formatBytes, plural, samePath, usageTone} from "../utils/format";
 import {wantsNewTab} from "../shortcuts";
 
@@ -36,19 +45,19 @@ interface SidebarProps {
  * overview panels that were pinned there, each opening in place and pushing the rest down.
  */
 export function Sidebar({
-    places,
-    drives,
-    recent,
-    recentLimit,
-    currentPath,
-    activeKind,
-    homePath = "",
-    version = 0,
-    historyVersion = 0,
-    hiddenViews = [],
-    onNavigate,
-    onOpenView,
-}: SidebarProps) {
+                            places,
+                            drives,
+                            recent,
+                            recentLimit,
+                            currentPath,
+                            activeKind,
+                            homePath = "",
+                            version = 0,
+                            historyVersion = 0,
+                            hiddenViews = [],
+                            onNavigate,
+                            onOpenView,
+                        }: SidebarProps) {
     const [pinned, setPinned] = useState<Panel[]>([]);
     const t = useTranslation();
     const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -101,19 +110,24 @@ export function Sidebar({
         <Aside>
             <List>
                 {!hiddenViews.includes("home") && (
-                    <Item $active={activeKind === "home"} onClick={(event) => onOpenView("home", wantsNewTab(event))} title={t("Overview")} type="button">
+                    <Item $active={activeKind === "home"} onClick={(event) => onOpenView("home", wantsNewTab(event))}
+                          title={t("Overview")} type="button">
                         <OverviewIcon/>
                         <Label>{t("Overview")}</Label>
                     </Item>
                 )}
                 {!hiddenViews.includes("recycle") && (
-                    <Item $active={activeKind === "recycle"} onClick={(event) => onOpenView("recycle", wantsNewTab(event))} title={t("Recycle Bin")} type="button">
+                    <Item $active={activeKind === "recycle"}
+                          onClick={(event) => onOpenView("recycle", wantsNewTab(event))} title={t("Recycle Bin")}
+                          type="button">
                         <TrashIcon/>
                         <Label>{t("Recycle Bin")}</Label>
                     </Item>
                 )}
                 {!hiddenViews.includes("gallery") && (
-                    <Item $active={activeKind === "gallery"} onClick={(event) => onOpenView("gallery", wantsNewTab(event))} title={t("Gallery")} type="button">
+                    <Item $active={activeKind === "gallery"}
+                          onClick={(event) => onOpenView("gallery", wantsNewTab(event))} title={t("Gallery")}
+                          type="button">
                         <ImageIcon/>
                         <Label>{t("Gallery")}</Label>
                     </Item>
@@ -205,7 +219,9 @@ export function Sidebar({
 
             {!hiddenViews.includes("settings") && (
                 <Bottom>
-                    <Item $active={activeKind === "settings"} onClick={(event) => onOpenView("settings", wantsNewTab(event))} title={t("Settings")} type="button">
+                    <Item $active={activeKind === "settings"}
+                          onClick={(event) => onOpenView("settings", wantsNewTab(event))} title={t("Settings")}
+                          type="button">
                         <GearIcon/>
                         <Label>{t("Settings")}</Label>
                     </Item>
@@ -436,7 +452,6 @@ const Item = styled.button<{ $active: boolean }>`
     }
 
     ${({$active}) => $active && "&::before { height: 56%; }"}
-
     svg {
         flex-shrink: 0;
         color: ${({$active}) => $active ? "var(--accent-primary)" : "var(--text-muted)"};
