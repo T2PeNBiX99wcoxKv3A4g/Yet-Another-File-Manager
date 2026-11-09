@@ -1,7 +1,9 @@
 using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Text;
+using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Localization;
+using PhotinoNetUtils.Utils;
 using SevenZipExtractor;
 using SharpCompress.Archives;
 using SharpCompress.Common;
@@ -286,14 +288,8 @@ internal static class Archives
         }
         catch
         {
-            try
-            {
-                Directory.Delete(root, true);
-            }
-            catch
-            {
-                // The temp folder is harmless if another handle still holds it.
-            }
+            // The temp folder is harmless if another handle still holds it.
+            Try.Run(() => Directory.Delete(root, true));
 
             throw;
         }
@@ -811,37 +807,30 @@ internal static class Archives
         foreach (var area in new[]{"opened", "nested", "edit", "streams"})
         {
             var root = Path.Combine(TempRoot, area);
-            try
+
+            // The area does not exist, or its root was already removed.
+            Try.Run(() =>
             {
                 foreach (var directory in Directory.EnumerateDirectories(root))
                     TryDeleteDirectory(directory);
+
                 foreach (var file in Directory.EnumerateFiles(root))
                     TryDeleteFile(file);
-            }
-            catch
-            {
-                // The area does not exist, or its root was already removed.
-            }
+            });
         }
     }
 
-    private static void TryDeleteDirectory(string path)
-    {
-        try
+    private static void TryDeleteDirectory(string path) =>
+        Try.Run(() =>
         {
             if (Directory.Exists(path)) Directory.Delete(path, true);
-        }
-        catch { }
-    }
+        });
 
-    private static void TryDeleteFile(string path)
-    {
-        try
+    private static void TryDeleteFile(string path) =>
+        Try.Run(() =>
         {
             if (File.Exists(path)) File.Delete(path);
-        }
-        catch { }
-    }
+        });
 
     private sealed class Workspace(string root)
     {
@@ -937,23 +926,21 @@ internal static class Archives
 
         foreach (var candidate in DetectCodePages)
         {
-            try
+            // A code page that cannot read the archive is simply not the right one.
+            var score = Try.Run(() =>
             {
                 using var archive = Open(archivePath, candidate, password);
-                var score = Score(Names(archive));
-                if (score >= bestScore)
-                    continue;
+                return Score(Names(archive));
+            }).GetOrElse(_ => -1);
 
-                bestScore = score;
-                bestCodePage = candidate;
+            if (score < 0 || score >= bestScore)
+                continue;
 
-                if (score == 0)
-                    break;
-            }
-            catch
-            {
-                // A code page that cannot read the archive is simply not the right one.
-            }
+            bestScore = score;
+            bestCodePage = candidate;
+
+            if (score == 0)
+                break;
         }
 
         return bestCodePage;

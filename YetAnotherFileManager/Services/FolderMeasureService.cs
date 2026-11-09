@@ -153,18 +153,8 @@ internal sealed class FolderMeasureService : Singleton<FolderMeasureService>
                 if (entry is not FileInfo file)
                     continue;
 
-                // A single locked file must not abort the walk, but a Result per file is too much
-                // allocation for a folder with thousands of them.
-                try
-                {
-                    total += file.Length;
-                }
-                catch (IOException)
-                {
-                }
-                catch (UnauthorizedAccessException)
-                {
-                }
+                // A single locked file must not abort the walk.
+                total += Try.Run(() => file.Length).GetOrElse(_ => 0L);
             }
 
             if (measured.Count > 0)

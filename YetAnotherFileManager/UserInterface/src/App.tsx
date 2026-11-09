@@ -53,7 +53,7 @@ import {MessageDialog} from "./components/MessageDialog";
 import {PasswordDialog} from "./components/PasswordDialog";
 import {setProtectedDeleteAsker, type ProtectedDeletePrompt} from "./api/safety";
 import {requestArchivePassword, showMessage} from "./api/dialogs";
-import {clearIconCache} from "./api/icons";
+import {clearIconCache, refreshIconCache} from "./api/icons";
 import {clearArchivePassword, getArchivePassword, isArchivePasswordError, setArchivePassword} from "./api/archivePassword";
 import type {PageFind} from "./ui/textSearch";
 import {FindBar} from "./components/FindBar";
@@ -1993,8 +1993,9 @@ export default function App() {
 
             if (targets.length === 0 && archives.length === 0) return;
 
-            // New entries usually mean new icons; a missing shell answer must not stay cached.
-            clearIconCache();
+            // Only the icons of this folder can be stale; the rest of the cache — and the shell work
+            // behind every other row — stays.
+            refreshIconCache(changed);
 
             for (const tab of archives) {
                 const latest = stateRef.current.tabs.find((item) => item.id === tab.id);

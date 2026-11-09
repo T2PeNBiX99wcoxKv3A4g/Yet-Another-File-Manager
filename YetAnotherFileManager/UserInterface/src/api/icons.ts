@@ -18,6 +18,30 @@ export function clearIconCache() {
     listeners.forEach((notify) => notify());
 }
 
+/**
+ * Forgets only the icons that belong to one folder. A file appearing, disappearing or being
+ * renamed there says nothing about any other folder, so the rest of the cache — and the work
+ * behind every other visible row — is left alone.
+ */
+export function refreshIconCache(folder: string) {
+    if (!folder) return;
+
+    const prefix = folder.toLowerCase();
+    let dropped = false;
+
+    for (const key of [...iconCache.keys()]) {
+        if (!key.toLowerCase().includes(prefix)) continue;
+
+        iconCache.delete(key);
+        dropped = true;
+    }
+
+    if (!dropped) return;
+
+    version += 1;
+    listeners.forEach((notify) => notify());
+}
+
 function useIconVersion(): number {
     const [value, setValue] = useState(version);
 

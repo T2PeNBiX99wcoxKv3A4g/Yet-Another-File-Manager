@@ -449,17 +449,16 @@ internal static partial class FileOperations
 
         foreach (var codePage in new[] { 65001, 932, 936, 950, 949, 1252, 1250, 1251, 1254, 1253, 1256, 1255, 1257, 874 })
         {
-            try
+            // A code page that cannot explain the bytes is simply not the right one.
+            var text = Try.Run(() =>
             {
                 var encoding = Encoding.GetEncoding(codePage, EncoderFallback.ExceptionFallback,
                     DecoderFallback.ExceptionFallback);
-                var text = encoding.GetString(buffer);
-                return text.TrimStart('\uFEFF');
-            }
-            catch (DecoderFallbackException)
-            {
-                // This code page cannot explain the bytes; try the next one.
-            }
+                return encoding.GetString(buffer).TrimStart('\uFEFF');
+            }).GetOrNull();
+
+            if (text is not null)
+                return text;
         }
 
         return Encoding.UTF8.GetString(buffer);

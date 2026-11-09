@@ -48,14 +48,8 @@ internal sealed class AppInfoService : Singleton<AppInfoService>
     {
         var directory = AppPaths.LogDirectory(Constants.Name);
 
-        try
-        {
-            Directory.CreateDirectory(directory);
-        }
-        catch
-        {
-            // A read-only or missing parent is reported by the folder view, not here.
-        }
+        // A read-only or missing parent is reported by the folder view, not here.
+        Try.Run(() => Directory.CreateDirectory(directory));
 
         return directory;
     }
