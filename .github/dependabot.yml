@@ -17,9 +17,8 @@ updates:
 
   # The Rust helper — YetAnotherFileManager/Native/yafm-native/Cargo.toml
   # Its lockfile is committed, so the whole dependency graph is covered. Rust treats a minor bump
-  # of a 0.x crate as breaking, and most of these are 0.x (windows, sevenz-rust2, base64, png,
-  # ignore), while automatic merging cannot tell a breaking bump from a safe one. Only patches
-  # come in; a larger bump is a manual `cargo update` and a build.
+  # of a 0.x crate as breaking, so a red build right after such a PR is expected; it is fixed in
+  # the same branch rather than blocking the update.
   - package-ecosystem: cargo
     directory: /YetAnotherFileManager/Native/yafm-native
     schedule:
@@ -27,10 +26,7 @@ updates:
     groups:
       cargo:
         patterns: ["*"]
-        update-types: ["patch"]
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-minor", "version-update:semver-major"]
+        update-types: ["minor", "patch"]
     commit-message:
       prefix: "chore"
       include: "scope"
