@@ -551,7 +551,7 @@ internal static partial class FileOperations
             return new PathOperationPayload(false, null, Localization.Get("The destination folder is no longer there."));
 
         if (request.Format.ToLowerInvariant() is "zip" or "zipx" or "7z")
-            return await CompressWithSevenZipAsync(request, entries);
+            return await CompressArchiveAsync(request, entries);
 
         var (archiveType, compression, extension) = request.Format.ToLowerInvariant() switch
         {
@@ -635,7 +635,7 @@ internal static partial class FileOperations
         _ => 0
     };
 
-    private static async Task<PathOperationPayload> CompressWithSevenZipAsync(CompressRequest request,
+    private static async Task<PathOperationPayload> CompressArchiveAsync(CompressRequest request,
         List<string> entries, bool recordHistory = true)
     {
         var format = request.Format.ToLowerInvariant();
@@ -748,7 +748,7 @@ internal static partial class FileOperations
                 redo: async () =>
                 {
                     var redoPath = UniquePath(request.Directory, baseName, extension);
-                    var redo = await CompressWithSevenZipAsync(
+                    var redo = await CompressArchiveAsync(
                         request with {Name = Path.GetFileNameWithoutExtension(redoPath)}, entries, false);
                     if (redo.Ok && redo.Path is { } newPath) output = newPath;
                     return new FileHistory.Step(redo.Ok, ParentsOf(entries), redo.Error);

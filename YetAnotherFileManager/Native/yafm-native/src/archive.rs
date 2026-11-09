@@ -169,14 +169,15 @@ fn write_zip(
     }
 
     let file = File::create(output).map_err(|error| error.to_string())?;
-    let mut writer = ZipWriter::new(BufWriter::new(file));
+    // Zip64 is written only where it is needed: archives that stay under 4 GiB keep the plain
+    // format every tool reads, and the writer upgrades its descriptors when an archive grows.
+    let mut writer = ZipWriter::new(BufWriter::new(file)).set_auto_large_file();
     let level = i64::from(level.clamp(0, 9));
 
     for item in &items {
         let mut options = SimpleFileOptions::default()
             .compression_method(method)
-            // Zip64 keeps an archive readable once it passes 4 GiB; every current tool accepts it.
-            .large_file(true)
+            .large_file(matches!(item, Item::File { size, .. } if *size >= u32::MAX as u64))
             .last_modified_time(stamp(item));
 
         // Storing takes no level; the crate rejects one.
