@@ -1375,9 +1375,9 @@ export function OverviewView({
     const bannerSpare = Math.max(0, naturalHeight * bannerScale - bannerWindow);
     const bannerTravel = Math.min(BannerSlack, bannerSpare / 2, Math.max(20, bannerHeight * 0.42));
     const bannerShift = bannerTravel + bannerOffset * Math.max(0, bannerSpare - bannerTravel * 2);
-    // Only the top edge of the panels sits inside the banner's bottom quarter; the rest stays on
-    // the page surface.
-    const bannerOverlap = Math.round(Math.min(70, bannerHeight * 0.10));
+    // Panel titles should sit right at the banner's bottom edge. The artwork already keeps
+    // fading below the frame, so the panels do not need to rise into it.
+    const bannerOverlap = 0;
     const [framing, setFraming] = useState(false);
 
     /** In the picker, a card selects for the footer instead of opening a tab. */

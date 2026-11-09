@@ -2422,7 +2422,9 @@ const Name = styled.div`
 `;
 
 const NameText = styled.span<{ $broken?: boolean }>`
+    flex-shrink: 1;
     overflow: hidden;
+    min-width: 0;
     color: ${({$broken}) => $broken ? "#f87171" : "inherit"};
     text-decoration: ${({$broken}) => $broken ? "line-through" : "none"};
     text-overflow: ellipsis;
@@ -2464,11 +2466,12 @@ const RenameBox = styled.input`
 /** A symlink's destination, shown as a chip so it never reads as part of the name. */
 const LinkBadge = styled.span<{ $block?: boolean; $broken?: boolean }>`
     display: inline-flex;
+    flex: ${({$block}) => $block ? "0 0 auto" : "0 1 auto"};
     align-items: center;
     gap: 4px;
     overflow: hidden;
     min-width: 0;
-    max-width: ${({$block}) => $block ? "100%" : "min(60%, 420px)"};
+    max-width: 100%;
     width: ${({$block}) => $block ? "100%" : "auto"};
     padding: 1px 7px;
     border: 1px solid ${({$broken}) => $broken ? "rgba(248, 113, 113, 0.45)" : "rgba(var(--accent-rgb), 0.35)"};
@@ -2486,6 +2489,7 @@ const LinkBadge = styled.span<{ $block?: boolean; $broken?: boolean }>`
 
     span {
         overflow: hidden;
+        min-width: 0;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
