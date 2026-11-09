@@ -15,9 +15,8 @@ namespace YetAnotherFileManager.Interop;
 [SupportedOSPlatform("windows")]
 internal static partial class ShellExtensionBlock
 {
-    private static readonly IntPtr HkeyCurrentUser = new(unchecked((int)0x80000001));
-
     private const string TempKeyPrefix = @"Software\YetAnotherFileManager\ShellMenuOverride";
+    private static readonly IntPtr HkeyCurrentUser = new(unchecked((int)0x80000001));
 
     private static readonly string TempKey = $@"{TempKeyPrefix}-{Environment.ProcessId}";
 
@@ -112,6 +111,9 @@ internal static partial class ShellExtensionBlock
         yield return @"Directory\Background";
     }
 
+    [LibraryImport("advapi32.dll")]
+    private static partial int RegOverridePredefKey(IntPtr key, IntPtr newKey);
+
     private sealed class Scope : IDisposable
     {
         public void Dispose()
@@ -120,7 +122,4 @@ internal static partial class ShellExtensionBlock
             Try.Run(() => Registry.CurrentUser.DeleteSubKeyTree(TempKey, false));
         }
     }
-
-    [LibraryImport("advapi32.dll")]
-    private static partial int RegOverridePredefKey(IntPtr key, IntPtr newKey);
 }

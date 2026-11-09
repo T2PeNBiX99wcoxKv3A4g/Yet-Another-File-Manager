@@ -1,7 +1,6 @@
 using System.Buffers.Binary;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
-using YetAnotherFileManager.Messaging;
 
 namespace YetAnotherFileManager.Security;
 

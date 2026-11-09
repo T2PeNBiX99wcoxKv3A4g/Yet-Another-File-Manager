@@ -20,12 +20,6 @@ internal static class ShareProtocol
     /// <summary>Raw bytes per file chunk; base64 keeps one frame comfortably below the limit.</summary>
     public const int FileChunkBytes = 256 * 1024;
 
-    /// <summary>How long a pairing request waits for the local user to confirm it.</summary>
-    public static readonly TimeSpan PairTimeout = TimeSpan.FromMinutes(2);
-
-    /// <summary>How long one connection may take before it is abandoned.</summary>
-    public static readonly TimeSpan ConnectionTimeout = TimeSpan.FromSeconds(20);
-
     public const string Discover = "discover";
     public const string Announce = "announce";
 
@@ -46,6 +40,12 @@ internal static class ShareProtocol
     public const string FileRequest = "share.file.request";
     public const string FileChunk = "share.file.chunk";
     public const string FileError = "share.file.error";
+
+    /// <summary>How long a pairing request waits for the local user to confirm it.</summary>
+    public static readonly TimeSpan PairTimeout = TimeSpan.FromMinutes(2);
+
+    /// <summary>How long one connection may take before it is abandoned.</summary>
+    public static readonly TimeSpan ConnectionTimeout = TimeSpan.FromSeconds(20);
 }
 
 /// <summary>A device's reply to a discovery query, and the identity a peer pins when it pairs.</summary>
@@ -65,7 +65,12 @@ internal sealed record SharePairRequestMessage(
     string Nonce,
     string Signature);
 
-internal sealed record SharePairChallengeMessage(string Type, string DeviceId, string DeviceName, int Port, string PublicKey);
+internal sealed record SharePairChallengeMessage(
+    string Type,
+    string DeviceId,
+    string DeviceName,
+    int Port,
+    string PublicKey);
 
 internal sealed record SharePairAcceptMessage(string Type, string Signature);
 

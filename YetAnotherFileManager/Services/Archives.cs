@@ -4,12 +4,15 @@ using System.Text;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Utils;
-using SevenZipExtractor;
 using SharpCompress.Archives;
 using SharpCompress.Common;
+using SharpCompress.Compressors.BZip2;
+using SharpCompress.Compressors.Xz;
 using SharpCompress.Readers;
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
+using CompressionMode = SharpCompress.Compressors.CompressionMode;
+using GZipStream = SharpCompress.Compressors.Deflate.GZipStream;
 
 namespace YetAnotherFileManager.Services;
 
@@ -28,17 +31,49 @@ internal static class Archives
     /// </summary>
     private static readonly HashSet<string> SevenZipExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".lzh", ".lha", ".cab", ".iso", ".wim", ".swm", ".esd", ".chm", ".msi", ".msp", ".msm",
-        ".zipx", ".udf", ".dmg", ".vhd", ".vhdx", ".vmdk", ".xar", ".z", ".lzma", ".lzma86", ".cpio",
-        ".cramfs", ".rpm", ".deb", ".ar", ".apm", ".nsis", ".squashfs", ".qcow2", ".vdi",
-        ".zst", ".tzst", ".001"
+        ".lzh",
+        ".lha",
+        ".cab",
+        ".iso",
+        ".wim",
+        ".swm",
+        ".esd",
+        ".chm",
+        ".msi",
+        ".msp",
+        ".msm",
+        ".zipx",
+        ".udf",
+        ".dmg",
+        ".vhd",
+        ".vhdx",
+        ".vmdk",
+        ".xar",
+        ".z",
+        ".lzma",
+        ".lzma86",
+        ".cpio",
+        ".cramfs",
+        ".rpm",
+        ".deb",
+        ".ar",
+        ".apm",
+        ".nsis",
+        ".squashfs",
+        ".qcow2",
+        ".vdi",
+        ".zst",
+        ".tzst",
+        ".001"
     };
 
     /// <summary>Legacy code pages tried when the archive does not say how its names are encoded.</summary>
-    private static readonly int[] DetectCodePages = [932, 936, 950, 949, 1252, 1250, 1251, 1254, 1253, 1256, 1255, 1257, 874, 437];
+    private static readonly int[] DetectCodePages =
+        [932, 936, 950, 949, 1252, 1250, 1251, 1254, 1253, 1256, 1255, 1257, 874, 437];
 
     private static readonly ConcurrentDictionary<string, (long Length, long Ticks, int CodePage)>
         Detected = new(StringComparer.OrdinalIgnoreCase);
+
     private static readonly ConcurrentDictionary<string, int> SelectedCodePages = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, Workspace> Workspaces = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, string> ExtractedNested = new(StringComparer.OrdinalIgnoreCase);
@@ -49,6 +84,7 @@ internal static class Archives
 
     /// <summary>Each nested archive extracted to temp, mapped back to the archive the user opened.</summary>
     private static readonly ConcurrentDictionary<string, string> NestedOwners = new(StringComparer.OrdinalIgnoreCase);
+
     private static readonly string TempRoot = Path.Combine(Path.GetTempPath(), "YetAnotherFileManager", "Archives");
 
     /// <summary>The native 7z.dll the package copies beside the executable.</summary>
@@ -59,7 +95,8 @@ internal static class Archives
         return File.Exists(besideArch) ? besideArch : Path.Combine(AppContext.BaseDirectory, "7z.dll");
     });
 
-    internal static string SevenZipLibraryPath => SevenZipLibrary.Value;
+    private static readonly ConcurrentDictionary<string, (long Length, long Ticks, bool Encrypted)>
+        EncryptionCache = new(StringComparer.OrdinalIgnoreCase);
 
     static Archives()
     {
@@ -67,15 +104,14 @@ internal static class Archives
         AppDomain.CurrentDomain.ProcessExit += (_, _) => CleanupTemporary();
     }
 
+    internal static string SevenZipLibraryPath => SevenZipLibrary.Value;
+
     private static bool UseSevenZip(string archivePath) =>
         OperatingSystem.IsWindows() && SevenZipExtensions.Contains(Path.GetExtension(archivePath));
 
     /// <summary>Whether the path itself names an archive file.</summary>
     public static bool IsArchive(string path) =>
         Extensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
-
-    private static readonly ConcurrentDictionary<string, (long Length, long Ticks, bool Encrypted)>
-        EncryptionCache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     ///     Whether the archive needs a password. The answer is cached by file size and write time, so
@@ -113,10 +149,10 @@ internal static class Archives
                 return sevenZip.File.Entries.Any(entry => entry.IsEncrypted);
             }
 
-            using var archive = ArchiveFactory.OpenArchive(archivePath, new ReaderOptions());
+            using var archive = ArchiveFactory.OpenArchive(archivePath, new());
             return archive.IsEncrypted || archive.Entries.Any(entry => entry.IsEncrypted);
         }
-        catch (Exception ex) when (ex is SharpCompress.Common.CryptographicException ||
+        catch (Exception ex) when (ex is CryptographicException ||
                                    ex.Message.Contains("password", StringComparison.OrdinalIgnoreCase) ||
                                    ex.Message.Contains("encrypt", StringComparison.OrdinalIgnoreCase))
         {
@@ -330,7 +366,7 @@ internal static class Archives
                 key = key[2..];
 
             if (key.Length == 0 || Path.IsPathRooted(key)
-                || key.Split('/').Any(part => part is ".." or "."))
+                                || key.Split('/').Any(part => part is ".." or "."))
                 continue;
 
             if (prefix.Length > 0)
@@ -354,7 +390,7 @@ internal static class Archives
                 continue;
             }
 
-            files.Add(new FileEntry(
+            files.Add(new(
                 key,
                 VirtualPath(archivePath, inner, key),
                 false,
@@ -382,16 +418,16 @@ internal static class Archives
 
         var parentInner = Path.GetDirectoryName(inner) ?? "";
 
-        return new FsListPayload(
+        return new(
             VirtualPath(archivePath, inner, ""),
             inner.Length == 0 ? Path.GetDirectoryName(archivePath) : VirtualPath(archivePath, parentInner, ""),
             entries,
-            new Dictionary<string, long>(),
+            new(),
             null,
-            new Dictionary<string, List<string>>(),
-            new Dictionary<string, string>(),
+            new(),
+            new(),
             [],
-            new Dictionary<string, long>(),
+            new(),
             encrypted);
     }
 
@@ -516,7 +552,7 @@ internal static class Archives
                 continue;
             }
 
-            files.Add(new FileEntry(key, VirtualPath(archivePath, inner, key), false, (long)entry.Size,
+            files.Add(new(key, VirtualPath(archivePath, inner, key), false, (long)entry.Size,
                 Modified(entry.LastWriteTime), false, false, null));
         }
 
@@ -529,13 +565,13 @@ internal static class Archives
             .ToList();
 
         var parentInner = Path.GetDirectoryName(inner) ?? "";
-        return new FsListPayload(
+        return new(
             VirtualPath(archivePath, inner, ""),
             inner.Length == 0
                 ? Path.GetDirectoryName(archivePath)
                 : VirtualPath(archivePath, parentInner, ""),
-            entries, new Dictionary<string, long>(), null, new Dictionary<string, List<string>>(),
-            new Dictionary<string, string>(), [], new Dictionary<string, long>(), encrypted);
+            entries, new(), null, new(),
+            new(), [], new(), encrypted);
     }
 
     /// <summary>Extracts one entry through 7z.dll.</summary>
@@ -559,9 +595,7 @@ internal static class Archives
             entry.Extract(output, password);
         }
         else
-        {
             entry.Extract(destination, false);
-        }
 
         return destination;
     }
@@ -628,7 +662,7 @@ internal static class Archives
     {
         listing = null!;
         if (!TryGetWorkspacePath(path, out var directory) || !Directory.Exists(directory)
-            || !TrySplit(path, out var archivePath, out var inner))
+                                                          || !TrySplit(path, out var archivePath, out var inner))
             return false;
 
         var entries = Directory.EnumerateFileSystemEntries(directory)
@@ -647,11 +681,11 @@ internal static class Archives
             .ToList();
 
         var parentInner = Path.GetDirectoryName(inner) ?? "";
-        listing = new FsListPayload(path, inner.Length == 0
+        listing = new(path, inner.Length == 0
                 ? Path.GetDirectoryName(archivePath)
                 : VirtualPath(archivePath, parentInner, ""),
-            entries, new Dictionary<string, long>(), null, new Dictionary<string, List<string>>(),
-            new Dictionary<string, string>(), [], new Dictionary<string, long>(), IsEncrypted(archivePath));
+            entries, new(), null, new(),
+            new(), [], new(), IsEncrypted(archivePath));
         return true;
     }
 
@@ -671,7 +705,8 @@ internal static class Archives
 
         lock (workspace.Gate)
         {
-            var output = Path.Combine(Path.GetDirectoryName(archivePath)!, $".{Path.GetFileName(archivePath)}.{Guid.NewGuid():N}.tmp");
+            var output = Path.Combine(Path.GetDirectoryName(archivePath)!,
+                $".{Path.GetFileName(archivePath)}.{Guid.NewGuid():N}.tmp");
 
             try
             {
@@ -757,7 +792,10 @@ internal static class Archives
             var full = Path.GetFullPath(path);
 
             // Anything extracted from a nested archive belongs to the archive the user opened.
-            var owned = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {full};
+            var owned = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                full
+            };
             foreach (var (nested, owner) in NestedOwners)
                 if (owner.Equals(full, StringComparison.OrdinalIgnoreCase))
                     owned.Add(nested);
@@ -775,7 +813,7 @@ internal static class Archives
                              .Where(key => ArchiveOf(key).Equals(archive, StringComparison.OrdinalIgnoreCase))
                              .ToList())
                     if (ExtractedNested.TryRemove(key, out var extracted)
-                        && Path.GetDirectoryName(extracted) is {Length: > 0} directory)
+                        && Path.GetDirectoryName(extracted) is { Length: > 0 } directory)
                         TryDeleteDirectory(directory);
 
                 Detected.TryRemove(archive, out _);
@@ -804,7 +842,10 @@ internal static class Archives
     {
         // Delete each staging folder on its own: one file still held open must not keep every
         // other archive's leftovers around.
-        foreach (var area in new[]{"opened", "nested", "edit", "streams"})
+        foreach (var area in new[]
+                 {
+                     "opened", "nested", "edit", "streams"
+                 })
         {
             var root = Path.Combine(TempRoot, area);
 
@@ -831,12 +872,6 @@ internal static class Archives
         {
             if (File.Exists(path)) File.Delete(path);
         });
-
-    private sealed class Workspace(string root)
-    {
-        public string Root { get; } = root;
-        public object Gate { get; } = new();
-    }
 
     private static void WriteEntry(string root, IEntry entry, Func<Stream> open)
     {
@@ -888,7 +923,8 @@ internal static class Archives
             return 0;
 
         var key = file.FullName;
-        if (Detected.TryGetValue(key, out var cached) && cached.Length == file.Length && cached.Ticks == file.LastWriteTimeUtc.Ticks)
+        if (Detected.TryGetValue(key, out var cached) && cached.Length == file.Length &&
+            cached.Ticks == file.LastWriteTimeUtc.Ticks)
             return cached.CodePage;
 
         var detected = Detect(archivePath, password);
@@ -952,19 +988,17 @@ internal static class Archives
         var score = 0;
 
         foreach (var name in names)
+        foreach (var rune in name.EnumerateRunes())
         {
-            foreach (var rune in name.EnumerateRunes())
-            {
-                var value = rune.Value;
+            var value = rune.Value;
 
-                score += value switch
-                {
-                    0xFFFD or < 0x20 => 100,
-                    >= 0x7F and <= 0x9F => 60,
-                    >= 0xE000 and <= 0xF8FF => 20,
-                    _ => 0,
-                };
-            }
+            score += value switch
+            {
+                0xFFFD or < 0x20 => 100,
+                >= 0x7F and <= 0x9F => 60,
+                >= 0xE000 and <= 0xF8FF => 20,
+                _ => 0
+            };
         }
 
         return score;
@@ -1003,7 +1037,11 @@ internal static class Archives
         if (codePage > 0)
         {
             var encoding = Encoding.GetEncoding(codePage);
-            options.ArchiveEncoding = new ArchiveEncoding { Default = encoding, Forced = encoding };
+            options.ArchiveEncoding = new ArchiveEncoding
+            {
+                Default = encoding,
+                Forced = encoding
+            };
         }
 
         var tarCompression = Path.GetFileName(archivePath).ToLowerInvariant() switch
@@ -1011,7 +1049,7 @@ internal static class Archives
             var name when name.EndsWith(".tar.gz") || name.EndsWith(".tgz") => "gz",
             var name when name.EndsWith(".tar.bz2") || name.EndsWith(".tbz") || name.EndsWith(".tbz2") => "bz2",
             var name when name.EndsWith(".tar.xz") || name.EndsWith(".txz") => "xz",
-            _ => "",
+            _ => ""
         };
 
         if (tarCompression.Length > 0)
@@ -1041,12 +1079,12 @@ internal static class Archives
             var input = File.OpenRead(archivePath);
             Stream decompressed = tarCompression switch
             {
-                "gz" => new SharpCompress.Compressors.Deflate.GZipStream(input,
-                    SharpCompress.Compressors.CompressionMode.Decompress, options),
-                "bz2" => SharpCompress.Compressors.BZip2.BZip2Stream.Create(input,
-                    SharpCompress.Compressors.CompressionMode.Decompress, true, false, false),
-                "xz" => new SharpCompress.Compressors.Xz.XZStream(input),
-                _ => throw new InvalidOperationException("Unsupported tar compression."),
+                "gz" => new GZipStream(input,
+                    CompressionMode.Decompress, options),
+                "bz2" => BZip2Stream.Create(input,
+                    CompressionMode.Decompress, true),
+                "xz" => new XZStream(input),
+                _ => throw new InvalidOperationException("Unsupported tar compression.")
             };
 
             FileStream? expanded = null;
@@ -1054,7 +1092,7 @@ internal static class Archives
             {
                 var temp = Path.Combine(TempRoot, "streams");
                 Directory.CreateDirectory(temp);
-                expanded = new FileStream(Path.Combine(temp, $"{Guid.NewGuid():N}.tar"),
+                expanded = new(Path.Combine(temp, $"{Guid.NewGuid():N}.tar"),
                     FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read, 131072,
                     FileOptions.DeleteOnClose | FileOptions.RandomAccess);
                 decompressed.CopyTo(expanded);
@@ -1077,5 +1115,13 @@ internal static class Archives
     }
 
     private static long Modified(DateTime? value) =>
-        value is { } time ? new DateTimeOffset(DateTime.SpecifyKind(time, DateTimeKind.Local)).ToUnixTimeMilliseconds() : 0;
+        value is { } time
+            ? new DateTimeOffset(DateTime.SpecifyKind(time, DateTimeKind.Local)).ToUnixTimeMilliseconds()
+            : 0;
+
+    private sealed class Workspace(string root)
+    {
+        public string Root { get; } = root;
+        public object Gate { get; } = new();
+    }
 }

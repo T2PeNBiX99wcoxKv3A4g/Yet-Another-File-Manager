@@ -150,7 +150,7 @@ internal static class FolderIndex
         });
 
         return result.OnFailure(ex => Log.Debug(ex, "Could not read the index of {Directory}", directory))
-            .GetOrElse(_ => ((List<FileEntry>?)null, DirectoryIndex.MetadataSnapshot.Empty));
+            .GetOrElse(_ => (null, DirectoryIndex.MetadataSnapshot.Empty));
     }
 
     private static async Task<DirectoryIndex.MetadataSnapshot> ReadMetadataOnConnectionAsync(SqliteConnection connection)
@@ -214,7 +214,7 @@ internal static class FolderIndex
             return values;
         });
 
-        return new DirectoryIndex.MetadataSnapshot(icons, sizes, view, tags, tagColors ?? [], counts);
+        return new(icons, sizes, view, tags, tagColors ?? [], counts);
     }
 
     /// <summary>Cached sizes of the entries of a directory, by entry name.</summary>
@@ -381,7 +381,7 @@ internal static class FolderIndex
         if (!readable.GetOrElse(_ => false))
             return null;
 
-        return new IndexSnapshot(
+        return new(
             await ListingAsync(directory),
             await IconsAsync(directory),
             await SizesAsync(directory),
@@ -478,9 +478,7 @@ internal static class FolderIndex
                     command.Transaction = (SqliteTransaction)transaction;
 
                     if (tags.Count == 0)
-                    {
                         command.CommandText = "DELETE FROM tags WHERE name = $name";
-                    }
                     else
                     {
                         command.CommandText = "UPDATE tags SET tags = $tags WHERE name = $name";
@@ -518,9 +516,7 @@ internal static class FolderIndex
                             write.Transaction = (SqliteTransaction)transaction;
 
                             if (colors.Count == 0)
-                            {
                                 write.CommandText = "DELETE FROM settings WHERE key = 'tag_colors'";
-                            }
                             else
                             {
                                 write.CommandText =
@@ -694,7 +690,10 @@ internal static class FolderIndex
         await WriteGate.WaitAsync(IndexFocus.Is(directory));
         try
         {
-            foreach (var suffix in new[] { "", "-wal", "-shm" })
+            foreach (var suffix in new[]
+                     {
+                         "", "-wal", "-shm"
+                     })
             {
                 var path = PathFor(directory) + suffix;
                 await Task.Run(() => Try.Run(() =>

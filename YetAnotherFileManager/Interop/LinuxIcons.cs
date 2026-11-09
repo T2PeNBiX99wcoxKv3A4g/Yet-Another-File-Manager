@@ -20,7 +20,8 @@ internal static partial class LinuxIcons
     private static readonly Lazy<IReadOnlyList<string>> ThemeDirectories = new(LoadThemeDirectories);
 
     /// <summary>Icon files per theme directory, built once and shared by every request.</summary>
-    private static readonly ConcurrentDictionary<string, Dictionary<string, List<string>>> Indexes = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, Dictionary<string, List<string>>> Indexes =
+        new(StringComparer.Ordinal);
 
     /// <summary>Resolved data URLs, keyed by folder or file type; a listing asks for the same few.</summary>
     private static readonly ConcurrentDictionary<string, string?> Cache = new(StringComparer.Ordinal);
@@ -211,7 +212,11 @@ internal static partial class LinuxIcons
         var dataDirs = (Environment.GetEnvironmentVariable("XDG_DATA_DIRS") ?? "/usr/local/share:/usr/share")
             .Split(':', StringSplitOptions.RemoveEmptyEntries);
 
-        var roots = new List<string> { Path.Combine(dataHome, "icons"), Path.Combine(home, ".icons") };
+        var roots = new List<string>
+        {
+            Path.Combine(dataHome, "icons"),
+            Path.Combine(home, ".icons")
+        };
         roots.AddRange(dataDirs.Select(directory => Path.Combine(directory, "icons")));
 
         var directories = new List<string>();

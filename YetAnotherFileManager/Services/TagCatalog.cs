@@ -1,7 +1,6 @@
 using System.Text.Json;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
-using Serilog;
 using YetAnotherFileManager.Messaging;
 
 namespace YetAnotherFileManager.Services;
@@ -20,12 +19,36 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
     /// <summary>Tags by name, which is how the settings page and the picker talk about them.</summary>
     private readonly Dictionary<string, TagRecord> _tags = new(StringComparer.OrdinalIgnoreCase);
 
-    private Timer? _saveTimer;
     private bool _loaded;
 
-    public TagCatalog()
+    private Timer? _saveTimer;
+
+    public IReadOnlyList<string> Names
     {
-        // The catalogue loads lazily so a broken tags.json never blocks startup.
+        get
+        {
+            lock (_gate)
+            {
+                EnsureLoaded();
+                return _tags.Keys.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToList();
+            }
+        }
+    }
+
+    /// <summary>The colour of every tag, by name; the folder's own colour is only a legacy fallback.</summary>
+    public IReadOnlyDictionary<string, string> Colors
+    {
+        get
+        {
+            lock (_gate)
+            {
+                EnsureLoaded();
+
+                return _tags.Values
+                    .Where(record => !string.IsNullOrWhiteSpace(record.Color))
+                    .ToDictionary(record => record.Name, record => record.Color!, StringComparer.OrdinalIgnoreCase);
+            }
+        }
     }
 
     /// <summary>Records the tags one directory currently shows, with their colours.</summary>
@@ -61,7 +84,7 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
                 }
 
                 if (colors is not null && colors.TryGetValue(name, out var color)
-                    && !string.Equals(record.Color, color, StringComparison.OrdinalIgnoreCase))
+                                       && !string.Equals(record.Color, color, StringComparison.OrdinalIgnoreCase))
                 {
                     record.Color = color;
                     changed = true;
@@ -88,7 +111,8 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
                 ScheduleSave();
             }
 
-            if (!string.IsNullOrWhiteSpace(color) && !string.Equals(record.Color, color, StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(color) &&
+                !string.Equals(record.Color, color, StringComparison.OrdinalIgnoreCase))
             {
                 record.Color = color;
                 ScheduleSave();
@@ -102,7 +126,8 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
     ///     Maps the values stored in a folder index to tag ids. An id is kept as it is, a legacy name
     ///     becomes its tag's id, and an unknown name becomes a new tag.
     /// </summary>
-    public IReadOnlyList<string> ResolveIds(IEnumerable<string> values, IReadOnlyDictionary<string, string>? colors = null)
+    public IReadOnlyList<string> ResolveIds(IEnumerable<string> values,
+        IReadOnlyDictionary<string, string>? colors = null)
     {
         lock (_gate)
         {
@@ -116,7 +141,8 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
                 if (string.IsNullOrWhiteSpace(value))
                     continue;
 
-                var id = _tags.Values.FirstOrDefault(record => string.Equals(record.Id, value, StringComparison.OrdinalIgnoreCase))?.Id;
+                var id = _tags.Values
+                    .FirstOrDefault(record => string.Equals(record.Id, value, StringComparison.OrdinalIgnoreCase))?.Id;
 
                 if (id is null)
                 {
@@ -129,7 +155,7 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
                     }
 
                     if (colors is not null && colors.TryGetValue(name, out var color)
-                        && !string.Equals(record.Color, color, StringComparison.OrdinalIgnoreCase))
+                                           && !string.Equals(record.Color, color, StringComparison.OrdinalIgnoreCase))
                     {
                         record.Color = color;
                         changed = true;
@@ -156,7 +182,8 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
         {
             EnsureLoaded();
 
-            return _tags.Values.FirstOrDefault(record => string.Equals(record.Id, id, StringComparison.OrdinalIgnoreCase))?.Name;
+            return _tags.Values.FirstOrDefault(record => string.Equals(record.Id, id, StringComparison.OrdinalIgnoreCase))
+                ?.Name;
         }
     }
 
@@ -171,34 +198,6 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
                 .OrderBy(record => record.Name, StringComparer.OrdinalIgnoreCase)
                 .Select(record => new TagCatalogEntry(record.Id, record.Name, record.Color, record.Directories.Count))
                 .ToList();
-        }
-    }
-
-    public IReadOnlyList<string> Names
-    {
-        get
-        {
-            lock (_gate)
-            {
-                EnsureLoaded();
-                return _tags.Keys.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToList();
-            }
-        }
-    }
-
-    /// <summary>The colour of every tag, by name; the folder's own colour is only a legacy fallback.</summary>
-    public IReadOnlyDictionary<string, string> Colors
-    {
-        get
-        {
-            lock (_gate)
-            {
-                EnsureLoaded();
-
-                return _tags.Values
-                    .Where(record => !string.IsNullOrWhiteSpace(record.Color))
-                    .ToDictionary(record => record.Name, record => record.Color!, StringComparer.OrdinalIgnoreCase);
-            }
         }
     }
 
@@ -262,7 +261,12 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
         // success here would only be undone by the next listing of that folder.
         lock (_gate)
         {
-            _tags[name] = new TagRecord {Id = id, Name = name, Directories = failed};
+            _tags[name] = new()
+            {
+                Id = id,
+                Name = name,
+                Directories = failed
+            };
             ScheduleSave();
         }
 
@@ -305,10 +309,20 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
     }
 
     private static TagRecord NewRecord(string name) =>
-        new() {Id = Guid.NewGuid().ToString("N"), Name = name};
+        new()
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Name = name
+        };
 
     private static TagRecord Copy(TagRecord record) =>
-        new() {Id = record.Id, Name = record.Name, Color = record.Color, Directories = [.. record.Directories]};
+        new()
+        {
+            Id = record.Id,
+            Name = record.Name,
+            Color = record.Color,
+            Directories = [.. record.Directories]
+        };
 
     private void EnsureLoaded()
     {
@@ -347,7 +361,7 @@ internal sealed class TagCatalog : Singleton<TagCatalog>
 
     private void ScheduleSave()
     {
-        _saveTimer ??= new Timer(_ => Save(), null, Timeout.Infinite, Timeout.Infinite);
+        _saveTimer ??= new(_ => Save(), null, Timeout.Infinite, Timeout.Infinite);
         _saveTimer.Change(250, Timeout.Infinite);
     }
 

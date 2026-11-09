@@ -9,7 +9,6 @@ using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Text;
 using PhotinoNetUtils.Utils;
-using Serilog;
 using YetAnotherFileManager.Interop;
 
 namespace YetAnotherFileManager.Services;
@@ -23,13 +22,13 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
 {
     private const int MaxHeaders = 65_536;
     private const int CacheLimit = 500;
+    private static readonly SemaphoreSlim PdfGate = new(2, 2);
+    private readonly ConcurrentDictionary<string, byte[]> _cache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly SemaphoreSlim _gate = new(Math.Clamp(Environment.ProcessorCount, 4, 8));
+    private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
+    private readonly ConcurrentQueue<string> _order = new();
 
     private readonly string _token = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
-    private readonly ConcurrentDictionary<string, byte[]> _cache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentQueue<string> _order = new();
-    private readonly SemaphoreSlim _gate = new(Math.Clamp(Environment.ProcessorCount, 4, 8));
-    private static readonly SemaphoreSlim PdfGate = new(2, 2);
-    private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
 
     public ThumbnailServer()
     {
@@ -69,7 +68,6 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
     private async Task HandleAsync(TcpClient client)
     {
         using (client)
-        {
             try
             {
                 client.NoDelay = true;
@@ -79,7 +77,8 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
                 if (request is null)
                     return;
 
-                if (!TryReadPath(request, out var path, out var size, out var version, out var media, out var pdf, out var extension))
+                if (!TryReadPath(request, out var path, out var size, out var version, out var media, out var pdf,
+                        out var extension))
                 {
                     await RespondAsync(stream, 404, "text/plain", []);
                     return;
@@ -107,7 +106,6 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
             {
                 Log.Debug(ex, "Could not serve a thumbnail");
             }
-        }
     }
 
     /// <summary>Reads the request headers; the body of a GET is never needed.</summary>
@@ -127,7 +125,7 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
 
             for (var index = searchFrom; index + 3 < length; index++)
                 if (buffer[index] == (byte)'\r' && buffer[index + 1] == (byte)'\n'
-                    && buffer[index + 2] == (byte)'\r' && buffer[index + 3] == (byte)'\n')
+                                                && buffer[index + 2] == (byte)'\r' && buffer[index + 3] == (byte)'\n')
                     return Encoding.ASCII.GetString(buffer, 0, index);
         }
 
@@ -189,7 +187,7 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
         if (_cache.TryGetValue(key, out var cached))
             return cached;
 
-        if (!File.Exists(path) || (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux()))
+        if (!File.Exists(path) || !OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
             return null;
 
         await _gate.WaitAsync();
@@ -269,7 +267,7 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
                 FileName = executable,
                 UseShellExecute = false,
                 CreateNoWindow = true,
-                WindowStyle = ProcessWindowStyle.Hidden,
+                WindowStyle = ProcessWindowStyle.Hidden
             };
 
             if (Path.GetFileNameWithoutExtension(executable).Equals("dotnet", StringComparison.OrdinalIgnoreCase))

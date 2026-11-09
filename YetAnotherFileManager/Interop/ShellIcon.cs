@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
+using Serilog;
 
 namespace YetAnotherFileManager.Interop;
 
@@ -35,10 +36,10 @@ internal static unsafe partial class ShellIcon
     /// </summary>
     private const int GetIconSlot = 10;
 
-    private static readonly Guid ImageListId = new("46EB5926-582E-4017-9FDF-E8998DAA0950");
-
     private const int DibRgbColors = 0;
     private const int BiRgb = 0;
+
+    private static readonly Guid ImageListId = new("46EB5926-582E-4017-9FDF-E8998DAA0950");
 
     public static string? DataUrl(string path, bool directory, bool useFileAttributes)
     {
@@ -67,7 +68,7 @@ internal static unsafe partial class ShellIcon
     ///     The 256×256 version of the same icon, for grid tiles. Falls back to the normal large icon
     ///     when the jumbo image list or the icon itself is missing.
     /// </summary>
-    public static unsafe string? JumboDataUrl(string path, bool directory, bool useFileAttributes)
+    public static string? JumboDataUrl(string path, bool directory, bool useFileAttributes)
     {
         if (string.IsNullOrWhiteSpace(path))
             return null;
@@ -110,7 +111,7 @@ internal static unsafe partial class ShellIcon
         }
         catch (Exception ex)
         {
-            Serilog.Log.Debug(ex, "Could not read a jumbo icon for {Path}", path);
+            Log.Debug(ex, "Could not read a jumbo icon for {Path}", path);
             return DataUrl(path, directory, useFileAttributes);
         }
     }
@@ -152,10 +153,8 @@ internal static unsafe partial class ShellIcon
             try
             {
                 fixed (byte* buffer = pixels)
-                {
                     if (GetDIBits(dc, info.ColorBitmap, 0, (uint)height, buffer, ref header, DibRgbColors) == 0)
                         return null;
-                }
             }
             finally
             {

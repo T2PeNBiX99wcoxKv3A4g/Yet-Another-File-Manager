@@ -1,7 +1,6 @@
 using System.Text.Json;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
-using Serilog;
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
 
@@ -71,7 +70,10 @@ internal sealed class ShareStore : Singleton<ShareStore>
 
                 if (index >= 0)
                 {
-                    entry = _shares[index] with {Mode = NormalizeMode(mode)};
+                    entry = _shares[index] with
+                    {
+                        Mode = NormalizeMode(mode)
+                    };
                     _shares[index] = entry;
                 }
                 else
@@ -124,7 +126,10 @@ internal sealed class ShareStore : Singleton<ShareStore>
                 if (index < 0)
                     return null;
 
-                result = _shares[index] with {Mode = NormalizeMode(mode)};
+                result = _shares[index] with
+                {
+                    Mode = NormalizeMode(mode)
+                };
                 _shares[index] = result;
             }
 

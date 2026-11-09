@@ -45,7 +45,6 @@ internal sealed class Gallery : Singleton<Gallery>
             try
             {
                 if (refresh || _entries is null)
-                {
                     try
                     {
                         Volatile.Write(ref _entries, await Task.Run(Scan));
@@ -55,7 +54,6 @@ internal sealed class Gallery : Singleton<Gallery>
                         Serilog.Log.Warning(ex, "Could not scan the gallery");
                         return ([], 0);
                     }
-                }
 
                 entries = _entries;
             }

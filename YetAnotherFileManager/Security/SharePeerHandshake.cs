@@ -25,7 +25,7 @@ internal static class SharePeerHandshake
             ephemeralPublic, nonce));
 
         await ShareFrames.WriteAsync(stream,
-            new ShareSessionHelloMessage(ShareProtocol.SessionHello, identity.Id,
+            new(ShareProtocol.SessionHello, identity.Id,
                 ShareCrypto.ToBase64(ephemeralPublic), ShareCrypto.ToBase64(nonce),
                 ShareCrypto.ToBase64(helloSignature)),
             AppJsonContext.Default.ShareSessionHelloMessage, token);
@@ -104,7 +104,7 @@ internal static class SharePeerHandshake
             ephemeral, replyPublic, nonce, replyNonce));
 
         await ShareFrames.WriteAsync(stream,
-            new ShareSessionReplyMessage(ShareProtocol.SessionReply, ShareCrypto.ToBase64(replyPublic),
+            new(ShareProtocol.SessionReply, ShareCrypto.ToBase64(replyPublic),
                 ShareCrypto.ToBase64(replyNonce), ShareCrypto.ToBase64(replySignature)),
             AppJsonContext.Default.ShareSessionReplyMessage, token);
 

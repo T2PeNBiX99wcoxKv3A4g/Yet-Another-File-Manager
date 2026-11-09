@@ -35,11 +35,37 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     /// </summary>
     private static readonly HashSet<string> PerFileIconExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".lnk", ".url", ".website", ".pif", ".scf", ".application", ".appref-ms",
-        ".exe", ".com", ".scr", ".cpl", ".msi", ".msp", ".mst", ".ico",
-        ".appx", ".appxbundle", ".msix", ".msixbundle", ".appinstaller",
-        ".gadget", ".settingcontent-ms", ".library-ms", ".searchconnector-ms", ".wsc",
-        ".contact", ".diagcpl", ".diagpkg", ".diagcab", ".theme", ".themepack"
+        ".lnk",
+        ".url",
+        ".website",
+        ".pif",
+        ".scf",
+        ".application",
+        ".appref-ms",
+        ".exe",
+        ".com",
+        ".scr",
+        ".cpl",
+        ".msi",
+        ".msp",
+        ".mst",
+        ".ico",
+        ".appx",
+        ".appxbundle",
+        ".msix",
+        ".msixbundle",
+        ".appinstaller",
+        ".gadget",
+        ".settingcontent-ms",
+        ".library-ms",
+        ".searchconnector-ms",
+        ".wsc",
+        ".contact",
+        ".diagcpl",
+        ".diagpkg",
+        ".diagcab",
+        ".theme",
+        ".themepack"
     };
 
     public FileSystemService() => NativeBridge.MessageReceived += HandleMessageAsync;
@@ -69,7 +95,10 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 return context.Reply("fs.hidden.toggle.result", await Task.Run(async () =>
                 {
                     var showHidden = FileVisibility.ToggleHidden();
-                    await SettingsService.Instance.UpdateAsync(settings => settings with {ShowHidden = showHidden});
+                    await SettingsService.Instance.UpdateAsync(settings => settings with
+                    {
+                        ShowHidden = showHidden
+                    });
                     return new HiddenFilesPayload(showHidden, FileVisibility.ShowSystem,
                         showHidden != FileVisibility.FollowsSystemHidden);
                 }));
@@ -82,7 +111,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                     new ThumbnailServerPayload(ThumbnailServer.Instance.BaseUrl));
 
             case "fs.recent":
-                return context.Reply("fs.recent.result", new FsRecentPayload(                    await HistoryService.Instance.RecentAsync(SettingsService.Instance.Current.RecentCount)));
+                return context.Reply("fs.recent.result",
+                    new FsRecentPayload(
+                        await HistoryService.Instance.RecentAsync(SettingsService.Instance.Current.RecentCount)));
 
             case "fs.frequent":
                 return context.Reply("fs.frequent.result",
@@ -90,15 +121,15 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
             case "fs.frequent.record":
                 await HistoryService.Instance.RecordFrequentAsync(context.Payload<PathPayload>()?.Path ?? "");
-                return context.Reply("fs.frequent.record.result", new OkPayload(true));
+                return context.Reply("fs.frequent.record.result", new OkPayload());
 
             case "fs.recent.clear":
                 await HistoryService.Instance.ClearRecentAsync();
-                return context.Reply("fs.recent.clear.result", new OkPayload(true));
+                return context.Reply("fs.recent.clear.result", new OkPayload());
 
             case "fs.frequent.clear":
                 await HistoryService.Instance.ClearFrequentAsync();
-                return context.Reply("fs.frequent.clear.result", new OkPayload(true));
+                return context.Reply("fs.frequent.clear.result", new OkPayload());
 
             case "app.places.set":
                 return context.Reply("app.places.set.result",
@@ -117,10 +148,11 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
             case "fs.focus":
                 DirectoryIndex.Focus(context.Payload<FsListRequest>()?.Path);
-                return context.Reply("fs.focus.result", new OkPayload(true));
+                return context.Reply("fs.focus.result", new OkPayload());
 
             case "fs.drive.rename":
-                return context.Reply("fs.drive.rename.result", await RenameDriveAsync(context.Payload<DriveRenameRequest>()));
+                return context.Reply("fs.drive.rename.result",
+                    await RenameDriveAsync(context.Payload<DriveRenameRequest>()));
 
             case "fs.open":
                 return context.Reply("fs.open.result",
@@ -182,13 +214,12 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 var request = context.Payload<RecycleBatchRequest>();
                 var ids = request?.Ids ?? [];
                 var entries = await RecycleBin.ListAsync(true);
-                var originalPaths = entries.Where(entry => ids.Contains(entry.Id)).Select(entry => entry.OriginalPath).ToList();
+                var originalPaths = entries.Where(entry => ids.Contains(entry.Id)).Select(entry => entry.OriginalPath)
+                    .ToList();
 
                 if (GuardDelete(request?.Confirm, DeleteGuard.KeyForRecycle(ids), originalPaths) is { } blocked)
-                {
                     return context.Reply("fs.recycle.deleteMany.result",
                         new RecycleBatchPayload(false, 0, true, blocked.Token, blocked.Protected, blocked.DelaySeconds));
-                }
 
                 var done = await RecycleBin.DeleteManyAsync(ids);
                 return context.Reply("fs.recycle.deleteMany.result",
@@ -221,8 +252,8 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                         OpenTabs = current.OpenTabs,
                         ActiveTab = current.ActiveTab,
                         DirectoryIndexBlacklist = settings.DirectoryIndexBlacklist
-                            ?? current.DirectoryIndexBlacklist
-                            ?? YetAnotherFileManager.Services.DirectoryIndexBlacklist.Defaults(),
+                                                  ?? current.DirectoryIndexBlacklist
+                                                  ?? DirectoryIndexBlacklist.Defaults(),
                         // Only app.scheme.set changes the link registration.
                         LinksEnabled = current.LinksEnabled
                     });
@@ -261,20 +292,27 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 return context.Reply("app.defaultManager.status.result", DefaultFileManager.Status());
 
             case "app.archive.register":
-                await SettingsService.Instance.UpdateAsync(settings => settings with { ArchiveHandler = true });
+                await SettingsService.Instance.UpdateAsync(settings => settings with
+                {
+                    ArchiveHandler = true
+                });
                 ArchiveAssociations.Apply(true);
                 WindowManager.Instance.Notify("settings.changed", new OkPayload());
                 return context.Reply("app.archive.register.result", ArchiveAssociations.Status());
 
             case "app.archive.unregister":
-                await SettingsService.Instance.UpdateAsync(settings => settings with { ArchiveHandler = false });
+                await SettingsService.Instance.UpdateAsync(settings => settings with
+                {
+                    ArchiveHandler = false
+                });
                 ArchiveAssociations.Apply(false);
                 WindowManager.Instance.Notify("settings.changed", new OkPayload());
                 return context.Reply("app.archive.unregister.result", ArchiveAssociations.Status());
 
             case "fs.list":
                 return context.Reply("fs.list.result",
-                    await ListAsync(context.Payload<FsListRequest>()?.Path, context.Payload<FsListRequest>()?.Sizes ?? true,
+                    await ListAsync(context.Payload<FsListRequest>()?.Path,
+                        context.Payload<FsListRequest>()?.Sizes ?? true,
                         context.Payload<FsListRequest>()?.IncludeLinks ?? false,
                         context.Payload<FsListRequest>()?.CodePage ?? 0,
                         context.Payload<FsListRequest>()?.Password));
@@ -342,17 +380,15 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 var request = context.Payload<ArchiveExtractRequest>();
 
                 if (request is null || !Archives.TrySplit(request.Path, out var archive, out _))
-                {
                     return context.Reply("fs.archive.extract.result",
                         new ArchiveExtractPayload(false, Localization.Get("The path is not inside an archive.")));
-                }
 
                 var extracted = await Task.Run(() =>
                 {
                     try
                     {
                         Archives.Extract(archive, request.Target, request.CodePage ?? 0, request.Password);
-                        return new ArchiveExtractPayload(true);
+                        return new(true);
                     }
                     catch (Exception ex)
                     {
@@ -389,7 +425,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 var request = context.Payload<ArchivePathRequest>();
                 var changed = Archives.HasWorkspace(request?.Path ?? "");
                 var result = await Task.Run(() => Archives.ApplyChanges(request?.Path ?? "", out var error)
-                    ? new ArchiveApplyPayload(true, changed)
+                    ? new(true, changed)
                     : new ArchiveApplyPayload(false, false, error));
                 return context.Reply("fs.archive.apply.result", result);
             }
@@ -401,7 +437,10 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 var result = await FileOperations.RenameAsync(path, request?.Name ?? "");
                 var virtualPath = result.Path is null ? null : Archives.ToVirtualPath(result.Path);
                 if (result.Ok) await ApplyArchiveChangesAsync([path]);
-                return context.Reply("fs.operation.rename.result", result with {Path = virtualPath});
+                return context.Reply("fs.operation.rename.result", result with
+                {
+                    Path = virtualPath
+                });
             }
 
             case "fs.operation.newFolder":
@@ -411,7 +450,10 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 var result = await FileOperations.NewFolderAsync(directory, request?.CaseSensitive ?? false);
                 var virtualPath = result.Path is null ? null : Archives.ToVirtualPath(result.Path);
                 if (result.Ok) await ApplyArchiveChangesAsync([directory]);
-                return context.Reply("fs.operation.newFolder.result", result with {Path = virtualPath});
+                return context.Reply("fs.operation.newFolder.result", result with
+                {
+                    Path = virtualPath
+                });
             }
 
             case "fs.operation.newFile":
@@ -421,7 +463,10 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 var result = await FileOperations.NewFileAsync(directory, request?.Extension);
                 var virtualPath = result.Path is null ? null : Archives.ToVirtualPath(result.Path);
                 if (result.Ok) await ApplyArchiveChangesAsync([directory]);
-                return context.Reply("fs.operation.newFile.result", result with {Path = virtualPath});
+                return context.Reply("fs.operation.newFile.result", result with
+                {
+                    Path = virtualPath
+                });
             }
 
             case "fs.caseSensitive.get":
@@ -463,10 +508,17 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
                 var paths = await MapWorkspacePathsAsync(request.Paths);
                 var target = await MapWorkspacePathAsync(request.Target, true);
-                var result = await FileOperations.TransferAsync(request with {Paths = paths, Target = target});
+                var result = await FileOperations.TransferAsync(request with
+                {
+                    Paths = paths,
+                    Target = target
+                });
                 var created = result.Created.Select(Archives.ToVirtualPath).ToList();
                 if (result.Ok) await ApplyArchiveChangesAsync([target]);
-                return context.Reply("fs.operation.transfer.result", result with {Created = created});
+                return context.Reply("fs.operation.transfer.result", result with
+                {
+                    Created = created
+                });
             }
 
             case "app.tasks":
@@ -507,11 +559,11 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
             case "fs.operation.properties":
                 await FileOperations.ShowPropertiesAsync(context.Payload<PathsPayload>()?.Paths ?? []);
-                return context.Reply("fs.operation.properties.result", new OkPayload(true));
+                return context.Reply("fs.operation.properties.result", new OkPayload());
 
             case "fs.operation.openWith":
                 await FileOperations.OpenWithAsync(context.Payload<PathPayload>()?.Path ?? "");
-                return context.Reply("fs.operation.openWith.result", new OkPayload(true));
+                return context.Reply("fs.operation.openWith.result", new OkPayload());
 
             case "fs.openWith.programs":
             {
@@ -551,11 +603,11 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
             case "fs.operation.terminal":
                 await FileOperations.OpenTerminalAsync(context.Payload<PathPayload>()?.Path ?? "");
-                return context.Reply("fs.operation.terminal.result", new OkPayload(true));
+                return context.Reply("fs.operation.terminal.result", new OkPayload());
 
             case "fs.operation.showInExplorer":
                 await FileOperations.ShowInExplorerAsync(context.Payload<PathPayload>()?.Path ?? "");
-                return context.Reply("fs.operation.showInExplorer.result", new OkPayload(true));
+                return context.Reply("fs.operation.showInExplorer.result", new OkPayload());
 
             case "shell.verbs":
                 return context.Reply("shell.verbs.result",
@@ -565,7 +617,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             {
                 var request = context.Payload<ShellInvokeRequest>();
                 ShellMenuClient.Invoke(request?.Paths ?? [], request?.Safe ?? true, request?.Verb, request?.Offset ?? 0);
-                return context.Reply("shell.invoke.result", new OkPayload(true));
+                return context.Reply("shell.invoke.result", new OkPayload());
             }
 
             default:
@@ -574,7 +626,8 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     }
 
     /// <summary>The icon the shell would show, or null when the settings and the shell have none.</summary>
-    private static async Task<string?> IconAsync(IconRequest? request)    {
+    private static async Task<string?> IconAsync(IconRequest? request)
+    {
         if (request is not { Path.Length: > 0 })
             return null;
 
@@ -786,7 +839,8 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         var label = request.Label?.Trim() ?? "";
 
         if (label.Length > 32 || label.IndexOfAny(InvalidLabelChars) >= 0)
-            return new(false, false, "A volume label can be at most 32 characters and cannot contain \\ / : * ? \" < > |.");
+            return new(false, false,
+                "A volume label can be at most 32 characters and cannot contain \\ / : * ? \" < > |.");
 
         if (!OperatingSystem.IsWindows())
             return new(false, false, "Volume labels can only be changed on Windows.");
@@ -918,7 +972,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             if (retryHits.Count == 0)
                 return null;
 
-            return new DeletePayload(false, Required: true,
+            return new(false, Required: true,
                 Token: remaining > 0 ? confirm : DeleteGuard.Issue(key),
                 Protected: retryHits,
                 DelaySeconds: remaining > 0 ? remaining : delay);
@@ -928,7 +982,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         if (hits.Count == 0)
             return null;
 
-        return new DeletePayload(false, Required: true,
+        return new(false, Required: true,
             Token: DeleteGuard.Issue(key),
             Protected: hits,
             DelaySeconds: delay);
@@ -1066,7 +1120,10 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 // Only archive files pay for opening the container; the result is cached by its
                 // size and timestamp, so a folder listing is not re-reading the same archive.
                 if (!entry.IsDirectory && Archives.IsArchive(info.Name))
-                    entry = entry with {IsEncrypted = Archives.IsEncrypted(info.FullName)};
+                    entry = entry with
+                    {
+                        IsEncrypted = Archives.IsEncrypted(info.FullName)
+                    };
 
                 built[index] = entry;
             });
@@ -1146,7 +1203,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     private static async Task<FsCachedListPayload> CachedListAsync(string? path, bool includeLinks = false)
     {
         if (Archives.TrySplit(path ?? "", out _, out _))
-            return new FsCachedListPayload(false, null);
+            return new(false, null);
 
         var directory = new DirectoryInfo(ResolvePath(path));
 
@@ -1170,10 +1227,13 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
         var visible = entries
             .Where(entry => (showSystem || !entry.IsSystem) && (showHidden || !entry.IsHidden))
-            .Select(entry => entry with { IconSource = icons.GetValueOrDefault(entry.Name) })
+            .Select(entry => entry with
+            {
+                IconSource = icons.GetValueOrDefault(entry.Name)
+            })
             .ToList();
 
-        return new(true, new FsListPayload(directory.FullName, directory.Parent?.FullName, visible, sizes, view,
+        return new(true, new(directory.FullName, directory.Parent?.FullName, visible, sizes, view,
             resolvedTags, tagColors, allTags, counts));
     }
 
@@ -1365,7 +1425,11 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         var resolved = await Task.WhenAll(shortcuts.Select(async entry =>
         {
             var (target, valid) = await StaThread.RunAsync(() => Interop.ShellLink.Resolve(entry.FullPath));
-            return entry with { LinkTarget = target, LinkValid = valid };
+            return entry with
+            {
+                LinkTarget = target,
+                LinkValid = valid
+            };
         }));
 
         var byPath = resolved.ToDictionary(entry => entry.FullPath, StringComparer.OrdinalIgnoreCase);

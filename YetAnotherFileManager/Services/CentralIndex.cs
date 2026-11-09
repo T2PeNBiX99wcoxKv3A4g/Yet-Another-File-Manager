@@ -2,7 +2,6 @@ using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
-using Serilog;
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
 
@@ -72,7 +71,10 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
 
     public CentralIndex()
     {
-        _connectionString = new SqliteConnectionStringBuilder { DataSource = DatabasePath }.ToString();
+        _connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = DatabasePath
+        }.ToString();
         _ready = new(InitializeAsync, LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
@@ -118,9 +120,7 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
 
         foreach (var (name, type) in new[]
                  {
-                     ("Created", "INTEGER NOT NULL DEFAULT 0"),
-                     ("LinkTarget", "TEXT"),
-                     ("LinkValid", "INTEGER"),
+                     ("Created", "INTEGER NOT NULL DEFAULT 0"), ("LinkTarget", "TEXT"), ("LinkValid", "INTEGER"),
                      ("LinkCount", "INTEGER NOT NULL DEFAULT 1")
                  })
         {
@@ -363,7 +363,10 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
     }
 
     public Task<bool> SetSizeAsync(string directory, string name, long bytes) =>
-        SetSizesAsync(directory, new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase) { [name] = bytes });
+        SetSizesAsync(directory, new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase)
+        {
+            [name] = bytes
+        });
 
     /// <summary>Stores an icon source for one entry; a null source removes the override.</summary>
     public async Task<bool> SetIconAsync(string directory, string name, string? source)

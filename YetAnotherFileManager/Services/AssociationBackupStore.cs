@@ -44,7 +44,7 @@ internal static class AssociationBackupStore
         try
         {
             if (!File.Exists(FilePath))
-                return new AssociationBackupFile();
+                return new();
 
             var json = File.ReadAllText(FilePath);
             return JsonSerializer.Deserialize(json, AppJsonContext.Default.AssociationBackupFile)
@@ -53,7 +53,7 @@ internal static class AssociationBackupStore
         catch (Exception ex)
         {
             Log.Warning(ex, "Could not read {Path}", FilePath);
-            return new AssociationBackupFile();
+            return new();
         }
     }
 

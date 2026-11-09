@@ -63,8 +63,14 @@ internal static class LinuxClipboard
     {
         foreach (var (command, arguments) in new[]
                  {
-                     ("wl-paste", new[]{"--no-newline"}),
-                     ("xclip", new[]{"-selection", "clipboard", "-o"})
+                     ("wl-paste", new[]
+                     {
+                         "--no-newline"
+                     }),
+                     ("xclip", new[]
+                     {
+                         "-selection", "clipboard", "-o"
+                     })
                  })
             if (Run(command, arguments) is { Length: > 0 } text)
                 return text;
@@ -137,7 +143,6 @@ internal static class LinuxClipboard
             return null;
 
         using (process)
-        {
             try
             {
                 using var output = new MemoryStream();
@@ -151,7 +156,6 @@ internal static class LinuxClipboard
             {
                 return null;
             }
-        }
     }
 
     private static bool RunWithInput(string command, string[] arguments, string input)

@@ -26,14 +26,14 @@ internal static unsafe partial class AssociatedPrograms
     public static OpenWithProgramsPayload Read(string filePath)
     {
         if (!OperatingSystem.IsWindows()
-            || (!File.Exists(filePath) && !Directory.Exists(filePath)))
-            return new OpenWithProgramsPayload([], []);
+            || !File.Exists(filePath) && !Directory.Exists(filePath))
+            return new([], []);
 
         var isDirectory = Directory.Exists(filePath);
         string[] associations = isDirectory ? ["Folder", "Directory"] : [Path.GetExtension(filePath)];
 
         if (!isDirectory && string.IsNullOrEmpty(associations[0]))
-            return new OpenWithProgramsPayload([], []);
+            return new([], []);
 
         var ole = OleInitialize(IntPtr.Zero);
 
@@ -75,12 +75,12 @@ internal static unsafe partial class AssociatedPrograms
                     recommended.Add(program);
             }
 
-            return new OpenWithProgramsPayload(recommended, other);
+            return new(recommended, other);
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "Could not enumerate applications for {Path}", filePath);
-            return new OpenWithProgramsPayload([], []);
+            return new([], []);
         }
         finally
         {
@@ -102,8 +102,14 @@ internal static unsafe partial class AssociatedPrograms
 
         try
         {
-            foreach (var root in new[]{Registry.CurrentUser, Registry.LocalMachine})
-            foreach (var association in new[]{"Directory", "Folder"})
+            foreach (var root in new[]
+                     {
+                         Registry.CurrentUser, Registry.LocalMachine
+                     })
+            foreach (var association in new[]
+                     {
+                         "Directory", "Folder"
+                     })
             {
                 using var shell = root.OpenSubKey($@"Software\Classes\{association}\shell");
                 if (shell is null)
@@ -176,7 +182,10 @@ internal static unsafe partial class AssociatedPrograms
         return Try.Run(() => Process.Start(new ProcessStartInfo(programPath)
         {
             UseShellExecute = false,
-            ArgumentList = { filePath }
+            ArgumentList =
+            {
+                filePath
+            }
         }) is not null).GetOrElse(_ => false);
     }
 
@@ -209,7 +218,7 @@ internal static unsafe partial class AssociatedPrograms
                     var path = ReadString(handler, HandlerGetNameSlot) ?? "";
 
                     if (name is { Length: > 0 } && path.Length > 0)
-                        result.Add(new OpenWithProgram(name, path, IconFor(path)));
+                        result.Add(new(name, path, IconFor(path)));
                 }
                 finally
                 {

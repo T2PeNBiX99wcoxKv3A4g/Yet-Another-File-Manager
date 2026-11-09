@@ -12,17 +12,15 @@ internal sealed class SettingsService : Singleton<SettingsService>
 {
     private static readonly string SettingsPath = Path.Combine(Constants.SettingsDirectory, "settings.json");
 
-    private AppSettings _current = AppSettings.Default;
-
     private readonly SemaphoreSlim _writeGate = new(1, 1);
 
-    public AppSettings Current => _current;
+    public AppSettings Current { get; private set; } = AppSettings.Default;
 
     /// <summary>
     ///     The stored language setting: a locale code, or <see cref="Localization.SystemLocale" /> to follow
     ///     the operating system. A fresh install starts in English.
     /// </summary>
-    public string Language => _current.Language is { Length: > 0 } language
+    public string Language => Current.Language is { Length: > 0 } language
         ? language
         : Localization.DefaultLocale;
 
@@ -31,14 +29,14 @@ internal sealed class SettingsService : Singleton<SettingsService>
     {
         if (!File.Exists(SettingsPath))
         {
-            _current = AppSettings.Default;
+            Current = AppSettings.Default;
             return;
         }
 
         var result = await Try.Run(() => File.ReadAllTextAsync(SettingsPath));
         var json = result.OnFailure(ex => Log.Warning(ex, "Could not read the settings")).GetOrNull();
 
-        _current = json is null
+        Current = json is null
             ? AppSettings.Default
             : Try.Run(() => JsonSerializer.Deserialize(json, AppJsonContext.Default.AppSettings))
                 .GetOrNull() ?? AppSettings.Default;
@@ -50,9 +48,9 @@ internal sealed class SettingsService : Singleton<SettingsService>
         await _writeGate.WaitAsync();
         try
         {
-            _current = change(_current);
-            await WriteAsync(_current);
-            return _current;
+            Current = change(Current);
+            await WriteAsync(Current);
+            return Current;
         }
         finally
         {

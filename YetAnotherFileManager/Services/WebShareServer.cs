@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
-using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Microsoft.AspNetCore.Builder;
@@ -16,7 +15,6 @@ using Microsoft.Extensions.Logging;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Utils;
-using Serilog;
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
 using YetAnotherFileManager.Security;
@@ -31,11 +29,13 @@ namespace YetAnotherFileManager.Services;
 internal sealed class WebShareServer : Singleton<WebShareServer>
 {
     private static readonly FileExtensionContentTypeProvider ContentTypes = new();
+
     private static readonly Lazy<IFileProvider> IconFiles = new(() =>
         new ManifestEmbeddedFileProvider(typeof(WebShareServer).Assembly, "Resources"));
-    private static IFileProvider? Files { get; set; }
+
     private WebApplication? _app;
     private int? _requestedPort;
+    private static IFileProvider? Files { get; set; }
 
     public bool Running => _app is not null;
 
@@ -221,7 +221,7 @@ internal sealed class WebShareServer : Singleton<WebShareServer>
             if (path.Equals("/api/config", StringComparison.OrdinalIgnoreCase))
             {
                 var settings = SettingsService.Instance.Current;
-                await WriteJsonAsync(context, new ShareWebConfigPayload(Constants.DisplayName,
+                await WriteJsonAsync(context, new(Constants.DisplayName,
                         ShareIdentity.Instance.DeviceName, settings.AccentColor, settings.SecondaryColor,
                         AppInfoService.Version, Localization.CurrentLanguage),
                     AppJsonContext.Default.ShareWebConfigPayload);
@@ -235,7 +235,7 @@ internal sealed class WebShareServer : Singleton<WebShareServer>
                     .Select(share => new ShareWebShare(share.Id, share.Name))
                     .ToList();
 
-                await WriteJsonAsync(context, new ShareWebSharesPayload(shares),
+                await WriteJsonAsync(context, new(shares),
                     AppJsonContext.Default.ShareWebSharesPayload);
                 return;
             }
@@ -327,7 +327,7 @@ internal sealed class WebShareServer : Singleton<WebShareServer>
         }
 
         await WriteJsonAsync(context,
-            new ShareWebListingPayload(share.Id, share.Name, relative, SharePaths.ParentOf(relative), entries),
+            new(share.Id, share.Name, relative, SharePaths.ParentOf(relative), entries),
             AppJsonContext.Default.ShareWebListingPayload);
     }
 
@@ -381,7 +381,7 @@ internal sealed class WebShareServer : Singleton<WebShareServer>
             saved++;
         }
 
-        await WriteJsonAsync(context, new ShareWebUploadPayload(saved), AppJsonContext.Default.ShareWebUploadPayload);
+        await WriteJsonAsync(context, new(saved), AppJsonContext.Default.ShareWebUploadPayload);
     }
 
     private static async Task DownloadAsync(HttpContext context, string rest)
@@ -460,7 +460,7 @@ internal sealed class WebShareServer : Singleton<WebShareServer>
     private static async Task WriteErrorAsync(HttpContext context, int status, string message)
     {
         context.Response.StatusCode = status;
-        await WriteJsonAsync(context, new ShareWebErrorPayload(message),
+        await WriteJsonAsync(context, new(message),
             AppJsonContext.Default.ShareWebErrorPayload);
     }
 

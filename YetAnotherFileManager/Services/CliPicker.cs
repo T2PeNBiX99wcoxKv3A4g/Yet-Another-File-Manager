@@ -38,7 +38,7 @@ internal static class CliPicker
                 initial = directory;
         }
 
-        return new PickerOptions(
+        return new(
             file,
             args.Contains(Constants.PickMultipleArgument),
             Extensions(Value(args, Constants.PickFilterArgument)),
@@ -78,10 +78,8 @@ internal static class CliPicker
         var text = string.Join(Environment.NewLine, paths) + Environment.NewLine;
 
         if (options.Output is { Length: > 0 } output)
-        {
             (await Try.Run(async () => await File.WriteAllTextAsync(output, text, new UTF8Encoding(false))))
                 .OnFailure(ex => Log.Warning(ex, "Could not write the picked paths to {Path}", output));
-        }
 
         Write(text);
         Environment.ExitCode = 0;
@@ -124,7 +122,10 @@ internal static class CliPicker
         Try.Run(() =>
         {
             using var stdout = Console.OpenStandardOutput();
-            using var writer = new StreamWriter(stdout, new UTF8Encoding(false)) { AutoFlush = true };
+            using var writer = new StreamWriter(stdout, new UTF8Encoding(false))
+            {
+                AutoFlush = true
+            };
             writer.Write(text);
         }).OnFailure(ex => Log.Warning(ex, "Could not write the picked paths"));
 }

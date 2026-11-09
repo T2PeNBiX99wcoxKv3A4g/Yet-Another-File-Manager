@@ -4,7 +4,6 @@ using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Platform;
 using PhotinoNetUtils.Utils;
-using Serilog;
 using YetAnotherFileManager.Messaging;
 
 namespace YetAnotherFileManager.Services;
@@ -69,7 +68,10 @@ internal sealed class StartupService : Singleton<StartupService>
             return context.Reply("app.startup.set.result",
                 new StartupStatusPayload(true, SettingsService.Instance.Current.Startup, IsActive(mode), error));
 
-        await SettingsService.Instance.UpdateAsync(settings => settings with {StartupMode = mode});
+        await SettingsService.Instance.UpdateAsync(settings => settings with
+        {
+            StartupMode = mode
+        });
         return context.Reply("app.startup.set.result", new StartupStatusPayload(true, mode, IsActive(mode), null));
     }
 
@@ -108,11 +110,9 @@ internal sealed class StartupService : Singleton<StartupService>
             return (false, "The executable path is unknown.");
 
         if (OperatingSystem.IsWindows())
-        {
             // Task Scheduler refuses task creation without an administrator token, so the app
             // re-launches itself elevated with a one-off helper mode.
             return await RunElevatedHelperAsync("create");
-        }
 
         if (OperatingSystem.IsLinux())
         {

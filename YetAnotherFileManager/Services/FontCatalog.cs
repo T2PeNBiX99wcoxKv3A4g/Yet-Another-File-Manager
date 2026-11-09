@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Drawing.Text;
+using System.Runtime.Versioning;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
 using Serilog;
@@ -33,11 +35,11 @@ internal static class FontCatalog
     }
 
     /// <summary>GDI+ knows every installed family, which is exactly what a font picker needs.</summary>
-    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    [SupportedOSPlatform("windows")]
     private static IEnumerable<string> WindowsFonts() =>
         Try.Run<IEnumerable<string>>(() =>
         {
-            using var collection = new System.Drawing.Text.InstalledFontCollection();
+            using var collection = new InstalledFontCollection();
             return collection.Families
                 .Select(family =>
                 {
@@ -73,7 +75,8 @@ internal static class FontCatalog
 
             return output
                 .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .SelectMany(line => line.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                .SelectMany(line =>
+                    line.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
                 .Where(name => name.Length > 0)
                 .ToList();
         });

@@ -40,35 +40,25 @@ internal static unsafe class RustNative
     /// <summary>The delete callback has no per-call state, so one delete runs at a time.</summary>
     private static Action<long, long>? _report;
 
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate int ScanImagesDelegate(ushort* root, nuint rootLength, uint depth, uint threads,
-        ushort* extensions, nuint extensionsLength, out byte* result, out nuint length);
+    static RustNative()
+    {
+        var name = OperatingSystem.IsWindows() ? "yafm_native.dll"
+            : OperatingSystem.IsMacOS() ? "libyafm_native.dylib"
+            : "libyafm_native.so";
+        var local = Path.Combine(AppContext.BaseDirectory, name);
 
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate void FreeBufferDelegate(byte* pointer, nuint length);
+        var handle = NativeLibrary.Load(File.Exists(local) ? local : name);
 
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate int CompressDelegate(ushort* paths, nuint pathsLength, ushort* output,
-        nuint outputLength, uint threads);
+        ScanImagesNative = Resolve<ScanImagesDelegate>(handle, "yafm_scan_images");
+        FreeBufferNative = Resolve<FreeBufferDelegate>(handle, "yafm_free");
+        CompressNative = Resolve<CompressDelegate>(handle, "yafm_compress");
+        ZipCreateNative = Resolve<ZipCreateDelegate>(handle, "yafm_zip_create");
+        SevenCreateNative = Resolve<SevenCreateDelegate>(handle, "yafm_7z_create");
+        MeasureNative = Resolve<MeasureDelegate>(handle, "yafm_measure");
+        DeleteNative = Resolve<DeleteDelegate>(handle, "yafm_delete");
 
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate int CompressXzDelegate(ushort* paths, nuint pathsLength, ushort* output,
-        nuint outputLength, int level);
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate int ZipCreateDelegate(ushort* paths, nuint pathsLength, ushort* output,
-        nuint outputLength, uint method, int level, uint encryption, ushort* password, nuint passwordLength);
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate int SevenCreateDelegate(ushort* paths, nuint pathsLength, ushort* output,
-        nuint outputLength, ushort* password, nuint passwordLength);
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate int MeasureDelegate(ushort* paths, nuint pathsLength, uint threads, out ulong files);
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate int DeleteDelegate(ushort* paths, nuint pathsLength, uint threads, ulong total,
-        IntPtr progress);
+        Log.Information("The Rust filesystem helper is ready");
+    }
 
     private static uint Threads => (uint)Math.Clamp(Environment.ProcessorCount, 1, 64);
 
@@ -247,7 +237,7 @@ internal static unsafe class RustNative
             var name = Encoding.UTF8.GetString(span.Slice(offset, nameLength));
             offset += nameLength;
 
-            entries.Add(new GalleryEntry(path, name, modified, (long)size));
+            entries.Add(new(path, name, modified, (long)size));
         }
 
         return entries;
@@ -277,23 +267,33 @@ internal static unsafe class RustNative
     private static T Resolve<T>(IntPtr handle, string name) where T : Delegate =>
         Marshal.GetDelegateForFunctionPointer<T>(NativeLibrary.GetExport(handle, name));
 
-    static RustNative()
-    {
-        var name = OperatingSystem.IsWindows() ? "yafm_native.dll"
-            : OperatingSystem.IsMacOS() ? "libyafm_native.dylib"
-            : "libyafm_native.so";
-        var local = Path.Combine(AppContext.BaseDirectory, name);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int ScanImagesDelegate(ushort* root, nuint rootLength, uint depth, uint threads,
+        ushort* extensions, nuint extensionsLength, out byte* result, out nuint length);
 
-        var handle = NativeLibrary.Load(File.Exists(local) ? local : name);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void FreeBufferDelegate(byte* pointer, nuint length);
 
-        ScanImagesNative = Resolve<ScanImagesDelegate>(handle, "yafm_scan_images");
-        FreeBufferNative = Resolve<FreeBufferDelegate>(handle, "yafm_free");
-        CompressNative = Resolve<CompressDelegate>(handle, "yafm_compress");
-        ZipCreateNative = Resolve<ZipCreateDelegate>(handle, "yafm_zip_create");
-        SevenCreateNative = Resolve<SevenCreateDelegate>(handle, "yafm_7z_create");
-        MeasureNative = Resolve<MeasureDelegate>(handle, "yafm_measure");
-        DeleteNative = Resolve<DeleteDelegate>(handle, "yafm_delete");
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int CompressDelegate(ushort* paths, nuint pathsLength, ushort* output,
+        nuint outputLength, uint threads);
 
-        Log.Information("The Rust filesystem helper is ready");
-    }
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int CompressXzDelegate(ushort* paths, nuint pathsLength, ushort* output,
+        nuint outputLength, int level);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int ZipCreateDelegate(ushort* paths, nuint pathsLength, ushort* output,
+        nuint outputLength, uint method, int level, uint encryption, ushort* password, nuint passwordLength);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int SevenCreateDelegate(ushort* paths, nuint pathsLength, ushort* output,
+        nuint outputLength, ushort* password, nuint passwordLength);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int MeasureDelegate(ushort* paths, nuint pathsLength, uint threads, out ulong files);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int DeleteDelegate(ushort* paths, nuint pathsLength, uint threads, ulong total,
+        IntPtr progress);
 }

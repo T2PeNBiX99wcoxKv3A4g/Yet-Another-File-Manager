@@ -26,8 +26,6 @@ internal static class FileTransfer
         AttributesToSkip = FileAttributes.ReparsePoint
     };
 
-    private sealed record Job(string Source, string Destination, bool IsDirectory, long Files, long Bytes);
-
     /// <summary>
     ///     Copies or moves every source into <paramref name="target" />. Each source keeps its name;
     ///     a name that is already taken becomes "name (2)", exactly like Explorer.
@@ -96,7 +94,7 @@ internal static class FileTransfer
                         ? Measure(source, cancellationToken)
                         : (1L, Try.Run(() => new FileInfo(source).Length).GetOrElse(_ => 0L));
 
-                jobs.Add(new Job(source, destination, isDirectory, files, bytes));
+                jobs.Add(new(source, destination, isDirectory, files, bytes));
                 totalFiles += files;
                 totalBytes += bytes;
             }
@@ -359,4 +357,6 @@ internal static class FileTransfer
 
         return candidate.StartsWith(root, StringComparison.OrdinalIgnoreCase);
     }
+
+    private sealed record Job(string Source, string Destination, bool IsDirectory, long Files, long Bytes);
 }

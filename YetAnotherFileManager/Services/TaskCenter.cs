@@ -14,12 +14,12 @@ internal sealed class TaskCenter : Singleton<TaskCenter>
     private const int NotifyDelay = 100;
 
     private readonly Lock _gate = new();
-    private readonly List<TaskInfo> _tasks = [];
     private readonly Timer _notifyTimer;
+    private readonly List<TaskInfo> _tasks = [];
     private bool _notifyPending;
 
     public TaskCenter() =>
-        _notifyTimer = new Timer(_ => Flush(), null, Timeout.Infinite, Timeout.Infinite);
+        _notifyTimer = new(_ => Flush(), null, Timeout.Infinite, Timeout.Infinite);
 
     /// <summary>Registers a running operation and returns the id used to report progress.</summary>
     public string Start(string kind, string label, int total = 0, long bytesTotal = 0)
@@ -146,7 +146,7 @@ internal sealed class TaskCenter : Singleton<TaskCenter>
         lock (_gate)
         {
             _notifyPending = false;
-            payload = new TasksPayload([.. _tasks]);
+            payload = new([.. _tasks]);
         }
 
         WindowManager.Instance.RunOnMainWindow(() =>

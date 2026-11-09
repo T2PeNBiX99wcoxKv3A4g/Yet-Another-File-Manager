@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using YetAnotherFileManager.Messaging;
 
 namespace YetAnotherFileManager.Services;
 
@@ -11,8 +10,6 @@ namespace YetAnotherFileManager.Services;
 /// </summary>
 internal static class DeleteGuard
 {
-    private sealed record Pending(string Key, DateTime IssuedAt);
-
     private static readonly ConcurrentDictionary<string, Pending> PendingDeletes = new();
     private static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(10);
 
@@ -22,7 +19,7 @@ internal static class DeleteGuard
         Cleanup();
 
         var token = Guid.NewGuid().ToString("N");
-        PendingDeletes[token] = new Pending(key, DateTime.UtcNow);
+        PendingDeletes[token] = new(key, DateTime.UtcNow);
         return token;
     }
 
@@ -71,4 +68,6 @@ internal static class DeleteGuard
             if (pending.IssuedAt < cutoff)
                 PendingDeletes.TryRemove(token, out _);
     }
+
+    private sealed record Pending(string Key, DateTime IssuedAt);
 }

@@ -136,8 +136,13 @@ internal static unsafe partial class ShellMenu
 
             if (info.SubMenu != IntPtr.Zero)
             {
-                session.HandleMenuMessage(WmInitMenuPopup, info.SubMenu, (IntPtr)index);
-                var next = path is null ? [Clean(label)] : new List<string>(path) { Clean(label) };
+                session.HandleMenuMessage(WmInitMenuPopup, info.SubMenu, index);
+                var next = path is null
+                    ? [Clean(label)]
+                    : new List<string>(path)
+                    {
+                        Clean(label)
+                    };
                 Walk(session, info.SubMenu, verbs, next, depth + 1);
                 continue;
             }
@@ -150,7 +155,7 @@ internal static unsafe partial class ShellMenu
             if (IsBasicVerb(verb))
                 continue;
 
-            verbs.Add(new ShellVerb(
+            verbs.Add(new(
                 Clean(label),
                 verb,
                 offset,
@@ -222,18 +227,43 @@ internal static unsafe partial class ShellMenu
     private static string Clean(string label) =>
         label.Replace("&&", "\0").Replace("&", "").Replace('\0', '&').Trim();
 
+    [LibraryImport("shell32.dll", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial int SHParseDisplayName(string name, IntPtr bindContext, out IntPtr pidl, uint attributesIn,
+        out uint attributesOut);
+
+    [LibraryImport("shell32.dll")]
+    private static partial int SHBindToParent(IntPtr pidl, Guid* iid, out IntPtr parent, out IntPtr child);
+
+    [LibraryImport("shell32.dll", EntryPoint = "ILFindLastID")]
+    private static partial IntPtr ILFindLastID(IntPtr pidl);
+
+    [LibraryImport("ole32.dll")]
+    private static partial int OleInitialize(IntPtr reserved);
+
+    [LibraryImport("ole32.dll")]
+    private static partial void OleUninitialize();
+
+    [LibraryImport("user32.dll")]
+    private static partial int GetMenuItemCount(IntPtr menu);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetMenuItemInfoW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetMenuItemInfo(IntPtr menu, uint item,
+        [MarshalAs(UnmanagedType.Bool)] bool byPosition, ref MenuItemInfo info);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "GetMenuStringW")]
+    private static extern int GetMenuString(IntPtr menu, uint item, StringBuilder text, int max, uint flags);
+
     /// <summary>One context menu object and the temporary menu it filled.</summary>
     private sealed class Session : IDisposable
     {
         private readonly IReadOnlyList<string> _paths;
-        private readonly bool _safe;
         private readonly List<IntPtr> _pidls = [];
-
-        private IntPtr _folder;
-        private IntPtr _context;
+        private readonly bool _safe;
         private IntPtr _context2;
         private IntPtr _context3;
-        private IntPtr _menu;
+
+        private IntPtr _folder;
 
         public Session(IReadOnlyList<string> paths, bool safe)
         {
@@ -241,9 +271,30 @@ internal static unsafe partial class ShellMenu
             _safe = safe;
         }
 
-        public IntPtr Menu => _menu;
+        public IntPtr Menu { get; private set; }
 
-        public IntPtr Context => _context;
+        public IntPtr Context { get; private set; }
+
+        public void Dispose()
+        {
+            if (Menu != IntPtr.Zero)
+                NativeMethods.DestroyMenu(Menu);
+
+            if (_context3 != IntPtr.Zero)
+                Marshal.Release(_context3);
+
+            if (_context2 != IntPtr.Zero)
+                Marshal.Release(_context2);
+
+            if (Context != IntPtr.Zero)
+                Marshal.Release(Context);
+
+            if (_folder != IntPtr.Zero)
+                Marshal.Release(_folder);
+
+            foreach (var pidl in _pidls)
+                Marshal.FreeCoTaskMem(pidl);
+        }
 
         public bool Open()
         {
@@ -276,25 +327,25 @@ internal static unsafe partial class ShellMenu
                     || context == IntPtr.Zero)
                     return false;
 
-                _context = context;
+                Context = context;
             }
 
-            if (Marshal.QueryInterface(_context, in ContextMenu3Id, out _context3) != 0)
+            if (Marshal.QueryInterface(Context, in ContextMenu3Id, out _context3) != 0)
                 _context3 = IntPtr.Zero;
 
-            if (_context3 == IntPtr.Zero && Marshal.QueryInterface(_context, in ContextMenu2Id, out _context2) != 0)
+            if (_context3 == IntPtr.Zero && Marshal.QueryInterface(Context, in ContextMenu2Id, out _context2) != 0)
                 _context2 = IntPtr.Zero;
 
-            _menu = NativeMethods.CreatePopupMenu();
+            Menu = NativeMethods.CreatePopupMenu();
 
             var flags = _safe
                 ? CmfNormal | CmfNoverbs | CmfExplore
                 : CmfNormal | CmfExplore;
 
             var query = (delegate* unmanaged[Stdcall]<IntPtr, IntPtr, uint, uint, uint, uint, int>)
-                (*(IntPtr**)_context)[QueryContextMenuSlot];
+                (*(IntPtr**)Context)[QueryContextMenuSlot];
 
-            return query(_context, _menu, 0, IdFirst, IdLast, flags) >= 0;
+            return query(Context, Menu, 0, IdFirst, IdLast, flags) >= 0;
         }
 
         public void HandleMenuMessage(uint message, IntPtr menu, IntPtr index)
@@ -334,7 +385,7 @@ internal static unsafe partial class ShellMenu
             }
         }
 
-        private bool InvokeOffset(int offset) => InvokeCore((IntPtr)offset, (IntPtr)offset);
+        private bool InvokeOffset(int offset) => InvokeCore(offset, offset);
 
         private bool InvokeCore(IntPtr verb, IntPtr verbWide)
         {
@@ -348,30 +399,9 @@ internal static unsafe partial class ShellMenu
             };
 
             var invoke = (delegate* unmanaged[Stdcall]<IntPtr, CommandInfo*, int>)
-                (*(IntPtr**)_context)[InvokeCommandSlot];
+                (*(IntPtr**)Context)[InvokeCommandSlot];
 
-            return invoke(_context, &info) >= 0;
-        }
-
-        public void Dispose()
-        {
-            if (_menu != IntPtr.Zero)
-                NativeMethods.DestroyMenu(_menu);
-
-            if (_context3 != IntPtr.Zero)
-                Marshal.Release(_context3);
-
-            if (_context2 != IntPtr.Zero)
-                Marshal.Release(_context2);
-
-            if (_context != IntPtr.Zero)
-                Marshal.Release(_context);
-
-            if (_folder != IntPtr.Zero)
-                Marshal.Release(_folder);
-
-            foreach (var pidl in _pidls)
-                Marshal.FreeCoTaskMem(pidl);
+            return invoke(Context, &info) >= 0;
         }
     }
 
@@ -412,31 +442,4 @@ internal static unsafe partial class ShellMenu
         public uint Count;
         public IntPtr Bitmap;
     }
-
-    [LibraryImport("shell32.dll", StringMarshalling = StringMarshalling.Utf16)]
-    private static partial int SHParseDisplayName(string name, IntPtr bindContext, out IntPtr pidl, uint attributesIn,
-        out uint attributesOut);
-
-    [LibraryImport("shell32.dll")]
-    private static partial int SHBindToParent(IntPtr pidl, Guid* iid, out IntPtr parent, out IntPtr child);
-
-    [LibraryImport("shell32.dll", EntryPoint = "ILFindLastID")]
-    private static partial IntPtr ILFindLastID(IntPtr pidl);
-
-    [LibraryImport("ole32.dll")]
-    private static partial int OleInitialize(IntPtr reserved);
-
-    [LibraryImport("ole32.dll")]
-    private static partial void OleUninitialize();
-
-    [LibraryImport("user32.dll")]
-    private static partial int GetMenuItemCount(IntPtr menu);
-
-    [LibraryImport("user32.dll", EntryPoint = "GetMenuItemInfoW", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool GetMenuItemInfo(IntPtr menu, uint item,
-        [MarshalAs(UnmanagedType.Bool)] bool byPosition, ref MenuItemInfo info);
-
-    [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "GetMenuStringW")]
-    private static extern int GetMenuString(IntPtr menu, uint item, StringBuilder text, int max, uint flags);
 }

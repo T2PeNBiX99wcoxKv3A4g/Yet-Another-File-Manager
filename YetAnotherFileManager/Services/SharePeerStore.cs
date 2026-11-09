@@ -1,7 +1,6 @@
 using System.Text.Json;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
-using Serilog;
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
 

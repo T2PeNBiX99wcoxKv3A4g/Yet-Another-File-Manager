@@ -27,7 +27,7 @@ internal static class Protection
                 if (!PathGlob.Covers(target, pattern))
                     continue;
 
-                hits[target] = new ProtectedHit(target, pattern);
+                hits[target] = new(target, pattern);
                 break;
             }
         }

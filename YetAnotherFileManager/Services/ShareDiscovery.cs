@@ -5,7 +5,6 @@ using System.Net.Sockets;
 using System.Text.Json;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
-using Serilog;
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
 using YetAnotherFileManager.Security;
@@ -177,7 +176,7 @@ internal sealed class ShareDiscovery : Singleton<ShareDiscovery>
         if (_socket is not { } socket)
             return;
 
-        var frame = JsonSerializer.SerializeToUtf8Bytes(new ShareDiscoveryMessage(ShareProtocol.Discover,
+        var frame = JsonSerializer.SerializeToUtf8Bytes(new(ShareProtocol.Discover,
                 ShareIdentity.Instance.Id, _deviceName, ShareProtocol.SyncPort,
                 ShareIdentity.Instance.PublicKeyBase64),
             AppJsonContext.Default.ShareDiscoveryMessage);
@@ -189,7 +188,7 @@ internal sealed class ShareDiscovery : Singleton<ShareDiscovery>
     }
 
     private static Task SendAnnounceAsync(UdpClient socket, IPEndPoint target, CancellationToken token) =>
-        socket.SendAsync(JsonSerializer.SerializeToUtf8Bytes(new ShareDiscoveryMessage(ShareProtocol.Announce,
+        socket.SendAsync(JsonSerializer.SerializeToUtf8Bytes(new(ShareProtocol.Announce,
                 ShareIdentity.Instance.Id, ShareIdentity.Instance.DeviceName,
                 ShareProtocol.SyncPort, ShareIdentity.Instance.PublicKeyBase64),
             AppJsonContext.Default.ShareDiscoveryMessage), target, token).AsTask();

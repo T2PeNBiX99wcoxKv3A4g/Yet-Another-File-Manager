@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Sockets;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
-using Serilog;
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Security;
 
@@ -169,13 +168,13 @@ internal sealed class SharePeerServer : Singleton<SharePeerServer>
     {
         var identity = ShareIdentity.Instance;
         return ShareFrames.WriteAsync(stream,
-            new ShareDiscoveryMessage(ShareProtocol.Announce, identity.Id, identity.DeviceName,
+            new(ShareProtocol.Announce, identity.Id, identity.DeviceName,
                 ShareProtocol.SyncPort, identity.PublicKeyBase64),
             AppJsonContext.Default.ShareDiscoveryMessage, token);
     }
 
     private static Task WriteStatusAsync(NetworkStream stream, bool ok, string? error, CancellationToken token) =>
-        ShareFrames.WriteAsync(stream, new ShareStatusMessage(ShareProtocol.Status, ok, error),
+        ShareFrames.WriteAsync(stream, new(ShareProtocol.Status, ok, error),
             AppJsonContext.Default.ShareStatusMessage, token);
 
     private static string HostOf(TcpClient client)

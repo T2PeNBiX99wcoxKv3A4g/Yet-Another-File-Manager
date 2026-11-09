@@ -4,6 +4,7 @@ using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Interop;
 using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Platform;
+using PhotinoNetUtils.Services;
 using PhotinoNetUtils.Utils;
 using YetAnotherFileManager.Messaging;
 
@@ -22,6 +23,26 @@ internal sealed class WindowManager : Singleton<WindowManager>
     /// </summary>
     private static readonly string WebViewDataPath = Path.Combine(Constants.DataDirectory, "webview");
 
+    /// <summary>Paths that arrived before the interface was listening for navigation.</summary>
+    private readonly List<(string Path, bool Startup)> _pendingPaths = [];
+
+    /// <summary>Launch paths, re-sent on every ready until the interface acknowledges them.</summary>
+    private readonly List<string> _startupPaths = [];
+
+    private bool _allowClose;
+
+    /// <summary>Set when the window should stay hidden until its web view has rendered.</summary>
+    private bool _hideWhenRendered;
+
+    private PhotinoWindow? _mainWindow;
+
+    /// <summary>Whether the interface has reported in; before that, messages crash the web view.</summary>
+    private bool _mainWindowReady;
+
+    private WebViewRecovery? _webViewRecovery;
+
+    public WindowManager() => NativeBridge.MessageReceived += HandleMessageAsync;
+
     /// <summary>
     ///     A picker is a second process of this app. Sharing the main window's web view folder makes
     ///     the second window stay blank, so pickers get a profile of their own; reusing it keeps the
@@ -30,29 +51,11 @@ internal sealed class WindowManager : Singleton<WindowManager>
     internal static string PickerWebViewDataPath =>
         Path.Combine(Constants.DataDirectory, "webview-picker");
 
-    private bool _allowClose;
-    private PhotinoWindow? _mainWindow;
-    private PhotinoNetUtils.Services.WebViewRecovery? _webViewRecovery;
-
-    /// <summary>Whether the interface has reported in; before that, messages crash the web view.</summary>
-    private bool _mainWindowReady;
-
-    /// <summary>Set when the window should stay hidden until its web view has rendered.</summary>
-    private bool _hideWhenRendered;
-
-    /// <summary>Paths that arrived before the interface was listening for navigation.</summary>
-    private readonly List<(string Path, bool Startup)> _pendingPaths = [];
-
-    /// <summary>Launch paths, re-sent on every ready until the interface acknowledges them.</summary>
-    private readonly List<string> _startupPaths = [];
-
     /// <summary>
     ///     Set only in a command line pick run. The interface answers <c>pick.submit</c> or
     ///     <c>pick.cancel</c>, this instance writes the result, and the window closes.
     /// </summary>
     public PickerOptions? Picker { get; set; }
-
-    public WindowManager() => NativeBridge.MessageReceived += HandleMessageAsync;
 
     /// <summary>
     ///     Whether the interface has to paint the window's rounded corners, because the platform leaves
@@ -74,6 +77,9 @@ internal sealed class WindowManager : Singleton<WindowManager>
     ///     created, so a missing tray can never leave the window hidden with no way back.
     /// </summary>
     public bool CloseToTray { get; set; }
+
+    /// <summary>The main window's native handle, or zero before the window exists.</summary>
+    public IntPtr WindowHandle => _mainWindow?.WindowHandle ?? IntPtr.Zero;
 
     /// <summary>Raised once the window's native handle exists (the message loop is about to start).</summary>
     public event Action? MainWindowCreated;
@@ -110,6 +116,7 @@ internal sealed class WindowManager : Singleton<WindowManager>
                     await CliPicker.CompleteAsync(picker, context.Payload<PickResultRequest>()?.Paths ?? []);
                     Exit();
                 }
+
                 break;
 
             case "pick.cancel":
@@ -118,6 +125,7 @@ internal sealed class WindowManager : Singleton<WindowManager>
                     CliPicker.Cancel(cancelled);
                     Exit();
                 }
+
                 break;
 
             case "pick.open":
@@ -215,9 +223,7 @@ internal sealed class WindowManager : Singleton<WindowManager>
             webViewPath = WebViewDataPath;
         }
         else
-        {
             webViewPath = PickerWebViewDataPath;
-        }
 
         var window = new PhotinoWindow()
             // The native layer prints every property setter and message it handles. That is useful
@@ -286,7 +292,7 @@ internal sealed class WindowManager : Singleton<WindowManager>
             MainWindowCreated?.Invoke();
         });
 
-        _webViewRecovery = PhotinoNetUtils.Services.WebViewRecovery.Attach(window, AppUrl);
+        _webViewRecovery = WebViewRecovery.Attach(window, AppUrl);
         window.Load(AppUrl);
         _mainWindow = window;
     }
@@ -353,9 +359,6 @@ internal sealed class WindowManager : Singleton<WindowManager>
     /// <summary>Runs an action on the UI thread, once the message loop is running.</summary>
     public void RunOnMainWindow(Action action) => _mainWindow?.Invoke(action);
 
-    /// <summary>The main window's native handle, or zero before the window exists.</summary>
-    public IntPtr WindowHandle => _mainWindow?.WindowHandle ?? IntPtr.Zero;
-
     public void Exit()
     {
         _allowClose = true;
@@ -420,7 +423,11 @@ internal sealed class WindowManager : Singleton<WindowManager>
             return new([]);
 
         var output = Path.Combine(Path.GetTempPath(), $"yafm-pick-{Guid.NewGuid():N}.txt");
-        var start = new ProcessStartInfo(executable) { UseShellExecute = false, CreateNoWindow = true };
+        var start = new ProcessStartInfo(executable)
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
         start.ArgumentList.Add(request.Mode == "file" ? Constants.PickFileArgument : Constants.PickFolderArgument);
 
         if (request.Initial is { Length: > 0 } initial)

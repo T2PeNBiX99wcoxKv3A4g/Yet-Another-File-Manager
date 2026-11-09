@@ -4,7 +4,6 @@ using PhotinoNetUtils;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Messaging;
-using PhotinoNetUtils.Platform;
 using PhotinoNetUtils.Utils;
 using YetAnotherFileManager.Messaging;
 
@@ -62,7 +61,10 @@ internal sealed class AppInfoService : Singleton<AppInfoService>
         if (string.IsNullOrWhiteSpace(url))
             return context.Fail("app.openUrl.result", Localization.Get("No URL was given."));
 
-        var opened = Try.Run(() => Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }) is not null)
+        var opened = Try.Run(() => Process.Start(new ProcessStartInfo(url)
+            {
+                UseShellExecute = true
+            }) is not null)
             .GetOrElse(exception =>
             {
                 Serilog.Log.Warning(exception, "Could not open {Url}", url);

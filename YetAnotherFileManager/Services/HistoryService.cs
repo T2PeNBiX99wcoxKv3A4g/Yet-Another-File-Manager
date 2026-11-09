@@ -42,15 +42,18 @@ internal sealed class HistoryService : Singleton<HistoryService>
     private static readonly string LegacyRecentPath = Path.Combine(Constants.SettingsDirectory, "recent.json");
     private static readonly string LegacyFrequentPath = Path.Combine(Constants.SettingsDirectory, "frequent.json");
 
+    private readonly string _connectionString;
+
     private readonly Lazy<Task> _ready;
 
     private readonly SemaphoreSlim _writeGate = new(1, 1);
 
-    private readonly string _connectionString;
-
     public HistoryService()
     {
-        _connectionString = new SqliteConnectionStringBuilder { DataSource = DatabasePath }.ToString();
+        _connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = DatabasePath
+        }.ToString();
         _ready = new(InitializeAsync, LazyThreadSafetyMode.ExecutionAndPublication);
     }
 

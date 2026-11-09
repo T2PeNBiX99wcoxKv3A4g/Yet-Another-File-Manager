@@ -31,7 +31,7 @@ internal static partial class CaseSensitivity
         try
         {
             return GetFileInformationByHandleEx(handle, FileCaseSensitiveInfo, out var flags, sizeof(uint))
-                && (flags & CaseSensitiveFlag) != 0;
+                   && (flags & CaseSensitiveFlag) != 0;
         }
         finally
         {

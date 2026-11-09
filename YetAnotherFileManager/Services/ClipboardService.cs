@@ -3,9 +3,8 @@ using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
-using Serilog;
 using PhotinoNetUtils.Interop;
-using YetAnotherFileManager.Interop;
+using Serilog;
 using YetAnotherFileManager.Messaging;
 
 namespace YetAnotherFileManager.Services;
@@ -28,6 +27,7 @@ internal static partial class ClipboardService
 
     /// <summary>The cut made through this app's Linux clipboard, and the list it described.</summary>
     private static bool _linuxCut;
+
     private static string? _linuxSignature;
 
     /// <summary>Puts the paths on the clipboard as files, with the effect Explorer uses for cut/copy.</summary>
@@ -85,20 +85,20 @@ internal static partial class ClipboardService
     public static ClipboardPathsPayload ReadPayload()
     {
         if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
-            return new ClipboardPathsPayload([], false, 0);
+            return new([], false, 0);
 
         var (paths, move, read) = ReadFiles();
 
         // A clipboard another app is holding is not "empty": leave the sequence alone so the next
         // poll retries instead of remembering a sequence that never carried the files.
         if (!read)
-            return new ClipboardPathsPayload([], false, 0);
+            return new([], false, 0);
 
         var sequence = OperatingSystem.IsWindows()
             ? GetClipboardSequenceNumber()
             : (uint)LinuxClipboard.Signature(paths).GetHashCode();
 
-        return new ClipboardPathsPayload(PathEntries.Describe(paths), move, sequence);
+        return new(PathEntries.Describe(paths), move, sequence);
     }
 
     /// <summary>Reads the clipboard's files, whether the operation is a cut, and whether it could be read.</summary>
@@ -204,7 +204,10 @@ internal static partial class ClipboardService
 
         try
         {
-            foreach (var format in new[]{CfDibV5, CfDib})
+            foreach (var format in new[]
+                     {
+                         CfDibV5, CfDib
+                     })
             {
                 if (!IsClipboardFormatAvailable(format))
                     continue;
@@ -464,16 +467,6 @@ internal static partial class ClipboardService
         }
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct DropFiles
-    {
-        public uint pFiles;
-        public int x;
-        public int y;
-        public int fNC;
-        public int fWide;
-    }
-
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     private static extern uint DragQueryFile(IntPtr hDrop, uint iFile, IntPtr lpszFile, uint cch);
 
@@ -502,4 +495,14 @@ internal static partial class ClipboardService
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     private static partial IntPtr GlobalFree(IntPtr hMem);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct DropFiles
+    {
+        public uint pFiles;
+        public int x;
+        public int y;
+        public int fNC;
+        public int fWide;
+    }
 }

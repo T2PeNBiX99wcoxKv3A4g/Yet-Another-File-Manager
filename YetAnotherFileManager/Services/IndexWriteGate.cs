@@ -7,9 +7,9 @@ namespace YetAnotherFileManager.Services;
 /// </summary>
 internal sealed class IndexWriteGate
 {
-    private readonly Lock _gate = new();
-    private readonly Queue<TaskCompletionSource> _focused = new();
     private readonly Queue<TaskCompletionSource> _background = new();
+    private readonly Queue<TaskCompletionSource> _focused = new();
+    private readonly Lock _gate = new();
     private bool _busy;
 
     /// <summary>Waits for the gate; <paramref name="focused" /> puts the caller ahead of the queue.</summary>

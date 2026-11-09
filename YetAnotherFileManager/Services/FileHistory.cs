@@ -1,6 +1,5 @@
 using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Utils;
-using Serilog;
 using YetAnotherFileManager.Messaging;
 
 namespace YetAnotherFileManager.Services;
@@ -19,16 +18,6 @@ internal sealed class FileHistory : Singleton<FileHistory>
     private int _index;
     private long _nextId;
 
-    public sealed record Step(bool Ok, List<string> Paths, string? Error = null);
-
-    private sealed record Entry(
-        long Id,
-        string Label,
-        IReadOnlyList<string> Paths,
-        long At,
-        Func<Task<Step>> Undo,
-        Func<Task<Step>> Redo);
-
     public void Record(string label, Func<Task<Step>> undo, Func<Task<Step>> redo,
         IReadOnlyList<string>? paths = null)
     {
@@ -37,7 +26,7 @@ internal sealed class FileHistory : Singleton<FileHistory>
             if (_index < _entries.Count)
                 _entries.RemoveRange(_index, _entries.Count - _index);
 
-            _entries.Add(new Entry(++_nextId, label, paths ?? [], DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            _entries.Add(new(++_nextId, label, paths ?? [], DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 undo, redo));
 
             if (_entries.Count > Limit)
@@ -51,18 +40,18 @@ internal sealed class FileHistory : Singleton<FileHistory>
     public HistoryListPayload List()
     {
         lock (_entries)
-        {
-            return new HistoryListPayload(
-                [.. _entries.Select((entry, index) =>
+            return new(
+            [
+                .. _entries.Select((entry, index) =>
                 {
                     var applied = index < _index;
                     var restorable = applied && (entry.Label.StartsWith("Delete ", StringComparison.Ordinal)
-                        || entry.Paths.Count == 0
-                        || entry.Paths.Any(path => File.Exists(path) || Directory.Exists(path)));
+                                                 || entry.Paths.Count == 0
+                                                 || entry.Paths.Any(path => File.Exists(path) || Directory.Exists(path)));
 
                     return new HistoryEntryPayload(entry.Id, entry.Label, entry.Paths, entry.At, applied, restorable);
-                }).Reverse()]);
-        }
+                }).Reverse()
+            ]);
     }
 
     /// <summary>Undoes the newest operation down to and including <paramref name="id" />.</summary>
@@ -73,9 +62,9 @@ internal sealed class FileHistory : Singleton<FileHistory>
             int target;
             lock (_entries)
             {
-                target = _entries.FindIndex((entry) => entry.Id == id);
+                target = _entries.FindIndex(entry => entry.Id == id);
                 if (target < 0 || target >= _index)
-                    return new HistoryOperationPayload(true, null, []);
+                    return new(true, null, []);
             }
 
             var step = await UndoAsync();
@@ -83,23 +72,19 @@ internal sealed class FileHistory : Singleton<FileHistory>
                 return step;
 
             lock (_entries)
-            {
                 if (_index - 1 <= target)
                     return step;
-            }
         }
     }
 
     public HistoryStatePayload State()
     {
         lock (_entries)
-        {
-            return new HistoryStatePayload(
+            return new(
                 _index > 0,
                 _index < _entries.Count,
                 _index > 0 ? _entries[_index - 1].Label : null,
                 _index < _entries.Count ? _entries[_index].Label : null);
-        }
     }
 
     public async Task<HistoryOperationPayload> UndoAsync()
@@ -113,7 +98,7 @@ internal sealed class FileHistory : Singleton<FileHistory>
             lock (_entries)
             {
                 if (_index == 0)
-                    return new HistoryOperationPayload(false, Localization.Get("Nothing to undo."), []);
+                    return new(false, Localization.Get("Nothing to undo."), []);
 
                 entry = _entries[_index - 1];
             }
@@ -122,16 +107,15 @@ internal sealed class FileHistory : Singleton<FileHistory>
 
             if (step.Ok)
                 lock (_entries)
-                {
-                    if (_index > 0) _index -= 1;
-                }
+                    if (_index > 0)
+                        _index -= 1;
 
-            return new HistoryOperationPayload(step.Ok, step.Error, step.Paths);
+            return new(step.Ok, step.Error, step.Paths);
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "Could not undo a file operation");
-            return new HistoryOperationPayload(false, ex.Message, []);
+            return new(false, ex.Message, []);
         }
         finally
         {
@@ -150,7 +134,7 @@ internal sealed class FileHistory : Singleton<FileHistory>
             lock (_entries)
             {
                 if (_index >= _entries.Count)
-                    return new HistoryOperationPayload(false, Localization.Get("Nothing to redo."), []);
+                    return new(false, Localization.Get("Nothing to redo."), []);
 
                 entry = _entries[_index];
             }
@@ -159,20 +143,29 @@ internal sealed class FileHistory : Singleton<FileHistory>
 
             if (step.Ok)
                 lock (_entries)
-                {
-                    if (_index < _entries.Count) _index += 1;
-                }
+                    if (_index < _entries.Count)
+                        _index += 1;
 
-            return new HistoryOperationPayload(step.Ok, step.Error, step.Paths);
+            return new(step.Ok, step.Error, step.Paths);
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "Could not redo a file operation");
-            return new HistoryOperationPayload(false, ex.Message, []);
+            return new(false, ex.Message, []);
         }
         finally
         {
             _gate.Release();
         }
     }
+
+    public sealed record Step(bool Ok, List<string> Paths, string? Error = null);
+
+    private sealed record Entry(
+        long Id,
+        string Label,
+        IReadOnlyList<string> Paths,
+        long At,
+        Func<Task<Step>> Undo,
+        Func<Task<Step>> Redo);
 }

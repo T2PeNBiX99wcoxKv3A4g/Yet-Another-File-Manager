@@ -194,8 +194,8 @@ internal static partial class Program
             // Opening a folder or a yafm:// link is a direct user action. Do not swallow that launch
             // into a hidden tray start just because the logon entry normally starts quietly.
             manager.ShowMainWindowOnStartup = startupPaths.Count > 0
-                || !SettingsService.Instance.Current.StartsHidden
-                || !hasTray;
+                                              || !SettingsService.Instance.Current.StartsHidden
+                                              || !hasTray;
 
             using var tray = CreateTray(manager.IconPath);
 
@@ -347,19 +347,18 @@ internal static partial class Program
         };
 
         if (args[index + 1] == "create")
-        {
             foreach (var argument in new[]
                      {
-                         "/Create", "/SC", "ONLOGON", "/IT", "/TN", Constants.Name,
-                         "/TR", $"\"{executable}\"", "/RL", "LIMITED", "/F"
+                         "/Create", "/SC", "ONLOGON", "/IT", "/TN", Constants.Name, "/TR", $"\"{executable}\"", "/RL",
+                         "LIMITED", "/F"
                      })
                 start.ArgumentList.Add(argument);
-        }
         else
-        {
-            foreach (var argument in new[] {"/Delete", "/TN", Constants.Name, "/F"})
+            foreach (var argument in new[]
+                     {
+                         "/Delete", "/TN", Constants.Name, "/F"
+                     })
                 start.ArgumentList.Add(argument);
-        }
 
         try
         {

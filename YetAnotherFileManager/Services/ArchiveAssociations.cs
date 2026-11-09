@@ -4,7 +4,6 @@ using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
 using Serilog;
 using YetAnotherFileManager.Messaging;
-using YetAnotherFileManager.Models;
 
 namespace YetAnotherFileManager.Services;
 
@@ -33,7 +32,7 @@ internal static class ArchiveAssociations
     public static ArchiveStatusPayload Status()
     {
         if (!OperatingSystem.IsWindows())
-            return new ArchiveStatusPayload(false, false, null);
+            return new(false, false, null);
 
         string? registeredPath = null;
 
@@ -46,12 +45,12 @@ internal static class ArchiveAssociations
 
         var current = Environment.ProcessPath;
         var matches = registeredPath is { Length: > 0 } && current is { Length: > 0 }
-            && Try.Run(() => string.Equals(
-                Path.GetFullPath(registeredPath),
-                Path.GetFullPath(current),
-                StringComparison.OrdinalIgnoreCase)).GetOrElse(_ => false);
+                                                        && Try.Run(() => string.Equals(
+                                                            Path.GetFullPath(registeredPath),
+                                                            Path.GetFullPath(current),
+                                                            StringComparison.OrdinalIgnoreCase)).GetOrElse(_ => false);
 
-        return new ArchiveStatusPayload(registeredPath is { Length: > 0 }, matches, registeredPath);
+        return new(registeredPath is { Length: > 0 }, matches, registeredPath);
     }
 
     [SupportedOSPlatform("windows")]
@@ -71,8 +70,8 @@ internal static class ArchiveAssociations
 
             // An extension handled now may have no backup; remove only this app's own value there
             // instead of guessing.
-            foreach (var extension in Extensions.Where(extension => backups.Archive.All(
-                         backup => !string.Equals(backup.Extension, extension, StringComparison.OrdinalIgnoreCase))))
+            foreach (var extension in Extensions.Where(extension => backups.Archive.All(backup =>
+                         !string.Equals(backup.Extension, extension, StringComparison.OrdinalIgnoreCase))))
                 RestoreExtension(extension, null);
 
             backups.Archive.Clear();
@@ -91,7 +90,7 @@ internal static class ArchiveAssociations
                     string.Equals(backup.Extension, extension, StringComparison.OrdinalIgnoreCase)))
                 continue;
 
-            backups.Archive.Add(new ArchiveAssociationBackup(extension, ReadCurrentDefault(extension)));
+            backups.Archive.Add(new(extension, ReadCurrentDefault(extension)));
             changed = true;
         }
 
@@ -170,9 +169,7 @@ internal static class ArchiveAssociations
                     key.DeleteValue(null, false);
             }
             else
-            {
                 key.SetValue(null, previous);
-            }
 
             using var openWith = key.OpenSubKey("OpenWithProgids", true);
             openWith?.DeleteValue(ProgId, false);

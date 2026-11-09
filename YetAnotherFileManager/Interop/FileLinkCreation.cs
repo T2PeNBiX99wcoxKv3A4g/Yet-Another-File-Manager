@@ -2,7 +2,6 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
-using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
 
 namespace YetAnotherFileManager.Interop;
@@ -33,16 +32,14 @@ internal static partial class FileLinkCreation
     internal const int ErrorPrivilegeNotHeld = 1314;
     private static readonly IntPtr InvalidHandle = new(-1);
 
-    internal readonly record struct Result(bool Ok, string Error, int ErrorCode);
-
     /// <summary>Creates <paramref name="link" /> pointing at <paramref name="source" />.</summary>
     public static Result Create(string kind, string source, string link, bool elevated = false)
     {
         if (!Directory.Exists(Path.GetDirectoryName(link)))
-            return new Result(false, "The folder for the link does not exist.", 0);
+            return new(false, "The folder for the link does not exist.", 0);
 
         if (File.Exists(link) || Directory.Exists(link))
-            return new Result(false, "Something with that name already exists there.", 0);
+            return new(false, "Something with that name already exists there.", 0);
 
         try
         {
@@ -50,20 +47,20 @@ internal static partial class FileLinkCreation
             {
                 case SymbolicFile:
                     CreateSymbolicLink(link, source, false, elevated);
-                    return new Result(true, "", 0);
+                    return new(true, "", 0);
                 case SymbolicFolder:
                     CreateSymbolicLink(link, source, true, elevated);
-                    return new Result(true, "", 0);
+                    return new(true, "", 0);
                 case Hard:
                     if (!CreateHardLink(link, source, IntPtr.Zero))
                         throw new IOException("The hard link could not be created.",
                             new Win32Exception(Marshal.GetLastWin32Error()));
-                    return new Result(true, "", 0);
+                    return new(true, "", 0);
                 case Junction:
                     CreateJunction(link, source);
-                    return new Result(true, "", 0);
+                    return new(true, "", 0);
                 default:
-                    return new Result(false, "Unknown link type.", 0);
+                    return new(false, "Unknown link type.", 0);
             }
         }
         catch (Exception ex)
@@ -71,7 +68,7 @@ internal static partial class FileLinkCreation
             var nativeError = ex;
             while (nativeError.InnerException is not null) nativeError = nativeError.InnerException;
             var errorCode = nativeError is Win32Exception win32 ? win32.NativeErrorCode : 0;
-            return new Result(false, ex.Message, errorCode);
+            return new(false, ex.Message, errorCode);
         }
     }
 
@@ -182,4 +179,6 @@ internal static partial class FileLinkCreation
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool CloseHandle(IntPtr handle);
+
+    internal readonly record struct Result(bool Ok, string Error, int ErrorCode);
 }

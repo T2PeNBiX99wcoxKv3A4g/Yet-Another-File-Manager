@@ -18,6 +18,7 @@ namespace YetAnotherFileManager.Services;
 internal static class ShellMenuClient
 {
     private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(2);
+
     private static readonly string? RustHelper = OperatingSystem.IsWindows()
         ? Path.Combine(AppContext.BaseDirectory, "yafm-shellmenu.exe")
         : null;
@@ -25,14 +26,14 @@ internal static class ShellMenuClient
     public static async Task<ShellVerbsPayload> ReadAsync(IReadOnlyList<string> paths)
     {
         if (!OperatingSystem.IsWindows() || paths.Count == 0)
-            return new ShellVerbsPayload([], true);
+            return new([], true);
 
         var full = await ReadFullAsync(paths);
         if (full is not null)
-            return new ShellVerbsPayload(full, false);
+            return new(full, false);
 
         var safe = await ReadSafeAsync(paths);
-        return new ShellVerbsPayload(safe, true);
+        return new(safe, true);
     }
 
     [SupportedOSPlatform("windows")]

@@ -1,5 +1,5 @@
+using System.ComponentModel;
 using System.Diagnostics;
-using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Utils;
 using Serilog;
@@ -71,7 +71,7 @@ internal static class CaseFolders
             using var process = Process.Start(start);
             return process is not null && process.WaitForExit(120_000) && process.ExitCode == 0;
         }
-        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
         {
             // The user dismissed the consent prompt, or the shell could not start the helper.
             Log.Information(ex, "The case-sensitivity helper did not run");
@@ -82,29 +82,29 @@ internal static class CaseFolders
     public static CaseSensitivePayload Set(string path, bool enabled)
     {
         if (!Supported)
-            return new CaseSensitivePayload(false, false, Localization.Get("Case-sensitive folders are a Windows feature."));
+            return new(false, false, Localization.Get("Case-sensitive folders are a Windows feature."));
 
         if (!Directory.Exists(path))
-            return new CaseSensitivePayload(false, false, Localization.Get("The folder is no longer there."));
+            return new(false, false, Localization.Get("The folder is no longer there."));
 
         try
         {
             var info = new DirectoryInfo(path);
             if (info.LinkTarget is not null)
-                return new CaseSensitivePayload(false, enabled, Localization.Get("A link cannot be converted this way."));
+                return new(false, enabled, Localization.Get("A link cannot be converted this way."));
 
             if (enabled && !CaseSensitivity.IsEmpty(path))
                 Convert(path);
             else if (!Mark(path, enabled))
-                return new CaseSensitivePayload(false, Query(path),
+                return new(false, Query(path),
                     "Administrator rights are needed to change case-sensitive names.");
 
-            return new CaseSensitivePayload(true, enabled, null);
+            return new(true, enabled);
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "Could not change the case sensitivity of {Path}", path);
-            return new CaseSensitivePayload(false, Query(path), ex.Message);
+            return new(false, Query(path), ex.Message);
         }
     }
 

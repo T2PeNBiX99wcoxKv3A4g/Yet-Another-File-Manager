@@ -12,9 +12,9 @@ namespace YetAnotherFileManager.Services;
 internal sealed class DirectoryWatcher : Singleton<DirectoryWatcher>
 {
     private readonly Lock _gate = new();
+    private readonly Dictionary<string, IReadOnlyList<string>> _owners = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Timer> _timers = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, FileSystemWatcher> _watchers = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, IReadOnlyList<string>> _owners = new(StringComparer.Ordinal);
 
     /// <summary>Replaces one surface's list; the watched set becomes the union of all surfaces.</summary>
     public void Watch(IReadOnlyList<string> paths, string? owner = null)
@@ -108,10 +108,8 @@ internal sealed class DirectoryWatcher : Singleton<DirectoryWatcher>
         Notify(path);
 
         lock (_gate)
-        {
             if (_watchers.Remove(path, out var watcher))
                 watcher.Dispose();
-        }
 
         _ = Task.Delay(TimeSpan.FromMilliseconds(500)).ContinueWith(_ =>
         {

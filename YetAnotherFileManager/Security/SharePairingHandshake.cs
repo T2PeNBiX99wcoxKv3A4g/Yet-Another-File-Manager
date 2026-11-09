@@ -20,7 +20,7 @@ internal static class SharePairingHandshake
             "YafmShare.Pair.Request.v1", identity.PublicKey, Utf8(identity.Id), nonce));
 
         await ShareFrames.WriteAsync(stream,
-            new SharePairRequestMessage(ShareProtocol.PairRequest, identity.Id, localDeviceName, localPort,
+            new(ShareProtocol.PairRequest, identity.Id, localDeviceName, localPort,
                 identity.PublicKeyBase64, ShareCrypto.ToBase64(nonce), ShareCrypto.ToBase64(requestSignature)),
             AppJsonContext.Default.SharePairRequestMessage, token);
 
@@ -123,7 +123,7 @@ internal static class SharePairingHandshake
             peerKey, Utf8(request.DeviceId), identity.PublicKey, Utf8(identity.Id), nonce);
 
         await ShareFrames.WriteAsync(stream,
-            new SharePairChallengeMessage(ShareProtocol.PairChallenge, identity.Id, localDeviceName, localPort,
+            new(ShareProtocol.PairChallenge, identity.Id, localDeviceName, localPort,
                 identity.PublicKeyBase64),
             AppJsonContext.Default.SharePairChallengeMessage, token);
 
@@ -133,7 +133,7 @@ internal static class SharePairingHandshake
         if (!await approve(prompt, token))
         {
             await ShareFrames.WriteAsync(stream,
-                new SharePairRejectMessage(ShareProtocol.PairReject, "The pairing was rejected."),
+                new(ShareProtocol.PairReject, "The pairing was rejected."),
                 AppJsonContext.Default.SharePairRejectMessage, token);
             return null;
         }
@@ -142,7 +142,7 @@ internal static class SharePairingHandshake
             ShareCrypto.Transcript("YafmShare.Pair.Accept.v1", transcript));
 
         await ShareFrames.WriteAsync(stream,
-            new SharePairAcceptMessage(ShareProtocol.PairAccept, ShareCrypto.ToBase64(accept)),
+            new(ShareProtocol.PairAccept, ShareCrypto.ToBase64(accept)),
             AppJsonContext.Default.SharePairAcceptMessage, token);
 
         return new()
@@ -156,7 +156,7 @@ internal static class SharePairingHandshake
     }
 
     private static Task WriteStatusAsync(Stream stream, bool ok, string? error, CancellationToken token) =>
-        ShareFrames.WriteAsync(stream, new ShareStatusMessage(ShareProtocol.Status, ok, error),
+        ShareFrames.WriteAsync(stream, new(ShareProtocol.Status, ok, error),
             AppJsonContext.Default.ShareStatusMessage, token);
 
     private static byte[] Utf8(string value) => Encoding.UTF8.GetBytes(value);

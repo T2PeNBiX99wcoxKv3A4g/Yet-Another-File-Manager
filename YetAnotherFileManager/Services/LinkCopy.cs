@@ -66,12 +66,6 @@ internal static class LinkCopy
         }
     }
 
-    private enum CopyMode
-    {
-        HardLink,
-        SymbolicLink,
-    }
-
     private static void CopyTree(string source, string target, CopyMode mode)
     {
         Directory.CreateDirectory(target);
@@ -95,7 +89,7 @@ internal static class LinkCopy
             var result = mode switch
             {
                 CopyMode.HardLink => FileLinkCreation.Create(FileLinkCreation.Hard, entry, destination),
-                _ => FileLinkCreation.Create(FileLinkCreation.SymbolicFile, entry, destination),
+                _ => FileLinkCreation.Create(FileLinkCreation.SymbolicFile, entry, destination)
             };
 
             if (!result.Ok)
@@ -167,5 +161,11 @@ internal static class LinkCopy
             candidate = $"{path} ({stamp}-{attempt})";
 
         return candidate;
+    }
+
+    private enum CopyMode
+    {
+        HardLink,
+        SymbolicLink
     }
 }

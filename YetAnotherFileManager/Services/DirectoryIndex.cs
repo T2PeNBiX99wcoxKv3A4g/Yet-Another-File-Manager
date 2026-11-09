@@ -18,20 +18,24 @@ internal static class DirectoryIndex
 {
     public const string FileName = FolderIndex.FileName;
 
-    /// <summary>Everything one listing reads from the index, gathered over one connection.</summary>
-    internal sealed record MetadataSnapshot(
-        Dictionary<string, string> Icons,
-        Dictionary<string, long> Sizes,
-        DirectoryView? View,
-        Dictionary<string, List<string>> Tags,
-        Dictionary<string, string> TagColors,
-        Dictionary<string, long> Counts)
-    {
-        public static MetadataSnapshot Empty => new([], [], null, [], [], []);
-    }
-
     /// <summary>Directories whose own index could not be created this session.</summary>
     private static readonly ConcurrentDictionary<string, bool> CentralOnly = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>How long a folder has to stay closed before its listing is written.</summary>
+    private static readonly TimeSpan ListingDelay = TimeSpan.FromMilliseconds(750);
+
+    /// <summary>
+    ///     A folder that stays on screen is cached only after a long quiet spell; leaving it writes it
+    ///     at once, so browsing a folder never writes the index it is being painted from.
+    /// </summary>
+    private static readonly TimeSpan FocusedDelay = TimeSpan.FromSeconds(10);
+
+    /// <summary>Listings waiting for their folder to stay quiet.</summary>
+    private static readonly ConcurrentDictionary<string, PendingListing> PendingListings =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The fingerprint of the listing last written for each directory.</summary>
+    private static readonly ConcurrentDictionary<string, int> SavedListings = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Per-folder files, unless the user moved the data into the central database.</summary>
     private static bool WritesFolderIndex => SettingsService.Instance.Current.ShouldWriteDirectoryIndex;
@@ -75,7 +79,7 @@ internal static class DirectoryIndex
             ? await FolderIndex.ReadMetadataAsync(directory)
             : null;
 
-        return new MetadataSnapshot(
+        return new(
             central.Icons,
             central.Sizes,
             central.View,
@@ -168,22 +172,6 @@ internal static class DirectoryIndex
             () => FolderIndex.SaveListingAsync(directory, entries),
             () => CentralIndex.Instance.SaveListingAsync(directory, entries));
 
-    /// <summary>How long a folder has to stay closed before its listing is written.</summary>
-    private static readonly TimeSpan ListingDelay = TimeSpan.FromMilliseconds(750);
-
-    /// <summary>
-    ///     A folder that stays on screen is cached only after a long quiet spell; leaving it writes it
-    ///     at once, so browsing a folder never writes the index it is being painted from.
-    /// </summary>
-    private static readonly TimeSpan FocusedDelay = TimeSpan.FromSeconds(10);
-
-    /// <summary>Listings waiting for their folder to stay quiet.</summary>
-    private static readonly ConcurrentDictionary<string, PendingListing> PendingListings =
-        new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>The fingerprint of the listing last written for each directory.</summary>
-    private static readonly ConcurrentDictionary<string, int> SavedListings = new(StringComparer.OrdinalIgnoreCase);
-
     /// <summary>
     ///     Marks the folder the active tab shows. It is the only folder whose index is read without
     ///     waiting, and its listing is not written while the user is still looking at it.
@@ -237,7 +225,7 @@ internal static class DirectoryIndex
         await Task.WhenAny(Task.Delay(pending.Delay, pending.Token), pending.Released);
 
         // A newer listing took over while this one was waiting.
-        if (!PendingListings.TryRemove(new KeyValuePair<string, PendingListing>(directory, pending)))
+        if (!PendingListings.TryRemove(new(directory, pending)))
             return;
 
         if (await SaveListingAsync(directory, entries))
@@ -272,26 +260,6 @@ internal static class DirectoryIndex
         }
 
         return hash.ToHashCode();
-    }
-
-    /// <summary>A listing that is still waiting for the directory to stay quiet.</summary>
-    private sealed class PendingListing(int signature, TimeSpan delay)
-    {
-        private readonly CancellationTokenSource _cancel = new();
-        private readonly TaskCompletionSource _now = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        public int Signature { get; } = signature;
-
-        public TimeSpan Delay { get; } = delay;
-
-        public CancellationToken Token => _cancel.Token;
-
-        /// <summary>Completes when the folder is left and the write no longer has to wait.</summary>
-        public Task Released => _now.Task;
-
-        public void Release() => _now.TrySetResult();
-
-        public void Cancel() => Try.Run(_cancel.Cancel);
     }
 
     /// <summary>Stores the sizes of several entries in one transaction.</summary>
@@ -350,5 +318,37 @@ internal static class DirectoryIndex
         }
 
         return await central();
+    }
+
+    /// <summary>Everything one listing reads from the index, gathered over one connection.</summary>
+    internal sealed record MetadataSnapshot(
+        Dictionary<string, string> Icons,
+        Dictionary<string, long> Sizes,
+        DirectoryView? View,
+        Dictionary<string, List<string>> Tags,
+        Dictionary<string, string> TagColors,
+        Dictionary<string, long> Counts)
+    {
+        public static MetadataSnapshot Empty => new([], [], null, [], [], []);
+    }
+
+    /// <summary>A listing that is still waiting for the directory to stay quiet.</summary>
+    private sealed class PendingListing(int signature, TimeSpan delay)
+    {
+        private readonly CancellationTokenSource _cancel = new();
+        private readonly TaskCompletionSource _now = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public int Signature { get; } = signature;
+
+        public TimeSpan Delay { get; } = delay;
+
+        public CancellationToken Token => _cancel.Token;
+
+        /// <summary>Completes when the folder is left and the write no longer has to wait.</summary>
+        public Task Released => _now.Task;
+
+        public void Release() => _now.TrySetResult();
+
+        public void Cancel() => Try.Run(_cancel.Cancel);
     }
 }

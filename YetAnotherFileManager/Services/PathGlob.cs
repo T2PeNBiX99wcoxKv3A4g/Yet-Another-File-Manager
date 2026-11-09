@@ -84,7 +84,10 @@ internal static partial class PathGlob
         }
         else
         {
-            foreach (var folder in new[] { "/boot", "/etc", "/usr", "/var", "/dev", "/proc", "/sys", "/bin", "/sbin", "/lib", "/lib64" })
+            foreach (var folder in new[]
+                     {
+                         "/boot", "/etc", "/usr", "/var", "/dev", "/proc", "/sys", "/bin", "/sbin", "/lib", "/lib64"
+                     })
                 paths.Add($"{folder}/**");
 
             paths.Add(string.IsNullOrEmpty(Environment.GetEnvironmentVariable("HOME"))
@@ -244,7 +247,6 @@ internal static partial class PathGlob
         var resume = 0;
 
         while (valueIndex < value.Length)
-        {
             if (patternIndex < pattern.Length
                 && (pattern[patternIndex] == '?' || SameChar(value[valueIndex], pattern[patternIndex], comparison)))
             {
@@ -262,10 +264,7 @@ internal static partial class PathGlob
                 valueIndex = ++resume;
             }
             else
-            {
                 return false;
-            }
-        }
 
         while (patternIndex < pattern.Length && pattern[patternIndex] == '*')
             patternIndex++;
@@ -283,7 +282,7 @@ internal static partial class PathGlob
         var value = Environment.ExpandEnvironmentVariables(path);
 
         if (value == "~" || value.StartsWith("~/", StringComparison.Ordinal)
-            || value.StartsWith("~\\", StringComparison.Ordinal))
+                         || value.StartsWith("~\\", StringComparison.Ordinal))
         {
             var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             value = home + value[1..];

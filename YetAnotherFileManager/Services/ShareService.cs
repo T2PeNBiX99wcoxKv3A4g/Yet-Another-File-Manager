@@ -1,11 +1,8 @@
 using System.Collections.Concurrent;
-using System.Net;
-using System.Text.Json;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Utils;
-using Serilog;
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
 using YetAnotherFileManager.Security;
@@ -25,9 +22,10 @@ internal sealed class ShareService : Singleton<ShareService>
     private readonly ConcurrentDictionary<string, (IReadOnlyList<ShareRemoteEntry> Shares, long At)> _catalogs =
         new(StringComparer.Ordinal);
 
-    private readonly ConcurrentDictionary<string, long> _refreshing = new(StringComparer.Ordinal);
     private readonly Lock _incomingLock = new();
     private readonly SemaphoreSlim _outgoing = new(1, 1);
+
+    private readonly ConcurrentDictionary<string, long> _refreshing = new(StringComparer.Ordinal);
     private IncomingPairing? _incoming;
     private string _published = "";
 
@@ -184,7 +182,7 @@ internal sealed class ShareService : Singleton<ShareService>
     private Task<NativeResponse?> StartPairAsync(NativeContext context)
     {
         var request = context.Payload<SharePairStartRequest>();
-        if (request is not {Host.Length: > 0, Port: > 0})
+        if (request is not { Host.Length: > 0, Port: > 0 })
             return Task.FromResult<NativeResponse?>(context.Fail("share.pair.start.result",
                 Localization.Get("A device address is required.")));
 
@@ -230,7 +228,7 @@ internal sealed class ShareService : Singleton<ShareService>
     private Task<NativeResponse?> RespondAsync(NativeContext context)
     {
         var request = context.Payload<SharePairRespondRequest>();
-        if (request is not {RequestId.Length: > 0})
+        if (request is not { RequestId.Length: > 0 })
             return Task.FromResult<NativeResponse?>(context.Fail("share.pair.respond.result",
                 Localization.Get("The request id is missing.")));
 
@@ -314,7 +312,8 @@ internal sealed class ShareService : Singleton<ShareService>
         if (!force && _refreshing.TryGetValue(peer.Id, out var last) && now - last < CatalogFreshFor.TotalMilliseconds)
             return;
 
-        if (!force && _catalogs.TryGetValue(peer.Id, out var cached) && now - cached.At < CatalogFreshFor.TotalMilliseconds)
+        if (!force && _catalogs.TryGetValue(peer.Id, out var cached) &&
+            now - cached.At < CatalogFreshFor.TotalMilliseconds)
             return;
 
         _refreshing[peer.Id] = now;
@@ -334,7 +333,7 @@ internal sealed class ShareService : Singleton<ShareService>
         using var session = await SharePeerClient.ConnectAsync(peer, cts.Token);
 
         await session.SendJsonAsync(
-            new ShareCatalogMessage(ShareProtocol.CatalogRequest, ShareIdentity.Instance.DeviceName, []),
+            new(ShareProtocol.CatalogRequest, ShareIdentity.Instance.DeviceName, []),
             AppJsonContext.Default.ShareCatalogMessage, cts.Token);
 
         while (true)
@@ -378,8 +377,9 @@ internal sealed class ShareService : Singleton<ShareService>
     private static Task<NativeResponse?> BrowseAsync(NativeContext context)
     {
         var request = context.Payload<ShareBrowseRequest>();
-        if (request is not {DeviceId.Length: > 0, ShareId.Length: > 0})
-            return Task.FromResult<NativeResponse?>(context.Fail("share.browse.result", Localization.Get("A device is required.")));
+        if (request is not { DeviceId.Length: > 0, ShareId.Length: > 0 })
+            return Task.FromResult<NativeResponse?>(context.Fail("share.browse.result",
+                Localization.Get("A device is required.")));
 
         return BrowseCoreAsync(context, request);
     }
@@ -396,7 +396,7 @@ internal sealed class ShareService : Singleton<ShareService>
             using var session = await SharePeerClient.ConnectAsync(peer, cts.Token);
 
             await session.SendJsonAsync(
-                new ShareBrowseRequestMessage(ShareProtocol.BrowseRequest, request.ShareId,
+                new(ShareProtocol.BrowseRequest, request.ShareId,
                     SharePaths.Clean(request.Path)),
                 AppJsonContext.Default.ShareBrowseRequestMessage, cts.Token);
 
@@ -410,14 +410,17 @@ internal sealed class ShareService : Singleton<ShareService>
                     case ShareProtocol.Browse:
                         var browse = ShareFrames.Read(plaintext, AppJsonContext.Default.ShareBrowseMessage)
                                      ?? throw new ShareSecurityException("The listing could not be read.");
-                        var prefix = $"share://{Uri.EscapeDataString(request.DeviceId)}/{Uri.EscapeDataString(request.ShareId)}";
+                        var prefix =
+                            $"share://{Uri.EscapeDataString(request.DeviceId)}/{Uri.EscapeDataString(request.ShareId)}";
                         var entries = browse.Entries.Select(entry => entry with
                         {
-                            FullPath = $"{prefix}/{string.Join('/', entry.FullPath.Split('/').Select(Uri.EscapeDataString))}"
+                            FullPath =
+                            $"{prefix}/{string.Join('/', entry.FullPath.Split('/').Select(Uri.EscapeDataString))}"
                         }).ToList();
 
                         return context.Reply("share.browse.result",
-                            new ShareBrowsePayload(request.DeviceId, request.ShareId, browse.Path, browse.Parent, entries));
+                            new ShareBrowsePayload(request.DeviceId, request.ShareId, browse.Path, browse.Parent,
+                                entries));
 
                     case ShareProtocol.FileError:
                         var error = ShareFrames.Read(plaintext, AppJsonContext.Default.ShareFileErrorMessage);
@@ -438,7 +441,7 @@ internal sealed class ShareService : Singleton<ShareService>
     private static Task<NativeResponse?> DownloadAsync(NativeContext context)
     {
         var request = context.Payload<ShareDownloadRequest>();
-        if (request is not {DeviceId.Length: > 0, ShareId.Length: > 0, Path.Length: > 0})
+        if (request is not { DeviceId.Length: > 0, ShareId.Length: > 0, Path.Length: > 0 })
             return Task.FromResult<NativeResponse?>(context.Fail("share.download.result",
                 Localization.Get("A device, share and file are required.")));
 
@@ -464,7 +467,7 @@ internal sealed class ShareService : Singleton<ShareService>
             while (true)
             {
                 await session.SendJsonAsync(
-                    new ShareFileRequestMessage(ShareProtocol.FileRequest, request.ShareId, request.Path,
+                    new(ShareProtocol.FileRequest, request.ShareId, request.Path,
                         position, ShareProtocol.FileChunkBytes),
                     AppJsonContext.Default.ShareFileRequestMessage, cts.Token);
 
@@ -545,7 +548,7 @@ internal sealed class ShareService : Singleton<ShareService>
 
                     default:
                         await session.SendJsonAsync(
-                            new ShareStatusMessage(ShareProtocol.Status, false, "Unsupported share message."),
+                            new(ShareProtocol.Status, false, "Unsupported share message."),
                             AppJsonContext.Default.ShareStatusMessage, token);
                         break;
                 }
@@ -553,7 +556,7 @@ internal sealed class ShareService : Singleton<ShareService>
             catch (Exception ex)
             {
                 await session.SendJsonAsync(
-                    new ShareFileErrorMessage(ShareProtocol.FileError, ex.Message),
+                    new(ShareProtocol.FileError, ex.Message),
                     AppJsonContext.Default.ShareFileErrorMessage, token);
             }
         }
@@ -563,7 +566,12 @@ internal sealed class ShareService : Singleton<ShareService>
     {
         var shares = ShareStore.Instance.All
             .Where(share => share.Mode == "client")
-            .Select(share => new ShareRemoteEntry {Id = share.Id, Name = share.Name, Mode = share.Mode})
+            .Select(share => new ShareRemoteEntry
+            {
+                Id = share.Id,
+                Name = share.Name,
+                Mode = share.Mode
+            })
             .ToArray();
 
         return new(ShareProtocol.Catalog, ShareIdentity.Instance.DeviceName, shares);
@@ -601,7 +609,7 @@ internal sealed class ShareService : Singleton<ShareService>
             .ToArray();
 
         await session.SendJsonAsync(
-            new ShareBrowseMessage(ShareProtocol.Browse, share.Id, relative, SharePaths.ParentOf(relative), entries),
+            new(ShareProtocol.Browse, share.Id, relative, SharePaths.ParentOf(relative), entries),
             AppJsonContext.Default.ShareBrowseMessage, token);
     }
 
@@ -628,7 +636,7 @@ internal sealed class ShareService : Singleton<ShareService>
         var read = await stream.ReadAsync(buffer, token);
 
         await session.SendJsonAsync(
-            new ShareFileChunkMessage(ShareProtocol.FileChunk, offset, total,
+            new(ShareProtocol.FileChunk, offset, total,
                 ShareCrypto.ToBase64(buffer[..read])),
             AppJsonContext.Default.ShareFileChunkMessage, token);
     }

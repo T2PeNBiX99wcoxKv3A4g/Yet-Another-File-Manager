@@ -35,10 +35,10 @@ internal sealed class ArchiveVolumes : IDisposable
         var parts = PartsOf(path);
 
         if (parts.Count <= 1)
-            return new ArchiveVolumes(new ArchiveFile(path, libraryPath), null);
+            return new(new(path, libraryPath), null);
 
         var stream = new JoinedStream(parts);
-        return new ArchiveVolumes(new ArchiveFile(stream, FormatOf(parts[0]), libraryPath), stream);
+        return new(new(stream, FormatOf(parts[0]), libraryPath), stream);
     }
 
     /// <summary>Every existing part from the first one up, or just this file when it is not a split.</summary>
@@ -72,7 +72,7 @@ internal sealed class ArchiveVolumes : IDisposable
             ".zip" or ".zipx" => SevenZipFormat.Zip,
             ".7z" => SevenZipFormat.SevenZip,
             ".tar" => SevenZipFormat.Tar,
-            _ => null,
+            _ => null
         };
 
     /// <summary>One stream over the parts of a split archive, seekable across the boundaries.</summary>

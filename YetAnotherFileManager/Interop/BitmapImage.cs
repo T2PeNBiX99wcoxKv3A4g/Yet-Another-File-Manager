@@ -47,10 +47,8 @@ internal static partial class BitmapImage
         try
         {
             fixed (byte* buffer = pixels)
-            {
                 if (GetDIBits(dc, bitmap, 0, (uint)height, buffer, ref header, DibRgbColors) == 0)
                     return null;
-            }
         }
         finally
         {

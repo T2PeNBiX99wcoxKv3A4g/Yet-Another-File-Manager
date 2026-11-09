@@ -12,12 +12,13 @@ internal static partial class FileVisibility
 {
     private const uint RrfRtRegDword = 0x00000010;
     private const string AdvancedKey = @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced";
-    private static readonly IntPtr HkeyCurrentUser = new(0x80000001);
-
-    private static bool? _hiddenOverride;
 
     /// <summary>How long a registry answer is reused; Explorer can change it while the app runs.</summary>
     private const long CacheMilliseconds = 2000;
+
+    private static readonly IntPtr HkeyCurrentUser = new(0x80000001);
+
+    private static bool? _hiddenOverride;
 
     private static long _readAt = long.MinValue / 2;
     private static bool _hidden;
@@ -30,6 +31,10 @@ internal static partial class FileVisibility
     public static bool FollowsSystemHidden =>
         OperatingSystem.IsWindows() && ReadCached().Hidden;
 
+    /// <summary>"ShowSuperHidden" is 1 only when protected operating system files are shown.</summary>
+    public static bool ShowSystem =>
+        OperatingSystem.IsWindows() && ReadCached().System;
+
     /// <summary>Flip ordinary hidden files for this session; system files are left alone.</summary>
     public static bool ToggleHidden()
     {
@@ -39,10 +44,6 @@ internal static partial class FileVisibility
 
     /// <summary>Applies the user's saved choice when a process starts; null follows the system.</summary>
     public static void SetHidden(bool? show) => _hiddenOverride = show;
-
-    /// <summary>"ShowSuperHidden" is 1 only when protected operating system files are shown.</summary>
-    public static bool ShowSystem =>
-        OperatingSystem.IsWindows() && ReadCached().System;
 
     /// <summary>
     ///     Two registry reads are enough for every listing that arrives in the same couple of

@@ -14,8 +14,10 @@ public static class Constants
 #endif
 
     public const string Name = "YetAnotherFileManager";
+
     /// <summary>The name people see; <see cref="Name" /> stays the identifier for paths.</summary>
     public const string DisplayName = "Yet Another File Manager";
+
     public const string WindowTitle = DisplayName;
 
     /// <summary>

@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
 using System.IO.Compression;
+using System.Text;
 using Docnet.Core;
-using Docnet.Core.Models;
 
 namespace YetAnotherFileManager.Services;
 
@@ -13,6 +13,8 @@ internal static class PdfPreview
 {
     private const int MaxDimension = 1024;
 
+    private static readonly uint[] Table = CreateTable();
+
     /// <summary>Renders <c>input</c> to <c>output</c>; the caller deletes the temporary PNG.</summary>
     public static bool TryRender(string input, string output)
     {
@@ -21,7 +23,7 @@ internal static class PdfPreview
             if (!File.Exists(input))
                 return false;
 
-            using var document = DocLib.Instance.GetDocReader(input, new PageDimensions(MaxDimension, MaxDimension));
+            using var document = DocLib.Instance.GetDocReader(input, new(MaxDimension, MaxDimension));
             if (document.GetPageCount() == 0)
                 return false;
 
@@ -97,7 +99,7 @@ internal static class PdfPreview
         BinaryPrimitives.WriteUInt32BigEndian(number, (uint)data.Length);
         output.Write(number);
 
-        var name = System.Text.Encoding.ASCII.GetBytes(type);
+        var name = Encoding.ASCII.GetBytes(type);
         output.Write(name);
         output.Write(data);
 
@@ -111,15 +113,13 @@ internal static class PdfPreview
         var crc = 0xFFFF_FFFFu;
 
         foreach (var value in name)
-            crc = Table[(crc ^ value) & 0xFF] ^ (crc >> 8);
+            crc = Table[(crc ^ value) & 0xFF] ^ crc >> 8;
 
         foreach (var value in data)
-            crc = Table[(crc ^ value) & 0xFF] ^ (crc >> 8);
+            crc = Table[(crc ^ value) & 0xFF] ^ crc >> 8;
 
         return crc ^ 0xFFFF_FFFFu;
     }
-
-    private static readonly uint[] Table = CreateTable();
 
     private static uint[] CreateTable()
     {
@@ -130,7 +130,7 @@ internal static class PdfPreview
             var value = (uint)index;
 
             for (var bit = 0; bit < 8; bit++)
-                value = (value & 1) != 0 ? 0xEDB8_8320u ^ (value >> 1) : value >> 1;
+                value = (value & 1) != 0 ? 0xEDB8_8320u ^ value >> 1 : value >> 1;
 
             table[index] = value;
         }

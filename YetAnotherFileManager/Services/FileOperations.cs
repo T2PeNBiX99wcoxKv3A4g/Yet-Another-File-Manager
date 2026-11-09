@@ -2,13 +2,13 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
-using SharpCompress.Common;
-using SharpCompress.Writers;
 using PhotinoNetUtils.Extensions;
-using PhotinoNetUtils.Interop;
 using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Utils;
 using Serilog;
+using SevenZip;
+using SharpCompress.Common;
+using SharpCompress.Writers;
 using YetAnotherFileManager.Interop;
 using YetAnotherFileManager.Messaging;
 using SevenZipSharpBase = SevenZip.SevenZipBase;
@@ -25,6 +25,8 @@ internal static partial class FileOperations
 {
     /// <summary>Text previews stop here, so a huge log cannot freeze the details panel.</summary>
     private const int MaxTextPreviewBytes = 256 * 1024;
+
+    private const uint ShopFilepath = 0x00000002;
 
     static FileOperations() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
@@ -131,7 +133,7 @@ internal static partial class FileOperations
             try
             {
                 File.WriteAllBytes(path, content);
-                return new FileHistory.Step(true, ParentsOf([path]));
+                return new(true, ParentsOf([path]));
             }
             catch (Exception ex)
             {
@@ -146,7 +148,7 @@ internal static partial class FileOperations
         var (ok, error, created) = await FileTransfer.RunAsync(sources, directory, move);
 
         return ok && error is null
-            ? (new FileHistory.Step(true, [directory]), created)
+            ? (new(true, [directory]), created)
             : (new FileHistory.Step(ok, [directory], error ?? "The files could not be copied."), created);
     }
 
@@ -154,7 +156,7 @@ internal static partial class FileOperations
     public static async Task<TransferResultPayload> TransferAsync(TransferRequest? request)
     {
         if (request is null || request.Paths.Count == 0 || string.IsNullOrWhiteSpace(request.Target))
-            return new TransferResultPayload(false, Localization.Get("Nothing to transfer."), []);
+            return new(false, Localization.Get("Nothing to transfer."), []);
 
         var (ok, error, created) = await FileTransfer.RunAsync(request.Paths, request.Target, request.Move);
 
@@ -165,7 +167,7 @@ internal static partial class FileOperations
             var move = request.Move;
 
             FileHistory.Instance.Record(move ? $"Move {sources.Count} item(s)" : $"Copy {sources.Count} item(s)",
-            paths: current,
+                paths: current,
                 undo: () => move
                     ? MoveBackAsync(current, sources)
                     : DeleteCoreAsync(current, false),
@@ -175,12 +177,12 @@ internal static partial class FileOperations
                     if (redoOk)
                         current = made;
 
-                    return new FileHistory.Step(redoOk, ParentsOf(sources),
+                    return new(redoOk, ParentsOf(sources),
                         redoOk ? null : redoError ?? "The transfer could not be repeated.");
                 });
         }
 
-        return new TransferResultPayload(ok, error, created);
+        return new(ok, error, created);
     }
 
     /// <summary>Describes paths for the tray without reading the clipboard.</summary>
@@ -238,7 +240,9 @@ internal static partial class FileOperations
         return exact ?? sources.FirstOrDefault(source => SameName(name, Path.GetFileName(source)));
     }
 
-    /** Whether a shell-renamed copy ("file (2).txt") still names the original entry. */
+    /**
+     * Whether a shell-renamed copy ("file (2).txt") still names the original entry.
+     */
     private static bool SameName(string candidate, string source)
     {
         if (string.Equals(candidate, source, StringComparison.OrdinalIgnoreCase))
@@ -255,7 +259,7 @@ internal static partial class FileOperations
         var number = stem[(open + 2)..^1];
 
         return number.Length > 0 && number.All(char.IsDigit)
-            && string.Equals(stem[..open] + extension, source, StringComparison.OrdinalIgnoreCase);
+                                 && string.Equals(stem[..open] + extension, source, StringComparison.OrdinalIgnoreCase);
     }
 
     private static List<string> ParentsOf(IEnumerable<string> paths) =>
@@ -271,16 +275,16 @@ internal static partial class FileOperations
         var trimmed = name.Trim();
 
         if (trimmed.Length == 0 || trimmed is "." or ".." || trimmed.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-            return new PathOperationPayload(false, null, Localization.Get("That name is not valid."));
+            return new(false, null, Localization.Get("That name is not valid."));
 
         var directory = Path.GetDirectoryName(path);
         if (directory is null)
-            return new PathOperationPayload(false, null, Localization.Get("The entry has no parent folder."));
+            return new(false, null, Localization.Get("The entry has no parent folder."));
 
         var target = Path.Combine(directory, trimmed);
 
         if (string.Equals(path, target, StringComparison.OrdinalIgnoreCase))
-            return new PathOperationPayload(true, path, null);
+            return new(true, path, null);
 
         var step = await RenameCoreAsync(path, target);
 
@@ -290,14 +294,14 @@ internal static partial class FileOperations
                 undo: () => RenameCoreAsync(target, path),
                 redo: () => RenameCoreAsync(path, target));
 
-        return new PathOperationPayload(step.Ok, step.Ok ? target : null, step.Error);
+        return new(step.Ok, step.Ok ? target : null, step.Error);
     }
 
     private static Task<FileHistory.Step> RenameCoreAsync(string source, string target) =>
         Task.Run(() =>
         {
             if (File.Exists(target) || Directory.Exists(target))
-                return new FileHistory.Step(false, ParentsOf([source]), Localization.Get("An entry with that name already exists."));
+                return new(false, ParentsOf([source]), Localization.Get("An entry with that name already exists."));
 
             try
             {
@@ -306,9 +310,9 @@ internal static partial class FileOperations
                 else if (File.Exists(source))
                     File.Move(source, target);
                 else
-                    return new FileHistory.Step(false, ParentsOf([source]), Localization.Get("The entry is no longer there."));
+                    return new(false, ParentsOf([source]), Localization.Get("The entry is no longer there."));
 
-                return new FileHistory.Step(true, ParentsOf([source]));
+                return new(true, ParentsOf([source]));
             }
             catch (Exception ex)
             {
@@ -321,7 +325,7 @@ internal static partial class FileOperations
     public static async Task<PathOperationPayload> NewFolderAsync(string directory, bool caseSensitive = false)
     {
         if (!Directory.Exists(directory))
-            return new PathOperationPayload(false, null, Localization.Get("The folder is no longer there."));
+            return new(false, null, Localization.Get("The folder is no longer there."));
 
         try
         {
@@ -337,12 +341,12 @@ internal static partial class FileOperations
                 undo: () => DeleteEmptyFolderAsync(path),
                 redo: () => CreateFolderAsync(path));
 
-            return new PathOperationPayload(true, path, null);
+            return new(true, path, null);
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "Could not create a folder in {Directory}", directory);
-            return new PathOperationPayload(false, null, ex.Message);
+            return new(false, null, ex.Message);
         }
     }
 
@@ -350,7 +354,7 @@ internal static partial class FileOperations
     public static async Task<PathOperationPayload> NewFileAsync(string directory, string? extension = null)
     {
         if (!Directory.Exists(directory))
-            return new PathOperationPayload(false, null, Localization.Get("The folder is no longer there."));
+            return new(false, null, Localization.Get("The folder is no longer there."));
 
         var suffix = NormalizeExtension(extension);
 
@@ -364,12 +368,12 @@ internal static partial class FileOperations
                 undo: () => DeleteFileAsync(path),
                 redo: () => CreateEmptyFileAsync(path));
 
-            return new PathOperationPayload(true, path, null);
+            return new(true, path, null);
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "Could not create a file in {Directory}", directory);
-            return new PathOperationPayload(false, null, ex.Message);
+            return new(false, null, ex.Message);
         }
     }
 
@@ -393,7 +397,7 @@ internal static partial class FileOperations
     public static async Task<TextPreviewPayload> PreviewTextAsync(string path)
     {
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-            return new TextPreviewPayload(null, false, "The file is no longer there.");
+            return new(null, false, "The file is no longer there.");
 
         try
         {
@@ -420,18 +424,18 @@ internal static partial class FileOperations
             }
 
             var utf16 = buffer.Length >= 2
-                        && ((buffer[0] == 0xFF && buffer[1] == 0xFE) || (buffer[0] == 0xFE && buffer[1] == 0xFF));
+                        && (buffer[0] == 0xFF && buffer[1] == 0xFE || buffer[0] == 0xFE && buffer[1] == 0xFF);
 
             if (!utf16 && Array.IndexOf(buffer, (byte)0) >= 0)
-                return new TextPreviewPayload(null, false, "This looks like a binary file.");
+                return new(null, false, "This looks like a binary file.");
 
             var text = DecodeText(buffer);
-            return new TextPreviewPayload(text, info.Length > MaxTextPreviewBytes, null);
+            return new(text, info.Length > MaxTextPreviewBytes, null);
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "Could not preview the text of {Path}", path);
-            return new TextPreviewPayload(null, false, ex.Message);
+            return new(null, false, ex.Message);
         }
     }
 
@@ -447,7 +451,10 @@ internal static partial class FileOperations
         if (buffer.Length >= 2 && buffer[0] == 0xFE && buffer[1] == 0xFF)
             return Encoding.BigEndianUnicode.GetString(buffer, 2, buffer.Length - 2);
 
-        foreach (var codePage in new[] { 65001, 932, 936, 950, 949, 1252, 1250, 1251, 1254, 1253, 1256, 1255, 1257, 874 })
+        foreach (var codePage in new[]
+                 {
+                     65001, 932, 936, 950, 949, 1252, 1250, 1251, 1254, 1253, 1256, 1255, 1257, 874
+                 })
         {
             // A code page that cannot explain the bytes is simply not the right one.
             var text = Try.Run(() =>
@@ -466,13 +473,14 @@ internal static partial class FileOperations
 
     private static Task<FileHistory.Step> DeleteFileAsync(string path) =>
         Task.Run(() =>
-        {            try
+        {
+            try
             {
                 if (!File.Exists(path))
-                    return new FileHistory.Step(false, ParentsOf([path]), "The file is no longer there.");
+                    return new(false, ParentsOf([path]), "The file is no longer there.");
 
                 File.Delete(path);
-                return new FileHistory.Step(true, ParentsOf([path]));
+                return new(true, ParentsOf([path]));
             }
             catch (Exception ex)
             {
@@ -491,7 +499,7 @@ internal static partial class FileOperations
                     // An empty placeholder; the user renames and fills it in.
                 }
 
-                return new FileHistory.Step(true, ParentsOf([path]));
+                return new(true, ParentsOf([path]));
             }
             catch (Exception ex)
             {
@@ -506,14 +514,14 @@ internal static partial class FileOperations
             try
             {
                 if (!Directory.Exists(path))
-                    return new FileHistory.Step(false, ParentsOf([path]), Localization.Get("The folder is no longer there."));
+                    return new(false, ParentsOf([path]), Localization.Get("The folder is no longer there."));
 
                 if (Directory.EnumerateFileSystemEntries(path).Any())
-                    return new FileHistory.Step(false, ParentsOf([path]),
+                    return new(false, ParentsOf([path]),
                         "The folder is no longer empty, so it was left in place.");
 
                 Directory.Delete(path);
-                return new FileHistory.Step(true, ParentsOf([path]));
+                return new(true, ParentsOf([path]));
             }
             catch (Exception ex)
             {
@@ -528,7 +536,7 @@ internal static partial class FileOperations
             try
             {
                 Directory.CreateDirectory(path);
-                return new FileHistory.Step(true, ParentsOf([path]));
+                return new(true, ParentsOf([path]));
             }
             catch (Exception ex)
             {
@@ -541,14 +549,14 @@ internal static partial class FileOperations
     public static async Task<PathOperationPayload> CompressAsync(CompressRequest? request)
     {
         if (request is null)
-            return new PathOperationPayload(false, null, Localization.Get("There is nothing to compress."));
+            return new(false, null, Localization.Get("There is nothing to compress."));
 
         var entries = request.Paths.Where(path => File.Exists(path) || Directory.Exists(path)).ToList();
         if (entries.Count == 0)
-            return new PathOperationPayload(false, null, Localization.Get("There is nothing to compress."));
+            return new(false, null, Localization.Get("There is nothing to compress."));
 
         if (!Directory.Exists(request.Directory))
-            return new PathOperationPayload(false, null, Localization.Get("The destination folder is no longer there."));
+            return new(false, null, Localization.Get("The destination folder is no longer there."));
 
         if (request.Format.ToLowerInvariant() is "zip" or "zipx" or "7z")
             return await CompressArchiveAsync(request, entries);
@@ -560,20 +568,20 @@ internal static partial class FileOperations
             "tar" => (ArchiveType.Tar, CompressionType.None, ".tar"),
             "tar.gz" => (ArchiveType.Tar, CompressionType.GZip, ".tar.gz"),
             "tar.bz2" => (ArchiveType.Tar, CompressionType.BZip2, ".tar.bz2"),
-            _ => (ArchiveType.Zip, (CompressionType?)null, ""),
+            _ => (ArchiveType.Zip, (CompressionType?)null, "")
         };
 
         if (compression is null)
-            return new PathOperationPayload(false, null, Localization.Get("That archive format is not supported."));
+            return new(false, null, Localization.Get("That archive format is not supported."));
 
         var baseName = request.Name.Trim();
         if (baseName.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
             baseName = baseName[..^extension.Length];
 
         if (baseName.Length == 0 || baseName is "." or ".."
-            || baseName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
-            || Path.GetFileName(baseName) != baseName)
-            return new PathOperationPayload(false, null, Localization.Get("That archive name is not valid."));
+                                 || baseName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
+                                 || Path.GetFileName(baseName) != baseName)
+            return new(false, null, Localization.Get("That archive name is not valid."));
 
         var output = UniquePath(request.Directory, baseName, extension);
         var sources = entries.ToList();
@@ -597,7 +605,7 @@ internal static partial class FileOperations
                 var redo = await Task.Run(() => CompressCore(sources, redoPath, archiveType, compression.Value,
                     compressionLevel));
                 if (redo.Ok && redo.Path is { } newPath) currentPath = newPath;
-                return new FileHistory.Step(redo.Ok, ParentsOf(sources), redo.Error);
+                return new(redo.Ok, ParentsOf(sources), redo.Error);
             });
 
         return result;
@@ -644,11 +652,11 @@ internal static partial class FileOperations
             "zip" => ".zip",
             "zipx" => ".zipx",
             "7z" => ".7z",
-            _ => "",
+            _ => ""
         };
 
         if (extension.Length == 0)
-            return new PathOperationPayload(false, null, Localization.Get("That format cannot be encrypted or split."));
+            return new(false, null, Localization.Get("That format cannot be encrypted or split."));
 
         var split = request.SplitSize ?? 0;
         var method = (request.Method ?? "").ToLowerInvariant();
@@ -658,9 +666,9 @@ internal static partial class FileOperations
             baseName = baseName[..^extension.Length];
 
         if (baseName.Length == 0 || baseName is "." or ".."
-            || baseName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
-            || Path.GetFileName(baseName) != baseName)
-            return new PathOperationPayload(false, null, Localization.Get("That archive name is not valid."));
+                                 || baseName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
+                                 || Path.GetFileName(baseName) != baseName)
+            return new(false, null, Localization.Get("That archive name is not valid."));
 
         var output = UniquePath(request.Directory, baseName, extension);
 
@@ -677,33 +685,29 @@ internal static partial class FileOperations
 
                 var files = ArchiveFiles(entries);
                 if (files.Count == 0)
-                    return new PathOperationPayload(false, null, Localization.Get("There is nothing to compress."));
+                    return new(false, null, Localization.Get("There is nothing to compress."));
 
                 var compressor = new SevenZipSharpCompressor
                 {
-                    ArchiveFormat = SevenZip.OutArchiveFormat.Zip,
+                    ArchiveFormat = OutArchiveFormat.Zip,
                     CompressionMethod = MethodOf(format, request.Method),
                     CompressionLevel = LevelOf(request.Level),
-                    IncludeEmptyDirectories = true,
+                    IncludeEmptyDirectories = true
                 };
 
                 if (encryption is not ("none" or ""))
-                {
                     compressor.ZipEncryptionMethod = encryption switch
                     {
-                        "aes128" => SevenZip.ZipEncryptionMethod.Aes128,
-                        "aes192" => SevenZip.ZipEncryptionMethod.Aes192,
-                        "aes256" => SevenZip.ZipEncryptionMethod.Aes256,
-                        _ => SevenZip.ZipEncryptionMethod.ZipCrypto,
+                        "aes128" => ZipEncryptionMethod.Aes128,
+                        "aes192" => ZipEncryptionMethod.Aes192,
+                        "aes256" => ZipEncryptionMethod.Aes256,
+                        _ => ZipEncryptionMethod.ZipCrypto
                     };
-                }
 
                 await Task.Run(() => compressor.CompressFileDictionary(files, output, password));
             }
             else if (format == "7z")
-            {
                 await Task.Run(() => RustNative.Compress7z(entries, output, password));
-            }
             else
             {
                 // The parallel writer is the fastest for the plain ZIP setting; everything else,
@@ -714,11 +718,9 @@ internal static partial class FileOperations
                 RustNative.ZipResult? native = null;
 
                 if (quick)
-                {
                     native = Try.Run(() => RustNative.Compress(entries, output))
                         .OnFailure(ex => Log.Warning(ex, "The native ZIP writer failed; using the streaming writer"))
                         .Match(found => (RustNative.ZipResult?)found, _ => null);
-                }
 
                 if (native != RustNative.ZipResult.Ok)
                 {
@@ -738,7 +740,7 @@ internal static partial class FileOperations
         {
             Log.Warning(ex, "Could not create {Archive}", output);
             Try.Run(() => File.Delete(output));
-            return new PathOperationPayload(false, null, ex.Message);
+            return new(false, null, ex.Message);
         }
 
         if (recordHistory)
@@ -749,9 +751,12 @@ internal static partial class FileOperations
                 {
                     var redoPath = UniquePath(request.Directory, baseName, extension);
                     var redo = await CompressArchiveAsync(
-                        request with {Name = Path.GetFileNameWithoutExtension(redoPath)}, entries, false);
+                        request with
+                        {
+                            Name = Path.GetFileNameWithoutExtension(redoPath)
+                        }, entries, false);
                     if (redo.Ok && redo.Path is { } newPath) output = newPath;
-                    return new FileHistory.Step(redo.Ok, ParentsOf(entries), redo.Error);
+                    return new(redo.Ok, ParentsOf(entries), redo.Error);
                 });
 
         // A split 7z has no base file; the first volume is the one the user opens.
@@ -759,7 +764,7 @@ internal static partial class FileOperations
             ? output + ".001"
             : output;
 
-        return new PathOperationPayload(true, resultPath, null);
+        return new(true, resultPath, null);
     }
 
     private static Dictionary<string, string> ArchiveFiles(IReadOnlyList<string> entries)
@@ -790,29 +795,31 @@ internal static partial class FileOperations
         return files;
     }
 
-    private static SevenZip.CompressionMethod MethodOf(string format, string? method)
+    private static CompressionMethod MethodOf(string format, string? method)
     {
         var wanted = (method ?? "").ToLowerInvariant();
 
-        if (wanted == "store") return SevenZip.CompressionMethod.Copy;
-        if (wanted == "bzip2") return SevenZip.CompressionMethod.BZip2;
-        if (wanted == "lzma") return SevenZip.CompressionMethod.Lzma;
-        if (wanted == "ppmd") return SevenZip.CompressionMethod.Ppmd;
-        if (wanted == "deflate64") return SevenZip.CompressionMethod.Deflate64;
-        if (wanted == "lzma2") return SevenZip.CompressionMethod.Lzma2;
+        if (wanted == "store") return CompressionMethod.Copy;
+        if (wanted == "bzip2") return CompressionMethod.BZip2;
+        if (wanted == "lzma") return CompressionMethod.Lzma;
+        if (wanted == "ppmd") return CompressionMethod.Ppmd;
+        if (wanted == "deflate64") return CompressionMethod.Deflate64;
+        if (wanted == "lzma2") return CompressionMethod.Lzma2;
 
         return format == "7z"
-            ? SevenZip.CompressionMethod.Lzma2
-            : format == "zipx" ? SevenZip.CompressionMethod.Lzma : SevenZip.CompressionMethod.Deflate;
+            ? CompressionMethod.Lzma2
+            : format == "zipx"
+                ? CompressionMethod.Lzma
+                : CompressionMethod.Deflate;
     }
 
-    private static SevenZip.CompressionLevel LevelOf(int level) => level switch
+    private static CompressionLevel LevelOf(int level) => level switch
     {
-        0 => SevenZip.CompressionLevel.None,
-        <= 1 => SevenZip.CompressionLevel.Fast,
-        <= 5 => SevenZip.CompressionLevel.Normal,
-        <= 7 => SevenZip.CompressionLevel.High,
-        _ => SevenZip.CompressionLevel.Ultra,
+        0 => CompressionLevel.None,
+        <= 1 => CompressionLevel.Fast,
+        <= 5 => CompressionLevel.Normal,
+        <= 7 => CompressionLevel.High,
+        _ => CompressionLevel.Ultra
     };
 
     /// <summary>
@@ -859,7 +866,11 @@ internal static partial class FileOperations
         {
             var options = new WriterOptions(compression, level)
             {
-                ArchiveEncoding = new ArchiveEncoding {Default = Encoding.UTF8, Forced = Encoding.UTF8}
+                ArchiveEncoding = new ArchiveEncoding
+                {
+                    Default = Encoding.UTF8,
+                    Forced = Encoding.UTF8
+                }
             };
             using var writer = WriterFactory.OpenWriter(output, archiveType, options);
             var done = 0;
@@ -871,14 +882,14 @@ internal static partial class FileOperations
             }
 
             TaskCenter.Instance.Complete(taskId);
-            return new PathOperationPayload(true, output, null);
+            return new(true, output, null);
         }
         catch (Exception ex)
         {
             Try.Run(() => File.Delete(output));
             TaskCenter.Instance.Fail(taskId, ex.Message);
             Log.Warning(ex, "Could not compress {Count} entries", paths.Count);
-            return new PathOperationPayload(false, null, ex.Message);
+            return new(false, null, ex.Message);
         }
     }
 
@@ -914,10 +925,10 @@ internal static partial class FileOperations
             try
             {
                 if (!File.Exists(path))
-                    return new FileHistory.Step(false, ParentsOf([path]), "The file is no longer there.");
+                    return new(false, ParentsOf([path]), "The file is no longer there.");
 
                 File.Delete(path);
-                return new FileHistory.Step(true, ParentsOf([path]));
+                return new(true, ParentsOf([path]));
             }
             catch (Exception ex)
             {
@@ -972,8 +983,6 @@ internal static partial class FileOperations
             Verb = "properties"
         })).OnFailure(ex => Log.Warning(ex, "Could not show properties for {Path}", path));
     }
-
-    private const uint ShopFilepath = 0x00000002;
 
     [LibraryImport("shell32.dll", StringMarshalling = StringMarshalling.Utf16)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -1031,7 +1040,11 @@ internal static partial class FileOperations
             var terminal = Try.Run(() => Process.Start(new ProcessStartInfo("wt.exe")
             {
                 UseShellExecute = true,
-                ArgumentList = { "-d", directory }
+                ArgumentList =
+                {
+                    "-d",
+                    directory
+                }
             })).GetOrNull();
 
             if (terminal is not null)

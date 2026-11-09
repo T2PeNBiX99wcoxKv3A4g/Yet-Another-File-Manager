@@ -92,7 +92,8 @@ public sealed record AppSettings(
     List<FavoriteEntry>? Favorites)
 {
     public static AppSettings Default =>
-        new(true, true, true, ["**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null, ["quick", "frequent", "recent", "home", "drives", "share", "favorites"], null, 1, null,
+        new(true, true, true, ["**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null,
+            ["quick", "frequent", "recent", "home", "drives", "share", "favorites"], null, 1, null,
             null, null, null, null, null, ["quick", "frequent", "recent", "drives"], null, null, true, null, 0, null,
             true, false, false, false, false, null, null, null, null, false, null, null, null, null, null, null, 5,
             "24", null, null, false, 1200, 800, "relative", null, 220, [], 0.3, null, null, null, null, null, null, null);

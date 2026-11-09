@@ -21,7 +21,11 @@ internal sealed record AppInfoPayload(string Version, string Platform, bool Roun
 internal sealed record FontsPayload(IReadOnlyList<string> Fonts);
 
 /// <summary>Payload for <c>fs.list</c>. An empty path means the user's home directory.</summary>
-internal sealed record FsListRequest(string? Path, bool? Sizes = true, bool? IncludeLinks = false, int? CodePage = null,
+internal sealed record FsListRequest(
+    string? Path,
+    bool? Sizes = true,
+    bool? IncludeLinks = false,
+    int? CodePage = null,
     string? Password = null);
 
 /// <summary>
@@ -48,7 +52,10 @@ internal sealed record ViewRequest(string Directory, DirectoryView View);
 internal sealed record ThumbnailServerPayload(string Base);
 
 /// <summary>Payload for <c>fs.tags.set</c>: the tags of one entry, and optionally the tag colors.</summary>
-internal sealed record TagsRequest(string Directory, string Name, List<string> Tags,
+internal sealed record TagsRequest(
+    string Directory,
+    string Name,
+    List<string> Tags,
     Dictionary<string, string>? Colors = null);
 
 /// <summary>
@@ -87,7 +94,9 @@ internal sealed record FsSizesPayload(string Path, Dictionary<string, long> Size
 /// <summary>Body for <c>fs.counts</c>: child counts measured since the listing was sent.</summary>
 internal sealed record FsCountsPayload(string Path, Dictionary<string, long> Counts);
 
-/** Body for messages that carry a single path, such as the shell menu's working file. */
+/**
+ * Body for messages that carry a single path, such as the shell menu's working file.
+ */
 internal sealed record PathPayload(string? Path);
 
 /// <summary>Payload for <c>pick.submit</c>: the paths the command line picker selected.</summary>
@@ -117,7 +126,9 @@ internal sealed record GalleryRequest(int Offset, int Count, bool Refresh);
 internal sealed record FsRecentPayload(IReadOnlyList<RecentEntry> Entries);
 
 /// <summary>Body for <c>fs.index.tasks</c>: the folders waiting for a size/index walk.</summary>
-internal sealed record IndexTasksPayload(int Count, IReadOnlyList<string> Directories);/// <summary>Body for <c>fs.frequent</c>: the folders opened most often.</summary>
+internal sealed record IndexTasksPayload(int Count, IReadOnlyList<string> Directories);
+
+/// <summary>Body for <c>fs.frequent</c>: the folders opened most often.</summary>
 internal sealed record FsFrequentPayload(IReadOnlyList<FrequentEntry> Entries);
 
 /// <summary>Payload for <c>app.places.set</c>: the folders to pin, in order.</summary>

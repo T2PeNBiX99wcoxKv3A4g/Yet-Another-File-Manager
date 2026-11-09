@@ -4,9 +4,9 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Security.Principal;
 using System.Text;
+using Microsoft.Win32;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
-using Microsoft.Win32;
 using Serilog;
 using YetAnotherFileManager.Models;
 
@@ -86,8 +86,8 @@ internal static class RecycleBin
         var root = Path.GetPathRoot(path);
 
         return !string.IsNullOrEmpty(root)
-            && Directory.Exists(Path.Combine(root, "$Recycle.Bin"))
-            && !VolumeDeletesPermanently(root);
+               && Directory.Exists(Path.Combine(root, "$Recycle.Bin"))
+               && !VolumeDeletesPermanently(root);
     }
 
     /// <summary>
@@ -107,7 +107,7 @@ internal static class RecycleBin
             var trashMount = MountOf(root);
 
             if (sourceMount is not null && trashMount is not null
-                && !sourceMount.Equals(trashMount, StringComparison.Ordinal))
+                                        && !sourceMount.Equals(trashMount, StringComparison.Ordinal))
                 return false;
 
             var files = Path.Combine(root, "files");
@@ -131,8 +131,9 @@ internal static class RecycleBin
     ///     That is the same layout Explorer and this app read back, so restore keeps working either way.
     /// </summary>
     public static bool Send(string path) =>
-        OperatingSystem.IsWindows() ? SendWindows(path)
-        : OperatingSystem.IsLinux() && SendUnix(path);
+        OperatingSystem.IsWindows()
+            ? SendWindows(path)
+            : OperatingSystem.IsLinux() && SendUnix(path);
 
     /// <summary>
     ///     Moves a path into the freedesktop.org trash of the volume that holds it. The home trash is
@@ -141,52 +142,54 @@ internal static class RecycleBin
     /// </summary>
     private static bool SendUnix(string path) =>
         Try.Run(() =>
-        {
-            var source = Path.GetFullPath(path);
-            if (!File.Exists(source) && !Directory.Exists(source))
-                return false;
-
-            var root = TrashRootFor(source);
-            var files = Path.Combine(root, "files");
-            var info = Path.Combine(root, "info");
-            EnsurePrivate(files);
-            EnsurePrivate(info);
-
-            var name = Path.GetFileName(source);
-            var stored = name;
-
-            for (var index = 1; File.Exists(Path.Combine(files, stored))
-                                 || Directory.Exists(Path.Combine(files, stored))
-                                 || File.Exists(Path.Combine(info, stored + TrashInfoSuffix)); index++)
-                stored = $"{name}.{index}";
-
-            var target = Path.Combine(files, stored);
-            var record = Path.Combine(info, stored + TrashInfoSuffix);
-
-            if (Directory.Exists(source))
-                Directory.Move(source, target);
-            else
-                File.Move(source, target);
-
-            try
             {
-                File.WriteAllText(record,
-                    $"[Trash Info]\nPath={EscapeTrashPath(source)}\nDeletionDate={DateTime.Now:yyyy-MM-ddTHH:mm:ss}\n");
-            }
-            catch
-            {
-                // Without its record the content is a leftover nobody can restore; put it back.
-                if (Directory.Exists(target))
-                    Directory.Move(target, source);
+                var source = Path.GetFullPath(path);
+                if (!File.Exists(source) && !Directory.Exists(source))
+                    return false;
+
+                var root = TrashRootFor(source);
+                var files = Path.Combine(root, "files");
+                var info = Path.Combine(root, "info");
+                EnsurePrivate(files);
+                EnsurePrivate(info);
+
+                var name = Path.GetFileName(source);
+                var stored = name;
+
+                for (var index = 1;
+                     File.Exists(Path.Combine(files, stored))
+                     || Directory.Exists(Path.Combine(files, stored))
+                     || File.Exists(Path.Combine(info, stored + TrashInfoSuffix));
+                     index++)
+                    stored = $"{name}.{index}";
+
+                var target = Path.Combine(files, stored);
+                var record = Path.Combine(info, stored + TrashInfoSuffix);
+
+                if (Directory.Exists(source))
+                    Directory.Move(source, target);
                 else
-                    File.Move(target, source);
+                    File.Move(source, target);
 
-                throw;
-            }
+                try
+                {
+                    File.WriteAllText(record,
+                        $"[Trash Info]\nPath={EscapeTrashPath(source)}\nDeletionDate={DateTime.Now:yyyy-MM-ddTHH:mm:ss}\n");
+                }
+                catch
+                {
+                    // Without its record the content is a leftover nobody can restore; put it back.
+                    if (Directory.Exists(target))
+                        Directory.Move(target, source);
+                    else
+                        File.Move(target, source);
 
-            return true;
-        }).OnFailure(ex => Log.Warning(ex, "Could not move {Path} to the trash", path))
-        .GetOrElse(_ => false);
+                    throw;
+                }
+
+                return true;
+            }).OnFailure(ex => Log.Warning(ex, "Could not move {Path} to the trash", path))
+            .GetOrElse(_ => false);
 
     /// <summary>The trash folder that belongs to the volume a path lives on.</summary>
     private static string TrashRootFor(string source)
@@ -465,7 +468,7 @@ internal static class RecycleBin
         }
 
         return ReadDword(Registry.CurrentUser, BitBucketKey, "NukeOnDelete") == 1
-            || ReadDword(Registry.LocalMachine, BitBucketKey, "NukeOnDelete") == 1;
+               || ReadDword(Registry.LocalMachine, BitBucketKey, "NukeOnDelete") == 1;
     }
 
     /// <summary>The <c>{GUID}</c> the Recycle Bin settings use for the volume a path is on.</summary>
@@ -550,7 +553,8 @@ internal static class RecycleBin
                 // Content without its record could never be restored, so put it back.
                 Log.Warning(ex, "Could not write the recycle bin record for {Path}", path);
 
-                Try.Run(() => directory ? (Action)(() => Directory.Move(content, path))
+                Try.Run(() => directory
+                        ? (Action)(() => Directory.Move(content, path))
                         : () => File.Move(content, path))
                     .OnFailure(back => Log.Error(back, "Could not put {Path} back", path));
 

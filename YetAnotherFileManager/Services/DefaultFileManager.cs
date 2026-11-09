@@ -4,7 +4,6 @@ using Microsoft.Win32;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
 using Serilog;
-
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
 
@@ -27,6 +26,7 @@ internal static class DefaultFileManager
     private const string FolderVerb = @"Software\Classes\Folder\shell\YetAnotherFileManager";
     private const string DriveVerb = @"Software\Classes\Drive\shell\YetAnotherFileManager";
     private const string BackgroundVerb = @"Software\Classes\Directory\Background\shell\YetAnotherFileManager";
+
     private const string WinECommand =
         @"Software\Classes\CLSID\{52205fd8-5dfb-447d-801a-d0b52f2e83e1}\shell\opennewwindow\command";
 
@@ -43,7 +43,7 @@ internal static class DefaultFileManager
     public static DefaultManagerStatusPayload Status()
     {
         if (!OperatingSystem.IsWindows())
-            return new DefaultManagerStatusPayload(false, false, null);
+            return new(false, false, null);
 
         string? registeredPath = null;
         var active = false;
@@ -59,10 +59,11 @@ internal static class DefaultFileManager
 
         var current = Environment.ProcessPath;
         var matches = registeredPath is { Length: > 0 } && current is { Length: > 0 }
-            && Try.Run(() => string.Equals(Path.GetFullPath(registeredPath), Path.GetFullPath(current),
-                StringComparison.OrdinalIgnoreCase)).GetOrElse(_ => false);
+                                                        && Try.Run(() => string.Equals(Path.GetFullPath(registeredPath),
+                                                            Path.GetFullPath(current),
+                                                            StringComparison.OrdinalIgnoreCase)).GetOrElse(_ => false);
 
-        return new DefaultManagerStatusPayload(active && registeredPath is { Length: > 0 }, matches, registeredPath);
+        return new(active && registeredPath is { Length: > 0 }, matches, registeredPath);
     }
 
     [SupportedOSPlatform("windows")]
@@ -78,8 +79,8 @@ internal static class DefaultFileManager
 
             foreach (var keyPath in new[]
                      {
-                         DirectoryCommand, FolderCommand, DirectoryShell, FolderShell,
-                         DriveCommand, DriveShell, WinECommand
+                         DirectoryCommand, FolderCommand, DirectoryShell, FolderShell, DriveCommand, DriveShell,
+                         WinECommand
                      })
             {
                 if (backups.DefaultManager.Any(backup =>
@@ -91,7 +92,7 @@ internal static class DefaultFileManager
                 var value = Try.Run(() => Registry.CurrentUser.OpenSubKey(keyPath)?.GetValue(null) as string)
                     .GetOrNull();
 
-                backups.DefaultManager.Add(new RegistryAssociationBackup(keyPath, existed, value));
+                backups.DefaultManager.Add(new(keyPath, existed, value));
                 changed = true;
             }
 
@@ -145,15 +146,15 @@ internal static class DefaultFileManager
             Directory.CreateDirectory(Path.GetDirectoryName(user)!);
             File.WriteAllText(user,
                 $"""
-                [Desktop Entry]
-                Type=Application
-                Name=Yet Another File Manager
-                Exec="{executable}" %F
-                Icon=yafm
-                Terminal=false
-                Categories=System;FileManager;
-                MimeType=inode/directory;
-                """);
+                 [Desktop Entry]
+                 Type=Application
+                 Name=Yet Another File Manager
+                 Exec="{executable}" %F
+                 Icon=yafm
+                 Terminal=false
+                 Categories=System;FileManager;
+                 MimeType=inode/directory;
+                 """);
         }
 
         var store = AssociationBackupStore.Read();

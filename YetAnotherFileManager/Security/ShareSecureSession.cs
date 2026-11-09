@@ -40,7 +40,7 @@ internal sealed class ShareSecureSession : IDisposable
         var ciphertext = ShareCrypto.Encrypt(_key, nonce, plaintext, _associatedData);
 
         await ShareFrames.WriteAsync(_stream,
-            new ShareSecureDataMessage(ShareProtocol.SecureData, ShareCrypto.ToBase64(nonce),
+            new(ShareProtocol.SecureData, ShareCrypto.ToBase64(nonce),
                 ShareCrypto.ToBase64(ciphertext)),
             AppJsonContext.Default.ShareSecureDataMessage, token);
     }

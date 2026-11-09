@@ -1,5 +1,5 @@
-using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Extensions;
+using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Utils;
 using YetAnotherFileManager.Messaging;
@@ -75,7 +75,7 @@ internal sealed class UpdateService : Singleton<UpdateService>
 
             var current = AppInfoService.Version;
             _cachedAt = DateTime.UtcNow;
-            _cached = new UpdateCheckPayload(current, latest, IsNewer(latest, current));
+            _cached = new(current, latest, IsNewer(latest, current));
 
             // A check started from the settings page updates the dot in the footer as well.
             WindowManager.Instance.Notify("app.update", _cached);

@@ -13,7 +13,8 @@ internal static class GlobalHotkey
 {
     private static readonly Dictionary<string, int> Keys = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["ctrl"] = 0x11, ["control"] = 0x11,
+        ["ctrl"] = 0x11,
+        ["control"] = 0x11,
         ["shift"] = 0x10,
         ["alt"] = 0x12,
         ["win"] = 0x5B,
@@ -32,7 +33,7 @@ internal static class GlobalHotkey
         ["up"] = 0x26,
         ["down"] = 0x28,
         ["left"] = 0x25,
-        ["right"] = 0x27,
+        ["right"] = 0x27
     };
 
     private static CancellationTokenSource? _stop;
@@ -49,7 +50,6 @@ internal static class GlobalHotkey
         var keys = new List<int>();
 
         foreach (var part in parts)
-        {
             if (part.Length == 1 && char.IsLetterOrDigit(part[0]))
                 keys.Add(char.ToUpperInvariant(part[0]));
             else if (part.StartsWith('f') && int.TryParse(part[1..], out var function) && function is >= 1 and <= 24)
@@ -58,13 +58,12 @@ internal static class GlobalHotkey
                 keys.Add(code);
             else
                 return;
-        }
 
         if (keys.Count == 0)
             return;
 
         _wasDown = false;
-        _stop = new CancellationTokenSource();
+        _stop = new();
         var token = _stop.Token;
 
         Task.Run(() =>
@@ -81,9 +80,7 @@ internal static class GlobalHotkey
                         WindowManager.Instance.ShowMainWindow();
                     }
                     else if (!down)
-                    {
                         _wasDown = false;
-                    }
                 }
                 catch (Exception ex)
                 {

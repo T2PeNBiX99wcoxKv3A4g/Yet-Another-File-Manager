@@ -22,27 +22,36 @@ internal sealed class FolderMeasureService : Singleton<FolderMeasureService>
     ///     all of them in the background made navigation crawl, so those stop at the first burst.
     /// </summary>
     private const int Burst = 128;
+
     private const int FullListing = 512;
     private const int FlushDelay = 150;
 
-    private readonly ConcurrentQueue<(string Parent, string Child, bool Counts)> _queue = new();
-    private readonly ConcurrentDictionary<string, bool> _queued = new(StringComparer.OrdinalIgnoreCase);
-    private readonly SemaphoreSlim _signal = new(0);
+    /// <summary>Folders measured at once. One worker leaves a listing of forty folders waiting in line.</summary>
+    private static readonly int Workers = Math.Clamp(Environment.ProcessorCount / 2, 2, 4);
 
-    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, long>> _pendingSizes =
-        new(StringComparer.OrdinalIgnoreCase);
+    private static readonly EnumerationOptions TopLevel = new()
+    {
+        IgnoreInaccessible = true,
+        RecurseSubdirectories = false,
+        // Junctions and symlinks would either double count or loop forever.
+        AttributesToSkip = FileAttributes.ReparsePoint
+    };
+
+    private readonly Lock _flushGate = new();
 
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, long>> _pendingCounts =
         new(StringComparer.OrdinalIgnoreCase);
 
-    private readonly Lock _flushGate = new();
-    private Timer? _flushTimer;
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, long>> _pendingSizes =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly ConcurrentQueue<(string Parent, string Child, bool Counts)> _queue = new();
+    private readonly ConcurrentDictionary<string, bool> _queued = new(StringComparer.OrdinalIgnoreCase);
+    private readonly SemaphoreSlim _signal = new(0);
     private bool _flushScheduled;
+    private Timer? _flushTimer;
 
     private volatile int _generation;
-
-    /// <summary>Folders measured at once. One worker leaves a listing of forty folders waiting in line.</summary>
-    private static readonly int Workers = Math.Clamp(Environment.ProcessorCount / 2, 2, 4);
 
     public FolderMeasureService()
     {
@@ -55,7 +64,8 @@ internal sealed class FolderMeasureService : Singleton<FolderMeasureService>
         new(_queued.Count, [.. _queued.Keys.Order(StringComparer.OrdinalIgnoreCase)]);
 
     public void Request(string directory, IReadOnlyCollection<string> children, bool counts)
-    {        DropQueued();
+    {
+        DropQueued();
         Interlocked.Increment(ref _generation);
 
         var limit = children.Count <= FullListing ? children.Count : Burst;
@@ -104,7 +114,7 @@ internal sealed class FolderMeasureService : Singleton<FolderMeasureService>
         var result = await Try.Run(async () =>
         {
             if (_generation != generation)
-                return ((long Size, long Count)?)null;
+                return null;
 
             var directory = new DirectoryInfo(path);
             var measured = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
@@ -179,7 +189,7 @@ internal sealed class FolderMeasureService : Singleton<FolderMeasureService>
                 return;
 
             _flushScheduled = true;
-            _flushTimer ??= new Timer(_ => Flush(), null, Timeout.Infinite, Timeout.Infinite);
+            _flushTimer ??= new(_ => Flush(), null, Timeout.Infinite, Timeout.Infinite);
             _flushTimer.Change(FlushDelay, Timeout.Infinite);
         }
     }
@@ -228,7 +238,7 @@ internal sealed class FolderMeasureService : Singleton<FolderMeasureService>
 
         foreach (var parent in pending.Keys.ToList())
             if (pending.TryRemove(parent, out var values) && !values.IsEmpty)
-                batch[parent] = new Dictionary<string, long>(values, StringComparer.OrdinalIgnoreCase);
+                batch[parent] = new(values, StringComparer.OrdinalIgnoreCase);
 
         return batch;
     }
@@ -248,14 +258,8 @@ internal sealed class FolderMeasureService : Singleton<FolderMeasureService>
 
         // The dropped items had a signal each; take them back so the workers do not spin on an
         // empty queue after a navigation.
-        while (_signal.Wait(0)) { }
+        while (_signal.Wait(0))
+        {
+        }
     }
-
-    private static readonly EnumerationOptions TopLevel = new()
-    {
-        IgnoreInaccessible = true,
-        RecurseSubdirectories = false,
-        // Junctions and symlinks would either double count or loop forever.
-        AttributesToSkip = FileAttributes.ReparsePoint
-    };
 }

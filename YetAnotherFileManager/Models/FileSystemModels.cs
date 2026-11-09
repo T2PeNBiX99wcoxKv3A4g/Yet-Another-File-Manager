@@ -49,6 +49,7 @@ public sealed class AssociationBackupFile
 {
     public List<ArchiveAssociationBackup> Archive { get; set; } = [];
     public List<RegistryAssociationBackup> DefaultManager { get; set; } = [];
+
     /// <summary>The Linux <c>inode/directory</c> handler; null when it was never stored.</summary>
     public string? LinuxDefaultManager { get; set; }
 }

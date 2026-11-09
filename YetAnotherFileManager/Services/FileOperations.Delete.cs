@@ -17,12 +17,12 @@ internal static partial class FileOperations
     {
         var items = Selection(paths);
         if (items.Count == 0)
-            return new DeletePayload(false, false, Localization.Get("There is nothing to delete."));
+            return new(false, false, Localization.Get("There is nothing to delete."));
 
         // A policy or a volume setting can turn the bin off; that means "delete for good", which
         // Explorer asks about first, so the window gets the same chance.
         if (!permanent && items.Any(path => !RecycleBin.CanRecycle(path)))
-            return new DeletePayload(false, true, Localization.Get("The recycle bin is turned off for this volume."));
+            return new(false, true, Localization.Get("The recycle bin is turned off for this volume."));
 
         var deletedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var (step, deleted) = await DeleteWithProgressAsync(items, permanent);
@@ -34,7 +34,7 @@ internal static partial class FileOperations
                 undo: () => RestoreFromRecycleAsync(items, deletedAt),
                 redo: async () => (await DeleteWithProgressAsync(items, false)).Step);
 
-        return new DeletePayload(step.Ok, false, step.Error);
+        return new(step.Ok, false, step.Error);
     }
 
     private static async Task<FileHistory.Step> DeleteCoreAsync(IReadOnlyList<string> paths, bool permanent) =>
@@ -48,12 +48,12 @@ internal static partial class FileOperations
         List<string> items, bool permanent)
     {
         if (items.Count == 0)
-            return (new FileHistory.Step(false, [], Localization.Get("There is nothing to delete.")), 0);
+            return (new(false, [], Localization.Get("There is nothing to delete.")), 0);
 
         // Only the recycle bin is Windows-only (the freedesktop trash covers Linux); a permanent
         // delete works on every platform.
         if (!permanent && !OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
-            return (new FileHistory.Step(false, ParentsOf(items),
+            return (new(false, ParentsOf(items),
                 "Moving to the recycle bin needs Windows or Linux."), 0);
 
         var id = TaskCenter.Instance.Start("delete",
@@ -71,7 +71,7 @@ internal static partial class FileOperations
             Log.Warning(ex, "Could not delete the selection");
             TaskCenter.Instance.Fail(id, ex.Message);
 
-            return (new FileHistory.Step(false, ParentsOf(items), ex.Message), 0);
+            return (new(false, ParentsOf(items), ex.Message), 0);
         }
     }
 
@@ -125,13 +125,13 @@ internal static partial class FileOperations
         }
 
         // A selection that lost a few entries still changed the folder, so the window has to reread it.
-        return (new FileHistory.Step(deleted > 0 || error is null, ParentsOf(items), error), deleted);
+        return (new(deleted > 0 || error is null, ParentsOf(items), error), deleted);
     }
 
     /// <summary>Finds the records a delete just created and restores them.</summary>
     private static async Task<FileHistory.Step> RestoreFromRecycleAsync(IReadOnlyList<string> paths, long deletedAt)
     {
-        var entries = await RecycleBin.ListAsync(false);
+        var entries = await RecycleBin.ListAsync();
         var wanted = paths.Select(Normalize).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var matches = entries
@@ -140,7 +140,7 @@ internal static partial class FileOperations
             .ToList();
 
         if (matches.Count == 0)
-            return new FileHistory.Step(false, ParentsOf(paths),
+            return new(false, ParentsOf(paths),
                 "The deleted items are no longer in the recycle bin.");
 
         var restored = 0;
@@ -149,7 +149,7 @@ internal static partial class FileOperations
             if (await RecycleBin.RestoreAsync(entry.Id))
                 restored++;
 
-        return new FileHistory.Step(restored > 0, ParentsOf(paths),
+        return new(restored > 0, ParentsOf(paths),
             restored > 0 ? null : "Windows could not restore the deleted items.");
     }
 
@@ -168,7 +168,8 @@ internal static partial class FileOperations
 
         return items
             .Where(path => !items.Any(other => other.Length < path.Length
-                && path.StartsWith(other + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
+                                               && path.StartsWith(other + Path.DirectorySeparatorChar,
+                                                   StringComparison.OrdinalIgnoreCase)))
             .ToList();
     }
 
