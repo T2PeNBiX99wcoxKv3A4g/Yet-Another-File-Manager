@@ -926,22 +926,20 @@ internal static class Archives
 
         foreach (var candidate in DetectCodePages)
         {
-            // A code page that cannot read the archive is simply not the right one. Match turns the
-            // failure into a real null, which GetOrNull cannot do for an int: it yields 0, and a
-            // score of 0 is a perfect match.
-            var score = Try.Run(() =>
+            // A code page that cannot read the archive is simply not the right one.
+            var attempt = Try.Run(() =>
             {
                 using var archive = Open(archivePath, candidate, password);
                 return Score(Names(archive));
-            }).Match(found => (int?)found, _ => null);
+            });
 
-            if (score is not { } value || value >= bestScore)
+            if (!attempt.TryGet(out var score) || score >= bestScore)
                 continue;
 
-            bestScore = value;
+            bestScore = score;
             bestCodePage = candidate;
 
-            if (value == 0)
+            if (score == 0)
                 break;
         }
 
