@@ -12,6 +12,8 @@ The default panels are:
 - **Recent** — the folders and files you opened most recently.
 - **Home** — your home folder, as a table or a grid.
 - **Drives** — every mounted volume with its free space.
+- **Shared** — the folders this device shares, and the ones the paired devices offer.
+- **Favorites** — the files and folders marked with **Add to favorites** in the context menu.
 
 A panel can be a **folder** too: pick any directory and it is shown in place.
 

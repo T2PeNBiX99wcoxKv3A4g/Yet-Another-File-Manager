@@ -25,8 +25,8 @@ The Windows build is not code-signed, so SmartScreen may warn the first time; ch
 ## First launch
 
 The window opens on the **Overview**, a home page built from panels: Quick access, Frequent,
-Recent, Home and Drives. The sidebar on the left opens the overview, the recycle bin, the gallery
-and the settings, and lists the folders you pinned to Quick access.
+Recent, Home, Drives, Shared and Favorites. The sidebar on the left opens the overview, the recycle
+bin, the gallery and the settings, and lists the folders you pinned to Quick access.
 
 Tabs are restored when you close and reopen the app, unless you turn that off in
 [Settings](Settings-and-Shortcuts).
