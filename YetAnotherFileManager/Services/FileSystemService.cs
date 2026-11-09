@@ -370,6 +370,12 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 }
             }
 
+            case "fs.archive.release":
+            {
+                await Task.Run(() => Archives.Release(context.Payload<PathsPayload>()?.Paths ?? []));
+                return context.Reply("fs.archive.release.result", new OkPayload());
+            }
+
             case "fs.archive.apply":
             {
                 var request = context.Payload<ArchivePathRequest>();

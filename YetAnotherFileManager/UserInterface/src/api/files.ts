@@ -205,6 +205,13 @@ export async function applyArchiveChanges(path: string, codePage = 0): Promise<{
         "fs.archive.apply", {path, codePage});
 }
 
+/** Deletes the temporary copies an archive left behind; called when its last tab closes. */
+export async function releaseArchives(paths: string[]): Promise<void> {
+    if (!Native.available || paths.length === 0) return;
+
+    await Native.request("fs.archive.release", {paths});
+}
+
 /** The first part of a text file, or why it cannot be shown as text. */
 export interface TextPreview {
     text: string | null;

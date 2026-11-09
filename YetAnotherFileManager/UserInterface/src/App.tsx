@@ -12,6 +12,7 @@ import {
     extractArchive,
     extractArchiveEntry,
     recordVisit,
+    releaseArchives,
     saveDirectoryView,
     saveTags,
     toggleHiddenFiles,
@@ -886,6 +887,25 @@ export default function App() {
             });
         }
     }, [patch]);
+
+    // An archive stages extracted previews and nested containers in the temp folder. Once no tab
+    // shows an archive any more, the host removes everything it staged for that archive.
+    const openArchives = useRef<string[]>([]);
+    useEffect(() => {
+        const next = new Set<string>();
+
+        for (const tab of tabs) {
+            const location = tab.listing?.path ?? tab.history[tab.index] ?? "";
+            if (location && isArchiveLocation(location))
+                next.add(normalizePath(archiveFile(location)));
+        }
+
+        const removed = openArchives.current.filter((archive) => !next.has(archive));
+        openArchives.current = [...next];
+
+        if (removed.length > 0)
+            void releaseArchives(removed);
+    }, [tabs]);
 
     /** The sidebar and the overview replace the page the active tab shows, or open a new tab. */
     const openView = useCallback((next: ViewKind, newTab = false) => {
@@ -2280,13 +2300,13 @@ export default function App() {
 
             {archived && (
                 <ArchiveActions>
+                    <ToolbarSeparator/>
                     {archiveEncrypted && (
                         <ArchiveEncrypted title={t("This archive is encrypted and asks for a password when opened.")}>
                             <LockIcon size={12}/>
                             {t("Encrypted archive")}
                         </ArchiveEncrypted>
                     )}
-                    <ToolbarSeparator/>
                     <IconButton
                         onClick={() => void chooseExtractFolder()}
                         onContextMenu={(event) => {

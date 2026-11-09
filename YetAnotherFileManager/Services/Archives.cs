@@ -39,6 +39,13 @@ internal static class Archives
     private static readonly ConcurrentDictionary<string, int> SelectedCodePages = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, Workspace> Workspaces = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, string> ExtractedNested = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Temporary files extracted for previewing or opening, grouped by their archive.</summary>
+    private static readonly ConcurrentDictionary<string, ConcurrentQueue<string>> OpenedEntries =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Each nested archive extracted to temp, mapped back to the archive the user opened.</summary>
+    private static readonly ConcurrentDictionary<string, string> NestedOwners = new(StringComparer.OrdinalIgnoreCase);
     private static readonly string TempRoot = Path.Combine(Path.GetTempPath(), "YetAnotherFileManager", "Archives");
 
     /// <summary>The native 7z.dll the package copies beside the executable.</summary>
@@ -54,7 +61,7 @@ internal static class Archives
     static Archives()
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-        AppDomain.CurrentDomain.ProcessExit += (_, _) => CleanupWorkspaces();
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => CleanupTemporary();
     }
 
     private static bool UseSevenZip(string archivePath) =>
@@ -214,6 +221,11 @@ internal static class Archives
 
                 if (extracted.Length > 0)
                 {
+                    var extractedFull = Path.GetFullPath(extracted);
+                    var currentFull = Path.GetFullPath(currentArchive);
+                    NestedOwners[extractedFull] = NestedOwners.TryGetValue(currentFull, out var rootOwner)
+                        ? rootOwner
+                        : currentFull;
                     currentArchive = extracted;
                     currentInner = "";
                     currentCodePage = 0;
@@ -428,7 +440,20 @@ internal static class Archives
         var (physicalArchive, physicalInner) = ResolveNested(archivePath, inner, codePage, password);
         var root = Path.Combine(TempRoot, "opened", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
-        return ExtractDirect(physicalArchive, physicalInner, root, codePage, password);
+
+        try
+        {
+            var opened = ExtractDirect(physicalArchive, physicalInner, root, codePage, password);
+            // Previewing or opening an entry leaves a real file for the shell; remember which
+            // archive owns it so closing that archive can remove it again.
+            OpenedEntries.GetOrAdd(Path.GetFullPath(archivePath), _ => new()).Enqueue(root);
+            return opened;
+        }
+        catch
+        {
+            TryDeleteDirectory(root);
+            throw;
+        }
     }
 
     private static string ExtractDirect(string archivePath, string inner, string root,
@@ -721,10 +746,82 @@ internal static class Archives
         return destination;
     }
 
-    private static void CleanupWorkspaces()
+    /// <summary>
+    ///     Removes everything staged for archives no tab shows any more: extracted entries, nested
+    ///     containers and editable workspaces. Windows never clears its temp directory on its own.
+    /// </summary>
+    public static void Release(IEnumerable<string> archivePaths)
     {
-        foreach (var workspace in Workspaces.Values)
-            TryDeleteDirectory(workspace.Root);
+        foreach (var path in archivePaths)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                continue;
+
+            var full = Path.GetFullPath(path);
+
+            // Anything extracted from a nested archive belongs to the archive the user opened.
+            var owned = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {full};
+            foreach (var (nested, owner) in NestedOwners)
+                if (owner.Equals(full, StringComparison.OrdinalIgnoreCase))
+                    owned.Add(nested);
+
+            foreach (var archive in owned)
+            {
+                if (Workspaces.TryRemove(archive, out var workspace))
+                    TryDeleteDirectory(workspace.Root);
+
+                if (OpenedEntries.TryRemove(archive, out var opened))
+                    while (opened.TryDequeue(out var directory))
+                        TryDeleteDirectory(directory);
+
+                foreach (var key in ExtractedNested.Keys
+                             .Where(key => ArchiveOf(key).Equals(archive, StringComparison.OrdinalIgnoreCase))
+                             .ToList())
+                    if (ExtractedNested.TryRemove(key, out var extracted)
+                        && Path.GetDirectoryName(extracted) is {Length: > 0} directory)
+                        TryDeleteDirectory(directory);
+
+                Detected.TryRemove(archive, out _);
+                SelectedCodePages.TryRemove(archive, out _);
+                EncryptionCache.TryRemove(archive, out _);
+                NestedOwners.TryRemove(archive, out _);
+            }
+        }
+    }
+
+    private static string ArchiveOf(string nestedKey)
+    {
+        var separator = nestedKey.IndexOf('|');
+        var archive = separator > 0 ? nestedKey[..separator] : nestedKey;
+        try
+        {
+            return Path.GetFullPath(archive);
+        }
+        catch
+        {
+            return archive;
+        }
+    }
+
+    private static void CleanupTemporary()
+    {
+        // Delete each staging folder on its own: one file still held open must not keep every
+        // other archive's leftovers around.
+        foreach (var area in new[]{"opened", "nested", "edit", "streams"})
+        {
+            var root = Path.Combine(TempRoot, area);
+            try
+            {
+                foreach (var directory in Directory.EnumerateDirectories(root))
+                    TryDeleteDirectory(directory);
+                foreach (var file in Directory.EnumerateFiles(root))
+                    TryDeleteFile(file);
+            }
+            catch
+            {
+                // The area does not exist, or its root was already removed.
+            }
+        }
     }
 
     private static void TryDeleteDirectory(string path)
