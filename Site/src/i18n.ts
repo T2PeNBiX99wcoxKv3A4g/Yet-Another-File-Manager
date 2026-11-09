@@ -34,8 +34,6 @@ export interface Copy {
         whatText: string;
         featuresTitle: string;
         features: { name: string; text: string }[];
-        howTitle: string;
-        how: string[];
         installTitle: string;
         /** Text before the README link, the link label, and the text after it. */
         installBefore: string;

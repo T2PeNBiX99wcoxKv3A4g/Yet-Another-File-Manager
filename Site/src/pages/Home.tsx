@@ -172,51 +172,6 @@ const FeatureText = styled.p`
     font-size: 0.84rem;
 `;
 
-const Steps = styled.ol`
-    display: grid;
-    gap: 12px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    counter-reset: step;
-`;
-
-const Step = styled.li`
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-    padding: 14px 16px;
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    background: var(--bg-card);
-    color: var(--text-secondary);
-    font-size: 0.88rem;
-    counter-increment: step;
-    transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
-
-    &::before {
-        content: counter(step);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        width: 22px;
-        height: 22px;
-        border-radius: 50%;
-        background: rgba(122, 162, 255, 0.18);
-        color: #a8c0ff;
-        font-family: var(--font-mono);
-        font-size: 0.72rem;
-        font-weight: 700;
-    }
-
-    &:hover {
-        border-color: var(--border-color-hover);
-        background: var(--bg-card-hover);
-        transform: translateX(2px);
-    }
-`;
-
 const PlatformGrid = styled.div`
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
@@ -329,13 +284,6 @@ export const HomePage: React.FC = () => {
                         );
                     })}
                 </Grid>
-            </Section>
-
-            <Section>
-                <Heading>{home.howTitle}</Heading>
-                <Steps>
-                    {home.how.map((step) => <Step key={step}>{step}</Step>)}
-                </Steps>
             </Section>
 
             <Section>

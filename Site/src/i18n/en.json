@@ -50,12 +50,6 @@
         "text": "Pick the accent and secondary colours, save your own presets, and switch between English, 繁體中文, 简体中文 and 日本語 at any time."
       }
     ],
-    "howTitle": "How it works",
-    "how": [
-      "Install it, then open a folder. The left sidebar has Quick access, the overview, the gallery and the recycle bin.",
-      "Use tabs and split view to keep two folders in sight, and drag the divider to give either side more room.",
-      "Right-click anywhere for file operations, and open Settings to change the theme, the columns, the shortcuts and the language."
-    ],
     "installTitle": "Install",
     "installBefore": "Builds are self-contained: the .NET runtime is bundled, so nothing else needs installing. Windows also needs the WebView2 runtime, which Windows 10 and 11 already have; Linux needs WebKitGTK 4.1 and libnotify (see the ",
     "readme": "README",
