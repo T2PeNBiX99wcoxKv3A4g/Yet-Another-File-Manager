@@ -115,11 +115,18 @@
         <Copy SourceFiles="$(RustReleaseDir)/$(RustLibraryName)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
     </Target>
 
-    <!-- SevenZipExtractor copies 7z.dll into x64/x86 beside the build output; publish has to carry
-         the same native library or the extra archive formats cannot be opened. -->
-    <Target Name="CopySevenZipOnPublish" AfterTargets="Publish" Condition="Exists('$(OutDir)x64/7z.dll')">
-        <Copy SourceFiles="$(OutDir)x64/7z.dll" DestinationFolder="$(PublishDir)x64" SkipUnchangedFiles="true" />
-        <Copy SourceFiles="$(OutDir)x86/7z.dll" DestinationFolder="$(PublishDir)x86" SkipUnchangedFiles="true" />
+    <!-- The vendored 7z.dll is newer than the one SevenZipExtractor brings, and both are copied to
+         the same place; this runs after the package's copy so ours is the one that stays. Native/7z
+         /update.ps1 refreshes the pair. -->
+    <Target Name="CopyBundled7Zip" AfterTargets="CopyFilesToOutputDirectory">
+        <Copy SourceFiles="Native\7z\x64\7z.dll" DestinationFolder="$(OutDir)x64" />
+        <Copy SourceFiles="Native\7z\x86\7z.dll" DestinationFolder="$(OutDir)x86" />
+    </Target>
+
+    <!-- Publish carries the same native library, or the extra archive formats cannot be opened. -->
+    <Target Name="CopySevenZipOnPublish" AfterTargets="Publish">
+        <Copy SourceFiles="Native\7z\x64\7z.dll" DestinationFolder="$(PublishDir)x64" />
+        <Copy SourceFiles="Native\7z\x86\7z.dll" DestinationFolder="$(PublishDir)x86" />
     </Target>
 
     <Target Name="CopyRustShellMenuOnPublish" AfterTargets="Publish" Condition="'$(OS)' == 'Windows_NT' and Exists('$(RustReleaseDir)/yafm-shellmenu.exe')">

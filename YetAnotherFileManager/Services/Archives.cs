@@ -109,8 +109,8 @@ internal static class Archives
         {
             if (UseSevenZip(archivePath))
             {
-                using var sevenZip = new ArchiveFile(archivePath, SevenZipLibrary.Value);
-                return sevenZip.Entries.Any(entry => entry.IsEncrypted);
+                using var sevenZip = ArchiveVolumes.Open(archivePath, SevenZipLibrary.Value);
+                return sevenZip.File.Entries.Any(entry => entry.IsEncrypted);
             }
 
             using var archive = ArchiveFactory.OpenArchive(archivePath, new ReaderOptions());
@@ -255,8 +255,8 @@ internal static class Archives
         {
             if (UseSevenZip(archivePath))
             {
-                using var archive = new ArchiveFile(archivePath, SevenZipLibrary.Value);
-                var entry = archive.Entries.FirstOrDefault(candidate =>
+                using var archive = ArchiveVolumes.Open(archivePath, SevenZipLibrary.Value);
+                var entry = archive.File.Entries.FirstOrDefault(candidate =>
                     !candidate.IsFolder
                     && string.Equals(NormalizeKey(candidate.FileName), normalized, StringComparison.OrdinalIgnoreCase));
 
@@ -403,8 +403,8 @@ internal static class Archives
 
         if (UseSevenZip(archivePath))
         {
-            using var sevenZip = new ArchiveFile(archivePath, SevenZipLibrary.Value);
-            sevenZip.Extract(root, true, password);
+            using var sevenZip = ArchiveVolumes.Open(archivePath, SevenZipLibrary.Value);
+            sevenZip.File.Extract(root, true, password);
             return;
         }
 
@@ -485,10 +485,10 @@ internal static class Archives
         var folders = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         var files = new List<FileEntry>();
 
-        using var archive = new ArchiveFile(physicalArchive, SevenZipLibrary.Value);
+        using var archive = ArchiveVolumes.Open(physicalArchive, SevenZipLibrary.Value);
         var encrypted = false;
 
-        foreach (var entry in archive.Entries)
+        foreach (var entry in archive.File.Entries)
         {
             encrypted |= entry.IsEncrypted;
             var key = (entry.FileName ?? "").Replace('\\', '/').Trim('/');
@@ -541,10 +541,10 @@ internal static class Archives
     /// <summary>Extracts one entry through 7z.dll.</summary>
     private static string SevenZipExtractEntry(string archivePath, string inner, string root, string? password)
     {
-        using var archive = new ArchiveFile(archivePath, SevenZipLibrary.Value);
+        using var archive = ArchiveVolumes.Open(archivePath, SevenZipLibrary.Value);
         var normalized = inner.Replace('\\', '/').TrimStart('/');
 
-        var entry = archive.Entries.FirstOrDefault(candidate =>
+        var entry = archive.File.Entries.FirstOrDefault(candidate =>
             string.Equals((candidate.FileName ?? "").Replace('\\', '/').TrimStart('/'), normalized,
                 StringComparison.OrdinalIgnoreCase));
 
@@ -978,8 +978,8 @@ internal static class Archives
 
         try
         {
-            using var archive = new ArchiveFile(archivePath, SevenZipLibrary.Value);
-            var entry = archive.Entries.FirstOrDefault(candidate => !candidate.IsFolder);
+            using var archive = ArchiveVolumes.Open(archivePath, SevenZipLibrary.Value);
+            var entry = archive.File.Entries.FirstOrDefault(candidate => !candidate.IsFolder);
             if (entry is null)
                 return false;
 
