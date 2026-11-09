@@ -593,6 +593,16 @@ export default function App() {
     }, []);
 
     /**
+     * Tells the index which folder the window is showing. It is sent before the folder is listed,
+     * so its index is read first and its own listing is written only once the user moves on.
+     */
+    const reportFocus = useCallback((id: string, path?: string) => {
+        if (!Native.available || !path || id !== focusedTabIdOf(stateRef.current)) return;
+
+        Native.send({type: "fs.focus", payload: {path}});
+    }, []);
+
+    /**
      * Paints the listing saved the last time the folder was opened, so the window never waits on the
      * disk to show something. The live listing takes over right after.
      */
@@ -617,6 +627,10 @@ export default function App() {
         const current = beginLoad(id);
 
         resetFind();
+
+        // The index hears about the folder before it is listed, so the folder being opened is
+        // already the first priority by the time its index is read.
+        reportFocus(id, path);
 
         // A refresh already has the same folder on screen, so the saved listing could only be older.
         const paintCache = !keepFresh || !stateRef.current.tabs.find((tab) => tab.id === id)?.listing;
@@ -721,7 +735,7 @@ export default function App() {
                     }),
             }));
         }
-    }, [beginLoad, includeLinks, patch, resetFind, showCached]);
+    }, [beginLoad, includeLinks, patch, reportFocus, resetFind, showCached]);
 
     /** Goes to a location: a folder is listed, a yafm:// page is simply shown. */
     const openLocation = useCallback((id: string, target: string) => {
@@ -757,13 +771,17 @@ export default function App() {
 
         const current = beginLoad(id);
 
+        // Same as a navigation: the folder being shown becomes the index's first priority at once.
+        reportFocus(id, target);
+
         // Same as a navigation: the new folder starts empty and the saved listing fills it.
         patch(id, () => ({index, listing: null, loading: true, error: null}));
 
         try {
+            // The saved listing and the disk walk run side by side; waiting for the cache first
+            // made every step back wait for the index before the folder could even be walked.
             if (!isShareLocation(target))
-                await showCached(id, target, current);
-            if (!current()) return;
+                void showCached(id, target, current);
 
             const listing = isShareLocation(target)
                 ? await listSharedDirectory(target)
@@ -804,7 +822,7 @@ export default function App() {
                 error: message(cause),
             }));
         }
-    }, [beginLoad, includeLinks, patch, resetFind, showCached]);
+    }, [beginLoad, includeLinks, patch, reportFocus, resetFind, showCached]);
 
     const openFiles = useCallback((path?: string, activate = true) => {
         const tab = createTab(path ?? viewLocation("home"));
@@ -1942,6 +1960,16 @@ export default function App() {
 
         Native.send({type: "fs.watch", payload: {paths: watchFolders, owner: "app"}});
     }, [watchKey, activeId]);
+
+    // The index follows the tab on screen: the folder the user is looking at has its index read
+    // before any other work, and its own listing is only written once they have moved on.
+    const focusPath = kindOf(focusedTab) === "files" ? folderOf(focusedTab) : "";
+
+    useEffect(() => {
+        if (!Native.available) return;
+
+        Native.send({type: "fs.focus", payload: {path: focusPath || null}});
+    }, [focusPath]);
 
     // A change in a folder on screen refreshes every tab showing it in place, so two tabs at the
     // same path never disagree about an entry that was just deleted, renamed or created.

@@ -27,7 +27,7 @@ internal static class FolderIndex
     private static readonly ConcurrentDictionary<string, bool> Unusable = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>SQLite allows one writer at a time; reads never take this gate.</summary>
-    private static readonly SemaphoreSlim WriteGate = new(1, 1);
+    private static readonly IndexWriteGate WriteGate = new();
 
     /// <summary>Directories whose index attributes were already checked in this process.</summary>
     private static readonly ConcurrentDictionary<string, bool> Checked = new(StringComparer.OrdinalIgnoreCase);
@@ -237,7 +237,7 @@ internal static class FolderIndex
     /// <summary>Stores the complete listing, hidden and system entries included.</summary>
     public static async Task<bool> SaveListingAsync(string directory, IReadOnlyList<FileEntry> entries)
     {
-        await WriteGate.WaitAsync();
+        await WriteGate.WaitAsync(IndexFocus.Is(directory));
         try
         {
             var result = await Try.Run(async () =>
@@ -395,7 +395,7 @@ internal static class FolderIndex
     /// <summary>Removes one tag from every entry in a folder's index.</summary>
     public static async Task<bool> RemoveTagAsync(string directory, string tag)
     {
-        await WriteGate.WaitAsync();
+        await WriteGate.WaitAsync(IndexFocus.Is(directory));
 
         try
         {
@@ -505,7 +505,7 @@ internal static class FolderIndex
     /// <summary>Renames one tag in every entry and color in a folder's index.</summary>
     public static async Task<bool> RenameTagAsync(string directory, string tag, string next)
     {
-        await WriteGate.WaitAsync();
+        await WriteGate.WaitAsync(IndexFocus.Is(directory));
 
         try
         {
@@ -646,7 +646,7 @@ internal static class FolderIndex
     /// <summary>Removes the per-folder database after its data was moved elsewhere.</summary>
     public static async Task DeleteFilesAsync(string directory)
     {
-        await WriteGate.WaitAsync();
+        await WriteGate.WaitAsync(IndexFocus.Is(directory));
         try
         {
             foreach (var suffix in new[] { "", "-wal", "-shm" })
@@ -703,12 +703,20 @@ internal static class FolderIndex
     public static Task EnsureHiddenAsync(string directory) => Task.Run(() => EnsureHidden(directory));
 
     /// <summary>Stores the sizes of several entries in one transaction.</summary>
-    public static async Task<bool> SetSizesAsync(string directory, IReadOnlyDictionary<string, long> sizes)
+    public static Task<bool> SetSizesAsync(string directory, IReadOnlyDictionary<string, long> sizes) =>
+        SetValuesAsync(directory, "sizes", "bytes", sizes);
+
+    /// <summary>Stores the item counts of several entries in one transaction.</summary>
+    public static Task<bool> SetCountsAsync(string directory, IReadOnlyDictionary<string, long> counts) =>
+        SetValuesAsync(directory, "counts", "count", counts);
+
+    private static async Task<bool> SetValuesAsync(string directory, string table, string column,
+        IReadOnlyDictionary<string, long> values)
     {
-        if (sizes.Count == 0)
+        if (values.Count == 0)
             return true;
 
-        await WriteGate.WaitAsync();
+        await WriteGate.WaitAsync(IndexFocus.Is(directory));
         try
         {
             var result = await Try.Run(async () =>
@@ -720,18 +728,18 @@ internal static class FolderIndex
                 await using var transaction = await connection.BeginTransactionAsync();
                 await using var command = connection.CreateCommand();
                 command.Transaction = (SqliteTransaction)transaction;
-                command.CommandText = "INSERT INTO sizes (name, bytes, computed_at) VALUES ($name, $bytes, $now) " +
-                                      "ON CONFLICT(name) DO UPDATE SET bytes = excluded.bytes, " +
+                command.CommandText = $"INSERT INTO {table} (name, {column}, computed_at) VALUES ($name, $value, $now) " +
+                                      $"ON CONFLICT(name) DO UPDATE SET {column} = excluded.{column}, " +
                                       "computed_at = excluded.computed_at";
 
                 var name = command.Parameters.Add("$name", SqliteType.Text);
-                var bytes = command.Parameters.Add("$bytes", SqliteType.Integer);
+                var value = command.Parameters.Add("$value", SqliteType.Integer);
                 command.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
-                foreach (var (entry, size) in sizes)
+                foreach (var (entry, number) in values)
                 {
                     name.Value = entry;
-                    bytes.Value = size;
+                    value.Value = number;
                     await command.ExecuteNonQueryAsync();
                 }
 
@@ -742,7 +750,7 @@ internal static class FolderIndex
             return result.OnFailure(ex =>
             {
                 Unusable[directory] = true;
-                Log.Debug(ex, "Could not store the sizes of {Directory}", directory);
+                Log.Debug(ex, "Could not store the {Table} of {Directory}", table, directory);
             }).GetOrElse(_ => false);
         }
         finally
@@ -810,7 +818,7 @@ internal static class FolderIndex
 
     private static async Task<bool> WriteAsync(string directory, string sql, Action<SqliteCommand> bind)
     {
-        await WriteGate.WaitAsync();
+        await WriteGate.WaitAsync(IndexFocus.Is(directory));
         try
         {
             var result = await Try.Run(async () =>
@@ -870,7 +878,14 @@ internal static class FolderIndex
 
             await using (var timeout = connection.CreateCommand())
             {
-                timeout.CommandText = "PRAGMA busy_timeout = 300";
+                // A read that is only a head start gives up at once; the folder on screen, which the
+                // window is actually waiting for, is allowed to wait out a short write.
+                timeout.CommandText = (create, IndexFocus.Is(directory)) switch
+                {
+                    (true, _) => "PRAGMA busy_timeout = 2000",
+                    (false, true) => "PRAGMA busy_timeout = 250",
+                    _ => "PRAGMA busy_timeout = 100"
+                };
                 await timeout.ExecuteNonQueryAsync();
             }
 

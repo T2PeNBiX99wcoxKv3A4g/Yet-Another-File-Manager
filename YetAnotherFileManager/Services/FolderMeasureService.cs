@@ -88,14 +88,10 @@ internal sealed class FolderMeasureService : Singleton<FolderMeasureService>
             if (measured is not { } value)
                 continue;
 
-            await DirectoryIndex.SetSizeAsync(item.Parent, item.Child, value.Size);
             Queue(_pendingSizes, item.Parent, item.Child, value.Size);
 
-            if (!item.Counts)
-                continue;
-
-            await DirectoryIndex.SetCountAsync(item.Parent, item.Child, value.Count);
-            Queue(_pendingCounts, item.Parent, item.Child, value.Count);
+            if (item.Counts)
+                Queue(_pendingCounts, item.Parent, item.Child, value.Count);
         }
     }
 
@@ -203,24 +199,56 @@ internal sealed class FolderMeasureService : Singleton<FolderMeasureService>
         lock (_flushGate)
             _flushScheduled = false;
 
-        Send("fs.sizes", _pendingSizes, (parent, values) => new FsSizesPayload(parent, values));
-        Send("fs.counts", _pendingCounts, (parent, values) => new FsCountsPayload(parent, values));
+        var sizes = Take(_pendingSizes);
+        var counts = Take(_pendingCounts);
+
+        // The window gets the numbers first; persisting them is best effort and can wait.
+        Notify("fs.sizes", sizes, (parent, values) => new FsSizesPayload(parent, values));
+        Notify("fs.counts", counts, (parent, values) => new FsCountsPayload(parent, values));
+
+        _ = PersistAsync(sizes, counts);
     }
 
-    private static void Send<T>(string type,
-        ConcurrentDictionary<string, ConcurrentDictionary<string, long>> pending,
+    /// <summary>
+    ///     Writes a whole batch in one transaction per folder. Doing this per measured child made a
+    ///     folder with thirty children open thirty SQLite write transactions while a listing was
+    ///     also trying to read the same index.
+    /// </summary>
+    private static async Task PersistAsync(Dictionary<string, Dictionary<string, long>> sizes,
+        Dictionary<string, Dictionary<string, long>> counts)
+    {
+        try
+        {
+            foreach (var (parent, values) in sizes)
+                await DirectoryIndex.SetSizesAsync(parent, values);
+
+            foreach (var (parent, values) in counts)
+                await DirectoryIndex.SetCountsAsync(parent, values);
+        }
+        catch (Exception ex)
+        {
+            Serilog.Log.Warning(ex, "Could not persist the measured folder sizes");
+        }
+    }
+
+    private static Dictionary<string, Dictionary<string, long>> Take(
+        ConcurrentDictionary<string, ConcurrentDictionary<string, long>> pending)
+    {
+        var batch = new Dictionary<string, Dictionary<string, long>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var parent in pending.Keys.ToList())
+            if (pending.TryRemove(parent, out var values) && !values.IsEmpty)
+                batch[parent] = new Dictionary<string, long>(values, StringComparer.OrdinalIgnoreCase);
+
+        return batch;
+    }
+
+    private static void Notify<T>(string type, Dictionary<string, Dictionary<string, long>> batch,
         Func<string, Dictionary<string, long>, T> payload)
     {
-        foreach (var parent in pending.Keys.ToList())
-        {
-            if (!pending.TryRemove(parent, out var values) || values.IsEmpty)
-                continue;
-
-            var batch = new Dictionary<string, long>(values, StringComparer.OrdinalIgnoreCase);
-
+        foreach (var (parent, values) in batch)
             WindowManager.Instance.RunOnMainWindow(() =>
-                WindowManager.Instance.Notify(type, payload(parent, batch)));
-        }
+                WindowManager.Instance.Notify(type, payload(parent, values)));
     }
 
     private void DropQueued()

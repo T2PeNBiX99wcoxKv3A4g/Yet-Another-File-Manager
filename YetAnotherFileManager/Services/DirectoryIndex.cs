@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using PhotinoNetUtils.Utils;
 using YetAnotherFileManager.Models;
 
 namespace YetAnotherFileManager.Services;
@@ -154,11 +155,143 @@ internal static class DirectoryIndex
             () => FolderIndex.SaveListingAsync(directory, entries),
             () => CentralIndex.Instance.SaveListingAsync(directory, entries));
 
+    /// <summary>How long a folder has to stay closed before its listing is written.</summary>
+    private static readonly TimeSpan ListingDelay = TimeSpan.FromMilliseconds(750);
+
+    /// <summary>
+    ///     A folder that stays on screen is cached only after a long quiet spell; leaving it writes it
+    ///     at once, so browsing a folder never writes the index it is being painted from.
+    /// </summary>
+    private static readonly TimeSpan FocusedDelay = TimeSpan.FromSeconds(10);
+
+    /// <summary>Listings waiting for their folder to stay quiet.</summary>
+    private static readonly ConcurrentDictionary<string, PendingListing> PendingListings =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The fingerprint of the listing last written for each directory.</summary>
+    private static readonly ConcurrentDictionary<string, int> SavedListings = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    ///     Marks the folder the active tab shows. It is the only folder whose index is read without
+    ///     waiting, and its listing is not written while the user is still looking at it.
+    /// </summary>
+    public static void Focus(string? directory)
+    {
+        var previous = IndexFocus.Set(directory);
+
+        if (previous is null || string.Equals(previous, IndexFocus.Current, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        // The user just left that folder, which is the moment its listing can be stored without
+        // competing with the folder now on screen. The waiting write removes itself from the queue.
+        if (PendingListings.TryGetValue(previous, out var pending))
+            pending.Release();
+    }
+
+    /// <summary>
+    ///     Queues the listing of a directory without ever holding a listing back. Walking into a
+    ///     subdirectory and back replaces the queued write instead of starting one per visit, and a
+    ///     folder that still holds exactly what the index already has is not written at all — so the
+    ///     index stays out of the way while the user is browsing.
+    /// </summary>
+    public static void QueueListing(string directory, IReadOnlyList<FileEntry> entries)
+    {
+        var signature = SignatureOf(entries);
+
+        if (SavedListings.TryGetValue(directory, out var saved) && saved == signature)
+            return;
+
+        // The signatures are tiny, but a session that browses a whole tree must not keep one per
+        // folder forever; the next write simply stores them again.
+        if (SavedListings.Count > 1024)
+            SavedListings.Clear();
+
+        // A folder on screen is written when it is left, never while its own index is being read.
+        var pending = new PendingListing(signature,
+            IndexFocus.Is(directory) ? FocusedDelay : ListingDelay);
+
+        if (PendingListings.TryRemove(directory, out var previous))
+            previous.Cancel();
+
+        PendingListings[directory] = pending;
+
+        _ = WriteLaterAsync(directory, entries, pending);
+    }
+
+    private static async Task WriteLaterAsync(string directory, IReadOnlyList<FileEntry> entries, PendingListing pending)
+    {
+        // Either the quiet delay passes, or the folder loses the focus and is written at once.
+        await Task.WhenAny(Task.Delay(pending.Delay, pending.Token), pending.Released);
+
+        // A newer listing took over while this one was waiting.
+        if (!PendingListings.TryRemove(new KeyValuePair<string, PendingListing>(directory, pending)))
+            return;
+
+        if (await SaveListingAsync(directory, entries))
+            SavedListings[directory] = pending.Signature;
+        else
+            SavedListings.TryRemove(directory, out _);
+    }
+
+    /// <summary>
+    ///     A cheap fingerprint of a listing: enough to recognise the rows the index already holds,
+    ///     without keeping any of them in memory.
+    /// </summary>
+    private static int SignatureOf(IReadOnlyList<FileEntry> entries)
+    {
+        var hash = new HashCode();
+
+        hash.Add(entries.Count);
+
+        foreach (var entry in entries)
+        {
+            hash.Add(entry.Name, StringComparer.Ordinal);
+            hash.Add(entry.Size);
+            hash.Add(entry.Modified);
+            hash.Add(entry.Created);
+            hash.Add(entry.IsDirectory);
+            hash.Add(entry.IsHidden);
+            hash.Add(entry.IsSystem);
+            hash.Add(entry.IconSource, StringComparer.Ordinal);
+            hash.Add(entry.LinkTarget, StringComparer.Ordinal);
+            hash.Add(entry.LinkValid);
+            hash.Add(entry.LinkCount);
+        }
+
+        return hash.ToHashCode();
+    }
+
+    /// <summary>A listing that is still waiting for the directory to stay quiet.</summary>
+    private sealed class PendingListing(int signature, TimeSpan delay)
+    {
+        private readonly CancellationTokenSource _cancel = new();
+        private readonly TaskCompletionSource _now = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public int Signature { get; } = signature;
+
+        public TimeSpan Delay { get; } = delay;
+
+        public CancellationToken Token => _cancel.Token;
+
+        /// <summary>Completes when the folder is left and the write no longer has to wait.</summary>
+        public Task Released => _now.Task;
+
+        public void Release() => _now.TrySetResult();
+
+        public void Cancel() => Try.Run(_cancel.Cancel);
+    }
+
     /// <summary>Stores the sizes of several entries in one transaction.</summary>
     public static Task<bool> SetSizesAsync(string directory, IReadOnlyDictionary<string, long> sizes) =>
         WriteAsync(directory,
             () => FolderIndex.SetSizesAsync(directory, sizes),
             () => CentralIndex.Instance.SetSizesAsync(directory, sizes));
+
+    /// <summary>Stores the item counts of several entries in one transaction.</summary>
+    public static Task<bool> SetCountsAsync(string directory, IReadOnlyDictionary<string, long> counts) =>
+        WriteAsync(directory,
+            () => FolderIndex.SetCountsAsync(directory, counts),
+            () => CentralIndex.Instance.SetCountsAsync(directory, counts));
 
     public static Task<bool> SetSizeAsync(string directory, string name, long bytes) =>
         WriteAsync(directory,

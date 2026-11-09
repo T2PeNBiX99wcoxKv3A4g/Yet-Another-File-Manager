@@ -115,6 +115,10 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                     new OkPayload(Watch(request?.Paths ?? [], request?.Owner)));
             }
 
+            case "fs.focus":
+                DirectoryIndex.Focus(context.Payload<FsListRequest>()?.Path);
+                return context.Reply("fs.focus.result", new OkPayload(true));
+
             case "fs.drive.rename":
                 return context.Reply("fs.drive.rename.result", await RenameDriveAsync(context.Payload<DriveRenameRequest>()));
 
@@ -1017,24 +1021,27 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         // Explorer's own switches, so the listing matches what the user's file manager shows.
         var (showHidden, showSystem) = await Task.Run(() => (FileVisibility.ShowHidden, FileVisibility.ShowSystem));
 
-        // The index is best effort: reading it must never be able to fail a listing.
+        // The index is best effort: reading it must never be able to fail a listing. It is read
+        // while the disk is enumerated, so a busy index cannot delay opening a folder.
         await DirectoryIndex.EnsureHiddenAsync(directory.FullName);
 
-        var metadata = await DirectoryIndex.ReadMetadataAsync(directory.FullName);
-        var icons = metadata.Icons;
-        var sizes = metadata.Sizes;
-        var view = metadata.View;
-        var tags = metadata.Tags;
-        var counts = metadata.Counts;
-
-        // Tags are stored by id; the catalogue resolves them to names and owns the colours.
-        var (resolvedTags, tagColors, allTags) = ResolveTags(directory.FullName, tags, metadata.TagColors);
+        var metadata = DirectoryIndex.ReadMetadataAsync(directory.FullName);
 
         // Everything is enumerated, hidden and system entries included, so the cache is complete;
         // the response only carries what the user's settings ask to see.
         var infos = await Task.Run(() => directory.EnumerateFileSystemInfos()
             .Where(info => !DirectoryIndex.IsIndexFile(info.Name))
             .ToList());
+
+        var stored = await metadata;
+        var icons = stored.Icons;
+        var sizes = stored.Sizes;
+        var view = stored.View;
+        var tags = stored.Tags;
+        var counts = stored.Counts;
+
+        // Tags are stored by id; the catalogue resolves them to names and owns the colours.
+        var (resolvedTags, tagColors, allTags) = ResolveTags(directory.FullName, tags, stored.TagColors);
 
         // A hard-link count opens a handle per file, so only the visible Links column pays for it.
         // On a slow volume thousands of handles can take longer than the whole listing; the column
@@ -1075,8 +1082,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         if (OperatingSystem.IsWindows())
             all = await ResolveShortcutsAsync(all);
 
-        // Storing is best effort and must not hold the listing back; the next open paints it first.
-        _ = DirectoryIndex.SaveListingAsync(directory.FullName, all);
+        // Storing is best effort and must not hold the listing back or repeat itself: the write is
+        // coalesced and skipped while the folder still holds what the index already has.
+        DirectoryIndex.QueueListing(directory.FullName, all);
 
         var entries = showHidden && showSystem
             ? all
@@ -1085,7 +1093,8 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         RequestMeasurements(directory.FullName, entries, measure);
         _ = HistoryService.Instance.RecordRecentAsync(directory.FullName);
 
-        return new(directory.FullName, directory.Parent?.FullName, entries, sizes, view, resolvedTags, tagColors, allTags, counts);
+        return new(directory.FullName, directory.Parent?.FullName, entries, sizes, view, resolvedTags, tagColors,
+            allTags, counts);
     }
 
     /// <summary>
@@ -1141,11 +1150,14 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
         var directory = new DirectoryInfo(ResolvePath(path));
 
-        var entries = directory.Exists ? await DirectoryIndex.ListingAsync(directory.FullName) : null;
-        if (entries is null)
+        if (!directory.Exists)
             return new(false, null);
 
         var (showHidden, showSystem) = await Task.Run(() => (FileVisibility.ShowHidden, FileVisibility.ShowSystem));
+
+        var entries = await DirectoryIndex.ListingAsync(directory.FullName);
+        if (entries is null)
+            return new(false, null);
 
         // The saved rows carry the icon of the last scan; the icon table may be newer.
         var metadata = await DirectoryIndex.ReadMetadataAsync(directory.FullName);

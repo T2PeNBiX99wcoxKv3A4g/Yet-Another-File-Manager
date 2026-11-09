@@ -68,7 +68,7 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
 
     private readonly string _connectionString;
     private readonly Lazy<Task> _ready;
-    private readonly SemaphoreSlim _writeGate = new(1, 1);
+    private readonly IndexWriteGate _writeGate = new();
 
     public CentralIndex()
     {
@@ -322,9 +322,17 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
     }
 
     /// <summary>Stores the sizes of several entries in one transaction.</summary>
-    public async Task<bool> SetSizesAsync(string directory, IReadOnlyDictionary<string, long> sizes)
+    public Task<bool> SetSizesAsync(string directory, IReadOnlyDictionary<string, long> sizes) =>
+        SetValuesAsync(directory, "Sizes", "Bytes", sizes);
+
+    /// <summary>Stores the item counts of several entries in one transaction.</summary>
+    public Task<bool> SetCountsAsync(string directory, IReadOnlyDictionary<string, long> counts) =>
+        SetValuesAsync(directory, "Counts", "Count", counts);
+
+    private async Task<bool> SetValuesAsync(string directory, string table, string column,
+        IReadOnlyDictionary<string, long> values)
     {
-        if (sizes.Count == 0)
+        if (values.Count == 0)
             return true;
 
         await _ready.Value;
@@ -333,20 +341,20 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
         {
             await using var command = connection.CreateCommand();
             command.Transaction = transaction;
-            command.CommandText = "INSERT INTO Sizes (DirectoryKey, Name, Bytes, ComputedAt) " +
-                                  "VALUES ($key, $name, $bytes, $now) " +
-                                  "ON CONFLICT(DirectoryKey, Name) DO UPDATE SET Bytes = excluded.Bytes, " +
+            command.CommandText = $"INSERT INTO {table} (DirectoryKey, Name, {column}, ComputedAt) " +
+                                  "VALUES ($key, $name, $value, $now) " +
+                                  $"ON CONFLICT(DirectoryKey, Name) DO UPDATE SET {column} = excluded.{column}, " +
                                   "ComputedAt = excluded.ComputedAt";
 
             command.Parameters.AddWithValue("$key", KeyFor(directory));
             var name = command.Parameters.Add("$name", SqliteType.Text);
-            var bytes = command.Parameters.Add("$bytes", SqliteType.Integer);
+            var value = command.Parameters.Add("$value", SqliteType.Integer);
             command.Parameters.AddWithValue("$now", Now());
 
-            foreach (var (entry, size) in sizes)
+            foreach (var (entry, number) in values)
             {
                 name.Value = entry;
-                bytes.Value = size;
+                value.Value = number;
                 await command.ExecuteNonQueryAsync();
             }
 
@@ -399,7 +407,7 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
     /// <summary>Runs one write transaction, after moving any per-folder index into the central one.</summary>
     private async Task<T> WriteAsync<T>(string directory, Func<SqliteConnection, SqliteTransaction, Task<T>> write)
     {
-        await _writeGate.WaitAsync();
+        await _writeGate.WaitAsync(IndexFocus.Is(directory));
         try
         {
             await ImportCoreAsync(directory);
