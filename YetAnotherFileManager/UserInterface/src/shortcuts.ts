@@ -20,7 +20,6 @@ export interface ShortcutMap {
     open: string;
     newFolder: string;
     properties: string;
-    refresh: string;
     home: string;
     location: string;
     iconsView: string;
@@ -55,7 +54,6 @@ export const DefaultShortcuts: ShortcutMap = {
     open: "enter",
     newFolder: "ctrl+shift+n",
     properties: "alt+enter",
-    refresh: "f5",
     home: "alt+home",
     location: "ctrl+l",
     iconsView: "ctrl+1",

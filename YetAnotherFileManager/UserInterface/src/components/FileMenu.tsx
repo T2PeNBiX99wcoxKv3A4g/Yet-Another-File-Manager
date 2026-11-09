@@ -46,7 +46,6 @@ import {
     PencilIcon,
     PinIcon,
     PlusIcon,
-    RefreshIcon,
     ShareIcon,
     StarIcon,
     TerminalIcon,
@@ -486,13 +485,6 @@ export function FileMenu({
                 label: t("Paste"), icon: <PasteIcon size={16}/>, disabled: !canPaste,
                 shortcut: prettyShortcut(shortcuts.paste),
                 onSelect: () => onPaste(directory),
-            });
-        }
-        if (onRefresh) {
-            quick.push({
-                label: t("Refresh"), icon: <RefreshIcon size={16}/>,
-                shortcut: prettyShortcut(shortcuts.refresh),
-                onSelect: onRefresh,
             });
         }
         if (!archiveView)

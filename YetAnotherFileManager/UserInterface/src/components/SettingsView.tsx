@@ -81,7 +81,6 @@ const ShortcutRows: { id: keyof ShortcutMap; label: string; note: string }[] = [
     {id: "open", label: "Open", note: "Opens the selected folder or file."},
     {id: "newFolder", label: "New folder", note: "Creates a folder in the current directory. F10 also works."},
     {id: "properties", label: "Properties", note: "Opens the shell properties sheet."},
-    {id: "refresh", label: "Refresh", note: "Reads the current folder again."},
     {id: "iconsView", label: "Icons view", note: "Switches the folder to the grid view."},
     {id: "detailsView", label: "Details view", note: "Switches the folder to the list view."},
     {id: "terminal", label: "Open terminal", note: "Opens Windows Terminal in the current folder; Dolphin uses F4 for its terminal panel."},

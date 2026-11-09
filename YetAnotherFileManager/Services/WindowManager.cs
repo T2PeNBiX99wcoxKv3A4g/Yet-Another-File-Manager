@@ -84,9 +84,15 @@ internal sealed class WindowManager : Singleton<WindowManager>
         {
             case "app.ready":
                 _mainWindowReady = true;
+                // A path that arrived while a tray launch was still rendering is a request to see
+                // the window, so it must not be hidden right after the navigation is queued.
+                var showForPath = _pendingPaths.Count > 0 || _startupPaths.Count > 0;
                 // Flushing sends a web message, which has to happen on the UI thread.
                 RunOnMainWindow(FlushPendingPaths);
-                HideWhenRendered();
+                if (showForPath)
+                    RunOnMainWindow(() => Show(_mainWindow!));
+                else
+                    HideWhenRendered();
                 break;
 
             case "app.navigate.done":

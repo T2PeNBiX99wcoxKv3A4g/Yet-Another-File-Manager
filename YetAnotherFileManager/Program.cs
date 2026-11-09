@@ -191,7 +191,11 @@ internal static partial class Program
             // Without a tray the window is the only way back in, so it always shows there.
             var hasTray = OperatingSystem.IsWindows() ||
                           OperatingSystem.IsLinux() && LinuxDiagnostics.AppIndicatorLibrary is not null;
-            manager.ShowMainWindowOnStartup = !SettingsService.Instance.Current.StartsHidden || !hasTray;
+            // Opening a folder or a yafm:// link is a direct user action. Do not swallow that launch
+            // into a hidden tray start just because the logon entry normally starts quietly.
+            manager.ShowMainWindowOnStartup = startupPaths.Count > 0
+                || !SettingsService.Instance.Current.StartsHidden
+                || !hasTray;
 
             using var tray = CreateTray(manager.IconPath);
 

@@ -920,14 +920,11 @@ export function FileList({
                     : currentDirectory ? [currentDirectory] : []));
                 return;
             }
-
-            if (combo === shortcuts.refresh)
-                run(refresh);
         };
 
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [allPaths, copy, createEntry, currentDirectory, enableShortcuts, menu, onOpen, onOpenFile, paste, refresh,
+    }, [allPaths, copy, createEntry, currentDirectory, enableShortcuts, menu, onOpen, onOpenFile, paste,
         remove, rename, rows, selected, shortcuts]);
 
     const confirmDialog = pendingConfirm && (
