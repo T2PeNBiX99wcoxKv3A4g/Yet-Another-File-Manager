@@ -32,6 +32,7 @@ internal static unsafe class RustNative
     private static readonly ScanImagesDelegate ScanImagesNative;
     private static readonly FreeBufferDelegate FreeBufferNative;
     private static readonly CompressDelegate CompressNative;
+    private static readonly CompressXzDelegate CompressXzNative;
     private static readonly MeasureDelegate MeasureNative;
     private static readonly DeleteDelegate DeleteNative;
 
@@ -48,6 +49,10 @@ internal static unsafe class RustNative
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate int CompressDelegate(ushort* paths, nuint pathsLength, ushort* output,
         nuint outputLength, uint threads);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int CompressXzDelegate(ushort* paths, nuint pathsLength, ushort* output,
+        nuint outputLength, int level);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate int MeasureDelegate(ushort* paths, nuint pathsLength, uint threads, out ulong files);
@@ -115,6 +120,25 @@ internal static unsafe class RustNative
                 -4 => ZipResult.TooLarge,
                 _ => throw new IOException($"The native ZIP writer failed with {status}.")
             };
+        }
+    }
+
+    /// <summary>
+    ///     Compresses the paths into a ZIP whose entries use the XZ method, which the managed writer
+    ///     cannot produce. The archive is streamed, so no file has to fit in memory.
+    /// </summary>
+    public static void CompressXz(IReadOnlyList<string> paths, string output, int level)
+    {
+        var joined = string.Join('\0', paths);
+
+        fixed (char* pathsPointer = joined)
+        fixed (char* outputPointer = output)
+        {
+            var status = CompressXzNative((ushort*)pathsPointer, (nuint)joined.Length,
+                (ushort*)outputPointer, (nuint)output.Length, level);
+
+            if (status != 0)
+                throw new IOException($"The native XZ writer failed with {status}.");
         }
     }
 
@@ -230,6 +254,7 @@ internal static unsafe class RustNative
         ScanImagesNative = Resolve<ScanImagesDelegate>(handle, "yafm_scan_images");
         FreeBufferNative = Resolve<FreeBufferDelegate>(handle, "yafm_free");
         CompressNative = Resolve<CompressDelegate>(handle, "yafm_compress");
+        CompressXzNative = Resolve<CompressXzDelegate>(handle, "yafm_compress_xz");
         MeasureNative = Resolve<MeasureDelegate>(handle, "yafm_measure");
         DeleteNative = Resolve<DeleteDelegate>(handle, "yafm_delete");
 

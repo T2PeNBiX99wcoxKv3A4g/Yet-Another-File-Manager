@@ -10,6 +10,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use flate2::write::DeflateEncoder;
 use flate2::Compression;
 use rayon::prelude::*;
+use zip::write::SimpleFileOptions;
+use zip::{CompressionMethod, DateTime, ZipWriter};
 
 use crate::split_paths;
 
@@ -97,6 +99,88 @@ impl From<String> for CompressError {
     fn from(_: String) -> Self {
         CompressError::Other
     }
+}
+
+/// Compresses `paths` into `output` with the XZ method inside a ZIP. This is the one method the
+/// managed writer cannot produce, and the only ZIP setting 7-Zip's command line was kept for.
+///
+/// Every size is accepted: the archive is streamed, so a file is never held in memory.
+#[no_mangle]
+pub unsafe extern "C" fn yafm_compress_xz(
+    paths: *const u16,
+    paths_len: usize,
+    output: *const u16,
+    output_len: usize,
+    level: i32,
+) -> i32 {
+    if paths.is_null() || output.is_null() {
+        return -1;
+    }
+
+    let joined = String::from_utf16_lossy(std::slice::from_raw_parts(paths, paths_len));
+    let output = String::from_utf16_lossy(std::slice::from_raw_parts(output, output_len));
+    let sources = split_paths(&joined);
+
+    if sources.is_empty() || output.is_empty() {
+        return -2;
+    }
+
+    match compress_xz(&sources, &output, level) {
+        Ok(()) => 0,
+        Err(_) => -3,
+    }
+}
+
+fn compress_xz(sources: &[&str], output: &str, level: i32) -> Result<(), String> {
+    let items = collect(sources)?;
+    if items.is_empty() {
+        return Err("nothing to compress".into());
+    }
+
+    let file = File::create(output).map_err(|error| error.to_string())?;
+    let mut writer = ZipWriter::new(BufWriter::new(file));
+    let level = i64::from(level.clamp(0, 9));
+
+    for item in &items {
+        let options = SimpleFileOptions::default()
+            .compression_method(CompressionMethod::Xz)
+            .compression_level(Some(level))
+            .last_modified_time(stamp(item));
+
+        match item {
+            Item::Directory { name } => {
+                writer.add_directory(name, options).map_err(|error| error.to_string())?;
+            }
+            Item::File { path, name, .. } => {
+                writer.start_file(name, options).map_err(|error| error.to_string())?;
+
+                let mut input =
+                    File::open(path).map_err(|error| format!("{}: {error}", path.display()))?;
+                std::io::copy(&mut input, &mut writer).map_err(|error| error.to_string())?;
+            }
+        }
+    }
+
+    writer
+        .finish()
+        .map_err(|error| error.to_string())?
+        .flush()
+        .map_err(|error| error.to_string())?;
+
+    Ok(())
+}
+
+/// The timestamp the ZIP entry carries, in the DOS form the format stores.
+fn stamp(item: &Item) -> DateTime {
+    let modified = match item {
+        Item::File { path, .. } => std::fs::metadata(path)
+            .ok()
+            .and_then(|metadata| metadata.modified().ok()),
+        Item::Directory { .. } => None,
+    };
+
+    let (time, date) = dos_time(modified);
+    DateTime::try_from_msdos(date, time).unwrap_or_default()
 }
 
 fn compress(sources: &[&str], output: &str, threads: usize) -> Result<(), CompressError> {
@@ -213,28 +297,20 @@ fn collect(sources: &[&str]) -> Result<Vec<Item>, String> {
 
         // The relative name includes the source folder itself, matching the managed writer.
         let parent = path.parent().unwrap_or_else(|| Path::new(""));
-        let mut any = false;
 
+        // Every folder gets an entry of its own, which is what keeps an empty one from vanishing.
         for entry in walkdir::WalkDir::new(path).follow_links(false) {
             let entry = entry.map_err(|error| error.to_string())?;
-            if !entry.file_type().is_file() {
+            let relative = entry.path().strip_prefix(parent).unwrap_or(entry.path());
+            let name = relative.to_string_lossy().replace('\\', "/");
+
+            if entry.file_type().is_dir() {
+                items.push(Item::Directory { name: format!("{name}/") });
                 continue;
             }
 
-            let relative = entry.path().strip_prefix(parent).unwrap_or(entry.path());
-            let name = relative.to_string_lossy().replace('\\', "/");
             let size = entry.metadata().map(|metadata| metadata.len()).unwrap_or(0);
-
             items.push(Item::File { path: entry.path().to_path_buf(), name, size });
-            any = true;
-        }
-
-        if !any {
-            let name = path
-                .file_name()
-                .and_then(|name| name.to_str())
-                .unwrap_or("folder");
-            items.push(Item::Directory { name: format!("{name}/") });
         }
     }
 

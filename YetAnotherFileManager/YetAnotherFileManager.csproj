@@ -75,8 +75,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <!-- 7z.exe handles the ZIP variants 7z.dll's wrapper cannot write: XZ-in-ZIP and split ZIP. -->
-        <None Include="Native\7z\**" Link="7z\%(RecursiveDir)%(Filename)%(Extension)"
+        <!-- 7z.dll is redistributed under the LGPL, so its license ships beside it. -->
+        <None Include="Native\licenses\**" Link="licenses\%(RecursiveDir)%(Filename)%(Extension)"
               CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     </ItemGroup>
 

@@ -642,7 +642,7 @@ internal static partial class FileOperations
 
         var split = request.SplitSize ?? 0;
         var method = (request.Method ?? "").ToLowerInvariant();
-        var cli = format is "zip" or "zipx" && (method == "xz" || split > 0 && format == "zip");
+        var xz = format is "zip" or "zipx" && method == "xz";
 
         var baseName = request.Name.Trim();
         if (baseName.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
@@ -660,9 +660,9 @@ internal static partial class FileOperations
 
         try
         {
-            if (cli)
+            if (xz)
             {
-                await CompressWithSevenZipCliAsync(request, entries, output);
+                await Task.Run(() => RustNative.CompressXz(entries, output, request.Level));
             }
             else
             {
@@ -674,7 +674,8 @@ internal static partial class FileOperations
                     CompressionMethod = MethodOf(format, request.Method),
                     CompressionLevel = LevelOf(request.Level),
                     IncludeEmptyDirectories = true,
-                    VolumeSize = split,
+                    // 7z.dll splits its own archives; a ZIP is split below, as parts of the file.
+                    VolumeSize = format == "7z" ? split : 0,
                 };
 
                 var encryption = (request.Encryption ?? "none").ToLowerInvariant();
@@ -694,6 +695,11 @@ internal static partial class FileOperations
                 var encrypted = password is { Length: > 0 } && encryption is not ("none" or "");
                 await Task.Run(() => compressor.CompressFileDictionary(files, output, encrypted ? password : null));
             }
+
+            // A ZIP volume is a plain byte split of the finished file: 7z.dll refuses to make
+            // multi-volume ZIPs, and the parts still read back as one archive.
+            if (split > 0 && format is "zip" or "zipx")
+                SplitArchive(output, split);
         }
         catch (Exception ex)
         {
@@ -776,58 +782,35 @@ internal static partial class FileOperations
         _ => SevenZip.CompressionLevel.Ultra,
     };
 
-    private static async Task CompressWithSevenZipCliAsync(CompressRequest request, IReadOnlyList<string> entries,
-        string output)
+    /// <summary>
+    ///     Cuts a finished archive into numbered parts, the way 7-Zip's split archives are made: each
+    ///     part is a slice of one byte stream, so the first volume opens as the whole archive.
+    /// </summary>
+    private static void SplitArchive(string path, long limit)
     {
-        var executable = Path.Combine(AppContext.BaseDirectory, "7z", "7z.exe");
-        if (!File.Exists(executable))
-            throw new FileNotFoundException("The bundled 7z.exe is missing.");
+        var buffer = new byte[1024 * 1024];
+        var part = 1;
+        long written = 0;
 
-        var roots = entries.Select(entry => Directory.Exists(entry)
-            ? Path.GetDirectoryName(entry.TrimEnd(Path.DirectorySeparatorChar))!
-            : Path.GetDirectoryName(entry)!).ToList();
-        var common = roots[0];
+        using var input = File.OpenRead(path);
 
-        while (roots.Any(root => !root.Equals(common, StringComparison.OrdinalIgnoreCase)
-                   && !root.StartsWith(common.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar,
-                       StringComparison.OrdinalIgnoreCase)))
-                common = Path.GetDirectoryName(common) ?? Path.GetPathRoot(common)!;
-
-        var start = new ProcessStartInfo(executable)
+        while (written < input.Length)
         {
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            WorkingDirectory = common,
-        };
+            using var output = File.Create($"{path}.{part++:000}");
 
-        start.ArgumentList.Add("a");
-        start.ArgumentList.Add("-tzip");
-        start.ArgumentList.Add($"-mm={(request.Method?.Equals("xz", StringComparison.OrdinalIgnoreCase) == true ? "XZ" : "Deflate")}");
-        start.ArgumentList.Add($"-mx={Math.Clamp(request.Level, 0, 9)}");
-        start.ArgumentList.Add("-y");
+            for (var remaining = limit; remaining > 0;)
+            {
+                var read = input.Read(buffer, 0, (int)Math.Min(buffer.Length, remaining));
+                if (read == 0)
+                    break;
 
-        var encryption = (request.Encryption ?? "none").ToLowerInvariant();
-        if (request.Password is { Length: > 0 } && encryption is not ("none" or ""))
-        {
-            start.ArgumentList.Add($"-p{request.Password}");
-            if (encryption == "aes256") start.ArgumentList.Add("-mem=AES256");
+                output.Write(buffer, 0, read);
+                remaining -= read;
+                written += read;
+            }
         }
 
-        if (request.SplitSize is > 0)
-            start.ArgumentList.Add($"-v{request.SplitSize}b");
-
-        start.ArgumentList.Add(output);
-        foreach (var entry in entries)
-            start.ArgumentList.Add(Path.GetRelativePath(common, entry));
-
-        using var process = Process.Start(start) ?? throw new InvalidOperationException("Could not start 7z.exe.");
-        var error = await process.StandardError.ReadToEndAsync();
-        await process.WaitForExitAsync();
-
-        if (process.ExitCode != 0)
-            throw new IOException(error.Trim());
+        File.Delete(path);
     }
 
     private static PathOperationPayload CompressCore(IReadOnlyList<string> paths, string output,
