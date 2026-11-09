@@ -1,39 +1,60 @@
-import {useEffect, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent, type PointerEvent as ReactPointerEvent} from "react";
+import {
+    type CSSProperties,
+    type DragEvent,
+    type MouseEvent,
+    type PointerEvent as ReactPointerEvent,
+    useEffect,
+    useRef,
+    useState
+} from "react";
 import styled from "styled-components";
 import {
     clearFrequent,
     clearRecent,
     DefaultView,
     DefaultViewDefaults,
+    type DirectoryListing,
+    type Drive,
+    type FrequentEntry,
     listDirectory,
     listFrequent,
     listPlaces,
     openFile,
-    renameDrive,
-    type DirectoryListing,
-    type Drive,
-    type FrequentEntry,
     type Place,
     type RecentEntry,
+    renameDrive,
 } from "../api/files";
-import {getSettings, saveSettings, type AppSettings} from "../api/settings";
-import {useTextSearch, type PageFind} from "../ui/textSearch";
+import {type AppSettings, getSettings, saveSettings} from "../api/settings";
+import {type PageFind, useTextSearch} from "../ui/textSearch";
 import {requestFile, requestFolder} from "../folder-picker";
 import {useMediaUrl} from "../api/icons";
 import {Native, useTranslation} from "@photino-net-utils/bridge";
 import {FileList} from "./FileList";
-import {ArrowUpIcon, CheckIcon, CrossIcon, DriveIcon, GlobeIcon, GridIcon, ListIcon, MenuIcon, PencilIcon, PinIcon, PlusIcon, ServerIcon, VideoIcon} from "./Icons";
-import {BuiltInVideos, BuiltinBanners, builtInUrl, isBuiltInVideo} from "../backgrounds/concepts";
+import {
+    ArrowUpIcon,
+    CheckIcon,
+    CrossIcon,
+    DriveIcon,
+    GlobeIcon,
+    GridIcon,
+    ListIcon,
+    MenuIcon,
+    PencilIcon,
+    PinIcon,
+    PlusIcon,
+    ServerIcon,
+    VideoIcon
+} from "./Icons";
+import {BuiltinBanners, builtInUrl, BuiltInVideos, isBuiltInVideo} from "../backgrounds/concepts";
 import {setSelectionMenu, useSelectionMenuGroup} from "../ui/selectionMenu";
 import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
 import {quickPlace, useQuickAccess} from "../quick";
 import {copyPaths} from "../api/operations";
-import {DefaultShortcuts} from "../shortcuts";
+import {DefaultShortcuts, wantsNewTab} from "../shortcuts";
 import {FileMenu, type FileMenuTarget} from "./FileMenu";
 import {baseName, driveLetter, driveName, formatBytes, isRemoteUrl, plural, usageTone} from "../utils/format";
-import {wantsNewTab} from "../shortcuts";
-import {buildPanels, PanelGlyph, type Panel, type PanelKind, type ViewMode} from "../panels";
+import {buildPanels, type Panel, PanelGlyph, type PanelKind, type ViewMode} from "../panels";
 import {IconPicker} from "./IconPicker";
 import {pairShareDevice, refreshSharePeers, shareLocation, type SharePeerInfo} from "../api/share";
 
@@ -1378,7 +1399,7 @@ export function OverviewView({
     // Panel titles sit just below the banner's bottom edge. The artwork already keeps fading
     // below the frame, so a small gap reads as part of the picture instead of a hard cut.
     const bannerOverlap = 0;
-    const bannerPanelOffset = 20;
+    const bannerPanelOffset = 100;
     const [framing, setFraming] = useState(false);
 
     /** In the picker, a card selects for the footer instead of opening a tab. */
