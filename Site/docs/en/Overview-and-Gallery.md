@@ -28,7 +28,8 @@ While the overview is in edit mode:
 - The pin button keeps the panel in the sidebar as well.
 - List/grid switches that panel's layout, the arrows move it, and `×` removes it.
 
-The arrows reorder the panels, and the layout is stored in the settings.
+The arrows reorder the panels, and the layout is stored in the settings. **Restore default panels** puts
+every panel back the way the app ships them, titles, icons and pins included.
 
 ## Quick access
 
