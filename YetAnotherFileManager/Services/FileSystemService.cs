@@ -900,7 +900,11 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
         return await Task.Run(() => Try.Run(() => Process.Start(new ProcessStartInfo(path)
             {
-                UseShellExecute = true
+                UseShellExecute = true,
+                // A script or program started from a file expects the file's folder as its working
+                // directory, the way Explorer starts it. Without this, a .bat that calls a relative
+                // path next to it runs in the app's folder and silently does nothing.
+                WorkingDirectory = Path.GetDirectoryName(path) ?? ""
             }) is not null)
             .GetOrElse(ex =>
             {

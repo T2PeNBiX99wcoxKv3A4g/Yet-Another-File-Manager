@@ -182,6 +182,8 @@ internal static unsafe partial class AssociatedPrograms
         return Try.Run(() => Process.Start(new ProcessStartInfo(programPath)
         {
             UseShellExecute = false,
+            // The program was asked for from this file, so it starts where the file lives.
+            WorkingDirectory = Path.GetDirectoryName(filePath) ?? "",
             ArgumentList =
             {
                 filePath
