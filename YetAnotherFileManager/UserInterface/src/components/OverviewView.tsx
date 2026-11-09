@@ -323,10 +323,10 @@ const BannerHandle = styled.div`
     }
 `;
 
-const Content = styled.div<{ $overlap?: number }>`
+const Content = styled.div<{ $offset?: number }>`
     position: relative;
     z-index: 2;
-    margin-top: ${({$overlap}) => $overlap ? `-${$overlap}px` : "0"};
+    margin-top: ${({$offset}) => $offset ? `${$offset}px` : "0"};
 `;
 
 const BannerPanel = styled.section`
@@ -1375,9 +1375,10 @@ export function OverviewView({
     const bannerSpare = Math.max(0, naturalHeight * bannerScale - bannerWindow);
     const bannerTravel = Math.min(BannerSlack, bannerSpare / 2, Math.max(20, bannerHeight * 0.42));
     const bannerShift = bannerTravel + bannerOffset * Math.max(0, bannerSpare - bannerTravel * 2);
-    // Panel titles should sit right at the banner's bottom edge. The artwork already keeps
-    // fading below the frame, so the panels do not need to rise into it.
+    // Panel titles sit just below the banner's bottom edge. The artwork already keeps fading
+    // below the frame, so a small gap reads as part of the picture instead of a hard cut.
     const bannerOverlap = 0;
+    const bannerPanelOffset = 20;
     const [framing, setFraming] = useState(false);
 
     /** In the picker, a card selects for the footer instead of opening a tab. */
@@ -2643,7 +2644,7 @@ export function OverviewView({
                 </Banner>
             )}
 
-            <Content $overlap={settings?.overviewBanner ? bannerOverlap : 0}>
+            <Content $offset={settings?.overviewBanner ? bannerPanelOffset : 0}>
             {editing && (
                 <BannerPanel>
                     <BannerPanelHead>
