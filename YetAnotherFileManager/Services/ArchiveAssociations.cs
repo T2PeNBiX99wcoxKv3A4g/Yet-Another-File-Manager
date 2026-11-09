@@ -41,7 +41,7 @@ internal static class ArchiveAssociations
         {
             using var command = Registry.CurrentUser.OpenSubKey(
                 $@"Software\Classes\{ProgId}\shell\open\command");
-            registeredPath = ExecutableFrom(command?.GetValue(null) as string);
+            registeredPath = RegistryCommand.Executable(command?.GetValue(null) as string);
         }).OnFailure(ex => Log.Debug(ex, "Could not read the archive association status"));
 
         var current = Environment.ProcessPath;
@@ -52,23 +52,6 @@ internal static class ArchiveAssociations
                 StringComparison.OrdinalIgnoreCase)).GetOrElse(_ => false);
 
         return new ArchiveStatusPayload(registeredPath is { Length: > 0 }, matches, registeredPath);
-    }
-
-    private static string? ExecutableFrom(string? command)
-    {
-        if (string.IsNullOrWhiteSpace(command))
-            return null;
-
-        var trimmed = command.Trim();
-
-        if (trimmed.StartsWith('"'))
-        {
-            var closing = trimmed.IndexOf('"', 1);
-            return closing > 1 ? Environment.ExpandEnvironmentVariables(trimmed[1..closing]) : null;
-        }
-
-        var space = trimmed.IndexOf(' ');
-        return Environment.ExpandEnvironmentVariables(space > 0 ? trimmed[..space] : trimmed);
     }
 
     [SupportedOSPlatform("windows")]

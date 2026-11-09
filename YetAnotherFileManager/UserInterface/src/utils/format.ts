@@ -242,6 +242,11 @@ export function normalizePath(path: string): string {
     return value.toLowerCase();
 }
 
+/** Whether two paths name the same place, ignoring separators, a trailing slash and case. */
+export function samePath(left: string, right: string): boolean {
+    return normalizePath(left) === normalizePath(right);
+}
+
 /** " (C:)" — the letter Windows uses, or nothing for a volume mounted at a path. */
 export function driveLetter(drive: { name: string }): string {
     const root = drive.name.replace(/[\\/]+$/, "");

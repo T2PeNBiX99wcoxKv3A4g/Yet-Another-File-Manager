@@ -10,7 +10,7 @@ import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
 import {quickPlace, useQuickAccess} from "../quick";
 import {Native} from "@photino-net-utils/bridge";
-import {baseName, driveName, formatBytes, plural, usageTone} from "../utils/format";
+import {baseName, driveName, formatBytes, plural, samePath, usageTone} from "../utils/format";
 import {wantsNewTab} from "../shortcuts";
 
 interface SidebarProps {
@@ -84,7 +84,7 @@ export function Sidebar({
             return places;
 
         return (panel.places ?? []).map((path) => {
-            const known = places.find((place) => isSamePath(place.path, path));
+            const known = places.find((place) => samePath(place.path, path));
 
             return {
                 name: settings?.placeNames?.[path] ?? known?.name ?? (baseName(path) || path),
@@ -131,7 +131,7 @@ export function Sidebar({
                             {panel.kind === "quick" && quickItems(panel).map((place) => (
                                 <Item
                                     key={place.path}
-                                    $active={showFiles && isSamePath(currentPath, place.path)}
+                                    $active={showFiles && samePath(currentPath, place.path)}
                                     onClick={(event) => onNavigate(place.path, wantsNewTab(event))}
                                     title={place.path}
                                     type="button"
@@ -147,7 +147,7 @@ export function Sidebar({
                                 return (
                                     <Item
                                         key={entry.path}
-                                        $active={showFiles && isSamePath(currentPath, entry.path)}
+                                        $active={showFiles && samePath(currentPath, entry.path)}
                                         onClick={(event) => entry.isDirectory
                                             ? onNavigate(entry.path, wantsNewTab(event))
                                             : void openFile(entry.path)}
@@ -177,7 +177,7 @@ export function Sidebar({
                                 return (
                                     <Item
                                         key={drive.name}
-                                        $active={showFiles && isSamePath(currentPath, drive.name)}
+                                        $active={showFiles && samePath(currentPath, drive.name)}
                                         onClick={(event) => onNavigate(drive.name, wantsNewTab(event))}
                                         title={drive.name}
                                         type="button"
@@ -273,7 +273,7 @@ function FolderItems({path, onNavigate}: { path: string; onNavigate: (path: stri
         return Native.on((evt) => {
             const event = evt as { type?: string; data?: { path?: string } };
             if (event.type !== "fs.changed" || typeof event.data?.path !== "string") return;
-            if (!isSamePath(event.data.path, path)) return;
+            if (!samePath(event.data.path, path)) return;
 
             void listDirectory(path, false).then(setListing, () => undefined);
         });
@@ -316,13 +316,6 @@ function SidebarEntry({entry, onNavigate}: { entry: FileEntry; onNavigate: (path
             <Label>{place?.name || entry.name}</Label>
         </Item>
     );
-}
-
-/** Comparing paths is enough here: the backend always answers with canonical full paths. */
-function isSamePath(left: string, right: string): boolean {
-    const normalize = (value: string) => value.replace(/[\\/]+$/, "").toLowerCase();
-
-    return normalize(left) === normalize(right);
 }
 
 const Aside = styled.aside`

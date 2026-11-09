@@ -54,7 +54,7 @@ internal static class DefaultFileManager
             active = string.Equals(shell?.GetValue(null) as string, "open", StringComparison.OrdinalIgnoreCase);
 
             using var command = Registry.CurrentUser.OpenSubKey(DirectoryCommand);
-            registeredPath = ExecutableFrom(command?.GetValue(null) as string);
+            registeredPath = RegistryCommand.Executable(command?.GetValue(null) as string);
         }).OnFailure(ex => Log.Debug(ex, "Could not read the default file manager status"));
 
         var current = Environment.ProcessPath;
@@ -63,23 +63,6 @@ internal static class DefaultFileManager
                 StringComparison.OrdinalIgnoreCase)).GetOrElse(_ => false);
 
         return new DefaultManagerStatusPayload(active && registeredPath is { Length: > 0 }, matches, registeredPath);
-    }
-
-    private static string? ExecutableFrom(string? command)
-    {
-        if (string.IsNullOrWhiteSpace(command))
-            return null;
-
-        var trimmed = command.Trim();
-
-        if (trimmed.StartsWith('"'))
-        {
-            var closing = trimmed.IndexOf('"', 1);
-            return closing > 1 ? Environment.ExpandEnvironmentVariables(trimmed[1..closing]) : null;
-        }
-
-        var space = trimmed.IndexOf(' ');
-        return Environment.ExpandEnvironmentVariables(space > 0 ? trimmed[..space] : trimmed);
     }
 
     [SupportedOSPlatform("windows")]

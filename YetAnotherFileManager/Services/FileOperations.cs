@@ -172,7 +172,7 @@ internal static partial class FileOperations
     private static async Task<bool> CreatePastedFileAsync(string directory, string baseName, string extension,
         byte[] content, string label)
     {
-        var path = FreePastedName(directory, baseName, extension);
+        var path = UniqueName(directory, baseName, extension);
 
         try
         {
@@ -190,20 +190,6 @@ internal static partial class FileOperations
             redo: () => WritePastedFileAsync(path, content));
 
         return true;
-    }
-
-    private static string FreePastedName(string directory, string baseName, string extension)
-    {
-        for (var attempt = 1; attempt < 1000; attempt++)
-        {
-            var name = attempt == 1 ? $"{baseName}{extension}" : $"{baseName} ({attempt}){extension}";
-            var path = Path.Combine(directory, name);
-
-            if (!File.Exists(path) && !Directory.Exists(path))
-                return path;
-        }
-
-        return Path.Combine(directory, $"{baseName} {Guid.NewGuid():N}{extension}");
     }
 
     private static Task<FileHistory.Step> WritePastedFileAsync(string path, byte[] content) =>
@@ -631,29 +617,19 @@ internal static partial class FileOperations
 
         try
         {
-            for (var attempt = 1; attempt < 1000; attempt++)
-            {
-                var name = attempt == 1 ? "New folder" : $"New folder ({attempt})";
-                var path = Path.Combine(directory, name);
+            var path = UniqueName(directory, "New folder", "");
+            Directory.CreateDirectory(path);
 
-                if (Directory.Exists(path) || File.Exists(path))
-                    continue;
+            // Windows only turns the flag on while the folder is still empty.
+            if (caseSensitive)
+                CaseFolders.MarkNew(path);
 
-                Directory.CreateDirectory(path);
+            FileHistory.Instance.Record("New folder",
+                paths: [path],
+                undo: () => DeleteEmptyFolderAsync(path),
+                redo: () => CreateFolderAsync(path));
 
-                // Windows only turns the flag on while the folder is still empty.
-                if (caseSensitive)
-                    CaseFolders.MarkNew(path);
-
-                FileHistory.Instance.Record("New folder",
-                    paths: [path],
-                    undo: () => DeleteEmptyFolderAsync(path),
-                    redo: () => CreateFolderAsync(path));
-
-                return new PathOperationPayload(true, path, null);
-            }
-
-            return new PathOperationPayload(false, null, Localization.Get("Could not find a free name for the new folder."));
+            return new PathOperationPayload(true, path, null);
         }
         catch (Exception ex)
         {
@@ -672,24 +648,15 @@ internal static partial class FileOperations
 
         try
         {
-            for (var attempt = 1; attempt < 1000; attempt++)
-            {
-                var name = attempt == 1 ? $"New file{suffix}" : $"New file ({attempt}){suffix}";
-                var path = Path.Combine(directory, name);
+            var path = UniqueName(directory, "New file", suffix);
+            await File.WriteAllTextAsync(path, "");
 
-                if (Directory.Exists(path) || File.Exists(path))
-                    continue;
+            FileHistory.Instance.Record("New file",
+                paths: [path],
+                undo: () => DeleteFileAsync(path),
+                redo: () => CreateEmptyFileAsync(path));
 
-                await File.WriteAllTextAsync(path, "");
-                FileHistory.Instance.Record("New file",
-                    paths: [path],
-                    undo: () => DeleteFileAsync(path),
-                    redo: () => CreateEmptyFileAsync(path));
-
-                return new PathOperationPayload(true, path, null);
-            }
-
-            return new PathOperationPayload(false, null, Localization.Get("Could not find a free name for the new file."));
+            return new PathOperationPayload(true, path, null);
         }
         catch (Exception ex)
         {
@@ -1253,14 +1220,22 @@ internal static partial class FileOperations
             }
         });
 
-    private static string UniquePath(string directory, string baseName, string extension)
+    private static string UniquePath(string directory, string baseName, string extension) =>
+        UniqueName(directory, baseName, extension);
+
+    /// <summary>The first free "name", "name (2)" … in a folder; a GUID fallback avoids an endless loop.</summary>
+    private static string UniqueName(string directory, string baseName, string extension)
     {
-        var path = Path.Combine(directory, baseName + extension);
+        for (var attempt = 1; attempt < 1000; attempt++)
+        {
+            var name = attempt == 1 ? $"{baseName}{extension}" : $"{baseName} ({attempt}){extension}";
+            var path = Path.Combine(directory, name);
 
-        for (var attempt = 2; File.Exists(path) || Directory.Exists(path); attempt++)
-            path = Path.Combine(directory, $"{baseName} ({attempt}){extension}");
+            if (!File.Exists(path) && !Directory.Exists(path))
+                return path;
+        }
 
-        return path;
+        return Path.Combine(directory, $"{baseName} {Guid.NewGuid():N}{extension}");
     }
 
     /// <summary>Opens the shell's properties sheet for the first selected entry.</summary>

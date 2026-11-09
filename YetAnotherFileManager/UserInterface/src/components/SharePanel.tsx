@@ -10,6 +10,7 @@ import {
 } from "../api/share";
 import {openUrl} from "../api/system";
 import {elevatedPanel} from "../ui/panel";
+import {samePath} from "../utils/format";
 import {panelInStyle} from "../ui/motion";
 import {AppIcon, CrossIcon, GlobeIcon, PlusIcon, ServerIcon} from "./Icons";
 import {CountBadge} from "./CountBadge";
@@ -57,8 +58,7 @@ export function SharePanel({currentFolder}: { currentFolder: string }) {
         }
     };
 
-    const alreadyShared = list?.shares.some((share) =>
-        share.path.replace(/[\\/]+$/, "").toLowerCase() === currentFolder.replace(/[\\/]+$/, "").toLowerCase()) ?? false;
+    const alreadyShared = list?.shares.some((share) => samePath(share.path, currentFolder)) ?? false;
 
     return (
         <Root ref={root}>

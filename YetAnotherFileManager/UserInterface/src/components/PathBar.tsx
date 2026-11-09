@@ -10,6 +10,8 @@ import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
 import {ContextMenu} from "./ContextMenu";
 import {elevatedPanel} from "../ui/panel";
+import {samePath} from "../utils/format";
+import {isViewLocation} from "../views";
 
 interface PathBarProps {
     path: string;
@@ -295,7 +297,7 @@ export function PathBar({path, label, icon, focusToken, onNavigate, onContextMen
                     },
                     // yafm:// pages are not file system objects, so neither the shell's
                     // "Open with" nor the shell's Properties dialog can do anything for them.
-                    ...(/^yafm:\/\//i.test(crumbMenu.path)
+                    ...(!isViewLocation(crumbMenu.path)
                         ? []
                         : [
                             {
@@ -344,7 +346,6 @@ function breadcrumbs(path: string): Crumb[] {    const separator = path.includes
  */
 function crumbsFor(path: string, quick: Record<string, Place>): Crumb[] {
     const crumbs = breadcrumbs(path);
-    const normalize = (value: string) => value.replace(/[\\/]+$/, "").toLowerCase();
 
     let deepest = -1;
     let match: Place | null = null;
@@ -352,7 +353,7 @@ function crumbsFor(path: string, quick: Record<string, Place>): Crumb[] {
     for (const place of Object.values(quick)) {
         if (place.name.trim().length === 0) continue;
 
-        const index = crumbs.findIndex((crumb) => normalize(crumb.path) === normalize(place.path));
+        const index = crumbs.findIndex((crumb) => samePath(crumb.path, place.path));
 
         if (index > deepest) {
             deepest = index;
@@ -371,7 +372,7 @@ function crumbsFor(path: string, quick: Record<string, Place>): Crumb[] {
  * without a separator is not a path yet, so it gets no suggestions.
  */
 function completionQuery(value: string): { parent: string; prefix: string } | null {
-    if (value.toLowerCase().startsWith("yafm://")) return null;
+    if (isViewLocation(value)) return null;
 
     const cut = Math.max(value.lastIndexOf("/"), value.lastIndexOf("\\"));
     if (cut < 0) return null;

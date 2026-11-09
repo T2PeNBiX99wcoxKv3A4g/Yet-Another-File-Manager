@@ -53,7 +53,7 @@ import {quickPlace, useQuickAccess} from "../quick";
 import {copyPaths} from "../api/operations";
 import {DefaultShortcuts, wantsNewTab} from "../shortcuts";
 import {FileMenu, type ArchiveExtractMode, type FileMenuTarget} from "./FileMenu";
-import {baseName, driveLetter, driveName, formatBytes, isRemoteUrl, plural, usageTone} from "../utils/format";
+import {baseName, driveLetter, driveName, formatBytes, isRemoteUrl, plural, samePath, usageTone} from "../utils/format";
 import {buildPanels, type Panel, PanelGlyph, type PanelKind, type ViewMode} from "../panels";
 import {IconPicker} from "./IconPicker";
 import {pairShareDevice, refreshSharePeers, shareLocation, type SharePeerInfo} from "../api/share";
@@ -1957,7 +1957,7 @@ export function OverviewView({
         };
 
         const pin = async (path: string | null, isDirectory: boolean) => {
-            if (!path || favorites.some((entry) => entry.path.toLowerCase() === path.toLowerCase()))
+            if (!path || favorites.some((entry) => samePath(entry.path, path)))
                 return;
 
             await save({favorites: [...favorites, {path, name: baseName(path) || path, isDirectory}]});
@@ -2979,13 +2979,6 @@ function InlineEditor({value, onChange, onCommit, onCancel, maxLength = 120}: {
     );
 }
 
-/** Windows paths compare case-insensitively and ignore a trailing separator. */
-function samePath(left: string, right: string): boolean {
-    const normalize = (value: string) => value.replace(/[\\/]+$/, "").toLowerCase();
-
-    return normalize(left) === normalize(right);
-}
-
 /** The folders this user opens most often, ranked by how many visits the host counted. */
 function FrequentBody({mode, onOpen, onContextMenu, onPick, onSelectionChange, version}: {
     mode: ViewMode;
@@ -3117,7 +3110,7 @@ function FolderBody({path, mode, onOpen, onContextMenu, onPick, onSelectionChang
     const applyRename = (from: string, to: string) => setListing((current) => current && ({
         ...current,
         entries: current.entries.map((entry) =>
-            entry.fullPath.toLowerCase() === from.toLowerCase()
+            samePath(entry.fullPath, from)
                 ? {...entry, name: baseName(to), fullPath: to}
                 : entry),
     }));
@@ -3129,7 +3122,7 @@ function FolderBody({path, mode, onOpen, onContextMenu, onPick, onSelectionChang
         return Native.on((evt) => {
             const event = evt as { type?: string; data?: { path?: string } };
             if (event.type !== "fs.changed" || typeof event.data?.path !== "string") return;
-            if (event.data.path.replace(/[\\\\/]+$/, "").toLowerCase() !== path.replace(/[\\\\/]+$/, "").toLowerCase()) return;
+            if (!samePath(event.data.path, path)) return;
 
             void listDirectory(path, false).then(setListing, () => undefined);
         });

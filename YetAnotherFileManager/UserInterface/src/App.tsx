@@ -87,7 +87,7 @@ import {TooltipLayer} from "./components/TooltipLayer";
 import {viewTitles, type TabKind} from "./tabs";
 import {buildPanels} from "./panels";
 import {Native, ResizeHandles, useTranslation, useWindowCorners, type Translate} from "@photino-net-utils/bridge";
-import {applyTimeFormat, archiveFile, baseName, formatBytes, isArchiveLocation, isArchivePath, isZipArchiveLocation, normalizePath, plural} from "./utils/format";
+import {applyTimeFormat, archiveFile, baseName, formatBytes, isArchiveLocation, isArchivePath, isZipArchiveLocation, normalizePath, plural, samePath} from "./utils/format";
 import {applyTheme} from "./theme";
 import {applyFonts} from "./fonts";
 import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "./storage";
@@ -103,8 +103,7 @@ import {
     wantsNewTab,
     type ShortcutMap,
 } from "./shortcuts";
-
-type ViewKind = Exclude<TabKind, "files">;
+import {parseLocation, viewKind, viewLocation, type ViewKind} from "./views";
 
 /**
  * Every tab is a list of locations; a location is either a folder path or a <c>yafm://</c> link to
@@ -127,16 +126,6 @@ interface Tab {
     /** Removed from the tab bar; it only exists as the second pane of another tab. */
     hidden?: boolean;
 }
-
-const ViewScheme = "yafm://";
-
-const ViewNames: Record<string, ViewKind> = {
-    overview: "home",
-    home: "home",
-    settings: "settings",
-    recycle: "recycle",
-    gallery: "gallery",
-};
 
 let nextTabId = 0;
 
@@ -173,31 +162,6 @@ const ArchiveEncodings = [
     {value: "874", label: "Thai (CP874)"},
     {value: "65001", label: "UTF-8"},
 ];
-
-/** The address of one of the built-in pages. */
-function viewLocation(kind: ViewKind): string {
-    return `${ViewScheme}${kind === "home" ? "overview" : kind}`;
-}
-
-/** Reads a yafm:// link, or answers null when the text is a folder path instead. */
-function viewKind(location: string): ViewKind | null {
-    if (!location.toLowerCase().startsWith(ViewScheme)) return null;
-
-    const name = location.slice(ViewScheme.length).replace(/\/+$/, "").toLowerCase();
-
-    return ViewNames[name] ?? null;
-}
-
-/** What the address bar sends: a folder path or a yafm:// link. */
-function parseLocation(input: string): string | null {
-    const value = input.trim();
-    if (value.length === 0) return null;
-    if (!value.toLowerCase().startsWith(ViewScheme)) return value;
-
-    const kind = ViewNames[value.slice(ViewScheme.length).replace(/\/+$/, "").toLowerCase()];
-
-    return kind ? viewLocation(kind) : null;
-}
 
 function locationOf(tab: Tab): string {
     return tab.history[tab.index] ?? viewLocation("home");
@@ -263,12 +227,6 @@ function message(cause: unknown): string {
     return cause instanceof Error ? cause.message : String(cause);
 }
 
-/** Paths from the host and from the interface differ only in separators and trailing slashes. */
-function samePath(left: string, right: string): boolean {
-    const normalize = (value: string) => value.replace(/[\\/]+/g, "\\").replace(/\\$/, "").toLowerCase();
-
-    return normalize(left) === normalize(right);
-}
 
 /** The parent of a folder path, even before its listing has arrived. */
 function parentOf(path: string): string | null {
