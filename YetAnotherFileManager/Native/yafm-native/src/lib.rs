@@ -1,11 +1,12 @@
 //! Bulk filesystem work for YetAnotherFileManager.
 //!
-//! The library is split by job: the gallery scan, ZIP creation, and measuring or deleting a tree.
-//! Each job is reached through a small C ABI, so its entry point sits at the top of the module and
-//! the buffers it hands out are released with [`yafm_free`].
+//! The library is split by job: the gallery scan, archive creation, and measuring or deleting a
+//! tree. Each job is reached through a small C ABI, so its entry point sits at the top of the module
+//! and the buffers it hands out are released with [`yafm_free`].
 
 mod archive;
 mod gallery;
+mod seven;
 mod tree;
 
 /// Splits the `\0` separated paths a caller passes as one UTF-16 string.

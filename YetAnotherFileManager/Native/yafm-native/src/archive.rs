@@ -11,7 +11,7 @@ use flate2::write::DeflateEncoder;
 use flate2::Compression;
 use rayon::prelude::*;
 use zip::write::SimpleFileOptions;
-use zip::{CompressionMethod, DateTime, ZipWriter};
+use zip::{AesMode, CompressionMethod, DateTime, ZipWriter};
 
 use crate::split_paths;
 
@@ -101,17 +101,24 @@ impl From<String> for CompressError {
     }
 }
 
-/// Compresses `paths` into `output` with the XZ method inside a ZIP. This is the one method the
-/// managed writer cannot produce, and the only ZIP setting 7-Zip's command line was kept for.
+/// Compresses `paths` into `output` with the method, level and encryption the caller chose. This is
+/// the writer for everything the fast parallel path cannot do: the other methods, encryption, and
+/// files too large to hold in memory.
 ///
-/// Every size is accepted: the archive is streamed, so a file is never held in memory.
+/// `method` is 0 store, 1 deflate, 2 bzip2, 3 lzma, 4 xz, 5 ppmd. Deflate64 is not here: it has no
+/// encoder outside 7-Zip, so the caller keeps that one on 7z.dll. `encryption` is 0 none, 2 AES-128,
+/// 3 AES-192, 4 AES-256; ZipCrypto also stays with 7z.dll.
 #[no_mangle]
-pub unsafe extern "C" fn yafm_compress_xz(
+pub unsafe extern "C" fn yafm_zip_create(
     paths: *const u16,
     paths_len: usize,
     output: *const u16,
     output_len: usize,
+    method: u32,
     level: i32,
+    encryption: u32,
+    password: *const u16,
+    password_len: usize,
 ) -> i32 {
     if paths.is_null() || output.is_null() {
         return -1;
@@ -119,19 +126,43 @@ pub unsafe extern "C" fn yafm_compress_xz(
 
     let joined = String::from_utf16_lossy(std::slice::from_raw_parts(paths, paths_len));
     let output = String::from_utf16_lossy(std::slice::from_raw_parts(output, output_len));
+
+    let password = if password.is_null() || password_len == 0 {
+        None
+    } else {
+        Some(String::from_utf16_lossy(std::slice::from_raw_parts(password, password_len)))
+    };
+
     let sources = split_paths(&joined);
 
     if sources.is_empty() || output.is_empty() {
         return -2;
     }
 
-    match compress_xz(&sources, &output, level) {
+    match write_zip(&sources, &output, method, level, encryption, password.as_deref()) {
         Ok(()) => 0,
         Err(_) => -3,
     }
 }
 
-fn compress_xz(sources: &[&str], output: &str, level: i32) -> Result<(), String> {
+fn write_zip(
+    sources: &[&str],
+    output: &str,
+    method: u32,
+    level: i32,
+    encryption: u32,
+    password: Option<&str>,
+) -> Result<(), String> {
+    let method = match method {
+        0 => CompressionMethod::Stored,
+        1 => CompressionMethod::Deflated,
+        2 => CompressionMethod::Bzip2,
+        3 => CompressionMethod::Lzma,
+        4 => CompressionMethod::Xz,
+        5 => CompressionMethod::Ppmd,
+        other => return Err(format!("unknown ZIP method {other}")),
+    };
+
     let items = collect(sources)?;
     if items.is_empty() {
         return Err("nothing to compress".into());
@@ -142,10 +173,25 @@ fn compress_xz(sources: &[&str], output: &str, level: i32) -> Result<(), String>
     let level = i64::from(level.clamp(0, 9));
 
     for item in &items {
-        let options = SimpleFileOptions::default()
-            .compression_method(CompressionMethod::Xz)
-            .compression_level(Some(level))
+        let mut options = SimpleFileOptions::default()
+            .compression_method(method)
+            // Zip64 keeps an archive readable once it passes 4 GiB; every current tool accepts it.
+            .large_file(true)
             .last_modified_time(stamp(item));
+
+        // Storing takes no level; the crate rejects one.
+        if method != CompressionMethod::Stored {
+            options = options.compression_level(Some(level));
+        }
+
+        if let Some(password) = password {
+            options = match encryption {
+                2 => options.with_aes_encryption(AesMode::Aes128, password),
+                3 => options.with_aes_encryption(AesMode::Aes192, password),
+                4 => options.with_aes_encryption(AesMode::Aes256, password),
+                other => return Err(format!("unknown ZIP encryption {other}")),
+            };
+        }
 
         match item {
             Item::Directory { name } => {

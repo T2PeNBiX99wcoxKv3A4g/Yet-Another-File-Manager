@@ -550,7 +550,7 @@ internal static partial class FileOperations
         if (!Directory.Exists(request.Directory))
             return new PathOperationPayload(false, null, Localization.Get("The destination folder is no longer there."));
 
-        if (NeedsSevenZipCompressor(request))
+        if (request.Format.ToLowerInvariant() is "zip" or "zipx" or "7z")
             return await CompressWithSevenZipAsync(request, entries);
 
         var (archiveType, compression, extension) = request.Format.ToLowerInvariant() switch
@@ -603,27 +603,37 @@ internal static partial class FileOperations
         return result;
     }
 
-    private static bool NeedsSevenZipCompressor(CompressRequest request)
+    private static bool UsesSevenZipDll(string format, string method, string encryption)
     {
-        var format = request.Format.ToLowerInvariant();
-        var method = (request.Method ?? "").ToLowerInvariant();
-        var encryption = (request.Encryption ?? "none").ToLowerInvariant();
-        var split = request.SplitSize ?? 0;
-
-        if (format == "zipx")
-            return true;
-
-        if (format is not ("zip" or "7z"))
+        if (format is not ("zip" or "zipx"))
             return false;
 
-        if (split > 0)
-            return format is "zip" or "7z";
-
-        if (encryption is not ("none" or ""))
+        if (encryption == "zipcrypto")
             return true;
 
-        return format == "zip" && method is not ("" or "default" or "deflate");
+        // zipx has no method of its own: an unchanged choice means LZMA, which only 7-Zip writes.
+        return method == "deflate64"
+               || method == "lzma"
+               || format == "zipx" && method is "" or "default";
     }
+
+    private static uint ZipMethodId(string method) => method switch
+    {
+        "store" => 0,
+        "bzip2" => 2,
+        "lzma" => 3,
+        "xz" => 4,
+        "ppmd" => 5,
+        _ => 1
+    };
+
+    private static uint ZipEncryptionId(string encryption) => encryption switch
+    {
+        "aes128" => 2,
+        "aes192" => 3,
+        "aes256" => 4,
+        _ => 0
+    };
 
     private static async Task<PathOperationPayload> CompressWithSevenZipAsync(CompressRequest request,
         List<string> entries, bool recordHistory = true)
@@ -642,7 +652,6 @@ internal static partial class FileOperations
 
         var split = request.SplitSize ?? 0;
         var method = (request.Method ?? "").ToLowerInvariant();
-        var xz = format is "zip" or "zipx" && method == "xz";
 
         var baseName = request.Name.Trim();
         if (baseName.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
@@ -654,34 +663,31 @@ internal static partial class FileOperations
             return new PathOperationPayload(false, null, Localization.Get("That archive name is not valid."));
 
         var output = UniquePath(request.Directory, baseName, extension);
-        var files = ArchiveFiles(entries);
-        if (files.Count == 0)
-            return new PathOperationPayload(false, null, Localization.Get("There is nothing to compress."));
 
         try
         {
-            if (xz)
-            {
-                await Task.Run(() => RustNative.CompressXz(entries, output, request.Level));
-            }
-            else
+            // Only the ZIP settings no Rust encoder covers go through 7z.dll: Deflate64, LZMA and
+            // the legacy ZipCrypto. Everything else, 7z included, is written here.
+            var encryption = (request.Encryption ?? "none").ToLowerInvariant();
+            var password = encryption is "none" or "" ? null : request.Password;
+
+            if (UsesSevenZipDll(format, method, encryption))
             {
                 SevenZipSharpBase.SetLibraryPath(Archives.SevenZipLibraryPath);
 
+                var files = ArchiveFiles(entries);
+                if (files.Count == 0)
+                    return new PathOperationPayload(false, null, Localization.Get("There is nothing to compress."));
+
                 var compressor = new SevenZipSharpCompressor
                 {
-                    ArchiveFormat = format == "7z" ? SevenZip.OutArchiveFormat.SevenZip : SevenZip.OutArchiveFormat.Zip,
+                    ArchiveFormat = SevenZip.OutArchiveFormat.Zip,
                     CompressionMethod = MethodOf(format, request.Method),
                     CompressionLevel = LevelOf(request.Level),
                     IncludeEmptyDirectories = true,
-                    // 7z.dll splits its own archives; a ZIP is split below, as parts of the file.
-                    VolumeSize = format == "7z" ? split : 0,
                 };
 
-                var encryption = (request.Encryption ?? "none").ToLowerInvariant();
-                var password = request.Password;
-
-                if (format is "zip" or "zipx" && encryption is not ("none" or ""))
+                if (encryption is not ("none" or ""))
                 {
                     compressor.ZipEncryptionMethod = encryption switch
                     {
@@ -692,13 +698,40 @@ internal static partial class FileOperations
                     };
                 }
 
-                var encrypted = password is { Length: > 0 } && encryption is not ("none" or "");
-                await Task.Run(() => compressor.CompressFileDictionary(files, output, encrypted ? password : null));
+                await Task.Run(() => compressor.CompressFileDictionary(files, output, password));
+            }
+            else if (format == "7z")
+            {
+                await Task.Run(() => RustNative.Compress7z(entries, output, password));
+            }
+            else
+            {
+                // The parallel writer is the fastest for the plain ZIP setting; everything else,
+                // including encryption and very large files, streams through the general writer.
+                var quick = method is "" or "default" or "deflate"
+                            && request.Level == 5 && split == 0 && password is null;
+
+                RustNative.ZipResult? native = null;
+
+                if (quick)
+                {
+                    native = Try.Run(() => RustNative.Compress(entries, output))
+                        .OnFailure(ex => Log.Warning(ex, "The native ZIP writer failed; using the streaming writer"))
+                        .Match(found => (RustNative.ZipResult?)found, _ => null);
+                }
+
+                if (native != RustNative.ZipResult.Ok)
+                {
+                    Try.Run(() => File.Delete(output));
+
+                    await Task.Run(() => RustNative.CompressZip(entries, output, ZipMethodId(method),
+                        request.Level, ZipEncryptionId(encryption), password));
+                }
             }
 
-            // A ZIP volume is a plain byte split of the finished file: 7z.dll refuses to make
-            // multi-volume ZIPs, and the parts still read back as one archive.
-            if (split > 0 && format is "zip" or "zipx")
+            // A 7-Zip volume is a plain cut of the finished file: the parts still read back as one
+            // archive, and 7z.dll refuses to make a multi-volume ZIP itself.
+            if (split > 0)
                 SplitArchive(output, split);
         }
         catch (Exception ex)
@@ -821,23 +854,6 @@ internal static partial class FileOperations
             ? Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories).LongCount()
             : 1), int.MaxValue);
         TaskCenter.Instance.UpdateTotal(taskId, total, 0);
-
-        // The native writer is much faster for the common ZIP setting and works in parallel; the
-        // streaming SharpCompress path below handles alternate levels, formats and very large files.
-        if (archiveType == ArchiveType.Zip && compression == CompressionType.Deflate && level == 5)
-        {
-            var native = Try.Run(() => RustNative.Compress(paths, output))
-                .OnFailure(ex => Log.Warning(ex, "The native ZIP writer failed; using the streaming writer"))
-                .GetOrNull();
-
-            if (native == RustNative.ZipResult.Ok)
-            {
-                TaskCenter.Instance.Complete(taskId);
-                return new PathOperationPayload(true, output, null);
-            }
-
-            Try.Run(() => File.Delete(output));
-        }
 
         try
         {
