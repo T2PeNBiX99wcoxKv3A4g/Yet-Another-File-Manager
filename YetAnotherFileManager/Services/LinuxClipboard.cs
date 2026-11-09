@@ -49,6 +49,42 @@ internal static class LinuxClipboard
         _ = RunWithInput("xclip", ["-selection", "clipboard", "-t", "text/uri-list", "-in"], "");
     }
 
+    /// <summary>Whether the clipboard offers plain text.</summary>
+    public static bool HasText() =>
+        Types().Any(type => type.StartsWith("text/plain", StringComparison.OrdinalIgnoreCase)
+                            || type is "UTF8_STRING" or "STRING");
+
+    /// <summary>Whether the clipboard offers a PNG image.</summary>
+    public static bool HasImage() => Types().Any(type =>
+        string.Equals(type, "image/png", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Reads the clipboard's text, or null when it has none.</summary>
+    public static string? ReadText()
+    {
+        foreach (var (command, arguments) in new[]
+                 {
+                     ("wl-paste", new[]{"--no-newline"}),
+                     ("xclip", new[]{"-selection", "clipboard", "-o"})
+                 })
+            if (Run(command, arguments) is { Length: > 0 } text)
+                return text;
+
+        return null;
+    }
+
+    /// <summary>Reads the clipboard's image as PNG bytes, or null when it has none.</summary>
+    public static byte[]? ReadImagePng() =>
+        RunBytes("wl-paste", ["--no-newline", "--type", "image/png"])
+        ?? RunBytes("xclip", ["-selection", "clipboard", "-t", "image/png", "-o"]);
+
+    private static string[] Types()
+    {
+        var types = Run("wl-paste", ["--list-types"])
+                    ?? Run("xclip", ["-selection", "clipboard", "-t", "TARGETS", "-o"]);
+
+        return types?.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
+    }
+
     /// <summary>The value compared with a later read, to tell a cut made here from an outside copy.</summary>
     public static string Signature(IReadOnlyList<string> paths) => string.Join('\n', paths);
 
@@ -86,6 +122,30 @@ internal static class LinuxClipboard
             try
             {
                 return process.WaitForExit(2000) && process.ExitCode == 0 ? output : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+    }
+
+    private static byte[]? RunBytes(string command, string[] arguments)
+    {
+        var process = Try.Run(() => Process.Start(Command(command, arguments))).GetOrNull();
+        if (process is null)
+            return null;
+
+        using (process)
+        {
+            try
+            {
+                using var output = new MemoryStream();
+                process.StandardOutput.BaseStream.CopyTo(output);
+
+                return process.WaitForExit(2000) && process.ExitCode == 0 && output.Length > 0
+                    ? output.ToArray()
+                    : null;
             }
             catch
             {

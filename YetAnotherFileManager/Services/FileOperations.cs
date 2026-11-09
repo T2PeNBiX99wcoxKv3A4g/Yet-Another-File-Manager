@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
@@ -23,6 +25,11 @@ namespace YetAnotherFileManager.Services;
 internal static partial class FileOperations
 {
     private const uint CfHDrop = 15;
+    private const uint CfBitmap = 2;
+    private const uint CfText = 1;
+    private const uint CfDib = 8;
+    private const uint CfUnicodeText = 13;
+    private const uint CfDibV5 = 17;
     private const uint GmemMoveable = 0x0002;
 
     /// <summary>Text previews stop here, so a huge log cannot freeze the details panel.</summary>
@@ -68,33 +75,43 @@ internal static partial class FileOperations
         }
     }
 
-    /// <summary>Whether the clipboard currently carries files that can be pasted.</summary>
+    /// <summary>Whether the clipboard carries something this app can paste: files, an image or text.</summary>
     public static bool ClipboardHasFiles()
     {
         if (OperatingSystem.IsLinux())
         {
             var (paths, _) = LinuxClipboard.ReadFiles();
-            return paths.Count > 0;
+            return paths.Count > 0 || LinuxClipboard.HasText() || LinuxClipboard.HasImage();
         }
 
         if (!OperatingSystem.IsWindows()) return false;
 
-        if (!IsClipboardFormatAvailable(CfHDrop) || !OpenClipboard())
-            return false;
-
-        NativeMethods.CloseClipboard();
-        return true;
+        return IsClipboardFormatAvailable(CfHDrop)
+               || IsClipboardFormatAvailable(CfUnicodeText)
+               || IsClipboardFormatAvailable(CfText)
+               || IsClipboardFormatAvailable(CfBitmap)
+               || IsClipboardFormatAvailable(CfDib)
+               || IsClipboardFormatAvailable(CfDibV5);
     }
 
-    /// <summary>Copies or moves the files on the clipboard into a folder.</summary>
+    /// <summary>
+    ///     Pastes files when the clipboard has them; otherwise creates a text or image file from the
+    ///     clipboard's text or bitmap. Files win, then images, then text.
+    /// </summary>
     public static async Task<bool> PasteAsync(string directory)
     {
         if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux()) return false;
+        if (!Directory.Exists(directory)) return false;
 
         var (paths, move, read) = ReadClipboardFiles();
-        if (!read || paths.Count == 0 || !Directory.Exists(directory))
-            return false;
+        if (read && paths.Count > 0)
+            return await PasteFilesAsync(directory, paths, move);
 
+        return await PasteContentAsync(directory);
+    }
+
+    private static async Task<bool> PasteFilesAsync(string directory, List<string> paths, bool move)
+    {
         var (step, created) = await CopyIntoAsync(paths, directory, move);
         if (!step.Ok)
             return false;
@@ -124,6 +141,233 @@ internal static partial class FileOperations
             });
 
         return true;
+    }
+
+    /// <summary>Turns clipboard text or a bitmap into a real file when no files were copied.</summary>
+    private static async Task<bool> PasteContentAsync(string directory)
+    {
+        if (ReadClipboardImage() is { Length: > 0 } image)
+            return await CreatePastedFileAsync(directory, "Pasted image", ".png", image, "Paste image");
+
+        if (ReadClipboardText() is { Length: > 0 } text)
+            return await CreatePastedFileAsync(directory, "Pasted text", ".txt", Encoding.UTF8.GetBytes(text),
+                "Paste text");
+
+        return false;
+    }
+
+    private static async Task<bool> CreatePastedFileAsync(string directory, string baseName, string extension,
+        byte[] content, string label)
+    {
+        var path = FreePastedName(directory, baseName, extension);
+
+        try
+        {
+            await File.WriteAllBytesAsync(path, content);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Could not create {Path}", path);
+            return false;
+        }
+
+        FileHistory.Instance.Record(label,
+            paths: [path],
+            undo: () => DeleteFileAsync(path),
+            redo: () => WritePastedFileAsync(path, content));
+
+        return true;
+    }
+
+    private static string FreePastedName(string directory, string baseName, string extension)
+    {
+        for (var attempt = 1; attempt < 1000; attempt++)
+        {
+            var name = attempt == 1 ? $"{baseName}{extension}" : $"{baseName} ({attempt}){extension}";
+            var path = Path.Combine(directory, name);
+
+            if (!File.Exists(path) && !Directory.Exists(path))
+                return path;
+        }
+
+        return Path.Combine(directory, $"{baseName} {Guid.NewGuid():N}{extension}");
+    }
+
+    private static Task<FileHistory.Step> WritePastedFileAsync(string path, byte[] content) =>
+        Task.Run(() =>
+        {
+            try
+            {
+                File.WriteAllBytes(path, content);
+                return new FileHistory.Step(true, ParentsOf([path]));
+            }
+            catch (Exception ex)
+            {
+                return new FileHistory.Step(false, ParentsOf([path]), ex.Message);
+            }
+        });
+
+    /// <summary>Reads the clipboard's text, or null when it has none.</summary>
+    private static string? ReadClipboardText()
+    {
+        if (OperatingSystem.IsLinux())
+            return LinuxClipboard.ReadText();
+
+        return OperatingSystem.IsWindows() ? ReadClipboardTextWindows() : null;
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static string? ReadClipboardTextWindows()
+    {
+        if (!OpenClipboard())
+            return null;
+
+        try
+        {
+            if (IsClipboardFormatAvailable(CfUnicodeText)
+                && NativeMethods.GetClipboardData(CfUnicodeText) is var unicode && unicode != IntPtr.Zero)
+                return ReadClipboardString(unicode, true);
+
+            if (IsClipboardFormatAvailable(CfText)
+                && NativeMethods.GetClipboardData(CfText) is var ansi && ansi != IntPtr.Zero)
+                return ReadClipboardString(ansi, false);
+
+            return null;
+        }
+        finally
+        {
+            NativeMethods.CloseClipboard();
+        }
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static string? ReadClipboardString(IntPtr handle, bool unicode)
+    {
+        var memory = NativeMethods.GlobalLock(handle);
+        if (memory == IntPtr.Zero)
+            return null;
+
+        try
+        {
+            return unicode ? Marshal.PtrToStringUni(memory) : Marshal.PtrToStringAnsi(memory);
+        }
+        finally
+        {
+            NativeMethods.GlobalUnlock(memory);
+        }
+    }
+
+    /// <summary>Reads the clipboard's bitmap as PNG bytes, or null when it has no image.</summary>
+    private static byte[]? ReadClipboardImage()
+    {
+        if (OperatingSystem.IsLinux())
+            return LinuxClipboard.ReadImagePng();
+
+        return OperatingSystem.IsWindows() ? ReadClipboardImageWindows() : null;
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static byte[]? ReadClipboardImageWindows()
+    {
+        if (!OpenClipboard())
+            return null;
+
+        try
+        {
+            foreach (var format in new[]{CfDibV5, CfDib})
+            {
+                if (!IsClipboardFormatAvailable(format))
+                    continue;
+
+                var handle = NativeMethods.GetClipboardData(format);
+                if (handle != IntPtr.Zero && DibToPng(handle) is { } png)
+                    return png;
+            }
+
+            if (IsClipboardFormatAvailable(CfBitmap))
+            {
+                var handle = NativeMethods.GetClipboardData(CfBitmap);
+                if (handle != IntPtr.Zero)
+                    return HBitmapToPng(handle);
+            }
+
+            return null;
+        }
+        finally
+        {
+            NativeMethods.CloseClipboard();
+        }
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static byte[]? HBitmapToPng(IntPtr handle)
+    {
+        try
+        {
+            using var bitmap = Bitmap.FromHbitmap(handle);
+            using var png = new MemoryStream();
+            bitmap.Save(png, ImageFormat.Png);
+            return png.ToArray();
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Could not read the clipboard bitmap");
+            return null;
+        }
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static byte[]? DibToPng(IntPtr handle)
+    {
+        var memory = NativeMethods.GlobalLock(handle);
+        if (memory == IntPtr.Zero)
+            return null;
+
+        try
+        {
+            var size = (int)GlobalSize(handle);
+            var headerSize = size >= 40 ? Marshal.ReadInt32(memory) : 0;
+
+            if (headerSize < 40 || headerSize > size)
+                return null;
+
+            var bitCount = (ushort)Marshal.ReadInt16(memory, 14);
+            var compression = (uint)Marshal.ReadInt32(memory, 16);
+            var colorsUsed = (uint)Marshal.ReadInt32(memory, 32);
+
+            var paletteSize = 0;
+            if (headerSize == 40)
+            {
+                if (compression == 3)
+                    paletteSize = 12;
+                else if (bitCount <= 8)
+                    paletteSize = (int)(colorsUsed == 0 ? 1u << bitCount : colorsUsed) * 4;
+            }
+
+            var offset = 14 + headerSize + paletteSize;
+            var total = 14 + size;
+            var bytes = new byte[total];
+
+            bytes[0] = (byte)'B';
+            bytes[1] = (byte)'M';
+            BitConverter.TryWriteBytes(bytes.AsSpan(2, 4), total);
+            BitConverter.TryWriteBytes(bytes.AsSpan(10, 4), offset);
+            Marshal.Copy(memory, bytes, 14, size);
+
+            using var image = Image.FromStream(new MemoryStream(bytes));
+            using var png = new MemoryStream();
+            image.Save(png, ImageFormat.Png);
+            return png.ToArray();
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Could not read the clipboard DIB");
+            return null;
+        }
+        finally
+        {
+            NativeMethods.GlobalUnlock(memory);
+        }
     }
 
     /// <summary>Runs a paste and reports the paths it actually created.</summary>
@@ -1350,6 +1594,9 @@ internal static partial class FileOperations
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     private static partial IntPtr GlobalAlloc(uint uFlags, nuint dwBytes);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    private static partial nuint GlobalSize(IntPtr hMem);
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     private static partial IntPtr GlobalFree(IntPtr hMem);
