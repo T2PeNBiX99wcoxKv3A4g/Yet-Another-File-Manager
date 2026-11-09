@@ -32,6 +32,12 @@ public sealed record GalleryEntry(string Path, string Name, long Modified, long 
 /// <summary>A file or folder pinned to the overview's Favorites panel.</summary>
 public sealed record FavoriteEntry(string Path, string Name, bool IsDirectory);
 
+/// <summary>
+///     One archive extension's association before this app replaced it. A null value means the
+///     user had no per-user default for that extension, so disabling removes the value again.
+/// </summary>
+public sealed record ArchiveAssociationBackup(string Extension, string? Value);
+
 /// <summary>A folder (or, later, a file) that was opened recently.</summary>
 public sealed record RecentEntry(string Path, string Name, bool IsDirectory, long At);
 
