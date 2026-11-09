@@ -30,6 +30,7 @@ import {
     ArchiveIcon,
     ArrowRightIcon,
     AppIcon,
+    CaseSensitiveIcon,
     CopyIcon,
     CrossIcon,
     CutIcon,
@@ -385,7 +386,7 @@ export function FileMenu({
                 });
                 if (!archiveView)
                     newItems.push({
-                        label: t("Case-sensitive folder"), icon: <FolderIcon size={14}/>,
+                        label: t("Case-sensitive folder"), icon: <CaseSensitiveIcon size={14}/>,
                         onSelect: () => onCreateFolder(true),
                     });
             }
@@ -635,7 +636,7 @@ export function FileMenu({
 
         if (!archiveView && target?.isDirectory && caseState !== null) {
             items.push({
-                label: t("Case-sensitive names"), icon: <FolderIcon size={14}/>,
+                label: t("Case-sensitive names"), icon: <CaseSensitiveIcon size={14}/>,
                 checked: caseState,
                 onSelect: () => void toggleCaseSensitivity(),
             });

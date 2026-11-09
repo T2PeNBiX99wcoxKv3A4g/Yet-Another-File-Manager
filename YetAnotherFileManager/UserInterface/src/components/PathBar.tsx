@@ -5,7 +5,7 @@ import {useTranslation} from "@photino-net-utils/bridge";
 import {listDirectory, type Place} from "../api/files";
 import {openWith, showProperties} from "../api/operations";
 import {useQuickAccess} from "../quick";
-import {CheckIcon, ChevronRightIcon, CrossIcon} from "./Icons";
+import {ArrowRightIcon, CheckIcon, ChevronRightIcon, CopyIcon, CrossIcon, ExecutableIcon, GearIcon, PlusIcon} from "./Icons";
 import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
 import {ContextMenu} from "./ContextMenu";
@@ -279,24 +279,36 @@ export function PathBar({path, label, icon, focusToken, onNavigate, onContextMen
                 items={[
                     {
                         label: t("Open"),
+                        icon: <ArrowRightIcon size={14}/>,
                         onSelect: () => onNavigate(crumbMenu.path),
                     },
                     {
                         label: t("Open in new tab"),
+                        icon: <PlusIcon size={14}/>,
                         onSelect: () => onNavigate(crumbMenu.path, true),
                     },
                     {
-                        label: t("Open with…"),
-                        onSelect: () => void openWith(crumbMenu.path),
-                    },
-                    {
-                        label: t("Copy path"),
+                        label: t("Copy as path"),
+                        icon: <CopyIcon size={14}/>,
+                        separatorBefore: true,
                         onSelect: () => void navigator.clipboard.writeText(crumbMenu.path),
                     },
-                    {
-                        label: t("Properties"),
-                        onSelect: () => void showProperties([crumbMenu.path]),
-                    },
+                    // yafm:// pages are not file system objects, so neither the shell's
+                    // "Open with" nor the shell's Properties dialog can do anything for them.
+                    ...(/^yafm:\/\//i.test(crumbMenu.path)
+                        ? []
+                        : [
+                            {
+                                label: t("Open with…"),
+                                icon: <ExecutableIcon size={14}/>,
+                                onSelect: () => void openWith(crumbMenu.path),
+                            },
+                            {
+                                label: t("Properties"),
+                                icon: <GearIcon size={14}/>,
+                                onSelect: () => void showProperties([crumbMenu.path]),
+                            },
+                        ]),
                 ]}
                 onClose={() => setCrumbMenu(null)}
                 x={crumbMenu.x}
