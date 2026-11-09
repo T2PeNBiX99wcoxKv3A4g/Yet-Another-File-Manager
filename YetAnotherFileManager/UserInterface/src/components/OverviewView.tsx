@@ -1377,8 +1377,6 @@ export function OverviewView({
     const bannerRef = useRef<HTMLDivElement | null>(null);
     const bannerImageRef = useRef<HTMLImageElement | null>(null);
     const bannerHeight = bannerDraft ?? settings?.overviewBannerHeight ?? 220;
-    const bannerHeightRef = useRef(bannerHeight);
-    bannerHeightRef.current = bannerHeight;
     const [bannerWidth, setBannerWidth] = useState(0);
     const [mediaSize, setMediaSize] = useState<{ width: number; height: number } | null>(null);
     const bannerOffset = Math.min(1, Math.max(0, settings?.overviewBannerOffset ?? 0.3));
@@ -1456,7 +1454,10 @@ export function OverviewView({
         let frame = 0;
         const update = () => {
             frame = 0;
-            const progress = Math.min(page.scrollTop / Math.max(bannerHeightRef.current, 1), 1);
+            // The motion follows the whole page: on a long overview it keeps drifting until the
+            // user actually reaches the end, instead of stopping after one banner height.
+            const range = Math.max(page.scrollHeight - page.clientHeight, 1);
+            const progress = Math.min(Math.max(page.scrollTop / range, 0), 1);
             page.style.setProperty("--banner-progress", `${progress}`);
         };
         const onScroll = () => {
