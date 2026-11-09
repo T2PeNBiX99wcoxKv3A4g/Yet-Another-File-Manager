@@ -71,8 +71,11 @@
             </Component>
             <Component Id="NativeHelper" Directory="INSTALLFOLDER" Guid="*">
                 <File Id="YafmNativeDll" Source="$(var.SourceDir)\yafm_native.dll" KeyPath="yes" />
-                <!-- Native COM menu reader: hosts managed shell extensions without touching the app. -->
-                <File Id="YafmShellMenuExe" Source="$(var.SourceDir)\yafm-shellmenu.exe" />
+            </Component>
+            <!-- One file per component: an automatically generated guid is only valid for a
+                 component whose keypath carries a version, and these Rust binaries carry none. -->
+            <Component Id="ShellMenuHelper" Directory="INSTALLFOLDER" Guid="*">
+                <File Id="YafmShellMenuExe" Source="$(var.SourceDir)\yafm-shellmenu.exe" KeyPath="yes" />
             </Component>
         </ComponentGroup>
     </Fragment>

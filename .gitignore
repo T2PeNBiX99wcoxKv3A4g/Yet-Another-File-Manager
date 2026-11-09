@@ -32,5 +32,9 @@ nul
 opencode.json
 .opencode/
 AGENTS.md
+
+# WiX tool cache installed by installer/windows/build-msi.ps1
+installer/windows/.wix/
+
 # Rust build output
 **/Native/**/target/
