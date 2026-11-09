@@ -23,7 +23,7 @@ import {requestFolder} from "../folder-picker";
 import {showMessage} from "../api/dialogs";
 import {prettyShortcut, type ShortcutMap} from "../shortcuts";
 import {CreateFileTypes} from "../create-types";
-import {baseName, isArchiveLocation, normalizePath} from "../utils/format";
+import {baseName, isArchiveLocation, isArchivePath, normalizePath} from "../utils/format";
 import {setLinkSource, useLinkSource} from "../ui/linkSource";
 import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
 import {
@@ -64,6 +64,9 @@ export interface FileMenuState {
     background?: boolean;
 }
 
+/** What the extraction entry should do; "choose" asks for a target folder first. */
+export type ArchiveExtractMode = "here" | "named" | "auto" | "choose";
+
 interface FileMenuProps {
     menu: FileMenuState | null;
     /** The folder the menu belongs to; used by the background entries. */
@@ -88,6 +91,8 @@ interface FileMenuProps {
     onAddToTray?: (paths: string[]) => void;
     /** Pins the selected files and folders to the overview's Favorites panel. */
     onAddFavorite?: (paths: string[]) => void;
+    /** Extracts one archive to the chosen place; "choose" asks for a folder first. */
+    onExtractArchive?: (path: string, mode: ArchiveExtractMode) => void;
     allowCompression?: boolean;
     onCompressTo?: (paths: string[], name: string) => void;
     onArchiveCreated?: (path: string, rename: boolean) => void;
@@ -100,7 +105,7 @@ interface FileMenuProps {
 export function FileMenu({
     menu, directory, target, shortcuts, canPaste = false, onClose,
     onOpen, onOpenFile, onRename, onDelete, onCopy, onPaste, onCreateFolder, onCreateFile, creationOnly = false,
-    onRefresh, onAddToTray, onAddFavorite, allowCompression = false, onCompressTo, onArchiveCreated,
+    onRefresh, onAddToTray, onAddFavorite, onExtractArchive, allowCompression = false, onCompressTo, onArchiveCreated,
 }: FileMenuProps) {
     const t = useTranslation();
     const linkSource = useLinkSource();
@@ -466,6 +471,33 @@ export function FileMenu({
                     label: t("Open in Terminal"), icon: <TerminalIcon size={14}/>,
                     onSelect: () => void openTerminal(target.path),
                 });
+        }
+
+        if (!archiveView && single && target && !target.isDirectory && isArchivePath(target.path) && onExtractArchive) {
+            items.push({
+                label: t("Extract archive"),
+                icon: <ArchiveIcon size={14}/>,
+                separatorBefore: true,
+                children: [
+                    {
+                        label: t("Extract here"), icon: <ArchiveIcon size={14}/>,
+                        onSelect: () => onExtractArchive(target.path, "here"),
+                    },
+                    {
+                        label: t("Extract to a folder named after the archive"), icon: <ArchiveIcon size={14}/>,
+                        onSelect: () => onExtractArchive(target.path, "named"),
+                    },
+                    {
+                        label: t("Auto extract to the current folder"), icon: <ArchiveIcon size={14}/>,
+                        onSelect: () => onExtractArchive(target.path, "auto"),
+                    },
+                    {
+                        label: t("Extract to…"), icon: <FolderIcon size={14}/>, separatorBefore: true,
+                        onSelect: () => onExtractArchive(target.path, "choose"),
+                    },
+                ],
+                onSelect: () => undefined,
+            });
         }
 
         if (!archiveView && single && target) {

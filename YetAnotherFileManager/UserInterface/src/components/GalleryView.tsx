@@ -14,6 +14,7 @@ import {appLocale, formatBytes, formatDate, plural} from "../utils/format";
 import {readStoredNumber, writeStoredNumber} from "../storage";
 import {RefreshIcon, MenuIcon} from "./Icons";
 import {FileList} from "./FileList";
+import type {ArchiveExtractMode} from "./FileMenu";
 import {useSelectionMenu} from "../ui/selectionMenu";
 import {PreviewPane, type PreviewInfo} from "./PreviewPane";
 import {NoFind, matchesName, type FindView} from "../find";
@@ -54,6 +55,8 @@ interface GalleryViewProps {
     onAddToTray?: (paths: string[]) => void;
     /** Pins the selected pictures to the overview's Favorites panel. */
     onAddFavorite?: (paths: string[]) => void;
+    /** Extracts an archive selected in the gallery. */
+    onExtractArchive?: (path: string, mode: ArchiveExtractMode) => void;
     /** Draw the right-side details pane, like the file browser and the recycle bin. */
     showDetails?: boolean;
     /** Play a video preview's audio; off means muted. */
@@ -78,6 +81,7 @@ export function GalleryView({
     onSelectionChange,
     onAddToTray,
     onAddFavorite,
+    onExtractArchive,
     showDetails = true,
     videoAudio = false,
     videoAutoplay = false,
@@ -390,6 +394,7 @@ export function GalleryView({
                             onRefresh={refresh}
                             onAddToTray={onAddToTray}
                             onAddFavorite={onAddFavorite}
+                            onExtractArchive={onExtractArchive}
                             groupOf={groupOf}
                             onGridScroll={onScroll}
                             gridFooter={<Sentinel $space={hasMore ? MoreSpace : 1} ref={sentinel}/>}

@@ -2090,6 +2090,7 @@ export default function App() {
                 onTransfer={transferTo}
                 onAddToTray={(paths) => void addTrayPaths(paths)}
                 onAddFavorite={(paths) => void addFavoritePaths(paths)}
+                onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
                 openOnSingleClick={settings?.openOnSingleClick ?? false}
                 pendingRename={renameRequest
                     && primary === (activePane === "primary")
@@ -2132,49 +2133,20 @@ export default function App() {
     const archiveWritable = archived && isZipArchiveLocation(activeFolder);
     const archiveEncrypted = archived && active.listing?.archiveEncrypted === true;
 
-    /**
-     * Extracts the whole archive into the folder that holds it, into a folder named after the
-     * archive, or — for "auto" — into a named folder unless the archive already wraps everything
-     * in a single top-level folder. The toolbar's left click asks for a target instead.
-     */
-    const extractActiveArchive = async (mode: "here" | "named" | "auto") => {
-        if (!archived) return;
-
-        const archive = archiveFile(activeFolder);
-        const parent = parentOf(archive);
-        if (!parent) return;
-
-        let named = mode === "named";
-
-        if (mode === "auto") {
-            const entries = samePath(activeFolder, archive)
-                ? active.listing?.entries ?? []
-                : (await listDirectory(archive, false, false, archiveEncodingRef.current, archivePasswordFor(archive))).entries;
-            named = !(entries.length === 1 && entries[0].isDirectory);
-        }
-
-        const separator = parent.includes("\\") ? "\\" : "/";
-        const target = named
-            ? `${parent.replace(/[\\/]+$/, "")}${separator}${archiveStem(archive)}`
-            : parent;
-
-        await extractInto(target);
-    };
-
-    /** Extraction writes into a folder that all tabs at that path should show immediately. */
-    const extractInto = async (target: string) => {
-        let result = await extractArchive(activeFolder, target, archiveEncodingRef.current,
-            archivePasswordFor(activeFolder));
+    /** Extracts one archive into a target folder, asking for a password when it is needed. */
+    const extractInto = async (archivePath: string, target: string) => {
+        const archive = archiveFile(archivePath);
+        let result = await extractArchive(archive, target, archiveEncodingRef.current,
+            archivePasswordFor(archive));
 
         if (!result.ok && isArchivePasswordError(result.error)) {
-            const archive = archiveFile(activeFolder);
             const stored = getArchivePassword(archive);
             if (stored) clearArchivePassword(archive);
             const typed = await requestArchivePassword(archive, !!stored);
 
             if (typed) {
                 setArchivePassword(archive, typed);
-                result = await extractArchive(activeFolder, target, archiveEncodingRef.current, typed);
+                result = await extractArchive(archive, target, archiveEncodingRef.current, typed);
             }
         }
 
@@ -2188,12 +2160,49 @@ export default function App() {
         void load(active.id, target, true);
     };
 
+    /**
+     * Runs the extraction modes the toolbar and the context menu share: into the folder that holds
+     * the archive, into a folder named after it, automatically (no extra folder when the archive
+     * already wraps everything in one top-level folder), or into a folder the user picks.
+     */
+    const extractArchiveTo = async (path: string, mode: "here" | "named" | "auto" | "choose") => {
+        const archive = archiveFile(path);
+        const parent = parentOf(archive);
+        if (!parent) return;
+
+        if (mode === "choose") {
+            const target = await requestFolder(parent);
+            if (target) await extractInto(archive, target);
+            return;
+        }
+
+        let named = mode === "named";
+        if (mode === "auto") {
+            const entries = samePath(archive, activeFolder)
+                ? active.listing?.entries ?? []
+                : (await listDirectory(archive, false, false, archiveEncodingRef.current,
+                    archivePasswordFor(archive))).entries;
+            named = !(entries.length === 1 && entries[0].isDirectory);
+        }
+
+        const separator = parent.includes("\\") ? "\\" : "/";
+        const target = named
+            ? `${parent.replace(/[\\/]+$/, "")}${separator}${archiveStem(archive)}`
+            : parent;
+
+        await extractInto(archive, target);
+    };
+
+    /** The toolbar's three automatic modes for the archive the active tab shows. */
+    const extractActiveArchive = async (mode: "here" | "named" | "auto") => {
+        if (!archived) return;
+        await extractArchiveTo(activeFolder, mode);
+    };
+
     /** The toolbar's plain click keeps letting the user choose where the archive goes. */
     const chooseExtractFolder = async () => {
         if (!archived) return;
-
-        const target = await requestFolder(parentOf(archiveFile(activeFolder)) ?? undefined);
-        if (target) await extractInto(target);
+        await extractArchiveTo(activeFolder, "choose");
     };
 
     const changeArchiveEncoding = (value: string) => {
@@ -2659,6 +2668,7 @@ export default function App() {
                             onHistoryChanged={() => setHistoryVersion((current) => current + 1)}
                             onAddToTray={(paths) => void addTrayPaths(paths)}
                             onAddFavorite={(paths) => void addFavoritePaths(paths)}
+                            onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
                             settingsVersion={settingsVersion}
                             onOpen={navigate}
                             onLayoutChanged={reloadSettings}
@@ -2685,6 +2695,7 @@ export default function App() {
                             openOnSingleClick={settings?.openOnSingleClick ?? false}
                             onAddToTray={(paths) => void addTrayPaths(paths)}
                             onAddFavorite={(paths) => void addFavoritePaths(paths)}
+                            onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
                             shortcuts={shortcuts}
                             showCheckboxes={settings?.showCheckboxes ?? true}
                             showDetails={detailsVisible}
@@ -2764,6 +2775,7 @@ export default function App() {
                     menu={{x: pathMenu.x, y: pathMenu.y, paths: [pathMenu.path]}}
                     onAddToTray={(paths) => void addTrayPaths(paths)}
                     onAddFavorite={(paths) => void addFavoritePaths(paths)}
+                    onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
                     onArchiveCreated={(created) => {
                         if (created) refreshFolderTabs(parentOf(pathMenu.path) ?? pathMenu.path);
                     }}

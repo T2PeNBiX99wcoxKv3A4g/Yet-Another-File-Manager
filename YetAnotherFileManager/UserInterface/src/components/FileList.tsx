@@ -27,7 +27,7 @@ import {baseName, formatBytes, formatDate, plural} from "../utils/format";
 import {readStoredNumber, writeStoredNumber} from "../storage";
 import {useTranslation, type Translate} from "@photino-net-utils/bridge";
 import {CheckIcon, FolderIcon, LinkIcon, LockIcon} from "./Icons";
-import {FileMenu} from "./FileMenu";
+import {FileMenu, type ArchiveExtractMode} from "./FileMenu";
 import {CompressDialog} from "./CompressDialog";
 import {ConfirmDialog} from "./ConfirmDialog";
 import {PreviewPane, type PreviewInfo} from "./PreviewPane";
@@ -96,6 +96,8 @@ interface FileListProps {
     onAddToTray?: (paths: string[]) => void;
     /** Pins the selection to the overview's Favorites panel. */
     onAddFavorite?: (paths: string[]) => void;
+    /** Extracts an archive selected in the list to the chosen place. */
+    onExtractArchive?: (path: string, mode: ArchiveExtractMode) => void;
     /** Called after a paste, so the tray can drop entries the move consumed. */
     onPaste?: () => void;
     /** Ask before moving items to the recycle bin. Shift+Del always asks. */
@@ -152,7 +154,7 @@ export function FileList({
     onImageStripHeight, onSort, onSetTags, onOpen, onOpenFile, showCheckboxes = true,
     openOnSingleClick = false, shortcuts = DefaultShortcuts, enableShortcuts = true, refreshToken = 0, onRefresh,
     onRename,
-    onClipboardChanged, onTransfer, onAddToTray, onAddFavorite, onPaste, confirmDelete = false, previewVideoAudio = false,
+    onClipboardChanged, onTransfer, onAddToTray, onAddFavorite, onExtractArchive, onPaste, confirmDelete = false, previewVideoAudio = false,
     previewVideoAutoplay = false, showDetails = true, onPreviewInfo, onActivate,
     groupOf, onGridScroll, gridFooter, allowBackgroundMenu = true, readOnly = false, onSelectionChange,
     onSelectionCountChange, selectionMenuRequest, selectionMenuId,
@@ -1148,6 +1150,7 @@ export function FileList({
                     menu={menu}
                     onAddToTray={onAddToTray}
                     onAddFavorite={onAddFavorite}
+                    onExtractArchive={onExtractArchive}
                     onArchiveCreated={archiveCreated}
                     onClose={closeMenu}
                     onCompressTo={(paths, name) => setCompressDialog({paths, name})}
@@ -1349,6 +1352,7 @@ export function FileList({
                     menu={menu}
                     onAddToTray={onAddToTray}
                     onAddFavorite={onAddFavorite}
+                    onExtractArchive={onExtractArchive}
                     onArchiveCreated={archiveCreated}
                     onClose={closeMenu}
                     onCompressTo={(paths, name) => setCompressDialog({paths, name})}

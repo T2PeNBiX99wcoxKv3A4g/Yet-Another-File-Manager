@@ -52,7 +52,7 @@ import {PlaceIcon} from "./PlaceIcon";
 import {quickPlace, useQuickAccess} from "../quick";
 import {copyPaths} from "../api/operations";
 import {DefaultShortcuts, wantsNewTab} from "../shortcuts";
-import {FileMenu, type FileMenuTarget} from "./FileMenu";
+import {FileMenu, type ArchiveExtractMode, type FileMenuTarget} from "./FileMenu";
 import {baseName, driveLetter, driveName, formatBytes, isRemoteUrl, plural, usageTone} from "../utils/format";
 import {buildPanels, type Panel, PanelGlyph, type PanelKind, type ViewMode} from "../panels";
 import {IconPicker} from "./IconPicker";
@@ -89,6 +89,8 @@ interface OverviewViewProps {
     onAddToTray?: (paths: string[]) => void;
     /** Pins an entry to the Favorites panel from the overview's own context menu. */
     onAddFavorite?: (paths: string[]) => void;
+    /** Extracts an archive selected in a folder panel. */
+    onExtractArchive?: (path: string, mode: ArchiveExtractMode) => void;
     /** Bumped when the app reloaded settings, so the favorites (and layout) stay in step. */
     settingsVersion?: number;
 }
@@ -1334,6 +1336,7 @@ export function OverviewView({
     onSelectionChange,
     onAddToTray,
     onAddFavorite,
+    onExtractArchive,
     settingsVersion = 0,
 }: OverviewViewProps) {
     const t = useTranslation();
@@ -2919,6 +2922,7 @@ export function OverviewView({
                     onCopy={(paths, cut) => void copyPaths(paths, cut)}
                     onAddToTray={onAddToTray}
                     onAddFavorite={onAddFavorite}
+                    onExtractArchive={onExtractArchive}
                     onOpen={openMenuTarget}
                     onOpenFile={(path) => onPick ? onPick(path) : void openFile(path)}
                     shortcuts={DefaultShortcuts}
