@@ -42,6 +42,7 @@ import {
     PencilIcon,
     PinIcon,
     PlusIcon,
+    RefreshIcon,
     ServerIcon,
     VideoIcon
 } from "./Icons";
@@ -54,7 +55,7 @@ import {copyPaths} from "../api/operations";
 import {DefaultShortcuts, wantsNewTab} from "../shortcuts";
 import {type ArchiveExtractMode, FileMenu, type FileMenuTarget} from "./FileMenu";
 import {baseName, driveLetter, driveName, formatBytes, isRemoteUrl, plural, samePath, usageTone} from "../utils/format";
-import {buildPanels, type Panel, PanelGlyph, type PanelKind, type ViewMode} from "../panels";
+import {buildPanels, DefaultPanels, type Panel, PanelGlyph, type PanelKind, type ViewMode} from "../panels";
 import {IconPicker} from "./IconPicker";
 import {pairShareDevice, refreshSharePeers, shareLocation, type SharePeerInfo} from "../api/share";
 
@@ -1629,6 +1630,19 @@ export function OverviewView({
         onLayoutChanged?.();
     };
 
+    /** Puts every panel back the way the app ships them, including titles, icons and pins. */
+    const restorePanels = async () => {
+        await save({
+            overviewPanels: [...DefaultPanels],
+            overviewTitles: null,
+            overviewViews: null,
+            overviewIcons: null,
+            overviewPinned: null,
+            panelPlaces: null,
+        });
+        setEditing(false);
+    };
+
     const chooseBanner = async () => {
         const file = await requestFile([".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif",
             ".mp4", ".webm", ".mkv", ".mov", ".m4v"]);
@@ -2615,6 +2629,17 @@ export function OverviewView({
                                 </PanelMenu>
                             )}
                         </AddMenu>
+                    )}
+
+                    {editing && (
+                        <Ghost
+                            onClick={() => void restorePanels()}
+                            title={t("Put every panel back the way the app ships it")}
+                            type="button"
+                        >
+                            <RefreshIcon size={12}/>
+                            {t("Restore default panels")}
+                        </Ghost>
                     )}
 
                     {selectionMenu.available && (

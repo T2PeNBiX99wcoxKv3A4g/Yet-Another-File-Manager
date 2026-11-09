@@ -34,7 +34,7 @@ import {quickPlace, useQuickAccess} from "../quick";
 import {baseName, formatBytes, formatDate, plural} from "../utils/format";
 import {readStoredNumber, writeStoredNumber} from "../storage";
 import {type Translate, useTranslation} from "@photino-net-utils/bridge";
-import {CheckIcon, FolderIcon, LinkIcon, LockIcon} from "./Icons";
+import {CheckIcon, CutIcon, FolderIcon, LinkIcon, LockIcon} from "./Icons";
 import {type ArchiveExtractMode, FileMenu} from "./FileMenu";
 import {CompressDialog} from "./CompressDialog";
 import {ConfirmDialog} from "./ConfirmDialog";
@@ -98,6 +98,8 @@ interface FileListProps {
     onRename?: (from: string, to: string) => void;
     /** Called after a copy or cut put files on the system clipboard. */
     onClipboardChanged?: () => void;
+    /** Paths that were cut, so their rows can say they are about to move. */
+    cutPaths?: ReadonlySet<string>;
     /** Moves or copies dropped paths into a folder. */
     onTransfer?: (paths: string[], target: string, move: boolean) => void;
     /** Adds the selection to the floating file tray without dragging it. */
@@ -155,7 +157,12 @@ interface RowModel {
     label: string;
     ranges: [number, number][] | null;
     tags: string[];
+    /** True when the entry was cut and will move the next time something is pasted. */
+    cut?: boolean;
 }
+
+/** Used when nothing is cut, so the prop has a stable identity. */
+const NoPaths: ReadonlySet<string> = new Set();
 
 /** The height the strip starts at, and the one a double-click on the divider brings back. */
 const DefaultStripHeight = 190;
@@ -182,6 +189,7 @@ export function FileList({
                              onRefresh,
                              onRename,
                              onClipboardChanged,
+                             cutPaths = NoPaths,
                              onTransfer,
                              onAddToTray,
                              onAddFavorite,
@@ -360,6 +368,7 @@ export function FileList({
                     label,
                     ranges: searching ? rangesOf(label, find) : null,
                     tags: listing.tags[entry.name] ?? [],
+                    cut: cutPaths.has(entry.fullPath),
                 };
             })
             .filter((row) => !searching || find.mode === "dim" || row.ranges !== null);
@@ -369,7 +378,7 @@ export function FileList({
         listing?.entries, listing?.tags,
         view.sort === "size" || view.sort === "items" ? listing?.folderSizes : null,
         view.sort === "size" || view.sort === "items" ? listing?.counts : null,
-        searching, find, quick, view.sort, view.sortDescending, t,
+        searching, find, quick, view.sort, view.sortDescending, t, cutPaths,
     ]);
 
     rowsRef.current = rows;
@@ -1873,6 +1882,12 @@ const GridTile = memo(function GridTile({
                         {t("Encrypted")}
                     </EncryptedBadge>
                 )}
+                {row.cut && (
+                    <CutBadge title={t("This item is cut and will move when something is pasted.")}>
+                        <CutIcon size={9}/>
+                        {t("Cut")}
+                    </CutBadge>
+                )}
                 <TileMeta>
                     {row.entry.isDirectory
                         ? (itemCount === undefined
@@ -2120,6 +2135,12 @@ const ListRow = memo(function ListRow({
                         <LockIcon size={9}/>
                         {t("Encrypted")}
                     </EncryptedBadge>
+                )}
+                {row.cut && (
+                    <CutBadge title={t("This item is cut and will move when something is pasted.")}>
+                        <CutIcon size={9}/>
+                        {t("Cut")}
+                    </CutBadge>
                 )}
                 {showTarget && row.entry.linkTarget && (
                     <LinkBadge $broken={row.entry.linkValid === false} title={row.entry.linkTarget}>
@@ -2535,6 +2556,25 @@ const EncryptedBadge = styled.span`
     letter-spacing: 0.04em;
     text-transform: uppercase;
     white-space: nowrap;
+`;
+
+/** Marks a row the user cut, in the same pill the archive and link hints use. */
+const CutBadge = styled.span`
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+    padding: 1px 6px;
+    border: 1px solid rgba(var(--accent-rgb), 0.4);
+    border-radius: 999px;
+    background: rgba(var(--accent-rgb), 0.14);
+    color: var(--accent-primary);
+    font-size: 8.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    opacity: 0.85;
 `;
 
 /** The inline rename editor; it sits exactly where the name was. */

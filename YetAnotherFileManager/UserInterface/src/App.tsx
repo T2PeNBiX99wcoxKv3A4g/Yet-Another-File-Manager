@@ -377,6 +377,12 @@ export default function App() {
     const closedTabs = useRef<string[]>([]);
     const [clipboardItems, setClipboardItems] = useState<TrayItem[]>([]);
     const [clipboardMove, setClipboardMove] = useState(false);
+
+    // Rows that were cut carry a badge, the way the link and archive hints sit beside a name.
+    const cutPaths = useMemo(
+        () => clipboardMove ? new Set(clipboardItems.map((entry) => entry.path)) : new Set<string>(),
+        [clipboardItems, clipboardMove],
+    );
     const [trayVisible, setTrayVisible] = useState(false);
     const [trayItems, setTrayItems] = useState<TrayItem[]>([]);
     const [protectedDelete, setProtectedDelete] = useState<{
@@ -2078,6 +2084,7 @@ export default function App() {
         return (
             <FileList
                 confirmDelete={settings?.confirmDelete ?? false}
+                cutPaths={cutPaths}
                 previewVideoAudio={settings?.previewVideoAudio ?? false}
                 previewVideoAutoplay={settings?.previewVideoAutoplay ?? false}
                 showDetails={false}
