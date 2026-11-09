@@ -45,6 +45,7 @@ Right-click a file, a folder or the empty background:
 - **Cut**, **Copy**, **Paste**, **Paste into folder**.
 - **Rename** (`F2`), **Delete** (`Del`), **Delete permanently** (`Shift+Del`).
 - **New folder** (`Ctrl+Shift+N`, or `F10`), **Compress to ZIP**, **Compress to…**, **Copy as path**.
+- **Add to favorites**, **Add to file tray**, **Create link**, **Case-sensitive names**.
 - **Show in Explorer**, **Open in Terminal**, **Properties**.
 
 Delete moves items to the recycle bin by default; permanent deletion is a separate action and can be
@@ -53,3 +54,24 @@ the current session.
 
 Archives open as folders here, and can be unpacked or created from the same menu; see
 [Archives](Archives).
+
+**Create link** makes a symbolic link, a hard link for a file or a directory junction for a folder;
+**Select link source** remembers a set of paths first, so links for several entries land in one step.
+**Case-sensitive names** turns the folder's own case sensitivity on or off, which matters to programs
+that move between Windows and Linux.
+
+## File tray
+
+The tray is a floating shelf for what you are about to paste somewhere else. Drag a selection onto it,
+or use **Add to file tray**; the title bar's tray button shows it and counts what it holds. It also
+mirrors the system clipboard, so something copied in another app appears there too. Paste from the
+tray into any folder, or drag an entry back out.
+
+## History and activity
+
+Two title-bar buttons report what the app has been doing:
+
+- The **history** button lists this session's file operations, newest first, and each row can be
+  undone from the panel.
+- The **activity** button lists running and finished background operations. A long delete or copy
+  reports its progress there, and finished entries can be cleared from the list.

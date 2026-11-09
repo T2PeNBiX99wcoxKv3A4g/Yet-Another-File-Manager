@@ -7,5 +7,6 @@ export const DOC_PAGES = [
     {slug: "Overview-and-Gallery", group: "reference"},
     {slug: "Search-Tags-Recycle", group: "reference"},
     {slug: "Archives", group: "reference"},
+    {slug: "Sharing", group: "reference"},
     {slug: "Settings-and-Shortcuts", group: "reference"}
 ];

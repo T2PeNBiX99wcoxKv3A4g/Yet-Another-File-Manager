@@ -31,6 +31,9 @@ bin, the gallery and the settings, and lists the folders you pinned to Quick acc
 Tabs are restored when you close and reopen the app, unless you turn that off in
 [Settings](Settings-and-Shortcuts).
 
+Closing the window hides it to the tray instead of quitting, so tabs and shares keep running; open or
+quit the app from the tray icon.
+
 ## Opening a folder
 
 - Double-click a folder, or select it and press `Enter`.
