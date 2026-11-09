@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Text.Json;
 using PhotinoNetUtils.Extensions;
+using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Utils;
 using Serilog;
@@ -72,7 +73,7 @@ internal sealed class ShareService : Singleton<ShareService>
         var path = request?.Path?.Trim() ?? "";
 
         if (path.Length == 0 || !Directory.Exists(path))
-            return context.Fail("share.add.result", "That folder does not exist.");
+            return context.Fail("share.add.result", Localization.Get("That folder does not exist."));
 
         await ShareStore.Instance.AddAsync(Path.GetFullPath(path), ShareStore.NormalizeMode(request?.Mode));
         await WebShareServer.Instance.ApplyAsync();
@@ -185,7 +186,7 @@ internal sealed class ShareService : Singleton<ShareService>
         var request = context.Payload<SharePairStartRequest>();
         if (request is not {Host.Length: > 0, Port: > 0})
             return Task.FromResult<NativeResponse?>(context.Fail("share.pair.start.result",
-                "A device address is required."));
+                Localization.Get("A device address is required.")));
 
         _ = Task.Run(() => RunPairAsync(request));
         return Task.FromResult<NativeResponse?>(context.Reply("share.pair.start.result", new OkPayload()));
@@ -196,7 +197,7 @@ internal sealed class ShareService : Singleton<ShareService>
         if (!await _outgoing.WaitAsync(0))
         {
             Push("share.pair.result", new SharePairResultPayload(false, null, null,
-                "Another pairing is already in progress."));
+                Localization.Get("Another pairing is already in progress.")));
             return;
         }
 
@@ -231,7 +232,7 @@ internal sealed class ShareService : Singleton<ShareService>
         var request = context.Payload<SharePairRespondRequest>();
         if (request is not {RequestId.Length: > 0})
             return Task.FromResult<NativeResponse?>(context.Fail("share.pair.respond.result",
-                "The request id is missing."));
+                Localization.Get("The request id is missing.")));
 
         IncomingPairing? incoming;
         lock (_incomingLock)
@@ -378,7 +379,7 @@ internal sealed class ShareService : Singleton<ShareService>
     {
         var request = context.Payload<ShareBrowseRequest>();
         if (request is not {DeviceId.Length: > 0, ShareId.Length: > 0})
-            return Task.FromResult<NativeResponse?>(context.Fail("share.browse.result", "A device is required."));
+            return Task.FromResult<NativeResponse?>(context.Fail("share.browse.result", Localization.Get("A device is required.")));
 
         return BrowseCoreAsync(context, request);
     }
@@ -387,7 +388,7 @@ internal sealed class ShareService : Singleton<ShareService>
     {
         var peer = SharePeerStore.Instance.Find(request.DeviceId);
         if (peer is null)
-            return context.Fail("share.browse.result", "The device is not paired.");
+            return context.Fail("share.browse.result", Localization.Get("The device is not paired."));
 
         try
         {
@@ -439,7 +440,7 @@ internal sealed class ShareService : Singleton<ShareService>
         var request = context.Payload<ShareDownloadRequest>();
         if (request is not {DeviceId.Length: > 0, ShareId.Length: > 0, Path.Length: > 0})
             return Task.FromResult<NativeResponse?>(context.Fail("share.download.result",
-                "A device, share and file are required."));
+                Localization.Get("A device, share and file are required.")));
 
         return DownloadCoreAsync(context, request);
     }
@@ -448,7 +449,7 @@ internal sealed class ShareService : Singleton<ShareService>
     {
         var peer = SharePeerStore.Instance.Find(request.DeviceId);
         if (peer is null)
-            return context.Fail("share.download.result", "The device is not paired.");
+            return context.Fail("share.download.result", Localization.Get("The device is not paired."));
 
         var destination = LocalCachePath(request);
         try

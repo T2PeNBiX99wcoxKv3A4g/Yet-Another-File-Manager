@@ -1,5 +1,6 @@
 using System.Buffers;
 using PhotinoNetUtils.Extensions;
+using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Utils;
 using Serilog;
 
@@ -42,10 +43,10 @@ internal static class FileTransfer
             .ToList();
 
         if (list.Count == 0)
-            return (false, "There is nothing to copy or move.", []);
+            return (false, Localization.Get("There is nothing to copy or move."), []);
 
         if (!Directory.Exists(target))
-            return (false, "The target folder is no longer there.", []);
+            return (false, Localization.Get("The target folder is no longer there."), []);
 
         // Moving an entry onto the folder it already lives in would only create "name (2)".
         if (move)
@@ -64,7 +65,7 @@ internal static class FileTransfer
         }
 
         if (move && list.Any(source => IsInside(source, target)))
-            return (false, "A folder cannot be moved into itself.", []);
+            return (false, Localization.Get("A folder cannot be moved into itself."), []);
 
         var taskId = TaskCenter.Instance.Start(move ? "move" : "copy",
             $"{(move ? "Move" : "Copy")} {list.Count} item{(list.Count == 1 ? "" : "s")}");
@@ -83,7 +84,7 @@ internal static class FileTransfer
                 var name = Path.GetFileName(source);
 
                 if (name.Length == 0)
-                    return (false, "A drive root cannot be copied this way.", created);
+                    return (false, Localization.Get("A drive root cannot be copied this way."), created);
 
                 var destination = UniqueDestination(target, name, isDirectory, reserved);
 

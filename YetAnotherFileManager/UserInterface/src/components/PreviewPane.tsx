@@ -110,7 +110,7 @@ export function PreviewPane({info, width, onWidth, open = true, videoAudio, vide
             }
         }, () => {
             if (alive) {
-                setTextPreview({text: null, truncated: false, error: "Could not read this file."});
+                setTextPreview({text: null, truncated: false, error: t("Could not read this file.")});
                 setTextLoading(false);
             }
         });

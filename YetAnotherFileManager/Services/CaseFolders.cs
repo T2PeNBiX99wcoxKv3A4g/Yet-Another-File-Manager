@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using PhotinoNetUtils.Extensions;
+using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Utils;
 using Serilog;
 using YetAnotherFileManager.Interop;
@@ -81,16 +82,16 @@ internal static class CaseFolders
     public static CaseSensitivePayload Set(string path, bool enabled)
     {
         if (!Supported)
-            return new CaseSensitivePayload(false, false, "Case-sensitive folders are a Windows feature.");
+            return new CaseSensitivePayload(false, false, Localization.Get("Case-sensitive folders are a Windows feature."));
 
         if (!Directory.Exists(path))
-            return new CaseSensitivePayload(false, false, "The folder is no longer there.");
+            return new CaseSensitivePayload(false, false, Localization.Get("The folder is no longer there."));
 
         try
         {
             var info = new DirectoryInfo(path);
             if (info.LinkTarget is not null)
-                return new CaseSensitivePayload(false, enabled, "A link cannot be converted this way.");
+                return new CaseSensitivePayload(false, enabled, Localization.Get("A link cannot be converted this way."));
 
             if (enabled && !CaseSensitivity.IsEmpty(path))
                 Convert(path);

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using JetBrains.Annotations;
 using PhotinoNetUtils;
 using PhotinoNetUtils.Extensions;
+using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Platform;
 using PhotinoNetUtils.Utils;
@@ -65,7 +66,7 @@ internal sealed class AppInfoService : Singleton<AppInfoService>
         var url = context.Payload<UrlPayload>()?.Url;
 
         if (string.IsNullOrWhiteSpace(url))
-            return context.Fail("app.openUrl.result", "No URL was given.");
+            return context.Fail("app.openUrl.result", Localization.Get("No URL was given."));
 
         var opened = Try.Run(() => Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }) is not null)
             .GetOrElse(exception =>
@@ -76,7 +77,7 @@ internal sealed class AppInfoService : Singleton<AppInfoService>
 
         return opened
             ? context.Reply("app.openUrl.result", new OkPayload())
-            : context.Fail("app.openUrl.result", "Could not open the link.");
+            : context.Fail("app.openUrl.result", Localization.Get("Could not open the link."));
     }
 
     /// <summary>The executable's write time, which a replacement binary always changes.</summary>

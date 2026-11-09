@@ -1,3 +1,4 @@
+using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Utils;
@@ -50,7 +51,7 @@ internal sealed class UpdateService : Singleton<UpdateService>
     private async Task<NativeResponse?> CheckAsync(NativeContext context) =>
         await ResolveAsync(true) is { } result
             ? context.Reply("app.checkUpdate.result", result)
-            : context.Fail("app.checkUpdate.result", "Could not check for updates.");
+            : context.Fail("app.checkUpdate.result", Localization.Get("Could not check for updates."));
 
     /// <summary>The fresh or cached answer, or null when the version file cannot be read.</summary>
     private async Task<UpdateCheckPayload?> ResolveAsync(bool force)

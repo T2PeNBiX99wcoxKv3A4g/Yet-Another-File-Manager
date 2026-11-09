@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Text;
+using PhotinoNetUtils.Localization;
 using SevenZipExtractor;
 using SharpCompress.Archives;
 using SharpCompress.Common;
@@ -432,7 +433,7 @@ internal static class Archives
     public static string ExtractEntry(string virtualPath, int codePage = 0, string? password = null)
     {
         if (!TrySplit(virtualPath, out var archivePath, out var inner) || inner.Length == 0)
-            throw new FileNotFoundException("The path does not name a file inside an archive.");
+            throw new FileNotFoundException(Localization.Get("The path does not name a file inside an archive."));
 
         if (TryGetWorkspacePath(virtualPath, out var edited) && File.Exists(edited))
             return edited;
@@ -470,7 +471,7 @@ internal static class Archives
                 StringComparison.OrdinalIgnoreCase));
 
         if (entry is null || entry.IsDirectory)
-            throw new FileNotFoundException("The file is no longer in the archive.", inner);
+            throw new FileNotFoundException(Localization.Get("The file is no longer in the archive."), inner);
 
         var destination = SafeDestination(root, Path.GetFileName(normalized));
         using (var input = entry.OpenEntryStream())
@@ -552,7 +553,7 @@ internal static class Archives
                 StringComparison.OrdinalIgnoreCase));
 
         if (entry is null || entry.IsFolder)
-            throw new FileNotFoundException("The file is no longer in the archive.", inner);
+            throw new FileNotFoundException(Localization.Get("The file is no longer in the archive."), inner);
 
         var destination = SafeDestination(root, Path.GetFileName(normalized));
 
@@ -665,7 +666,7 @@ internal static class Archives
         if (!TrySplit(path, out var archivePath, out _)
             || !string.Equals(Path.GetExtension(archivePath), ".zip", StringComparison.OrdinalIgnoreCase))
         {
-            error = "Applying edits is currently supported for ZIP archives.";
+            error = Localization.Get("Applying edits is currently supported for ZIP archives.");
             return false;
         }
 

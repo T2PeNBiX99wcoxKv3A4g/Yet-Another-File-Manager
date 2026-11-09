@@ -1,3 +1,4 @@
+using PhotinoNetUtils.Localization;
 using Serilog;
 using YetAnotherFileManager.Interop;
 using YetAnotherFileManager.Messaging;
@@ -16,12 +17,12 @@ internal static partial class FileOperations
     {
         var items = Selection(paths);
         if (items.Count == 0)
-            return new DeletePayload(false, false, "There is nothing to delete.");
+            return new DeletePayload(false, false, Localization.Get("There is nothing to delete."));
 
         // A policy or a volume setting can turn the bin off; that means "delete for good", which
         // Explorer asks about first, so the window gets the same chance.
         if (!permanent && items.Any(path => !RecycleBin.CanRecycle(path)))
-            return new DeletePayload(false, true, "The recycle bin is turned off for this volume.");
+            return new DeletePayload(false, true, Localization.Get("The recycle bin is turned off for this volume."));
 
         var deletedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var (step, deleted) = await DeleteWithProgressAsync(items, permanent);
@@ -47,7 +48,7 @@ internal static partial class FileOperations
         List<string> items, bool permanent)
     {
         if (items.Count == 0)
-            return (new FileHistory.Step(false, [], "There is nothing to delete."), 0);
+            return (new FileHistory.Step(false, [], Localization.Get("There is nothing to delete.")), 0);
 
         // Only the recycle bin is Windows-only (the freedesktop trash covers Linux); a permanent
         // delete works on every platform.

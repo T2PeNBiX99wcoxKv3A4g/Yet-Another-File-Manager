@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text.Json;
 using PhotinoNetUtils.Extensions;
+using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Utils;
 using YetAnotherFileManager.Interop;
@@ -339,7 +340,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 if (request is null || !Archives.TrySplit(request.Path, out var archive, out _))
                 {
                     return context.Reply("fs.archive.extract.result",
-                        new ArchiveExtractPayload(false, "The path is not inside an archive."));
+                        new ArchiveExtractPayload(false, Localization.Get("The path is not inside an archive.")));
                 }
 
                 var extracted = await Task.Run(() =>
@@ -454,7 +455,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 var request = context.Payload<TransferRequest>();
                 if (request is null)
                     return context.Reply("fs.operation.transfer.result",
-                        new TransferResultPayload(false, "Nothing to transfer.", []));
+                        new TransferResultPayload(false, Localization.Get("Nothing to transfer."), []));
 
                 var paths = await MapWorkspacePathsAsync(request.Paths);
                 var target = await MapWorkspacePathAsync(request.Target, true);
@@ -908,21 +909,21 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     private static async Task<LinkPayload> CreateLinkAsync(LinkRequest? request)
     {
         if (request is null || request.Source.Length == 0 || request.Link.Length == 0)
-            return new LinkPayload(false, null, "No link was given.");
+            return new LinkPayload(false, null, Localization.Get("No link was given."));
 
         if (!OperatingSystem.IsWindows())
-            return new LinkPayload(false, null, "Creating links is a Windows feature.");
+            return new LinkPayload(false, null, Localization.Get("Creating links is a Windows feature."));
 
         var isDirectory = Directory.Exists(request.Source);
 
         if (!isDirectory && !File.Exists(request.Source))
-            return new LinkPayload(false, null, "The source no longer exists.");
+            return new LinkPayload(false, null, Localization.Get("The source no longer exists."));
 
         if (request.Kind is LinkCopy.HardCopy or LinkCopy.SymbolicCopy or LinkCopy.SmartCopy
             or LinkCopy.SmartMirror or LinkCopy.MultiVersionSmartCopy)
         {
             if (!isDirectory)
-                return new LinkPayload(false, null, "A link copy needs a folder source.");
+                return new LinkPayload(false, null, Localization.Get("A link copy needs a folder source."));
 
             var copied = await Task.Run(() => LinkCopy.Create(request.Kind, request.Source, request.Link));
             return copied.Ok

@@ -2794,7 +2794,7 @@ export default function App() {
                                     </UpdatePill>
                                 )}
                             </StatusRight>
-                        ) : <span>browser preview</span>}
+                        ) : <span>{t("browser preview")}</span>}
                     </StatusBar>
                 </Main>
             </Body>

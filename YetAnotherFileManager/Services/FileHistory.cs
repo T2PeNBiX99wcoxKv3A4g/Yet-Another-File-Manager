@@ -1,3 +1,4 @@
+using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Utils;
 using Serilog;
 using YetAnotherFileManager.Messaging;
@@ -112,7 +113,7 @@ internal sealed class FileHistory : Singleton<FileHistory>
             lock (_entries)
             {
                 if (_index == 0)
-                    return new HistoryOperationPayload(false, "Nothing to undo.", []);
+                    return new HistoryOperationPayload(false, Localization.Get("Nothing to undo."), []);
 
                 entry = _entries[_index - 1];
             }
@@ -149,7 +150,7 @@ internal sealed class FileHistory : Singleton<FileHistory>
             lock (_entries)
             {
                 if (_index >= _entries.Count)
-                    return new HistoryOperationPayload(false, "Nothing to redo.", []);
+                    return new HistoryOperationPayload(false, Localization.Get("Nothing to redo."), []);
 
                 entry = _entries[_index];
             }

@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState, type ReactNode} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
+import {useTranslation} from "@photino-net-utils/bridge";
 import {menuInStyle} from "../ui/motion";
 import {CheckIcon, ChevronRightIcon} from "./Icons";
 
@@ -29,6 +30,7 @@ export function SelectMenu({value, options, onChange, disabled, width, icon, too
     /** Place this menu above a modal that owns the trigger. */
     zIndex?: number;
 }) {
+    const t = useTranslation();
     const [anchor, setAnchor] = useState<{
         left: number;
         width: number;
@@ -107,7 +109,7 @@ export function SelectMenu({value, options, onChange, disabled, width, icon, too
             </Trigger>
             {anchor && createPortal(
                 <Menu
-                    aria-label="options"
+                    aria-label={t("Options")}
                     data-select-menu="true"
                     $menuZIndex={zIndex}
                     role="listbox"
