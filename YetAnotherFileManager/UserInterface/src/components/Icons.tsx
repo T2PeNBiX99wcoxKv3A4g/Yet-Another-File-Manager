@@ -63,6 +63,7 @@ import SplitSvg from "./icons/split.svg?react";
 import PanelSvg from "./icons/panel.svg?react";
 import MenuSvg from "./icons/menu.svg?react";
 import LockSvg from "./icons/lock.svg?react";
+import LinkSvg from "./icons/link.svg?react";
 
 interface IconProps extends SVGProps<SVGSVGElement> {
     size?: number;
@@ -139,3 +140,4 @@ export const SplitIcon = sized(SplitSvg, 16);
 export const PanelIcon = sized(PanelSvg, 16);
 export const MenuIcon = sized(MenuSvg, 16);
 export const LockIcon = sized(LockSvg, 14);
+export const LinkIcon = sized(LinkSvg, 14);

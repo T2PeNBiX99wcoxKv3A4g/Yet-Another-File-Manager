@@ -84,6 +84,8 @@ export interface DirectoryListing {
     allTags: string[];
     /** Child counts of folders, by entry name. */
     counts: Record<string, number>;
+    /** True when this is a folder inside an archive that needs a password. */
+    archiveEncrypted?: boolean | null;
 }
 
 /** What Windows answered when a volume label was written. */

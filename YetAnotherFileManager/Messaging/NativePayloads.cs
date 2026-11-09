@@ -37,7 +37,9 @@ internal sealed record FsListPayload(
     Dictionary<string, List<string>> Tags,
     Dictionary<string, string> TagColors,
     List<string> AllTags,
-    Dictionary<string, long> Counts);
+    Dictionary<string, long> Counts,
+    // Set only for a folder inside an archive that needs a password.
+    bool? ArchiveEncrypted = null);
 
 /// <summary>Payload for <c>fs.view.set</c>: how one directory is shown.</summary>
 internal sealed record ViewRequest(string Directory, DirectoryView View);

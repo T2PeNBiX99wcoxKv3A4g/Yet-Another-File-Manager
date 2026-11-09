@@ -309,9 +309,11 @@ internal static class Archives
         var files = new List<FileEntry>();
 
         using var archive = Open(physicalArchive, ResolveCodePage(physicalArchive, codePage, password), password);
+        var encrypted = archive.IsEncrypted;
 
         foreach (var entry in archive.Entries)
         {
+            encrypted |= entry.IsEncrypted;
             var key = (entry.Key ?? "").Replace('\\', '/').Trim('/');
 
             // Tar tools commonly prefix every entry with "./"; that is not a traversal.
@@ -380,7 +382,8 @@ internal static class Archives
             new Dictionary<string, List<string>>(),
             new Dictionary<string, string>(),
             [],
-            new Dictionary<string, long>());
+            new Dictionary<string, long>(),
+            encrypted);
     }
 
     /// <summary>Extracts the whole archive into <paramref name="target" />.</summary>
@@ -461,9 +464,11 @@ internal static class Archives
         var files = new List<FileEntry>();
 
         using var archive = new ArchiveFile(physicalArchive, SevenZipLibrary.Value);
+        var encrypted = false;
 
         foreach (var entry in archive.Entries)
         {
+            encrypted |= entry.IsEncrypted;
             var key = (entry.FileName ?? "").Replace('\\', '/').Trim('/');
             if (key.Length == 0)
                 continue;
@@ -508,7 +513,7 @@ internal static class Archives
                 ? Path.GetDirectoryName(archivePath)
                 : VirtualPath(archivePath, parentInner, ""),
             entries, new Dictionary<string, long>(), null, new Dictionary<string, List<string>>(),
-            new Dictionary<string, string>(), [], new Dictionary<string, long>());
+            new Dictionary<string, string>(), [], new Dictionary<string, long>(), encrypted);
     }
 
     /// <summary>Extracts one entry through 7z.dll.</summary>
@@ -624,7 +629,7 @@ internal static class Archives
                 ? Path.GetDirectoryName(archivePath)
                 : VirtualPath(archivePath, parentInner, ""),
             entries, new Dictionary<string, long>(), null, new Dictionary<string, List<string>>(),
-            new Dictionary<string, string>(), [], new Dictionary<string, long>());
+            new Dictionary<string, string>(), [], new Dictionary<string, long>(), IsEncrypted(archivePath));
         return true;
     }
 

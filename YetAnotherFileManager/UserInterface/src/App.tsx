@@ -66,6 +66,7 @@ import {
     GearIcon,
     GlobeIcon,
     ImageIcon,
+    LockIcon,
     MenuIcon,
     OverviewIcon,
     PlusIcon,
@@ -2109,6 +2110,7 @@ export default function App() {
     /** Archive-only actions, shown after a separator at the right edge of the toolbar. */
     const archived = kind === "files" && isArchiveLocation(activeFolder);
     const archiveWritable = archived && isZipArchiveLocation(activeFolder);
+    const archiveEncrypted = archived && active.listing?.archiveEncrypted === true;
 
     /**
      * Extracts the whole archive into the folder that holds it, into a folder named after the
@@ -2278,6 +2280,12 @@ export default function App() {
 
             {archived && (
                 <ArchiveActions>
+                    {archiveEncrypted && (
+                        <ArchiveEncrypted title={t("This archive is encrypted and asks for a password when opened.")}>
+                            <LockIcon size={12}/>
+                            {t("Encrypted archive")}
+                        </ArchiveEncrypted>
+                    )}
                     <ToolbarSeparator/>
                     <IconButton
                         onClick={() => void chooseExtractFolder()}
@@ -2937,6 +2945,23 @@ const ArchiveActions = styled.div`
     align-items: center;
     gap: 7px;
     margin-left: auto;
+`;
+
+/** A persistent reminder while browsing inside a password-protected archive. */
+const ArchiveEncrypted = styled.span`
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border: 1px solid rgba(251, 191, 36, 0.45);
+    border-radius: 999px;
+    background: rgba(251, 191, 36, 0.12);
+    color: #fbbf24;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
 `;
 
 const ToolbarSeparator = styled.span`

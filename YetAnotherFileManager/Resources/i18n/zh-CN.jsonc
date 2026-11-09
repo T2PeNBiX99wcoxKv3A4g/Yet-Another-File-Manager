@@ -715,6 +715,7 @@
   "Start hidden in the tray": "启动时隐藏到托盘",
   "Launch straight to the tray icon instead of showing the window. The tray menu opens it again.": "启动后直接缩到托盘图标，不显示窗口；托盘菜单可再次打开。",
   "Encrypted": "已加密",
+  "Encrypted archive": "加密压缩包",
   "This archive is encrypted and asks for a password when opened.": "此压缩包已加密，打开时会要求输入密码。",
   "Password required": "需要密码",
   "Favorites": "收藏",

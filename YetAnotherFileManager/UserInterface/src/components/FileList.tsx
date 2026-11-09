@@ -26,7 +26,7 @@ import {quickPlace, useQuickAccess} from "../quick";
 import {baseName, formatBytes, formatDate, plural} from "../utils/format";
 import {readStoredNumber, writeStoredNumber} from "../storage";
 import {useTranslation, type Translate} from "@photino-net-utils/bridge";
-import {CheckIcon, FolderIcon, LockIcon} from "./Icons";
+import {CheckIcon, FolderIcon, LinkIcon, LockIcon} from "./Icons";
 import {FileMenu} from "./FileMenu";
 import {CompressDialog} from "./CompressDialog";
 import {ConfirmDialog} from "./ConfirmDialog";
@@ -1810,7 +1810,10 @@ const GridTile = memo(function GridTile({
                         : t("{type} · {size}", {type: typeLabel(row.entry, t), size: formatBytes(row.entry.size)})}
                 </TileMeta>
                 {showTarget && row.entry.linkTarget && (
-                    <TileLink title={row.entry.linkTarget}>→ {row.entry.linkTarget}</TileLink>
+                    <LinkBadge $block $broken={row.entry.linkValid === false} title={row.entry.linkTarget}>
+                        <LinkIcon size={9}/>
+                        <span>{row.entry.linkTarget}</span>
+                    </LinkBadge>
                 )}
             </TileCaption>
         </Tile>
@@ -2032,7 +2035,10 @@ const ListRow = memo(function ListRow({
                     </EncryptedBadge>
                 )}
                 {showTarget && row.entry.linkTarget && (
-                    <LinkTo title={row.entry.linkTarget}>→ {row.entry.linkTarget}</LinkTo>
+                    <LinkBadge $broken={row.entry.linkValid === false} title={row.entry.linkTarget}>
+                        <LinkIcon size={9}/>
+                        <span>{row.entry.linkTarget}</span>
+                    </LinkBadge>
                 )}
             </Name>
             {visible.map((column) => (
@@ -2455,15 +2461,34 @@ const RenameBox = styled.input`
     outline: none;
 `;
 
-/** A symlink's destination, shown after the name so the entry itself stays the label. */
-const LinkTo = styled.span`
+/** A symlink's destination, shown as a chip so it never reads as part of the name. */
+const LinkBadge = styled.span<{ $block?: boolean; $broken?: boolean }>`
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     overflow: hidden;
     min-width: 0;
+    max-width: ${({$block}) => $block ? "100%" : "min(60%, 420px)"};
+    width: ${({$block}) => $block ? "100%" : "auto"};
+    padding: 1px 7px;
+    border: 1px solid ${({$broken}) => $broken ? "rgba(248, 113, 113, 0.45)" : "rgba(var(--accent-rgb), 0.35)"};
+    border-radius: 999px;
+    background: ${({$broken}) => $broken ? "rgba(248, 113, 113, 0.12)" : "rgba(var(--accent-rgb), 0.12)"};
+    color: ${({$broken}) => $broken ? "#f87171" : "var(--accent-primary)"};
     font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--accent-primary);
-    text-overflow: ellipsis;
+    font-size: ${({$block}) => $block ? "9px" : "10px"};
     white-space: nowrap;
+
+    svg {
+        flex-shrink: 0;
+        opacity: 0.85;
+    }
+
+    span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
 `;
 
 const Cell = styled.span`
@@ -2613,17 +2638,6 @@ const TileMeta = styled.span`
     font-family: var(--font-mono);
     font-size: 9px;
     color: var(--text-muted);
-`;
-
-const TileLink = styled.span`
-    width: 100%;
-    overflow: hidden;
-    font-family: var(--font-mono);
-    font-size: 9px;
-    color: var(--accent-primary);
-    text-align: left;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 `;
 
 const Mark = styled.mark`

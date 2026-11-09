@@ -715,6 +715,7 @@
   "Start hidden in the tray": "トレイで非表示のまま起動",
   "Launch straight to the tray icon instead of showing the window. The tray menu opens it again.": "ウィンドウを表示せず、トレイアイコンで起動します。トレイメニューから再度開けます。",
   "Encrypted": "暗号化済み",
+  "Encrypted archive": "暗号化アーカイブ",
   "This archive is encrypted and asks for a password when opened.": "このアーカイブは暗号化されており、開くときにパスワードが必要です。",
   "Password required": "パスワードが必要",
   "Favorites": "お気に入り",

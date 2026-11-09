@@ -61,6 +61,7 @@ export function PreviewPane({info, width, onWidth, open = true, videoAudio, vide
     const [textLoading, setTextLoading] = useState(false);
     const [pdfFailed, setPdfFailed] = useState(false);
     const videoRef = useRef<HTMLVideoElement | null>(null);
+    const panelRef = useRef<HTMLElement | null>(null);
     const drag = useRef<{ x: number; width: number } | null>(null);
     const mediaDrag = useRef<{ y: number; height: number } | null>(null);
     const [mediaHeight, setMediaHeight] = useState(() => {
@@ -123,7 +124,9 @@ export function PreviewPane({info, width, onWidth, open = true, videoAudio, vide
         return null;
 
     const start = (event: ReactPointerEvent) => {
-        drag.current = {x: event.clientX, width};
+        // A narrow window can shrink the pane below its remembered width; dragging starts from
+        // what is actually on screen, so the divider does not jump when the pointer moves.
+        drag.current = {x: event.clientX, width: panelRef.current?.getBoundingClientRect().width ?? width};
         event.currentTarget.setPointerCapture(event.pointerId);
     };
 
@@ -174,7 +177,7 @@ export function PreviewPane({info, width, onWidth, open = true, videoAudio, vide
                     />
                 )}
 
-                <Panel style={{width: open ? width : 0}}>
+                <Panel ref={panelRef} style={{width: open ? width : 0}}>
                     <Empty>
                         <FolderIcon size={56}/>
                         <span>{emptyNote}</span>
@@ -206,7 +209,7 @@ export function PreviewPane({info, width, onWidth, open = true, videoAudio, vide
                 />
             )}
 
-            <Panel style={{width: open ? width : 0}}>
+            <Panel ref={panelRef} style={{width: open ? width : 0}}>
                 <Media style={{height: mediaHeight}}>
                     {video && media && !videoFailed
                         ? (
@@ -358,8 +361,9 @@ function formatTime(seconds: number): string {
 
 const Root = styled.div`
     display: flex;
-    flex-shrink: 0;
+    flex-shrink: 1;
     align-self: stretch;
+    min-width: 220px;
     min-height: 0;
 `;
 
@@ -378,6 +382,7 @@ const Splitter = styled.div`
 const Panel = styled.aside`
     display: flex;
     flex-direction: column;
+    flex-shrink: 1;
     min-width: 0;
     min-height: 0;
     overflow: hidden;
