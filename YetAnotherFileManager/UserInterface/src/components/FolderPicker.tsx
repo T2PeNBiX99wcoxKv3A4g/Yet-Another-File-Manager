@@ -263,7 +263,7 @@ export function FolderPicker({
         if (!Native.available || !currentFolder)
             return;
 
-        Native.send({type: "fs.watch", payload: {paths: [currentFolder]}});
+        Native.send({type: "fs.watch", payload: {paths: [currentFolder], owner: "picker"}});
     }, [currentFolder]);
 
     // A change in the folder refreshes the list in place, the way the app's file view does.

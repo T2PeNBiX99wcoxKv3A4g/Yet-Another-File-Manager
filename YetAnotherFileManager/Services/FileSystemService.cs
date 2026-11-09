@@ -108,8 +108,11 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                     new FsPlacesPayload(await RenamePlaceAsync(context.Payload<PlaceRenameRequest>())));
 
             case "fs.watch":
+            {
+                var request = context.Payload<FsWatchRequest>();
                 return context.Reply("fs.watch.result",
-                    new OkPayload(Watch(context.Payload<FsWatchRequest>()?.Paths ?? [])));
+                    new OkPayload(Watch(request?.Paths ?? [], request?.Owner)));
+            }
 
             case "fs.drive.rename":
                 return context.Reply("fs.drive.rename.result", await RenameDriveAsync(context.Payload<DriveRenameRequest>()));
@@ -855,10 +858,10 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             }));
     }
 
-    /// <summary>Points the folder watcher at the tab that is on screen.</summary>
-    private static bool Watch(IReadOnlyList<string> paths)
+    /// <summary>Points the folder watcher at the surface that is on screen.</summary>
+    private static bool Watch(IReadOnlyList<string> paths, string? owner)
     {
-        DirectoryWatcher.Instance.Watch(paths);
+        DirectoryWatcher.Instance.Watch(paths, owner);
         return true;
     }
 

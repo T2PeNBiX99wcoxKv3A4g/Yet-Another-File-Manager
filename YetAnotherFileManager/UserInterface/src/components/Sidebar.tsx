@@ -64,6 +64,21 @@ export function Sidebar({
         });
     }, [version]);
 
+    // Pinned folder panels are always on screen, whether the active tab is a folder, the overview,
+    // or settings. Report their folders separately so they keep refreshing behind every page.
+    useEffect(() => {
+        if (!Native.available) return;
+
+        const paths = pinned
+            .filter((panel) => panel.kind === "home" || panel.kind === "folder")
+            .map((panel) => panel.path || homePath)
+            .filter((path) => path.length > 0);
+
+        Native.send({type: "fs.watch", payload: {paths, owner: "sidebar"}});
+
+        return () => Native.send({type: "fs.watch", payload: {paths: [], owner: "sidebar"}});
+    }, [pinned, homePath]);
+
     const quickItems = (panel: Panel): Place[] => {
         if (panel.id === "quick")
             return places;

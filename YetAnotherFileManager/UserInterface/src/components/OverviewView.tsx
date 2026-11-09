@@ -1546,7 +1546,8 @@ export function OverviewView({
     const isPanelIconOpen = (id: string) => iconEditor?.kind === "panel" && iconEditor.id === id;
     const isPlaceIconOpen = (path: string) => iconEditor?.kind === "place" && iconEditor.id === path;
 
-    // The overview watches every folder it shows; the tab it lives in is the only one that matters.
+    // The overview watches every folder it shows; the host unions this with the file tabs and the
+    // sidebar, so leaving the page no longer replaces the folders they watch.
     useEffect(() => {
         if (!Native.available) return;
 
@@ -1555,7 +1556,9 @@ export function OverviewView({
             .map((panel) => panel.path ?? homePath)
             .filter((path) => path.length > 0);
 
-        Native.send({type: "fs.watch", payload: {paths}});
+        Native.send({type: "fs.watch", payload: {paths, owner: "overview"}});
+
+        return () => Native.send({type: "fs.watch", payload: {paths: [], owner: "overview"}});
     }, [panels.map((panel) => panel.path ?? panel.id).join("|"), homePath]);
 
     // The shared page search highlights matches and dims or hides panels without any.

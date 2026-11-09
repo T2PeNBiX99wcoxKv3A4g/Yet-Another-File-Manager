@@ -145,7 +145,7 @@ internal sealed record DriveRenameRequest(string Root, string Label);
 internal sealed record DriveRenamePayload(bool Ok, bool NeedsAdmin, string? Error);
 
 /// <summary>Payload for <c>fs.watch</c>: every folder that is on screen right now.</summary>
-internal sealed record FsWatchRequest(List<string> Paths);
+internal sealed record FsWatchRequest(List<string> Paths, string? Owner = null);
 
 /// <summary>Body for <c>app.memory</c>: what this process is using, in bytes.</summary>
 internal sealed record MemoryPayload(long Managed, long Private, long WorkingSet, long Available);

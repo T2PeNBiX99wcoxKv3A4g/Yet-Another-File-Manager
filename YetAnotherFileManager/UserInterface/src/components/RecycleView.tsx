@@ -101,9 +101,23 @@ export function RecycleView({
         }
     }, [showOrphans]);
 
+    /** Recycle bin changes come from the shell, not a watched folder, so poll quietly while open. */
+    const refreshQuietly = useCallback(async () => {
+        try {
+            setEntries(await listRecycle(showOrphans));
+        } catch {
+            // Keep the entries already on screen; the next poll tries again.
+        }
+    }, [showOrphans]);
+
     useEffect(() => {
         void reload();
     }, [reload]);
+
+    useEffect(() => {
+        const timer = window.setInterval(() => void refreshQuietly(), 10_000);
+        return () => window.clearInterval(timer);
+    }, [refreshQuietly]);
 
     useEffect(() => {
         if (!showOrphans) {

@@ -1955,15 +1955,10 @@ export default function App() {
         };
     }, [goBack, goForward]);
 
-    // Every file tab that can be on screen is watched, not just the active one, and an archive tab
-    // watches the folder that holds the archive. A write from another tab, an extraction or an
-    // outside tool therefore reaches every tab that shows the same place.
-    useEffect(() => {
-        if (!Native.available) return;
-
-        // The overview watches its own folders, so this only speaks for a files tab.
-        if (kind !== "files") return;
-
+    // Every file tab reports its folder, whichever page is on screen. The overview and pinned
+    // sidebar folders watch their own folders too; the host unions the lists, so one surface can no
+    // longer replace another's list.
+    const watchFolders = useMemo(() => {
         const paths = new Set<string>();
 
         for (const tab of tabs) {
@@ -1980,9 +1975,15 @@ export default function App() {
             }
         }
 
-        if (paths.size > 0)
-            Native.send({type: "fs.watch", payload: {paths: [...paths]}});
-    }, [kind, location, tabs]);
+        return [...paths];
+    }, [tabs]);
+    const watchKey = watchFolders.join("\0");
+
+    useEffect(() => {
+        if (!Native.available) return;
+
+        Native.send({type: "fs.watch", payload: {paths: watchFolders, owner: "app"}});
+    }, [watchKey, activeId]);
 
     // A change in a folder on screen refreshes every tab showing it in place, so two tabs at the
     // same path never disagree about an entry that was just deleted, renamed or created.
@@ -1996,11 +1997,31 @@ export default function App() {
             const changed = event.data.path;
             const targets = stateRef.current.tabs
                 .filter((tab) => kindOf(tab) === "files" && samePath(folderOf(tab), changed));
+            // An archive tab shows a virtual path, so a change to the archive file itself is found
+            // by comparing the file, not the listing path. Re-read the archive when it changes.
+            const archives = stateRef.current.tabs.filter((tab) => {
+                const folder = folderOf(tab);
+                return kindOf(tab) === "files" && folder.length > 0
+                    && isArchiveLocation(folder) && samePath(archiveFile(folder), changed);
+            });
 
-            if (targets.length === 0) return;
+            if (targets.length === 0 && archives.length === 0) return;
 
             // New entries usually mean new icons; a missing shell answer must not stay cached.
             clearIconCache();
+
+            for (const tab of archives) {
+                const latest = stateRef.current.tabs.find((item) => item.id === tab.id);
+                const folder = latest ? folderOf(latest) : "";
+
+                if (!latest || kindOf(latest) !== "files" || latest.loading
+                    || !isArchiveLocation(folder) || !samePath(archiveFile(folder), changed))
+                    continue;
+
+                void load(tab.id, folder, true);
+            }
+
+            if (targets.length === 0) return;
 
             // Only the entries are refreshed; sizes are measured when the folder is entered.
             void listDirectory(changed, false, includeLinks)
@@ -2008,17 +2029,29 @@ export default function App() {
                     for (const tab of targets) {
                         const latest = stateRef.current.tabs.find((item) => item.id === tab.id);
 
-                        if (!latest || kindOf(latest) !== "files" || latest.loading)
+                        if (!latest || kindOf(latest) !== "files")
                             continue;
 
                         if (!samePath(folderOf(latest), listing.path))
                             continue;
 
+                        // A read that started before this change may still be in flight; give it a
+                        // moment, then paint the watcher's newer listing if it has settled.
+                        if (latest.loading) {
+                            window.setTimeout(() => {
+                                const after = stateRef.current.tabs.find((item) => item.id === tab.id);
+                                if (after && !after.loading && kindOf(after) === "files"
+                                    && samePath(folderOf(after), listing.path))
+                                    patch(tab.id, () => ({listing}));
+                            }, 300);
+                            continue;
+                        }
+
                         patch(tab.id, () => ({listing}));
                     }
                 }, () => undefined);
         });
-    }, [includeLinks, patch]);
+    }, [includeLinks, load, patch]);
 
     const canBack = active.index > 0;
     const canForward = active.index < active.history.length - 1;
