@@ -52,7 +52,7 @@
 ## 使っているもの
 
 - **C# / .NET 10** — ファイル操作、シェル連携、ごみ箱、アイコン、SQLite インデックス、トレイアイコン。
-- **React 19 + TypeScript**（**Vite**、**styled-components**） — インターフェース。表示のみを担当し、
+- **React 19 + TypeScript**（ **Vite**、 **styled-components**） — インターフェース。表示のみを担当し、
   C# 側と JSON メッセージでやり取りします。
 - **Photino.NET** — デスクトップシェル。Web ビューは OS のものを使います（Windows は WebView2、
   Linux は WebKitGTK）。
@@ -64,12 +64,12 @@
 公開ビルドは自己完結で、.NET ランタイムを同梱しています。必要なのは Web ビューと、Linux では
 トレイ用ライブラリだけです。
 
-| ファイル | 対象 |
-| --- | --- |
-| `YetAnotherFileManager-<version>-win-x64.msi` | Windows（ユーザー単位、管理者権限不要） |
-| `yafm-<version>-1.fcXX.x86_64.rpm` | Fedora — `sudo dnf install ./yafm-<version>-*.rpm` |
-| `yafm_<version>_amd64.deb` | Debian / Ubuntu — `sudo apt install ./yafm_<version>_amd64.deb` |
-| `yafm-<version>-1-x86_64.pkg.tar.zst` | Arch — `sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst` |
+| ファイル                                      | 対象                                                            |
+|-----------------------------------------------|-----------------------------------------------------------------|
+| `YetAnotherFileManager-<version>-win-x64.msi` | Windows（ユーザー単位、管理者権限不要）                         |
+| `yafm-<version>-1.fcXX.x86_64.rpm`            | Fedora — `sudo dnf install ./yafm-<version>-*.rpm`              |
+| `yafm_<version>_amd64.deb`                    | Debian / Ubuntu — `sudo apt install ./yafm_<version>_amd64.deb` |
+| `yafm-<version>-1-x86_64.pkg.tar.zst`         | Arch — `sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`     |
 
 Windows 10/11 には WebView2 が入っています。コード署名はしていないため、初回に SmartScreen の警告が
 出ることがあります。Linux は WebKitGTK 4.1 と libnotify が必要で、Fedora + KDE Plasma（Wayland）で

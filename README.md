@@ -66,12 +66,12 @@ A desktop file manager with tabs, archives, tags and a gallery in one window.
 Published builds are self-contained: the .NET runtime is inside. Only the web view, and the tray
 library on Linux, have to be there.
 
-| File | For |
-| --- | --- |
-| `YetAnotherFileManager-<version>-win-x64.msi` | Windows, per user, no administrator rights |
-| `yafm-<version>-1.fcXX.x86_64.rpm` | Fedora — `sudo dnf install ./yafm-<version>-*.rpm` |
-| `yafm_<version>_amd64.deb` | Debian / Ubuntu — `sudo apt install ./yafm_<version>_amd64.deb` |
-| `yafm-<version>-1-x86_64.pkg.tar.zst` | Arch — `sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst` |
+| File                                          | For                                                             |
+|-----------------------------------------------|-----------------------------------------------------------------|
+| `YetAnotherFileManager-<version>-win-x64.msi` | Windows, per user, no administrator rights                      |
+| `yafm-<version>-1.fcXX.x86_64.rpm`            | Fedora — `sudo dnf install ./yafm-<version>-*.rpm`              |
+| `yafm_<version>_amd64.deb`                    | Debian / Ubuntu — `sudo apt install ./yafm_<version>_amd64.deb` |
+| `yafm-<version>-1-x86_64.pkg.tar.zst`         | Arch — `sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`     |
 
 Windows 10 and 11 already have WebView2; the build is not code-signed, so SmartScreen may warn once.
 Linux needs WebKitGTK 4.1 and libnotify, and is tested on Fedora with KDE Plasma on Wayland. The

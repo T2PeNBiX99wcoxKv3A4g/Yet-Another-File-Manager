@@ -50,7 +50,7 @@
 ## 用了什么
 
 - **C# / .NET 10** — 文件操作、Shell 集成、回收站、图标、SQLite 索引和托盘图标。
-- **React 19 + TypeScript**（**Vite**、**styled-components**） — 界面。只负责显示，通过 JSON 消息与
+- **React 19 + TypeScript**（ **Vite**、 **styled-components**） — 界面。只负责显示，通过 JSON 消息与
   C# 端通信。
 - **Photino.NET** — 桌面外壳。Web 视图来自系统：Windows 用 WebView2，Linux 用 WebKitGTK。
 - **Rust**（`Native/yafm-native`） — 图库扫描、创建压缩包（ZIP 与 7z）、测量和删除目录树。它是构建的
@@ -60,12 +60,12 @@
 
 发布版本自带 .NET 运行时，除了 Web 视图（以及 Linux 的托盘库）外不需要安装别的东西。
 
-| 文件 | 适用 |
-| --- | --- |
-| `YetAnotherFileManager-<version>-win-x64.msi` | Windows（按用户安装，无需管理员权限） |
-| `yafm-<version>-1.fcXX.x86_64.rpm` | Fedora — `sudo dnf install ./yafm-<version>-*.rpm` |
-| `yafm_<version>_amd64.deb` | Debian / Ubuntu — `sudo apt install ./yafm_<version>_amd64.deb` |
-| `yafm-<version>-1-x86_64.pkg.tar.zst` | Arch — `sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst` |
+| 文件                                          | 适用                                                            |
+|-----------------------------------------------|-----------------------------------------------------------------|
+| `YetAnotherFileManager-<version>-win-x64.msi` | Windows（按用户安装，无需管理员权限）                           |
+| `yafm-<version>-1.fcXX.x86_64.rpm`            | Fedora — `sudo dnf install ./yafm-<version>-*.rpm`              |
+| `yafm_<version>_amd64.deb`                    | Debian / Ubuntu — `sudo apt install ./yafm_<version>_amd64.deb` |
+| `yafm-<version>-1-x86_64.pkg.tar.zst`         | Arch — `sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`     |
 
 Windows 10/11 自带 WebView2；构建没有代码签名，首次运行时 SmartScreen 可能提示一次。Linux 需要
 WebKitGTK 4.1 和 libnotify，目前在 Fedora + KDE Plasma（Wayland）上测试。剪贴板在 Wayland 使用
