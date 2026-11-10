@@ -166,11 +166,9 @@ const NoPaths: ReadonlySet<string> = new Set();
 
 /** Where the dragged column widths live, and how narrow or wide one may become. */
 const ColumnWidthKey = "yafm.columnWidths";
-const NameColumn = "name";
 const MinColumnWidth = 64;
 const MaxColumnWidth = 720;
 const MinNameWidth = 160;
-const MaxNameWidth = 1200;
 
 /** The height the strip starts at, and the one a double-click on the divider brings back. */
 const DefaultStripHeight = 190;
@@ -365,35 +363,55 @@ export function FileList({
             Math.min(MaxColumnWidth, Math.max(MinColumnWidth, widths[column.id] ?? column.width)),
         [widths]);
 
-    const nameTemplate = widths[NameColumn] ? `${widths[NameColumn]}px` : "minmax(160px, 1fr)";
-
     const template = useMemo(
-        () => `${nameTemplate} ${visible.map((column) => `${widthOf(column)}px`).join(" ")}`.trim(),
-        [nameTemplate, visible, widthOf],
+        () => `minmax(160px, 1fr) ${visible.map((column) => `${widthOf(column)}px`).join(" ")}`.trim(),
+        [visible, widthOf],
     );
 
-    // A drag on a header's right edge. The name column fills the window until the first drag, when
-    // it is frozen at the width it has; from then on every divider moves under the pointer instead
-    // of pushing the columns around, exactly like the columns of a desktop file manager.
-    const dragColumn = useRef<{ id: string; startX: number; startWidth: number } | null>(null);
+    // A drag on a header's right edge. The window keeps its width: a divider takes room from the
+    // column beside it, so nothing shifts sideways and the row never grows wider than the view.
+    // The name column is the flexible one, so its divider simply squeezes the first column.
+    const dragColumn = useRef<{
+        left: { id: string; start: number };
+        right?: { id: string; start: number };
+        startX: number;
+        nameStart: number;
+    } | null>(null);
 
     const nameRef = useRef<HTMLDivElement | null>(null);
 
-    const measuredName = () => Math.floor(nameRef.current?.getBoundingClientRect().width ?? 0);
+    const measuredName = () => Math.floor(nameRef.current?.getBoundingClientRect().width ?? MinNameWidth);
 
-    const startResize = (event: ReactPointerEvent, id: string, width: number) => {
+    /** Starts a drag between the name and the first column; dragging right widens the name. */
+    const startNameResize = (event: ReactPointerEvent) => {
+        const first = visible[0];
+        if (!first) return;
+
         event.preventDefault();
         event.stopPropagation();
 
-        // A drag on any other column freezes the name first, so the columns to the right of the
-        // divider move with the pointer instead of the whole row shifting under it.
-        if (id !== NameColumn && widths[NameColumn] === undefined)
-            setWidths((current) => ({...current, [NameColumn]: Math.max(MinNameWidth, measuredName() || MinNameWidth)}));
+        dragColumn.current = {
+            left: {id: first.id, start: widthOf(first)},
+            startX: event.clientX,
+            nameStart: measuredName(),
+        };
+    };
 
-        const name = id === NameColumn;
-        const start = name ? (widths[NameColumn] ?? (measuredName() || MinNameWidth)) : width;
+    /** Starts a drag between two columns; the room moves from one to the other. */
+    const startColumnResize = (event: ReactPointerEvent, index: number) => {
+        const left = visible[index];
+        const right = visible[index + 1];
+        if (!left || !right) return;
 
-        dragColumn.current = {id, startX: event.clientX, startWidth: start};
+        event.preventDefault();
+        event.stopPropagation();
+
+        dragColumn.current = {
+            left: {id: left.id, start: widthOf(left)},
+            right: {id: right.id, start: widthOf(right)},
+            startX: event.clientX,
+            nameStart: 0,
+        };
     };
 
     const resetWidth = (id: string) =>
@@ -409,11 +427,28 @@ export function FileList({
             const drag = dragColumn.current;
             if (!drag) return;
 
-            const width = Math.min(drag.id === NameColumn ? MaxNameWidth : MaxColumnWidth, Math.max(
-                drag.id === NameColumn ? MinNameWidth : MinColumnWidth,
-                drag.startWidth + (event.clientX - drag.startX)));
+            const delta = event.clientX - drag.startX;
 
-            setWidths((current) => current[drag.id] === width ? current : {...current, [drag.id]: width});
+            setWidths((current) => {
+                if (!drag.right) {
+                    // The name divider: dragging right shrinks the first column and the flexible
+                    // name takes that room, so it stops when the name or the column hits its limit.
+                    const room = Math.max(0, drag.nameStart - MinNameWidth);
+                    const width = Math.min(
+                        Math.min(MaxColumnWidth, drag.left.start + room),
+                        Math.max(MinColumnWidth, drag.left.start - delta));
+
+                    return current[drag.left.id] === width ? current : {...current, [drag.left.id]: width};
+                }
+
+                const total = drag.left.start + drag.right.start;
+                const wanted = Math.min(MaxColumnWidth, Math.max(MinColumnWidth, drag.left.start + delta));
+                const leftWidth = Math.min(
+                    Math.min(MaxColumnWidth, total - MinColumnWidth),
+                    Math.max(Math.max(MinColumnWidth, total - MaxColumnWidth), wanted));
+
+                return {...current, [drag.left.id]: leftWidth, [drag.right.id]: total - leftWidth};
+            });
         };
 
         const stop = () => {
@@ -1352,22 +1387,24 @@ export function FileList({
                         </HeaderButton>
                         <ResizeHandle
                             aria-label={t("Resize column")}
-                            onDoubleClick={() => resetWidth(NameColumn)}
-                            onPointerDown={(event) => startResize(event, NameColumn, widths[NameColumn] ?? measuredName())}
+                            onDoubleClick={() => visible[0] && resetWidth(visible[0].id)}
+                            onPointerDown={startNameResize}
                             role="separator"
                         />
                     </HeaderName>
-                    {visible.map((column) => (
+                    {visible.map((column, index) => (
                         <HeaderCell key={column.id}>
                             <HeaderButton onClick={() => onSort(column.id)} type="button">
                                 {t(column.label)}{markOf(view, column.id)}
                             </HeaderButton>
-                            <ResizeHandle
-                                aria-label={t("Resize column")}
-                                onDoubleClick={() => resetWidth(column.id)}
-                                onPointerDown={(event) => startResize(event, column.id, widthOf(column))}
-                                role="separator"
-                            />
+                            {index < visible.length - 1 && (
+                                <ResizeHandle
+                                    aria-label={t("Resize column")}
+                                    onDoubleClick={() => resetWidth(column.id)}
+                                    onPointerDown={(event) => startColumnResize(event, index)}
+                                    role="separator"
+                                />
+                            )}
                         </HeaderCell>
                     ))}
                 </Head>
