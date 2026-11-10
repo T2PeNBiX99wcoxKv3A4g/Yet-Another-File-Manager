@@ -117,7 +117,7 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
                             title={t("Reset column widths")}
                             type="button"
                         >
-                            {t("Reset")}
+                            {t("Reset widths")}
                         </ResetButton>
                     </SectionTitle>
                     {ViewColumns.map((column) => (

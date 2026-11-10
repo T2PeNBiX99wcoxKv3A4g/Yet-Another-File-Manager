@@ -774,5 +774,6 @@
   "Restore default panels": "還原預設面板",
   "Put every panel back the way the app ships it": "把所有面板還原為應用程式出廠時的狀態。",
   "Resize column": "調整欄位寬度",
-  "Reset column widths": "重設欄位寬度"
+  "Reset column widths": "重設欄位寬度",
+  "Reset widths": "重設寬度"
 }

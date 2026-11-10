@@ -34,8 +34,8 @@ Drag the divider to the right of a header to move room between that column and t
 the row keeps the width it has, so nothing shifts sideways and no scrolling appears. A column at
 either end is resized through the divider next to it. Double-click a divider to restore the default
 width of the column on its left. The name column takes the remaining room, so dragging its divider
-squeezes the first column and gives the room to the names. **Reset**, beside the **Columns** title in
-the view menu, brings every dragged width back at once.
+squeezes the first column and gives the room to the names. **Reset widths**, beside the **Columns**
+title in the view menu, brings every dragged width back at once.
 
 ## Preview panel
 

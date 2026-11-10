@@ -175,7 +175,7 @@ export function PreviewPane({
 
     if (!info)
         return (
-            <Root>
+            <Root $open={open}>
                 {open && (
                     <Splitter
                         onPointerDown={start}
@@ -207,7 +207,7 @@ export function PreviewPane({
     };
 
     return (
-        <Root>
+        <Root $open={open}>
             {open && (
                 <Splitter
                     onPointerDown={start}
@@ -368,11 +368,12 @@ function formatTime(seconds: number): string {
         : `${minutes}:${String(rest).padStart(2, "0")}`;
 }
 
-const Root = styled.div`
+const Root = styled.div<{ $open: boolean }>`
     display: flex;
     flex-shrink: 1;
     align-self: stretch;
-    min-width: 220px;
+    /* A closed pane must not keep a slot of its own; only a divider divides what is left. */
+    min-width: ${({$open}) => $open ? "220px" : "0"};
     min-height: 0;
 `;
 
