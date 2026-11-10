@@ -63,8 +63,6 @@ Yet Another File Manager は Windows と Linux 向けのデスクトップファ
 - **テーマ** — アクセント色とセカンダリ色、組み込みと保存したプリセット。
 - **必要な場所で速く** — フォルダーごとの小さなインデックス（または 1 つの中央データベース）、遅延
   読み込みのシステムアイコン、ギャラリーを走査して大きなツリーを削除する Rust ヘルパー。
-- **`yafm://` リンク** — どこからでも新しいタブでフォルダーを開けます。ハンドラーはユーザーごとに
-  登録されます。
 
 ## 使用技術
 
@@ -84,12 +82,12 @@ OS 側で必要なものは、各システムの説明に記載しています�
 
 プレーンなアーカイブのほかに、4 種類のパッケージを公開しています。
 
-| ファイル                                      | 内容                                                                                                                                                                                |
-|-----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ファイル                                      | 内容                                                                                                                                                                                   |
+|-----------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `YetAnotherFileManager-<version>-win-x64.msi` | ユーザー単位の Windows インストーラー。`%LOCALAPPDATA%\Programs\Yet Another File Manager` に導入し、スタートメニューとデスクトップにショートカットを作成します。管理者権限は不要です。 |
-| `yafm-<version>-1.fcXX.x86_64.rpm`            | Fedora パッケージ: `sudo dnf install ./yafm-<version>-*.rpm`。`/opt/YetAnotherFileManager` に導入し、`yafm` コマンド、デスクトップエントリ、アイコンを追加します。                  |
-| `yafm_<version>_amd64.deb`                    | Debian/Ubuntu パッケージ: `sudo apt install ./yafm_<version>_amd64.deb`。配置は RPM と同じです。                                                                                    |
-| `yafm-<version>-1-x86_64.pkg.tar.zst`         | Arch Linux パッケージ: `sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`。配置は RPM と同じです。                                                                                |
+| `yafm-<version>-1.fcXX.x86_64.rpm`            | Fedora パッケージ: `sudo dnf install ./yafm-<version>-*.rpm`。`/opt/YetAnotherFileManager` に導入し、`yafm` コマンド、デスクトップエントリ、アイコンを追加します。                     |
+| `yafm_<version>_amd64.deb`                    | Debian/Ubuntu パッケージ: `sudo apt install ./yafm_<version>_amd64.deb`。配置は RPM と同じです。                                                                                       |
+| `yafm-<version>-1-x86_64.pkg.tar.zst`         | Arch Linux パッケージ: `sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`。配置は RPM と同じです。                                                                                   |
 
 ### Windows
 

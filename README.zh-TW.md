@@ -57,7 +57,6 @@ Yet Another File Manager 是 Windows 與 Linux 上的桌面檔案管理員。它
 - **主題** — 強調色與次要色、內建與自訂預設集。
 - **該快的地方就快** — 每個資料夾的小型索引（或單一中央資料庫）、延遲載入的系統圖示，以及用 Rust
   掃描相簿、快速刪除大型目錄樹的輔助程式。
-- **`yafm://` 連結** — 從任何地方在新分頁開啟資料夾，處理常式會依使用者註冊。
 
 ## 使用技術
 
@@ -76,12 +75,12 @@ Yet Another File Manager 是 Windows 與 Linux 上的桌面檔案管理員。它
 
 除了純壓縮檔外，還發行四種套件格式：
 
-| 檔案                                          | 用途                                                                                                                                      |
-|-----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| 檔案                                          | 用途                                                                                                                                         |
+|-----------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
 | `YetAnotherFileManager-<version>-win-x64.msi` | 每位使用者的 Windows 安裝程式：安裝到 `%LOCALAPPDATA%\Programs\Yet Another File Manager`，建立開始功能表項目與桌面捷徑，且不需要管理員權限。 |
-| `yafm-<version>-1.fcXX.x86_64.rpm`            | Fedora 套件：`sudo dnf install ./yafm-<version>-*.rpm`。安裝到 `/opt/YetAnotherFileManager`，提供 `yafm` 指令、桌面項目與圖示。           |
-| `yafm_<version>_amd64.deb`                    | Debian/Ubuntu 套件：`sudo apt install ./yafm_<version>_amd64.deb`。配置與 RPM 相同。                                                      |
-| `yafm-<version>-1-x86_64.pkg.tar.zst`         | Arch Linux 套件：`sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`。配置與 RPM 相同。                                                  |
+| `yafm-<version>-1.fcXX.x86_64.rpm`            | Fedora 套件：`sudo dnf install ./yafm-<version>-*.rpm`。安裝到 `/opt/YetAnotherFileManager`，提供 `yafm` 指令、桌面項目與圖示。              |
+| `yafm_<version>_amd64.deb`                    | Debian/Ubuntu 套件：`sudo apt install ./yafm_<version>_amd64.deb`。配置與 RPM 相同。                                                         |
+| `yafm-<version>-1-x86_64.pkg.tar.zst`         | Arch Linux 套件：`sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`。配置與 RPM 相同。                                                     |
 
 ### Windows
 

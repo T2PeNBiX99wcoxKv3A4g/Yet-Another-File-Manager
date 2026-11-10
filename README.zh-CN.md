@@ -57,7 +57,6 @@ Yet Another File Manager 是我尝试保留熟悉的操作方式，并加入我�
 - **主题** — 强调色与辅助色、内置与自定义预设。
 - **该快的地方就快** — 每个文件夹的小型索引（或单一中央数据库）、延迟加载的系统图标，以及用 Rust
   扫描图库、快速删除大型目录树的辅助程序。
-- **`yafm://` 链接** — 从任何地方在新标签页打开文件夹，处理程序会按用户注册。
 
 ## 使用技术
 
@@ -76,12 +75,12 @@ Yet Another File Manager 是我尝试保留熟悉的操作方式，并加入我�
 
 除了纯压缩包外，还发布四种包格式：
 
-| 文件                                          | 用途                                                                                                                                    |
-|-----------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
+| 文件                                          | 用途                                                                                                                                       |
+|-----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
 | `YetAnotherFileManager-<version>-win-x64.msi` | 每位用户的 Windows 安装程序：安装到 `%LOCALAPPDATA%\Programs\Yet Another File Manager`，创建开始菜单项和桌面快捷方式，且不需要管理员权限。 |
-| `yafm-<version>-1.fcXX.x86_64.rpm`            | Fedora 包：`sudo dnf install ./yafm-<version>-*.rpm`。安装到 `/opt/YetAnotherFileManager`，提供 `yafm` 命令、桌面项和图标。             |
-| `yafm_<version>_amd64.deb`                    | Debian/Ubuntu 包：`sudo apt install ./yafm_<version>_amd64.deb`。布局与 RPM 相同。                                                      |
-| `yafm-<version>-1-x86_64.pkg.tar.zst`         | Arch Linux 包：`sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`。布局与 RPM 相同。                                                  |
+| `yafm-<version>-1.fcXX.x86_64.rpm`            | Fedora 包：`sudo dnf install ./yafm-<version>-*.rpm`。安装到 `/opt/YetAnotherFileManager`，提供 `yafm` 命令、桌面项和图标。                |
+| `yafm_<version>_amd64.deb`                    | Debian/Ubuntu 包：`sudo apt install ./yafm_<version>_amd64.deb`。布局与 RPM 相同。                                                         |
+| `yafm-<version>-1-x86_64.pkg.tar.zst`         | Arch Linux 包：`sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`。布局与 RPM 相同。                                                     |
 
 ### Windows
 

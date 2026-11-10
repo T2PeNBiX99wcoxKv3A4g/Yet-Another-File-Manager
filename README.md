@@ -63,8 +63,6 @@ Windows and Linux share the same interface, so the window looks the same on both
 - **Themes** — accent and secondary colours, built-in and saved presets.
 - **Fast where it matters** — a small index per folder (or one central database), shell icons loaded
   lazily, and a Rust helper that scans the gallery and unlinks big trees.
-- **`yafm://` links** — open a folder in a new tab from anywhere, with the handler registered per
-  user.
 
 ## Built with
 
@@ -84,12 +82,12 @@ installed for them. What the operating system still has to provide is listed und
 
 Four package formats are published beside the plain archives:
 
-| File                                          | What it does                                                                                                                                                                        |
-|-----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| File                                          | What it does                                                                                                                                                                           |
+|-----------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `YetAnotherFileManager-<version>-win-x64.msi` | Per-user Windows installer: installs into `%LOCALAPPDATA%\Programs\Yet Another File Manager`, adds a Start menu entry and a desktop shortcut, and never asks for administrator rights. |
-| `yafm-<version>-1.fcXX.x86_64.rpm`            | Fedora package: `sudo dnf install ./yafm-<version>-*.rpm`. Installs to `/opt/YetAnotherFileManager` with a `yafm` command, a desktop entry and the icon.                            |
-| `yafm_<version>_amd64.deb`                    | Debian/Ubuntu package: `sudo apt install ./yafm_<version>_amd64.deb`. Same layout as the RPM.                                                                                       |
-| `yafm-<version>-1-x86_64.pkg.tar.zst`         | Arch Linux package: `sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`. Same layout as the RPM.                                                                                   |
+| `yafm-<version>-1.fcXX.x86_64.rpm`            | Fedora package: `sudo dnf install ./yafm-<version>-*.rpm`. Installs to `/opt/YetAnotherFileManager` with a `yafm` command, a desktop entry and the icon.                               |
+| `yafm_<version>_amd64.deb`                    | Debian/Ubuntu package: `sudo apt install ./yafm_<version>_amd64.deb`. Same layout as the RPM.                                                                                          |
+| `yafm-<version>-1-x86_64.pkg.tar.zst`         | Arch Linux package: `sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`. Same layout as the RPM.                                                                                      |
 
 ### Windows
 
