@@ -1,7 +1,7 @@
 <div align="center">
   <img src="icon.svg" alt="" width="120">
   <h1>Yet Another File Manager</h1>
-  <p><strong>把所有东西集中在同一个窗口里的文件管理器。</strong></p>
+  <p><strong>把所有东西放进一个窗口的文件管理器。</strong></p>
   <p>
     <a href="https://t2penbix99wcoxkv3a4g.github.io/Yet-Another-File-Manager/">网站</a> ·
     <a href="https://t2penbix99wcoxkv3a4g.github.io/Yet-Another-File-Manager/#/docs/Getting-Started">文档</a>
@@ -13,14 +13,12 @@
   </p>
 </div>
 
-Yet Another File Manager 是 Windows 和 Linux 上的桌面文件管理器。它以列表或网格浏览文件夹，在旁边预览
-图片、视频和文档，并把标签页、分屏视图、搜索、图库、全局标签和回收站都放在同一个窗口里。
-两个系统共用同一份代码。
+标签页、预览、压缩包、标签和图库都在同一个窗口里的桌面文件管理器。
 
 <div align="center">
   <a href="docs/main-window.png"><img src="docs/main-window.png" alt="主窗口" width="880"></a>
   <br>
-  <em>主窗口与详细信息面板</em>
+  <em>主窗口，带详细信息面板</em>
   <br><br>
   <a href="docs/overview.png"><img src="docs/overview.png" alt="概览" width="880"></a>
   <br>
@@ -31,101 +29,74 @@ Yet Another File Manager 是 Windows 和 Linux 上的桌面文件管理器。它
   <em>设置：颜色预设与分区列表</em>
 </div>
 
-## 为什么
+## 能做什么
 
-资源管理器一直够用，直到你想要两个文件夹并排、想在打开前先预览文件，或想从误删中恢复。
-Yet Another File Manager 是我尝试保留熟悉的操作方式，并加入我每天都会用到的功能，而不是把它们藏在付费
-方案后面。Windows 与 Linux 共用同一个界面，因此两边的窗口看起来一样。
+- **标签页与分屏** — 同时打开多个文件夹，并排显示两个；每个标签页有自己的历史记录。
+- **列表与网格** — 按任意列排序、选择要显示的列、拖动标题调整列宽，每个文件夹记住自己的布局。
+- **预览** — 图片、视频、PDF 和文本显示在列表旁边或下方，并列出选中项目的大小、日期、链接目标和属性。
+- **压缩包** — 把 ZIP、7z、RAR、TAR 以及 7-Zip 能读的格式当作文件夹打开，分卷和加密的也一样；创建
+  ZIP、7z、TAR 时可指定 AES 与分卷，ZIP 还可选择压缩方式。
+- **概览** — 由面板组成的主页：快速访问、常用、最近、驱动器、共享、收藏和任意文件夹，一到五列。
+- **搜索与标签** — 输入即过滤的搜索栏（区分大小写、正则表达式）；标签只有一个全局目录，颜色也共享。
+- **图库** — 把指定文件夹里的图片按日期分组，双击即可原尺寸查看。
+- **回收站** — 还原、永久删除，或清理文件已不存在的记录。
+- **文件操作在应用内完成** — 复制、移动、重命名和删除都由应用执行，显示进度并自己写入回收站记录；
+  历史记录可以撤销。
+- **共享** — 把文件夹提供给已配对的设备，或同一网络中的任何浏览器。
+- **速度** — 每个文件夹的小型索引（或一个中央数据库）、延迟加载的图标，以及处理批量工作的 Rust 辅助程序。
+- **剪切与粘贴** — 托盘中显示剪贴板内容，以及下次粘贴会移动哪些项目。
 
-## 功能
+## 用了什么
 
-- **标签页与分屏** — 同时打开多个文件夹，并把其中两个并排显示。每个标签页都有自己的历史记录，分隔线
-  可以拖动。
-- **列表与网格** — 可按任意列排序、自选列，并让每个文件夹记住自己的模式、图标大小和磁贴高度。
-  列表采用虚拟化，因此再大的文件夹也能流畅滚动。
-- **预览** — 图片、视频、PDF 和文本会显示在详细信息面板或列表下方的预览区，并列出选中项目的大小、
-  日期、链接目标和属性。
-- **概览** — 由面板组成的主页：快速访问、常用文件夹、最近项目、驱动器，以及你固定的任何文件夹，
-  可排成一到五列。
-- **搜索** — 浮动搜索栏会随输入即时过滤，支持区分大小写、正则表达式，并可选择把其余项目变暗或隐藏。
-- **标签** — 全局标签目录，每个标签都有自己的颜色；在任何文件夹都能标记，并一次重命名、改色或移除。
-- **图库** — 指定存放图片的文件夹后，会按日期把每张图片分组，双击即可用原始尺寸查看。
-- **回收站** — 还原、永久删除，并列出文件本体已不存在的残留记录。管理员视图涵盖所有配置文件的
-  残留项。
-- **文件操作自己处理** — 复制、移动、重命名和删除都在程序内完成，不交给资源管理器，因此会在状态
-  中心回报进度，也不会卡在系统对话框上。回收站的记录由程序自己写入，资源管理器一样能还原。
-- **主题** — 强调色与辅助色、内置与自定义预设。
-- **该快的地方就快** — 每个文件夹的小型索引（或单一中央数据库）、延迟加载的系统图标，以及用 Rust
-  扫描图库、快速删除大型目录树的辅助程序。
+- **C# / .NET 10** — 文件操作、Shell 集成、回收站、图标、SQLite 索引和托盘。
+- **React 19 + TypeScript**（**Vite**、**styled-components**） — 界面。只负责显示，通过 JSON 消息与
+  C# 端通信。
+- **Photino.NET** — 桌面外壳。Web 视图来自系统：Windows 用 WebView2，Linux 用 WebKitGTK。
+- **Rust**（`Native/yafm-native`） — 图库扫描、创建压缩包（ZIP 与 7z）、测量和删除目录树。它是构建的
+  一部分：没有 cargo 构建会停止，缺少库应用无法启动。
 
-## 使用技术
+## 安装
 
-- **C# on .NET 10** — 文件系统操作、外壳集成、回收站、图标、SQLite 索引与系统托盘。
-- **React 19 + TypeScript**，以 **Vite** 打包、 **styled-components** 设计样式 — 界面本身只负责呈现，
-  通过 JSON 消息与 C# 端通信。
-- **Photino.NET** — 桌面外壳。它在操作系统自己的网页视图中显示界面，因此网页视图是运行时依赖：
-  Windows 使用 WebView2，Linux 使用 WebKitGTK。
-- **Rust**（`Native/yafm-native`）— 大量图库扫描、ZIP 创建与大型删除。辅助程序不存在时，托管的回退实现仍能
-  让程序正常运行。
+发布版本自带 .NET 运行时，除了 Web 视图（以及 Linux 的托盘库）外不需要安装别的东西。
 
-## 运行
+| 文件 | 适用 |
+| --- | --- |
+| `YetAnotherFileManager-<version>-win-x64.msi` | Windows（按用户安装，无需管理员权限） |
+| `yafm-<version>-1.fcXX.x86_64.rpm` | Fedora — `sudo dnf install ./yafm-<version>-*.rpm` |
+| `yafm_<version>_amd64.deb` | Debian / Ubuntu — `sudo apt install ./yafm_<version>_amd64.deb` |
+| `yafm-<version>-1-x86_64.pkg.tar.zst` | Arch — `sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst` |
 
-发布版本是 **自包含**的——已一并打包 .NET 运行时，因此无需另外安装。操作系统仍需提供什么，列在下面
-各系统的说明中。
+Windows 10/11 自带 WebView2；构建没有代码签名，首次运行时 SmartScreen 可能提示一次。Linux 需要
+WebKitGTK 4.1 和 libnotify，目前在 Fedora + KDE Plasma（Wayland）上测试。剪贴板在 Wayland 使用
+wl-clipboard，在 X11 使用 xclip。
 
-除了纯压缩包外，还发布四种包格式：
+脚本可以用同一个选择器代替系统对话框：
 
-| 文件                                          | 用途                                                                                                                                       |
-|-----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
-| `YetAnotherFileManager-<version>-win-x64.msi` | 每位用户的 Windows 安装程序：安装到 `%LOCALAPPDATA%\Programs\Yet Another File Manager`，创建开始菜单项和桌面快捷方式，且不需要管理员权限。 |
-| `yafm-<version>-1.fcXX.x86_64.rpm`            | Fedora 包：`sudo dnf install ./yafm-<version>-*.rpm`。安装到 `/opt/YetAnotherFileManager`，提供 `yafm` 命令、桌面项和图标。                |
-| `yafm_<version>_amd64.deb`                    | Debian/Ubuntu 包：`sudo apt install ./yafm_<version>_amd64.deb`。布局与 RPM 相同。                                                         |
-| `yafm-<version>-1-x86_64.pkg.tar.zst`         | Arch Linux 包：`sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`。布局与 RPM 相同。                                                     |
+```bash
+yafm --pick-folder [--multiple] [--initial <path>] [--output <file>]
+yafm --pick-file --filter "*.png;*.jpg" [--multiple] [--initial <path>] [--output <file>]
+```
 
-### Windows
+选中的路径会逐行输出到标准输出；取消时退出码为 `1`。
 
-1. Microsoft Edge **WebView2 运行时**。Windows 10 和 11 已内置；其他版本需要
-   [Microsoft 的安装程序](https://developer.microsoft.com/microsoft-edge/webview2/)。
-2. MSI 以每位用户安装，不需要提升权限。
-3. 构建版本未经代码签名，因此首次运行时 SmartScreen 可能会警告。请选择 **更多信息** → **仍要运行**。
-
-### Linux
-
-1. 网页视图需要 **WebKitGTK 4.1**，系统托盘图标需要 **libnotify**。安装包会自动带上；纯压缩包则需
-   自行安装。
-2. Linux 版本主要在 **Fedora 搭配 KDE Plasma（Wayland）** 上测试。其他发行版和桌面环境尚未测试；
-   若窗口无法启动，请先检查运行时库。
-
-## 从源码构建
+## 构建
 
 ```bash
 git clone https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager.git
 cd YetAnotherFileManager
-dotnet build YetAnotherFileManager/YetAnotherFileManager.csproj
+dotnet build YetAnotherFileManager/YetAnotherFileManager.csproj   # 同时会运行 cargo
 ```
 
-界面是独立的 Vite 项目：
+界面是单独的 Vite 项目：
 
 ```bash
 cd YetAnotherFileManager/UserInterface
 npm install
-npm run build     # 写入 Resources/wwwroot，Release 构建会提供这些文件
+npm run build     # 输出到 Resources/wwwroot，Release 构建会使用它
+npm run dev       # Debug 构建连接这里: http://127.0.0.1:3100
 ```
 
-**Debug** 构建会连接 Vite 开发服务器，界面可热重载：
-
-```bash
-cd YetAnotherFileManager/UserInterface
-npm run dev       # http://127.0.0.1:3100
-```
-
-Rust 辅助程序是构建的一部分：由 cargo 编译，缺少它构建就会失败：
-
-```bash
-cargo build --release --manifest-path YetAnotherFileManager/Native/yafm-native/Cargo.toml
-```
-
-网站与文档位于 `Site`：
+cargo 是必需的，缺少时构建会停止。网站与文档在 `Site`：
 
 ```bash
 cd Site
@@ -135,9 +106,9 @@ npm run dev
 
 ## 致谢
 
-- [Sigma File Manager](https://github.com/aleksey-hoffman/sigma-file-manager)，作者 Aleksey Hoffman —
-  早期在布局与功能规划上的参考。
+- [Sigma File Manager](https://github.com/aleksey-hoffman/sigma-file-manager)（Aleksey Hoffman） —
+  早期布局与功能组成的参考。
 
 ## 许可
 
-MIT — 请见 [LICENSE](LICENSE)。
+MIT — 见 [LICENSE](LICENSE)。

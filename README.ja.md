@@ -13,127 +13,97 @@
   </p>
 </div>
 
-Yet Another File Manager は Windows と Linux 向けのデスクトップファイルマネージャーです。フォルダーを
-リストまたはグリッドで表示し、画像・動画・ドキュメントをその横でプレビューします。タブ、分割表示、
-検索、ギャラリー、グローバルなタグカタログ、ごみ箱を同じウィンドウにまとめ、両方の OS で同じコードを
-使っています。
+タブ、プレビュー、アーカイブ、タグ、ギャラリーを 1 つのウィンドウにまとめたデスクトップ向けファイルマネージャーです。
 
 <div align="center">
   <a href="docs/main-window.png"><img src="docs/main-window.png" alt="メインウィンドウ" width="880"></a>
   <br>
-  <em>メインウィンドウと詳細パネル</em>
+  <em>メインウィンドウ（詳細パネル付き）</em>
   <br><br>
   <a href="docs/overview.png"><img src="docs/overview.png" alt="概要" width="880"></a>
   <br>
   <em>概要</em>
   <br><br>
-  <a href="docs/settings.png"><img src="docs/settings.png" alt="設定画面" width="880"></a>
+  <a href="docs/settings.png"><img src="docs/settings.png" alt="設定ページ" width="880"></a>
   <br>
   <em>設定: カラープリセット、セクション一覧</em>
 </div>
 
-## なぜ作ったか
+## できること
 
-エクスプローラーは十分に便利ですが、2 つのフォルダーを並べたい、開く前に中身を確認したい、誤って
-削除したものを戻したい、と思うことがあります。Yet Another File Manager は、慣れた操作を保ちながら、
-毎日使う機能を有料プランの奥に隠さずに追加する試みです。Windows と Linux で同じインターフェースを
-使うため、どちらでも同じ見た目になります。
+- **タブと分割表示** — 複数のフォルダーを同時に開き、2 つを並べて表示。タブごとに履歴を持ちます。
+- **リストとグリッド** — 任意の列で並べ替え、列を選び、見出しをドラッグして幅を変更。フォルダーごとに
+  表示を記憶します。
+- **プレビュー** — 画像、動画、PDF、テキストをリストの横または下に表示。選択項目のサイズ、日時、
+  リンク先、属性も出ます。
+- **アーカイブ** — ZIP、7z、RAR、TAR と 7-Zip が読める形式をフォルダーとして開けます。分割ボリュームや
+  パスワード付きも同様。ZIP・7z・TAR の作成では AES と分割、ZIP では圧縮方式も選べます。
+- **概要** — クイックアクセス、よく使う、最近、ドライブ、共有、お気に入り、任意のフォルダーを
+  1〜5 列のパネルで。
+- **検索とタグ** — 入力に合わせて絞り込む検索バー（大文字小文字の区別、正規表現）。タグは全体で 1 つの
+  一覧で、色も共通です。
+- **ギャラリー** — 指定したフォルダーの画像を日付ごとにまとめ、ダブルクリックで原寸表示。
+- **ごみ箱** — 元に戻す、完全に削除、ファイルが既にない記録の整理。
+- **ファイル操作はアプリ内で** — コピー、移動、名前の変更、削除をアプリが実行し、進捗を表示して
+  ごみ箱の記録も自分で書きます。履歴から元に戻せます。
+- **共有** — ペアリングした端末のアプリへ、または同じネットワークのブラウザーへフォルダーを公開。
+- **速さ** — フォルダーごとの小さなインデックス（または中央データベース）、遅延読み込みのアイコン、
+  まとまった処理を受け持つ Rust ヘルパー。
+- **切り取りと貼り付け** — トレイにクリップボードの中身と、貼り付けで移動される項目が表示されます。
 
-## 機能
+## 使っているもの
 
-- **タブと分割表示** — 複数のフォルダーを同時に開き、そのうち 2 つを並べて表示します。タブはそれぞれ
-  の履歴を持ち、仕切りはドラッグできます。
-- **リストとグリッド** — 任意の列で並べ替え、列を選び、フォルダーごとにモード、アイコンサイズ、タイル
-  の高さを記憶します。リストは仮想化されているため、巨大なフォルダーでも滑らかにスクロールします。
-- **プレビュー** — 画像、動画、PDF、テキストを詳細パネルまたはリスト下の領域に表示し、選択項目の
-  サイズ、日時、リンク先、属性も示します。
-- **概要** — パネルで作るホーム画面。クイックアクセス、よく使うフォルダー、最近の項目、ドライブ、
-  ピン留めしたフォルダーを 1〜5 列で並べられます。
-- **検索** — 入力しながら絞り込むフローティング検索バー。大文字と小文字の区別、正規表現、残りを淡色
-  表示にするか非表示にするかを選べます。
-- **タグ** — 色を持つグローバルなタグカタログ。どのフォルダーからでもタグを付けられ、名前の変更、
-  色の変更、削除を一度に反映できます。
-- **ギャラリー** — 画像のあるフォルダーを指定すると、すべての画像を日付ごとにまとめ、ダブルクリックで
-  原寸表示になります。
-- **ごみ箱** — 復元、完全削除、本体がすでにない残存レコードの一覧。管理者ビューでは全プロファイルの
-  残りを表示します。
-- **ファイル操作はアプリ内で** — コピー、移動、名前の変更、削除はエクスプローラーに渡さずアプリが
-  実行するため、状態センターに進捗が出て、シェルのダイアログで止まることもありません。ごみ箱の
-  記録もアプリが直接書くので、エクスプローラーの「元に戻す」もそのまま使えます。
-- **テーマ** — アクセント色とセカンダリ色、組み込みと保存したプリセット。
-- **必要な場所で速く** — フォルダーごとの小さなインデックス（または 1 つの中央データベース）、遅延
-  読み込みのシステムアイコン、ギャラリーを走査して大きなツリーを削除する Rust ヘルパー。
+- **C# / .NET 10** — ファイル操作、シェル連携、ごみ箱、アイコン、SQLite インデックス、トレイ。
+- **React 19 + TypeScript**（**Vite**、**styled-components**） — インターフェース。表示のみを担当し、
+  C# 側と JSON メッセージでやり取りします。
+- **Photino.NET** — デスクトップシェル。Web ビューは OS のものを使います（Windows は WebView2、
+  Linux は WebKitGTK）。
+- **Rust**（`Native/yafm-native`） — ギャラリーの走査、アーカイブ作成（ZIP と 7z）、ツリーの計測と
+  削除。ビルドの一部で、cargo がないとビルドが止まり、ライブラリがないとアプリは起動しません。
 
-## 使用技術
+## インストール
 
-- **C# on .NET 10** — ファイルシステム操作、シェル統合、ごみ箱、アイコン、SQLite インデックス、
-  トレイ。
-- **React 19 + TypeScript**、 **Vite** でバンドル、 **styled-components** でスタイル — インターフェース
-  は表示のみを担当し、C# 側と JSON メッセージをやり取りします。
-- **Photino.NET** — デスクトップシェル。OS 自身の Web ビューにインターフェースを表示するため、
-  Web ビューは実行時の依存です（Windows は WebView2、Linux は WebKitGTK）。
-- **Rust**（`Native/yafm-native`）— 大量のギャラリースキャン、ZIP 作成、大きな削除。ヘルパーがない場合でも
-  マネージドの代替実装で動作します。
+公開ビルドは自己完結で、.NET ランタイムを同梱しています。必要なのは Web ビューと、Linux では
+トレイ用ライブラリだけです。
 
-## 実行
+| ファイル | 対象 |
+| --- | --- |
+| `YetAnotherFileManager-<version>-win-x64.msi` | Windows（ユーザー単位、管理者権限不要） |
+| `yafm-<version>-1.fcXX.x86_64.rpm` | Fedora — `sudo dnf install ./yafm-<version>-*.rpm` |
+| `yafm_<version>_amd64.deb` | Debian / Ubuntu — `sudo apt install ./yafm_<version>_amd64.deb` |
+| `yafm-<version>-1-x86_64.pkg.tar.zst` | Arch — `sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst` |
 
-公開ビルドは **自己完結型**で、.NET ランタイムを同梱しているため追加のインストールは不要です。
-OS 側で必要なものは、各システムの説明に記載しています。
+Windows 10/11 には WebView2 が入っています。コード署名はしていないため、初回に SmartScreen の警告が
+出ることがあります。Linux は WebKitGTK 4.1 と libnotify が必要で、Fedora + KDE Plasma（Wayland）で
+動作確認しています。クリップボードは Wayland では wl-clipboard、X11 では xclip を使います。
 
-プレーンなアーカイブのほかに、4 種類のパッケージを公開しています。
+スクリプトからはシェルのダイアログの代わりに同じピッカーを使えます。
 
-| ファイル                                      | 内容                                                                                                                                                                                   |
-|-----------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `YetAnotherFileManager-<version>-win-x64.msi` | ユーザー単位の Windows インストーラー。`%LOCALAPPDATA%\Programs\Yet Another File Manager` に導入し、スタートメニューとデスクトップにショートカットを作成します。管理者権限は不要です。 |
-| `yafm-<version>-1.fcXX.x86_64.rpm`            | Fedora パッケージ: `sudo dnf install ./yafm-<version>-*.rpm`。`/opt/YetAnotherFileManager` に導入し、`yafm` コマンド、デスクトップエントリ、アイコンを追加します。                     |
-| `yafm_<version>_amd64.deb`                    | Debian/Ubuntu パッケージ: `sudo apt install ./yafm_<version>_amd64.deb`。配置は RPM と同じです。                                                                                       |
-| `yafm-<version>-1-x86_64.pkg.tar.zst`         | Arch Linux パッケージ: `sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`。配置は RPM と同じです。                                                                                   |
+```bash
+yafm --pick-folder [--multiple] [--initial <path>] [--output <file>]
+yafm --pick-file --filter "*.png;*.jpg" [--multiple] [--initial <path>] [--output <file>]
+```
 
-### Windows
+選んだパスは 1 行ずつ標準出力に出ます。キャンセル時は終了コード `1` です。
 
-1. Microsoft Edge **WebView2 ランタイム**。Windows 10 と 11 には入っています。それ以外では
-   [Microsoft のインストーラー](https://developer.microsoft.com/microsoft-edge/webview2/) が必要です。
-2. MSI はユーザー単位でインストールされ、昇格は不要です。
-3. ビルドはコード署名されていないため、初回に SmartScreen の警告が出ることがあります。 **詳細情報** → **実行** を選んでください。
-
-### Linux
-
-1. Web ビュー用の **WebKitGTK 4.1** と、トレイアイコン用の **libnotify**。パッケージは両方を自動的に
-   導入します。プレーンなアーカイブでは手動で入れてください。
-2. Linux 版は主に **Fedora + KDE Plasma（Wayland）** で確認しています。他のディストリビューションや
-   デスクトップ環境は未確認です。ウィンドウが起動しない場合は、まずランタイムライブラリを確認して
-   ください。
-
-## ソースからビルド
+## ビルド
 
 ```bash
 git clone https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager.git
 cd YetAnotherFileManager
-dotnet build YetAnotherFileManager/YetAnotherFileManager.csproj
+dotnet build YetAnotherFileManager/YetAnotherFileManager.csproj   # cargo も実行されます
 ```
 
-インターフェースは独立した Vite プロジェクトです。
+インターフェースは別の Vite プロジェクトです。
 
 ```bash
 cd YetAnotherFileManager/UserInterface
 npm install
-npm run build     # Resources/wwwroot に書き込み、Release ビルドが配信します
+npm run build     # Resources/wwwroot に出力（Release ビルドが配信）
+npm run dev       # Debug ビルドはこちらに接続: http://127.0.0.1:3100
 ```
 
-**Debug** ビルドは Vite の開発サーバーに接続し、インターフェースをホットリロードします。
-
-```bash
-cd YetAnotherFileManager/UserInterface
-npm run dev       # http://127.0.0.1:3100
-```
-
-Rust ヘルパーはビルドの一部です。cargo がコンパイルし、ないとビルドが止まります。
-
-```bash
-cargo build --release --manifest-path YetAnotherFileManager/Native/yafm-native/Cargo.toml
-```
-
-ウェブサイトとドキュメントは `Site` にあります。
+cargo は必須で、ないとビルドが止まります。ウェブサイトとドキュメントは `Site` にあります。
 
 ```bash
 cd Site
@@ -143,9 +113,9 @@ npm run dev
 
 ## クレジット
 
-- [Sigma File Manager](https://github.com/aleksey-hoffman/sigma-file-manager)（Aleksey Hoffman）—
-  レイアウトと機能構成の初期の参考にしたプロジェクト。
+- [Sigma File Manager](https://github.com/aleksey-hoffman/sigma-file-manager)（Aleksey Hoffman） —
+  レイアウトと機能構成の初期の参考。
 
 ## ライセンス
 
-MIT — [LICENSE](LICENSE) を参照してください。
+MIT — [LICENSE](LICENSE) を参照。

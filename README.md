@@ -13,10 +13,7 @@
   </p>
 </div>
 
-Yet Another File Manager is a desktop file manager for Windows and Linux. It browses folders in a list
-or a grid, previews pictures, video and documents beside them, and keeps tabs, a split view, a
-search, a gallery, a global tag catalogue and a recycle bin in the same window. It runs on both systems
-from one code base.
+A desktop file manager with tabs, previews, archives, tags and a gallery in one window.
 
 <div align="center">
   <a href="docs/main-window.png"><img src="docs/main-window.png" alt="The main window" width="880"></a>
@@ -32,122 +29,83 @@ from one code base.
   <em>Settings: colour presets and the section list</em>
 </div>
 
-## Why
+## What it does
 
-Explorer is fine until you want two folders side by side, a preview of the file you are about to
-open, or a way back from a mistaken delete. Yet Another File Manager is my attempt at keeping the
-familiar workflow and adding the things I use every day, without hiding them behind a paid tier.
-Windows and Linux share the same interface, so the window looks the same on both.
+- **Tabs and split view** — several folders at once, two side by side, each tab with its own history.
+- **List and grid** — sort by any column, pick the columns, drag a header to resize it, and let each
+  folder remember its own layout.
+- **Previews** — pictures, video, PDFs and text beside or under the list, with the selection's size,
+  dates, link target and attributes.
+- **Archives** — open ZIP, 7z, RAR, TAR and the formats 7-Zip reads as folders, split volumes and
+  passwords included; create ZIP, 7z or TAR, with AES and volumes, and a choice of method for ZIP.
+- **Overview** — a home page of panels: quick access, frequent, recent, drives, shared, favourites and
+  any folder, in one to five columns.
+- **Search and tags** — a filter bar with match case and regular expressions; one global tag
+  catalogue with a colour per tag.
+- **Gallery** — the folders you point it at, grouped by day, opened at full size on double click.
+- **Recycle bin** — restore, delete for good, or clear the records whose files are already gone.
+- **File operations in the app** — copy, move, rename and delete run in-process, report progress and
+  write the recycle bin entry themselves; the history can undo them.
+- **Sharing** — offer a folder to paired devices in this app, or to any browser on the network.
+- **Fast** — a small index per folder (or one central database), lazy shell icons, and a Rust helper
+  for the bulk work.
+- **Cut and paste** — the tray shows what is on the clipboard and which entries a paste will move.
 
-## Features
+## What it is built with
 
-- **Tabs and split view** — open several folders at once and show two of them side by side. Tabs
-  keep their own history, and the divider can be dragged.
-- **List and grid** — sort by any column, choose the columns, and let each folder remember its own
-  mode, icon size and tile height. The list is virtualized, so huge folders still scroll smoothly.
-- **Previews** — pictures, video, PDFs and text appear in the details panel or in a strip under the
-  list, with size, dates, link targets and attributes for the selection.
-- **Overview** — a home page built from panels: Quick access, frequent folders, recent items, drives
-  and any folder you pin, in one to five columns.
-- **Search** — a floating find bar that filters as you type, with match case, regular expressions,
-  and a choice between dimming and hiding the rest.
-- **Tags** — one global catalogue with a colour per tag; tag files and folders from any folder, and
-  rename, recolour or remove a tag everywhere at once.
-- **Gallery** — point it at the folders that hold pictures; it groups every image by day and opens a
-  full-size viewer on double click.
-- **Recycle bin** — restore, delete permanently, and list the leftover records whose files are gone.
-  The administrator view covers the leftovers of every profile.
-- **File operations in the app** — copy, move, rename and delete run in-process instead of being
-  handed to Explorer, so they report progress in the status center and never wait on a shell
-  dialog. The recycle bin record is written by the app itself, and Explorer restores it as usual.
-- **Themes** — accent and secondary colours, built-in and saved presets.
-- **Fast where it matters** — a small index per folder (or one central database), shell icons loaded
-  lazily, and a Rust helper that scans the gallery and unlinks big trees.
-
-## Built with
-
-- **C# on .NET 10** — the file system work, shell integration, trash access, icons, the SQLite index
-  and the tray.
+- **C# on .NET 10** — the file system work, shell integration, trash, icons, the SQLite index and the
+  tray.
 - **React 19 + TypeScript**, bundled by **Vite** and styled with **styled-components** — the
-  interface. It is presentation only: it exchanges JSON messages with the C# side.
-- **Photino.NET** — the desktop shell. It shows the interface in the operating system's own web
-  view, which is why the web view is a runtime dependency: WebView2 on Windows, WebKitGTK on Linux.
-- **Rust** (`Native/yafm-native`) — the bulk gallery scan, ZIP creation and large deletes. The managed fallback
-  keeps the app working when the helper is missing.
+  interface. It is presentation only and exchanges JSON messages with the C# side.
+- **Photino.NET** — the desktop shell. The web view comes from the system: WebView2 on Windows,
+  WebKitGTK on Linux.
+- **Rust** (`Native/yafm-native`) — the gallery scan, archive creation (ZIP and 7z) and measuring or
+  deleting a tree. It is part of the build: cargo compiles it, the build fails without it, and the app
+  does not start without the library.
 
-## Running
+## Install
 
-The published builds are **self-contained** — they bundle the .NET runtime, so nothing needs to be
-installed for them. What the operating system still has to provide is listed under each system below.
+Published builds are self-contained: the .NET runtime is inside. Only the web view, and the tray
+library on Linux, have to be there.
 
-Four package formats are published beside the plain archives:
+| File | For |
+| --- | --- |
+| `YetAnotherFileManager-<version>-win-x64.msi` | Windows, per user, no administrator rights |
+| `yafm-<version>-1.fcXX.x86_64.rpm` | Fedora — `sudo dnf install ./yafm-<version>-*.rpm` |
+| `yafm_<version>_amd64.deb` | Debian / Ubuntu — `sudo apt install ./yafm_<version>_amd64.deb` |
+| `yafm-<version>-1-x86_64.pkg.tar.zst` | Arch — `sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst` |
 
-| File                                          | What it does                                                                                                                                                                           |
-|-----------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `YetAnotherFileManager-<version>-win-x64.msi` | Per-user Windows installer: installs into `%LOCALAPPDATA%\Programs\Yet Another File Manager`, adds a Start menu entry and a desktop shortcut, and never asks for administrator rights. |
-| `yafm-<version>-1.fcXX.x86_64.rpm`            | Fedora package: `sudo dnf install ./yafm-<version>-*.rpm`. Installs to `/opt/YetAnotherFileManager` with a `yafm` command, a desktop entry and the icon.                               |
-| `yafm_<version>_amd64.deb`                    | Debian/Ubuntu package: `sudo apt install ./yafm_<version>_amd64.deb`. Same layout as the RPM.                                                                                          |
-| `yafm-<version>-1-x86_64.pkg.tar.zst`         | Arch Linux package: `sudo pacman -U yafm-<version>-1-x86_64.pkg.tar.zst`. Same layout as the RPM.                                                                                      |
+Windows 10 and 11 already have WebView2; the build is not code-signed, so SmartScreen may warn once.
+Linux needs WebKitGTK 4.1 and libnotify, and is tested on Fedora with KDE Plasma on Wayland. The
+clipboard uses wl-clipboard on Wayland or xclip on X11.
 
-### Windows
-
-1. The Microsoft Edge **WebView2 Runtime**. Windows 10 and 11 already ship it; other versions need
-   [Microsoft's installer](https://developer.microsoft.com/microsoft-edge/webview2/).
-2. The MSI installs per user and needs no elevation.
-3. The build is not code-signed, so SmartScreen may warn the first time. Choose **More info** → **Run anyway**.
-
-### Linux
-
-1. **WebKitGTK 4.1** for the web view, and **libnotify** for the tray icon. The packages pull both
-   in; a plain archive needs them installed by hand.
-2. The Linux build is exercised on **Fedora with KDE Plasma on Wayland**. Other distributions and
-   desktops are untested; if the window does not start, check the runtime libraries first.
-3. The file clipboard uses **wl-clipboard** on Wayland or **xclip** on X11; the packages recommend
-   both. KDE system icons are read from the icon theme that `kdeglobals` selects.
-
-### Command-line picker
-
-Scripts and other programs can use the same picker instead of a shell dialog:
+Scripts can use the same picker instead of a shell dialog:
 
 ```bash
 yafm --pick-folder [--multiple] [--initial <path>] [--output <file>]
 yafm --pick-file --filter "*.png;*.jpg" [--multiple] [--initial <path>] [--output <file>]
 ```
 
-The chosen paths are printed one per line to standard output; `--output` writes them to a file as
-well, which is useful when the caller has no console. Cancelling exits with code `1`, and picking
-exits with `0`. `--filter` accepts `*.png;*.jpg`, `png|jpg`, or `.png,.jpg`.
+The chosen paths go to standard output, one per line. Cancelling exits with `1`.
 
-## Building from source
+## Build
 
 ```bash
 git clone https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager.git
 cd YetAnotherFileManager
-dotnet build YetAnotherFileManager/YetAnotherFileManager.csproj
+dotnet build YetAnotherFileManager/YetAnotherFileManager.csproj   # runs cargo as well
 ```
 
-The interface is a separate Vite project:
+The interface is its own Vite project:
 
 ```bash
 cd YetAnotherFileManager/UserInterface
 npm install
 npm run build     # writes Resources/wwwroot, which a Release build serves
+npm run dev       # a Debug build talks to this: http://127.0.0.1:3100
 ```
 
-A **Debug** build talks to the Vite dev server, which hot-reloads the interface:
-
-```bash
-cd YetAnotherFileManager/UserInterface
-npm run dev       # http://127.0.0.1:3100
-```
-
-The Rust helper is part of the build — cargo compiles it, and the build stops without it:
-
-```bash
-cargo build --release --manifest-path YetAnotherFileManager/Native/yafm-native/Cargo.toml
-```
-
-The website and its documentation live in `Site`:
+Cargo is required; the build stops without it. The website and its documentation live in `Site`:
 
 ```bash
 cd Site
