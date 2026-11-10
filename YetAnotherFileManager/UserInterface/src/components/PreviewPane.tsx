@@ -396,7 +396,9 @@ const Panel = styled.aside`
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    background: var(--bg-secondary);
+    background: rgba(var(--bg-rgb), 0.62);
+    backdrop-filter: blur(14px) saturate(110%);
+    -webkit-backdrop-filter: blur(14px) saturate(110%);
     font-family: var(--font-details), var(--font-cjk);
     transition: width 180ms cubic-bezier(0.22, 1, 0.36, 1);
 `;
@@ -428,7 +430,7 @@ const Media = styled.div`
     flex-shrink: 0;
     overflow: hidden;
     border-bottom: 1px solid var(--border-color);
-    background: var(--bg-secondary);
+    background: rgba(var(--bg-rgb), 0.34);
 
     img,
     video {
@@ -547,7 +549,7 @@ const TextBox = styled.div`
     gap: 6px;
     overflow: auto;
     padding: 10px 12px;
-    background: var(--bg-secondary);
+    background: rgba(var(--bg-rgb), 0.5);
 `;
 
 const Pre = styled.pre`

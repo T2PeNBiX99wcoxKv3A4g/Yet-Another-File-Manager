@@ -463,7 +463,9 @@ import{A as e,C as t,E as n,M as r,N as i,O as a,S as o,T as s,_ as c,b as l,c a
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    background: var(--bg-secondary);
+    background: rgba(var(--bg-rgb), 0.62);
+    backdrop-filter: blur(14px) saturate(110%);
+    -webkit-backdrop-filter: blur(14px) saturate(110%);
     font-family: var(--font-details), var(--font-cjk);
     transition: width 180ms cubic-bezier(0.22, 1, 0.36, 1);
 `,Xo=_.div`
@@ -490,7 +492,7 @@ import{A as e,C as t,E as n,M as r,N as i,O as a,S as o,T as s,_ as c,b as l,c a
     flex-shrink: 0;
     overflow: hidden;
     border-bottom: 1px solid var(--border-color);
-    background: var(--bg-secondary);
+    background: rgba(var(--bg-rgb), 0.34);
 
     img,
     video {
@@ -595,7 +597,7 @@ import{A as e,C as t,E as n,M as r,N as i,O as a,S as o,T as s,_ as c,b as l,c a
     gap: 6px;
     overflow: auto;
     padding: 10px 12px;
-    background: var(--bg-secondary);
+    background: rgba(var(--bg-rgb), 0.5);
 `,as=_.pre`
     margin: 0;
     color: var(--text-secondary);
