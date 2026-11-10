@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.4.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.3.0..v0.4.0) - 2026-11-10
+
+### ⛰️  Features
+
+- Reset every column width from the view menu, and stack the picker's type box under the name - ([ce65a45](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/ce65a4571046113e56f7766fcd5ea4933907a465))
+- Drag a list header to resize its column - ([8b8fced](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/8b8fcedc5e62982812636196d667388d67328b1d))
+
+### 🐛 Bug Fixes
+
+- Let the list fill the window when the details pane is closed, and name the width reset for what it does - ([8827962](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/8827962223a91e33462360045ca464fa680a6f7f))
+- Move column room between neighbours instead of growing the row - ([820ac30](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/820ac30af63968aecc82e800911e3b4668915be7))
+- Resize the column under the pointer - ([95a1dfe](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/95a1dfe9bb990a1ab823c14dccb33af80fea167c))
+
+### 📚 Documentation
+
+- List only what the explorer cannot do, and lead with the file tray - ([138e7e0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/138e7e0bfde1fd6ffc2256b1fefd146ccaee7603))
+- Rewrite the readmes around what the app does now - ([160dad0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/160dad0b13330216ae682a274493bcf18cd3d27f))
+- Stop advertising the interface languages in the readmes - ([2cdc6bf](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/2cdc6bf92be013471456fb3d514e63d843799c83))
+
+### ⚙️ Miscellaneous Tasks
+
+- Improve table formatting and spacing across multilingual READMEs - ([c3b3867](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c3b3867b6ba9f3984195ef51f7ec31b694a8884a))
+- Improve table formatting and consistency across multilingual READMEs - ([2ca6c98](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/2ca6c98f03b0ea92eb68311f34ca2024948852e5))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([3341651](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/334165120592be0bb1402259af87a4a8711fd1e1))
+
+
 ## [0.3.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.2.1..v0.3.0) - 2026-11-09
 
 ### ⛰️  Features
