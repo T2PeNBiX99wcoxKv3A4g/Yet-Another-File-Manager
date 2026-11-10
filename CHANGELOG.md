@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.5.0..v0.5.1) - 2026-11-10
+
+### 🐛 Bug Fixes
+
+- Make the folder-handler toggle rewrite a registration from another copy - ([d63c07f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d63c07fbb11c36d5d71ac0fd6bb8bfe11f356487))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([bb0f3ea](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/bb0f3eaab188801303da644b989fc52e1b539923))
+
+
 ## [0.5.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.4.3..v0.5.0) - 2026-11-10
 
 ### ⛰️  Features
