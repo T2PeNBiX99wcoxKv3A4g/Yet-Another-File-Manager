@@ -205,4 +205,6 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(TextPreviewPayload))]
 [JsonSerializable(typeof(TagRecord))]
 [JsonSerializable(typeof(List<TagRecord>))]
+[JsonSerializable(typeof(ElevatedOperationRequest))]
+[JsonSerializable(typeof(ElevatedOperationResult))]
 internal sealed partial class AppJsonContext : JsonSerializerContext;

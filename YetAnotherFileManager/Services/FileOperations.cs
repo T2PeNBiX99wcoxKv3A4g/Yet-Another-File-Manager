@@ -114,9 +114,10 @@ internal static partial class FileOperations
         {
             await File.WriteAllBytesAsync(path, content);
         }
-        catch (Exception ex) when (OperatingSystem.IsWindows() && ShellFileOperation.IsAccessDenied(ex))
+        catch (Exception ex) when (OperatingSystem.IsWindows() && !ElevatedOperation.IsHelper
+                                                             && Access.IsAccessDenied(ex))
         {
-            if (!await WriteThroughShellAsync(directory, path, content))
+            if (!await WriteThroughHelperAsync(directory, path, content))
             {
                 Log.Warning(ex, "Could not create {Path}", path);
                 return false;
@@ -136,8 +137,8 @@ internal static partial class FileOperations
         return true;
     }
 
-    /// <summary>Writes the bytes in the temp folder, then lets the shell move them in with elevation.</summary>
-    private static async Task<bool> WriteThroughShellAsync(string directory, string path, byte[] content)
+    /// <summary>Writes the bytes in the temp folder, then lets an elevated copy of the app place them.</summary>
+    private static async Task<bool> WriteThroughHelperAsync(string directory, string path, byte[] content)
     {
         var temporary = Path.Combine(Path.GetTempPath(), $"yafm-{Guid.NewGuid():N}{Path.GetExtension(path)}");
 
@@ -145,10 +146,8 @@ internal static partial class FileOperations
         {
             await File.WriteAllBytesAsync(temporary, content);
 
-            var copied = await StaThread.RunAsync(() => ShellFileOperation.Copy(temporary, directory,
-                Path.GetFileName(path), false, WindowManager.Instance.WindowHandle));
-
-            return copied && File.Exists(path);
+            var result = await ElevatedOperation.WriteFileAsync(temporary, directory, Path.GetFileName(path));
+            return result.Ok && File.Exists(path);
         }
         finally
         {
@@ -347,7 +346,7 @@ internal static partial class FileOperations
             catch (Exception ex)
             {
                 return (Ok: false,
-                    Denied: OperatingSystem.IsWindows() && ShellFileOperation.IsAccessDenied(ex),
+                    Denied: OperatingSystem.IsWindows() && Access.IsAccessDenied(ex),
                     Error: (string?)ex.Message);
             }
         });
@@ -355,12 +354,13 @@ internal static partial class FileOperations
         if (result.Ok)
             return new(true, ParentsOf([source]));
 
-        // The shell can rename the entry after the user consents to the elevation prompt.
-        if (result.Denied
-            && await StaThread.RunAsync(() => ShellFileOperation.Rename(source, Path.GetFileName(target),
-                WindowManager.Instance.WindowHandle))
-            && (File.Exists(target) || Directory.Exists(target)))
-            return new(true, ParentsOf([source]));
+        // An elevated copy of the app renames the entry after the user consents.
+        if (result.Denied && !ElevatedOperation.IsHelper)
+        {
+            var elevated = await ElevatedOperation.RenameAsync(source, Path.GetFileName(target));
+            if (elevated.Ok && (File.Exists(target) || Directory.Exists(target)))
+                return new(true, ParentsOf([source]));
+        }
 
         Log.Warning("Could not rename {Path}: {Error}", source, result.Error);
         return new FileHistory.Step(false, ParentsOf([source]), result.Error);
@@ -378,17 +378,18 @@ internal static partial class FileOperations
         {
             Directory.CreateDirectory(path);
         }
-        catch (Exception ex) when (OperatingSystem.IsWindows() && ShellFileOperation.IsAccessDenied(ex))
+        catch (Exception ex) when (OperatingSystem.IsWindows() && !ElevatedOperation.IsHelper
+                                                             && Access.IsAccessDenied(ex))
         {
-            // The shell creates the folder after the user consents to the elevation prompt.
-            var created = await StaThread.RunAsync(() => ShellFileOperation.NewItem(
-                directory, Path.GetFileName(path), true, WindowManager.Instance.WindowHandle));
-
-            if (!created || !Directory.Exists(path))
+            // An elevated copy of the app creates the folder after the user consents.
+            var elevated = await ElevatedOperation.NewFolderAsync(directory, caseSensitive);
+            if (!elevated.Ok || elevated.Path is not { Length: > 0 } created)
             {
                 Log.Warning(ex, "Could not create a folder in {Directory}", directory);
-                return new(false, null, ex.Message);
+                return new(false, null, elevated.Error ?? ex.Message);
             }
+
+            path = created;
         }
         catch (Exception ex)
         {
@@ -421,16 +422,17 @@ internal static partial class FileOperations
         {
             await File.WriteAllTextAsync(path, "");
         }
-        catch (Exception ex) when (OperatingSystem.IsWindows() && ShellFileOperation.IsAccessDenied(ex))
+        catch (Exception ex) when (OperatingSystem.IsWindows() && !ElevatedOperation.IsHelper
+                                                             && Access.IsAccessDenied(ex))
         {
-            var created = await StaThread.RunAsync(() => ShellFileOperation.NewItem(
-                directory, Path.GetFileName(path), false, WindowManager.Instance.WindowHandle));
-
-            if (!created || !File.Exists(path))
+            var elevated = await ElevatedOperation.NewFileAsync(directory, extension);
+            if (!elevated.Ok || elevated.Path is not { Length: > 0 } created)
             {
                 Log.Warning(ex, "Could not create a file in {Directory}", directory);
-                return new(false, null, ex.Message);
+                return new(false, null, elevated.Error ?? ex.Message);
             }
+
+            path = created;
         }
         catch (Exception ex)
         {

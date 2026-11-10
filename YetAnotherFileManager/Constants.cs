@@ -52,6 +52,12 @@ public static class Constants
     public const string StartupTaskArgument = "--startup-task";
 
     /// <summary>
+    ///     Elevated one-off helper: runs one file operation for a folder the window cannot change,
+    ///     writes the answer to a JSON file and exits: <c>--elevated-operation request result</c>.
+    /// </summary>
+    public const string ElevatedOperationArgument = "--elevated-operation";
+
+    /// <summary>
     ///     Command line pick modes: open the in-app picker as the whole window and print the chosen
     ///     paths, so scripts and other programs can use it instead of the shell dialogs.
     /// </summary>

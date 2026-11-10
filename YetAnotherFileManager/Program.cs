@@ -77,6 +77,14 @@ internal static partial class Program
             return;
         }
 
+        // A folder that refused the current user is changed by an elevated copy of the app itself,
+        // so the work keeps the app's conflict naming and recycle bin records instead of the shell's.
+        if (OperatingSystem.IsWindows() && args.Contains(Constants.ElevatedOperationArgument))
+        {
+            Environment.ExitCode = ElevatedOperation.RunHelper(args);
+            return;
+        }
+
         // PDFium is kept in a short-lived helper; the window only ever receives the rendered PNG.
         if (args.Contains(Constants.PdfPreviewArgument))
         {

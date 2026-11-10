@@ -81,22 +81,32 @@ internal static partial class FileOperations
     {
         var deleted = 0;
         var done = 0;
-        string? error = null;
+        var refused = new List<string>();
 
         foreach (var path in items)
         {
             if (await RecycleBin.SendAsync(path))
                 deleted++;
-            else if (OperatingSystem.IsWindows()
-                     && await StaThread.RunAsync(() => ShellFileOperation.Delete(path, true,
-                         WindowManager.Instance.WindowHandle))
-                     && !Exists(path))
-                // The shell wrote the same recycle bin record, so the recycle view and undo still work.
-                deleted++;
             else
-                error ??= $"Could not move {Path.GetFileName(path)} to the recycle bin.";
+                refused.Add(path);
 
             TaskCenter.Instance.Progress(id, ++done, 0);
+        }
+
+        string? error = null;
+
+        // A protected folder is changed by an elevated copy of the app; the standard recycle bin
+        // record it writes is the one the recycle view and undo already look for.
+        if (refused.Count > 0)
+        {
+            var elevated = OperatingSystem.IsWindows() && !ElevatedOperation.IsHelper
+                ? await ElevatedOperation.DeleteAsync([.. refused], false)
+                : new(false, null, [], null);
+
+            if (elevated.Ok)
+                deleted += refused.Count;
+            else
+                error = elevated.Error ?? $"Could not move {Path.GetFileName(refused[0])} to the recycle bin.";
         }
 
         return Finish(id, items, error, deleted);
@@ -115,13 +125,17 @@ internal static partial class FileOperations
         var failures = await Task.Run(() => RustNative.Delete(items, files,
             (done, _) => TaskCenter.Instance.Progress(id, (int)Math.Min(done, int.MaxValue), 0)));
 
-        // A protected folder is left to the shell, which can ask for elevation and retry.
-        if (failures > 0 && OperatingSystem.IsWindows())
-            foreach (var path in items.Where(Exists).ToList())
-                if (await StaThread.RunAsync(() => ShellFileOperation.Delete(path, false,
-                        WindowManager.Instance.WindowHandle))
-                    && !Exists(path))
-                    failures--;
+        // Whatever a protected folder refused is retried by an elevated copy of the app.
+        if (failures > 0 && OperatingSystem.IsWindows() && !ElevatedOperation.IsHelper)
+        {
+            var refused = items.Where(Exists).ToList();
+
+            if (refused.Count > 0)
+            {
+                await ElevatedOperation.DeleteAsync([.. refused], true);
+                failures = items.Count(Exists);
+            }
+        }
 
         return Finish(id, items,
             failures == 0 ? null : $"{failures} entr{(failures == 1 ? "y" : "ies")} could not be deleted.",
