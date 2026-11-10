@@ -29,7 +29,8 @@ While the overview is in edit mode:
 - List/grid switches that panel's layout, the arrows move it, and `×` removes it.
 
 The arrows reorder the panels, and the layout is stored in the settings. **Restore default panels** puts
-every panel back the way the app ships them, titles, icons and pins included.
+every panel back the way the app ships them: titles, icons, pins, the folders a Quick access panel
+holds and the favourites list included.
 
 ## Quick access
 

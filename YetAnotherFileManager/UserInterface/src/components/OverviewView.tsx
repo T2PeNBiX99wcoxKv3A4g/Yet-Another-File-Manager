@@ -1630,8 +1630,10 @@ export function OverviewView({
         onLayoutChanged?.();
     };
 
-    /** Puts every panel back the way the app ships them, including titles, icons and pins. */
+    /** Puts every panel back the way the app ships them, contents included. */
     const restorePanels = async () => {
+        // Layout settings alone would leave the panels looking restored while still holding the
+        // user's own Quick access folders, renamed entries and favourites.
         await save({
             overviewPanels: [...DefaultPanels],
             overviewTitles: null,
@@ -1639,7 +1641,12 @@ export function OverviewView({
             overviewIcons: null,
             overviewPinned: null,
             panelPlaces: null,
+            quickAccess: null,
+            placeNames: null,
+            placeIcons: null,
+            favorites: [],
         });
+        onPlacesChanged(await listPlaces());
         setEditing(false);
     };
 
