@@ -175,10 +175,21 @@ internal static partial class FileOperations
                 "The deleted items are no longer in the recycle bin.");
 
         var restored = 0;
+        var refused = new List<string>();
 
         foreach (var entry in matches)
             if (await RecycleBin.RestoreAsync(entry.Id))
                 restored++;
+            else
+                refused.Add(entry.Id);
+
+        // Putting entries back into a protected folder needs the elevated copy as well.
+        if (refused.Count > 0 && OperatingSystem.IsWindows() && !ElevatedOperation.IsHelper)
+        {
+            var elevated = await ElevatedOperation.RestoreRecycleAsync([.. refused]);
+            if (elevated.Ok)
+                restored += refused.Count;
+        }
 
         return new(restored > 0, ParentsOf(paths),
             restored > 0 ? null : "Windows could not restore the deleted items.");

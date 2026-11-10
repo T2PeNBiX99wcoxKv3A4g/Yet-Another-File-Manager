@@ -155,19 +155,26 @@ internal static partial class FileOperations
         }
     }
 
-    private static Task<FileHistory.Step> WritePastedFileAsync(string path, byte[] content) =>
-        Task.Run(() =>
+    private static async Task<FileHistory.Step> WritePastedFileAsync(string path, byte[] content)
+    {
+        try
         {
-            try
-            {
-                File.WriteAllBytes(path, content);
-                return new(true, ParentsOf([path]));
-            }
-            catch (Exception ex)
-            {
-                return new FileHistory.Step(false, ParentsOf([path]), ex.Message);
-            }
-        });
+            File.WriteAllBytes(path, content);
+            return new(true, ParentsOf([path]));
+        }
+        catch (Exception ex) when (OperatingSystem.IsWindows() && !ElevatedOperation.IsHelper
+                                                             && Access.IsAccessDenied(ex))
+        {
+            var directory = Path.GetDirectoryName(path);
+            return directory is not null && await WriteThroughHelperAsync(directory, path, content)
+                ? new(true, ParentsOf([path]))
+                : new(false, ParentsOf([path]), ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return new FileHistory.Step(false, ParentsOf([path]), ex.Message);
+        }
+    }
 
     /// <summary>Runs a paste and reports the paths it actually created.</summary>
     private static async Task<(FileHistory.Step Step, List<string> Created)> CopyIntoAsync(
@@ -217,47 +224,61 @@ internal static partial class FileOperations
     public static PathsInfoPayload InspectPaths(IReadOnlyList<string> paths) => new(PathEntries.Describe(paths));
 
     /// <summary>Moves the entries a cut created back to the names they had before.</summary>
-    private static Task<FileHistory.Step> MoveBackAsync(IReadOnlyList<string> created, IReadOnlyList<string> sources) =>
-        Task.Run(() =>
+    private static async Task<FileHistory.Step> MoveBackAsync(IReadOnlyList<string> created,
+        IReadOnlyList<string> sources)
+    {
+        var remaining = sources.ToList();
+        var moved = 0;
+        string? error = null;
+
+        foreach (var entry in created)
         {
-            var remaining = sources.ToList();
-            var moved = 0;
-            string? error = null;
+            var source = FindSourceFor(entry, remaining);
 
-            foreach (var entry in created)
+            if (source is null)
             {
-                var source = FindSourceFor(entry, remaining);
+                error = "Could not match a moved entry with its original path.";
+                continue;
+            }
 
-                if (source is null)
+            remaining.Remove(source);
+
+            try
+            {
+                if (File.Exists(source) || Directory.Exists(source))
+                    throw new IOException($"'{source}' already exists.");
+
+                if (Directory.Exists(entry))
+                    Directory.Move(entry, source);
+                else
+                    File.Move(entry, source);
+
+                moved++;
+            }
+            catch (Exception ex) when (OperatingSystem.IsWindows() && !ElevatedOperation.IsHelper
+                                                                 && Access.IsAccessDenied(ex))
+            {
+                // The folder it came from is protected, so an elevated copy moves it back.
+                var elevated = await ElevatedOperation.MoveToAsync(entry, source);
+                if (elevated.Ok && (File.Exists(source) || Directory.Exists(source)))
                 {
-                    error = "Could not match a moved entry with its original path.";
+                    moved++;
                     continue;
                 }
 
-                remaining.Remove(source);
-
-                try
-                {
-                    if (File.Exists(source) || Directory.Exists(source))
-                        throw new IOException($"'{source}' already exists.");
-
-                    if (Directory.Exists(entry))
-                        Directory.Move(entry, source);
-                    else
-                        File.Move(entry, source);
-
-                    moved++;
-                }
-                catch (Exception ex)
-                {
-                    error = ex.Message;
-                    Log.Warning(ex, "Could not move {Path} back to {Source}", entry, source);
-                }
+                error = elevated.Error ?? ex.Message;
+                Log.Warning(ex, "Could not move {Path} back to {Source}", entry, source);
             }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                Log.Warning(ex, "Could not move {Path} back to {Source}", entry, source);
+            }
+        }
 
-            var paths = ParentsOf(created.Concat(sources).ToList());
-            return new FileHistory.Step(moved == created.Count, paths, moved == created.Count ? null : error);
-        });
+        var paths = ParentsOf(created.Concat(sources).ToList());
+        return new FileHistory.Step(moved == created.Count, paths, moved == created.Count ? null : error);
+    }
 
     private static string? FindSourceFor(string createdPath, List<string> sources)
     {
@@ -542,79 +563,107 @@ internal static partial class FileOperations
         return Encoding.UTF8.GetString(buffer);
     }
 
-    private static Task<FileHistory.Step> DeleteFileAsync(string path) =>
-        Task.Run(() =>
+    private static async Task<FileHistory.Step> DeleteFileAsync(string path)
+    {
+        try
         {
-            try
-            {
-                if (!File.Exists(path))
-                    return new(false, ParentsOf([path]), "The file is no longer there.");
+            if (!File.Exists(path))
+                return new(false, ParentsOf([path]), "The file is no longer there.");
 
-                File.Delete(path);
-                return new(true, ParentsOf([path]));
-            }
-            catch (Exception ex)
-            {
-                Log.Warning(ex, "Could not remove the new file {Path}", path);
-                return new FileHistory.Step(false, ParentsOf([path]), ex.Message);
-            }
-        });
-
-    private static Task<FileHistory.Step> CreateEmptyFileAsync(string path) =>
-        Task.Run(() =>
+            File.Delete(path);
+            return new(true, ParentsOf([path]));
+        }
+        catch (Exception ex) when (OperatingSystem.IsWindows() && !ElevatedOperation.IsHelper
+                                                             && Access.IsAccessDenied(ex))
         {
-            try
-            {
-                using (File.Create(path))
-                {
-                    // An empty placeholder; the user renames and fills it in.
-                }
-
-                return new(true, ParentsOf([path]));
-            }
-            catch (Exception ex)
-            {
-                Log.Warning(ex, "Could not recreate the file {Path}", path);
-                return new FileHistory.Step(false, ParentsOf([path]), ex.Message);
-            }
-        });
-
-    private static Task<FileHistory.Step> DeleteEmptyFolderAsync(string path) =>
-        Task.Run(() =>
+            var elevated = await ElevatedOperation.DeleteAsync([path], true);
+            return elevated.Ok && !File.Exists(path)
+                ? new(true, ParentsOf([path]))
+                : new(false, ParentsOf([path]), elevated.Error ?? ex.Message);
+        }
+        catch (Exception ex)
         {
-            try
-            {
-                if (!Directory.Exists(path))
-                    return new(false, ParentsOf([path]), Localization.Get("The folder is no longer there."));
+            Log.Warning(ex, "Could not remove the new file {Path}", path);
+            return new FileHistory.Step(false, ParentsOf([path]), ex.Message);
+        }
+    }
 
-                if (Directory.EnumerateFileSystemEntries(path).Any())
-                    return new(false, ParentsOf([path]),
-                        "The folder is no longer empty, so it was left in place.");
-
-                Directory.Delete(path);
-                return new(true, ParentsOf([path]));
-            }
-            catch (Exception ex)
-            {
-                Log.Warning(ex, "Could not remove the new folder {Path}", path);
-                return new FileHistory.Step(false, ParentsOf([path]), ex.Message);
-            }
-        });
-
-    private static Task<FileHistory.Step> CreateFolderAsync(string path) =>
-        Task.Run(() =>
+    private static async Task<FileHistory.Step> CreateEmptyFileAsync(string path)
+    {
+        try
         {
-            try
+            using (File.Create(path))
             {
-                Directory.CreateDirectory(path);
-                return new(true, ParentsOf([path]));
+                // An empty placeholder; the user renames and fills it in.
             }
-            catch (Exception ex)
-            {
-                Log.Warning(ex, "Could not recreate the folder {Path}", path);
-                return new FileHistory.Step(false, ParentsOf([path]), ex.Message);
-            }
-        });
+
+            return new(true, ParentsOf([path]));
+        }
+        catch (Exception ex) when (OperatingSystem.IsWindows() && !ElevatedOperation.IsHelper
+                                                             && Access.IsAccessDenied(ex))
+        {
+            var elevated = await ElevatedOperation.NewFileAtAsync(path);
+            return elevated.Ok && File.Exists(path)
+                ? new(true, ParentsOf([path]))
+                : new(false, ParentsOf([path]), elevated.Error ?? ex.Message);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Could not recreate the file {Path}", path);
+            return new FileHistory.Step(false, ParentsOf([path]), ex.Message);
+        }
+    }
+
+    private static async Task<FileHistory.Step> DeleteEmptyFolderAsync(string path)
+    {
+        try
+        {
+            if (!Directory.Exists(path))
+                return new(false, ParentsOf([path]), Localization.Get("The folder is no longer there."));
+
+            if (Directory.EnumerateFileSystemEntries(path).Any())
+                return new(false, ParentsOf([path]),
+                    "The folder is no longer empty, so it was left in place.");
+
+            Directory.Delete(path);
+            return new(true, ParentsOf([path]));
+        }
+        catch (Exception ex) when (OperatingSystem.IsWindows() && !ElevatedOperation.IsHelper
+                                                             && Access.IsAccessDenied(ex))
+        {
+            var elevated = await ElevatedOperation.DeleteAsync([path], true);
+            return elevated.Ok && !Directory.Exists(path)
+                ? new(true, ParentsOf([path]))
+                : new(false, ParentsOf([path]), elevated.Error ?? ex.Message);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Could not remove the new folder {Path}", path);
+            return new FileHistory.Step(false, ParentsOf([path]), ex.Message);
+        }
+    }
+
+    private static async Task<FileHistory.Step> CreateFolderAsync(string path)
+    {
+        try
+        {
+            Directory.CreateDirectory(path);
+            return new(true, ParentsOf([path]));
+        }
+        catch (Exception ex) when (OperatingSystem.IsWindows() && !ElevatedOperation.IsHelper
+                                                             && Access.IsAccessDenied(ex))
+        {
+            var elevated = await ElevatedOperation.NewFolderAtAsync(path);
+            return elevated.Ok && Directory.Exists(path)
+                ? new(true, ParentsOf([path]))
+                : new(false, ParentsOf([path]), elevated.Error ?? ex.Message);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Could not recreate the folder {Path}", path);
+            return new FileHistory.Step(false, ParentsOf([path]), ex.Message);
+        }
+    }
 
     /// <summary>Packs selected paths using the requested format, level, name and destination.</summary>
     public static async Task<PathOperationPayload> CompressAsync(CompressRequest? request)

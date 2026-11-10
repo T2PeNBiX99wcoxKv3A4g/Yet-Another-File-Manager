@@ -30,6 +30,18 @@ internal static class ElevatedOperation
     public static Task<ElevatedOperationResult> RenameAsync(string path, string name) =>
         RunAsync(new ElevatedOperationRequest("rename", [path], Name: name));
 
+    public static Task<ElevatedOperationResult> MoveToAsync(string source, string destination) =>
+        RunAsync(new ElevatedOperationRequest("moveTo", [source], destination));
+
+    public static Task<ElevatedOperationResult> NewFolderAtAsync(string path) =>
+        RunAsync(new ElevatedOperationRequest("newFolderAt", [], path));
+
+    public static Task<ElevatedOperationResult> NewFileAtAsync(string path) =>
+        RunAsync(new ElevatedOperationRequest("newFileAt", [], path));
+
+    public static Task<ElevatedOperationResult> RestoreRecycleAsync(string[] ids) =>
+        RunAsync(new ElevatedOperationRequest("restoreRecycle", ids));
+
     public static Task<ElevatedOperationResult> NewFolderAsync(string directory, bool caseSensitive) =>
         RunAsync(new ElevatedOperationRequest("newFolder", [], directory, CaseSensitive: caseSensitive));
 
@@ -184,6 +196,40 @@ internal static class ElevatedOperation
                 var path = Path.Combine(request.Target!, request.Name!);
                 File.WriteAllBytes(path, File.ReadAllBytes(request.Paths[0]));
                 return new(true, null, [path], path);
+            }
+
+            case "moveTo":
+            {
+                if (Directory.Exists(request.Paths[0]))
+                    Directory.Move(request.Paths[0], request.Target!);
+                else
+                    File.Move(request.Paths[0], request.Target!);
+
+                return new(true, null, [request.Target!], request.Target);
+            }
+
+            case "newFolderAt":
+            {
+                Directory.CreateDirectory(request.Target!);
+                return new(true, null, [request.Target!], request.Target);
+            }
+
+            case "newFileAt":
+            {
+                using (File.Create(request.Target!))
+                {
+                    // The redo of a new file only needs the empty placeholder.
+                }
+
+                return new(true, null, [request.Target!], request.Target);
+            }
+
+            case "restoreRecycle":
+            {
+                var restored = request.Paths.Count(id => RecycleBin.RestoreAsync(id).GetAwaiter().GetResult());
+                return restored == request.Paths.Length
+                    ? new(true, null, [], null)
+                    : new(false, "Windows could not restore the deleted items.", [], null);
             }
 
             default:
