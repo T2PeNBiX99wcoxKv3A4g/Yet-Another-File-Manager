@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.4.1..v0.4.2) - 2026-11-10
+
+### 🐛 Bug Fixes
+
+- Report startup as none when the login entry starts another copy - ([fa3af7e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/fa3af7eaae3a7e23c78b3a9368d5b4cb956fd7ef))
+- Give the Linux sidebar its XDG folders, Downloads included - ([9eae1c7](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/9eae1c7768420a691e7c82b1e981939bd3e74055))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([9540520](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/954052099ede320a1841795616a688d0d8dab379))
+
+
 ## [0.4.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.4.0..v0.4.1) - 2026-11-10
 
 ### 🐛 Bug Fixes
