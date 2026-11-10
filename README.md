@@ -13,7 +13,7 @@
   </p>
 </div>
 
-A desktop file manager with tabs, previews, archives, tags and a gallery in one window.
+A desktop file manager with tabs, archives, tags and a gallery in one window.
 
 <div align="center">
   <a href="docs/main-window.png"><img src="docs/main-window.png" alt="The main window" width="880"></a>
@@ -29,32 +29,30 @@ A desktop file manager with tabs, previews, archives, tags and a gallery in one 
   <em>Settings: colour presets and the section list</em>
 </div>
 
-## What it does
+## What it adds
 
-- **Tabs and split view** — several folders at once, two side by side, each tab with its own history.
-- **List and grid** — sort by any column, pick the columns, drag a header to resize it, and let each
-  folder remember its own layout.
-- **Previews** — pictures, video, PDFs and text beside or under the list, with the selection's size,
-  dates, link target and attributes.
-- **Archives** — open ZIP, 7z, RAR, TAR and the formats 7-Zip reads as folders, split volumes and
-  passwords included; create ZIP, 7z or TAR, with AES and volumes, and a choice of method for ZIP.
+- **Split view** — several folders as tabs, two of them side by side, each tab with its own history.
 - **Overview** — a home page of panels: quick access, frequent, recent, drives, shared, favourites and
   any folder, in one to five columns.
-- **Search and tags** — a filter bar with match case and regular expressions; one global tag
-  catalogue with a colour per tag.
+- **Tags** — one global catalogue: tag files and folders from any folder, one colour per tag, and
+  renaming or recolouring it changes every folder at once.
 - **Gallery** — the folders you point it at, grouped by day, opened at full size on double click.
-- **Recycle bin** — restore, delete for good, or clear the records whose files are already gone.
-- **File operations in the app** — copy, move, rename and delete run in-process, report progress and
-  write the recycle bin entry themselves; the history can undo them.
+- **Archives** — open ZIP, 7z, RAR, TAR and the formats 7-Zip reads as folders, split volumes and
+  passwords included; create ZIP, 7z or TAR, with AES and volumes, and a method of your choice for ZIP.
 - **Sharing** — offer a folder to paired devices in this app, or to any browser on the network.
+- **Recycle bin** — restore, delete for good, and see the leftovers of every profile, not just yours.
+- **Undo history** — the status center lists what this session did, and any entry can be undone.
+- **File tray** — a shelf for what you are about to paste: drop a selection from any folder onto it, and
+  it mirrors the system clipboard, so what another app copied appears there too.
+- **Search** — match case and regular expressions, dimming or hiding the rest as you type.
+- **A picker for scripts** — `yafm --pick-folder` or `--pick-file` instead of a shell dialog.
 - **Fast** — a small index per folder (or one central database), lazy shell icons, and a Rust helper
   for the bulk work.
-- **Cut and paste** — the tray shows what is on the clipboard and which entries a paste will move.
 
 ## What it is built with
 
 - **C# on .NET 10** — the file system work, shell integration, trash, icons, the SQLite index and the
-  tray.
+  tray icon.
 - **React 19 + TypeScript**, bundled by **Vite** and styled with **styled-components** — the
   interface. It is presentation only and exchanges JSON messages with the C# side.
 - **Photino.NET** — the desktop shell. The web view comes from the system: WebView2 on Windows,
