@@ -283,12 +283,20 @@ export interface DefaultManagerStatus {
 }
 
 const EmptyArchiveStatus: ArchiveStatus = {registered: false, pathMatches: false, registeredPath: null};
+const EmptyDefaultManagerStatus: DefaultManagerStatus = {registered: false, pathMatches: false, registeredPath: null};
 
 /** Reads the current user's folder handler and compares its path with this build. */
 export async function getDefaultManagerStatus(): Promise<DefaultManagerStatus> {
-    if (!Native.available) return {registered: false, pathMatches: false, registeredPath: null};
+    if (!Native.available) return EmptyDefaultManagerStatus;
 
     return await Native.request<DefaultManagerStatus>("app.defaultManager.status");
+}
+
+/** Turns the folder handler on or off and answers with what Windows now holds. */
+export async function setDefaultManager(enabled: boolean): Promise<DefaultManagerStatus> {
+    if (!Native.available) return EmptyDefaultManagerStatus;
+
+    return await Native.request<DefaultManagerStatus>("app.defaultManager.set", {enabled});
 }
 
 /** Reads the current user's archive association and compares its path with this build. */

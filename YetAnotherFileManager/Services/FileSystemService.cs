@@ -291,6 +291,21 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             case "app.defaultManager.status":
                 return context.Reply("app.defaultManager.status.result", DefaultFileManager.Status());
 
+            case "app.defaultManager.set":
+            {
+                var enabled = context.Payload<DefaultManagerRequest>()?.Enabled ?? false;
+                await SettingsService.Instance.UpdateAsync(settings => settings with
+                {
+                    DefaultFileManager = enabled
+                });
+
+                // Applied here instead of through the settings round-trip, so the toggle is one
+                // short step and always rewrites a registration that points at another copy.
+                DefaultFileManager.Apply(enabled);
+                WindowManager.Instance.Notify("settings.changed", new OkPayload());
+                return context.Reply("app.defaultManager.set.result", DefaultFileManager.Status());
+            }
+
             case "app.archive.register":
                 await SettingsService.Instance.UpdateAsync(settings => settings with
                 {

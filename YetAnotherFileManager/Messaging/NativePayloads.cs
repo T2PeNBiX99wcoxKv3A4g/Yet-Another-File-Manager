@@ -227,6 +227,9 @@ internal sealed record ArchiveStatusPayload(bool Registered, bool PathMatches, s
 /// <summary>Whether the current user's folder handler still points at this executable.</summary>
 internal sealed record DefaultManagerStatusPayload(bool Registered, bool PathMatches, string? RegisteredPath);
 
+/// <summary>Body for <c>app.defaultManager.set</c>: turn the folder handler on or off.</summary>
+internal sealed record DefaultManagerRequest(bool Enabled);
+
 /// <summary>Physical path of a temporary archive entry, or why it could not be extracted.</summary>
 internal sealed record ArchiveOpenPayload(string? Path, string? Error = null);
 

@@ -14,6 +14,7 @@ import {
     getSettings,
     registerArchiveHandler,
     saveSettings,
+    setDefaultManager,
     setEntryIcon,
     unregisterArchiveHandler,
 } from "../api/settings";
@@ -225,6 +226,8 @@ export function SettingsView({
     const [defaultManagerStatus, setDefaultManagerStatus] = useState<DefaultManagerStatus | null>(null);
     const [archiveBusy, setArchiveBusy] = useState(false);
     const [archiveError, setArchiveError] = useState<string | null>(null);
+    const [defaultManagerBusy, setDefaultManagerBusy] = useState(false);
+    const [defaultManagerError, setDefaultManagerError] = useState<string | null>(null);
     const [capturing, setCapturing] = useState<string | null>(null);
     const [capturingGlobal, setCapturingGlobal] = useState(false);
     const [tags, setTags] = useState<TagCatalogEntry[]>([]);
@@ -256,12 +259,17 @@ export function SettingsView({
     const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
     const defaultView = settings?.defaultView ?? DefaultViewDefaults;
     const customPresets = settings?.themePresets ?? [];
-    const archiveRegistered = archiveStatus
-        ? archiveStatus.registered && archiveStatus.pathMatches
+    const isWindows = appInfo?.platform === "windows";
+    const archiveRegistered = isWindows
+        ? archiveStatus
+            ? archiveStatus.registered && archiveStatus.pathMatches
+            : false
         : settings?.archiveHandler ?? false;
     const archivePresent = archiveStatus?.registered ?? settings?.archiveHandler ?? false;
-    const defaultManagerRegistered = defaultManagerStatus
-        ? defaultManagerStatus.registered && defaultManagerStatus.pathMatches
+    const defaultManagerRegistered = isWindows
+        ? defaultManagerStatus
+            ? defaultManagerStatus.registered && defaultManagerStatus.pathMatches
+            : false
         : settings?.defaultFileManager ?? false;
 
     // The shared page search highlights matches and dims or hides sections without any.
@@ -706,6 +714,35 @@ export function SettingsView({
         }
     };
 
+    const changeDefaultManager = async () => {
+        if (defaultManagerBusy || !settings) return;
+
+        const enable = !defaultManagerRegistered;
+
+        setDefaultManagerBusy(true);
+        setDefaultManagerError(null);
+
+        try {
+            // A dedicated request, so re-registering is not skipped as "the setting did not change"
+            // when the registry still points at another copy.
+            const status = await setDefaultManager(enable);
+            setDefaultManagerStatus(status);
+
+            const active = isWindows ? status.registered && status.pathMatches : enable;
+            setSettings((current) => current ? {...current, defaultFileManager: active} : current);
+            onSettingsChanged();
+
+            if (isWindows && active !== enable)
+                setDefaultManagerError(enable
+                    ? "Windows did not accept the folder registration. Try again."
+                    : "The registration is still there. Try turning it off again.");
+        } catch {
+            setDefaultManagerError("The request to Windows failed. Try again.");
+        } finally {
+            setDefaultManagerBusy(false);
+        }
+    };
+
     const registerArchives = async () => {
         if (archiveBusy) return;
         setArchiveBusy(true);
@@ -1114,6 +1151,7 @@ export function SettingsView({
                                             {path: defaultManagerStatus.registeredPath ?? "?"})}
                                     </TagError>
                                 )}
+                                {defaultManagerError && <TagError>{defaultManagerError}</TagError>}
                             </RowText>
                             <RowEnd>
                                 <State $on={defaultManagerRegistered}>
@@ -1121,15 +1159,8 @@ export function SettingsView({
                                 </State>
                                 <Toggle
                                     $on={defaultManagerRegistered}
-                                    disabled={!settings}
-                                    onClick={() => void (async () => {
-                                        const enable = defaultManagerStatus?.registered && !defaultManagerStatus.pathMatches
-                                            ? true
-                                            : !settings?.defaultFileManager;
-                                        await update({defaultFileManager: enable});
-                                        setDefaultManagerStatus(await getDefaultManagerStatus()
-                                            .catch(() => null));
-                                    })()}
+                                    disabled={!settings || defaultManagerBusy}
+                                    onClick={() => void changeDefaultManager()}
                                     title={defaultManagerRegistered
                                         ? t("Stop using this app for folders")
                                         : t("Use this app for folders")}
