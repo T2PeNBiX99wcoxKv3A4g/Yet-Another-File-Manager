@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.4.0..v0.4.1) - 2026-11-10
+
+### 🐛 Bug Fixes
+
+- Restore the overview panels' contents, not just their layout - ([64b8a38](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/64b8a38d9bb457b4d6e0870f04797b82cb77543d))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([df75ea9](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/df75ea9c09246383dd321867bfcdcb5b42c3088b))
+
+
 ## [0.4.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.3.0..v0.4.0) - 2026-11-10
 
 ### ⛰️  Features
