@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.4.2..v0.4.3) - 2026-11-10
+
+### ⚙️ Miscellaneous Tasks
+
+- Update Photino-Net-Utils-Bridge to v0.14.0 and replace package file - ([2d75ef9](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/2d75ef91ceb2417b533024297dcd14c8b99a2943))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([1a1a800](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1a1a8000c78643ff059bcc91fc8d5fa6d07b9fa3))
+
+
 ## [0.4.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.4.1..v0.4.2) - 2026-11-10
 
 ### 🐛 Bug Fixes
