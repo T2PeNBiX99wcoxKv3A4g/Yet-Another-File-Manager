@@ -29,7 +29,7 @@ from one code base.
   <br><br>
   <a href="docs/settings.png"><img src="docs/settings.png" alt="The settings page" width="880"></a>
   <br>
-  <em>Settings: language, colour presets and the section list</em>
+  <em>Settings: colour presets and the section list</em>
 </div>
 
 ## Why
@@ -60,8 +60,7 @@ Windows and Linux share the same interface, so the window looks the same on both
 - **File operations in the app** — copy, move, rename and delete run in-process instead of being
   handed to Explorer, so they report progress in the status center and never wait on a shell
   dialog. The recycle bin record is written by the app itself, and Explorer restores it as usual.
-- **Themes and languages** — accent and secondary colours, built-in and saved presets, and an
-  interface in English, 繁體中文, 简体中文 or 日本語.
+- **Themes** — accent and secondary colours, built-in and saved presets.
 - **Fast where it matters** — a small index per folder (or one central database), shell icons loaded
   lazily, and a Rust helper that scans the gallery and unlinks big trees.
 - **`yafm://` links** — open a folder in a new tab from anywhere, with the handler registered per
