@@ -166,6 +166,10 @@ const NoPaths: ReadonlySet<string> = new Set();
 
 /** Where the dragged column widths live, and how narrow or wide one may become. */
 const ColumnWidthKey = "yafm.columnWidths";
+
+/** Fired by the view menu's reset button, so every list in the window drops its widths. */
+export const ResetColumnWidthsEvent = "yafm.reset-column-widths";
+
 const MinColumnWidth = 64;
 const MaxColumnWidth = 720;
 const MinNameWidth = 160;
@@ -470,6 +474,17 @@ export function FileList({
             window.removeEventListener("pointerup", stop);
             window.removeEventListener("pointercancel", stop);
         };
+    }, []);
+
+    // The view menu resets every dragged width at once; each list hears it, so both panes agree.
+    useEffect(() => {
+        const reset = () => setWidths(() => {
+            writeStoredJson(ColumnWidthKey, {});
+            return {};
+        });
+
+        window.addEventListener(ResetColumnWidthsEvent, reset);
+        return () => window.removeEventListener(ResetColumnWidthsEvent, reset);
     }, []);
 
     const rows = useMemo(() => {

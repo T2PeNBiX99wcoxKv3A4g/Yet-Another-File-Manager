@@ -4,7 +4,7 @@ import {useTranslation} from "@photino-net-utils/bridge";
 import type {DirectoryView, ResolvedView} from "../api/files";
 import {GlobalTag} from "./GlobalTag";
 import {elevatedPanel} from "../ui/panel";
-import {ViewColumns} from "./FileList";
+import {ViewColumns, ResetColumnWidthsEvent} from "./FileList";
 import {GridIcon, ListIcon} from "./Icons";
 
 interface ViewMenuProps {
@@ -110,7 +110,16 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
                         <SizeValue>{view.gridSize}px</SizeValue>
                     </SliderRow>
 
-                    <SectionTitle>{t("Columns")}<GlobalTag/></SectionTitle>
+                    <SectionTitle>
+                        {t("Columns")}<GlobalTag/>
+                        <ResetButton
+                            onClick={() => window.dispatchEvent(new Event(ResetColumnWidthsEvent))}
+                            title={t("Reset column widths")}
+                            type="button"
+                        >
+                            {t("Reset")}
+                        </ResetButton>
+                    </SectionTitle>
                     {ViewColumns.map((column) => (
                         <Check key={column.id}>
                             <input
@@ -218,6 +227,28 @@ const SectionTitle = styled.div`
 
     &:first-child {
         margin-top: 2px;
+    }
+`;
+
+/** Sits at the right end of the Columns title, so resetting is one click from where widths are set. */
+const ResetButton = styled.button`
+    margin-left: auto;
+    padding: 2px 7px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 10px;
+    letter-spacing: 0;
+    text-transform: none;
+    cursor: pointer;
+    transition: border-color 130ms ease, background 130ms ease, color 130ms ease;
+
+    &:hover {
+        border-color: var(--border-color-hover);
+        background: rgba(var(--accent-rgb), 0.10);
+        color: var(--text-primary);
     }
 `;
 

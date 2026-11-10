@@ -422,7 +422,8 @@ export function FolderPicker({
 
     const selectionBar = (onName: (value: string) => void) => (
         <Footer>
-            <SelectionRow>
+            {/* The file type gets its own line, so the name keeps the whole width above it. */}
+            <SelectionGrid>
                 <FieldLabel>{isFileMode ? t("File name:") : t("Folder:")}</FieldLabel>
                 <NameInput
                     onChange={(event) => onName(event.target.value)}
@@ -451,11 +452,10 @@ export function FolderPicker({
                                 {value: "all", label: `${t("All files")} (*.*)`},
                             ]}
                             value={allFiles ? "all" : "supported"}
-                            width={220}
                         />
                     </>
                 )}
-            </SelectionRow>
+            </SelectionGrid>
 
             <Actions>
                 <Button onClick={onCancel} type="button">{t("Cancel")}</Button>
@@ -822,11 +822,15 @@ const Footer = styled.footer`    display: flex;
     background: rgba(var(--bg-rgb), 0.58);
 `;
 
-const SelectionRow = styled.div`
-    display: flex;
+const SelectionGrid = styled.div`
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
-    gap: 10px;
-    min-width: 0;
+    gap: 8px 10px;
+
+    > button {
+        justify-self: stretch;
+    }
 `;
 
 const FieldLabel = styled.span`
