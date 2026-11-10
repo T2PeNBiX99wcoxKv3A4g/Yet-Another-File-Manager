@@ -26,6 +26,7 @@
 
 ### Action
 
+- Update version and update `CHANGELOG.md` - ([a414316](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/a4143166f89c210a20ab4ed584a38e4c73deb9a9))
 - Update version and update `CHANGELOG.md` - ([3341651](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/334165120592be0bb1402259af87a4a8711fd1e1))
 
 
