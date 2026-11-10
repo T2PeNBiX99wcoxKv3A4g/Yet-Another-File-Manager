@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.5.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.4.3..v0.5.0) - 2026-11-10
+
+### ⛰️  Features
+
+- Follow the elevated copy's progress and extract archives with it - ([7c8e8d6](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7c8e8d616165ed6d1ebb687172f259958e2e14b1))
+- Let undo and redo of elevated operations ask for the same rights - ([0913e48](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/0913e48394c055dd41f3431cb1bb06e2f8ae6c7a))
+- Ask Windows for elevation when a folder refuses a change - ([2e3df57](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/2e3df57cf22593ecdfaf9ec287d271991e87faae))
+- Give Win+E to the app with a Windhawk mod - ([aa9df38](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/aa9df3891f697f665f3ce21a0fd0369f1338466c))
+
+### 🐛 Bug Fixes
+
+- Let the wallpaper show through the details pane - ([32cf198](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/32cf198e40fd2176d5aa5519228417cdaf831921))
+
+### 🚜 Refactor
+
+- Run elevated file operations in the app instead of the shell - ([1e03646](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1e0364676b34da85b43c9466d5cf5d33e169989d))
+
+### ⚙️ Miscellaneous Tasks
+
+- Update Photino-Net-Utils-Bridge to v0.15.2 and replace package file - ([bd538c9](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/bd538c98f3fb73743c8b512abfcb9aa9ccd42640))
+- Update Photino-Net-Utils-Bridge to v0.15.1 and upgrade Site dependencies - ([16c33e1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/16c33e1f6dc557501fd7017501115fafbe3bd984))
+- Bump Microsoft.Extensions.FileProviders.Embedded from 10.0.15 to 11.0.0 - ([9e9eca3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/9e9eca3a089a8e3774135d799d8b57f7cd9c6fa9))
+- Bump System.Drawing.Common from 10.0.15 to 11.0.0 - ([fa926d1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/fa926d17614aef6645f9fbef369cd686f5ab2f2e))
+- Bump Microsoft.Data.Sqlite from 10.0.15 to 11.0.0 - ([7b9454e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7b9454e0826fdf78d44d1853ca26921841956a0c))
+- Bump the nuget group with 3 updates - ([53b88eb](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/53b88eb1a9aad84a93dabfc57abd8930819e8fda))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([24fd157](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/24fd15750bce424c18a4db655ff7b56931ffb669))
+
+
 ## [0.4.3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.4.2..v0.4.3) - 2026-11-10
 
 ### ⚙️ Miscellaneous Tasks
