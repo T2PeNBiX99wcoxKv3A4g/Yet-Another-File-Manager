@@ -772,5 +772,6 @@
   "A device, share and file are required.": "デバイス、共有、ファイルが必要です。",
   "This item is cut and will move when something is pasted.": "この項目は切り取られているため、貼り付けると移動します。",
   "Restore default panels": "既定のパネルに戻す",
-  "Put every panel back the way the app ships it": "すべてのパネルを出荷時の状態に戻します。"
+  "Put every panel back the way the app ships it": "すべてのパネルを出荷時の状態に戻します。",
+  "Resize column": "列の幅を変更"
 }

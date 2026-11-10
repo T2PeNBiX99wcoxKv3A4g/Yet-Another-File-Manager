@@ -32,7 +32,7 @@ import {type FindView, NoFind, rangesOf} from "../find";
 import {canPreview, PreviewKindLabels, previewKindOf} from "../preview";
 import {quickPlace, useQuickAccess} from "../quick";
 import {baseName, formatBytes, formatDate, plural} from "../utils/format";
-import {readStoredNumber, writeStoredNumber} from "../storage";
+import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "../storage";
 import {type Translate, useTranslation} from "@photino-net-utils/bridge";
 import {CheckIcon, CutIcon, FolderIcon, LinkIcon, LockIcon} from "./Icons";
 import {type ArchiveExtractMode, FileMenu} from "./FileMenu";
@@ -164,6 +164,11 @@ interface RowModel {
 /** Used when nothing is cut, so the prop has a stable identity. */
 const NoPaths: ReadonlySet<string> = new Set();
 
+/** Where the dragged column widths live, and how narrow or wide one may become. */
+const ColumnWidthKey = "yafm.columnWidths";
+const MinColumnWidth = 64;
+const MaxColumnWidth = 720;
+
 /** The height the strip starts at, and the one a double-click on the divider brings back. */
 const DefaultStripHeight = 190;
 const MinStripHeight = 120;
@@ -228,6 +233,9 @@ export function FileList({
     const [tagTarget, setTagTarget] = useState<{ entry: FileEntry; x: number; y: number } | null>(null);
     const [stripHeight, setStripHeight] = useState(imageStripHeight);
     const [selected, setSelected] = useState<Set<string>>(() => new Set());
+    // Column widths the user dragged, by column id; a column without an entry keeps its default.
+    const [widths, setWidths] = useState<Record<string, number>>(
+        () => readStoredJson<Record<string, number>>(ColumnWidthKey) ?? {});
     // The context menu reads these through refs so its handler stays stable; otherwise every
     // selection change would hand new props to every memoized row.
     const selectedRef = useRef(selected);
@@ -347,10 +355,71 @@ export function FileList({
         [view.columns],
     );
     const showTarget = view.columns?.includes("linkTarget") ?? false;
+
+    /** The width of one column, with whatever the user dragged for it. */
+    const widthOf = useCallback(
+        (column: { id: string; width: number }) =>
+            Math.min(MaxColumnWidth, Math.max(MinColumnWidth, widths[column.id] ?? column.width)),
+        [widths]);
+
     const template = useMemo(
-        () => `minmax(160px, 1fr) ${visible.map((column) => `${column.width}px`).join(" ")}`.trim(),
-        [visible],
+        () => `minmax(160px, 1fr) ${visible.map((column) => `${widthOf(column)}px`).join(" ")}`.trim(),
+        [visible, widthOf],
     );
+
+    // A drag on a header's right edge. The name column is the flexible one, so its handle moves
+    // the first fixed column the other way and the name takes whatever room that frees.
+    const dragColumn = useRef<{ id: string; startX: number; startWidth: number; sign: number } | null>(null);
+
+    const startResize = (event: ReactPointerEvent, column: { id: string; width: number }, sign: number) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        dragColumn.current = {id: column.id, startX: event.clientX, startWidth: widthOf(column), sign};
+    };
+
+    const resetWidth = (id: string) =>
+        setWidths((current) => {
+            const next = {...current};
+            delete next[id];
+            writeStoredJson(ColumnWidthKey, next);
+            return next;
+        });
+
+    useEffect(() => {
+        const move = (event: PointerEvent) => {
+            const drag = dragColumn.current;
+            if (!drag) return;
+
+            const width = drag.startWidth + drag.sign * (event.clientX - drag.startX);
+
+            setWidths((current) => {
+                const next = Math.min(MaxColumnWidth, Math.max(MinColumnWidth, width));
+
+                return current[drag.id] === next ? current : {...current, [drag.id]: next};
+            });
+        };
+
+        const stop = () => {
+            if (!dragColumn.current) return;
+
+            dragColumn.current = null;
+            setWidths((current) => {
+                writeStoredJson(ColumnWidthKey, current);
+                return current;
+            });
+        };
+
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", stop);
+        window.addEventListener("pointercancel", stop);
+
+        return () => {
+            window.removeEventListener("pointermove", move);
+            window.removeEventListener("pointerup", stop);
+            window.removeEventListener("pointercancel", stop);
+        };
+    }, []);
 
     const rows = useMemo(() => {
         if (!listing) return [];
@@ -1265,11 +1334,25 @@ export function FileList({
                         <HeaderButton onClick={() => onSort("name")} type="button">
                             {t("Name")}{markOf(view, "name")}
                         </HeaderButton>
+                        <ResizeHandle
+                            aria-label={t("Resize column")}
+                            onDoubleClick={() => visible[0] && resetWidth(visible[0].id)}
+                            onPointerDown={(event) => visible[0] && startResize(event, visible[0], -1)}
+                            role="separator"
+                        />
                     </HeaderName>
                     {visible.map((column) => (
-                        <HeaderButton key={column.id} onClick={() => onSort(column.id)} type="button">
-                            {t(column.label)}{markOf(view, column.id)}
-                        </HeaderButton>
+                        <HeaderCell key={column.id}>
+                            <HeaderButton onClick={() => onSort(column.id)} type="button">
+                                {t(column.label)}{markOf(view, column.id)}
+                            </HeaderButton>
+                            <ResizeHandle
+                                aria-label={t("Resize column")}
+                                onDoubleClick={() => resetWidth(column.id)}
+                                onPointerDown={(event) => startResize(event, column, 1)}
+                                role="separator"
+                            />
+                        </HeaderCell>
                     ))}
                 </Head>
 
@@ -2226,6 +2309,43 @@ const HeaderName = styled.div`
     align-items: center;
     gap: 8px;
     min-width: 0;
+    position: relative;
+`;
+
+/** A header cell holds its button and the handle that drags the column's right edge. */
+const HeaderCell = styled.div`
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    position: relative;
+`;
+
+/** The drag handle sits over the gap between two columns, not inside either one. */
+const ResizeHandle = styled.span`
+    position: absolute;
+    top: -10px;
+    right: -13px;
+    bottom: -10px;
+    width: 10px;
+    z-index: 2;
+    cursor: col-resize;
+    touch-action: none;
+
+    &::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 4px;
+        width: 1px;
+        background: transparent;
+        transition: background 120ms ease;
+    }
+
+    &:hover::after,
+    &:active::after {
+        background: rgba(var(--accent-rgb), 0.75);
+    }
 `;
 
 /** The header checkbox: one click selects every row, or clears the selection again. */

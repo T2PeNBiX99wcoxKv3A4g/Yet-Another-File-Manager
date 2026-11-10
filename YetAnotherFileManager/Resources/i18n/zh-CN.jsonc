@@ -772,5 +772,6 @@
   "A device, share and file are required.": "需要设备、分享和文件。",
   "This item is cut and will move when something is pasted.": "此项目已剪切，粘贴时会移动。",
   "Restore default panels": "恢复默认面板",
-  "Put every panel back the way the app ships it": "把所有面板恢复为应用出厂时的状态。"
+  "Put every panel back the way the app ships it": "把所有面板恢复为应用出厂时的状态。",
+  "Resize column": "调整列宽"
 }

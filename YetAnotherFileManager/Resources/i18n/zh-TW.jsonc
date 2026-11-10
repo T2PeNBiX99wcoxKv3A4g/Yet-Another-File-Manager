@@ -772,5 +772,6 @@
   "A device, share and file are required.": "需要裝置、分享與檔案。",
   "This item is cut and will move when something is pasted.": "此項目已剪下，貼上時會移動。",
   "Restore default panels": "還原預設面板",
-  "Put every panel back the way the app ships it": "把所有面板還原為應用程式出廠時的狀態。"
+  "Put every panel back the way the app ships it": "把所有面板還原為應用程式出廠時的狀態。",
+  "Resize column": "調整欄位寬度"
 }
