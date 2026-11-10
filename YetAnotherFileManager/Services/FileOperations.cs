@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
+using PhotinoNetUtils;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Utils;
@@ -113,6 +114,14 @@ internal static partial class FileOperations
         {
             await File.WriteAllBytesAsync(path, content);
         }
+        catch (Exception ex) when (OperatingSystem.IsWindows() && ShellFileOperation.IsAccessDenied(ex))
+        {
+            if (!await WriteThroughShellAsync(directory, path, content))
+            {
+                Log.Warning(ex, "Could not create {Path}", path);
+                return false;
+            }
+        }
         catch (Exception ex)
         {
             Log.Warning(ex, "Could not create {Path}", path);
@@ -125,6 +134,26 @@ internal static partial class FileOperations
             redo: () => WritePastedFileAsync(path, content));
 
         return true;
+    }
+
+    /// <summary>Writes the bytes in the temp folder, then lets the shell move them in with elevation.</summary>
+    private static async Task<bool> WriteThroughShellAsync(string directory, string path, byte[] content)
+    {
+        var temporary = Path.Combine(Path.GetTempPath(), $"yafm-{Guid.NewGuid():N}{Path.GetExtension(path)}");
+
+        try
+        {
+            await File.WriteAllBytesAsync(temporary, content);
+
+            var copied = await StaThread.RunAsync(() => ShellFileOperation.Copy(temporary, directory,
+                Path.GetFileName(path), false, WindowManager.Instance.WindowHandle));
+
+            return copied && File.Exists(path);
+        }
+        finally
+        {
+            Try.Run(() => File.Delete(temporary));
+        }
     }
 
     private static Task<FileHistory.Step> WritePastedFileAsync(string path, byte[] content) =>
@@ -297,12 +326,13 @@ internal static partial class FileOperations
         return new(step.Ok, step.Ok ? target : null, step.Error);
     }
 
-    private static Task<FileHistory.Step> RenameCoreAsync(string source, string target) =>
-        Task.Run(() =>
-        {
-            if (File.Exists(target) || Directory.Exists(target))
-                return new(false, ParentsOf([source]), Localization.Get("An entry with that name already exists."));
+    private static async Task<FileHistory.Step> RenameCoreAsync(string source, string target)
+    {
+        if (File.Exists(target) || Directory.Exists(target))
+            return new(false, ParentsOf([source]), Localization.Get("An entry with that name already exists."));
 
+        var result = await Task.Run(() =>
+        {
             try
             {
                 if (Directory.Exists(source))
@@ -310,16 +340,31 @@ internal static partial class FileOperations
                 else if (File.Exists(source))
                     File.Move(source, target);
                 else
-                    return new(false, ParentsOf([source]), Localization.Get("The entry is no longer there."));
+                    return (Ok: false, Denied: false, Error: Localization.Get("The entry is no longer there."));
 
-                return new(true, ParentsOf([source]));
+                return (Ok: true, Denied: false, Error: (string?)null);
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "Could not rename {Path}", source);
-                return new FileHistory.Step(false, ParentsOf([source]), ex.Message);
+                return (Ok: false,
+                    Denied: OperatingSystem.IsWindows() && ShellFileOperation.IsAccessDenied(ex),
+                    Error: (string?)ex.Message);
             }
         });
+
+        if (result.Ok)
+            return new(true, ParentsOf([source]));
+
+        // The shell can rename the entry after the user consents to the elevation prompt.
+        if (result.Denied
+            && await StaThread.RunAsync(() => ShellFileOperation.Rename(source, Path.GetFileName(target),
+                WindowManager.Instance.WindowHandle))
+            && (File.Exists(target) || Directory.Exists(target)))
+            return new(true, ParentsOf([source]));
+
+        Log.Warning("Could not rename {Path}: {Error}", source, result.Error);
+        return new FileHistory.Step(false, ParentsOf([source]), result.Error);
+    }
 
     /// <summary>Creates the next free "New folder" name in a directory.</summary>
     public static async Task<PathOperationPayload> NewFolderAsync(string directory, bool caseSensitive = false)
@@ -327,27 +372,40 @@ internal static partial class FileOperations
         if (!Directory.Exists(directory))
             return new(false, null, Localization.Get("The folder is no longer there."));
 
+        var path = UniqueName(directory, "New folder", "");
+
         try
         {
-            var path = UniqueName(directory, "New folder", "");
             Directory.CreateDirectory(path);
+        }
+        catch (Exception ex) when (OperatingSystem.IsWindows() && ShellFileOperation.IsAccessDenied(ex))
+        {
+            // The shell creates the folder after the user consents to the elevation prompt.
+            var created = await StaThread.RunAsync(() => ShellFileOperation.NewItem(
+                directory, Path.GetFileName(path), true, WindowManager.Instance.WindowHandle));
 
-            // Windows only turns the flag on while the folder is still empty.
-            if (caseSensitive)
-                CaseFolders.MarkNew(path);
-
-            FileHistory.Instance.Record("New folder",
-                paths: [path],
-                undo: () => DeleteEmptyFolderAsync(path),
-                redo: () => CreateFolderAsync(path));
-
-            return new(true, path, null);
+            if (!created || !Directory.Exists(path))
+            {
+                Log.Warning(ex, "Could not create a folder in {Directory}", directory);
+                return new(false, null, ex.Message);
+            }
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "Could not create a folder in {Directory}", directory);
             return new(false, null, ex.Message);
         }
+
+        // Windows only turns the flag on while the folder is still empty.
+        if (caseSensitive)
+            CaseFolders.MarkNew(path);
+
+        FileHistory.Instance.Record("New folder",
+            paths: [path],
+            undo: () => DeleteEmptyFolderAsync(path),
+            redo: () => CreateFolderAsync(path));
+
+        return new(true, path, null);
     }
 
     /// <summary>Creates the next free "New file.txt" name in a directory.</summary>
@@ -357,24 +415,35 @@ internal static partial class FileOperations
             return new(false, null, Localization.Get("The folder is no longer there."));
 
         var suffix = NormalizeExtension(extension);
+        var path = UniqueName(directory, "New file", suffix);
 
         try
         {
-            var path = UniqueName(directory, "New file", suffix);
             await File.WriteAllTextAsync(path, "");
+        }
+        catch (Exception ex) when (OperatingSystem.IsWindows() && ShellFileOperation.IsAccessDenied(ex))
+        {
+            var created = await StaThread.RunAsync(() => ShellFileOperation.NewItem(
+                directory, Path.GetFileName(path), false, WindowManager.Instance.WindowHandle));
 
-            FileHistory.Instance.Record("New file",
-                paths: [path],
-                undo: () => DeleteFileAsync(path),
-                redo: () => CreateEmptyFileAsync(path));
-
-            return new(true, path, null);
+            if (!created || !File.Exists(path))
+            {
+                Log.Warning(ex, "Could not create a file in {Directory}", directory);
+                return new(false, null, ex.Message);
+            }
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "Could not create a file in {Directory}", directory);
             return new(false, null, ex.Message);
         }
+
+        FileHistory.Instance.Record("New file",
+            paths: [path],
+            undo: () => DeleteFileAsync(path),
+            redo: () => CreateEmptyFileAsync(path));
+
+        return new(true, path, null);
     }
 
     /// <summary>A short, safe suffix; anything unusual falls back to <c>.txt</c>.</summary>

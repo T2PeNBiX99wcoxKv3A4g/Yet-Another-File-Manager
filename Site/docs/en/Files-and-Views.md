@@ -57,7 +57,8 @@ Right-click a file, a folder or the empty background:
 
 Delete moves items to the recycle bin by default; permanent deletion is a separate action and can be
 made to ask first in [Settings](Settings-and-Shortcuts). Undo and redo cover the operations made in
-the current session.
+the current session. A folder that needs administrator rights asks for elevation, the way Explorer
+does, and the operation continues after the consent prompt.
 
 Archives open as folders here, and can be unpacked or created from the same menu; see
 [Archives](Archives).

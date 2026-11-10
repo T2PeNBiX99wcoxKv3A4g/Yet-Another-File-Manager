@@ -1,8 +1,10 @@
 using System.Buffers;
+using PhotinoNetUtils;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Utils;
 using Serilog;
+using YetAnotherFileManager.Interop;
 
 namespace YetAnotherFileManager.Services;
 
@@ -64,6 +66,11 @@ internal static class FileTransfer
 
         if (move && list.Any(source => IsInside(source, target)))
             return (false, Localization.Get("A folder cannot be moved into itself."), []);
+
+        // A folder the current user cannot write to is handed to the shell, which can ask for
+        // elevation and retry, instead of failing at the first file with access denied.
+        if (OperatingSystem.IsWindows() && !ShellFileOperation.CanWriteTo(target))
+            return await RunThroughShellAsync(list, target, move);
 
         var taskId = TaskCenter.Instance.Start(move ? "move" : "copy",
             $"{(move ? "Move" : "Copy")} {list.Count} item{(list.Count == 1 ? "" : "s")}");
@@ -173,6 +180,40 @@ internal static class FileTransfer
             TaskCenter.Instance.Fail(taskId, ex.Message);
             return (false, ex.Message, created);
         }
+    }
+
+    /// <summary>
+    ///     Runs a copy or move the current user is not allowed to do through the shell, so Windows
+    ///     can show its elevation prompt and repeat the operation with the administrator token.
+    /// </summary>
+    private static async Task<(bool Ok, string? Error, List<string> Created)> RunThroughShellAsync(
+        List<string> sources, string target, bool move)
+    {
+        var created = new List<string>();
+        var reserved = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var owner = WindowManager.Instance.WindowHandle;
+        string? error = null;
+
+        foreach (var source in sources)
+        {
+            var isDirectory = Directory.Exists(source);
+            var destination = UniqueDestination(target, Path.GetFileName(source), isDirectory, reserved);
+
+            var done = await StaThread.RunAsync(() => ShellFileOperation.Copy(
+                source, target, Path.GetFileName(destination), move, owner));
+
+            if (done && (File.Exists(destination) || Directory.Exists(destination)))
+            {
+                created.Add(destination);
+                continue;
+            }
+
+            // Declining the consent prompt applies to the rest as well.
+            error = Localization.Get("Administrator rights are required to change this folder.");
+            break;
+        }
+
+        return (error is null, error, created);
     }
 
     private static async Task CopyTreeAsync(Job job, Action fileDone, Action<long> bytes,

@@ -775,5 +775,6 @@
   "Put every panel back the way the app ships it": "把所有面板恢复为应用出厂时的状态。",
   "Resize column": "调整列宽",
   "Reset column widths": "重置列宽",
-  "Reset widths": "重置宽度"
+  "Reset widths": "重置宽度",
+  "Administrator rights are required to change this folder.": "修改此文件夹需要管理员权限。"
 }

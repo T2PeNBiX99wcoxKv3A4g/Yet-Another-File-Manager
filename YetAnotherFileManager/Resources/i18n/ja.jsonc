@@ -775,5 +775,6 @@
   "Put every panel back the way the app ships it": "すべてのパネルを出荷時の状態に戻します。",
   "Resize column": "列の幅を変更",
   "Reset column widths": "列の幅をリセット",
-  "Reset widths": "幅をリセット"
+  "Reset widths": "幅をリセット",
+  "Administrator rights are required to change this folder.": "このフォルダーを変更するには管理者権限が必要です。"
 }

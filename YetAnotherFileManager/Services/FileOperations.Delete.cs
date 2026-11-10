@@ -1,3 +1,4 @@
+using PhotinoNetUtils;
 using PhotinoNetUtils.Localization;
 using Serilog;
 using YetAnotherFileManager.Interop;
@@ -86,6 +87,12 @@ internal static partial class FileOperations
         {
             if (await RecycleBin.SendAsync(path))
                 deleted++;
+            else if (OperatingSystem.IsWindows()
+                     && await StaThread.RunAsync(() => ShellFileOperation.Delete(path, true,
+                         WindowManager.Instance.WindowHandle))
+                     && !Exists(path))
+                // The shell wrote the same recycle bin record, so the recycle view and undo still work.
+                deleted++;
             else
                 error ??= $"Could not move {Path.GetFileName(path)} to the recycle bin.";
 
@@ -108,10 +115,20 @@ internal static partial class FileOperations
         var failures = await Task.Run(() => RustNative.Delete(items, files,
             (done, _) => TaskCenter.Instance.Progress(id, (int)Math.Min(done, int.MaxValue), 0)));
 
+        // A protected folder is left to the shell, which can ask for elevation and retry.
+        if (failures > 0 && OperatingSystem.IsWindows())
+            foreach (var path in items.Where(Exists).ToList())
+                if (await StaThread.RunAsync(() => ShellFileOperation.Delete(path, false,
+                        WindowManager.Instance.WindowHandle))
+                    && !Exists(path))
+                    failures--;
+
         return Finish(id, items,
             failures == 0 ? null : $"{failures} entr{(failures == 1 ? "y" : "ies")} could not be deleted.",
             0);
     }
+
+    private static bool Exists(string path) => File.Exists(path) || Directory.Exists(path);
 
     private static (FileHistory.Step Step, int Deleted) Finish(string id, List<string> items, string? error,
         int deleted)
