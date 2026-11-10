@@ -25,7 +25,8 @@ section.
 ## Startup
 
 **Start with the computer** adds the app to the login items, and **Start hidden in the tray** keeps
-the window out of the way until it is opened.
+the window out of the way until it is opened. The entry belongs to this copy: when it points at
+another folder, the setting reads **None**, and picking a mode again rewrites it for this copy.
 
 ## Fonts and time
 

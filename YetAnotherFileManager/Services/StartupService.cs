@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Xml.Linq;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Platform;
@@ -51,8 +52,13 @@ internal sealed class StartupService : Singleton<StartupService>
 
     private NativeResponse Status(NativeContext context)
     {
-        var mode = SettingsService.Instance.Current.Startup;
-        return context.Reply("app.startup.result", new StartupStatusPayload(IsSupported, mode, IsActive(mode), null));
+        var stored = SettingsService.Instance.Current.Startup;
+        var active = IsActive(stored);
+
+        // A login entry that starts a copy in another folder is not this app starting, so it is
+        // reported as none rather than leaving the setting looking enabled.
+        var mode = active ? stored : "none";
+        return context.Reply("app.startup.result", new StartupStatusPayload(IsSupported, mode, active, null));
     }
 
     private async Task<NativeResponse?> SetAsync(NativeContext context)
@@ -64,10 +70,10 @@ internal sealed class StartupService : Singleton<StartupService>
             return context.Reply("app.startup.set.result", new StartupStatusPayload(false, "none", false,
                 "This platform has no per-user startup entry."));
 
-        var (ok, error) = await ApplyAsync(mode);
+        var (ok, error) = await ApplyAsync(mode, true);
         if (!ok)
             return context.Reply("app.startup.set.result",
-                new StartupStatusPayload(true, SettingsService.Instance.Current.Startup, IsActive(mode), error));
+                new StartupStatusPayload(true, StatusMode(), IsActive(mode), error));
 
         await SettingsService.Instance.UpdateAsync(settings => settings with
         {
@@ -76,8 +82,14 @@ internal sealed class StartupService : Singleton<StartupService>
         return context.Reply("app.startup.set.result", new StartupStatusPayload(true, mode, IsActive(mode), null));
     }
 
+    private string StatusMode()
+    {
+        var stored = SettingsService.Instance.Current.Startup;
+        return IsActive(stored) ? stored : "none";
+    }
+
     /// <summary>Applies one mode and removes the other mechanism.</summary>
-    private async Task<(bool Ok, string? Error)> ApplyAsync(string mode)
+    private async Task<(bool Ok, string? Error)> ApplyAsync(string mode, bool interactive = false)
     {
         switch (mode)
         {
@@ -89,7 +101,9 @@ internal sealed class StartupService : Singleton<StartupService>
 
             case "task":
                 _shortcut.SetEnabled(false);
-                return TaskExists() ? (true, null) : await CreateTaskAsync();
+                // Writing a Windows task needs an administrator token, so a launch only repairs the
+                // shortcut and leaves the task to the settings page.
+                return interactive && !TaskCurrent() ? await CreateTaskAsync() : (true, null);
 
             default:
                 _shortcut.SetEnabled(false);
@@ -100,8 +114,8 @@ internal sealed class StartupService : Singleton<StartupService>
 
     private bool IsActive(string mode) => mode switch
     {
-        "shortcut" => _shortcut.IsEnabled,
-        "task" => TaskExists(),
+        "shortcut" => _shortcut.IsCurrent,
+        "task" => TaskCurrent(),
         _ => false
     };
 
@@ -173,6 +187,58 @@ internal sealed class StartupService : Singleton<StartupService>
         }
 
         return OperatingSystem.IsLinux() && File.Exists(UnitPath) && File.Exists(WantPath);
+    }
+
+    /// <summary>Whether the logon task or user unit starts the running executable.</summary>
+    private static bool TaskCurrent()
+    {
+        if (Executable is not { Length: > 0 } executable)
+            return false;
+
+        if (OperatingSystem.IsLinux())
+        {
+            var unit = Try.Run(() => File.ReadAllText(UnitPath)).GetOrNull();
+            var exec = unit?.Split('\n')
+                .FirstOrDefault(line => line.TrimStart().StartsWith("ExecStart=", StringComparison.Ordinal));
+
+            return exec is not null
+                   && StartupRegistration.SamePath(ExecutableIn(exec), executable);
+        }
+
+        if (!OperatingSystem.IsWindows())
+            return false;
+
+        var (code, output) = RunAsync("schtasks", ["/Query", "/TN", TaskName, "/XML"]).GetAwaiter().GetResult();
+        if (code != 0)
+            return false;
+
+        var command = Try.Run(() => XDocument.Parse(output)
+                .Descendants()
+                .FirstOrDefault(element => element.Name.LocalName == "Command")?.Value)
+            .GetOrNull();
+
+        // Task Scheduler stores the quoted command line it was given, so the quotes come off first.
+        return StartupRegistration.SamePath(Unquoted(command), executable);
+    }
+
+    /// <summary>The path inside a quoted or bare command line.</summary>
+    private static string? Unquoted(string? value)
+    {
+        var text = value?.Trim();
+        return text is { Length: > 1 } && text[0] == '"' && text[^1] == '"'
+            ? text[1..^1]
+            : text;
+    }
+
+    /// <summary>The executable in an ExecStart= or Exec= line, quoted or not.</summary>
+    private static string? ExecutableIn(string line)
+    {
+        var value = line[(line.IndexOf('=') + 1)..].Trim();
+        if (!value.StartsWith('"'))
+            return value.Split(' ')[0];
+
+        var end = value.IndexOf('"', 1);
+        return end > 1 ? value[1..end] : null;
     }
 
     private static async Task<(bool Ok, string? Error)> RunElevatedHelperAsync(string action)
