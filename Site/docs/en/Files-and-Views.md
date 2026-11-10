@@ -30,9 +30,10 @@ Click a column header to sort by it and again to reverse. The view menu chooses 
 visible: type, size, modified, created, items, links, link status and tags, plus an optional link
 target after the name. The choice is global, while the sort order belongs to the folder.
 
-Drag the divider to the right of a header to resize that column, and double-click the divider to
-restore its default width. The name column takes the remaining room, so dragging its divider gives it
-more space by narrowing the first column beside it.
+Drag the divider to the right of a header to resize that column, and double-click it to restore the
+default width. The first drag also fixes the name column at the width it has, so every divider moves
+under the pointer and the list scrolls sideways once the columns are wider than the window;
+double-click the name divider to let it fill the window again.
 
 ## Preview panel
 

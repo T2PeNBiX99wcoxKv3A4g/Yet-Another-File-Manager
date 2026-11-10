@@ -166,8 +166,11 @@ const NoPaths: ReadonlySet<string> = new Set();
 
 /** Where the dragged column widths live, and how narrow or wide one may become. */
 const ColumnWidthKey = "yafm.columnWidths";
+const NameColumn = "name";
 const MinColumnWidth = 64;
 const MaxColumnWidth = 720;
+const MinNameWidth = 160;
+const MaxNameWidth = 1200;
 
 /** The height the strip starts at, and the one a double-click on the divider brings back. */
 const DefaultStripHeight = 190;
@@ -362,20 +365,35 @@ export function FileList({
             Math.min(MaxColumnWidth, Math.max(MinColumnWidth, widths[column.id] ?? column.width)),
         [widths]);
 
+    const nameTemplate = widths[NameColumn] ? `${widths[NameColumn]}px` : "minmax(160px, 1fr)";
+
     const template = useMemo(
-        () => `minmax(160px, 1fr) ${visible.map((column) => `${widthOf(column)}px`).join(" ")}`.trim(),
-        [visible, widthOf],
+        () => `${nameTemplate} ${visible.map((column) => `${widthOf(column)}px`).join(" ")}`.trim(),
+        [nameTemplate, visible, widthOf],
     );
 
-    // A drag on a header's right edge. The name column is the flexible one, so its handle moves
-    // the first fixed column the other way and the name takes whatever room that frees.
-    const dragColumn = useRef<{ id: string; startX: number; startWidth: number; sign: number } | null>(null);
+    // A drag on a header's right edge. The name column fills the window until the first drag, when
+    // it is frozen at the width it has; from then on every divider moves under the pointer instead
+    // of pushing the columns around, exactly like the columns of a desktop file manager.
+    const dragColumn = useRef<{ id: string; startX: number; startWidth: number } | null>(null);
 
-    const startResize = (event: ReactPointerEvent, column: { id: string; width: number }, sign: number) => {
+    const nameRef = useRef<HTMLDivElement | null>(null);
+
+    const measuredName = () => Math.floor(nameRef.current?.getBoundingClientRect().width ?? 0);
+
+    const startResize = (event: ReactPointerEvent, id: string, width: number) => {
         event.preventDefault();
         event.stopPropagation();
 
-        dragColumn.current = {id: column.id, startX: event.clientX, startWidth: widthOf(column), sign};
+        // A drag on any other column freezes the name first, so the columns to the right of the
+        // divider move with the pointer instead of the whole row shifting under it.
+        if (id !== NameColumn && widths[NameColumn] === undefined)
+            setWidths((current) => ({...current, [NameColumn]: Math.max(MinNameWidth, measuredName() || MinNameWidth)}));
+
+        const name = id === NameColumn;
+        const start = name ? (widths[NameColumn] ?? (measuredName() || MinNameWidth)) : width;
+
+        dragColumn.current = {id, startX: event.clientX, startWidth: start};
     };
 
     const resetWidth = (id: string) =>
@@ -391,13 +409,11 @@ export function FileList({
             const drag = dragColumn.current;
             if (!drag) return;
 
-            const width = drag.startWidth + drag.sign * (event.clientX - drag.startX);
+            const width = Math.min(drag.id === NameColumn ? MaxNameWidth : MaxColumnWidth, Math.max(
+                drag.id === NameColumn ? MinNameWidth : MinColumnWidth,
+                drag.startWidth + (event.clientX - drag.startX)));
 
-            setWidths((current) => {
-                const next = Math.min(MaxColumnWidth, Math.max(MinColumnWidth, width));
-
-                return current[drag.id] === next ? current : {...current, [drag.id]: next};
-            });
+            setWidths((current) => current[drag.id] === width ? current : {...current, [drag.id]: width});
         };
 
         const stop = () => {
@@ -1314,7 +1330,7 @@ export function FileList({
                     ref={head}
                     style={{gridTemplateColumns: template}}
                 >
-                    <HeaderName>
+                    <HeaderName ref={nameRef}>
                         {showCheckboxes && (
                             <SelectAll
                                 $checked={!singleSelect && allSelected}
@@ -1336,8 +1352,8 @@ export function FileList({
                         </HeaderButton>
                         <ResizeHandle
                             aria-label={t("Resize column")}
-                            onDoubleClick={() => visible[0] && resetWidth(visible[0].id)}
-                            onPointerDown={(event) => visible[0] && startResize(event, visible[0], -1)}
+                            onDoubleClick={() => resetWidth(NameColumn)}
+                            onPointerDown={(event) => startResize(event, NameColumn, widths[NameColumn] ?? measuredName())}
                             role="separator"
                         />
                     </HeaderName>
@@ -1349,7 +1365,7 @@ export function FileList({
                             <ResizeHandle
                                 aria-label={t("Resize column")}
                                 onDoubleClick={() => resetWidth(column.id)}
-                                onPointerDown={(event) => startResize(event, column, 1)}
+                                onPointerDown={(event) => startResize(event, column.id, widthOf(column))}
                                 role="separator"
                             />
                         </HeaderCell>
