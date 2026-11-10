@@ -1272,7 +1272,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var pinned = SettingsService.Instance.Current.PinnedPlaces;
 
-        var paths = pinned is { Count: > 0 } ? pinned : DefaultPlaces(home);
+        var paths = pinned is { Count: > 0 }
+            ? pinned
+            : DefaultPlaces(home).Select(place => place.Path).ToList();
 
         return
         [
@@ -1285,7 +1287,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
     private static PlaceEntry ToPlace(string path, string home)
     {
-        var isHome = string.Equals(path.TrimEnd('\\', '/'), home.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase);
+        var isHome = SamePlace(path, home);
 
         // The user can rename a pinned folder; the path stays the key.
         var icon = SettingsService.Instance.Current.PlaceIconOverrides.GetValueOrDefault(path)
@@ -1302,33 +1304,88 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         return new(name.Length > 0 ? name : path, path, isHome ? "home" : "folder", icon);
     }
 
-    /// <summary>The folders Windows calls the user's own, in Explorer's order.</summary>
-    private static List<string> DefaultPlaces(string home) =>
+    /// <summary>The default folders of the user's desktop, each with the icon it shows.</summary>
+    private static List<(string Icon, string Path)> DefaultPlaces(string home)
+    {
+        var places = DefaultPaths(home);
+
+        // A Linux desktop without xdg-user-dirs never made a Downloads folder, but every other app
+        // still saves there; the sidebar should offer it rather than silently drop the entry.
+        var downloads = places.First(place => place.Icon == "downloads").Path;
+        if (!Directory.Exists(downloads))
+            Try.Run(() => Directory.CreateDirectory(downloads));
+
+        return places;
+    }
+
+    /// <summary>The default places without touching the disk, so an icon lookup creates nothing.</summary>
+    private static List<(string Icon, string Path)> DefaultPaths(string home) =>
+        OperatingSystem.IsLinux() ? LinuxPlaces(home) : WindowsPlaces(home);
+
+    private static List<(string Icon, string Path)> WindowsPlaces(string home) =>
     [
-        home,
-        Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
-        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-        Path.Combine(home, "Downloads"),
-        Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
-        Environment.GetFolderPath(Environment.SpecialFolder.MyMusic),
-        Environment.GetFolderPath(Environment.SpecialFolder.MyVideos)
+        ("home", home),
+        ("desktop", Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory)),
+        ("documents", Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)),
+        ("downloads", Path.Combine(home, "Downloads")),
+        ("pictures", Environment.GetFolderPath(Environment.SpecialFolder.MyPictures)),
+        ("music", Environment.GetFolderPath(Environment.SpecialFolder.MyMusic)),
+        ("videos", Environment.GetFolderPath(Environment.SpecialFolder.MyVideos))
     ];
 
-    /// <summary>The icon a well-known folder gets before the user picks one.</summary>
-    private static string? DefaultPlaceIcon(string path, string home)
+    /// <summary>
+    ///     Linux keeps the user's folders in user-dirs.dirs, which is also where translated names
+    ///     such as ~/下載 come from; the Windows special folders all fall back to the home directory.
+    /// </summary>
+    private static List<(string Icon, string Path)> LinuxPlaces(string home)
     {
-        var Same = (string folder) =>
-            string.Equals(path.TrimEnd('\\', '/'), folder.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase);
+        var dirs = UserDirs(home);
 
-        return Same(home) ? "home"
-            : Same(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory)) ? "desktop"
-            : Same(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)) ? "documents"
-            : Same(Path.Combine(home, "Downloads")) ? "downloads"
-            : Same(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures)) ? "pictures"
-            : Same(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic)) ? "music"
-            : Same(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos)) ? "videos"
-            : null;
+        var pathOf = (string key, string fallback) =>
+            dirs.GetValueOrDefault(key) is { Length: > 0 } configured ? configured : Path.Combine(home, fallback);
+
+        return
+        [
+            ("home", home),
+            ("desktop", pathOf("XDG_DESKTOP_DIR", "Desktop")),
+            ("documents", pathOf("XDG_DOCUMENTS_DIR", "Documents")),
+            ("downloads", pathOf("XDG_DOWNLOAD_DIR", "Downloads")),
+            ("pictures", pathOf("XDG_PICTURES_DIR", "Pictures")),
+            ("music", pathOf("XDG_MUSIC_DIR", "Music")),
+            ("videos", pathOf("XDG_VIDEOS_DIR", "Videos"))
+        ];
     }
+
+    /// <summary>The XDG folders from user-dirs.dirs, where $HOME stands for the user's home.</summary>
+    private static Dictionary<string, string> UserDirs(string home)
+    {
+        var config = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") is { Length: > 0 } custom
+            ? custom
+            : Path.Combine(home, ".config");
+        var file = Path.Combine(config, "user-dirs.dirs");
+        var dirs = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var line in Try.Run(() => File.ReadAllLines(file)).GetOrNull() ?? [])
+        {
+            var split = line.IndexOf('=');
+            if (split <= 0 || line.TrimStart().StartsWith('#'))
+                continue;
+
+            var value = line[(split + 1)..].Trim().Trim('"').Replace("$HOME", home, StringComparison.Ordinal);
+            if (value.Length > 0)
+                dirs[line[..split].Trim()] = value;
+        }
+
+        return dirs;
+    }
+
+    /// <summary>The icon a well-known folder gets before the user picks one.</summary>
+    private static string? DefaultPlaceIcon(string path, string home) =>
+        DefaultPaths(home).FirstOrDefault(place => SamePlace(place.Path, path)).Icon;
+
+    private static bool SamePlace(string first, string second) =>
+        string.Equals(first.TrimEnd('\\', '/'), second.TrimEnd('\\', '/'),
+            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
 
     private static Task<List<DriveEntry>> GetDrivesAsync() => Task.Run(GetDrives);
 
