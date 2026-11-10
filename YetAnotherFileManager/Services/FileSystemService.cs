@@ -383,18 +383,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                     return context.Reply("fs.archive.extract.result",
                         new ArchiveExtractPayload(false, Localization.Get("The path is not inside an archive.")));
 
-                var extracted = await Task.Run(() =>
-                {
-                    try
-                    {
-                        Archives.Extract(archive, request.Target, request.CodePage ?? 0, request.Password);
-                        return new(true);
-                    }
-                    catch (Exception ex)
-                    {
-                        return new ArchiveExtractPayload(false, ex.Message);
-                    }
-                });
+                var taskId = TaskCenter.Instance.Start("extract", $"Extract {Path.GetFileName(archive)}");
+                var extracted = await ExtractAsync(archive, request.Target, request.CodePage ?? 0,
+                    request.Password, taskId);
 
                 return context.Reply("fs.archive.extract.result", extracted);
             }
@@ -1259,6 +1250,45 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
         if (children.Count > 0)
             FolderMeasureService.Instance.Request(directory, children, counts);
+    }
+
+    /// <summary>
+    ///     Extracts an archive; a protected destination is finished by an elevated copy of the app,
+    ///     whose progress the status row follows.
+    /// </summary>
+    private static async Task<ArchiveExtractPayload> ExtractAsync(string archive, string target, int codePage,
+        string? password, string taskId)
+    {
+        try
+        {
+            await Task.Run(() => Archives.Extract(archive, target, codePage, password));
+            TaskCenter.Instance.Complete(taskId);
+            return new(true);
+        }
+        catch (Exception ex) when (OperatingSystem.IsWindows() && !ElevatedOperation.IsHelper
+                                                         && Access.IsAccessDenied(ex))
+        {
+            var elevated = await ElevatedOperation.ExtractArchiveAsync(archive, target, codePage, password,
+                progress =>
+                {
+                    TaskCenter.Instance.UpdateTotal(taskId, progress.Total, progress.BytesTotal);
+                    TaskCenter.Instance.Progress(taskId, progress.Done, progress.BytesDone);
+                });
+
+            if (elevated.Ok)
+            {
+                TaskCenter.Instance.Complete(taskId);
+                return new(true);
+            }
+
+            TaskCenter.Instance.Fail(taskId, elevated.Error ?? ex.Message);
+            return new ArchiveExtractPayload(false, elevated.Error ?? ex.Message);
+        }
+        catch (Exception ex)
+        {
+            TaskCenter.Instance.Fail(taskId, ex.Message);
+            return new ArchiveExtractPayload(false, ex.Message);
+        }
     }
 
     private static Task<List<PlaceEntry>> GetPlacesAsync() => Task.Run(GetPlaces);

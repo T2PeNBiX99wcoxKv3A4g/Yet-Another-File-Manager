@@ -100,7 +100,11 @@ internal static partial class FileOperations
         if (refused.Count > 0)
         {
             var elevated = OperatingSystem.IsWindows() && !ElevatedOperation.IsHelper
-                ? await ElevatedOperation.DeleteAsync([.. refused], false)
+                ? await ElevatedOperation.DeleteAsync([.. refused], false, progress =>
+                {
+                    TaskCenter.Instance.UpdateTotal(id, progress.Total, progress.BytesTotal);
+                    TaskCenter.Instance.Progress(id, progress.Done, progress.BytesDone);
+                })
                 : new(false, null, [], null);
 
             if (elevated.Ok)
@@ -132,7 +136,12 @@ internal static partial class FileOperations
 
             if (refused.Count > 0)
             {
-                await ElevatedOperation.DeleteAsync([.. refused], true);
+                await ElevatedOperation.DeleteAsync([.. refused], true, progress =>
+                {
+                    TaskCenter.Instance.UpdateTotal(id, progress.Total, progress.BytesTotal);
+                    TaskCenter.Instance.Progress(id, progress.Done, progress.BytesDone);
+                });
+
                 failures = items.Count(Exists);
             }
         }

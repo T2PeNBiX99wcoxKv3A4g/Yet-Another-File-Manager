@@ -191,7 +191,11 @@ internal static class FileTransfer
         var taskId = TaskCenter.Instance.Start(move ? "move" : "copy",
             $"{(move ? "Move" : "Copy")} {sources.Count} item{(sources.Count == 1 ? "" : "s")}");
 
-        var result = await ElevatedOperation.CopyAsync([.. sources], target, move);
+        var result = await ElevatedOperation.CopyAsync([.. sources], target, move, progress =>
+        {
+            TaskCenter.Instance.UpdateTotal(taskId, progress.Total, progress.BytesTotal);
+            TaskCenter.Instance.Progress(taskId, progress.Done, progress.BytesDone);
+        });
 
         if (result.Ok)
             TaskCenter.Instance.Complete(taskId);

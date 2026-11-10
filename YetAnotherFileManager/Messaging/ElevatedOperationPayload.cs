@@ -18,7 +18,13 @@ internal sealed record ElevatedOperationRequest(
     string? Extension = null,
     bool Move = false,
     bool Permanent = false,
-    bool CaseSensitive = false);
+    bool CaseSensitive = false,
+    int? CodePage = null,
+    string? Password = null,
+    string? ProgressPath = null);
 
 /// <summary>What the elevated copy managed to do, as the waiting window sees it.</summary>
 internal sealed record ElevatedOperationResult(bool Ok, string? Error, string[] Created, string? Path);
+
+/// <summary>The running task the elevated copy is on, so the window's status row can follow it.</summary>
+internal sealed record ElevatedOperationProgress(int Done, int Total, long BytesDone, long BytesTotal, string? Label);

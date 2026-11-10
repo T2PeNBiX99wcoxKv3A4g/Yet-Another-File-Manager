@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json;
 using PhotinoNetUtils;
+using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Utils;
 using Serilog;
@@ -21,11 +22,18 @@ internal static class ElevatedOperation
     /// <summary>True inside the elevated copy, so nothing tries to elevate again.</summary>
     public static bool IsHelper { get; private set; }
 
-    public static Task<ElevatedOperationResult> CopyAsync(string[] sources, string target, bool move) =>
-        RunAsync(new ElevatedOperationRequest("copy", sources, target, Move: move));
+    public static Task<ElevatedOperationResult> CopyAsync(string[] sources, string target, bool move,
+        Action<ElevatedOperationProgress>? onProgress = null) =>
+        RunAsync(new ElevatedOperationRequest("copy", sources, target, Move: move), onProgress);
 
-    public static Task<ElevatedOperationResult> DeleteAsync(string[] paths, bool permanent) =>
-        RunAsync(new ElevatedOperationRequest("delete", paths, Permanent: permanent));
+    public static Task<ElevatedOperationResult> DeleteAsync(string[] paths, bool permanent,
+        Action<ElevatedOperationProgress>? onProgress = null) =>
+        RunAsync(new ElevatedOperationRequest("delete", paths, Permanent: permanent), onProgress);
+
+    public static Task<ElevatedOperationResult> ExtractArchiveAsync(string archive, string target, int codePage,
+        string? password, Action<ElevatedOperationProgress>? onProgress = null) =>
+        RunAsync(new ElevatedOperationRequest("extractArchive", [archive], target, CodePage: codePage,
+            Password: password), onProgress);
 
     public static Task<ElevatedOperationResult> RenameAsync(string path, string name) =>
         RunAsync(new ElevatedOperationRequest("rename", [path], Name: name));
@@ -51,7 +59,8 @@ internal static class ElevatedOperation
     public static Task<ElevatedOperationResult> WriteFileAsync(string source, string directory, string name) =>
         RunAsync(new ElevatedOperationRequest("writeFile", [source], directory, name));
 
-    private static async Task<ElevatedOperationResult> RunAsync(ElevatedOperationRequest request)
+    private static async Task<ElevatedOperationResult> RunAsync(ElevatedOperationRequest request,
+        Action<ElevatedOperationProgress>? onProgress = null)
     {
         if (!OperatingSystem.IsWindows())
             return Failed("Elevation is only available on Windows.");
@@ -62,11 +71,18 @@ internal static class ElevatedOperation
         var id = Guid.NewGuid().ToString("N");
         var requestPath = Path.Combine(Path.GetTempPath(), $"yafm-op-{id}.json");
         var resultPath = Path.Combine(Path.GetTempPath(), $"yafm-op-{id}.result.json");
+        var progressPath = Path.Combine(Path.GetTempPath(), $"yafm-op-{id}.progress.json");
+        request = request with { ProgressPath = progressPath };
+
+        using var stop = new CancellationTokenSource();
+        Task? poll = null;
 
         try
         {
             await File.WriteAllTextAsync(requestPath,
                 JsonSerializer.Serialize(request, AppJsonContext.Default.ElevatedOperationRequest));
+
+            poll = onProgress is null ? null : PollAsync(progressPath, onProgress, stop.Token);
 
             var start = new ProcessStartInfo(executable)
             {
@@ -103,8 +119,43 @@ internal static class ElevatedOperation
         }
         finally
         {
+            stop.Cancel();
+
+            if (poll is not null)
+                await poll;
+
             Try.Run(() => File.Delete(requestPath));
             Try.Run(() => File.Delete(resultPath));
+            Try.Run(() => File.Delete(progressPath));
+        }
+    }
+
+    /// <summary>Copies the running task of the elevated copy into the window's status row.</summary>
+    private static async Task PollAsync(string path, Action<ElevatedOperationProgress> report,
+        CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            Try.Run(() =>
+            {
+                if (!File.Exists(path))
+                    return;
+
+                var progress = JsonSerializer.Deserialize(File.ReadAllText(path),
+                    AppJsonContext.Default.ElevatedOperationProgress);
+
+                if (progress is not null)
+                    report(progress);
+            });
+
+            try
+            {
+                await Task.Delay(200, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
         }
     }
 
@@ -130,6 +181,10 @@ internal static class ElevatedOperation
             if (request is null)
                 return 2;
 
+            using var timer = request.ProgressPath is { Length: > 0 } progressPath
+                ? new Timer(_ => WriteProgress(progressPath), null, 0, 200)
+                : null;
+
             var result = Execute(request);
             File.WriteAllText(resultPath,
                 JsonSerializer.Serialize(result, AppJsonContext.Default.ElevatedOperationResult));
@@ -147,8 +202,7 @@ internal static class ElevatedOperation
     }
 
     private static ElevatedOperationResult Execute(ElevatedOperationRequest request)
-    {
-        switch (request.Kind)
+    {        switch (request.Kind)
         {
             case "copy":
             {
@@ -232,9 +286,29 @@ internal static class ElevatedOperation
                     : new(false, "Windows could not restore the deleted items.", [], null);
             }
 
+            case "extractArchive":
+            {
+                Archives.Extract(request.Paths[0], request.Target!, request.CodePage ?? 0, request.Password);
+                return new(true, null, [], null);
+            }
+
             default:
                 return Failed($"Unknown operation: {request.Kind}");
         }
+    }
+
+    /// <summary>Writes the running task so the window's status row can follow the helper.</summary>
+    private static void WriteProgress(string path)
+    {
+        var running = TaskCenter.Instance.Snapshot().FirstOrDefault(task => task.State == "running");
+
+        var progress = running is null
+            ? new ElevatedOperationProgress(0, 0, 0, 0, null)
+            : new ElevatedOperationProgress(running.Done, running.Total, running.BytesDone, running.BytesTotal,
+                running.Label);
+
+        Try.Run(() => File.WriteAllText(path,
+            JsonSerializer.Serialize(progress, AppJsonContext.Default.ElevatedOperationProgress)));
     }
 
     private static ElevatedOperationResult Denied() =>
