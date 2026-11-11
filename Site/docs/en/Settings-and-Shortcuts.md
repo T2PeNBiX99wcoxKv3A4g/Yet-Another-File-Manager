@@ -17,8 +17,9 @@ section.
   links always store the full target path.
 - **Global hotkey** brings the window forward from anywhere while the app runs.
 - **Open yafm:// links**, **Use as the default file manager** and **Open archives with this app**
-  register the app for links, folders and archive files on this account. The first two repair
-  themselves at every launch while they are on.
+  register the app for links, folders and archive files on this account. Only changing one of them
+  writes the registry: starting the app never does. When an entry names another copy, the switch
+  reads off and turning it on replaces every registration this app owns with this copy's path.
 - **Reopen the tabs that were open** restores the tabs and the folder each one showed. A folder
   passed on the command line takes over instead.
 

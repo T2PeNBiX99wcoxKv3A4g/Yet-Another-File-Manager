@@ -121,17 +121,9 @@ internal static partial class Program
         if (picker is null)
             ShareService.Instance.InitializeAsync().GetAwaiter().GetResult();
 
-        // Repair an association this build already owns, and one whose executable has gone. A copy
-        // that is merely a different build is left alone: the settings page reports the mismatch and
-        // only an explicit choice moves the registration.
-        if (SettingsService.Instance.Current.IsDefaultFileManager
-            && (!OperatingSystem.IsWindows() || OwnsFolderHandler()))
-            DefaultFileManager.Apply(true);
-
-        if (SettingsService.Instance.Current.HandlesArchives
-            && (!OperatingSystem.IsWindows() || OwnsArchiveHandler()))
-            ArchiveAssociations.Apply(true);
-
+        // Registrations are written only when the user changes them in the settings; starting a copy
+        // never touches the registry, so a development build cannot take the installed one's
+        // folder handler, archive handler or link handler back by simply running.
         GlobalHotkey.Apply(SettingsService.Instance.Current.GlobalHotkey);
 
         // UI strings come from Resources/i18n; the settings select the language.
@@ -195,9 +187,6 @@ internal static partial class Program
             _ = ThumbnailServer.Instance;
             _ = StartupService.Instance;
 
-            // A cleanup tool or another profile can wipe the per-user entry, so the stored choice is
-            // applied again on every launch.
-            UrlScheme.Apply(SettingsService.Instance.Current.OwnsLinks);
             AppMemory.Start();
 
             var manager = WindowManager.Instance;
@@ -520,26 +509,6 @@ internal static partial class Program
     private static bool IsExternalUrl(string value) =>
         Uri.TryCreate(value, UriKind.Absolute, out var uri)
         && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
-
-    /// <summary>
-    ///     True when the folder handler is this copy, or names a file that is gone. A live copy in
-    ///     another folder is left alone even though it started, so a development build cannot take
-    ///     the installed build's registration back by running.
-    /// </summary>
-    private static bool OwnsFolderHandler()
-    {
-        var status = DefaultFileManager.Status();
-        return OwnsRegistration(status.PathMatches, status.RegisteredPath);
-    }
-
-    private static bool OwnsArchiveHandler()
-    {
-        var status = ArchiveAssociations.Status();
-        return OwnsRegistration(status.PathMatches, status.RegisteredPath);
-    }
-
-    private static bool OwnsRegistration(bool matches, string? registeredPath) =>
-        matches || registeredPath is not { Length: > 0 } || !File.Exists(registeredPath);
 
     /// <summary>
     ///     Explorer-style command line: every non-flag argument is a file or folder to show. A file

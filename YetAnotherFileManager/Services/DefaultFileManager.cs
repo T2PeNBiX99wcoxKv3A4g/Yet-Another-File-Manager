@@ -237,6 +237,17 @@ internal static class DefaultFileManager
             return;
         }
 
+        // The value saved before this app took the key can name another copy of the app, left by a
+        // build in a different folder. Putting that back would hand the folders to that copy again,
+        // so such a leftover is dropped instead of restored.
+        if (backup.Value is { Length: > 0 } value
+            && RegistryCommand.Executable(value) is { } executable
+            && !IsCurrent(executable))
+        {
+            DeleteKey(backup.Key);
+            return;
+        }
+
         using var key = Registry.CurrentUser.CreateSubKey(backup.Key);
         if (key is null)
             return;
@@ -246,6 +257,11 @@ internal static class DefaultFileManager
         else
             key.SetValue(null, backup.Value);
     }
+
+    private static bool IsCurrent(string executable) =>
+        Environment.ProcessPath is { Length: > 0 } current
+        && Try.Run(() => string.Equals(Path.GetFullPath(executable), Path.GetFullPath(current),
+            StringComparison.OrdinalIgnoreCase)).GetOrElse(_ => false);
 
     private static string Run(string command, string[] arguments) =>
         Try.Run(() =>

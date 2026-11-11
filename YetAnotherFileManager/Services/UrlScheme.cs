@@ -84,35 +84,4 @@ internal static class UrlScheme
     private static void UnregisterWindows() =>
         Try.Run(() => Registry.CurrentUser.DeleteSubKeyTree(KeyPath, false))
             .OnFailure(ex => Log.Warning(ex, "Could not remove the yafm:// registration"));
-
-    /// <summary>
-    ///     Re-applies the user's choice at startup. The registry entry is easy to lose — a cleanup
-    ///     tool, another profile — so the setting is what decides whether links stay enabled. A
-    ///     leftover entry is removed when the user turned links off.
-    /// </summary>
-    public static void Apply(bool enabled)
-    {
-        if (!enabled)
-        {
-            // A leftover entry can point at a copy that no longer exists; removing it is always
-            // safe and stops yafm:// links from starting the wrong build.
-            if (KeyExists())
-                Unregister();
-
-            return;
-        }
-
-        // Never take over a registration that belongs to another copy. The settings page reports
-        // it as off, and setting it again writes this build's path.
-        if (!KeyExists() && !IsRegistered())
-            Register();
-    }
-
-    private static bool KeyExists()
-    {
-        if (!OperatingSystem.IsWindows())
-            return false;
-
-        return Try.Run(() => Registry.CurrentUser.OpenSubKey(KeyPath) is not null).GetOrElse(_ => false);
-    }
 }

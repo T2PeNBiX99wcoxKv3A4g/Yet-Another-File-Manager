@@ -1122,7 +1122,7 @@ export function SettingsView({
                             <RowText>
                                 <Label>{t("Open yafm:// links")}</Label>
                                 <Note>
-                                    {t("Registers this app for yafm:// links, for the current user only. While this is on, the app repairs the entry at every launch.")}
+                                    {t("Registers this app for yafm:// links, for the current user only. Turning it on writes this copy's path; starting the app never touches the registry.")}
                                 </Note>
                                 {schemeError && <TagError>{schemeError}</TagError>}
                             </RowText>

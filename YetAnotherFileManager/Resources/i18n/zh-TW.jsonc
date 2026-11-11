@@ -309,7 +309,7 @@
   "Recycle Bin": "資源回收筒",
   "Refresh": "重新整理",
   "Register": "註冊",
-  "Registers this app for yafm:// links, for the current user only. While this is on, the app repairs the entry at every launch.": "僅為目前使用者註冊此應用程式處理 yafm:// 連結。開啟時，應用程式會在每次啟動時修復此登錄項目。",
+  "Registers this app for yafm:// links, for the current user only. Turning it on writes this copy's path; starting the app never touches the registry.": "僅為目前使用者註冊此應用程式處理 yafm:// 連結。開啟時會寫入目前副本的路徑，啟動應用程式不會更動登錄。",
   "Registers this app for ZIP, 7z, RAR, TAR and the other archive types on this account, so double-clicking one shows it as a folder here. Windows may still ask once which app to use.": "為目前使用者註冊此應用程式處理 ZIP、7z、RAR、TAR 等壓縮檔，雙擊後會在這裡以資料夾方式顯示。Windows 第一次可能仍會詢問要使用哪個應用程式。",
   "The registered path points to {path}. Register again to use this build.": "登錄的執行檔路徑為 {path}。請重新註冊以使用目前版本。",
   "Regular expression": "規則運算式",
