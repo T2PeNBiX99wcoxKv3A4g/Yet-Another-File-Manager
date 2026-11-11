@@ -121,14 +121,15 @@ internal static partial class Program
         if (picker is null)
             ShareService.Instance.InitializeAsync().GetAwaiter().GetResult();
 
-        // Only repair an association this build already owns. A copy in another folder must not
-        // take the registration over just because it started: the settings page reports the
-        // mismatch and the user decides which build should handle it.
+        // Repair an association this build already owns, and one whose executable has gone. A copy
+        // that is merely a different build is left alone: the settings page reports the mismatch and
+        // only an explicit choice moves the registration.
         if (SettingsService.Instance.Current.IsDefaultFileManager
-            && (!OperatingSystem.IsWindows() || DefaultFileManager.Status().PathMatches))
+            && (!OperatingSystem.IsWindows() || OwnsFolderHandler()))
             DefaultFileManager.Apply(true);
 
-        if (SettingsService.Instance.Current.HandlesArchives && ArchiveAssociations.Status().PathMatches)
+        if (SettingsService.Instance.Current.HandlesArchives
+            && (!OperatingSystem.IsWindows() || OwnsArchiveHandler()))
             ArchiveAssociations.Apply(true);
 
         GlobalHotkey.Apply(SettingsService.Instance.Current.GlobalHotkey);
@@ -166,7 +167,7 @@ internal static partial class Program
             var startupPaths = ResolvePaths(args);
 
             // Only one instance may run; later launches hand their paths to it and exit.
-            using var singleInstance = new SingleInstance(Constants.Name, Environment.ProcessPath);
+            using var singleInstance = new SingleInstance(Constants.Name);
             if (!singleInstance.IsFirstInstance)
             {
                 // Blocking here is fine: this process only forwards its args and exits.
@@ -519,6 +520,26 @@ internal static partial class Program
     private static bool IsExternalUrl(string value) =>
         Uri.TryCreate(value, UriKind.Absolute, out var uri)
         && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
+    /// <summary>
+    ///     True when the folder handler is this copy, or names a file that is gone. A live copy in
+    ///     another folder is left alone even though it started, so a development build cannot take
+    ///     the installed build's registration back by running.
+    /// </summary>
+    private static bool OwnsFolderHandler()
+    {
+        var status = DefaultFileManager.Status();
+        return OwnsRegistration(status.PathMatches, status.RegisteredPath);
+    }
+
+    private static bool OwnsArchiveHandler()
+    {
+        var status = ArchiveAssociations.Status();
+        return OwnsRegistration(status.PathMatches, status.RegisteredPath);
+    }
+
+    private static bool OwnsRegistration(bool matches, string? registeredPath) =>
+        matches || registeredPath is not { Length: > 0 } || !File.Exists(registeredPath);
 
     /// <summary>
     ///     Explorer-style command line: every non-flag argument is a file or folder to show. A file
