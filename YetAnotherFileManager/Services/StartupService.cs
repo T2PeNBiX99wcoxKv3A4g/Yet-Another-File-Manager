@@ -12,7 +12,8 @@ namespace YetAnotherFileManager.Services;
 /// <summary>
 ///     Registers the app for the user's login session. Windows offers a Startup-folder shortcut or a
 ///     logon task; Linux offers an XDG autostart entry or a systemd user service. The chosen mode is
-///     stored in the settings and re-applied at every launch, so a moved executable repairs itself.
+///     stored in the settings; the settings page compares the entry's target with this copy and
+///     reports an entry left by another folder as none until it is set again.
 /// </summary>
 internal sealed class StartupService : Singleton<StartupService>
 {
@@ -27,11 +28,7 @@ internal sealed class StartupService : Singleton<StartupService>
         "yafm",
         Constants.DisplayName);
 
-    public StartupService()
-    {
-        NativeBridge.MessageReceived += HandleMessageAsync;
-        _ = Task.Run(() => ApplyAsync(SettingsService.Instance.Current.Startup));
-    }
+    public StartupService() => NativeBridge.MessageReceived += HandleMessageAsync;
 
     /// <summary>True where a per-user login entry can be written.</summary>
     public static bool IsSupported => StartupRegistration.IsSupported;
