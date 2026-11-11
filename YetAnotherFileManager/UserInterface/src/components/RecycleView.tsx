@@ -33,6 +33,8 @@ interface RecycleViewProps {
     find?: PageFind | null;
     /** Reports how many rows matched, for the find bar's counter. */
     onSearchMatches?: (count: number) => void;
+    /** Bumped by the find bar's select-all button. */
+    selectMatchesToken?: number;
     /** Draw the right-side details pane. */
     showDetails?: boolean;
     /** Called when a double click should reveal the details pane. */
@@ -54,6 +56,7 @@ export function RecycleView({
                                 onOpenLocation,
                                 find,
                                 onSearchMatches,
+                                selectMatchesToken,
                                 showDetails = true,
                                 onShowDetails,
                                 videoAudio = false,
@@ -172,6 +175,14 @@ export function RecycleView({
     useEffect(() => {
         setSelected(new Set());
     }, [find?.open, find?.query, find?.matchCase, find?.regex]);
+
+    // The find bar's check button takes every row the search left visible.
+    useEffect(() => {
+        if (!selectMatchesToken)
+            return;
+
+        setSelected(new Set(visibleRows.map((entry) => entry.id)));
+    }, [selectMatchesToken]);
 
     const selectedEntries = useMemo(
         () => rows.filter((entry) => selected.has(entry.id)),

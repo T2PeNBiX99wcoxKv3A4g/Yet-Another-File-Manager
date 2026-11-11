@@ -97,6 +97,7 @@ export function FolderPicker({
     const [find, setFind] = useState<FindState>(EmptyFind);
     const [findFocus, setFindFocus] = useState(0);
     const [findIndex, setFindIndex] = useState(0);
+    const [selectMatchesToken, setSelectMatchesToken] = useState(0);
     const [createMenu, setCreateMenu] = useState<{ x: number; y: number } | null>(null);
     const [renamePath, setRenamePath] = useState<string | null>(null);
     const [renameToken, setRenameToken] = useState(0);
@@ -616,6 +617,7 @@ export function FolderPicker({
                                     query={find.query}
                                     regex={find.regex}
                                     total={findHits.length}
+                                    onSelectMatches={() => setSelectMatchesToken((token) => token + 1)}
                                 />
                             )}
 
@@ -625,6 +627,7 @@ export function FolderPicker({
                                 enableShortcuts
                                 error={error}
                                 find={findView}
+                                selectMatchesToken={selectMatchesToken}
                                 imageStripHeight={stripHeight}
                                 loading={loading}
                                 listing={pickerListing}

@@ -47,6 +47,8 @@ interface GalleryViewProps {
     find?: PageFind | null;
     /** Reports how many loaded pictures matched, for the find bar's counter. */
     onSearchMatches?: (count: number) => void;
+    /** Bumped by the find bar's select-all button. */
+    selectMatchesToken?: number;
     /** The picker opens a picture as the chosen file instead of handing it to the system. */
     onPick?: (path: string) => void;
     /** Reports the checked pictures, so the picker's footer can follow the selection. */
@@ -80,6 +82,7 @@ export function GalleryView({
                                 shortcuts,
                                 view,
                                 find,
+                                selectMatchesToken,
                                 onSearchMatches,
                                 onPick,
                                 onSelectionChange,
@@ -386,6 +389,7 @@ export function GalleryView({
                         <FileList
                             confirmDelete={confirmDelete}
                             find={findView}
+                            selectMatchesToken={selectMatchesToken}
                             listing={loading && entries.length === 0 ? null : listing}
                             loading={loading}
                             error={null}

@@ -3,7 +3,7 @@ import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import type {FindMode} from "../find";
 import {slideDownStyle} from "../ui/motion";
-import {CheckIcon, ChevronRightIcon, CrossIcon, SearchIcon} from "./Icons";
+import {CheckIcon, ChevronRightIcon, CrossIcon, EyeIcon, EyeOffIcon, SearchIcon} from "./Icons";
 
 interface FindBarProps {
     query: string;
@@ -85,17 +85,23 @@ export function FindBar({
                 <>
                     <Counter>{total === 0 ? "0/0" : `${current + 1}/${total}`}</Counter>
 
-                    {onSelectMatches && total > 0 && (
-                        <Tool onClick={onSelectMatches} title={t("Select all matches")} type="button">
+                    {onSelectMatches && (
+                        <Tool
+                            disabled={total === 0}
+                            onClick={onSelectMatches}
+                            title={t("Select all matches")}
+                            type="button"
+                        >
                             <CheckIcon size={12}/>
                         </Tool>
                     )}
 
-                    <Tool onClick={() => toggle(onPrevious)} title={t("Previous match (Shift+Enter)")} type="button">
+                    <Tool $chevron onClick={() => toggle(onPrevious)} title={t("Previous match (Shift+Enter)")}
+                          type="button">
                         <ChevronRightIcon size={12}/>
                     </Tool>
 
-                    <Tool $down onClick={() => toggle(onNext)} title={t("Next match (Enter)")} type="button">
+                    <Tool $chevron $down onClick={() => toggle(onNext)} title={t("Next match (Enter)")} type="button">
                         <ChevronRightIcon size={12}/>
                     </Tool>
                 </>
@@ -116,7 +122,7 @@ export function FindBar({
                     title={mode === "hide" ? t("Non-matching entries are hidden") : t("Non-matching entries are dimmed")}
                     type="button"
                 >
-                    {mode === "hide" ? t("Hide") : t("Dim")}
+                    {mode === "hide" ? <EyeOffIcon size={12}/> : <EyeIcon size={12}/>}
                 </Mode>
             )}
 
@@ -169,7 +175,7 @@ const Counter = styled.span`
     color: var(--text-muted);
 `;
 
-const Tool = styled.button<{ $down?: boolean }>`
+const Tool = styled.button<{ $down?: boolean; $chevron?: boolean }>`
     display: grid;
     place-items: center;
     width: 22px;
@@ -181,12 +187,19 @@ const Tool = styled.button<{ $down?: boolean }>`
     cursor: pointer;
 
     svg {
-        transform: rotate(${({$down}) => $down ? "90deg" : "-90deg"});
+        transform: ${({$chevron, $down}) => $chevron ? `rotate(${$down ? "90deg" : "-90deg"})` : "none"};
     }
 
     &:hover {
         background: var(--bg-card-hover);
         color: var(--text-primary);
+    }
+
+    &:disabled {
+        background: transparent;
+        color: var(--text-secondary);
+        opacity: 0.35;
+        cursor: default;
     }
 `;
 
@@ -208,7 +221,9 @@ const Toggle = styled.button<{ $on: boolean }>`
 `;
 
 const Mode = styled(Toggle)`
-    min-width: 34px;
-    font-family: var(--font-sans);
-    font-size: 10px;
+    min-width: 24px;
+    display: grid;
+    place-items: center;
+    padding: 0 4px;
+    font-family: inherit;
 `;

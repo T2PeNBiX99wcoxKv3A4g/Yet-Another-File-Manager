@@ -66,6 +66,8 @@ import PanelSvg from "./icons/panel.svg?react";
 import MenuSvg from "./icons/menu.svg?react";
 import LockSvg from "./icons/lock.svg?react";
 import LinkSvg from "./icons/link.svg?react";
+import EyeSvg from "./icons/eye.svg?react";
+import EyeOffSvg from "./icons/eye-off.svg?react";
 
 interface IconProps extends SVGProps<SVGSVGElement> {
     size?: number;
@@ -98,6 +100,8 @@ export const StatusIcon = sized(StatusSvg, 18);
 export const TrashIcon = sized(TrashSvg, 18);
 export const CheckIcon = sized(CheckSvg, 14);
 export const CrossIcon = sized(CrossSvg, 14);
+export const EyeIcon = sized(EyeSvg, 14);
+export const EyeOffIcon = sized(EyeOffSvg, 14);
 export const AppIcon = sized(AppSvg, 18);
 export const TextIcon = sized(TextSvg, 18);
 export const CodeIcon = sized(CodeSvg, 18);

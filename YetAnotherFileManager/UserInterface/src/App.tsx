@@ -2521,6 +2521,9 @@ export default function App() {
                                     query={viewFind.query}
                                     regex={viewFind.regex}
                                     total={viewFindTotal}
+                                    onSelectMatches={kind === "gallery" || kind === "recycle"
+                                        ? () => setSelectMatchesToken((token) => token + 1)
+                                        : undefined}
                                 />
                             )}
                             {kind === "files" ? (
@@ -2783,6 +2786,7 @@ export default function App() {
                                     onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
                                     shortcuts={shortcuts}
                                     showCheckboxes={settings?.showCheckboxes ?? true}
+                                    selectMatchesToken={selectMatchesToken}
                                     showDetails={detailsVisible}
                                     videoAudio={settings?.previewVideoAudio ?? false}
                                     videoAutoplay={settings?.previewVideoAutoplay ?? false}
@@ -2794,6 +2798,7 @@ export default function App() {
                                     onOpenLocation={navigate}
                                     onShowDetails={() => setDetailsVisible(true)}
                                     platform={appInfo?.platform}
+                                    selectMatchesToken={selectMatchesToken}
                                     showDetails={detailsVisible}
                                     videoAudio={settings?.previewVideoAudio ?? false}
                                     videoAutoplay={settings?.previewVideoAutoplay ?? false}
