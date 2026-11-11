@@ -105,12 +105,10 @@ export async function setSharePort(port: number | null, mode: "random" | "custom
 }
 
 const ShareScheme = "yafm://share/";
-const LegacyShareScheme = "share://";
 
 /** Whether a tab location points into another device's shared folder. */
 export function isShareLocation(value: string): boolean {
-    const lower = value.toLowerCase();
-    return lower.startsWith(ShareScheme) || lower.startsWith(LegacyShareScheme);
+    return value.toLowerCase().startsWith(ShareScheme);
 }
 
 export interface ShareLocation {
@@ -122,10 +120,7 @@ export interface ShareLocation {
 export function parseShareLocation(value: string): ShareLocation | null {
     if (!isShareLocation(value)) return null;
 
-    const rest = value.slice(value.toLowerCase().startsWith(ShareScheme)
-        ? ShareScheme.length
-        : LegacyShareScheme.length);
-    const [deviceId, shareId, ...segments] = rest.split("/");
+    const [deviceId, shareId, ...segments] = value.slice(ShareScheme.length).split("/");
 
     if (!deviceId || !shareId) return null;
 
