@@ -70,11 +70,18 @@ export async function inspectPaths(paths: string[]): Promise<ClipboardEntry[]> {
 }
 
 /** Copies or moves the clipboard's files into a folder. */
-export async function pasteInto(directory: string): Promise<boolean> {
-    if (!Native.available) return false;
+export interface PasteResult {
+    ok: boolean;
+    /** The entries the paste created, so the list can select them. */
+    created: string[];
+}
 
-    const data = await Native.request<{ ok: boolean }>("fs.clipboard.paste", {directory});
-    return data.ok;
+/** Pastes the clipboard into a folder; answers with what it created. */
+export async function pasteInto(directory: string): Promise<PasteResult> {
+    if (!Native.available) return {ok: false, created: []};
+
+    const data = await Native.request<{ ok: boolean; created?: string[] }>("fs.clipboard.paste", {directory});
+    return {ok: data.ok, created: data.created ?? []};
 }
 
 export interface DeleteResult {

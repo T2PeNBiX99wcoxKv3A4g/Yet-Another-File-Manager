@@ -33,12 +33,13 @@ internal static partial class FileOperations
 
     /// <summary>
     ///     Pastes files when the clipboard has them; otherwise creates a text or image file from the
-    ///     clipboard's text or bitmap. Files win, then images, then text.
+    ///     clipboard's text or bitmap. Files win, then images, then text. Answers with the entries
+    ///     that were created, so the list can select them and the user can undo or find them.
     /// </summary>
-    public static async Task<bool> PasteAsync(string directory)
+    public static async Task<List<string>> PasteAsync(string directory)
     {
-        if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux()) return false;
-        if (!Directory.Exists(directory)) return false;
+        if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux()) return [];
+        if (!Directory.Exists(directory)) return [];
 
         var (paths, move, read) = ClipboardService.ReadFiles();
         if (read && paths.Count > 0)
@@ -47,51 +48,56 @@ internal static partial class FileOperations
         return await PasteContentAsync(directory);
     }
 
-    private static async Task<bool> PasteFilesAsync(string directory, List<string> paths, bool move)
+    private static async Task<List<string>> PasteFilesAsync(string directory, List<string> paths, bool move)
     {
         var (step, created) = await CopyIntoAsync(paths, directory, move);
-        if (!step.Ok)
-            return false;
 
         // A move consumes the clipboard; a copy stays so the same files can be pasted again.
         if (move)
             ClipboardService.Clear();
 
         if (created.Count == 0)
-            return true;
+            return [];
 
-        var current = created;
-        var sources = paths.ToList();
+        if (step.Ok)
+        {
+            var current = created;
+            var sources = paths.ToList();
 
-        FileHistory.Instance.Record(move ? $"Move {sources.Count} item(s)" : $"Copy {sources.Count} item(s)",
-            paths: current,
-            undo: () => move
-                ? MoveBackAsync(current, sources)
-                : DeleteCoreAsync(current, false),
-            redo: async () =>
-            {
-                var (redoStep, made) = await CopyIntoAsync(sources, directory, move);
-                if (redoStep.Ok)
-                    current = made;
+            FileHistory.Instance.Record(move ? $"Move {sources.Count} item(s)" : $"Copy {sources.Count} item(s)",
+                paths: current,
+                undo: () => move
+                    ? MoveBackAsync(current, sources)
+                    : DeleteCoreAsync(current, false),
+                redo: async () =>
+                {
+                    var (redoStep, made) = await CopyIntoAsync(sources, directory, move);
+                    if (redoStep.Ok)
+                        current = made;
 
-                return redoStep;
-            });
+                    return redoStep;
+                });
+        }
 
-        return true;
+        return created;
     }
 
     /// <summary>Turns clipboard text or a bitmap into a real file when no files were copied.</summary>
-    private static async Task<bool> PasteContentAsync(string directory)
+    private static async Task<List<string>> PasteContentAsync(string directory)
     {
         if (ClipboardService.ReadImagePng() is { Length: > 0 } image)
             return await CreatePastedFileAsync(directory, PastedName("Pasted image", "Pasted image"), ".png", image,
-                "Paste image");
+                "Paste image") is { } pastedImage
+                ? [pastedImage]
+                : [];
 
         if (ClipboardService.ReadText() is { Length: > 0 } text)
             return await CreatePastedFileAsync(directory, PastedName("Pasted text", "Pasted text"), ".txt",
-                Encoding.UTF8.GetBytes(text), "Paste text");
+                Encoding.UTF8.GetBytes(text), "Paste text") is { } pastedText
+                ? [pastedText]
+                : [];
 
-        return false;
+        return [];
     }
 
     /// <summary>The file name stem in the current UI language, safe for a real file name.</summary>
@@ -105,7 +111,7 @@ internal static partial class FileOperations
         return name.Length > 0 ? name : fallback;
     }
 
-    private static async Task<bool> CreatePastedFileAsync(string directory, string baseName, string extension,
+    private static async Task<string?> CreatePastedFileAsync(string directory, string baseName, string extension,
         byte[] content, string label)
     {
         var path = UniqueName(directory, baseName, extension);
@@ -120,13 +126,13 @@ internal static partial class FileOperations
             if (!await WriteThroughHelperAsync(directory, path, content))
             {
                 Log.Warning(ex, "Could not create {Path}", path);
-                return false;
+                return null;
             }
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "Could not create {Path}", path);
-            return false;
+            return null;
         }
 
         FileHistory.Instance.Record(label,
@@ -134,7 +140,7 @@ internal static partial class FileOperations
             undo: () => DeleteFileAsync(path),
             redo: () => WritePastedFileAsync(path, content));
 
-        return true;
+        return path;
     }
 
     /// <summary>Writes the bytes in the temp folder, then lets an elevated copy of the app place them.</summary>

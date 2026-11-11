@@ -365,6 +365,9 @@ internal sealed record ClipboardEntry(string Path, string Name, bool IsDirectory
 /// </summary>
 internal sealed record ClipboardPathsPayload(List<ClipboardEntry> Entries, bool Move, uint Sequence);
 
+/// <summary>Body for <c>fs.clipboard.paste</c>: whether anything was pasted and the entries it created.</summary>
+internal sealed record ClipboardPastePayload(bool Ok, List<string> Created);
+
 /// <summary>Payload for <c>fs.paths.info</c>: what the given paths are, for the tray's drop handler.</summary>
 internal sealed record PathsInfoPayload(List<ClipboardEntry> Entries);
 

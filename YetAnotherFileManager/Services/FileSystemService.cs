@@ -370,9 +370,10 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             {
                 var directory = context.Payload<DirectoryRequest>()?.Directory ?? "";
                 directory = await MapWorkspacePathAsync(directory, true);
-                var pasted = await FileOperations.PasteAsync(directory);
-                if (pasted) await ApplyArchiveChangesAsync([directory]);
-                return context.Reply("fs.clipboard.paste.result", new OkPayload(pasted));
+                var created = await FileOperations.PasteAsync(directory);
+                if (created.Count > 0) await ApplyArchiveChangesAsync([directory]);
+                return context.Reply("fs.clipboard.paste.result",
+                    new ClipboardPastePayload(created.Count > 0, created));
             }
 
             case "fs.operation.delete":

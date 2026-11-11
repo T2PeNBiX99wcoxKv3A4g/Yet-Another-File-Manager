@@ -2878,8 +2878,8 @@ export default function App() {
                             .then(() => refreshFolderTabs(parentOf(pathMenu.path) ?? pathMenu.path))}
                         onOpen={(path, newTab) => newTab ? openFiles(path) : void load(active.id, path)}
                         onOpenFile={(path) => void openFile(path)}
-                        onPaste={(path) => void pasteInto(path).then((ok) => {
-                            if (ok) refreshFolderTabs(path);
+                        onPaste={(path) => void pasteInto(path).then((result) => {
+                            if (result.ok) refreshFolderTabs(path);
                         })}
                         onRefresh={() => refreshFolderTabs(pathMenu.path)}
                         shortcuts={shortcuts}

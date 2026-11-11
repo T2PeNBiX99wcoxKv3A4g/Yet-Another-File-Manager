@@ -192,6 +192,7 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(ClipboardEntry))]
 [JsonSerializable(typeof(List<ClipboardEntry>))]
 [JsonSerializable(typeof(ClipboardPathsPayload))]
+[JsonSerializable(typeof(ClipboardPastePayload))]
 [JsonSerializable(typeof(PathsInfoPayload))]
 [JsonSerializable(typeof(RecycleBatchRequest))]
 [JsonSerializable(typeof(RecycleBatchPayload))]

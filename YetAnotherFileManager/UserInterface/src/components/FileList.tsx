@@ -31,7 +31,7 @@ import {
 import {type FindView, NoFind, rangesOf} from "../find";
 import {canPreview, PreviewKindLabels, previewKindOf} from "../preview";
 import {quickPlace, useQuickAccess} from "../quick";
-import {baseName, formatBytes, formatDate, plural} from "../utils/format";
+import {baseName, formatBytes, formatDate, plural, samePath} from "../utils/format";
 import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "../storage";
 import {type Translate, useTranslation} from "@photino-net-utils/bridge";
 import {CheckIcon, CutIcon, FolderIcon, LinkIcon, LockIcon} from "./Icons";
@@ -233,6 +233,7 @@ export function FileList({
     const t = useTranslation();
     const quick = useQuickAccess();
     const currentRow = useRef<HTMLDivElement | null>(null);
+    const pendingSelect = useRef<string[] | null>(null);
     const head = useRef<HTMLDivElement | null>(null);
     const body = useRef<HTMLDivElement | null>(null);
     const [rowLimit, setRowLimit] = useState(RowPage);
@@ -578,6 +579,33 @@ export function FileList({
 
     const visibleRows = useMemo(() => rows.slice(0, rowLimit), [rows, rowLimit]);
 
+    // A paste selects the entries it created, so a mistake is one click from undo and the eye
+    // finds the result right away.
+    useEffect(() => {
+        const wanted = pendingSelect.current;
+        if (!wanted || wanted.length === 0)
+            return;
+
+        const present = wanted.filter((path) => rows.some((row) => samePath(row.entry.fullPath, path)));
+        if (present.length === 0)
+            return;
+
+        pendingSelect.current = null;
+        const first = present[0];
+        const index = rows.findIndex((row) => samePath(row.entry.fullPath, first));
+
+        if (index >= 0)
+            setRowLimit((limit) => Math.max(limit, index + RowPage));
+
+        setSelected(new Set(present));
+        anchor.current = first;
+
+        if (view.mode === "list" && body.current && index >= 0)
+            body.current.scrollTop = Math.max(0, index * rowHeight - body.current.clientHeight / 2);
+        else
+            requestAnimationFrame(() => currentRow.current?.scrollIntoView({block: "nearest"}));
+    }, [rows, rowHeight, view.mode]);
+
     // A new folder starts at the first page; scrolling appends more.
     useEffect(() => {
         setRowLimit(RowPage);
@@ -917,12 +945,15 @@ export function FileList({
         if (!directory)
             return;
 
-        if (!await pasteInto(directory))
+        const result = await pasteInto(directory);
+        if (!result.ok) {
             void showMessage(t("Nothing on the clipboard could be pasted here."));
-        else {
-            refresh();
-            onPaste?.();
+            return;
         }
+
+        pendingSelect.current = result.created;
+        refresh();
+        onPaste?.();
     };
 
     const createEntry = async (extension: string | null, caseSensitive = false) => {
