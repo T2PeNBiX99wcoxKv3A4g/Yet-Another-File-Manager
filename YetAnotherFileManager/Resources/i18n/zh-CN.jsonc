@@ -776,5 +776,6 @@
   "Resize column": "调整列宽",
   "Reset column widths": "重置列宽",
   "Reset widths": "重置宽度",
-  "Administrator rights are required to change this folder.": "修改此文件夹需要管理员权限。"
+  "Administrator rights are required to change this folder.": "修改此文件夹需要管理员权限。",
+  "Select all matches": "选择所有匹配项"
 }

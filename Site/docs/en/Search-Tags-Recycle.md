@@ -8,6 +8,7 @@ letter with a folder focused opens it too.
 - `Enter` jumps to the next match, `Shift+Enter` to the previous one.
 - **Aa** matches case, `.*` treats the query as a regular expression.
 - The mode button switches between **Dim** (non-matching rows fade) and **Hide** (they disappear).
+- The check button selects every matching entry, ready for a copy, move or delete.
 - `Esc` closes the bar and restores the folder.
 
 Search only looks at the folder on screen; it does not walk subfolders.

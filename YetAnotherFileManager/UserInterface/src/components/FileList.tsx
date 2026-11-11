@@ -149,6 +149,8 @@ interface FileListProps {
     /** A freshly created path that should enter rename as soon as the listing shows it. */
     pendingRename?: string | null;
     pendingRenameToken?: number;
+    /** Bumped by the find bar's "select all matches" button. */
+    selectMatchesToken?: number;
 }
 
 interface RowModel {
@@ -225,6 +227,7 @@ export function FileList({
                              singleSelect = false,
                              pendingRename = null,
                              pendingRenameToken = 0,
+                             selectMatchesToken = 0,
                          }: FileListProps) {
     const t = useTranslation();
     const quick = useQuickAccess();
@@ -517,6 +520,17 @@ export function FileList({
     ]);
 
     rowsRef.current = rows;
+
+    // The find bar's "select all matches" button asks the list to take every row the search matched,
+    // including the ones dimmed rather than hidden.
+    useEffect(() => {
+        if (selectMatchesToken === 0)
+            return;
+
+        setSelected(new Set(rowsRef.current
+            .filter((row) => row.ranges !== null)
+            .map((row) => row.entry.fullPath)));
+    }, [selectMatchesToken]);
 
     // A list row keeps one height, so the scrollbar can represent all rows while only the rows
     // around the viewport exist in the DOM.
@@ -1861,7 +1875,7 @@ function PlaceholderTiles({size}: { size: number }) {
     return (
         <>
             {[42, 58, 36, 64, 48, 54, 39, 61, 45, 50, 57, 43].map((width, index) => (
-                <Tile $dim={false} $current={false} $selected={false} key={index}>
+                <Tile $dim={false} $current={false} $image={false} $selected={false} key={index}>
                     <TileMedia>
                         <Bone style={{height: size, width: size}}/>
                     </TileMedia>
@@ -1947,6 +1961,7 @@ const GridTile = memo(function GridTile({
 
     const preview = useThumbnail(previewable && onScreen ? row.entry.fullPath : null, 192, row.entry.modified);
     const [failed, setFailed] = useState(false);
+    const image = previewable && preview !== null && !failed;
     const path = row.entry.fullPath;
 
     const open = (event: ReactMouseEvent) => {
@@ -1958,6 +1973,7 @@ const GridTile = memo(function GridTile({
         <Tile
             $current={current}
             $dim={dim}
+            $image={image}
             $selected={selected}
             onClick={(event) => {
                 onSelect(event, path);
@@ -1994,7 +2010,7 @@ const GridTile = memo(function GridTile({
                 </TileCheck>
             )}
             <TileMedia>
-                {previewable && preview && !failed
+                {image
                     ? (
                         <img
                             alt=""
@@ -2867,7 +2883,7 @@ const Broken = styled.span`
     color: #fca5a5;
 `;
 
-const Tile = styled.div<{ $dim: boolean; $current: boolean; $selected: boolean }>`
+const Tile = styled.div<{ $dim: boolean; $current: boolean; $selected: boolean; $image: boolean }>`
     position: relative;
     display: flex;
     flex-direction: column;
@@ -2877,9 +2893,12 @@ const Tile = styled.div<{ $dim: boolean; $current: boolean; $selected: boolean }
             ? "rgba(var(--accent-rgb), 0.5)"
             : $selected ? "rgba(var(--accent-rgb), 0.4)" : "var(--border-color)"};
     border-radius: var(--radius-lg);
-    background: ${({$current, $selected}) => $current
+    /* A picture tile has no surface of its own, so a transparent image shows the wallpaper. */
+    background: ${({$image, $current, $selected}) => $current
             ? "rgba(var(--accent-rgb), 0.14)"
-            : $selected ? "rgba(var(--accent-rgb), 0.1)" : "var(--bg-primary)"};
+            : $selected
+                ? "rgba(var(--accent-rgb), 0.1)"
+                : $image ? "transparent" : "var(--bg-primary)"};
     opacity: ${({$dim}) => $dim ? 0.3 : 1};
     cursor: default;
     user-select: none;
@@ -2888,7 +2907,7 @@ const Tile = styled.div<{ $dim: boolean; $current: boolean; $selected: boolean }
     transform 140ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 140ms ease;
 
     &:hover {
-        background: var(--bg-card-hover);
+        background: ${({$image}) => $image ? "rgba(var(--bg-rgb), 0.2)" : "var(--bg-card-hover)"};
         border-color: var(--border-color-hover);
         box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
         transform: translateY(-1px);

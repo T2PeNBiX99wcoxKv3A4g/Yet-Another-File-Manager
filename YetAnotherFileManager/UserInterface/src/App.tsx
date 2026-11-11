@@ -324,6 +324,7 @@ export default function App() {
     const [find, setFind] = useState<FindState>(EmptyFind);
     const [findIndex, setFindIndex] = useState(0);
     const [findFocus, setFindFocus] = useState(0);
+    const [selectMatchesToken, setSelectMatchesToken] = useState(0);
     const [viewFind, setViewFind] = useState<FindState>(EmptyFind);
     const [viewFindFocus, setViewFindFocus] = useState(0);
     const [viewFindIndex, setViewFindIndex] = useState(0);
@@ -2096,6 +2097,7 @@ export default function App() {
                 find={tab.id === focusedTab.id
                     ? {...find, currentPath: findCurrent < 0 ? null : findHits[findCurrent]}
                     : undefined}
+                selectMatchesToken={tab.id === focusedTab.id ? selectMatchesToken : 0}
                 imageStripHeight={imageStripHeight}
                 listing={tab.listing}
                 loading={tab.loading}
@@ -2197,6 +2199,9 @@ export default function App() {
             query={find.query}
             regex={find.regex}
             total={findHits.length}
+            onSelectMatches={findHits.length > 0
+                ? () => setSelectMatchesToken((token) => token + 1)
+                : undefined}
         />
     );
 
@@ -2359,7 +2364,7 @@ export default function App() {
 
             <IconButton
                 data-shortcut={prettyShortcut(shortcuts.find)}
-                onClick={openViewFind}
+                onClick={() => kind === "files" ? openFind() : openViewFind()}
                 title={t("Search")}
                 type="button"
             >

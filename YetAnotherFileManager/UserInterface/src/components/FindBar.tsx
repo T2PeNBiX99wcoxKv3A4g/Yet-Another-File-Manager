@@ -3,7 +3,7 @@ import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import type {FindMode} from "../find";
 import {slideDownStyle} from "../ui/motion";
-import {ChevronRightIcon, CrossIcon, SearchIcon} from "./Icons";
+import {CheckIcon, ChevronRightIcon, CrossIcon, SearchIcon} from "./Icons";
 
 interface FindBarProps {
     query: string;
@@ -22,6 +22,8 @@ interface FindBarProps {
     onRegex: () => void;
     onMode: () => void;
     onClose: () => void;
+    /** Takes every matching entry; only the file browser offers this. */
+    onSelectMatches?: () => void;
     /** Pages without a list of matches only need the box, the flags and the close button. */
     compact?: boolean;
     /** Overrides the file browser's "Search this folder" wording. */
@@ -34,7 +36,7 @@ interface FindBarProps {
  */
 export function FindBar({
                             query, mode, matchCase, regex, total, current, focusToken, compact = false, placeholder,
-                            onQuery, onPrevious, onNext, onMatchCase, onRegex, onMode, onClose,
+                            onQuery, onPrevious, onNext, onMatchCase, onRegex, onMode, onClose, onSelectMatches,
                         }: FindBarProps) {
     const t = useTranslation();
     const input = useRef<HTMLInputElement | null>(null);
@@ -82,6 +84,12 @@ export function FindBar({
             {!compact && (
                 <>
                     <Counter>{total === 0 ? "0/0" : `${current + 1}/${total}`}</Counter>
+
+                    {onSelectMatches && total > 0 && (
+                        <Tool onClick={onSelectMatches} title={t("Select all matches")} type="button">
+                            <CheckIcon size={12}/>
+                        </Tool>
+                    )}
 
                     <Tool onClick={() => toggle(onPrevious)} title={t("Previous match (Shift+Enter)")} type="button">
                         <ChevronRightIcon size={12}/>

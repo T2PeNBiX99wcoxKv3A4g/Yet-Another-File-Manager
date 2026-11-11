@@ -776,5 +776,6 @@
   "Resize column": "調整欄位寬度",
   "Reset column widths": "重設欄位寬度",
   "Reset widths": "重設寬度",
-  "Administrator rights are required to change this folder.": "修改此資料夾需要系統管理員權限。"
+  "Administrator rights are required to change this folder.": "修改此資料夾需要系統管理員權限。",
+  "Select all matches": "選取所有相符項目"
 }
