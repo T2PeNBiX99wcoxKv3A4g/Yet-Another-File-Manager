@@ -778,6 +778,8 @@
   "Reset widths": "幅をリセット",
   "Administrator rights are required to change this folder.": "このフォルダーを変更するには管理者権限が必要です。",
   "Select all matches": "一致する項目をすべて選択",
+  "Open the file tray while dragging": "ドラッグ中にファイルトレイを開く",
+  "The tray appears when a drag starts and closes again if it is still empty. Off leaves it to the title bar button.": "ドラッグを始めるとトレイが現れ、空のまま終わると閉じます。オフにするとタイトルバーのボタンでのみ開きます。",
   "Folders on a shared device cannot be copied yet.": "共有デバイスのフォルダーはまだコピーできません。",
   "The file could not be copied.": "このファイルをコピーできませんでした。"
 }

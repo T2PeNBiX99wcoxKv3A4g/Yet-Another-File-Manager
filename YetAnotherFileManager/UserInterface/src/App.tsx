@@ -1255,29 +1255,62 @@ export default function App() {
 
     const trayRef = useRef(trayItems);
     trayRef.current = trayItems;
+    const trayVisibleRef = useRef(trayVisible);
+    trayVisibleRef.current = trayVisible;
+    const trayAutoShown = useRef(false);
 
-    // The tray is a drop target, so it shows up (at a reachable spot) as soon as an in-app drag
-    // starts. It stays open until the user closes it.
+    // The tray opens for a drag when the setting allows it, and closes again if the drag ended
+    // without leaving anything in it. A manual toggle keeps it open whether or not it is empty.
     useEffect(() => {
-        const onDragStart = (event: DragEvent) => {
-            if (isPathDrag(event.dataTransfer))
-                showTray();
+        const auto = settings?.trayAutoShow ?? true;
+
+        const showForDrag = (transfer: DataTransfer | null) => {
+            if (!auto || !isPathDrag(transfer))
+                return;
+
+            if (!trayVisibleRef.current)
+                trayAutoShown.current = true;
+
+            showTray();
         };
 
-        // A drag that comes from another application never fires dragstart here; opening the tray
-        // on dragenter is what makes it a target for those files too.
-        const onDragEnter = (event: DragEvent) => {
-            if (isPathDrag(event.dataTransfer))
-                showTray();
+        const onDragStart = (event: DragEvent) => showForDrag(event.dataTransfer);
+        const onDragEnter = (event: DragEvent) => showForDrag(event.dataTransfer);
+
+        const finish = () => {
+            if (!trayAutoShown.current)
+                return;
+
+            // The drop handler runs before its state lands, so the emptiness is checked a moment later.
+            window.setTimeout(() => {
+                if (trayAutoShown.current && trayRef.current.length === 0)
+                    setTrayVisible(false);
+
+                trayAutoShown.current = false;
+            }, 300);
+        };
+
+        const onDrop = () => finish();
+        const onDragEnd = () => finish();
+        const onDragLeave = (event: DragEvent) => {
+            if (event.relatedTarget === null)
+                finish();
         };
 
         window.addEventListener("dragstart", onDragStart);
         window.addEventListener("dragenter", onDragEnter);
+        window.addEventListener("drop", onDrop);
+        window.addEventListener("dragend", onDragEnd);
+        document.addEventListener("dragleave", onDragLeave);
+
         return () => {
             window.removeEventListener("dragstart", onDragStart);
             window.removeEventListener("dragenter", onDragEnter);
+            window.removeEventListener("drop", onDrop);
+            window.removeEventListener("dragend", onDragEnd);
+            document.removeEventListener("dragleave", onDragLeave);
         };
-    }, [showTray]);
+    }, [showTray, settings?.trayAutoShow]);
 
     // Keep the floating tray inside the window when it is resized.
     useEffect(() => {
@@ -1319,6 +1352,8 @@ export default function App() {
     }, []);
 
     const toggleTray = useCallback(() => {
+        trayAutoShown.current = false;
+
         if (trayVisible) {
             setTrayVisible(false);
             return;

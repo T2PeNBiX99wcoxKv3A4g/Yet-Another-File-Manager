@@ -218,7 +218,21 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
 
     [SupportedOSPlatform("windows")]
     private static Task<byte[]?> WindowsThumbnailAsync(string path, int size) =>
-        Task.Run(() => ShellThumbnail.Bytes(path, size));
+        Task.Run(() =>
+        {
+            // The shell thumbnail flattens some transparent pictures onto black; formats that can
+            // carry alpha are drawn here, and the shell is only the fallback for them.
+            if (AlphaExtensions.Contains(Path.GetExtension(path)))
+                return ImageThumbnail.Png(path, size) ?? ShellThumbnail.Bytes(path, size);
+
+            return ShellThumbnail.Bytes(path, size);
+        });
+
+    /// <summary>Formats whose transparency the app's own image decoder keeps.</summary>
+    private static readonly HashSet<string> AlphaExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".png", ".gif", ".bmp", ".ico"
+    };
 
     [SupportedOSPlatform("linux")]
     private static Task<byte[]?> LinuxThumbnailAsync(string path, int size) =>

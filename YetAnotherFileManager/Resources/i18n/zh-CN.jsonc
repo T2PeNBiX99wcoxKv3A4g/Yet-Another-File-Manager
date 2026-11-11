@@ -778,6 +778,8 @@
   "Reset widths": "重置宽度",
   "Administrator rights are required to change this folder.": "修改此文件夹需要管理员权限。",
   "Select all matches": "选择所有匹配项",
+  "Open the file tray while dragging": "拖动时打开文件托盘",
+  "The tray appears when a drag starts and closes again if it is still empty. Off leaves it to the title bar button.": "开始拖动时显示托盘；如果拖动结束时它仍是空的，就会自动关闭。关闭此项后只能用标题栏按钮打开。",
   "Folders on a shared device cannot be copied yet.": "共享设备上的文件夹暂时无法复制。",
   "The file could not be copied.": "无法复制此文件。"
 }

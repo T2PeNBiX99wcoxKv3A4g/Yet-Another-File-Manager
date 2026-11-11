@@ -2673,7 +2673,9 @@ const Strip = styled.div`
     flex-direction: column;
     flex-shrink: 0;
     min-height: 0;
-    background: var(--bg-secondary);
+    background: rgba(var(--bg-rgb), 0.42);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 `;
 
 const StripHead = styled.div`

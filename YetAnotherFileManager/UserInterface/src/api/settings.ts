@@ -60,6 +60,8 @@ export interface AppSettings {
     previewVideoAudio: boolean;
     /** Start a video preview automatically; off means the user presses play. */
     previewVideoAutoplay: boolean;
+    /** Show the floating file tray when a drag starts; off leaves it to the title bar button. */
+    trayAutoShow: boolean;
     /** The main interactive colour, or null for the default blue. */
     accentColor: string | null;
     /** The gradient/highlight colour, or null for the default indigo. */
@@ -162,6 +164,7 @@ const fallback: AppSettings = {
     confirmDelete: false,
     previewVideoAudio: false,
     previewVideoAutoplay: false,
+    trayAutoShow: true,
     accentColor: null,
     secondaryColor: null,
     backgroundSource: null,
@@ -229,6 +232,7 @@ export async function getSettings(): Promise<AppSettings> {
         confirmDelete: raw?.confirmDelete ?? false,
         previewVideoAudio: raw?.previewVideoAudio ?? false,
         previewVideoAutoplay: raw?.previewVideoAutoplay ?? false,
+        trayAutoShow: raw?.trayAutoShow ?? true,
         accentColor: raw?.accentColor ?? null,
         secondaryColor: raw?.secondaryColor ?? null,
         backgroundSource: raw?.backgroundSource ?? null,
@@ -358,6 +362,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         confirmDelete: saved?.confirmDelete ?? settings.confirmDelete,
         previewVideoAudio: saved?.previewVideoAudio ?? settings.previewVideoAudio,
         previewVideoAutoplay: saved?.previewVideoAutoplay ?? settings.previewVideoAutoplay,
+        trayAutoShow: saved?.trayAutoShow ?? settings.trayAutoShow,
         accentColor: saved?.accentColor ?? settings.accentColor,
         secondaryColor: saved?.secondaryColor ?? settings.secondaryColor,
         backgroundSource: saved?.backgroundSource ?? settings.backgroundSource,

@@ -2109,6 +2109,25 @@ export function SettingsView({
                         <Row>
                             <RowText>
                                 <LabelRow>
+                                    <Label>{t("Open the file tray while dragging")}</Label>
+                                    <GlobalTag/>
+                                </LabelRow>
+                                <Note>
+                                    {t("The tray appears when a drag starts and closes again if it is still empty. Off leaves it to the title bar button.")}
+                                </Note>
+                            </RowText>
+                            <Toggle
+                                $on={settings?.trayAutoShow ?? true}
+                                disabled={!settings}
+                                onClick={() => void update({trayAutoShow: !(settings?.trayAutoShow ?? true)})}
+                                type="button"
+                            >
+                                <Knob/>
+                            </Toggle>
+                        </Row>
+                        <Row>
+                            <RowText>
+                                <LabelRow>
                                     <Label>{t("Confirm before deleting")}</Label>
                                     <GlobalTag/>
                                 </LabelRow>

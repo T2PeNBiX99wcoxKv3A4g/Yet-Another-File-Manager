@@ -73,7 +73,9 @@ that move between Windows and Linux.
 The tray is a floating shelf for what you are about to paste somewhere else. Drag a selection onto it,
 or use **Add to file tray**; the title bar's tray button shows it and counts what it holds. It also
 mirrors the system clipboard, so something copied in another app appears there too. Paste from the
-tray into any folder, or drag an entry back out.
+tray into any folder, or drag an entry back out. It opens by itself when a drag starts;
+**Open the file tray while dragging** in the settings turns that off, and a tray that appeared for a
+drag closes again if nothing was dropped into it.
 
 ## History and activity
 

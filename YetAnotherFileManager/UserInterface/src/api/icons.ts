@@ -230,8 +230,11 @@ export function useThumbnail(path: string | null, size = 128, version = 0): stri
 
     if (!path || !base) return null;
 
-    return `${base}/thumb?path=${encodeURIComponent(path)}&size=${size}&v=${version}`;
+    return `${base}/thumb?path=${encodeURIComponent(path)}&size=${size}&v=${version}-${ThumbnailRevision}`;
 }
+
+/** Bump when the thumbnail encoding changes, so the web view drops the bitmaps it cached. */
+const ThumbnailRevision = 2;
 
 /**
  * A loopback URL for the original media file, for a video or audio element. The server supports

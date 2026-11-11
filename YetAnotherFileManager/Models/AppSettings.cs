@@ -36,6 +36,8 @@ public sealed record AppSettings(
     bool? ConfirmDelete,
     bool? PreviewVideoAudio,
     bool? PreviewVideoAutoplay,
+    /// <summary>Show the floating file tray when a drag starts; null means on.</summary>
+    bool? TrayAutoShow,
     string? AccentColor,
     string? SecondaryColor,
     /// <summary>UI language; null means English, "system" follows the operating system.</summary>
@@ -95,7 +97,7 @@ public sealed record AppSettings(
         new(true, true, true, ["**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null,
             ["quick", "frequent", "recent", "home", "drives", "share", "favorites"], null, 1, null,
             null, null, null, null, null, ["quick", "frequent", "recent", "drives"], null, null, true, null, 0, null,
-            true, false, false, false, false, null, null, null, null, false, null, null, null, null, null, null, 5,
+            true, false, false, false, false, true, null, null, null, null, false, null, null, null, null, null, null, 5,
             "24", null, null, false, 1200, 800, "relative", null, 220, [], 0.3, null, null, null, null, null, null, null);
 
     // The accessors below are derived, so they are kept out of settings.json entirely; only the

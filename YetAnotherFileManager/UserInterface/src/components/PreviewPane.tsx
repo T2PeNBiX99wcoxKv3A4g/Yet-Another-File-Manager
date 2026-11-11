@@ -163,7 +163,8 @@ export function PreviewPane({
         if (!current)
             return;
 
-        const next = Math.max(80, Math.min(560, current.height + event.clientY - current.y));
+        // No upper bound: a large monitor or a wide picture may want the whole pane.
+        const next = Math.max(80, current.height + event.clientY - current.y);
         setMediaHeight(next);
         writeStoredNumber("yafm.preview.media.height", next);
     };
