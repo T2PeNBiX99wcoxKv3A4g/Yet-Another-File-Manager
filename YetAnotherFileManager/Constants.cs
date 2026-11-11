@@ -20,6 +20,9 @@ public static class Constants
 
     public const string WindowTitle = DisplayName;
 
+    /// <summary>Where the newest published build can be downloaded from.</summary>
+    public const string ReleasesUrl = "https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/releases/latest";
+
     /// <summary>
     ///     Command line flag for the short-lived, elevated copy of the app. It writes the recycle bin
     ///     leftovers it can see to the path that follows (and deletes them when <c>--delete</c> is

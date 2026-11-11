@@ -37,7 +37,11 @@ of your own.
 
 ## Updates
 
-The running version, the newest published one, and **Check for updates**.
+The running version, the newest published one, and **Check for updates**; when there is nothing new,
+the same row opens the log folder. When a newer build exists, the row offers **Open release page** and,
+on Windows, **Download and install**. That second action opens a floating panel with the release's
+changelog and the installer's download progress; once the file is complete the panel offers
+**Install update**, which starts the MSI and closes the app so the installer can replace it.
 
 ## Colors and background
 

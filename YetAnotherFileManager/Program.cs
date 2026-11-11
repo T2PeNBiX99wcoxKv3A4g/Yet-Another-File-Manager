@@ -10,6 +10,7 @@ using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Platform;
 using PhotinoNetUtils.Services;
+using PhotinoNetUtils.Updates;
 using PhotinoNetUtils.Utils;
 using Serilog;
 using YetAnotherFileManager.Interop;
@@ -182,10 +183,20 @@ internal static partial class Program
 
             // Touching each singleton constructs it, which is what registers its message handlers.
             _ = AppInfoService.Instance;
-            _ = UpdateService.Instance;
             _ = FileSystemService.Instance;
             _ = ThumbnailServer.Instance;
             _ = StartupService.Instance;
+
+            using var updates = new UpdateService(new UpdateOptions(
+                "T2PeNBiX99wcoxKv3A4g",
+                "Yet-Another-File-Manager",
+                Constants.Name,
+                AppInfoService.Version,
+                $"{Constants.Name}-{{version}}-win-x64.msi",
+                Constants.ReleasesUrl,
+                AppInfoService.LogDirectory(),
+                () => WindowManager.Instance.Exit(),
+                WindowManager.Instance.Notify));
 
             AppMemory.Start();
 

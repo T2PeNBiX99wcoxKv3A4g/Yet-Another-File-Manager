@@ -20,15 +20,22 @@ import {
 } from "../api/settings";
 import type {AppInfo} from "../api/system";
 import {
+    cancelUpdateDownload,
     checkUpdate,
     getMemory,
     getScheme,
     getStartup,
     getUpdateStatus,
+    installUpdate,
     type MemoryUsage,
+    onUpdateChangelog,
+    onUpdateProgress,
+    openLogsFolder,
+    openReleasePage,
     openUrl,
     setScheme,
     setStartup as setStartupEntry,
+    startUpdateDownload,
     type StartupStatus,
     trimMemory,
     type UpdateCheck
@@ -67,8 +74,6 @@ interface SettingsViewProps {
     /** A section the footer's update dot asked for. */
     focusSection?: string | null;
     onSettingsChanged: () => void;
-    /** Opens a folder in the app's own browser instead of an external program. */
-    onOpenFolder: (path: string) => void;
     /** The page search; matching text is highlighted, other sections dim or hide. */
     find?: PageFind | null;
     /** Reports how many sections matched, for the find bar's counter. */
@@ -133,11 +138,18 @@ const ShortcutRows: { id: keyof ShortcutMap; label: string; note: string }[] = [
     {id: "openInNewTab", label: "Open in a new tab", note: "Hold this while clicking a folder."},
 ];
 
-/** Where the update section sends the user when a newer build exists. */
-const ReleasesUrl = "https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/releases/latest";
-
 /** The language a fresh install uses until the picker changes it. */
 const DefaultLanguage = "en";
+
+/** What the floating update panel shows while the installer is fetched and run. */
+interface UpdateDialogState {
+    phase: "changelog" | "downloading" | "ready" | "cancelled" | "error" | "installing";
+    changelog: string;
+    downloaded: number;
+    total: number;
+    percent: number;
+    error?: string;
+}
 
 /** The choices offered for every timestamp; "custom" reveals the pattern box. */
 const TimeModes: { id: string; label: string }[] = [
@@ -205,7 +217,6 @@ export function SettingsView({
                                  appInfo,
                                  focusSection,
                                  onSettingsChanged,
-                                 onOpenFolder,
                                  find,
                                  onSearchMatches
                              }: SettingsViewProps) {
@@ -246,7 +257,8 @@ export function SettingsView({
     const [draftPreset, setDraftPreset] = useState<{ name: string; accent: string; secondary: string } | null>(null);
     const [updateState, setUpdateState] = useState<UpdateCheck | null>(null);
     const [updateBusy, setUpdateBusy] = useState(false);
-    const [updateError, setUpdateError] = useState(false);
+    const [updateError, setUpdateError] = useState<string | null>(null);
+    const [updateDialog, setUpdateDialog] = useState<UpdateDialogState | null>(null);
     const [colorStart, setColorStart] = useState<{ role: ColorRole; color: string } | null>(null);
     const [activeSection, setActiveSection] = useState(SettingSections[0].id);
     const [fonts, setFonts] = useState<string[]>([]);
@@ -565,16 +577,68 @@ export function SettingsView({
     /** Reads the published version file and shows whether this build is behind. */
     const checkNow = async () => {
         setUpdateBusy(true);
-        setUpdateError(false);
+        setUpdateError(null);
 
         try {
             setUpdateState(await checkUpdate());
         } catch {
-            setUpdateError(true);
+            // The host answers a failed check with its own key; the interface has the sentence.
+            setUpdateError(t("Could not check for updates."));
         } finally {
             setUpdateBusy(false);
         }
     };
+
+    /** Opens the update panel and starts fetching the installer; progress arrives as events. */
+    const downloadAndInstall = async () => {
+        setUpdateError(null);
+        setUpdateDialog({phase: "changelog", changelog: "", downloaded: 0, total: 0, percent: 0});
+
+        try {
+            const ack = await startUpdateDownload();
+            if (!ack.ok) failDownload(ack.error ?? "");
+        } catch (reason) {
+            failDownload(reason instanceof Error ? reason.message : String(reason));
+        }
+    };
+
+    const failDownload = (message: string) =>
+        setUpdateDialog((current) => current ? {...current, phase: "error", error: message} : current);
+
+    const cancelDownload = async () => {
+        try {
+            await cancelUpdateDownload();
+        } catch (reason) {
+            setUpdateError(reason instanceof Error ? reason.message : String(reason));
+        }
+    };
+
+    /** Runs the installer the download left behind; the app closes from there. */
+    const installNow = async () => {
+        setUpdateDialog((current) => current ? {...current, phase: "installing"} : current);
+
+        try {
+            const ack = await installUpdate();
+            if (!ack.ok) failDownload(ack.error ?? t("The update failed."));
+        } catch (reason) {
+            failDownload(reason instanceof Error ? reason.message : String(reason));
+        }
+    };
+
+    // The host reports the download through progress events, and the changelog once it is fetched.
+    useEffect(() => onUpdateProgress((progress) => setUpdateDialog((current) => current
+        ? {
+            ...current,
+            phase: progress.phase,
+            downloaded: progress.downloaded,
+            total: progress.total,
+            percent: progress.percent,
+            error: progress.error ?? current.error
+        }
+        : current)), []);
+
+    useEffect(() => onUpdateChangelog((text) => setUpdateDialog((current) =>
+        current ? {...current, changelog: text} : current)), []);
 
     /** Saves the current pair under the name in the draft, or the two colours when it is blank. */
     const savePreset = async () => {
@@ -974,21 +1038,6 @@ export function SettingsView({
                         <Row>
                             <Label>{t("Platform")}</Label>
                             <Value>{appInfo?.platform ?? "—"}</Value>
-                        </Row>
-                        <Row>
-                            <RowText>
-                                <Label>{t("Logs")}</Label>
-                                <Note>{t("Application logs and crash details. Open the folder here to inspect them without leaving the app.")}</Note>
-                            </RowText>
-                            <RowEnd>
-                                <ActionButton
-                                    disabled={!appInfo?.logDirectory}
-                                    onClick={() => appInfo?.logDirectory && onOpenFolder(appInfo.logDirectory)}
-                                    type="button"
-                                >
-                                    {t("Open log folder")}
-                                </ActionButton>
-                            </RowEnd>
                         </Row>
                         <Row>
                             <RowText>
@@ -1392,42 +1441,60 @@ export function SettingsView({
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>{t("Check for updates")}</Label>
+                                <Label>
+                                    {updateState
+                                        ? updateState.available
+                                            ? t("Version {version} is available.", {version: updateState.latest})
+                                            : t("You are on the latest version.")
+                                        : t("Not checked yet")}
+                                </Label>
                                 <Note>
-                                    {updateState && !updateState.available
-                                        ? t("You are on the latest version.")
+                                    {updateState?.available
+                                        ? t("The installer downloads, installs itself, and closes the app.")
                                         : t("Reads the version file the release workflow publishes.")}
                                 </Note>
                             </RowText>
                             <RowEnd>
-                                <ActionButton
-                                    disabled={updateBusy}
-                                    onClick={() => void checkNow()}
-                                    type="button"
-                                >
-                                    {updateBusy ? t("Checking…") : t("Check now")}
-                                </ActionButton>
+                                {updateState?.available ? (
+                                    <>
+                                        <ActionButton
+                                            onClick={() => void openReleasePage()}
+                                            type="button"
+                                        >
+                                            {t("Open release page")}
+                                        </ActionButton>
+                                        {isWindows && (
+                                            <ActionButton
+                                                disabled={updateDialog !== null}
+                                                onClick={() => void downloadAndInstall()}
+                                                type="button"
+                                            >
+                                                {t("Download and install")}
+                                            </ActionButton>
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        <ActionButton
+                                            disabled={updateBusy}
+                                            onClick={() => void checkNow()}
+                                            type="button"
+                                        >
+                                            {updateBusy ? t("Checking…") : t("Check for updates")}
+                                        </ActionButton>
+                                        <ActionButton
+                                            onClick={() => void openLogsFolder()}
+                                            type="button"
+                                        >
+                                            {t("Open log folder")}
+                                        </ActionButton>
+                                    </>
+                                )}
                             </RowEnd>
                         </Row>
-                        {updateState?.available && (
-                            <Row>
-                                <RowText>
-                                    <Label>{t("Version {version} is available.", {version: updateState.latest})}</Label>
-                                    <Note>{t("Download the new build from the releases page.")}</Note>
-                                </RowText>
-                                <RowEnd>
-                                    <ActionButton
-                                        onClick={() => void openUrl(ReleasesUrl)}
-                                        type="button"
-                                    >
-                                        {t("Open release page")}
-                                    </ActionButton>
-                                </RowEnd>
-                            </Row>
-                        )}
                         {updateError && (
                             <Row>
-                                <TagError>{t("Could not check for updates.")}</TagError>
+                                <TagError>{updateError}</TagError>
                             </Row>
                         )}
                     </Rows>
@@ -2706,6 +2773,60 @@ export function SettingsView({
                 </TocList>
                 <TocNote>{t("Changes are saved as you make them.")}</TocNote>
             </Toc>
+
+            {updateDialog && createPortal(
+                <UpdateOverlay>
+                    <UpdatePanel aria-modal="true" role="dialog">
+                        <UpdateHead>
+                            <h2>{t("Software update")}</h2>
+                            <p>
+                                {updateState?.latest
+                                    ? t("Version {version}", {version: updateState.latest})
+                                    : t("Preparing the update…")}
+                            </p>
+                        </UpdateHead>
+
+                        <ChangelogHead>{t("Changelog")}</ChangelogHead>
+                        <Changelog>
+                            {updateDialog.changelog || (updateDialog.phase === "changelog"
+                                ? t("Loading the changelog…")
+                                : t("The changelog could not be loaded."))}
+                        </Changelog>
+
+                        <ProgressRow>
+                            <span>{updatePhaseLabel(updateDialog, t)}</span>
+                            <span>{updateSizeLabel(updateDialog)}</span>
+                        </ProgressRow>
+
+                        <ProgressBar>
+                            <ProgressFill $percent={Math.max(0, Math.min(100, updateDialog.percent))}/>
+                        </ProgressBar>
+
+                        {updateDialog.error && <TagError>{updateDialog.error}</TagError>}
+
+                        <UpdateActions>
+                            {(updateDialog.phase === "changelog" || updateDialog.phase === "downloading") && (
+                                <ActionButton onClick={() => void cancelDownload()} type="button">
+                                    {t("Cancel")}
+                                </ActionButton>
+                            )}
+                            {updateDialog.phase === "ready" && (
+                                <ActionButton onClick={() => void installNow()} type="button">
+                                    {t("Install update")}
+                                </ActionButton>
+                            )}
+                            {updateDialog.phase === "installing" && (
+                                <ActionButton disabled type="button">{t("Installing…")}</ActionButton>
+                            )}
+                            {(updateDialog.phase === "ready" || updateDialog.phase === "error"
+                                || updateDialog.phase === "cancelled" || updateDialog.phase === "installing") && (
+                                <ActionButton onClick={() => setUpdateDialog(null)} type="button">
+                                    {t("Close")}
+                                </ActionButton>
+                            )}
+                        </UpdateActions>
+                    </UpdatePanel>
+                </UpdateOverlay>, document.body)}
         </Page>
     );
 }
@@ -3361,6 +3482,134 @@ const TocNote = styled.p`
 function percent(part: number, whole: number): string {
     return whole > 0 ? `${(part / whole * 100).toFixed(1)}%` : "—";
 }
+
+/** What the update panel says while the installer is fetched and run. */
+function updatePhaseLabel(progress: UpdateDialogState, t: Translate): string {
+    switch (progress.phase) {
+        case "changelog":
+            return t("Preparing the update…");
+        case "downloading":
+            return t("Downloading the update…");
+        case "ready":
+            return t("Download complete.");
+        case "cancelled":
+            return t("Update cancelled.");
+        case "error":
+            return t("The update failed.");
+        case "installing":
+            return t("Installing…");
+        default:
+            return "";
+    }
+}
+
+/** How much of the installer has arrived, in the same units the rest of the app uses. */
+function updateSizeLabel(state: UpdateDialogState): string {
+    if (state.total > 0)
+        return `${formatBytes(state.downloaded)} / ${formatBytes(state.total)}`;
+
+    return state.downloaded > 0 ? formatBytes(state.downloaded) : "";
+}
+
+/** The floating panel that shows the changelog and the installer's download progress. */
+const UpdateOverlay = styled.div`
+    position: fixed;
+    inset: 0;
+    z-index: 9500;
+    display: grid;
+    place-items: center;
+    padding: 32px;
+    background: rgba(2, 6, 23, 0.55);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+`;
+
+const UpdatePanel = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: min(560px, 100%);
+    max-height: min(620px, 100%);
+    padding: 18px 20px 16px;
+    overflow: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    background: var(--bg-secondary);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+`;
+
+const UpdateHead = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    h2 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    p {
+        margin: 0;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+`;
+
+const ChangelogHead = styled.span`
+    margin-top: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+`;
+
+/** The changelog the release publishes, kept short enough to sit inside the panel. */
+const Changelog = styled.pre`
+    margin: 0;
+    max-height: 260px;
+    overflow: auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    color: var(--text-secondary);
+`;
+
+const ProgressRow = styled.div`
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 11px;
+    color: var(--text-muted);
+`;
+
+/** The install progress bar, filled from the left as the file arrives. */
+const ProgressBar = styled.div`
+    height: 6px;
+    overflow: hidden;
+    border-radius: 3px;
+    background: rgba(148, 163, 184, 0.22);
+`;
+
+const ProgressFill = styled.div<{ $percent: number }>`
+    width: ${({$percent}) => `${$percent}%`};
+    height: 100%;
+    border-radius: 3px;
+    background: var(--accent-gradient);
+    transition: width 160ms ease;
+`;
+
+const UpdateActions = styled.div`
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+`;
 
 const Gauge = styled.div`
     display: flex;

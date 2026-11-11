@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Messaging;
+using PhotinoNetUtils.Updates;
 using YetAnotherFileManager.Models;
 using YetAnotherFileManager.Security;
 
@@ -32,6 +33,9 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(AppInfoPayload))]
 [JsonSerializable(typeof(FontsPayload))]
 [JsonSerializable(typeof(UpdateCheckPayload))]
+[JsonSerializable(typeof(UpdateAckPayload))]
+[JsonSerializable(typeof(UpdateProgressPayload))]
+[JsonSerializable(typeof(UpdateChangelogPayload))]
 [JsonSerializable(typeof(UrlPayload))]
 [JsonSerializable(typeof(FsListRequest))]
 [JsonSerializable(typeof(FsListPayload))]

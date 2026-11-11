@@ -1726,7 +1726,7 @@ export default function App() {
 
         return Native.on((evt) => {
             const event = evt as { type?: string; data?: UpdateCheck };
-            if (event.type === "app.update" && event.data) setUpdate(event.data);
+            if (event.type === "update.checked" && event.data) setUpdate(event.data);
         });
     }, []);
 
@@ -2806,7 +2806,6 @@ export default function App() {
                                     focusSection={settingsFocus}
                                     onSearchMatches={setViewFindTotal}
                                     onSettingsChanged={reloadSettings}
-                                    onOpenFolder={openFiles}
                                 />
                             ) : kind === "gallery" ? (
                                 <GalleryView
