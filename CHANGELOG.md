@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.6.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.5.1..v0.6.0) - 2026-11-11
+
+### ⛰️  Features
+
+- Select the entries a paste created - ([c2cd4c6](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c2cd4c6f78960d6e7efa9a07826f506ecba7cc28))
+- Move shared folders under yafm:// and copy real files from them - ([1e4fe5b](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1e4fe5b668527def4704c5a36c8c3d36bb33ad0a))
+
+### 🐛 Bug Fixes
+
+- Keep the select-match check upright and offer it wherever files are listed - ([9522cad](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/9522cad74818ceaf4f4cc73f9a6c43096042443d))
+- Open the folder search, show the wallpaper through picture tiles, and select every match - ([4c8f921](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/4c8f9218526d5416cae62fb02e78fbe569f86c6c))
+
+### 🚜 Refactor
+
+- Accept only yafm://share, not the old share scheme - ([8ae420a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/8ae420a4cbdf063a8f70b3032abc54229ee2c0ab))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([67e8ee3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/67e8ee30f07a86a9b2681375836177bc95c3ec5c))
+
+
 ## [0.5.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.5.0..v0.5.1) - 2026-11-10
 
 ### 🐛 Bug Fixes
