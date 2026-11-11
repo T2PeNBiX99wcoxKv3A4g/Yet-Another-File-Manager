@@ -40,19 +40,24 @@ internal static class OwnedAssociations
                         if (!name.EndsWith("_auto_file", StringComparison.OrdinalIgnoreCase))
                             continue;
 
-                        using var command = classes.OpenSubKey($@"{name}\shell\open\command");
-                        var value = command?.GetValue(null) as string;
+                        string? stale = null;
 
-                        if (value is null
-                            || !value.Contains($"{Constants.Name}.exe", StringComparison.OrdinalIgnoreCase))
-                            continue;
+                        using (var command = classes.OpenSubKey($@"{name}\shell\open\command"))
+                        {
+                            var value = command?.GetValue(null) as string;
 
-                        var path = RegistryCommand.Executable(value);
-                        if (path is null || Same(path, current))
+                            if (value is not null
+                                && value.Contains($"{Constants.Name}.exe", StringComparison.OrdinalIgnoreCase)
+                                && RegistryCommand.Executable(value) is { } path
+                                && !Same(path, current))
+                                stale = path;
+                        }
+
+                        if (stale is null)
                             continue;
 
                         Try.Run(() => classes.DeleteSubKeyTree(name, false));
-                        Log.Information("Removed the stale {Class} registration for {Path}", name, path);
+                        Log.Information("Removed the stale {Class} registration for {Path}", name, stale);
                     }
             }
 
