@@ -3,6 +3,7 @@ import {createPortal} from "react-dom";
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import {listDirectory, type Place} from "../api/files";
+import {getSharePeers, isShareLocation, parseShareLocation, shareLocation} from "../api/share";
 import {openWith, showProperties} from "../api/operations";
 import {useQuickAccess} from "../quick";
 import {
@@ -13,7 +14,8 @@ import {
     CrossIcon,
     ExecutableIcon,
     GearIcon,
-    PlusIcon
+    PlusIcon,
+    ServerIcon
 } from "./Icons";
 import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
@@ -58,9 +60,42 @@ export function PathBar({path, label, icon, focusToken, onNavigate, onContextMen
     const [activeSuggestion, setActiveSuggestion] = useState(0);
     const [anchor, setAnchor] = useState<{ left: number; top: number; width: number } | null>(null);
     const [crumbMenu, setCrumbMenu] = useState<{ x: number; y: number; path: string } | null>(null);
+    const [shareNames, setShareNames] = useState<{ device: string; share: string } | null>(null);
     const input = useRef<HTMLInputElement | null>(null);
     const wrap = useRef<HTMLDivElement | null>(null);
     const lastFocus = useRef(0);
+
+    // A shared folder shows the device and share names instead of the ids in its location.
+    useEffect(() => {
+        if (!isShareLocation(path)) {
+            setShareNames(null);
+            return;
+        }
+
+        const parsed = parseShareLocation(path);
+        if (!parsed) {
+            setShareNames(null);
+            return;
+        }
+
+        let alive = true;
+
+        void getSharePeers().then((peers) => {
+            if (!alive)
+                return;
+
+            const peer = peers.find((item) => item.id === parsed.deviceId);
+            const share = peer?.shares.find((item) => item.id === parsed.shareId);
+            setShareNames({
+                device: peer?.name ?? parsed.deviceId,
+                share: share?.name ?? parsed.shareId,
+            });
+        }, () => alive && setShareNames(null));
+
+        return () => {
+            alive = false;
+        };
+    }, [path]);
 
     useEffect(() => {
         if (!editing) setDraft(path.replace(/\\/g, "/"));
@@ -255,7 +290,7 @@ export function PathBar({path, label, icon, focusToken, onNavigate, onContextMen
 
     const crumbs: Crumb[] = label
         ? [{label, path, icon}]
-        : crumbsFor(path, quick.places);
+        : shareTrail(path, shareNames) ?? crumbsFor(path, quick.places);
 
     return (
         <>
@@ -330,9 +365,33 @@ export function PathBar({path, label, icon, focusToken, onNavigate, onContextMen
     );
 }
 
+/**
+ * The breadcrumbs of a shared folder: the device (with its icon), the share, then the folders
+ * inside it. The ids stand in until the peer list arrives with the names.
+ */
+function shareTrail(path: string, names: { device: string; share: string } | null): Crumb[] | null {
+    const parsed = parseShareLocation(path);
+    if (!parsed)
+        return null;
+
+    const root = shareLocation(parsed.deviceId, parsed.shareId);
+    const crumbs: Crumb[] = [
+        {label: names?.device ?? parsed.deviceId, path: root, icon: <ServerIcon size={13}/>},
+        {label: names?.share ?? parsed.shareId, path: root},
+    ];
+
+    let current = root;
+
+    for (const segment of parsed.path.split("/").filter(Boolean)) {
+        current = `${current}/${encodeURIComponent(segment)}`;
+        crumbs.push({label: segment, path: current});
+    }
+
+    return crumbs;
+}
+
 /** Splits a path into clickable ancestors, keeping the Windows drive root intact. */
-function breadcrumbs(path: string): Crumb[] {
-    const separator = path.includes("\\") ? "\\" : "/";
+function breadcrumbs(path: string): Crumb[] {    const separator = path.includes("\\") ? "\\" : "/";
     const parts = path.split(/[\\/]/).filter((part) => part.length > 0);
     const crumbs: Crumb[] = [];
 
@@ -382,7 +441,7 @@ function crumbsFor(path: string, quick: Record<string, Place>): Crumb[] {
  * without a separator is not a path yet, so it gets no suggestions.
  */
 function completionQuery(value: string): { parent: string; prefix: string } | null {
-    if (isViewLocation(value)) return null;
+    if (isViewLocation(value) || isShareLocation(value)) return null;
 
     const cut = Math.max(value.lastIndexOf("/"), value.lastIndexOf("\\"));
     if (cut < 0) return null;

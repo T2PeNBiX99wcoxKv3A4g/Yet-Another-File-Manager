@@ -44,6 +44,7 @@ import {DefaultTagColor, inkFor, TagPicker} from "./TagPicker";
 import {BuiltinIcon, iconForName} from "../icons/fileTypes";
 import {isPathDrag, readDraggedPaths, writeDraggedPaths} from "./FileTray";
 import {showMessage} from "../api/dialogs";
+import {downloadSharedFile, isShareLocation} from "../api/share";
 import {setSelectionMenu} from "../ui/selectionMenu";
 
 /** The strip is a glance, not a gallery; thousands of thumbnails would stall the window. */
@@ -874,7 +875,39 @@ export function FileList({
     );
 
     const copy = async (paths: string[], cut = false) => {
-        if (await copyPaths(paths, cut)) {
+        let list = paths;
+        let allowCut = cut;
+
+        // A shared file has no local path to put on the system clipboard, so it is downloaded to
+        // the app's cache first; pasting then copies a real file, here or in another program.
+        if (paths.some(isShareLocation)) {
+            const local: string[] = [];
+
+            for (const path of paths) {
+                if (!isShareLocation(path)) {
+                    local.push(path);
+                    continue;
+                }
+
+                const entry = rowsRef.current.find((row) => row.entry.fullPath === path)?.entry;
+                if (entry?.isDirectory) {
+                    void showMessage(t("Folders on a shared device cannot be copied yet."));
+                    return;
+                }
+
+                try {
+                    local.push(await downloadSharedFile(path));
+                } catch (error) {
+                    void showMessage(error instanceof Error ? error.message : t("The file could not be copied."));
+                    return;
+                }
+            }
+
+            list = local;
+            allowCut = false;
+        }
+
+        if (await copyPaths(list, allowCut)) {
             setCanPaste(true);
             onClipboardChanged?.();
         }

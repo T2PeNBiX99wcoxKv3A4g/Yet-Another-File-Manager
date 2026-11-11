@@ -777,5 +777,7 @@
   "Reset column widths": "重置列宽",
   "Reset widths": "重置宽度",
   "Administrator rights are required to change this folder.": "修改此文件夹需要管理员权限。",
-  "Select all matches": "选择所有匹配项"
+  "Select all matches": "选择所有匹配项",
+  "Folders on a shared device cannot be copied yet.": "共享设备上的文件夹暂时无法复制。",
+  "The file could not be copied.": "无法复制此文件。"
 }

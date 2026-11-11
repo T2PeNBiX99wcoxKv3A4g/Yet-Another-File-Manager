@@ -777,5 +777,7 @@
   "Reset column widths": "重設欄位寬度",
   "Reset widths": "重設寬度",
   "Administrator rights are required to change this folder.": "修改此資料夾需要系統管理員權限。",
-  "Select all matches": "選取所有相符項目"
+  "Select all matches": "選取所有相符項目",
+  "Folders on a shared device cannot be copied yet.": "分享裝置上的資料夾暫時無法複製。",
+  "The file could not be copied.": "無法複製此檔案。"
 }

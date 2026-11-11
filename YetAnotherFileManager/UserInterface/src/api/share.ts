@@ -104,11 +104,13 @@ export async function setSharePort(port: number | null, mode: "random" | "custom
     await Native.request("share.port", {mode, port});
 }
 
-const ShareScheme = "share://";
+const ShareScheme = "yafm://share/";
+const LegacyShareScheme = "share://";
 
 /** Whether a tab location points into another device's shared folder. */
 export function isShareLocation(value: string): boolean {
-    return value.toLowerCase().startsWith(ShareScheme);
+    const lower = value.toLowerCase();
+    return lower.startsWith(ShareScheme) || lower.startsWith(LegacyShareScheme);
 }
 
 export interface ShareLocation {
@@ -120,14 +122,17 @@ export interface ShareLocation {
 export function parseShareLocation(value: string): ShareLocation | null {
     if (!isShareLocation(value)) return null;
 
-    const [deviceId, shareId, ...rest] = value.slice(ShareScheme.length).split("/");
+    const rest = value.slice(value.toLowerCase().startsWith(ShareScheme)
+        ? ShareScheme.length
+        : LegacyShareScheme.length);
+    const [deviceId, shareId, ...segments] = rest.split("/");
 
     if (!deviceId || !shareId) return null;
 
     return {
         deviceId: decodeURIComponent(deviceId),
         shareId: decodeURIComponent(shareId),
-        path: rest.map(decodeURIComponent).join("/"),
+        path: segments.map(decodeURIComponent).join("/"),
     };
 }
 

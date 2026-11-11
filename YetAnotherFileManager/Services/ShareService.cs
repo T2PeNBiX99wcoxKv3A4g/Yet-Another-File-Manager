@@ -41,6 +41,19 @@ internal sealed class ShareService : Singleton<ShareService>
         SharePeerServer.Instance.Apply(true);
         await WebShareServer.Instance.ApplyAsync();
         await PushPeersAsync();
+
+        // A paired device can add or remove a share while staying online, so its catalogue is
+        // refreshed now and then; PeersSnapshot only asks again once the cached copy is stale.
+        _ = Task.Run(async () =>
+        {
+            while (true)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(20));
+
+                foreach (var peer in SharePeerStore.Instance.All)
+                    await RefreshCatalogAsync(peer, false);
+            }
+        });
     }
 
     private Task<NativeResponse?> HandleMessageAsync(NativeContext context) => context.Request.Type switch
@@ -411,7 +424,7 @@ internal sealed class ShareService : Singleton<ShareService>
                         var browse = ShareFrames.Read(plaintext, AppJsonContext.Default.ShareBrowseMessage)
                                      ?? throw new ShareSecurityException("The listing could not be read.");
                         var prefix =
-                            $"share://{Uri.EscapeDataString(request.DeviceId)}/{Uri.EscapeDataString(request.ShareId)}";
+                            $"yafm://share/{Uri.EscapeDataString(request.DeviceId)}/{Uri.EscapeDataString(request.ShareId)}";
                         var entries = browse.Entries.Select(entry => entry with
                         {
                             FullPath =

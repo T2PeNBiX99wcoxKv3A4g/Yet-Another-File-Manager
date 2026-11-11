@@ -16,7 +16,8 @@ const ViewNames: Record<string, ViewKind> = {
 
 /** Whether a value is one of the app's own yafm:// locations. */
 export function isViewLocation(value: string): boolean {
-    return value.toLowerCase().startsWith(ViewScheme);
+    const lower = value.toLowerCase();
+    return lower.startsWith(ViewScheme) && !lower.startsWith(`${ViewScheme}share/`);
 }
 
 /** The address of one of the built-in pages. */
