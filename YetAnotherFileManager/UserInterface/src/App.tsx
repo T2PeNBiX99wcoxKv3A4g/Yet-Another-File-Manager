@@ -2846,6 +2846,7 @@ export default function App() {
                             {appInfo ? (
                                 <StatusRight>
                                     <span>v{appInfo.version} · {appInfo.platform}</span>
+                                    {appInfo.debug && <DebugTag>debug</DebugTag>}
                                     {update?.available && (
                                         <UpdatePill
                                             onClick={() => {
@@ -3258,6 +3259,20 @@ const UpdateDot = styled.span`
     border-radius: 50%;
     background: var(--accent-primary);
     box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.22);
+`;
+
+/** Marks a development build in the status bar; release builds never render it. */
+const DebugTag = styled.span`
+    padding: 1px 6px;
+    border: 1px solid rgba(251, 191, 36, 0.5);
+    border-radius: 999px;
+    background: rgba(251, 191, 36, 0.14);
+    color: #fbbf24;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
 `;
 
 const StatusBar = styled.footer`

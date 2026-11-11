@@ -121,9 +121,16 @@ internal static partial class Program
         if (picker is null)
             ShareService.Instance.InitializeAsync().GetAwaiter().GetResult();
 
-        // Re-apply the per-user folder association in case it was removed outside the app.
-        DefaultFileManager.Apply(SettingsService.Instance.Current.IsDefaultFileManager);
-        ArchiveAssociations.Apply(SettingsService.Instance.Current.HandlesArchives);
+        // Only repair an association this build already owns. A copy in another folder must not
+        // take the registration over just because it started: the settings page reports the
+        // mismatch and the user decides which build should handle it.
+        if (SettingsService.Instance.Current.IsDefaultFileManager
+            && (!OperatingSystem.IsWindows() || DefaultFileManager.Status().PathMatches))
+            DefaultFileManager.Apply(true);
+
+        if (SettingsService.Instance.Current.HandlesArchives && ArchiveAssociations.Status().PathMatches)
+            ArchiveAssociations.Apply(true);
+
         GlobalHotkey.Apply(SettingsService.Instance.Current.GlobalHotkey);
 
         // UI strings come from Resources/i18n; the settings select the language.
@@ -159,7 +166,7 @@ internal static partial class Program
             var startupPaths = ResolvePaths(args);
 
             // Only one instance may run; later launches hand their paths to it and exit.
-            using var singleInstance = new SingleInstance(Constants.Name);
+            using var singleInstance = new SingleInstance(Constants.Name, Environment.ProcessPath);
             if (!singleInstance.IsFirstInstance)
             {
                 // Blocking here is fine: this process only forwards its args and exits.

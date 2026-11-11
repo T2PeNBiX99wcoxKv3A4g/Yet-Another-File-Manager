@@ -94,7 +94,9 @@ internal static class UrlScheme
     {
         if (enabled && !IsRegistered())
             Register();
-        else if (!enabled && IsRegistered())
+        else if (!enabled)
+            // A leftover entry can point at a copy that no longer exists; removing it is always
+            // safe and stops yafm:// links from starting the wrong build.
             Unregister();
     }
 }

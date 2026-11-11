@@ -7,6 +7,8 @@ export interface AppInfo {
     rounded: boolean;
     /** Where the application writes its logs; empty in a browser. */
     logDirectory: string;
+    /** True for a development build; shown in the status bar. */
+    debug: boolean;
 }
 
 export interface MemoryUsage {
@@ -24,7 +26,7 @@ const EmptyMemory: MemoryUsage = {managed: 0, private: 0, workingSet: 0, availab
 
 /** Reads the app version declared in the csproj, plus the host platform id. */
 export async function getAppInfo(): Promise<AppInfo> {
-    if (!Native.available) return {version: "dev", platform: "web", rounded: false, logDirectory: ""};
+    if (!Native.available) return {version: "dev", platform: "web", rounded: false, logDirectory: "", debug: true};
 
     return await Native.request<AppInfo>("app.info");
 }

@@ -21,6 +21,13 @@ internal sealed class AppInfoService : Singleton<AppInfoService>
         OperatingSystem.IsWindows() ? "windows" :
         OperatingSystem.IsLinux() ? "linux" : "unknown";
 
+    /// <summary>True for a development build, so the interface can say so in the status bar.</summary>
+#if DEBUG
+    [PublicAPI] public const bool IsDebug = true;
+#else
+    [PublicAPI] public const bool IsDebug = false;
+#endif
+
     /// <summary>
     ///     Changes whenever this build does. The interface is always served from the same address, so
     ///     this is what tells the web view that what it cached belongs to an older build.
@@ -33,7 +40,8 @@ internal sealed class AppInfoService : Singleton<AppInfoService>
         context.Request.Type switch
         {
             "app.info" => Task.FromResult<NativeResponse?>(context.Reply("app.info.result",
-                new AppInfoPayload(Version, Platform, WindowManager.Instance.DrawsWindowCorners, LogDirectory()))),
+                new AppInfoPayload(Version, Platform, WindowManager.Instance.DrawsWindowCorners, LogDirectory(),
+                    IsDebug))),
             "app.fonts" => FontsAsync(context),
             "app.openUrl" => Task.FromResult<NativeResponse?>(OpenUrl(context)),
             _ => Task.FromResult<NativeResponse?>(null)

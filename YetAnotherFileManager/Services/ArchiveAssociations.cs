@@ -59,6 +59,12 @@ internal static class ArchiveAssociations
         if (Environment.ProcessPath is not { Length: > 0 } executable)
             return;
 
+        if (enabled)
+        {
+            // A copy elsewhere may have left the ProgId and the file classes on its own path.
+            OwnedAssociations.Repair(executable);
+        }
+
         var backups = AssociationBackupStore.Read();
 
         if (!enabled)

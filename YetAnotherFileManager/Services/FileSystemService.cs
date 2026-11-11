@@ -258,9 +258,8 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                         LinksEnabled = current.LinksEnabled
                     });
 
-                    // The localization provider reloads the string table when the language changes.
-                    DefaultFileManager.Apply(saved.IsDefaultFileManager);
-                    ArchiveAssociations.Apply(saved.HandlesArchives);
+                    // The folder and archive registrations have their own endpoints; a settings save
+                    // must not re-point them at whichever copy happens to be running.
                     GlobalHotkey.Apply(saved.GlobalHotkey);
                     WindowManager.Instance.Notify("settings.changed", new OkPayload());
                     return context.Reply("app.settings.result", WithProtection(saved));

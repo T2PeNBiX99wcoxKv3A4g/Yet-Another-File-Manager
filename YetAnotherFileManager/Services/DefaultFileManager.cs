@@ -74,6 +74,9 @@ internal static class DefaultFileManager
 
         if (enabled)
         {
+            // Every entry this app owns must name this copy, including the ones left by another install.
+            OwnedAssociations.Repair(executable);
+
             var backups = AssociationBackupStore.Read();
             var changed = false;
 
