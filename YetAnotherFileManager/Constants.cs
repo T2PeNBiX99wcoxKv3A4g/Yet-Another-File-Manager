@@ -24,6 +24,23 @@ public static class Constants
     public const string ReleasesUrl = "https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/releases/latest";
 
     /// <summary>
+    ///     The port the built interface is served from. It has to stay the same between launches: the
+    ///     web view stores its local storage per origin, so a new port looks like a new site and the
+    ///     panel widths, split ratio and tray position would all be gone.
+    /// </summary>
+    public static readonly int WebPort = 42_000 + StableHash(Name) % 1_000;
+
+    private static int StableHash(string value)
+    {
+        var hash = 0;
+
+        foreach (var character in value)
+            hash = (hash * 31 + character) & 0x7FFFFFF;
+
+        return hash;
+    }
+
+    /// <summary>
     ///     Command line flag for the short-lived, elevated copy of the app. It writes the recycle bin
     ///     leftovers it can see to the path that follows (and deletes them when <c>--delete</c> is
     ///     also present), then exits without opening a window.

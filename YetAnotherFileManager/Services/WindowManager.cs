@@ -512,12 +512,16 @@ internal sealed class WindowManager : Singleton<WindowManager>
     }
 
     /// <summary>
-    ///     Drops the web view's data folder when this build is not the one that filled it. The static
-    ///     server advertises no caching policy, so a web view may keep serving the previous interface
-    ///     from its own cache — indefinitely on some engines — and that cache would otherwise grow
-    ///     with every upgrade. Only the profile folder goes; the marker that records the build lives
-    ///     beside it.
+    ///     Drops the web view's cached files when this build is not the one that filled them. The
+    ///     static server advertises no caching policy, so a web view may keep serving the previous
+    ///     interface from its own cache — indefinitely on some engines — and that cache would
+    ///     otherwise grow with every upgrade.
     /// </summary>
+    /// <remarks>
+    ///     Only the caches go. The same profile holds the local storage the interface keeps its panel
+    ///     widths, split ratio and tray position in, so deleting the whole folder would reset the
+    ///     layout on every build.
+    /// </remarks>
     private async Task PrepareWebViewDataAsync()
     {
         var marker = Path.Combine(Path.GetDirectoryName(WebViewDataPath)!, "webview.build");
@@ -526,13 +530,24 @@ internal sealed class WindowManager : Singleton<WindowManager>
         {
             if (File.Exists(marker) && await File.ReadAllTextAsync(marker) != AppInfoService.BuildToken)
             {
-                Log.Information("This is a different build; clearing the web view's cache");
+                Log.Information("This is a different build; clearing the web view's caches");
 
-                if (Directory.Exists(WebViewDataPath))
-                    await Task.Run(() => Directory.Delete(WebViewDataPath, true));
+                foreach (var cache in CacheFolders)
+                {
+                    var path = Path.Combine(WebViewDataPath, "EBWebView", "Default", cache);
+
+                    if (Directory.Exists(path))
+                        await Task.Run(() => Directory.Delete(path, true));
+                }
             }
 
             await File.WriteAllTextAsync(marker, AppInfoService.BuildToken);
         })).OnFailure(ex => Log.Warning(ex, "Failed to prepare the web view's data folder"));
     }
+
+    /// <summary>Engine caches under the profile; everything beside them is the user's own state.</summary>
+    private static readonly string[] CacheFolders =
+    [
+        "Cache", "Code Cache", "GPUCache", "DawnGraphiteCache", "DawnWebGPUCache"
+    ];
 }

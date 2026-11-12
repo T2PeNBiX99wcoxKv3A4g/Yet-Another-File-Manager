@@ -172,7 +172,7 @@ internal static partial class Program
             // Kestrel binds to an OS-assigned port, so several Photino apps can run side by side
             // without racing for the default 8000. The content root is a folder we own, which keeps
             // the web root out of the executable's directory.
-            using var staticServer = StaticServer.Start(Constants.DataDirectory);
+            using var staticServer = StaticServer.Start(Constants.DataDirectory, Constants.WebPort);
             var appUrl = $"{staticServer.BaseUrl}/index.html?v={AppInfoService.BuildToken}";
 #else
             // A Debug build always talks to the Vite dev server, which is where hot reload lives.
