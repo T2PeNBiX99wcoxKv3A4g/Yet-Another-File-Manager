@@ -50,7 +50,7 @@
 
 ## 用了什麼
 
-- **C# / .NET 10** — 檔案操作、Shell 整合、資源回收筒、圖示、SQLite 索引與托盤圖示。
+- **C# / .NET 11** — 檔案操作、Shell 整合、資源回收筒、圖示、SQLite 索引與托盤圖示。
 - **React 19 + TypeScript**（ **Vite**、 **styled-components**） — 介面。只負責顯示，透過 JSON 訊息與
   C# 端溝通。
 - **Photino.NET** — 桌面外殼。Web 檢視來自系統：Windows 用 WebView2，Linux 用 WebKitGTK。

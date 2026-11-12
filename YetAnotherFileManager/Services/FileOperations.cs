@@ -1132,7 +1132,7 @@ internal static partial class FileOperations
             startInfo.ArgumentList.Add("shell32.dll,OpenAs_RunDLL");
             startInfo.ArgumentList.Add(path);
 
-            Try.Run(() => Process.Start(startInfo))
+            Try.Run(() => Process.StartAndForget(startInfo))
                 .OnFailure(ex => Log.Warning(ex, "Could not open {Path} with another app", path));
         });
 
@@ -1163,7 +1163,8 @@ internal static partial class FileOperations
             if (!OperatingSystem.IsWindows())
                 return;
 
-            var terminal = Try.Run(() => Process.Start(new ProcessStartInfo("wt.exe")
+            // A terminal outlives the click, so nothing here keeps its handle.
+            var started = Try.Run(() => Process.StartAndForget(new ProcessStartInfo("wt.exe")
             {
                 UseShellExecute = true,
                 ArgumentList =
@@ -1171,14 +1172,14 @@ internal static partial class FileOperations
                     "-d",
                     directory
                 }
-            })).GetOrNull();
+            })).IsSuccess;
 
-            if (terminal is not null)
+            if (started)
                 return;
 
             var quoted = directory.Replace("'", "''");
 
-            Try.Run(() => Process.Start(new ProcessStartInfo("powershell.exe",
+            Try.Run(() => Process.StartAndForget(new ProcessStartInfo("powershell.exe",
                 $"-NoExit -Command Set-Location -LiteralPath '{quoted}'")
             {
                 UseShellExecute = true
@@ -1198,7 +1199,8 @@ internal static partial class FileOperations
             foreach (var argument in arguments)
                 info.ArgumentList.Add(argument);
 
-            return Process.Start(info) is not null;
+            Process.StartAndForget(info);
+            return true;
         }).GetOrElse(_ => false);
 
     /// <summary>Reveals a path in Explorer, or opens its folder elsewhere.</summary>
@@ -1207,7 +1209,8 @@ internal static partial class FileOperations
         {
             if (OperatingSystem.IsWindows())
             {
-                Try.Run(() => Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"")
+                // Explorer parses this command line itself, so the quoted path travels as one string.
+                Try.Run(() => Process.StartAndForget(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"")
                 {
                     UseShellExecute = true
                 })).OnFailure(ex => Log.Warning(ex, "Could not reveal {Path}", path));
@@ -1217,9 +1220,7 @@ internal static partial class FileOperations
             var directory = Directory.Exists(path) ? path : Path.GetDirectoryName(path);
 
             if (OperatingSystem.IsLinux() && directory is not null)
-                Try.Run(() => Process.Start(new ProcessStartInfo("xdg-open", $"\"{directory}\"")
-                {
-                    UseShellExecute = true
-                })).OnFailure(ex => Log.Warning(ex, "Could not open {Directory}", directory));
+                Try.Run(() => Process.StartAndForget("xdg-open", [directory]))
+                    .OnFailure(ex => Log.Warning(ex, "Could not open {Directory}", directory));
         });
 }

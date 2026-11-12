@@ -229,10 +229,8 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
         });
 
     /// <summary>Formats whose transparency the app's own image decoder keeps.</summary>
-    private static readonly HashSet<string> AlphaExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".png", ".gif", ".bmp", ".ico"
-    };
+    private static readonly HashSet<string> AlphaExtensions =
+        [with(StringComparer.OrdinalIgnoreCase), ".png", ".gif", ".bmp", ".ico"];
 
     [SupportedOSPlatform("linux")]
     private static Task<byte[]?> LinuxThumbnailAsync(string path, int size) =>
@@ -305,7 +303,10 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
 
             try
             {
-                await process.WaitForExitAsync(timeout.Token);
+                var status = await process.WaitForExitStatusAsync(timeout.Token);
+
+                if (status.ExitCode != 0 || !File.Exists(output))
+                    return null;
             }
             catch (OperationCanceledException)
             {
@@ -313,9 +314,6 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
                 Serilog.Log.Debug("PDF preview timed out for {Path}", path);
                 return null;
             }
-
-            if (process.ExitCode != 0 || !File.Exists(output))
-                return null;
 
             var bytes = await File.ReadAllBytesAsync(output);
             return bytes.Length == 0 ? null : bytes;

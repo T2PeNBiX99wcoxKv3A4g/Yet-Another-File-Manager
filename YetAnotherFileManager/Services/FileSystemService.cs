@@ -1,3 +1,4 @@
+using System.Buffers.Text;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -33,8 +34,9 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     ///     Types whose icon lives in the file itself or in the handler it is registered with. Asking
     ///     by extension would give every one of them the same generic shortcut/executable glyph.
     /// </summary>
-    private static readonly HashSet<string> PerFileIconExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
+    private static readonly HashSet<string> PerFileIconExtensions =
+    [
+        with(StringComparer.OrdinalIgnoreCase),
         ".lnk",
         ".url",
         ".website",
@@ -66,7 +68,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         ".diagcab",
         ".theme",
         ".themepack"
-    };
+    ];
 
     public FileSystemService() => NativeBridge.MessageReceived += HandleMessageAsync;
 
@@ -751,7 +753,7 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
         var bytes = (await Try.Run(() => File.ReadAllBytesAsync(path))).GetOrNull();
 
-        return bytes is null ? null : $"data:{media};base64,{Convert.ToBase64String(bytes)}";
+        return bytes is null ? null : $"data:{media};base64,{Base64.EncodeToString(bytes)}";
     }
 
     /// <summary>Records (or clears) the icon of one entry in its folder's index.</summary>
@@ -952,19 +954,16 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
         await HistoryService.Instance.RecordRecentAsync(path, false);
 
-        return await Task.Run(() => Try.Run(() => Process.Start(new ProcessStartInfo(path)
+        return await Task.Run(() => Try.Run(() => Process.StartAndForget(new ProcessStartInfo(path)
             {
                 UseShellExecute = true,
                 // A script or program started from a file expects the file's folder as its working
                 // directory, the way Explorer starts it. Without this, a .bat that calls a relative
                 // path next to it runs in the app's folder and silently does nothing.
                 WorkingDirectory = Path.GetDirectoryName(path) ?? ""
-            }) is not null)
-            .GetOrElse(ex =>
-            {
-                Serilog.Log.Warning(ex, "Could not open {Path}", path);
-                return false;
-            }));
+            }))
+            .OnFailure(ex => Serilog.Log.Warning(ex, "Could not open {Path}", path))
+            .IsSuccess);
     }
 
     /// <summary>Points the folder watcher at the surface that is on screen.</summary>
@@ -1093,12 +1092,8 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
         try
         {
-            using var process = Process.Start(startInfo);
-            if (process is null)
-                return false;
-
-            await process.WaitForExitAsync();
-            return process.ExitCode == 0;
+            var status = await Process.RunAsync(startInfo);
+            return status.ExitCode == 0;
         }
         catch (Win32Exception ex) when (ex.NativeErrorCode == ErrorCancelledByUser)
         {

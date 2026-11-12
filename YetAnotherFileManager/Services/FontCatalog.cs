@@ -59,19 +59,7 @@ internal static class FontCatalog
     {
         var result = await Try.Run(async () =>
         {
-            using var process = Process.Start(new ProcessStartInfo("fc-list", ": family")
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            });
-
-            if (process is null)
-                return (IEnumerable<string>)[];
-
-            var output = await process.StandardOutput.ReadToEndAsync();
-            await process.WaitForExitAsync();
+            var output = (await Process.RunAndCaptureTextAsync("fc-list", [":", "family"])).StandardOutput;
 
             return output
                 .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

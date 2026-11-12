@@ -1,3 +1,4 @@
+using System.Buffers.Text;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using PhotinoNetUtils.Extensions;
@@ -177,7 +178,7 @@ internal static unsafe partial class ShellIcon
                     pixels[index + 3] = 0xFF;
             }
 
-            return $"data:image/png;base64,{Convert.ToBase64String(Png.Encode(width, height, pixels))}";
+            return $"data:image/png;base64,{Base64.EncodeToString(Png.Encode(width, height, pixels))}";
         }
         finally
         {

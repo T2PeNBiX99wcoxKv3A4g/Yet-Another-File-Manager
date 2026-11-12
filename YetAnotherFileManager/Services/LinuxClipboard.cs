@@ -115,48 +115,27 @@ internal static class LinuxClipboard
         return paths;
     }
 
-    private static string? Run(string command, string[] arguments)
-    {
-        var process = Try.Run(() => Process.Start(Command(command, arguments))).GetOrNull();
-        if (process is null)
-            return null;
-
-        using (process)
+    private static string? Run(string command, string[] arguments) =>
+        Try.Run(() =>
         {
-            var output = process.StandardOutput.ReadToEnd();
+            var captured = Process.RunAndCaptureText(command, arguments, TimeSpan.FromSeconds(2));
+            return captured.ExitStatus.ExitCode == 0 ? captured.StandardOutput : null;
+        }).GetOrNull();
 
-            try
-            {
-                return process.WaitForExit(2000) && process.ExitCode == 0 ? output : null;
-            }
-            catch
-            {
+    private static byte[]? RunBytes(string command, string[] arguments) =>
+        Try.Run(() =>
+        {
+            // Raw bytes, not text: an image on the clipboard is binary.
+            using var process = Process.Start(Command(command, arguments));
+            if (process is null)
                 return null;
-            }
-        }
-    }
 
-    private static byte[]? RunBytes(string command, string[] arguments)
-    {
-        var process = Try.Run(() => Process.Start(Command(command, arguments))).GetOrNull();
-        if (process is null)
-            return null;
+            var (output, _) = process.ReadAllBytes(TimeSpan.FromSeconds(2));
 
-        using (process)
-            try
-            {
-                using var output = new MemoryStream();
-                process.StandardOutput.BaseStream.CopyTo(output);
-
-                return process.WaitForExit(2000) && process.ExitCode == 0 && output.Length > 0
-                    ? output.ToArray()
-                    : null;
-            }
-            catch
-            {
-                return null;
-            }
-    }
+            return process.WaitForExit(2000) && process.ExitCode == 0 && output.Length > 0
+                ? output
+                : null;
+        }).GetOrNull();
 
     private static bool RunWithInput(string command, string[] arguments, string input)
     {

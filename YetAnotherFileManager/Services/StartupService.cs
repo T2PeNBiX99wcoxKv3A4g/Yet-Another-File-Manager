@@ -253,12 +253,8 @@ internal sealed class StartupService : Singleton<StartupService>
                 WorkingDirectory = Path.GetDirectoryName(executable) ?? ""
             };
 
-            using var process = Process.Start(start);
-            if (process is null)
-                return (false, "The elevated helper could not be started.");
-
-            await process.WaitForExitAsync();
-            return process.ExitCode == 0
+            var status = await Process.RunAsync(start);
+            return status.ExitCode == 0
                 ? (true, null)
                 : (false, "Windows refused the scheduled task.");
         }
@@ -277,27 +273,12 @@ internal sealed class StartupService : Singleton<StartupService>
     {
         var result = await Try.Run(async () =>
         {
-            var start = new ProcessStartInfo(file)
-            {
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
-            };
-
-            foreach (var argument in arguments)
-                start.ArgumentList.Add(argument);
-
-            using var process = Process.Start(start);
-            if (process is null)
-                return (1, $"{file} could not be started.");
-
-            var output = await process.StandardOutput.ReadToEndAsync();
-            var error = await process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
+            var captured = await Process.RunAndCaptureTextAsync(file, arguments);
+            var output = captured.StandardOutput;
+            var error = captured.StandardError;
 
             var text = string.IsNullOrWhiteSpace(error) ? output : $"{output}\n{error}".Trim();
-            return (process.ExitCode, text.Trim());
+            return (captured.ExitStatus.ExitCode, text.Trim());
         });
 
         return result.GetOrElse(exception =>

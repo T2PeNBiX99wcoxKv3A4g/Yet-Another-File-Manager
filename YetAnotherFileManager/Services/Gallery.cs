@@ -13,18 +13,11 @@ internal sealed class Gallery : Singleton<Gallery>
 {
     private const int Depth = 3;
 
-    private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".jpg",
-        ".jpeg",
-        ".png",
-        ".gif",
-        ".webp",
-        ".bmp",
-        ".avif",
-        ".tif",
-        ".tiff"
-    };
+    private static readonly HashSet<string> Extensions =
+    [
+        with(StringComparer.OrdinalIgnoreCase),
+        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".avif", ".tif", ".tiff"
+    ];
 
     private static readonly string ExtensionList = string.Join(';', Extensions);
 

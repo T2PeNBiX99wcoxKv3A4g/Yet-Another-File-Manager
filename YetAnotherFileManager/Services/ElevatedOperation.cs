@@ -95,11 +95,7 @@ internal static class ElevatedOperation
             start.ArgumentList.Add(requestPath);
             start.ArgumentList.Add(resultPath);
 
-            using var process = Process.Start(start);
-            if (process is null)
-                return Denied();
-
-            await process.WaitForExitAsync();
+            await Process.RunAsync(start);
 
             if (!File.Exists(resultPath))
                 return Denied();

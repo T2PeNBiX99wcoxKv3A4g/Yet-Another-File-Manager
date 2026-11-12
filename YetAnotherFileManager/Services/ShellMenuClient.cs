@@ -88,14 +88,10 @@ internal static class ShellMenuClient
         {
             try
             {
-                using var process = Process.Start(startInfo);
-                if (process is null)
-                    return;
+                var status = await Process.RunAsync(startInfo);
 
-                await process.WaitForExitAsync();
-
-                if (process.ExitCode != 0)
-                    Log.Warning("The shell command helper exited with {Code}", process.ExitCode);
+                if (status.ExitCode != 0)
+                    Log.Warning("The shell command helper exited with {Code}", status.ExitCode);
             }
             catch (Exception ex)
             {
@@ -142,16 +138,16 @@ internal static class ShellMenuClient
 
             try
             {
-                await process.WaitForExitAsync(cancellation.Token);
+                var status = await process.WaitForExitStatusAsync(cancellation.Token);
+
+                if (status.ExitCode != 0 || !File.Exists(output))
+                    return null;
             }
             catch (OperationCanceledException)
             {
                 Try.Run(() => process.Kill(true));
                 return null;
             }
-
-            if (process.ExitCode != 0 || !File.Exists(output))
-                return null;
 
             var json = await File.ReadAllTextAsync(output);
             return JsonSerializer.Deserialize(json, AppJsonContext.Default.ListShellVerb);

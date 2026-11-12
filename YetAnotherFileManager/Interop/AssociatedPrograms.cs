@@ -179,16 +179,19 @@ internal static unsafe partial class AssociatedPrograms
             || !File.Exists(programPath))
             return false;
 
-        return Try.Run(() => Process.Start(new ProcessStartInfo(programPath)
+        return Try.Run(() =>
         {
-            UseShellExecute = false,
-            // The program was asked for from this file, so it starts where the file lives.
-            WorkingDirectory = Path.GetDirectoryName(filePath) ?? "",
-            ArgumentList =
+            Process.StartAndForget(new ProcessStartInfo(programPath)
             {
-                filePath
-            }
-        }) is not null).GetOrElse(_ => false);
+                UseShellExecute = false,
+                // The program was asked for from this file, so it starts where the file lives.
+                WorkingDirectory = Path.GetDirectoryName(filePath) ?? "",
+                ArgumentList =
+                {
+                    filePath
+                }
+            });
+        }).IsSuccess;
     }
 
     private static List<OpenWithProgram> ReadHandlers(string association, int filter)

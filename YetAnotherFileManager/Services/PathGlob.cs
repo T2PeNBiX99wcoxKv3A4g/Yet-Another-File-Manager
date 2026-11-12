@@ -273,9 +273,7 @@ internal static partial class PathGlob
     }
 
     private static bool SameChar(char left, char right, StringComparison comparison) =>
-        comparison == StringComparison.OrdinalIgnoreCase
-            ? char.ToUpperInvariant(left) == char.ToUpperInvariant(right)
-            : left == right;
+        left.Equals(right, comparison);
 
     private static string Expand(string path)
     {

@@ -1,3 +1,4 @@
+using System.Buffers.Text;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
@@ -201,7 +202,7 @@ internal static unsafe partial class ShellMenu
     private static string? MenuIcon(IntPtr bitmap, string? verb)
     {
         if (bitmap != IntPtr.Zero && bitmap.ToInt64() > 16 && BitmapImage.ToPng(bitmap) is { } png)
-            return $"data:image/png;base64,{Convert.ToBase64String(png)}";
+            return $"data:image/png;base64,{Base64.EncodeToString(png)}";
 
         return verb switch
         {

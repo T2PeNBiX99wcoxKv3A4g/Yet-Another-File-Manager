@@ -263,25 +263,8 @@ internal static class DefaultFileManager
         && Try.Run(() => string.Equals(Path.GetFullPath(executable), Path.GetFullPath(current),
             StringComparison.OrdinalIgnoreCase)).GetOrElse(_ => false);
 
+    /// <summary>Runs a helper and keeps its standard output; a failure is simply no output.</summary>
     private static string Run(string command, string[] arguments) =>
-        Try.Run(() =>
-        {
-            var startInfo = new ProcessStartInfo(command)
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            foreach (var argument in arguments)
-                startInfo.ArgumentList.Add(argument);
-
-            using var process = Process.Start(startInfo);
-            if (process is null)
-                return "";
-
-            var output = process.StandardOutput.ReadToEnd();
-            return process.WaitForExit(2000) ? output : "";
-        }).GetOrElse(_ => "");
+        Try.Run(() => Process.RunAndCaptureText(command, arguments, TimeSpan.FromSeconds(2)).StandardOutput)
+            .GetOrElse(_ => "");
 }

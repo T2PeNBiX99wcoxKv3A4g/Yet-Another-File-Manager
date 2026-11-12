@@ -51,7 +51,7 @@ A desktop file manager with tabs, archives, tags and a gallery in one window.
 
 ## What it is built with
 
-- **C# on .NET 10** — the file system work, shell integration, trash, icons, the SQLite index and the
+- **C# on .NET 11** — the file system work, shell integration, trash, icons, the SQLite index and the
   tray icon.
 - **React 19 + TypeScript**, bundled by **Vite** and styled with **styled-components** — the
   interface. It is presentation only and exchanges JSON messages with the C# side.

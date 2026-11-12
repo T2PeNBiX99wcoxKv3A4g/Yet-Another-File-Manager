@@ -68,8 +68,8 @@ internal static class CaseFolders
             start.ArgumentList.Add(path);
             start.ArgumentList.Add(enabled ? "1" : "0");
 
-            using var process = Process.Start(start);
-            return process is not null && process.WaitForExit(120_000) && process.ExitCode == 0;
+            // The helper exits with 0 once the flag is set; the shell prompt is the only UI.
+            return Process.Run(start, TimeSpan.FromMinutes(2)).ExitCode == 0;
         }
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
         {

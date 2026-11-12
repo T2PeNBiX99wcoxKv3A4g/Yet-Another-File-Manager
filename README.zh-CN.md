@@ -49,7 +49,7 @@
 
 ## 用了什么
 
-- **C# / .NET 10** — 文件操作、Shell 集成、回收站、图标、SQLite 索引和托盘图标。
+- **C# / .NET 11** — 文件操作、Shell 集成、回收站、图标、SQLite 索引和托盘图标。
 - **React 19 + TypeScript**（ **Vite**、 **styled-components**） — 界面。只负责显示，通过 JSON 消息与
   C# 端通信。
 - **Photino.NET** — 桌面外壳。Web 视图来自系统：Windows 用 WebView2，Linux 用 WebKitGTK。

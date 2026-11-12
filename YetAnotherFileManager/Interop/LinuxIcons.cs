@@ -1,3 +1,4 @@
+using System.Buffers.Text;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -192,7 +193,7 @@ internal static partial class LinuxIcons
                 ? "image/svg+xml"
                 : "image/png";
 
-            return $"data:{mime};base64,{Convert.ToBase64String(File.ReadAllBytes(file))}";
+            return $"data:{mime};base64,{Base64.EncodeToString(File.ReadAllBytes(file))}";
         }).GetOrElse(ex =>
         {
             Log.Debug(ex, "Could not read the icon {File}", file);
@@ -264,26 +265,10 @@ internal static partial class LinuxIcons
         {
             var name = Try.Run(() =>
             {
-                var startInfo = new ProcessStartInfo(command)
-                {
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
+                var captured = Process.RunAndCaptureText(command, arguments, TimeSpan.FromSeconds(1));
+                var output = captured.StandardOutput.Trim();
 
-                foreach (var argument in arguments)
-                    startInfo.ArgumentList.Add(argument);
-
-                var process = Process.Start(startInfo);
-                if (process is null)
-                    return null;
-
-                using (process)
-                {
-                    var output = process.StandardOutput.ReadToEnd().Trim();
-                    return process.WaitForExit(1000) && process.ExitCode == 0 && output.Length > 0 ? output : null;
-                }
+                return captured.ExitStatus.ExitCode == 0 && output.Length > 0 ? output : null;
             }).GetOrNull();
 
             if (name is { Length: > 0 })

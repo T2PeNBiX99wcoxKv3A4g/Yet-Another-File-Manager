@@ -382,12 +382,7 @@ internal static partial class Program
 
         try
         {
-            using var process = Process.Start(start);
-            if (process is null)
-                return 1;
-
-            process.WaitForExit();
-            return process.ExitCode;
+            return Process.Run(start).ExitCode;
         }
         catch
         {

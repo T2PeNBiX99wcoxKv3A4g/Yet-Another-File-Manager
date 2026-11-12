@@ -455,11 +455,7 @@ internal sealed class WindowManager : Singleton<WindowManager>
 
         try
         {
-            using var process = Try.Run(() => Process.Start(start)).GetOrNull();
-            if (process is null)
-                return new([]);
-
-            await process.WaitForExitAsync();
+            await Process.RunAsync(start);
 
             if (!File.Exists(output))
                 return new([]);

@@ -29,8 +29,9 @@ internal static class Archives
     ///     Formats the managed reader does not understand. 7z.dll reads these through the bundled
     ///     SevenZipExtractor, so the rest of the archive code can treat them as ordinary archives.
     /// </summary>
-    private static readonly HashSet<string> SevenZipExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
+    private static readonly HashSet<string> SevenZipExtensions =
+    [
+        with(StringComparer.OrdinalIgnoreCase),
         ".lzh",
         ".lha",
         ".cab",
@@ -65,7 +66,7 @@ internal static class Archives
         ".zst",
         ".tzst",
         ".001"
-    };
+    ];
 
     /// <summary>Legacy code pages tried when the archive does not say how its names are encoded.</summary>
     private static readonly int[] DetectCodePages =

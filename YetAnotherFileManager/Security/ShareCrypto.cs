@@ -1,3 +1,4 @@
+using System.Buffers.Text;
 using System.Security.Cryptography;
 using System.Text;
 using Org.BouncyCastle.Crypto.Agreement;
@@ -32,7 +33,7 @@ internal static class ShareCrypto
         return bytes;
     }
 
-    public static string ToBase64(byte[] value) => Convert.ToBase64String(value);
+    public static string ToBase64(byte[] value) => Base64.EncodeToString(value);
 
     public static byte[]? FromBase64(string? value)
     {
