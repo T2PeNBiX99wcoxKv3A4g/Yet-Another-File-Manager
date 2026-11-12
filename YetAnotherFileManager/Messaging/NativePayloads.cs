@@ -162,8 +162,8 @@ internal sealed record MemoryPayload(long Managed, long Private, long WorkingSet
 /// <summary>Payload for <c>app.scheme.set</c>: whether this app should own <c>yafm://</c> links.</summary>
 internal sealed record SchemeRequest(bool Enabled);
 
-/// <summary>Body for <c>app.scheme</c>: whether <c>yafm://</c> links are registered.</summary>
-internal sealed record SchemePayload(bool Registered);
+/// <summary>Body for <c>app.scheme</c>: whether <c>yafm://</c> links are registered, and to which copy.</summary>
+internal sealed record SchemeStatusPayload(bool Registered, bool PathMatches, string? RegisteredPath);
 
 /// <summary>Body for <c>fs.visibility</c>: the shell's hidden-item options.</summary>
 internal sealed record FsVisibilityPayload(bool ShowHidden, bool ShowSystem);

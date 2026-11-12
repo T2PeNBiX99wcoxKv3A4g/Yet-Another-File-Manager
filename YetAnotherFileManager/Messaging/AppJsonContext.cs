@@ -29,7 +29,7 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(LocalePayload))]
 [JsonSerializable(typeof(MemoryPayload))]
 [JsonSerializable(typeof(SchemeRequest))]
-[JsonSerializable(typeof(SchemePayload))]
+[JsonSerializable(typeof(SchemeStatusPayload))]
 [JsonSerializable(typeof(AppInfoPayload))]
 [JsonSerializable(typeof(FontsPayload))]
 [JsonSerializable(typeof(UpdateCheckPayload))]

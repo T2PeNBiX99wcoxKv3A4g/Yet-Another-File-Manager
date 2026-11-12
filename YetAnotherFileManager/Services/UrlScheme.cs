@@ -3,6 +3,7 @@ using Microsoft.Win32;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Utils;
 using Serilog;
+using YetAnotherFileManager.Messaging;
 
 namespace YetAnotherFileManager.Services;
 
@@ -17,30 +18,34 @@ internal static class UrlScheme
     private const string CommandPath = $@"{KeyPath}\shell\open\command";
 
     /// <summary>
-    ///     True when the shell would open this build. A leftover entry that points at another copy
-    ///     counts as missing: registering again repairs it.
+    ///     Where the shell's <c>yafm://</c> entry points. A leftover that names another copy is
+    ///     reported as registered but not matching, so the settings page can say which one it is.
     /// </summary>
-    public static bool IsRegistered()
+    public static SchemeStatusPayload Status()
     {
         if (!OperatingSystem.IsWindows())
-            return false;
+            return new(false, false, null);
 
-        return IsRegisteredWindows();
+        string? command = null;
+
+        Try.Run(() => command = Registry.CurrentUser.OpenSubKey(CommandPath)?.GetValue(null) as string)
+            .OnFailure(ex => Log.Debug(ex, "Could not read the yafm:// registration"));
+
+        var registeredPath = RegistryCommand.Executable(command);
+        var current = Environment.ProcessPath;
+
+        var matches = registeredPath is { Length: > 0 } && current is { Length: > 0 }
+                                                                && Try.Run(() => string.Equals(
+                                                                    Path.GetFullPath(registeredPath),
+                                                                    Path.GetFullPath(current),
+                                                                    StringComparison.OrdinalIgnoreCase))
+                                                                    .GetOrElse(_ => false);
+
+        return new(registeredPath is { Length: > 0 }, matches, registeredPath);
     }
 
-    [SupportedOSPlatform("windows")]
-    private static bool IsRegisteredWindows()
-    {
-        var command = Try.Run(() => Registry.CurrentUser.OpenSubKey(CommandPath)?.GetValue(null) as string)
-            .GetOrNull();
-
-        if (command is null)
-            return false;
-
-        var executable = Environment.ProcessPath;
-
-        return executable is null || command.Contains(executable, StringComparison.OrdinalIgnoreCase);
-    }
+    /// <summary>True when the shell would open this build.</summary>
+    public static bool IsRegistered() => Status().PathMatches;
 
     public static bool Register()
     {

@@ -22,6 +22,7 @@ import type {AppInfo} from "../api/system";
 import {
     cancelUpdateDownload,
     checkUpdate,
+    EmptyScheme,
     getMemory,
     getScheme,
     getStartup,
@@ -33,6 +34,7 @@ import {
     openLogsFolder,
     openReleasePage,
     openUrl,
+    type SchemeStatus,
     setScheme,
     setStartup as setStartupEntry,
     startUpdateDownload,
@@ -230,7 +232,7 @@ export function SettingsView({
     const [pickingIcon, setPickingIcon] = useState(false);
     const [busy, setBusy] = useState(false);
     const [memory, setMemory] = useState<MemoryUsage | null>(null);
-    const [scheme, setSchemeState] = useState(false);
+    const [scheme, setSchemeState] = useState<SchemeStatus>(EmptyScheme);
     const [schemeBusy, setSchemeBusy] = useState(false);
     const [schemeError, setSchemeError] = useState<string | null>(null);
     const [archiveStatus, setArchiveStatus] = useState<ArchiveStatus | null>(null);
@@ -283,6 +285,9 @@ export function SettingsView({
             ? defaultManagerStatus.registered && defaultManagerStatus.pathMatches
             : false
         : settings?.defaultFileManager ?? false;
+    const schemeActive = isWindows
+        ? scheme.registered && scheme.pathMatches
+        : settings?.linksEnabled ?? false;
 
     // The shared page search highlights matches and dims or hides sections without any.
     useTextSearch(page, find ?? null, "section", onSearchMatches ?? (() => undefined), [settings]);
@@ -360,7 +365,7 @@ export function SettingsView({
     useEffect(() => {
         void getVisibility().then(setVisibility, () => setVisibility(null));
         void getSettings().then(setSettings, () => setSettings(null));
-        void getScheme().then(setSchemeState, () => setSchemeState(false));
+        void getScheme().then(setSchemeState, () => setSchemeState(EmptyScheme));
         void getArchiveStatus().then(setArchiveStatus, () => setArchiveStatus(null));
         void getDefaultManagerStatus().then(setDefaultManagerStatus, () => setDefaultManagerStatus(null));
         void listTags().then(setTags, () => setTags([]));
@@ -750,24 +755,25 @@ export function SettingsView({
         await update({defaultView: {...defaultView, columns: ordered}});
     };
 
-    /** Applies the choice now and remembers it, so the next launch can put a lost entry back. */
+    /// <summary>Applies the choice now and remembers it, so the next launch can put a lost entry back.</summary>
     const toggleScheme = async () => {
         if (schemeBusy) return;
 
-        const wanted = !scheme;
+        const wanted = !schemeActive;
         setSchemeBusy(true);
         setSchemeError(null);
 
         try {
-            const registered = await setScheme(wanted);
+            const status = await setScheme(wanted);
+            const active = status.registered && status.pathMatches;
 
-            setSchemeState(registered);
-            setSettings((current) => current ? {...current, linksEnabled: registered} : current);
+            setSchemeState(status);
+            setSettings((current) => current ? {...current, linksEnabled: active} : current);
             // The window keeps its own copy of the settings; a save from elsewhere would otherwise
             // write the old link choice back.
             onSettingsChanged();
 
-            if (registered !== wanted)
+            if (active !== wanted)
                 setSchemeError(wanted
                     ? "Windows did not accept the registration. Try again."
                     : "The registration is still there. Try turning it off again.");
@@ -1173,15 +1179,21 @@ export function SettingsView({
                                 <Note>
                                     {t("Registers this app for yafm:// links, for the current user only. Turning it on writes this copy's path; starting the app never touches the registry.")}
                                 </Note>
+                                {scheme.registered && !scheme.pathMatches && (
+                                    <TagError>
+                                        {t("The registered path points to {path}. Register again to use this build.",
+                                            {path: scheme.registeredPath ?? "?"})}
+                                    </TagError>
+                                )}
                                 {schemeError && <TagError>{schemeError}</TagError>}
                             </RowText>
                             <RowEnd>
-                                <State $on={scheme}>{scheme ? t("Active") : t("Off")}</State>
+                                <State $on={schemeActive}>{schemeActive ? t("Active") : t("Off")}</State>
                                 <Toggle
-                                    $on={scheme}
+                                    $on={schemeActive}
                                     disabled={schemeBusy}
                                     onClick={() => void toggleScheme()}
-                                    title={scheme ? t("Stop opening yafm:// links") : t("Open yafm:// links with this app")}
+                                    title={schemeActive ? t("Stop opening yafm:// links") : t("Open yafm:// links with this app")}
                                     type="button"
                                 >
                                     <Knob/>

@@ -278,11 +278,11 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 return context.Reply("app.memory.result", await Task.Run(AppMemory.Trim));
 
             case "app.scheme":
-                return context.Reply("app.scheme.result", new SchemePayload(await Task.Run(UrlScheme.IsRegistered)));
+                return context.Reply("app.scheme.result", await Task.Run(UrlScheme.Status));
 
             case "app.scheme.set":
                 return context.Reply("app.scheme.result",
-                    new SchemePayload(await SetSchemeAsync(context.Payload<SchemeRequest>()?.Enabled ?? false)));
+                    await SetSchemeAsync(context.Payload<SchemeRequest>()?.Enabled ?? false));
 
             case "app.archive.status":
                 return context.Reply("app.archive.status.result", ArchiveAssociations.Status());
@@ -876,20 +876,26 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     ///     Remembers the user's choice and applies it now. The stored flag is what lets the next
     ///     launch put a lost registry entry back.
     /// </summary>
-    private static async Task<bool> SetSchemeAsync(bool enabled)
+    private static async Task<SchemeStatusPayload> SetSchemeAsync(bool enabled)
     {
         // Report what the registry actually ended up with, not what was asked for: Windows can
         // refuse the change, and a toggle that lies is worse than one that stays put.
-        var effective = await Task.Run(() => enabled
-            ? UrlScheme.Register() && UrlScheme.IsRegistered()
-            : !UrlScheme.Unregister());
+        var status = await Task.Run(() =>
+        {
+            if (enabled)
+                UrlScheme.Register();
+            else
+                UrlScheme.Unregister();
+
+            return UrlScheme.Status();
+        });
 
         await SettingsService.Instance.UpdateAsync(settings => settings with
         {
-            LinksEnabled = effective
+            LinksEnabled = status.PathMatches
         });
 
-        return effective;
+        return status;
     }
 
     /// <summary>Hands a file to the shell, which opens it with whatever the user made its default.</summary>

@@ -143,20 +143,27 @@ export async function trimMemory(): Promise<MemoryUsage> {
     return await Native.request<MemoryUsage>("app.memory.trim");
 }
 
-/** Whether Windows is set up to open yafm:// links with this app. */
-export async function getScheme(): Promise<boolean> {
-    if (!Native.available) return false;
-
-    const data = await Native.request<{ registered: boolean }>("app.scheme");
-    return data.registered;
+/** Whether the shell opens yafm:// links with this copy, and where the entry points. */
+export interface SchemeStatus {
+    registered: boolean;
+    pathMatches: boolean;
+    registeredPath: string | null;
 }
 
-/** Registers or unregisters yafm:// for the current user. */
-export async function setScheme(enabled: boolean): Promise<boolean> {
-    if (!Native.available) return false;
+export const EmptyScheme: SchemeStatus = {registered: false, pathMatches: false, registeredPath: null};
 
-    const data = await Native.request<{ registered: boolean }>("app.scheme.set", {enabled});
-    return data.registered;
+/** Reads the current user's yafm:// registration without changing it. */
+export async function getScheme(): Promise<SchemeStatus> {
+    if (!Native.available) return EmptyScheme;
+
+    return await Native.request<SchemeStatus>("app.scheme");
+}
+
+/** Registers or unregisters yafm:// for the current user, and answers with what is stored. */
+export async function setScheme(enabled: boolean): Promise<SchemeStatus> {
+    if (!Native.available) return EmptyScheme;
+
+    return await Native.request<SchemeStatus>("app.scheme.set", {enabled});
 }
 
 /** How the app is registered to start with the user's session. */
