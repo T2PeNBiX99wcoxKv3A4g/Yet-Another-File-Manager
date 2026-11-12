@@ -26,7 +26,8 @@ namespace YetAnotherFileManager.Services;
 ///     browse, download and upload without installing the app. It runs only while at least one web
 ///     share exists and stops when the last one is removed or switched to app-only.
 /// </summary>
-internal sealed class WebShareServer : Singleton<WebShareServer>
+[Singleton]
+internal partial class WebShareServer
 {
     private static readonly FileExtensionContentTypeProvider ContentTypes = new();
 

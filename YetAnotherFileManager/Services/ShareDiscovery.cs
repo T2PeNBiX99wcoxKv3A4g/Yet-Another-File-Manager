@@ -15,7 +15,8 @@ namespace YetAnotherFileManager.Services;
 ///     Finds share devices on the local network over UDP broadcast. Discovery is only a convenience:
 ///     the pairing handshake still pins the public key before anything is trusted.
 /// </summary>
-internal sealed class ShareDiscovery : Singleton<ShareDiscovery>
+[Singleton]
+internal partial class ShareDiscovery
 {
     private static readonly TimeSpan QueryInterval = TimeSpan.FromMilliseconds(2_000);
     private static readonly TimeSpan FreshFor = TimeSpan.FromSeconds(10);

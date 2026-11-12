@@ -17,7 +17,8 @@ namespace YetAnotherFileManager.Services;
 ///     SQLite needs. A folder that still has its own index is imported the next time that folder is
 ///     written, and its files are removed afterwards.
 /// </remarks>
-internal sealed class CentralIndex : Singleton<CentralIndex>
+[Singleton]
+internal partial class CentralIndex
 {
     private const string Schema =
         """
@@ -69,7 +70,7 @@ internal sealed class CentralIndex : Singleton<CentralIndex>
     private readonly Lazy<Task> _ready;
     private readonly IndexWriteGate _writeGate = new();
 
-    public CentralIndex()
+    private CentralIndex()
     {
         _connectionString = new SqliteConnectionStringBuilder
         {

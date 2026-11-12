@@ -6,7 +6,7 @@ using YetAnotherFileManager.Messaging;
 namespace YetAnotherFileManager.Services;
 
 /// <summary>The Open with list and the link verbs, kept away from the general listing handlers.</summary>
-internal sealed partial class FileSystemService
+internal partial class FileSystemService
 {
     [SupportedOSPlatform("windows")]
     private static Task<OpenWithProgramsPayload> ReadOpenWithAsync(string path) =>

@@ -10,7 +10,8 @@ namespace YetAnotherFileManager.Services;
 ///     The folders this device shares, kept in their own file. Reads use the in-memory list; writes
 ///     serialize and persist asynchronously.
 /// </summary>
-internal sealed class ShareStore : Singleton<ShareStore>
+[Singleton]
+internal partial class ShareStore
 {
     private static readonly string FilePath = Path.Combine(Constants.SettingsDirectory, "shares.json");
 

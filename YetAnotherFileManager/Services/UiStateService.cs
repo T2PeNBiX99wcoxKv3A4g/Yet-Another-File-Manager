@@ -18,7 +18,8 @@ namespace YetAnotherFileManager.Services;
 ///     gets the values in its page address, which is the only thing it can read before the shell
 ///     starts answering messages.
 /// </remarks>
-internal sealed class UiStateService : Singleton<UiStateService>
+[Singleton]
+internal partial class UiStateService
 {
     private static readonly string StatePath = Path.Combine(Constants.SettingsDirectory, "ui-state.json");
 
@@ -26,10 +27,9 @@ internal sealed class UiStateService : Singleton<UiStateService>
     private readonly SemaphoreSlim _writeGate = new(1, 1);
     private readonly Dictionary<string, string> _values;
 
-    public UiStateService()
+    private UiStateService()
     {
         _values = Read();
-        NativeBridge.MessageReceived += HandleMessageAsync;
     }
 
     /// <summary>
@@ -52,13 +52,8 @@ internal sealed class UiStateService : Singleton<UiStateService>
         }
     }
 
-    private Task<NativeResponse?> HandleMessageAsync(NativeContext context) => context.Request.Type switch
-    {
-        "ui.state.set" => SetAsync(context),
-        _ => Task.FromResult<NativeResponse?>(null)
-    };
-
     /// <summary>Stores the values the interface changed and answers once they are on disk.</summary>
+    [NativeMessage("ui.state.set")]
     private async Task<NativeResponse?> SetAsync(NativeContext context)
     {
         if (context.Payload<UiStateSetRequest>()?.Entries is { Count: > 0 } entries)

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Photino.NET;
 using PhotinoNetUtils.Extensions;
+using PhotinoNetUtils.Hosting;
 using PhotinoNetUtils.Interop;
 using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Platform;
@@ -15,14 +16,9 @@ namespace YetAnotherFileManager.Services;
 ///     back. The interface runs in one window for now; extra windows (a preview pane, a properties
 ///     sheet) can follow the same pattern later.
 /// </summary>
-internal sealed class WindowManager : Singleton<WindowManager>
+[Singleton]
+internal partial class WindowManager
 {
-    /// <summary>
-    ///     Per-app web view data folder. On Windows, Photino defaults to a WebView2 folder shared by
-    ///     every Photino app, which breaks when another app holds it, so keep ours separate.
-    /// </summary>
-    private static readonly string WebViewDataPath = Path.Combine(Constants.DataDirectory, "webview");
-
     /// <summary>Paths that arrived before the interface was listening for navigation.</summary>
     private readonly List<(string Path, bool Startup)> _pendingPaths = [];
 
@@ -41,7 +37,10 @@ internal sealed class WindowManager : Singleton<WindowManager>
 
     private WebViewRecovery? _webViewRecovery;
 
-    public WindowManager() => NativeBridge.MessageReceived += HandleMessageAsync;
+    private WindowManager()
+    {
+        WebViewEvents.Ready += OnWebViewReady;
+    }
 
     /// <summary>
     ///     A picker is a second process of this app. Sharing the main window's web view folder makes
@@ -84,128 +83,73 @@ internal sealed class WindowManager : Singleton<WindowManager>
     /// <summary>Raised once the window's native handle exists (the message loop is about to start).</summary>
     public event Action? MainWindowCreated;
 
-    private async Task<NativeResponse?> HandleMessageAsync(NativeContext context)
+    /// <summary>
+    ///     Runs when the interface reports <c>app.ready</c>: the window commands and the events the
+    ///     library queues are its business, this only catches up on the paths that arrived early.
+    /// </summary>
+    private void OnWebViewReady()
     {
-        switch (context.Request.Type)
+        _mainWindowReady = true;
+
+        // A path that arrived while a tray launch was still rendering is a request to see the
+        // window, so it must not be hidden right after the navigation is queued.
+        var showForPath = _pendingPaths.Count > 0 || _startupPaths.Count > 0;
+        // Flushing sends a web message, which has to happen on the UI thread.
+        RunOnMainWindow(FlushPendingPaths);
+
+        if (showForPath)
+            RunOnMainWindow(() => Show(_mainWindow!));
+        else
+            HideWhenRendered();
+    }
+
+    [NativeMessage("app.navigate.done")]
+    private NativeResponse? NavigateDone(NativeContext context)
+    {
+        var done = context.Payload<PathPayload>()?.Path;
+        Log.Information("Startup path acknowledged: {Path}", done ?? "(all)");
+
+        if (done is { Length: > 0 })
+            _startupPaths.RemoveAll(path => string.Equals(path, done, StringComparison.OrdinalIgnoreCase));
+        else
+            _startupPaths.Clear();
+
+        return null;
+    }
+
+    [NativeMessage("pick.submit")]
+    private async Task<NativeResponse?> SubmitPickAsync(NativeContext context)
+    {
+        if (Picker is { } picker)
         {
-            case "app.ready":
-                _mainWindowReady = true;
-                // A path that arrived while a tray launch was still rendering is a request to see
-                // the window, so it must not be hidden right after the navigation is queued.
-                var showForPath = _pendingPaths.Count > 0 || _startupPaths.Count > 0;
-                // Flushing sends a web message, which has to happen on the UI thread.
-                RunOnMainWindow(FlushPendingPaths);
-                if (showForPath)
-                    RunOnMainWindow(() => Show(_mainWindow!));
-                else
-                    HideWhenRendered();
-                break;
-
-            case "app.navigate.done":
-                var done = context.Payload<PathPayload>()?.Path;
-                Log.Information("Startup path acknowledged: {Path}", done ?? "(all)");
-                if (done is { Length: > 0 })
-                    _startupPaths.RemoveAll(path => string.Equals(path, done, StringComparison.OrdinalIgnoreCase));
-                else
-                    _startupPaths.Clear();
-                break;
-
-            case "pick.submit":
-                if (Picker is { } picker)
-                {
-                    await CliPicker.CompleteAsync(picker, context.Payload<PickResultRequest>()?.Paths ?? []);
-                    Exit();
-                }
-
-                break;
-
-            case "pick.cancel":
-                if (Picker is { } cancelled)
-                {
-                    CliPicker.Cancel(cancelled);
-                    Exit();
-                }
-
-                break;
-
-            case "pick.open":
-                return context.Reply("pick.open.result", await OpenPickerAsync(context.Payload<PickOpenRequest>()));
-
-            case "window.minimize":
-                RunOnMainWindow(() => _mainWindow?.SetMinimized(true));
-                break;
-
-            case "window.toggleMaximize":
-                RunOnMainWindow(ToggleMaximize);
-                break;
-
-            case "window.close":
-                RunOnMainWindow(() => _mainWindow?.Close());
-                break;
-
-            case "window.drag":
-                RunOnMainWindow(() =>
-                {
-                    if (_mainWindow is not { } window)
-                        return;
-
-                    if (OperatingSystem.IsWindows())
-                        WindowDrag.Begin(window.WindowHandle);
-                    else if (OperatingSystem.IsLinux())
-                        LinuxWindow.BeginDrag(window.Title);
-                });
-                break;
-
-            case "window.resize":
-                RunOnMainWindow(() =>
-                {
-                    if (_mainWindow is not { } window)
-                        return;
-
-                    var direction = context.Payload<WindowResizeRequest>()?.Direction ?? "";
-
-                    if (OperatingSystem.IsWindows())
-                        WindowResize.Begin(window.WindowHandle, direction);
-                    else if (OperatingSystem.IsLinux())
-                        LinuxWindow.BeginResize(window.Title, direction);
-                });
-                break;
+            await CliPicker.CompleteAsync(picker, context.Payload<PickResultRequest>()?.Paths ?? []);
+            Exit();
         }
 
         return null;
     }
 
-    /// <summary>Sends an event to the interface. Failures are only logged: a view may be gone.</summary>
-    public void Notify(string type, object? data) =>
-        Try.Run(() => _mainWindow?.SendWebMessage(NativeBridge.SerializeEvent(type, data)))
-            .OnFailure(ex => Log.Warning(ex, "Failed to send {Type}", type));
-
-    private void NotifyWindowState(bool maximized) =>
-        Notify("window.state", new WindowStatePayload(maximized));
-
-    private void ToggleMaximize()
+    [NativeMessage("pick.cancel")]
+    private NativeResponse? CancelPick(NativeContext context)
     {
-        if (_mainWindow is not { } window)
-            return;
-
-        if (OperatingSystem.IsWindows())
+        if (Picker is { } cancelled)
         {
-            if (window.WindowHandle != IntPtr.Zero)
-                NotifyWindowState(WindowZoom.Toggle(window.WindowHandle));
-
-            return;
+            CliPicker.Cancel(cancelled);
+            Exit();
         }
 
-        if (OperatingSystem.IsLinux())
-        {
-            NotifyWindowState(LinuxWindow.ToggleMaximize(window.Title));
-            return;
-        }
-
-        var maximized = !window.Maximized;
-        window.SetMaximized(maximized);
-        NotifyWindowState(maximized);
+        return null;
     }
+
+    [NativeMessage("pick.open")]
+    private async Task<NativeResponse?> OpenPickAsync(NativeContext context) =>
+        context.Reply("pick.open.result", await OpenPickerAsync(context.Payload<PickOpenRequest>()));
+
+    /// <summary>
+    ///     Sends an event to the interface. The library holds it until the page reports ready and
+    ///     logs a failure: a view may be gone, and that is not this service's problem.
+    /// </summary>
+    public void Notify(string type, object? data) => WebViewEvents.Notify(type, data);
 
     public void CreateMainWindow(
         string title = Constants.WindowTitle,
@@ -214,16 +158,12 @@ internal sealed class WindowManager : Singleton<WindowManager>
         int minWidth = 860,
         int minHeight = 520)
     {
-        // One startup-only wait: the message loop has not started yet, and the web view needs the
-        // cache decision before it is created. A picker keeps its own folder and has no marker.
-        string webViewPath;
-        if (Picker is null)
-        {
-            PrepareWebViewDataAsync().GetAwaiter().GetResult();
-            webViewPath = WebViewDataPath;
-        }
-        else
-            webViewPath = PickerWebViewDataPath;
+        // The shared helper drops the profile when this build is not the one that filled it, so an
+        // upgrade never keeps serving the previous interface from the web view's own cache. A
+        // picker keeps its own folder and has no marker.
+        var webViewPath = Picker is null
+            ? WebViewCache.Prepare(Constants.DataDirectory, AppInfoService.BuildToken)
+            : PickerWebViewDataPath;
 
         var window = new PhotinoWindow()
             // The native layer prints every property setter and message it handles. That is useful
@@ -301,6 +241,7 @@ internal sealed class WindowManager : Singleton<WindowManager>
         });
 
         _webViewRecovery = WebViewRecovery.Attach(window, AppUrl);
+        WebViewEvents.Attach(window);
         window.Load(AppUrl);
         _mainWindow = window;
     }
@@ -371,6 +312,7 @@ internal sealed class WindowManager : Singleton<WindowManager>
     {
         _allowClose = true;
         _webViewRecovery?.Dispose();
+        WebViewEvents.Detach();
         RunOnMainWindow(() => _mainWindow?.Close());
     }
 
@@ -505,30 +447,5 @@ internal sealed class WindowManager : Singleton<WindowManager>
         // Minimising leaves the window in the taskbar; hiding it outright does not.
         if (OperatingSystem.IsLinux() && !LinuxGtk.Hide(window.Title))
             window.SetMinimized(true);
-    }
-
-    /// <summary>
-    ///     Drops the web view's data folder when this build is not the one that filled it. The static
-    ///     server advertises no caching policy, so an engine may keep serving the previous interface
-    ///     from its own cache — WebKitGTK does, and the panel then never updates — and that cache
-    ///     would otherwise grow with every upgrade. The interface keeps nothing of its own in the
-    ///     profile: panel sizes, split ratios and the tray position live in <c>ui-state.json</c>.
-    /// </summary>
-    private async Task PrepareWebViewDataAsync()
-    {
-        var marker = Path.Combine(Path.GetDirectoryName(WebViewDataPath)!, "webview.build");
-
-        (await Try.Run(async () =>
-        {
-            if (File.Exists(marker) && await File.ReadAllTextAsync(marker) != AppInfoService.BuildToken)
-            {
-                Log.Information("This is a different build; clearing the web view's cache");
-
-                if (Directory.Exists(WebViewDataPath))
-                    await Task.Run(() => Directory.Delete(WebViewDataPath, true));
-            }
-
-            await File.WriteAllTextAsync(marker, AppInfoService.BuildToken);
-        })).OnFailure(ex => Log.Warning(ex, "Failed to prepare the web view's data folder"));
     }
 }

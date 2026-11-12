@@ -12,7 +12,8 @@ namespace YetAnotherFileManager.Services;
 ///     next to the settings. Reads run on their own connections without a lock; only writes are
 ///     serialized, which is what SQLite needs.
 /// </summary>
-internal sealed class HistoryService : Singleton<HistoryService>
+[Singleton]
+internal partial class HistoryService
 {
     private const int RecentCapacity = 50;
     private const int FrequentCapacity = 100;
@@ -48,7 +49,7 @@ internal sealed class HistoryService : Singleton<HistoryService>
 
     private readonly SemaphoreSlim _writeGate = new(1, 1);
 
-    public HistoryService()
+    private HistoryService()
     {
         _connectionString = new SqliteConnectionStringBuilder
         {

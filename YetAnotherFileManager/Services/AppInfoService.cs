@@ -11,7 +11,8 @@ using YetAnotherFileManager.Messaging;
 namespace YetAnotherFileManager.Services;
 
 /// <summary>Answers the <c>app.info</c> message so the UI can show the build version.</summary>
-internal sealed class AppInfoService : Singleton<AppInfoService>
+[Singleton]
+internal partial class AppInfoService
 {
     /// <summary>The version declared in the csproj (<c>&lt;Version&gt;</c>).</summary>
     [PublicAPI] public static readonly string Version =
@@ -35,19 +36,17 @@ internal sealed class AppInfoService : Singleton<AppInfoService>
     /// </summary>
     [PublicAPI] public static readonly string BuildToken = ResolveBuildToken();
 
-    public AppInfoService() => NativeBridge.MessageReceived += HandleMessageAsync;
+    private AppInfoService()
+    {
+    }
 
-    private static Task<NativeResponse?> HandleMessageAsync(NativeContext context) =>
-        context.Request.Type switch
-        {
-            "app.info" => Task.FromResult<NativeResponse?>(context.Reply("app.info.result",
-                new AppInfoPayload(Version, Platform, WindowManager.Instance.DrawsWindowCorners, LogDirectory(),
-                    IsDebug))),
-            "app.fonts" => FontsAsync(context),
-            "app.openUrl" => Task.FromResult<NativeResponse?>(OpenUrl(context)),
-            _ => Task.FromResult<NativeResponse?>(null)
-        };
+    [NativeMessage("app.info")]
+    private NativeResponse Info(NativeContext context) =>
+        context.Reply("app.info.result",
+            new AppInfoPayload(Version, Platform, WindowManager.Instance.DrawsWindowCorners, LogDirectory(),
+                IsDebug));
 
+    [NativeMessage("app.fonts")]
     private static async Task<NativeResponse?> FontsAsync(NativeContext context) =>
         context.Reply("app.fonts.result", new FontsPayload(await FontCatalog.GetAsync()));
 
@@ -64,6 +63,7 @@ internal sealed class AppInfoService : Singleton<AppInfoService>
     }
 
     /// <summary>Hands a URL to the shell, so the release page opens in the user's browser.</summary>
+    [NativeMessage("app.openUrl")]
     private static NativeResponse OpenUrl(NativeContext context)
     {
         var url = context.Payload<UrlPayload>()?.Url;

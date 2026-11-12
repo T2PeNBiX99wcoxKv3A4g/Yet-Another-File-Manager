@@ -19,7 +19,8 @@ namespace YetAnotherFileManager.Services;
 ///     Serves the directory information the interface needs: the sidebar's shortcuts and volumes,
 ///     and the contents of one directory at a time.
 /// </summary>
-internal sealed partial class FileSystemService : Singleton<FileSystemService>
+[Singleton]
+internal partial class FileSystemService : INativeMessageHandler
 {
     /// <summary>ERROR_ACCESS_DENIED: the volume label needs administrator rights.</summary>
     private const int ErrorAccessDenied = 5;
@@ -70,7 +71,15 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
         ".themepack"
     ];
 
-    public FileSystemService() => NativeBridge.MessageReceived += HandleMessageAsync;
+    private FileSystemService()
+    {
+    }
+
+    /// <summary>
+    ///     The one dispatch switch that stays hand-written: ninety message types in one cohesive
+    ///     table read better than ninety methods, and <c>[Singleton]</c> subscribes this handler.
+    /// </summary>
+    public Task<NativeResponse?> HandleAsync(NativeContext context) => HandleMessageAsync(context);
 
     private static async Task<NativeResponse?> HandleMessageAsync(NativeContext context)
     {

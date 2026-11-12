@@ -9,7 +9,8 @@ namespace YetAnotherFileManager.Services;
 ///     Pictures folder. The scan runs once and is kept in memory, because the interface walks the
 ///     whole list as it scrolls; only an explicit refresh walks the disk again.
 /// </summary>
-internal sealed class Gallery : Singleton<Gallery>
+[Singleton]
+internal partial class Gallery
 {
     private const int Depth = 3;
 

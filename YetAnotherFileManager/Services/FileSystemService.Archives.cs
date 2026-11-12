@@ -1,7 +1,7 @@
 namespace YetAnotherFileManager.Services;
 
 /// <summary>Maps virtual archive paths to staging paths and writes staged edits back.</summary>
-internal sealed partial class FileSystemService
+internal partial class FileSystemService
 {
     /// <summary>Maps a virtual archive entry to a writable per-archive staging directory.</summary>
     private static async Task<string> MapWorkspacePathAsync(string path, bool directory = false)

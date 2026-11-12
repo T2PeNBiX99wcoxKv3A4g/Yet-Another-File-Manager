@@ -9,7 +9,8 @@ namespace YetAnotherFileManager.Services;
 ///     folders — and tells the interface when something in one of them changes. Several surfaces
 ///     may ask at once, so each keeps its own list and the union is watched.
 /// </summary>
-internal sealed class DirectoryWatcher : Singleton<DirectoryWatcher>
+[Singleton]
+internal partial class DirectoryWatcher
 {
     private readonly Lock _gate = new();
     private readonly Dictionary<string, IReadOnlyList<string>> _owners = new(StringComparer.Ordinal);

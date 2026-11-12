@@ -9,13 +9,13 @@ using PhotinoNetUtils.Interop;
 using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Platform;
-using PhotinoNetUtils.Services;
 using PhotinoNetUtils.Updates;
 using PhotinoNetUtils.Utils;
 using Serilog;
 using YetAnotherFileManager.Interop;
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Services;
+using SingleInstance = PhotinoNetUtils.Services.SingleInstance;
 #if !DEBUG
 using PhotinoNetUtils.Hosting;
 #endif

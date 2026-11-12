@@ -9,7 +9,8 @@ namespace YetAnotherFileManager.Services;
 ///     to run itself again; the operations that perform the work do not record themselves, so undo and
 ///     redo never grow the stack. The history lives for the session only.
 /// </summary>
-internal sealed class FileHistory : Singleton<FileHistory>
+[Singleton]
+internal partial class FileHistory
 {
     private const int Limit = 50;
 

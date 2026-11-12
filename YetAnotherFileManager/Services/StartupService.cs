@@ -15,7 +15,8 @@ namespace YetAnotherFileManager.Services;
 ///     stored in the settings; the settings page compares the entry's target with this copy and
 ///     reports an entry left by another folder as none until it is set again.
 /// </summary>
-internal sealed class StartupService : Singleton<StartupService>
+[Singleton]
+internal partial class StartupService
 {
     private const string TaskName = "YetAnotherFileManager";
     private const string UnitName = "yafm.service";
@@ -28,7 +29,9 @@ internal sealed class StartupService : Singleton<StartupService>
         "yafm",
         Constants.DisplayName);
 
-    public StartupService() => NativeBridge.MessageReceived += HandleMessageAsync;
+    private StartupService()
+    {
+    }
 
     /// <summary>True where a per-user login entry can be written.</summary>
     public static bool IsSupported => StartupRegistration.IsSupported;
@@ -40,13 +43,7 @@ internal sealed class StartupService : Singleton<StartupService>
     private static string WantPath =>
         Path.Combine(HomeConfig(), "systemd", "user", "default.target.wants", UnitName);
 
-    private Task<NativeResponse?> HandleMessageAsync(NativeContext context) => context.Request.Type switch
-    {
-        "app.startup" => Task.FromResult<NativeResponse?>(Status(context)),
-        "app.startup.set" => SetAsync(context),
-        _ => Task.FromResult<NativeResponse?>(null)
-    };
-
+    [NativeMessage("app.startup")]
     private NativeResponse Status(NativeContext context)
     {
         var stored = SettingsService.Instance.Current.Startup;
@@ -58,6 +55,7 @@ internal sealed class StartupService : Singleton<StartupService>
         return context.Reply("app.startup.result", new StartupStatusPayload(IsSupported, mode, active, null));
     }
 
+    [NativeMessage("app.startup.set")]
     private async Task<NativeResponse?> SetAsync(NativeContext context)
     {
         var requestedMode = context.Payload<StartupSetRequest>()?.Mode;

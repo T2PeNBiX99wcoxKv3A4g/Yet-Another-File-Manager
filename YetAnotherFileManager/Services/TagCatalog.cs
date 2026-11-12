@@ -10,7 +10,8 @@ namespace YetAnotherFileManager.Services;
 ///     stores the id rather than the text. The catalogue also remembers which folders used a tag, so
 ///     deleting one can clean every index that still contains its id.
 /// </summary>
-internal sealed class TagCatalog : Singleton<TagCatalog>
+[Singleton]
+internal partial class TagCatalog
 {
     private static readonly string CatalogPath = Path.Combine(Constants.SettingsDirectory, "tags.json");
 

@@ -10,7 +10,8 @@ namespace YetAnotherFileManager.Services;
 ///     The devices paired for sharing. A device is added only after its pairing handshake completes;
 ///     its pinned public key is what every later session is checked against.
 /// </summary>
-internal sealed class SharePeerStore : Singleton<SharePeerStore>
+[Singleton]
+internal partial class SharePeerStore
 {
     private static readonly string FilePath = Path.Combine(Constants.SettingsDirectory, "share-peers.json");
 

@@ -177,12 +177,6 @@ internal sealed record HiddenFilesPayload(bool ShowHidden, bool ShowSystem, bool
 /// </summary>
 internal sealed record NavigatePayload(string Path, bool Startup);
 
-/// <summary>Body for the <c>window.state</c> event.</summary>
-internal sealed record WindowStatePayload(bool Maximized);
-
-/// <summary>Payload for <c>window.resize</c>: the edge being dragged.</summary>
-internal sealed record WindowResizeRequest(string Direction);
-
 /// <summary>Payload for the clipboard and file-operation messages: the paths they act on.</summary>
 internal sealed record PathsPayload(List<string> Paths);
 

@@ -8,7 +8,8 @@ using YetAnotherFileManager.Models;
 namespace YetAnotherFileManager.Services;
 
 /// <summary>Stores <see cref="AppSettings" /> next to the app's other user data.</summary>
-internal sealed class SettingsService : Singleton<SettingsService>
+[Singleton]
+internal partial class SettingsService
 {
     private static readonly string SettingsPath = Path.Combine(Constants.SettingsDirectory, "settings.json");
 

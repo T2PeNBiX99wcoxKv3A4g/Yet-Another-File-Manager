@@ -11,7 +11,8 @@ namespace YetAnotherFileManager.Services;
 ///     The encrypted share listener. It accepts pairing requests and authenticated sessions and
 ///     answers TCP discovery probes; a session is handed to <see cref="ShareService" />.
 /// </summary>
-internal sealed class SharePeerServer : Singleton<SharePeerServer>
+[Singleton]
+internal partial class SharePeerServer
 {
     private CancellationTokenSource? _cancellation;
     private TcpListener? _listener;

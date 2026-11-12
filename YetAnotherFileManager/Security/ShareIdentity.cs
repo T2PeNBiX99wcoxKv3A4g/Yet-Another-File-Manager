@@ -8,12 +8,13 @@ namespace YetAnotherFileManager.Security;
 ///     This device's long-term share identity: a stable id and an Ed25519 key pair, kept beside the
 ///     settings. Peers pin the public key when they pair, and every handshake is signed with it.
 /// </summary>
-internal sealed class ShareIdentity : Singleton<ShareIdentity>
+[Singleton]
+internal partial class ShareIdentity
 {
     private const string KeyFileName = "share-device.key";
     private const string IdFileName = "share-device.id";
 
-    public ShareIdentity()
+    private ShareIdentity()
     {
         var directory = Constants.SettingsDirectory;
         var keyPath = Path.Combine(directory, KeyFileName);

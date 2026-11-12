@@ -14,7 +14,8 @@ namespace YetAnotherFileManager.Services;
 ///     discovery, remote listings and downloads. The wire protocol is shared with
 ///     <see cref="SharePeerServer" /> and <see cref="SharePeerClient" />.
 /// </summary>
-internal sealed class ShareService : Singleton<ShareService>
+[Singleton]
+internal partial class ShareService
 {
     private static readonly TimeSpan CatalogFreshFor = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan BrowseTimeout = TimeSpan.FromSeconds(45);
@@ -29,7 +30,9 @@ internal sealed class ShareService : Singleton<ShareService>
     private IncomingPairing? _incoming;
     private string _published = "";
 
-    public ShareService() => NativeBridge.MessageReceived += HandleMessageAsync;
+    private ShareService()
+    {
+    }
 
     /// <summary>Reads the stored shares and peers and starts discovery, the listener and the web server.</summary>
     public async Task InitializeAsync()
@@ -56,27 +59,15 @@ internal sealed class ShareService : Singleton<ShareService>
         });
     }
 
-    private Task<NativeResponse?> HandleMessageAsync(NativeContext context) => context.Request.Type switch
-    {
-        "share.list" => Task.FromResult<NativeResponse?>(context.Reply("share.list.result", ListPayload())),
-        "share.add" => AddAsync(context),
-        "share.remove" => RemoveAsync(context),
-        "share.mode" => SetModeAsync(context),
-        "share.peers" => PeersAsync(context),
-        "share.peers.refresh" => RefreshPeersAsync(context),
-        "share.pair.start" => StartPairAsync(context),
-        "share.pair.respond" => RespondAsync(context),
-        "share.peer.remove" => RemovePeerAsync(context),
-        "share.browse" => BrowseAsync(context),
-        "share.download" => DownloadAsync(context),
-        "share.port" => SetPortAsync(context),
-        _ => Task.FromResult<NativeResponse?>(null)
-    };
+    [NativeMessage("share.list")]
+    private NativeResponse List(NativeContext context) => context.Reply("share.list.result", ListPayload());
 
     private static ShareListPayload ListPayload() =>
         new(ShareStore.Instance.All, WebShareServer.Instance.Running, WebShareServer.Instance.Port,
             WebShareServer.Instance.Urls(), ShareIdentity.Instance.Id,
             ShareIdentity.Instance.DeviceName, ShareIdentity.Instance.Fingerprint);
+
+    [NativeMessage("share.add")]
 
     private async Task<NativeResponse?> AddAsync(NativeContext context)
     {
@@ -92,6 +83,8 @@ internal sealed class ShareService : Singleton<ShareService>
         return context.Reply("share.add.result", ListPayload());
     }
 
+    [NativeMessage("share.remove")]
+
     private async Task<NativeResponse?> RemoveAsync(NativeContext context)
     {
         var id = context.Payload<ShareIdRequest>()?.Id ?? "";
@@ -100,6 +93,8 @@ internal sealed class ShareService : Singleton<ShareService>
         await PushPeersAsync();
         return context.Reply("share.remove.result", ListPayload());
     }
+
+    [NativeMessage("share.mode")]
 
     private async Task<NativeResponse?> SetModeAsync(NativeContext context)
     {
@@ -110,11 +105,15 @@ internal sealed class ShareService : Singleton<ShareService>
         return context.Reply("share.mode.result", ListPayload());
     }
 
+    [NativeMessage("share.peers")]
+
     private async Task<NativeResponse?> PeersAsync(NativeContext context)
     {
         var peers = await PeersSnapshotAsync();
         return context.Reply("share.peers.result", new SharePeersPayload(peers));
     }
+
+    [NativeMessage("share.port")]
 
     private async Task<NativeResponse?> SetPortAsync(NativeContext context)
     {
@@ -132,6 +131,8 @@ internal sealed class ShareService : Singleton<ShareService>
         return context.Reply("share.port.result", ListPayload());
     }
 
+    [NativeMessage("share.peers.refresh")]
+
     private async Task<NativeResponse?> RefreshPeersAsync(NativeContext context)
     {
         await Task.WhenAll(SharePeerStore.Instance.All.Select(peer => RefreshCatalogAsync(peer, true)));
@@ -139,6 +140,8 @@ internal sealed class ShareService : Singleton<ShareService>
         await PushPeersAsync();
         return context.Reply("share.peers.result", new SharePeersPayload(await PeersSnapshotAsync()));
     }
+
+    [NativeMessage("share.peer.remove")]
 
     private async Task<NativeResponse?> RemovePeerAsync(NativeContext context)
     {
@@ -192,6 +195,8 @@ internal sealed class ShareService : Singleton<ShareService>
         _ = PushPeersAsync();
     }
 
+    [NativeMessage("share.pair.start")]
+
     private Task<NativeResponse?> StartPairAsync(NativeContext context)
     {
         var request = context.Payload<SharePairStartRequest>();
@@ -237,6 +242,8 @@ internal sealed class ShareService : Singleton<ShareService>
             _outgoing.Release();
         }
     }
+
+    [NativeMessage("share.pair.respond")]
 
     private Task<NativeResponse?> RespondAsync(NativeContext context)
     {
@@ -387,6 +394,8 @@ internal sealed class ShareService : Singleton<ShareService>
 
     // ---- remote browsing and download ---------------------------------------------------------
 
+    [NativeMessage("share.browse")]
+
     private static Task<NativeResponse?> BrowseAsync(NativeContext context)
     {
         var request = context.Payload<ShareBrowseRequest>();
@@ -450,6 +459,8 @@ internal sealed class ShareService : Singleton<ShareService>
             return context.Fail("share.browse.result", ex.Message);
         }
     }
+
+    [NativeMessage("share.download")]
 
     private static Task<NativeResponse?> DownloadAsync(NativeContext context)
     {

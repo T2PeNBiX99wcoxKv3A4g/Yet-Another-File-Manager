@@ -18,7 +18,8 @@ namespace YetAnotherFileManager.Services;
 ///     with its own connection pool and cache. That keeps the big base64 strings off the native
 ///     message bridge, which is what made a wall of pictures stutter.
 /// </summary>
-internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
+[Singleton]
+internal partial class ThumbnailServer
 {
     private const int MaxHeaders = 65_536;
     private const int CacheLimit = 500;
@@ -30,7 +31,7 @@ internal sealed class ThumbnailServer : Singleton<ThumbnailServer>
 
     private readonly string _token = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
 
-    public ThumbnailServer()
+    private ThumbnailServer()
     {
         _listener.Start();
 

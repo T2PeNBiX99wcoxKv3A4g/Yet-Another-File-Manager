@@ -8,7 +8,8 @@ namespace YetAnotherFileManager.Services;
 ///     long enough to need progress. Updates are throttled, so a fast copy cannot flood the bridge
 ///     with one message per file.
 /// </summary>
-internal sealed class TaskCenter : Singleton<TaskCenter>
+[Singleton]
+internal partial class TaskCenter
 {
     private const int Capacity = 100;
     private const int NotifyDelay = 100;
@@ -18,7 +19,7 @@ internal sealed class TaskCenter : Singleton<TaskCenter>
     private readonly List<TaskInfo> _tasks = [];
     private bool _notifyPending;
 
-    public TaskCenter() =>
+    private TaskCenter() =>
         _notifyTimer = new(_ => Flush(), null, Timeout.Infinite, Timeout.Infinite);
 
     /// <summary>Registers a running operation and returns the id used to report progress.</summary>

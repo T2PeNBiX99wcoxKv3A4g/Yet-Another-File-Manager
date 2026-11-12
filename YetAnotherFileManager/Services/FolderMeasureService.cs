@@ -13,7 +13,8 @@ namespace YetAnotherFileManager.Services;
 ///     Sizes and counts used to be separate services, each with its own queue and its own walk of
 ///     the same directory. One walk now feeds both notifications.
 /// </remarks>
-internal sealed class FolderMeasureService : Singleton<FolderMeasureService>
+[Singleton]
+internal partial class FolderMeasureService
 {
     private const int Levels = 1;
 
@@ -53,7 +54,7 @@ internal sealed class FolderMeasureService : Singleton<FolderMeasureService>
 
     private volatile int _generation;
 
-    public FolderMeasureService()
+    private FolderMeasureService()
     {
         for (var index = 0; index < Workers; index++)
             _ = Task.Run(WorkAsync);
