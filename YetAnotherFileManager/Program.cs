@@ -168,24 +168,28 @@ internal static partial class Program
                 return;
             }
 
-#if !DEBUG
-            // Kestrel binds to an OS-assigned port, so several Photino apps can run side by side
-            // without racing for the default 8000. The content root is a folder we own, which keeps
-            // the web root out of the executable's directory.
-            using var staticServer = StaticServer.Start(Constants.DataDirectory, Constants.WebPort);
-            var appUrl = $"{staticServer.BaseUrl}/index.html?v={AppInfoService.BuildToken}";
-#else
-            // A Debug build always talks to the Vite dev server, which is where hot reload lives.
-            const string appUrl = "http://127.0.0.1:3100";
-#endif
-
-            Log.Information("Serving React app at {AppUrl}", appUrl);
-
             // Touching each singleton constructs it, which is what registers its message handlers.
             _ = AppInfoService.Instance;
             _ = FileSystemService.Instance;
             _ = ThumbnailServer.Instance;
             _ = StartupService.Instance;
+
+            // The panel sizes the interface stored travel in the address: the page can read that
+            // before it renders, while the message bridge is not answering yet.
+            var storedState = UiStateService.Instance.Encoded;
+
+#if !DEBUG
+            // Kestrel binds to an OS-assigned port, so several Photino apps can run side by side
+            // without racing for the default 8000. The content root is a folder we own, which keeps
+            // the web root out of the executable's directory.
+            using var staticServer = StaticServer.Start(Constants.DataDirectory);
+            var appUrl = $"{staticServer.BaseUrl}/index.html?v={AppInfoService.BuildToken}&state={storedState}";
+#else
+            // A Debug build always talks to the Vite dev server, which is where hot reload lives.
+            var appUrl = $"http://127.0.0.1:3100/index.html?state={storedState}";
+#endif
+
+            Log.Information("Serving React app at {AppUrl}", appUrl);
 
             using var updates = new UpdateService(new UpdateOptions(
                 "T2PeNBiX99wcoxKv3A4g",

@@ -36,6 +36,7 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(UpdateAckPayload))]
 [JsonSerializable(typeof(UpdateProgressPayload))]
 [JsonSerializable(typeof(UpdateChangelogPayload))]
+[JsonSerializable(typeof(UiStateSetRequest))]
 [JsonSerializable(typeof(UrlPayload))]
 [JsonSerializable(typeof(FsListRequest))]
 [JsonSerializable(typeof(FsListPayload))]

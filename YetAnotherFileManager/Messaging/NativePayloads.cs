@@ -481,3 +481,6 @@ internal sealed record StartupSetRequest(string? Mode);
 
 /// <summary>Body for <c>app.startup</c>: the supported platforms, the mode, and whether it exists.</summary>
 internal sealed record StartupStatusPayload(bool Supported, string Mode, bool Active, string? Error);
+
+/// <summary>Payload for <c>ui.state.set</c>: the values to store, keyed by name.</summary>
+internal sealed record UiStateSetRequest(Dictionary<string, string>? Entries);

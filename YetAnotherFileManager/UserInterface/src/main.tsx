@@ -12,6 +12,7 @@ import "@fontsource/jetbrains-mono/latin-500.css";
 import App from "./App";
 import {PickerWindow} from "./PickerWindow";
 import {LocalizationProvider} from "@photino-net-utils/bridge";
+import {loadStoredState, flushStoredState} from "./storage";
 
 // WebKit needs the prefixed property, and the effect is only worth using when the engine really
 // has it: without it the floating panels keep an almost opaque background so text stays readable.
@@ -21,12 +22,18 @@ const supportsBackdrop = typeof CSS !== "undefined"
 
 document.documentElement.classList.toggle("backdrop-blur", supportsBackdrop);
 
+// A resize is written 200 ms after it stops; a window that closes in between keeps the last value.
+window.addEventListener("pagehide", flushStoredState);
+
 const rootElement = document.getElementById("root");
 const parameters = new URLSearchParams(window.location.search);
 const pickMode = parameters.get("picker");
 const pickFilter = parameters.get("filter") ?? "";
 
-if (rootElement)
+if (rootElement) {
+    // The stored panel sizes are read as the components mount, so they are loaded first.
+    loadStoredState();
+
     createRoot(rootElement).render(
         <StrictMode>
             <LocalizationProvider>
@@ -41,3 +48,4 @@ if (rootElement)
             </LocalizationProvider>
         </StrictMode>
     );
+}
