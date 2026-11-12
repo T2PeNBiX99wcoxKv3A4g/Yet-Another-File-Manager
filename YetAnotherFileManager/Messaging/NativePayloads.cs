@@ -208,10 +208,13 @@ internal sealed record DeletePayload(
 internal sealed record ProtectedHit(string Path, string Pattern);
 
 /// <summary>Payload for <c>fs.archive.extract</c>: the archive (or a folder inside it) and where to write.</summary>
-internal sealed record ArchiveExtractRequest(string Path, string Target, int? CodePage = null, string? Password = null);
+internal sealed record ArchiveExtractRequest(string Path, string Target, int? CodePage = null,
+    string? Password = null, string? Confirm = null);
 
 /// <summary>Body for <c>fs.archive.extract</c>.</summary>
-internal sealed record ArchiveExtractPayload(bool Ok, string? Error = null);
+internal sealed record ArchiveExtractPayload(bool Ok, string? Error = null,
+    bool Required = false, string? Token = null, IReadOnlyList<ProtectedHit>? Protected = null,
+    int DelaySeconds = 0);
 
 /// <summary>Payload for opening one file or applying edits to an archive.</summary>
 internal sealed record ArchivePathRequest(string Path, int? CodePage = null, string? Password = null);
@@ -247,7 +250,7 @@ internal sealed record CompressRequest(
 internal sealed record ProtectedDefaultsPayload(List<string> Paths);
 
 /// <summary>Payload for <c>fs.operation.rename</c>: the entry and its new name.</summary>
-internal sealed record RenamePathRequest(string Path, string Name);
+internal sealed record RenamePathRequest(string Path, string Name, string? Confirm = null);
 
 /// <summary>Payload for <c>fs.operation.newFolder</c> and <c>fs.clipboard.paste</c>.</summary>
 internal sealed record DirectoryRequest(string Directory);
@@ -271,7 +274,9 @@ internal sealed record LinkRequest(string Kind, string Source, string Link);
 internal sealed record LinkPayload(bool Ok, string? Link = null, string? Error = null);
 
 /// <summary>Body for <c>fs.operation.rename</c> and <c>fs.operation.newFolder</c>.</summary>
-internal sealed record PathOperationPayload(bool Ok, string? Path, string? Error);
+internal sealed record PathOperationPayload(bool Ok, string? Path, string? Error,
+    bool Required = false, string? Token = null, IReadOnlyList<ProtectedHit>? Protected = null,
+    int DelaySeconds = 0);
 
 /// <summary>Body for <c>fs.clipboard.hasFiles</c>.</summary>
 internal sealed record ClipboardFilesPayload(bool HasFiles);
@@ -349,10 +354,12 @@ internal sealed record TaskInfo(
 internal sealed record TasksPayload(IReadOnlyList<TaskInfo> Tasks);
 
 /// <summary>Payload for <c>fs.operation.transfer</c>: what to move or copy, and where.</summary>
-internal sealed record TransferRequest(List<string> Paths, string Target, bool Move);
+internal sealed record TransferRequest(List<string> Paths, string Target, bool Move, string? Confirm = null);
 
 /// <summary>Body for <c>fs.operation.transfer</c>: the top-level paths that were created.</summary>
-internal sealed record TransferResultPayload(bool Ok, string? Error, List<string> Created);
+internal sealed record TransferResultPayload(bool Ok, string? Error, List<string> Created,
+    bool Required = false, string? Token = null, IReadOnlyList<ProtectedHit>? Protected = null,
+    int DelaySeconds = 0);
 
 /// <summary>One entry the clipboard carries, with enough detail to draw it in the tray.</summary>
 internal sealed record ClipboardEntry(string Path, string Name, bool IsDirectory, bool Exists);
@@ -364,7 +371,12 @@ internal sealed record ClipboardEntry(string Path, string Name, bool IsDirectory
 internal sealed record ClipboardPathsPayload(List<ClipboardEntry> Entries, bool Move, uint Sequence);
 
 /// <summary>Body for <c>fs.clipboard.paste</c>: whether anything was pasted and the entries it created.</summary>
-internal sealed record ClipboardPastePayload(bool Ok, List<string> Created);
+internal sealed record ClipboardPastePayload(bool Ok, List<string> Created,
+    bool Required = false, string? Token = null, IReadOnlyList<ProtectedHit>? Protected = null,
+    int DelaySeconds = 0);
+
+/// <summary>Payload for <c>fs.clipboard.paste</c>: the folder, plus a protected-path confirmation.</summary>
+internal sealed record PasteRequest(string Directory, string? Confirm = null);
 
 /// <summary>Payload for <c>fs.paths.info</c>: what the given paths are, for the tray's drop handler.</summary>
 internal sealed record PathsInfoPayload(List<ClipboardEntry> Entries);

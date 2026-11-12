@@ -55,8 +55,10 @@ changelog and the installer's download progress; once the file is complete the p
 ## Safety
 
 Deleting a **protected folder**, anything inside one, or a folder that contains one always waits for
-an explicit confirmation. **Confirmation delay** is how long that confirmation waits before it can be
-accepted.
+an explicit confirmation, and so does every other change to one: moving or cutting its entries (at
+either end of the move), renaming them, pasting or extracting files into it. A plain copy *out* of a
+protected folder changes nothing there and runs straight away. **Confirmation delay** is how long that
+confirmation waits before it can be accepted.
 
 ## Tags
 

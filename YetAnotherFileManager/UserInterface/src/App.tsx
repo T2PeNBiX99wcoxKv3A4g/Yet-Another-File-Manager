@@ -51,7 +51,7 @@ import {Wallpaper} from "./components/Wallpaper";
 import {ProtectedDeleteDialog} from "./components/ProtectedDeleteDialog";
 import {MessageDialog} from "./components/MessageDialog";
 import {PasswordDialog} from "./components/PasswordDialog";
-import {type ProtectedDeletePrompt, setProtectedDeleteAsker} from "./api/safety";
+import {type ProtectedPrompt, setProtectedAsker} from "./api/safety";
 import {requestArchivePassword, showMessage} from "./api/dialogs";
 import {clearIconCache, refreshIconCache} from "./api/icons";
 import {
@@ -388,7 +388,7 @@ export default function App() {
     const [trayItems, setTrayItems] = useState<TrayItem[]>([]);
     const [protectedDelete, setProtectedDelete] = useState<{
         id: number;
-        prompt: ProtectedDeletePrompt;
+        prompt: ProtectedPrompt;
         resolve: (allowed: boolean) => void;
     } | null>(null);
     const protectedDeleteId = useRef(0);
@@ -448,11 +448,11 @@ export default function App() {
 
     // Deletes that touch a protected path ask here; the backend holds the operation meanwhile.
     useEffect(() => {
-        setProtectedDeleteAsker((prompt) => new Promise<boolean>((resolve) => {
+        setProtectedAsker((prompt) => new Promise<boolean>((resolve) => {
             setProtectedDelete({id: ++protectedDeleteId.current, prompt, resolve});
         }));
 
-        return () => setProtectedDeleteAsker(null);
+        return () => setProtectedAsker(null);
     }, []);
 
     // Choosing a tab in the title bar puts the focus back on the left pane.
@@ -1364,6 +1364,10 @@ export default function App() {
 
     const transferTo = useCallback(async (paths: string[], target: string, move: boolean) => {
         const result = await transferPaths(paths, target, move);
+
+        // Closing the protected-path dialog is a decision, not a failure.
+        if (result.cancelled)
+            return;
 
         if (!result.ok) {
             void showMessage(result.error ?? t("The files could not be transferred."));
@@ -2958,7 +2962,8 @@ export default function App() {
                 )}
 
                 {protectedDelete && (
-                    <ProtectedDeleteDialog delaySeconds={protectedDelete.prompt.delaySeconds}
+                    <ProtectedDeleteDialog action={protectedDelete.prompt.action}
+                                           delaySeconds={protectedDelete.prompt.delaySeconds}
                                            hits={protectedDelete.prompt.hits}
                                            key={protectedDelete.id}
                                            onCancel={() => {

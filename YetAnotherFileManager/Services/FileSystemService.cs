@@ -367,8 +367,24 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
             case "fs.clipboard.paste":
             {
-                var directory = context.Payload<DirectoryRequest>()?.Directory ?? "";
-                directory = await MapWorkspacePathAsync(directory, true);
+                var request = context.Payload<PasteRequest>();
+                var directory = await MapWorkspacePathAsync(request?.Directory ?? "", true);
+
+                // A paste writes into the folder, and a cut also takes the entries out of theirs.
+                var clipboard = ClipboardService.ReadPayload();
+                var guarded = clipboard.Entries.Count == 0
+                    ? []
+                    : (clipboard is { Move: true }
+                        ? clipboard.Entries.Select(entry => entry.Path)
+                        : []).Append(directory).ToList();
+
+                if (guarded.Count > 0
+                    && GuardChange(request?.Confirm, DeleteGuard.KeyFor("paste", guarded), guarded)
+                    is { } blocked)
+                    return context.Reply("fs.clipboard.paste.result",
+                        new ClipboardPastePayload(false, [], true, blocked.Token, blocked.Hits,
+                            blocked.DelaySeconds));
+
                 var created = await FileOperations.PasteAsync(directory);
                 if (created.Count > 0) await ApplyArchiveChangesAsync([directory]);
                 return context.Reply("fs.clipboard.paste.result",
@@ -397,6 +413,13 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
                 if (request is null || !Archives.TrySplit(request.Path, out var archive, out _))
                     return context.Reply("fs.archive.extract.result",
                         new ArchiveExtractPayload(false, Localization.Get("The path is not inside an archive.")));
+
+                // Extracting writes into the target and may replace what is already there.
+                if (GuardChange(request.Confirm, DeleteGuard.KeyFor("extract", [request.Target]),
+                        [request.Target]) is { } blocked)
+                    return context.Reply("fs.archive.extract.result",
+                        new ArchiveExtractPayload(false, null, true, blocked.Token, blocked.Hits,
+                            blocked.DelaySeconds));
 
                 var taskId = TaskCenter.Instance.Start("extract", $"Extract {Path.GetFileName(archive)}");
                 var extracted = await ExtractAsync(archive, request.Target, request.CodePage ?? 0,
@@ -440,6 +463,14 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
             {
                 var request = context.Payload<RenamePathRequest>();
                 var path = await MapWorkspacePathAsync(request?.Path ?? "");
+
+                // Renaming rewrites a name inside the folder that holds it.
+                if (GuardChange(request?.Confirm, DeleteGuard.KeyFor("rename", [path]), [path])
+                    is { } blocked)
+                    return context.Reply("fs.operation.rename.result",
+                        new PathOperationPayload(false, null, null, true, blocked.Token, blocked.Hits,
+                            blocked.DelaySeconds));
+
                 var result = await FileOperations.RenameAsync(path, request?.Name ?? "");
                 var virtualPath = result.Path is null ? null : Archives.ToVirtualPath(result.Path);
                 if (result.Ok) await ApplyArchiveChangesAsync([path]);
@@ -514,6 +545,17 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
 
                 var paths = await MapWorkspacePathsAsync(request.Paths);
                 var target = await MapWorkspacePathAsync(request.Target, true);
+
+                // A move changes both ends: it takes the entries out of their folder and writes them
+                // into the target. A copy only writes.
+                var guarded = request.Move ? paths.Append(target).ToList() : [target];
+
+                if (GuardChange(request.Confirm, DeleteGuard.KeyFor("transfer", guarded), guarded)
+                    is { } blocked)
+                    return context.Reply("fs.operation.transfer.result",
+                        new TransferResultPayload(false, null, [], true, blocked.Token, blocked.Hits,
+                            blocked.DelaySeconds));
+
                 var result = await FileOperations.TransferAsync(request with
                 {
                     Paths = paths,
@@ -977,32 +1019,38 @@ internal sealed partial class FileSystemService : Singleton<FileSystemService>
     /// </summary>
     private static DeletePayload? GuardDelete(string? confirm, string key, IReadOnlyList<string> paths)
     {
-        var delay = Protection.DelaySeconds(SettingsService.Instance.Current);
+        if (GuardChange(confirm, key, paths) is not { } blocked)
+            return null;
 
-        if (!string.IsNullOrEmpty(confirm))
-        {
-            if (DeleteGuard.Validate(confirm, key, delay, out var remaining))
-                return null;
+        return new(false, Required: true, Token: blocked.Token, Protected: blocked.Hits,
+            DelaySeconds: blocked.DelaySeconds);
+    }
 
-            var retryHits = Protection.Hits(paths);
-            if (retryHits.Count == 0)
-                return null;
-
-            return new(false, Required: true,
-                Token: remaining > 0 ? confirm : DeleteGuard.Issue(key),
-                Protected: retryHits,
-                DelaySeconds: remaining > 0 ? remaining : delay);
-        }
-
+    /// <summary>
+    ///     The same check for anything else that changes a protected path: a move, a rename, or a
+    ///     write into a folder. Null means the operation may run.
+    /// </summary>
+    private static Guard? GuardChange(string? confirm, string key, IReadOnlyList<string> paths)
+    {
         var hits = Protection.Hits(paths);
         if (hits.Count == 0)
             return null;
 
-        return new(false, Required: true,
-            Token: DeleteGuard.Issue(key),
-            Protected: hits,
-            DelaySeconds: delay);
+        var delay = Protection.DelaySeconds(SettingsService.Instance.Current);
+        var remaining = 0;
+
+        if (!string.IsNullOrEmpty(confirm) && DeleteGuard.Validate(confirm, key, delay, out remaining))
+            return null;
+
+        // Still too early: keep the same token and tell the window how much is left.
+        return new Guard(
+            remaining > 0 ? confirm! : DeleteGuard.Issue(key),
+            hits,
+            remaining > 0 ? remaining : delay);
     }
+
+    /// <summary>What a blocked change has to hand back to the window.</summary>
+    private sealed record Guard(string Token, IReadOnlyList<ProtectedHit> Hits, int DelaySeconds);
 
     private static async Task<NativeResponse?> PurgeOrphansAsAdmin(NativeContext context)
     {

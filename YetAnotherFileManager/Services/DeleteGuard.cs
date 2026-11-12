@@ -53,6 +53,14 @@ internal static class DeleteGuard
         "delete|" + (permanent ? "1" : "0") + "|" + string.Join('\n',
             paths.Select(PathGlob.Normalize).OrderBy(path => path, StringComparer.Ordinal));
 
+    /// <summary>
+    ///     The paths of any other change — a move, a rename, a write into a folder — in a stable
+    ///     order, tagged with the operation so a token for one cannot confirm another.
+    /// </summary>
+    public static string KeyFor(string operation, IEnumerable<string> paths) =>
+        operation + "|" + string.Join('\n',
+            paths.Select(PathGlob.Normalize).OrderBy(path => path, StringComparer.Ordinal));
+
     /// <summary>The ids of a recycle-bin delete.</summary>
     public static string KeyForRecycle(IEnumerable<string> ids) =>
         "recycle|" + string.Join('\n', ids.OrderBy(id => id, StringComparer.Ordinal));

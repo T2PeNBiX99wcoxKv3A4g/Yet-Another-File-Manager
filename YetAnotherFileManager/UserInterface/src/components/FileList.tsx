@@ -946,6 +946,9 @@ export function FileList({
             return;
 
         const result = await pasteInto(directory);
+
+        if (result.cancelled)
+            return;
         if (!result.ok) {
             void showMessage(t("Nothing on the clipboard could be pasted here."));
             return;

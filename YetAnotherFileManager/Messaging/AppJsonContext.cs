@@ -193,6 +193,7 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(List<TaskInfo>))]
 [JsonSerializable(typeof(TasksPayload))]
 [JsonSerializable(typeof(TransferRequest))]
+[JsonSerializable(typeof(PasteRequest))]
 [JsonSerializable(typeof(TransferResultPayload))]
 [JsonSerializable(typeof(ClipboardEntry))]
 [JsonSerializable(typeof(List<ClipboardEntry>))]

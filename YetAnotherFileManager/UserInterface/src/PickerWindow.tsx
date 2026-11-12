@@ -3,7 +3,7 @@ import styled from "styled-components";
 import {Native, ResizeHandles, useTranslation, useWindowDrag} from "@photino-net-utils/bridge";
 import {type AppSettings, getSettings} from "./api/settings";
 import {DefaultViewDefaults, type DirectoryView, type ResolvedView} from "./api/files";
-import {type ProtectedDeletePrompt, setProtectedDeleteAsker} from "./api/safety";
+import {type ProtectedPrompt, setProtectedAsker} from "./api/safety";
 import {applyTheme} from "./theme";
 import {FolderPicker} from "./components/FolderPicker";
 import {ViewMenu} from "./components/ViewMenu";
@@ -32,7 +32,7 @@ export function PickerWindow({mode, multiple, extensions, initial}: PickerWindow
     const [showImages, setShowImages] = useState<boolean | null>(null);
     const [protectedDelete, setProtectedDelete] = useState<{
         id: number;
-        prompt: ProtectedDeletePrompt;
+        prompt: ProtectedPrompt;
         resolve: (allowed: boolean) => void;
     } | null>(null);
     const protectedDeleteId = useRef(0);
@@ -44,11 +44,11 @@ export function PickerWindow({mode, multiple, extensions, initial}: PickerWindow
     }, []);
 
     useEffect(() => {
-        setProtectedDeleteAsker((prompt) => new Promise<boolean>((resolve) => {
+        setProtectedAsker((prompt) => new Promise<boolean>((resolve) => {
             setProtectedDelete({id: ++protectedDeleteId.current, prompt, resolve});
         }));
 
-        return () => setProtectedDeleteAsker(null);
+        return () => setProtectedAsker(null);
     }, []);
 
     useEffect(() => {
@@ -114,6 +114,7 @@ export function PickerWindow({mode, multiple, extensions, initial}: PickerWindow
 
             {protectedDelete && (
                 <ProtectedDeleteDialog
+                    action={protectedDelete.prompt.action}
                     delaySeconds={protectedDelete.prompt.delaySeconds}
                     hits={protectedDelete.prompt.hits}
                     key={protectedDelete.id}

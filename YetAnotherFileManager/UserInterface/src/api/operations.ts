@@ -1,5 +1,5 @@
 import {Native} from "@photino-net-utils/bridge";
-import {askProtectedDelete, type ProtectedHit} from "./safety";
+import {askProtected, type GuardedChange} from "./safety";
 
 /** The result of a rename or new-folder operation. */
 export interface PathOperation {
@@ -52,13 +52,53 @@ export interface TransferResult {
     error: string | null;
     /** The top-level destinations that were created. */
     created: string[];
+    /** The user closed the protected-path dialog; nothing was transferred. */
+    cancelled?: boolean;
 }
 
 /** Copies or moves paths into a folder without going through the shell. */
 export async function transferPaths(paths: string[], target: string, move: boolean): Promise<TransferResult> {
     if (!Native.available || paths.length === 0) return {ok: false, error: "Nothing to transfer.", created: []};
 
-    return await Native.request<TransferResult>("fs.operation.transfer", {paths, target, move});
+    return await askProtectedChange(
+        {action: move ? "move" : "write"},
+        (confirm) => Native.request<TransferResult & GuardedChange>("fs.operation.transfer",
+            {paths, target, move, confirm}),
+        (result) => ({ok: result.ok, error: result.error, created: result.created}),
+        () => ({ok: false, error: null, created: [], cancelled: true}),
+    );
+}
+
+/**
+ * Sends an operation, and when a protected path blocks it, asks the window and sends the token
+ * back. The dialog's wait is enforced by the host, not by the dialog alone.
+ */
+async function askProtectedChange<T extends GuardedChange, R>(
+    what: { action: "delete" | "move" | "rename" | "write"; permanent?: boolean },
+    send: (confirm?: string) => Promise<T>,
+    finish: (result: T) => R,
+    cancelled: () => R,
+): Promise<R> {
+    let result = await send();
+
+    for (let attempt = 0; attempt < 2 && result.required; attempt++) {
+        if (!result.token || !result.protected?.length)
+            break;
+
+        const allowed = await askProtected({
+            hits: result.protected,
+            delaySeconds: result.delaySeconds ?? 5,
+            action: what.action,
+            permanent: what.permanent,
+        });
+
+        if (!allowed)
+            return cancelled();
+
+        result = await send(result.token);
+    }
+
+    return finish(result);
 }
 
 /** Describes paths (name, whether it is a folder) for the tray's drop handler. */
@@ -74,28 +114,27 @@ export interface PasteResult {
     ok: boolean;
     /** The entries the paste created, so the list can select them. */
     created: string[];
+    /** The user closed the protected-path dialog; nothing was pasted. */
+    cancelled?: boolean;
 }
 
 /** Pastes the clipboard into a folder; answers with what it created. */
-export async function pasteInto(directory: string): Promise<PasteResult> {
+export async function pasteInto(directory: string, move = false): Promise<PasteResult> {
     if (!Native.available) return {ok: false, created: []};
 
-    const data = await Native.request<{ ok: boolean; created?: string[] }>("fs.clipboard.paste", {directory});
-    return {ok: data.ok, created: data.created ?? []};
+    return await askProtectedChange(
+        {action: move ? "move" : "write"},
+        (confirm) => Native.request<{ ok: boolean; created?: string[] } & GuardedChange>("fs.clipboard.paste",
+            {directory, confirm}),
+        (data) => ({ok: data.ok, created: data.created ?? []}),
+        () => ({ok: false, created: [], cancelled: true}),
+    );
 }
 
-export interface DeleteResult {
-    ok: boolean;
+export interface DeleteResult extends GuardedChange {
     /** The volume's recycle bin is turned off, so the selection would be deleted for good. */
     needsPermanent?: boolean;
     error?: string | null;
-    /** A protected path matched; the window has to confirm with the token after the delay. */
-    required?: boolean;
-    token?: string | null;
-    protected?: ProtectedHit[] | null;
-    delaySeconds?: number;
-    /** The user closed the confirmation dialog; this is not an error. */
-    cancelled?: boolean;
 }
 
 /** Sends the paths to the recycle bin, or deletes them permanently when asked. */
@@ -103,35 +142,44 @@ export async function deletePaths(paths: string[], permanent = false): Promise<D
     if (!Native.available || paths.length === 0)
         return {ok: false, error: null};
 
-    let result = await Native.request<DeleteResult>("fs.operation.delete", {paths, permanent});
-
     // A protected path blocks the first request. The dialog waits the countdown, then the token
     // is sent back; the backend checks that the wait really happened.
+    let result = await Native.request<DeleteResult>("fs.operation.delete", {paths, permanent});
+    let cancelled = false;
+
     for (let attempt = 0; attempt < 2 && result.required; attempt++) {
         if (!result.token || !result.protected?.length)
             break;
 
-        const allowed = await askProtectedDelete({
+        const allowed = await askProtected({
             hits: result.protected,
             delaySeconds: result.delaySeconds ?? 5,
+            action: "delete",
             permanent,
         });
 
-        if (!allowed)
-            return {ok: false, error: null, cancelled: true};
+        if (!allowed) {
+            cancelled = true;
+            break;
+        }
 
         result = await Native.request<DeleteResult>("fs.operation.delete",
             {paths, permanent, confirm: result.token});
     }
 
-    return result;
+    return cancelled ? {...result, ok: false, cancelled: true} : result;
 }
 
 /** Renames one entry; the result carries the new path or the reason it was refused. */
 export async function renamePath(path: string, name: string): Promise<PathOperation> {
     if (!Native.available) return {ok: false, path: null, error: "Renaming needs the desktop app."};
 
-    return await Native.request<PathOperation>("fs.operation.rename", {path, name});
+    return await askProtectedChange(
+        {action: "rename"},
+        (confirm) => Native.request<PathOperation & GuardedChange>("fs.operation.rename", {path, name, confirm}),
+        (result) => ({ok: result.ok, path: result.path, error: result.error}),
+        () => ({ok: false, path: null, error: null, cancelled: true}),
+    );
 }
 
 /** Creates the next free "New folder" in a directory, optionally case-sensitive. */

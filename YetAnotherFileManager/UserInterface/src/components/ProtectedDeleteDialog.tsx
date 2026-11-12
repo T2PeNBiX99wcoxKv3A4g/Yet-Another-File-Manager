@@ -2,24 +2,26 @@ import {useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
-import type {ProtectedHit} from "../api/safety";
+import type {ProtectedAction, ProtectedHit} from "../api/safety";
 import {fadeInStyle, popInStyle} from "../ui/motion";
 
 /**
- * The last stop before a delete touches a protected path. The delete button is dead for the
+ * The last stop before an operation touches a protected path. The confirm button is dead for the
  * configured number of seconds and the full paths are listed, so a stray double-click cannot
  * confirm it. The backend enforces the same wait with a one-shot token.
  */
-export function ProtectedDeleteDialog({hits, delaySeconds, permanent, onCancel, onConfirm}: {
+export function ProtectedDeleteDialog({action, hits, delaySeconds, permanent, onCancel, onConfirm}: {
+    action?: ProtectedAction;
     hits: ProtectedHit[];
     delaySeconds: number;
-    permanent: boolean;
+    permanent?: boolean;
     onCancel: () => void;
     onConfirm: () => void;
 }) {
     const t = useTranslation();
     const cancel = useRef<HTMLButtonElement | null>(null);
     const [left, setLeft] = useState(() => Math.max(1, Math.ceil(delaySeconds)));
+    const what = action ?? "delete";
 
     useEffect(() => {
         cancel.current?.focus();
@@ -65,21 +67,62 @@ export function ProtectedDeleteDialog({hits, delaySeconds, permanent, onCancel, 
                         </Hit>
                     ))}
                 </Hits>
-                <Mode>{permanent ? t("Deletes permanently") : t("Moves to the recycle bin")}</Mode>
-                <Warn>{t("Nothing has been deleted.")}</Warn>
-                <Wait>{t("This waits {seconds}s before the delete button works.", {seconds: delaySeconds})}</Wait>
+                <Mode>{modeLabel(t, what, permanent ?? false)}</Mode>
+                <Warn>{warningLabel(t, what)}</Warn>
+                <Wait>{t("This waits {seconds}s before the button works.", {seconds: delaySeconds})}</Wait>
                 <Actions>
                     <Button onClick={onCancel} ref={cancel} type="button">{t("Cancel")}</Button>
                     <Danger disabled={left > 0} onClick={onConfirm} type="button">
-                        {left > 0
-                            ? t("Delete anyway ({seconds}s)", {seconds: left})
-                            : t("Delete anyway")}
+                        {left > 0 ? confirmLabel(t, what, left) : confirmLabel(t, what, 0)}
                     </Danger>
                 </Actions>
             </Card>
         </Overlay>,
         document.body,
     );
+}
+
+/** What the operation would do, in one short line. */
+function modeLabel(t: (key: string) => string, action: ProtectedAction, permanent: boolean): string {
+    switch (action) {
+        case "delete":
+            return permanent ? t("Deletes permanently") : t("Moves to the recycle bin");
+        case "move":
+            return t("Moves the entries");
+        case "rename":
+            return t("Renames the entry");
+        case "write":
+            return t("Writes into this folder");
+    }
+}
+
+/** Reassurance that nothing has happened yet. */
+function warningLabel(t: (key: string) => string, action: ProtectedAction): string {
+    switch (action) {
+        case "delete":
+            return t("Nothing has been deleted.");
+        case "move":
+            return t("Nothing has been moved.");
+        case "rename":
+            return t("Nothing has been renamed.");
+        case "write":
+            return t("Nothing has been written.");
+    }
+}
+
+function confirmLabel(t: (key: string, values?: Record<string, string | number>) => string,
+                      action: ProtectedAction, seconds: number): string {
+    const key = seconds > 0
+        ? action === "delete" ? "Delete anyway ({seconds}s)"
+            : action === "move" ? "Move anyway ({seconds}s)"
+                : action === "rename" ? "Rename anyway ({seconds}s)"
+                    : "Write anyway ({seconds}s)"
+        : action === "delete" ? "Delete anyway"
+            : action === "move" ? "Move anyway"
+                : action === "rename" ? "Rename anyway"
+                    : "Write anyway";
+
+    return seconds > 0 ? t(key, {seconds}) : t(key);
 }
 
 const Overlay = styled.div`

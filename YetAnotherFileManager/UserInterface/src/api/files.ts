@@ -1,5 +1,5 @@
 import {Native} from "@photino-net-utils/bridge";
-import {askProtectedDelete, type GuardedDelete} from "./safety";
+import {askProtected, type GuardedChange} from "./safety";
 
 export interface FileEntry {
     name: string;
@@ -189,9 +189,31 @@ export async function listDirectory(path?: string, sizes = true, includeLinks = 
 
 /** Extracts an archive, or a folder inside one, into a folder on disk. */
 export async function extractArchive(path: string, target: string, codePage = 0,
-                                     password?: string): Promise<{ ok: boolean; error: string | null }> {
-    return await Native.request<{ ok: boolean; error: string | null }>(
+                                     password?: string): Promise<{ ok: boolean; error: string | null; cancelled?: boolean }> {
+    type Reply = GuardedChange & { ok: boolean; error: string | null };
+
+    // Extracting writes into the target, so a protected folder asks first.
+    let result = await Native.request<Reply>(
         "fs.archive.extract", {path, target, codePage, password});
+
+    for (let attempt = 0; attempt < 2 && result.required; attempt++) {
+        if (!result.token || !result.protected?.length)
+            break;
+
+        const allowed = await askProtected({
+            hits: result.protected,
+            delaySeconds: result.delaySeconds ?? 5,
+            action: "write",
+        });
+
+        if (!allowed)
+            return {ok: false, error: null, cancelled: true};
+
+        result = await Native.request<Reply>(
+            "fs.archive.extract", {path, target, codePage, password, confirm: result.token});
+    }
+
+    return {ok: result.ok, error: result.error};
 }
 
 /** Extracts one archive entry to a temporary file and returns its physical path for the shell. */
@@ -298,7 +320,7 @@ export async function restoreRecycleEntry(id: string): Promise<boolean> {
 }
 
 /** Sends the confirm token back after the dialog's countdown, for a recycle-bin delete. */
-async function confirmRecycle<T extends GuardedDelete>(
+async function confirmRecycle<T extends GuardedChange>(
     type: string,
     payload: Record<string, unknown>,
     initial: T,
@@ -309,9 +331,10 @@ async function confirmRecycle<T extends GuardedDelete>(
         if (!result.token || !result.protected?.length)
             break;
 
-        const allowed = await askProtectedDelete({
+        const allowed = await askProtected({
             hits: result.protected,
             delaySeconds: result.delaySeconds ?? 5,
+            action: "delete",
             permanent: true,
         });
 
@@ -326,13 +349,13 @@ async function confirmRecycle<T extends GuardedDelete>(
 
 /** Permanently removes every listed entry, including leftover metadata when it is shown. */
 export async function emptyRecycleBin(includeOrphans = false): Promise<void> {
-    const result = await Native.request<GuardedDelete>("fs.recycle.empty", {includeOrphans});
+    const result = await Native.request<GuardedChange>("fs.recycle.empty", {includeOrphans});
     await confirmRecycle("fs.recycle.empty", {includeOrphans}, result);
 }
 
 /** Permanently removes one entry. */
 export async function deleteRecycleEntry(id: string): Promise<void> {
-    const result = await Native.request<GuardedDelete>("fs.recycle.delete", {id});
+    const result = await Native.request<GuardedChange>("fs.recycle.delete", {id});
     await confirmRecycle("fs.recycle.delete", {id}, result);
 }
 
@@ -347,7 +370,7 @@ export async function restoreRecycleEntries(ids: string[]): Promise<{ ok: boolea
 export async function deleteRecycleEntries(ids: string[]): Promise<{ ok: boolean; done: number; cancelled?: boolean }> {
     if (!Native.available || ids.length === 0) return {ok: false, done: 0};
 
-    const result = await Native.request<GuardedDelete & { done?: number }>("fs.recycle.deleteMany", {ids});
+    const result = await Native.request<GuardedChange & { done?: number }>("fs.recycle.deleteMany", {ids});
     const confirmed = await confirmRecycle("fs.recycle.deleteMany", {ids}, result);
 
     return {ok: confirmed.ok, done: confirmed.done ?? 0, cancelled: confirmed.cancelled};
