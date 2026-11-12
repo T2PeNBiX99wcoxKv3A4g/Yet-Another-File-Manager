@@ -717,7 +717,6 @@
   "Orbit": "軌道",
   "Image or video URL": "画像または動画の URL",
   "Paste a direct http(s) link. The picture or video is loaded from the network each time the window starts.": "直接の http(s) リンクを貼り付けてください。ウィンドウを開くたびにネットワークから読み込みます。",
-  "Add": "追加",
   "Add URL": "URL を追加",
   "Web server port": "Web サーバーのポート",
   "Random asks the operating system for one free port when the first web share starts, and every web share keeps using it. Custom always tries the port below.": "ランダムは最初の Web 共有時に空きポートを OS から取得し、すべての Web 共有で共用します。カスタムは下のポートを常に使います。",

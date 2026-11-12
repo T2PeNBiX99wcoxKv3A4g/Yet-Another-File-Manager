@@ -717,7 +717,6 @@
   "Orbit": "軌道",
   "Image or video URL": "圖片或影片網址",
   "Paste a direct http(s) link. The picture or video is loaded from the network each time the window starts.": "貼上直接的 http(s) 連結。每次開啟視窗時都會從網路載入圖片或影片。",
-  "Add": "新增",
   "Add URL": "新增網址",
   "Web server port": "網頁伺服器連接埠",
   "Random asks the operating system for one free port when the first web share starts, and every web share keeps using it. Custom always tries the port below.": "隨機模式會在第一次分享 web 目錄時向作業系統取得一個空閒連接埠，之後所有 web 分享都共用它；自訂模式則固定使用下方連接埠。",

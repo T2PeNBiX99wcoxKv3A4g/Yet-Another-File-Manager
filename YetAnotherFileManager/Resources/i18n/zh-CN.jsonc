@@ -717,7 +717,6 @@
   "Orbit": "轨道",
   "Image or video URL": "图片或视频网址",
   "Paste a direct http(s) link. The picture or video is loaded from the network each time the window starts.": "粘贴直接的 http(s) 链接。每次打开窗口时都会从网络加载图片或视频。",
-  "Add": "添加",
   "Add URL": "添加网址",
   "Web server port": "网页服务器端口",
   "Random asks the operating system for one free port when the first web share starts, and every web share keeps using it. Custom always tries the port below.": "随机会在第一次共享 web 目录时向操作系统获取一个空闲端口，之后所有 web 共享共用它；自定义则固定使用下方端口。",
