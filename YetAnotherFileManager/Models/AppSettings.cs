@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using PhotinoNetUtils.Settings;
 
 namespace YetAnotherFileManager.Models;
 
@@ -6,92 +7,129 @@ namespace YetAnotherFileManager.Models;
 ///     The preferences the interface can change. Missing values in an older settings file mean "the
 ///     default", so the fields are nullable and read through the accessors below.
 /// </summary>
+[SettingsModel]
 public sealed record AppSettings(
+    [property: Setting(Comment = "Use the shell's icon for each file type.")]
     bool? SystemIcons = null,
+    [property: Setting(Comment = "Let a folder show the icon it carries.")]
     bool? CustomFolderIcons = null,
+    [property: Setting(Comment = "Keep a hidden .yafm-index.db inside every folder that is browsed.")]
     bool? WriteDirectoryIndex = null,
+    [property: Setting(Comment = "Glob rules for folders that keep their index in the central store.")]
     List<string>? DirectoryIndexBlacklist = null,
+    [property: Setting(Comment = "Built-in icon name or file:<path> for one extension.")]
     Dictionary<string, string>? ExtensionIcons = null,
+    [property: Setting(Comment = "Quick access folders, in order; empty keeps the well-known defaults.")]
     List<string>? QuickAccess = null,
+    [property: Setting(Comment = "How many recent folders to show; 0 turns the list off.")]
     int? RecentLimit = null,
+    [property: Setting(Comment = "Folders the gallery scans; empty uses the Pictures folder.")]
     List<string>? GalleryRoots = null,
+    [property: Setting(Comment = "Overview panels, in the order they are shown.")]
     List<string>? OverviewPanels = null,
+    [property: Setting(Comment = "Panels older versions hid; only read to migrate them away.")]
     List<string>? OverviewHidden = null,
+    [property: Setting(Comment = "Overview columns, 1 to 5.")]
     int? OverviewColumns = null,
+    [property: Setting(Comment = "Name given to a quick-access folder, by path.")]
     Dictionary<string, string>? PlaceNames = null,
+    [property: Setting(Comment = "Key combination per action, e.g. ctrl+w.")]
     Dictionary<string, string>? Shortcuts = null,
+    [property: Setting(Comment = "Icon given to a quick-access folder, by path.")]
     Dictionary<string, string>? PlaceIcons = null,
+    [property: Setting(Comment = "Title given to an overview panel, by panel id.")]
     Dictionary<string, string>? OverviewTitles = null,
+    [property: Setting(Comment = "List or grid per overview panel, by panel id.")]
     Dictionary<string, string>? OverviewViews = null,
+    [property: Setting(Comment = "Icon per overview panel, by panel id.")]
     Dictionary<string, string>? OverviewIcons = null,
+    [property: Setting(Comment = "Overview panels that also appear in the sidebar.")]
     List<string>? OverviewPinned = null,
+    [property: Setting(Comment = "Open yafm:// links with this app.")]
     bool? LinksEnabled = null,
+    [property: Setting(Comment = "Folders shown by one quick-access panel, by panel id.")]
     Dictionary<string, List<string>>? PanelPlaces = null,
+    [property: Setting(Comment = "Reopen the tabs that were open when the app closed.")]
     bool? RestoreTabs = null,
+    [property: Setting(Comment = "Tabs open at the last close; the window keeps these up to date.")]
     List<string>? OpenTabs = null,
+    [property: Setting(Comment = "Index of the tab that was focused.")]
     int? ActiveTab = null,
+    [property: Setting(Comment = "View mode, sizes and preview strip every folder starts with.")]
     ViewDefaults? DefaultView = null,
+    [property: Setting(Comment = "Show a selection checkbox before every name.")]
     bool? ShowCheckboxes = null,
+    [property: Setting(Comment = "Open a folder or file with one click instead of two.")]
     bool? OpenOnSingleClick = null,
+    [property: Setting(Comment = "Ask before moving items to the recycle bin.")]
     bool? ConfirmDelete = null,
+    [property: Setting(Comment = "Play audio in video previews.")]
     bool? PreviewVideoAudio = null,
+    [property: Setting(Comment = "Start a video preview automatically.")]
     bool? PreviewVideoAutoplay = null,
-    /// <summary>Show the floating file tray when a drag starts; null means on.</summary>
+    [property: Setting(Comment = "Show the floating file tray when a drag starts.")]
     bool? TrayAutoShow = null,
+    [property: Setting(Comment = "Colour the whole interface is built around.")]
     string? AccentColor = null,
+    [property: Setting(Comment = "Second colour of the accent gradient.")]
     string? SecondaryColor = null,
-    /// <summary>UI language; null means English, "system" follows the operating system.</summary>
+    [property: Setting(Comment = "Interface language; 'system' follows the operating system.")]
     string? Language = null,
+    [property: Setting(Comment = "Colour pairs the user saved.")]
     List<ThemePreset>? ThemePresets = null,
-    /// <summary>Register this app as the folder handler; off by default and per-user only.</summary>
+    [property: Setting(Comment = "Register this app for folder opens.")]
     bool? DefaultFileManager = null,
-    /// <summary>None, a built-in concept, or "file:&lt;path&gt;" for a custom image/video.</summary>
+    [property: Setting(Comment = "Backdrop picture, video or built-in concept; empty keeps the dark surface.")]
     string? BackgroundSource = null,
-    /// <summary>Paths the user added to the background gallery; images, SVGs and videos.</summary>
+    [property: Setting(Comment = "Backdrop files the user added.")]
     List<string>? BackgroundCustom = null,
+    [property: Setting(Comment = "Backdrop blur, in pixels.")]
     int? BackgroundBlur = null,
+    [property: Setting(Comment = "Backdrop saturation, in percent.")]
     int? BackgroundSaturation = null,
+    [property: Setting(Comment = "Backdrop brightness, in percent.")]
     int? BackgroundBrightness = null,
-    /// <summary>Folders a delete must stop at; a trailing "**" includes the subtree.</summary>
+    [property: Setting(Comment = "Paths a change must stop at; a trailing ** covers the subtree.")]
     List<string>? ProtectedPaths = null,
-    /// <summary>Seconds the protected-delete confirmation stays disabled.</summary>
+    [property: Setting(Comment = "Seconds the protected-folder confirmation stays disabled.")]
     int? DeleteDelaySeconds = null,
-    /// <summary>"system", "12", "24" or "custom" for every timestamp in the interface.</summary>
+    [property: Setting(Comment = "Every timestamp: 'system', '12', '24' or 'custom'.")]
     string? TimeFormat = null,
-    /// <summary>Pattern used when <see cref="TimeFormat" /> is "custom".</summary>
+    [property: Setting(Comment = "Pattern used when timeFormat is custom.")]
     string? TimeFormatPattern = null,
-    /// <summary>Show ordinary hidden files; null follows Explorer (or off elsewhere).</summary>
+    [property: Setting(Comment = "Show ordinary hidden files.")]
     bool? ShowHidden = null,
-    /// <summary>Register this app for the usual archive extensions, per user and reversible.</summary>
+    [property: Setting(Comment = "Register this app for archive files.")]
     bool? ArchiveHandler = null,
-    /// <summary>Preferred width of the standalone folder/file picker window.</summary>
+    [property: Setting(Comment = "Width of the folder and file picker window.")]
     int? PickerWindowWidth = null,
-    /// <summary>Preferred height of the standalone folder/file picker window.</summary>
+    [property: Setting(Comment = "Height of the folder and file picker window.")]
     int? PickerWindowHeight = null,
-    /// <summary>"relative" or "absolute" for created symbolic links.</summary>
+    [property: Setting(Comment = "Links are created relative unless this is 'absolute'.")]
     string? LinkPathMode = null,
-    /// <summary>Image or video shown above the overview panels; null hides the banner.</summary>
+    [property: Setting(Comment = "Picture or video above the overview panels.")]
     string? OverviewBanner = null,
-    /// <summary>Height of the overview banner in pixels.</summary>
+    [property: Setting(Comment = "Overview banner height, in pixels.")]
     int? OverviewBannerHeight = null,
-    /// <summary>Custom banner media the user added.</summary>
+    [property: Setting(Comment = "Banner media the user added.")]
     List<string>? OverviewBanners = null,
-    /// <summary>Vertical crop of the overview banner, 0 = top, 1 = bottom.</summary>
+    [property: Setting(Comment = "Vertical crop of the banner, 0 is the top.")]
     double? OverviewBannerOffset = null,
-    /// <summary>Global key combination that brings the window forward; empty disables it.</summary>
+    [property: Setting(Comment = "Key combination that brings the window forward; empty disables it.")]
     string? GlobalHotkey = null,
-    /// <summary>Font family per interface role, by role id; null or missing uses the built-in font.</summary>
+    [property: Setting(Comment = "Font family per interface role; empty uses the built-in faces.")]
     Dictionary<string, string>? Fonts = null,
-    /// <summary>"random" (the OS picks a free port) or "custom" for <see cref="SharePort" />.</summary>
+    [property: Setting(Comment = "'random' lets the OS pick a free port; 'custom' uses sharePort.")]
     string? SharePortMode = null,
-    /// <summary>Port used when <see cref="SharePortMode" /> is custom; null or 0 picks a free port.</summary>
+    [property: Setting(Comment = "Port used when sharePortMode is custom.")]
     int? SharePort = null,
-    /// <summary>"none", "shortcut" or "task": how the app joins the user's login session.</summary>
+    [property: Setting(Comment = "'none', 'shortcut' or 'task': how the app joins the session.")]
     string? StartupMode = null,
-    /// <summary>Start in the tray instead of showing the window at launch.</summary>
+    [property: Setting(Comment = "Start in the tray instead of showing the window.")]
     bool? StartHidden = null,
-    /// <summary>Files and folders pinned to the overview's Favorites panel.</summary>
-    List<FavoriteEntry>? Favorites = null){
+    [property: Setting(Comment = "Files and folders pinned to the overview Favorites panel.")]
+    List<FavoriteEntry>? Favorites = null)
+{
     public static AppSettings Default =>
         new(true, true, true, ["**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null,
             ["quick", "frequent", "recent", "home", "drives", "share", "favorites"], null, 1, null,
@@ -102,145 +140,108 @@ public sealed record AppSettings(
     // The accessors below are derived, so they are kept out of settings.toml entirely; only the
     // fields above are stored, and the JSON stays readable and stable.
 
-    /// <summary>Ask the shell for the icon of each file type.</summary>
     [JsonIgnore]
     public bool UseSystemIcons => SystemIcons ?? true;
 
-    /// <summary>Show the icon a folder defines for itself, even when system icons are off.</summary>
     [JsonIgnore]
     public bool UseCustomFolderIcons => CustomFolderIcons ?? true;
 
-    /// <summary>Keep a <c>.yafm-index.db</c> inside every folder that is browsed.</summary>
     [JsonIgnore]
     public bool ShouldWriteDirectoryIndex => WriteDirectoryIndex ?? true;
 
-    /// <summary>Extension (with the dot, lower case) to a built-in icon name or <c>file:&lt;path&gt;</c>.</summary>
     [JsonIgnore]
     public Dictionary<string, string> Overrides => ExtensionIcons ?? [];
 
-    /// <summary>The folders pinned to Quick access, or null to use the well-known defaults.</summary>
     [JsonIgnore]
     public List<string>? PinnedPlaces => QuickAccess;
 
-    /// <summary>How many recent folders to show; 0 turns the list off.</summary>
     [JsonIgnore]
     public int RecentCount => Math.Max(RecentLimit ?? 10, 0);
 
-    /// <summary>Folders the gallery scans, or empty for the user's Pictures folder.</summary>
     [JsonIgnore]
     public List<string> ScanRoots => GalleryRoots ?? [];
 
-    /// <summary>The overview panels in the order the user arranged them, or null for the default.</summary>
     [JsonIgnore]
     public List<string>? PanelOrder => OverviewPanels;
 
-    /// <summary>Panels older versions hid instead of deleting. Only used to migrate them away.</summary>
     [JsonIgnore]
     public List<string> HiddenPanels => OverviewHidden ?? [];
 
-    /// <summary>How many columns the overview uses; 1 to 5.</summary>
     [JsonIgnore]
     public int PanelColumns => Math.Clamp(OverviewColumns ?? 1, 1, 5);
 
-    /// <summary>Names the user gave to quick-access folders, by path.</summary>
     [JsonIgnore]
     public Dictionary<string, string> PlaceNameOverrides => PlaceNames ?? [];
 
-    /// <summary>Icons the user picked for quick-access folders, by path.</summary>
     [JsonIgnore]
     public Dictionary<string, string> PlaceIconOverrides => PlaceIcons ?? [];
 
-    /// <summary>Key combination per action, as the interface stores them (e.g. <c>ctrl+w</c>).</summary>
     [JsonIgnore]
     public Dictionary<string, string> KeyBindings => Shortcuts ?? [];
 
-    /// <summary>Titles the user gave to overview panels, by panel id.</summary>
     [JsonIgnore]
     public Dictionary<string, string> PanelTitles => OverviewTitles ?? [];
 
-    /// <summary>List or grid per overview panel, by panel id.</summary>
     [JsonIgnore]
     public Dictionary<string, string> PanelViews => OverviewViews ?? [];
 
-    /// <summary>Icon per overview panel, by panel id: a built-in name or <c>file:&lt;path&gt;</c>.</summary>
     [JsonIgnore]
     public Dictionary<string, string> PanelIcons => OverviewIcons ?? [];
 
-    /// <summary>Overview panels that also appear in the sidebar.</summary>
     [JsonIgnore]
     public List<string> PinnedPanels => OverviewPinned ?? [];
 
-    /// <summary>Folders shown by one Quick access panel, by panel id. The factory panel uses QuickAccess.</summary>
     [JsonIgnore]
     public Dictionary<string, List<string>> PanelFolderLists => PanelPlaces ?? [];
 
-    /// <summary>
-    ///     Whether this app should own <c>yafm://</c> links. Windows can lose the per-user registry
-    ///     entry, so this choice is stored with the other settings and re-applied at every launch.
-    /// </summary>
     [JsonIgnore]
     public bool OwnsLinks => LinksEnabled ?? false;
 
-    /// <summary>Use this app for folder opens; the registration is per-user and re-applied at launch.</summary>
     [JsonIgnore]
     public bool IsDefaultFileManager => DefaultFileManager ?? false;
 
-    /// <summary>Offer this app for archive files; the registration is per-user and re-applied at launch.</summary>
     [JsonIgnore]
     public bool HandlesArchives => ArchiveHandler ?? false;
 
-    /// <summary>Show a selection checkbox in front of every name.</summary>
     [JsonIgnore]
     public bool UsesCheckboxes => ShowCheckboxes ?? true;
 
-    /// <summary>Open a folder or file with one click instead of two.</summary>
     [JsonIgnore]
     public bool OpensOnSingleClick => OpenOnSingleClick ?? false;
 
-    /// <summary>Ask before moving items to the recycle bin. Shift+Del always asks.</summary>
     [JsonIgnore]
     public bool ConfirmsDelete => ConfirmDelete ?? false;
 
-    /// <summary>Play a video preview's audio; off means the preview is muted.</summary>
     [JsonIgnore]
     public bool PlaysPreviewVideoAudio => PreviewVideoAudio ?? false;
 
-    /// <summary>Start a video preview automatically; off means the user presses play.</summary>
     [JsonIgnore]
     public bool AutoplaysPreviewVideo => PreviewVideoAutoplay ?? false;
 
-    /// <summary>Standalone picker width; clamped so the window always stays usable.</summary>
     [JsonIgnore]
     public int PickerWidth => Math.Clamp(PickerWindowWidth ?? 1200, 640, 4000);
 
-    /// <summary>Standalone picker height; clamped so the window always stays usable.</summary>
     [JsonIgnore]
     public int PickerHeight => Math.Clamp(PickerWindowHeight ?? 800, 400, 3000);
 
-    /// <summary>Symbolic links point at their source relatively unless the user asks for absolute.</summary>
     [JsonIgnore]
     public bool UsesRelativeLinks => !string.Equals(LinkPathMode, "absolute", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>Overview banner height; clamped so it always leaves room for the panels.</summary>
     [JsonIgnore]
     public int BannerHeight => Math.Clamp(OverviewBannerHeight ?? 220, 120, 900);
 
-    /// <summary>"random" or "custom"; anything else falls back to the random port.</summary>
     [JsonIgnore]
     public bool UsesCustomSharePort =>
         string.Equals(SharePortMode, "custom", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>The custom port, or null when the OS should pick a free one.</summary>
     [JsonIgnore]
     public int? CustomSharePort =>
         UsesCustomSharePort && SharePort is >= 1 and <= 65535 ? SharePort : null;
 
-    /// <summary>"none", "shortcut" or "task"; anything unknown means no startup entry.</summary>
     [JsonIgnore]
     public string Startup =>
         StartupMode is "shortcut" or "task" ? StartupMode : "none";
 
-    /// <summary>Whether the window starts in the tray instead of opening on screen.</summary>
     [JsonIgnore]
     public bool StartsHidden => StartHidden ?? false;
 }

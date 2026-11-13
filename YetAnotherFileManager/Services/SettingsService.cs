@@ -15,7 +15,7 @@ namespace YetAnotherFileManager.Services;
 internal partial class SettingsService : SettingsServiceBase<AppSettings, AppSettings>
 {
     private const string Header =
-        "# Yet Another File Manager settings. Rewritten when settings are saved; comments are not kept.";
+        "# Yet Another File Manager settings. The comments come from the app; values are rewritten on save.";
 
     /// <summary>The JSON file older builds wrote, read once and converted to TOML.</summary>
     private static readonly string? LegacySettingsPath = new[]
