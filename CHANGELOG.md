@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.7.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.7.0..v0.7.1) - 2026-11-13
+
+### 🐛 Bug Fixes
+
+- *(ui)* Render the update changelog with the shared markdown component - ([fa3742d](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/fa3742dd30a153e2d62e93df13b3b3e96489c613))
+- *(ui)* Close every popup when the window loses focus - ([f551978](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/f5519786ca2ec8e72d8356a6ca5cecfb9ddde4d3))
+- *(ui)* Keep the recycle bin columns and details pane when it is empty - ([dd6be99](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/dd6be9901f805973c786e6c9ac04ee332ccc48d6))
+- Remember the tabs that are actually open - ([b9729ab](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b9729ab16e1953bdd760d2ba145f01ef54c54c75))
+- Run the startup task queries without a console window - ([0363566](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/0363566e5624c1652016c70c09fb3c3310c4acb3))
+
+### 🚜 Refactor
+
+- Take the shared platform helpers from the library - ([b60c2af](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b60c2af0208c38e0e7a7e7cd3032fe84725db7bf))
+
+### ⚙️ Miscellaneous Tasks
+
+- Update PhotinoNetUtils bridge to version 0.26.1 - ([f81e53d](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/f81e53dbcc74afab5e94096505510fa194e38e40))
+- Update PhotinoNetUtils bridge to version 0.26.0 - ([5382540](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/53825402499e27d6d1c4c73a1439e7a1ea35f577))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([0148c18](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/0148c18b6932f871659fc97ea4c81223cbb6a081))
+
+
 ## [0.7.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.6.0..v0.7.0) - 2026-11-13
 
 ### ⛰️  Features
