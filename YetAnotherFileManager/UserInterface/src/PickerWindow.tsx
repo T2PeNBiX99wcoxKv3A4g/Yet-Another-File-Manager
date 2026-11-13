@@ -77,7 +77,7 @@ export function PickerWindow({mode, multiple, extensions, initial}: PickerWindow
             <Bar>
                 <Mark><AppIcon size={17}/></Mark>
                 {/* Only the title drags; a bar-wide handler would swallow the view menu's clicks. */}
-                <BarTitle {...drag}>{mode === "file" ? t("Choose a file") : t("Choose a folder")}</BarTitle>
+                <BarTitle {...drag}>{mode === "file" ? t("choose_a_file") : t("choose_a_folder")}</BarTitle>
                 <ViewMenu
                     onChange={changeView}
                     onColumns={setColumns}
@@ -89,7 +89,7 @@ export function PickerWindow({mode, multiple, extensions, initial}: PickerWindow
                     <Close
                         onClick={() => Native.send({type: "pick.cancel"})}
                         onMouseDown={(event) => event.stopPropagation()}
-                        title={t("Cancel")}
+                        title={t("cancel")}
                         type="button"
                     >
                         <CrossIcon size={12}/>

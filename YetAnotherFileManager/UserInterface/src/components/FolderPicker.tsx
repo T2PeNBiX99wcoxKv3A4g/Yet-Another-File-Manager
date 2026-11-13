@@ -428,7 +428,7 @@ export function FolderPicker({
         <Footer>
             {/* The file type gets its own line, so the name keeps the whole width above it. */}
             <SelectionGrid>
-                <FieldLabel>{isFileMode ? t("File name:") : t("Folder:")}</FieldLabel>
+                <FieldLabel>{isFileMode ? t("file_name") : t("folder_3")}</FieldLabel>
                 <NameInput
                     onChange={(event) => onName(event.target.value)}
                     onKeyDown={(event) => {
@@ -443,17 +443,17 @@ export function FolderPicker({
 
                 {isFileMode && (
                     <>
-                        <FieldLabel>{t("Files of type:")}</FieldLabel>
+                        <FieldLabel>{t("files_of_type")}</FieldLabel>
                         <SelectMenu
                             onChange={(value) => setAllFiles(value === "all")}
                             options={[
                                 ...(supported.length > 0
                                     ? [{
                                         value: "supported",
-                                        label: `${t("Supported files")} (${supported.map((extension) => `*${extension}`).join(";")})`,
+                                        label: `${t("supported_files")} (${supported.map((extension) => `*${extension}`).join(";")})`,
                                     }]
                                     : []),
-                                {value: "all", label: `${t("All files")} (*.*)`},
+                                {value: "all", label: `${t("all_files")} (*.*)`},
                             ]}
                             value={allFiles ? "all" : "supported"}
                         />
@@ -462,7 +462,7 @@ export function FolderPicker({
             </SelectionGrid>
 
             <Actions>
-                <Button onClick={onCancel} type="button">{t("Cancel")}</Button>
+                <Button onClick={onCancel} type="button">{t("cancel")}</Button>
                 <Button
                     $primary
                     disabled={loading || error !== null || (isFileMode && selected.size === 0 && typed.length === 0)}
@@ -470,7 +470,7 @@ export function FolderPicker({
                     type="button"
                 >
                     <CheckIcon size={12}/>
-                    {isFileMode ? t("Select this file") : t("Select this folder")}
+                    {isFileMode ? t("select_this_file") : t("select_this_folder")}
                 </Button>
             </Actions>
         </Footer>
@@ -482,9 +482,9 @@ export function FolderPicker({
                 <Header>
                     <Title>
                         <FolderIcon size={16}/>
-                        {isFileMode ? t("Choose a file") : t("Choose a folder")}
+                        {isFileMode ? t("choose_a_file") : t("choose_a_folder")}
                     </Title>
-                    <CloseButton onClick={onCancel} title={t("Cancel")} type="button">
+                    <CloseButton onClick={onCancel} title={t("cancel")} type="button">
                         <CrossIcon size={12}/>
                     </CloseButton>
                 </Header>
@@ -551,7 +551,7 @@ export function FolderPicker({
                                 <IconButton
                                     disabled={back.length === 0}
                                     onClick={goBack}
-                                    title={t("Back")}
+                                    title={t("back")}
                                     type="button"
                                 >
                                     <ArrowLeftIcon/>
@@ -559,7 +559,7 @@ export function FolderPicker({
                                 <IconButton
                                     disabled={forward.length === 0}
                                     onClick={goForward}
-                                    title={t("Forward")}
+                                    title={t("forward")}
                                     type="button"
                                 >
                                     <ArrowRightIcon/>
@@ -567,7 +567,7 @@ export function FolderPicker({
                                 <IconButton
                                     disabled={!parent}
                                     onClick={() => parent && navigate(parent)}
-                                    title={t("Up one level")}
+                                    title={t("up_one_level")}
                                     type="button"
                                 >
                                     <ArrowUpIcon/>
@@ -577,18 +577,18 @@ export function FolderPicker({
 
                                 <IconButton
                                     onClick={(event) => setCreateMenu({x: event.clientX, y: event.clientY})}
-                                    title={t("New folder or file")}
+                                    title={t("new_folder_or_file")}
                                     type="button"
                                 >
                                     <PlusIcon/>
                                 </IconButton>
-                                <IconButton onClick={openFind} title={t("Search")} type="button">
+                                <IconButton onClick={openFind} title={t("search")} type="button">
                                     <SearchIcon/>
                                 </IconButton>
                                 {selectionMenu.available && (
                                     <IconButton
                                         onClick={(event) => selectionMenu.open(event.clientX, event.clientY)}
-                                        title={t("Selection menu")}
+                                        title={t("selection_menu")}
                                         type="button"
                                     >
                                         <MenuIcon/>

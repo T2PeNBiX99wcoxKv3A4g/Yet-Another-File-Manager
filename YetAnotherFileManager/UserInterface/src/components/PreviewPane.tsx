@@ -119,7 +119,7 @@ export function PreviewPane({
             }
         }, () => {
             if (alive) {
-                setTextPreview({text: null, truncated: false, error: t("Could not read this file.")});
+                setTextPreview({text: null, truncated: false, error: t("could_not_read_this_file")});
                 setTextLoading(false);
             }
         });
@@ -183,7 +183,7 @@ export function PreviewPane({
                         onPointerMove={move}
                         onPointerUp={end}
                         onDoubleClick={() => onWidth(320)}
-                        title={t("Drag to resize; double-click to reset")}
+                        title={t("drag_to_resize_double_click_to_reset")}
                     />
                 )}
 
@@ -215,7 +215,7 @@ export function PreviewPane({
                     onPointerMove={move}
                     onPointerUp={end}
                     onDoubleClick={() => onWidth(320)}
-                    title={t("Drag to resize; double-click to reset")}
+                    title={t("drag_to_resize_double_click_to_reset")}
                 />
             )}
 
@@ -248,7 +248,7 @@ export function PreviewPane({
                                     src={media}
                                 />
 
-                                <CenterPlay $visible={!playing} onClick={toggleVideo} title={t("Play")} type="button">
+                                <CenterPlay $visible={!playing} onClick={toggleVideo} title={t("play")} type="button">
                                     <PlayIcon size={28}/>
                                 </CenterPlay>
 
@@ -258,7 +258,7 @@ export function PreviewPane({
                                         <span>{formatTime(duration)}</span>
                                     </Times>
                                     <Range
-                                        aria-label={t("Seek")}
+                                        aria-label={t("seek")}
                                         max={duration || 0}
                                         min={0}
                                         onChange={(event) => {
@@ -297,14 +297,14 @@ export function PreviewPane({
                                             ? (
                                                 <TextBox>
                                                     {textLoading || !textPreview
-                                                        ? <TextNote>{t("Loading…")}</TextNote>
+                                                        ? <TextNote>{t("loading")}</TextNote>
                                                         : textPreview.error
                                                             ? <TextNote>{textPreview.error}</TextNote>
                                                             : (
                                                                 <>
                                                                     <Pre>{textPreview.text}</Pre>
                                                                     {textPreview.truncated && (
-                                                                        <TextNote>{t("Showing the first 256 KB.")}</TextNote>
+                                                                        <TextNote>{t("showing_the_first_256_kb")}</TextNote>
                                                                     )}
                                                                 </>
                                                             )}
@@ -327,7 +327,7 @@ export function PreviewPane({
                     onPointerDown={startMedia}
                     onPointerMove={moveMedia}
                     onPointerUp={endMedia}
-                    title={t("Drag to resize; double-click to reset")}
+                    title={t("drag_to_resize_double_click_to_reset")}
                 />
 
                 <Body>

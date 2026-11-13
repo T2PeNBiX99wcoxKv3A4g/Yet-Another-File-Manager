@@ -88,14 +88,14 @@ export function TagPicker({x, y, tags, allTags, colors, onChange, onClose}: TagP
     return createPortal(
         <Panel data-tag-menu="true" ref={root} style={{left, top}}>
             <Header>
-                <span>{t("Tags")}</span>
-                <Close onClick={onClose} title={t("Close")} type="button">
+                <span>{t("tags")}</span>
+                <Close onClick={onClose} title={t("close")} type="button">
                     <CrossIcon size={11}/>
                 </Close>
             </Header>
 
             <List>
-                {known.length === 0 && <Empty>{t("No tags yet.")}</Empty>}
+                {known.length === 0 && <Empty>{t("no_tags_yet")}</Empty>}
                 {known.map((tag) => {
                     const color = colorOf(tag);
                     const on = tags.includes(tag);
@@ -103,9 +103,9 @@ export function TagPicker({x, y, tags, allTags, colors, onChange, onClose}: TagP
                     return (
                         <TagRow key={tag}>
                             <ColorInput
-                                aria-label={t("Color of {tag}", {tag})}
+                                aria-label={t("color_of_tag", {tag})}
                                 onChange={(event) => recolor(tag, event.target.value)}
-                                title={t("Change this tag's color")}
+                                title={t("change_this_tag_s_color")}
                                 type="color"
                                 value={color}
                             />
@@ -126,9 +126,9 @@ export function TagPicker({x, y, tags, allTags, colors, onChange, onClose}: TagP
 
             <NewRow>
                 <ColorInput
-                    aria-label={t("Color of the new tag")}
+                    aria-label={t("color_of_the_new_tag")}
                     onChange={(event) => setDraftColor(event.target.value)}
-                    title={t("Color of the new tag")}
+                    title={t("color_of_the_new_tag")}
                     type="color"
                     value={draftColor}
                 />
@@ -140,11 +140,11 @@ export function TagPicker({x, y, tags, allTags, colors, onChange, onClose}: TagP
                             add();
                         }
                     }}
-                    placeholder={t("New tag")}
+                    placeholder={t("new_tag")}
                     spellCheck={false}
                     value={draft}
                 />
-                <Add onClick={add} type="button">{t("Add")}</Add>
+                <Add onClick={add} type="button">{t("add")}</Add>
             </NewRow>
         </Panel>,
         document.body

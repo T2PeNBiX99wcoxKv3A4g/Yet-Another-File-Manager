@@ -109,7 +109,7 @@ export function SelectMenu({value, options, onChange, disabled, width, icon, too
             </Trigger>
             {anchor && createPortal(
                 <Menu
-                    aria-label={t("Options")}
+                    aria-label={t("options")}
                     data-select-menu="true"
                     $menuZIndex={zIndex}
                     role="listbox"

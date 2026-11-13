@@ -340,18 +340,18 @@ export function FileTray({
             <Head onPointerDown={startDrag} onPointerMove={movePanel} onPointerUp={endDrag}>
                 <Title>
                     <PackageIcon size={13}/>
-                    {t("Tray")}
+                    {t("tray")}
                     <Count>{total}</Count>
                 </Title>
                 <HeadActions onPointerDown={(event) => event.stopPropagation()}>
-                    <SmallButton onClick={toggleAll} title={allSelected ? t("Select none") : t("Select all")}
+                    <SmallButton onClick={toggleAll} title={allSelected ? t("select_none") : t("select_all")}
                                  type="button">
-                        {allSelected ? t("None") : t("All")}
+                        {allSelected ? t("none") : t("all")}
                     </SmallButton>
-                    <SmallButton onClick={onClear} title={t("Remove everything from the tray")} type="button">
-                        {t("Clear")}
+                    <SmallButton onClick={onClear} title={t("remove_everything_from_the_tray")} type="button">
+                        {t("clear")}
                     </SmallButton>
-                    <IconButton onClick={onClose} title={t("Hide the tray")} type="button">
+                    <IconButton onClick={onClose} title={t("hide_the_tray")} type="button">
                         <CrossIcon size={10}/>
                     </IconButton>
                 </HeadActions>
@@ -359,19 +359,19 @@ export function FileTray({
 
             <List>
                 <SectionHead>
-                    {t("In this app")}
+                    {t("in_this_app")}
                     <Count>{items.length}</Count>
                 </SectionHead>
 
-                {items.length === 0 && <DropHint>{t("Drag files or folders here")}</DropHint>}
+                {items.length === 0 && <DropHint>{t("drag_files_or_folders_here")}</DropHint>}
                 {items.map((item) => row(item, true))}
 
                 {clipboardItems.length > 0 && (
                     <>
                         <SectionHead $clipboard>
-                            {t("Clipboard")}
+                            {t("clipboard")}
                             <Count>{clipboardItems.length}</Count>
-                            {clipboardMove && <CutTag>{t("Cut")}</CutTag>}
+                            {clipboardMove && <CutTag>{t("cut")}</CutTag>}
                         </SectionHead>
                         {clipboardItems.map((item) => row(item, clipboardMove))}
                     </>
@@ -383,17 +383,17 @@ export function FileTray({
                     $plain
                     disabled={selectedItems.length === 0}
                     onClick={copySelectedToClipboard}
-                    title={t("Write the selected tray entries to the system clipboard")}
+                    title={t("write_the_selected_tray_entries_to_the_system_clipboard")}
                     type="button"
                 >
-                    {t("To clipboard")}
+                    {t("to_clipboard")}
                 </FootButton>
                 <FootButton
                     disabled={selected.size === 0 || !currentDirectory}
                     onClick={moveHere}
                     type="button"
                 >
-                    {t("Move here")}
+                    {t("move_here")}
                 </FootButton>
                 <FootButton
                     $danger
@@ -401,7 +401,7 @@ export function FileTray({
                     onClick={removeSelected}
                     type="button"
                 >
-                    {t("Remove")}
+                    {t("remove")}
                 </FootButton>
             </Foot>
         </Panel>

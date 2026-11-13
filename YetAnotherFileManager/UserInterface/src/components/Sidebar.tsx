@@ -111,25 +111,25 @@ export function Sidebar({
             <List>
                 {!hiddenViews.includes("home") && (
                     <Item $active={activeKind === "home"} onClick={(event) => onOpenView("home", wantsNewTab(event))}
-                          title={t("Overview")} type="button">
+                          title={t("overview")} type="button">
                         <OverviewIcon/>
-                        <Label>{t("Overview")}</Label>
+                        <Label>{t("overview")}</Label>
                     </Item>
                 )}
                 {!hiddenViews.includes("recycle") && (
                     <Item $active={activeKind === "recycle"}
-                          onClick={(event) => onOpenView("recycle", wantsNewTab(event))} title={t("Recycle Bin")}
+                          onClick={(event) => onOpenView("recycle", wantsNewTab(event))} title={t("recycle_bin")}
                           type="button">
                         <TrashIcon/>
-                        <Label>{t("Recycle Bin")}</Label>
+                        <Label>{t("recycle_bin")}</Label>
                     </Item>
                 )}
                 {!hiddenViews.includes("gallery") && (
                     <Item $active={activeKind === "gallery"}
-                          onClick={(event) => onOpenView("gallery", wantsNewTab(event))} title={t("Gallery")}
+                          onClick={(event) => onOpenView("gallery", wantsNewTab(event))} title={t("gallery")}
                           type="button">
                         <ImageIcon/>
-                        <Label>{t("Gallery")}</Label>
+                        <Label>{t("gallery")}</Label>
                     </Item>
                 )}
             </List>
@@ -220,10 +220,10 @@ export function Sidebar({
             {!hiddenViews.includes("settings") && (
                 <Bottom>
                     <Item $active={activeKind === "settings"}
-                          onClick={(event) => onOpenView("settings", wantsNewTab(event))} title={t("Settings")}
+                          onClick={(event) => onOpenView("settings", wantsNewTab(event))} title={t("settings")}
                           type="button">
                         <GearIcon/>
-                        <Label>{t("Settings")}</Label>
+                        <Label>{t("settings")}</Label>
                     </Item>
                 </Bottom>
             )}
@@ -256,7 +256,7 @@ function FrequentItems({historyVersion = 0, onNavigate}: {
                 key={entry.path}
                 $active={false}
                 onClick={(event) => onNavigate(entry.path, wantsNewTab(event))}
-                title={plural(t, entry.count, "1 visit · {path}", "{count} visits · {path}", {path: entry.path})}
+                title={plural(t, entry.count, "k_1_visit_path", "count_visits_path", {path: entry.path})}
                 type="button"
             >
                 {place && quick.useIcons

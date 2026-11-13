@@ -329,8 +329,8 @@ export function GalleryView({
         ? previewEntry.name.slice(previewEntry.name.lastIndexOf(".") + 1).toUpperCase()
         : "—";
     const previewKind = previewEntry && /\.(mp4|webm|mkv|mov|m4v|avi|wmv|ogv)$/i.test(previewEntry.name)
-        ? t("Video")
-        : t("Picture");
+        ? t("video_2")
+        : t("picture");
     const previewLocation = previewEntry
         ? previewEntry.path.slice(0, Math.max(previewEntry.path.lastIndexOf("\\"), previewEntry.path.lastIndexOf("/")))
         : "";
@@ -342,13 +342,13 @@ export function GalleryView({
             size: previewEntry.size,
             modified: previewEntry.modified,
             fields: [
-                {label: t("Type"), value: previewKind},
-                {label: t("Extension"), value: previewExtension},
-                {label: t("Location"), value: previewLocation},
-                {label: t("Full path"), value: previewEntry.path},
-                {label: t("Size"), value: formatBytes(previewEntry.size)},
-                {label: t("Modified"), value: formatDate(previewEntry.modified)},
-                {label: t("Created"), value: "—"},
+                {label: t("type"), value: previewKind},
+                {label: t("extension"), value: previewExtension},
+                {label: t("location"), value: previewLocation},
+                {label: t("full_path"), value: previewEntry.path},
+                {label: t("size"), value: formatBytes(previewEntry.size)},
+                {label: t("modified"), value: formatDate(previewEntry.modified)},
+                {label: t("created"), value: "—"},
             ],
         }
         : null;
@@ -357,21 +357,21 @@ export function GalleryView({
         <Page>
             <Header>
                 <Heading>
-                    <span>{t("Gallery")}</span>
-                    <Count>{loading ? t("scanning…") : t("{shown} of {total} pictures", {
+                    <span>{t("gallery")}</span>
+                    <Count>{loading ? t("scanning") : t("shown_of_total_pictures", {
                         shown: entries.length,
                         total
                     })}</Count>
                 </Heading>
 
                 <HeaderActions>
-                    <IconButton onClick={refresh} title={t("Scan the folders again")} type="button">
+                    <IconButton onClick={refresh} title={t("scan_the_folders_again")} type="button">
                         <Spin $spinning={busy}><RefreshIcon size={14}/></Spin>
                     </IconButton>
                     {selectionMenu.available && (
                         <IconButton
                             onClick={(event) => selectionMenu.open(event.clientX, event.clientY)}
-                            title={t("Selection menu")}
+                            title={t("selection_menu")}
                             type="button"
                         >
                             <MenuIcon size={14}/>
@@ -381,7 +381,7 @@ export function GalleryView({
             </Header>
 
             {error && <Message>{error}</Message>}
-            {!error && !loading && total === 0 && <Message>{t("No pictures found.")}</Message>}
+            {!error && !loading && total === 0 && <Message>{t("no_pictures_found")}</Message>}
 
             {!error && (loading || total > 0) && (
                 <GalleryBody>
@@ -418,11 +418,11 @@ export function GalleryView({
                     </GridPane>
                     {showDetails && (
                         <PreviewPane
-                            emptyNote={t("Nothing selected.")}
+                            emptyNote={t("nothing_selected")}
                             info={previewInfo}
                             onWidth={resizePreview}
                             selectionNote={selectedPaths.length > 1
-                                ? plural(t, selectedPaths.length, "1 item selected", "{count} items selected")
+                                ? plural(t, selectedPaths.length, "k_1_item_selected", "count_items_selected")
                                 : undefined}
                             videoAudio={videoAudio}
                             videoAutoplay={videoAutoplay}

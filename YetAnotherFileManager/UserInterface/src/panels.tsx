@@ -67,13 +67,13 @@ export const DefaultPanels = ["quick", "frequent", "recent", "home", "drives", "
 export const KnownPanels = [...DefaultPanels];
 
 export const DefaultTitles: Record<string, string> = {
-    quick: "Quick access",
-    recent: "Recent",
-    frequent: "Frequent",
-    home: "Home",
-    drives: "Drives",
-    share: "Shared",
-    favorites: "Favorites",
+    quick: "quick_access",
+    recent: "recent",
+    frequent: "frequent",
+    home: "home",
+    drives: "drives",
+    share: "shared",
+    favorites: "favorites",
 };
 
 /** Built-in icons a panel or a Quick access folder can be given. */
@@ -154,7 +154,7 @@ export function buildPanels(settings: AppSettings | null): Panel[] {
             places: kind === "quick" && id !== "quick" ? settings?.panelPlaces?.[id] ?? [] : undefined,
             title: titles[id] ?? (kind === "folder"
                 ? id.slice("folder:".length).split(/[\\/]/).filter(Boolean).pop() ?? id
-                : kind === "home" ? "Home" : `${DefaultTitles[kind] ?? kind}${suffix(id)}`),
+                : kind === "home" ? "home" : `${DefaultTitles[kind] ?? kind}${suffix(id)}`),
             view: views[id] === "grid" ? "grid" : views[id] === "list" ? "list" : (kind === "quick" ? "grid" : "list"),
             icon: icons[id],
             pinned: pinned.includes(id),

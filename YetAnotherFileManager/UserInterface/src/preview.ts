@@ -3,11 +3,11 @@ export type PreviewKind = "image" | "video" | "document" | "audio" | "design";
 
 /** The groups the interface draws, in the order it draws them. */
 export const PreviewKindLabels: { kind: PreviewKind; label: string }[] = [
-    {kind: "image", label: "Images"},
-    {kind: "video", label: "Videos"},
-    {kind: "document", label: "Documents"},
-    {kind: "audio", label: "Audio"},
-    {kind: "design", label: "Design files"},
+    {kind: "image", label: "images"},
+    {kind: "video", label: "videos"},
+    {kind: "document", label: "documents"},
+    {kind: "audio", label: "audio"},
+    {kind: "design", label: "design_files"},
 ];
 
 /**

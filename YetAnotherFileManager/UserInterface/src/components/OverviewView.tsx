@@ -202,12 +202,12 @@ function BannerFraming({source, video, height, offset, onCancel, onSave}: Banner
         }}>
             <FramingPanel>
                 <FramingHead>
-                    <span>{t("Adjust banner framing")}</span>
-                    <CloseButton onClick={onCancel} title={t("Cancel")} type="button">
+                    <span>{t("adjust_banner_framing")}</span>
+                    <CloseButton onClick={onCancel} title={t("cancel")} type="button">
                         <CrossIcon size={12}/>
                     </CloseButton>
                 </FramingHead>
-                <FramingHint>{t("Drag the frame to choose the visible part.")}</FramingHint>
+                <FramingHint>{t("drag_the_frame_to_choose_the_visible_part")}</FramingHint>
 
                 <FramingStage>
                     {video
@@ -247,13 +247,13 @@ function BannerFraming({source, video, height, offset, onCancel, onSave}: Banner
                 </FramingStage>
 
                 <FramingActions>
-                    <Button onClick={onCancel} type="button">{t("Cancel")}</Button>
+                    <Button onClick={onCancel} type="button">{t("cancel")}</Button>
                     <Button
                         $primary
                         onClick={() => onSave(maxTop > 0 ? top / maxTop : offset)}
                         type="button"
                     >
-                        {t("Save")}
+                        {t("save")}
                     </Button>
                 </FramingActions>
             </FramingPanel>
@@ -1908,7 +1908,7 @@ export function OverviewView({
     /** Recent is one kind: the same entries, shown as cards or rows, with one empty state. */
     const renderRecent = (panel: Panel) => {
         if (recent.length === 0)
-            return <Empty>{t("Files and folders you open show up here.")}</Empty>;
+            return <Empty>{t("files_and_folders_you_open_show_up_here")}</Empty>;
 
         const entries = recent.slice(0, recentLimit);
 
@@ -2008,7 +2008,7 @@ export function OverviewView({
                 <AddFolder
                     $row={panel.view === "list"}
                     onClick={() => void requestFile().then((path) => pin(path, false))}
-                    title={t("Pin any file here")}
+                    title={t("pin_any_file_here")}
                     type="button"
                 >
                     {panel.view === "list"
@@ -2017,21 +2017,21 @@ export function OverviewView({
                     {panel.view === "list"
                         ? (
                             <RowText>
-                                <strong>{t("Add file")}</strong>
-                                <Meta>{t("Pin any file here")}</Meta>
+                                <strong>{t("add_file")}</strong>
+                                <Meta>{t("pin_any_file_here")}</Meta>
                             </RowText>
                         )
                         : (
                             <CardText>
-                                <strong>{t("Add file")}</strong>
-                                <Meta>{t("Pin any file here")}</Meta>
+                                <strong>{t("add_file")}</strong>
+                                <Meta>{t("pin_any_file_here")}</Meta>
                             </CardText>
                         )}
                 </AddFolder>
                 <AddFolder
                     $row={panel.view === "list"}
                     onClick={() => void requestFolder().then((path) => pin(path, true))}
-                    title={t("Pin any folder here")}
+                    title={t("pin_any_folder_here")}
                     type="button"
                 >
                     {panel.view === "list"
@@ -2040,14 +2040,14 @@ export function OverviewView({
                     {panel.view === "list"
                         ? (
                             <RowText>
-                                <strong>{t("Add folder")}</strong>
-                                <Meta>{t("Pin any folder here")}</Meta>
+                                <strong>{t("add_folder")}</strong>
+                                <Meta>{t("pin_any_folder_here")}</Meta>
                             </RowText>
                         )
                         : (
                             <CardText>
-                                <strong>{t("Add folder")}</strong>
-                                <Meta>{t("Pin any folder here")}</Meta>
+                                <strong>{t("add_folder")}</strong>
+                                <Meta>{t("pin_any_folder_here")}</Meta>
                             </CardText>
                         )}
                 </AddFolder>
@@ -2055,7 +2055,7 @@ export function OverviewView({
         ) : null;
 
         if (favorites.length === 0 && !editing)
-            return <Empty>{t("No favorites yet. Right-click any file or folder and add it here.")}</Empty>;
+            return <Empty>{t("no_favorites_yet_right_click_any_file_or_folder_and_add_it_here")}</Empty>;
 
         if (panel.view === "grid")
             return (
@@ -2079,7 +2079,7 @@ export function OverviewView({
                                             event.stopPropagation();
                                             void removeFavorite(entry.path);
                                         }}
-                                        title={t("Remove from favorites")}
+                                        title={t("remove_from_favorites")}
                                         type="button"
                                     >
                                         <CrossIcon size={11}/>
@@ -2133,7 +2133,7 @@ export function OverviewView({
                                         event.stopPropagation();
                                         void removeFavorite(entry.path);
                                     }}
-                                    title={t("Remove from favorites")}
+                                    title={t("remove_from_favorites")}
                                     type="button"
                                 >
                                     <CrossIcon size={11}/>
@@ -2151,7 +2151,7 @@ export function OverviewView({
     /** Drives are one kind: the same volumes, shown as cards or rows, with one empty state. */
     const renderDrives = (panel: Panel) => {
         if (drives.length === 0)
-            return <Empty>{t("No drives are available.")}</Empty>;
+            return <Empty>{t("no_drives_are_available")}</Empty>;
 
         const items = drives.map((drive) => {
             const used = drive.totalSize > 0 ? 1 - drive.freeSpace / drive.totalSize : 0;
@@ -2173,13 +2173,13 @@ export function OverviewView({
                         event.stopPropagation();
                         startDriveRename(drive);
                     }}
-                    title={t("Rename volume")}
+                    title={t("rename_volume")}
                     type="button"
                 >
                     <PencilIcon size={11}/>
                 </RenameButton>
             );
-            const meta = <Meta>{t("{free} free of {total}", {
+            const meta = <Meta>{t("free_free_of_total", {
                 free: formatBytes(drive.freeSpace),
                 total: formatBytes(drive.totalSize)
             })}</Meta>;
@@ -2281,7 +2281,7 @@ export function OverviewView({
                         onKeyDown={(event) => {
                             if (event.key === "Enter") void pairManual();
                         }}
-                        placeholder={t("Address, e.g. 192.168.1.20:45701")}
+                        placeholder={t("address_e_g_192_168_1_20_45701")}
                         value={manualAddress}
                     />
                     <PairButton
@@ -2289,12 +2289,12 @@ export function OverviewView({
                         onClick={() => void pairManual()}
                         type="button"
                     >
-                        {shareBusy === "manual" ? t("Pairing…") : t("Pair by address")}
+                        {shareBusy === "manual" ? t("pairing") : t("pair_by_address")}
                     </PairButton>
                 </ManualPair>
 
                 {sharePeers.length === 0 && (
-                    <Empty>{t("No sharing devices on this network yet. Pair one by address or share a folder from the title bar.")}</Empty>
+                    <Empty>{t("no_sharing_devices_on_this_network_yet_pair_one_by_address_or_share_a_folder_from_the_title_bar")}</Empty>
                 )}
 
                 {sharePeers.map((peer) => (
@@ -2304,8 +2304,8 @@ export function OverviewView({
                             <SharePeerName title={peer.host}>{peer.name}</SharePeerName>
                             <PeerState $online={peer.online}>
                                 {peer.paired
-                                    ? (peer.online ? t("Paired") : t("Offline"))
-                                    : t("Not paired")}
+                                    ? (peer.online ? t("paired") : t("offline"))
+                                    : t("not_paired")}
                             </PeerState>
                             {!peer.paired && peer.online && (
                                 <PairButton
@@ -2313,13 +2313,13 @@ export function OverviewView({
                                     onClick={() => void pair(peer)}
                                     type="button"
                                 >
-                                    {shareBusy === peer.id ? t("Pairing…") : t("Pair")}
+                                    {shareBusy === peer.id ? t("pairing") : t("pair")}
                                 </PairButton>
                             )}
                         </SharePeerHead>
 
                         {peer.paired && peer.shares.length === 0 && (
-                            <Meta>{t("No folders are shared with the app on this device.")}</Meta>
+                            <Meta>{t("no_folders_are_shared_with_the_app_on_this_device")}</Meta>
                         )}
 
                         {peer.shares.map((share) => (
@@ -2355,7 +2355,7 @@ export function OverviewView({
                 const items = quickItems(panel);
 
                 if (!editing && items.length === 0)
-                    return <Empty>{t("No folders in this Quick access panel yet.")}</Empty>;
+                    return <Empty>{t("no_folders_in_this_quick_access_panel_yet")}</Empty>;
 
                 return panel.view === "grid"
                     ? (
@@ -2380,7 +2380,7 @@ export function OverviewView({
                                                 event.stopPropagation();
                                                 void removePlace(panel, place.path);
                                             }}
-                                            title={t("Remove from Quick access")}
+                                            title={t("remove_from_quick_access")}
                                             type="button"
                                         >
                                             <CrossIcon size={11}/>
@@ -2397,7 +2397,7 @@ export function OverviewView({
                                                     });
                                                 }}
                                                 onPointerDown={(event) => event.stopPropagation()}
-                                                title={t("Change icon")}
+                                                title={t("change_icon")}
                                                 type="button"
                                             >
                                                 <Glyph><PlaceIcon place={place}/></Glyph>
@@ -2432,7 +2432,7 @@ export function OverviewView({
                                                             setIconEditor(null);
                                                             setPlaceRename({path: place.path, name: place.name});
                                                         }}
-                                                        title={t("Rename folder")}
+                                                        title={t("rename_folder")}
                                                         type="button"
                                                     >
                                                         <PencilIcon size={11}/>
@@ -2446,12 +2446,12 @@ export function OverviewView({
                             ))}
 
                             {editing && (
-                                <AddFolder onClick={() => void addPlace(panel)} title={t("Pin a folder here")}
+                                <AddFolder onClick={() => void addPlace(panel)} title={t("pin_a_folder_here")}
                                            type="button">
                                     <Glyph><PlusIcon size={15}/></Glyph>
                                     <CardText>
-                                        <strong>{t("Add folder")}</strong>
-                                        <Meta>{t("Pin a directory here")}</Meta>
+                                        <strong>{t("add_folder")}</strong>
+                                        <Meta>{t("pin_a_directory_here")}</Meta>
                                     </CardText>
                                 </AddFolder>
                             )}
@@ -2484,7 +2484,7 @@ export function OverviewView({
                                                     });
                                                 }}
                                                 onPointerDown={(event) => event.stopPropagation()}
-                                                title={t("Change icon")}
+                                                title={t("change_icon")}
                                                 type="button"
                                             >
                                                 <PlaceIcon place={place} size={15}/>
@@ -2519,7 +2519,7 @@ export function OverviewView({
                                                             setIconEditor(null);
                                                             setPlaceRename({path: place.path, name: place.name});
                                                         }}
-                                                        title={t("Rename folder")}
+                                                        title={t("rename_folder")}
                                                         type="button"
                                                     >
                                                         <PencilIcon size={11}/>
@@ -2536,7 +2536,7 @@ export function OverviewView({
                                                 event.stopPropagation();
                                                 void removePlace(panel, place.path);
                                             }}
-                                            title={t("Remove from Quick access")}
+                                            title={t("remove_from_quick_access")}
                                             type="button"
                                         >
                                             <CrossIcon size={11}/>
@@ -2546,12 +2546,12 @@ export function OverviewView({
                             ))}
 
                             {editing && (
-                                <AddFolder $row onClick={() => void addPlace(panel)} title={t("Pin a folder here")}
+                                <AddFolder $row onClick={() => void addPlace(panel)} title={t("pin_a_folder_here")}
                                            type="button">
                                     <PlusIcon size={15}/>
                                     <RowText>
-                                        <strong>{t("Add folder")}</strong>
-                                        <Meta>{t("Pin a directory here")}</Meta>
+                                        <strong>{t("add_folder")}</strong>
+                                        <Meta>{t("pin_a_directory_here")}</Meta>
                                     </RowText>
                                 </AddFolder>
                             )}
@@ -2591,13 +2591,13 @@ export function OverviewView({
         <Page $flush={!!settings?.overviewBanner} ref={pageRef}>
             {!readOnly && (
                 <Toolbar $overlay={!!settings?.overviewBanner}>
-                    <Segmented role="group" title={t("Columns")}>
+                    <Segmented role="group" title={t("columns")}>
                         {[1, 2, 3, 4, 5].map((count) => (
                             <Segment
                                 key={count}
                                 $active={columns === count}
                                 onClick={() => void save({overviewColumns: count})}
-                                title={plural(t, count, "1 column", "{count} columns")}
+                                title={plural(t, count, "k_1_column", "count_columns")}
                                 type="button"
                             >
                                 {count}
@@ -2610,11 +2610,11 @@ export function OverviewView({
                             <Ghost
                                 onClick={() => setAddOpen((current) => !current)}
                                 onPointerDown={(event) => event.stopPropagation()}
-                                title={t("Add a panel")}
+                                title={t("add_a_panel")}
                                 type="button"
                             >
                                 <PlusIcon size={12}/>
-                                {t("Add panel ▾")}
+                                {t("add_panel")}
                             </Ghost>
                             {addOpen && (
                                 <PanelMenu onPointerDown={(event) => event.stopPropagation()}>
@@ -2627,13 +2627,13 @@ export function OverviewView({
                                             }}
                                             type="button"
                                         >
-                                            {kind === "quick" ? t("Quick access")
-                                                : kind === "recent" ? t("Recent")
-                                                    : kind === "frequent" ? t("Frequent")
-                                                        : kind === "home" ? t("Home")
-                                                            : kind === "drives" ? t("This PC")
-                                                                : kind === "share" ? t("Shared")
-                                                                    : kind === "favorites" ? t("Favorites") : t("Folder…")}
+                                            {kind === "quick" ? t("quick_access")
+                                                : kind === "recent" ? t("recent")
+                                                    : kind === "frequent" ? t("frequent")
+                                                        : kind === "home" ? t("home")
+                                                            : kind === "drives" ? t("this_pc")
+                                                                : kind === "share" ? t("shared")
+                                                                    : kind === "favorites" ? t("favorites") : t("folder_2")}
                                         </PanelMenuItem>
                                     ))}
                                 </PanelMenu>
@@ -2644,18 +2644,18 @@ export function OverviewView({
                     {editing && (
                         <Ghost
                             onClick={() => void restorePanels()}
-                            title={t("Put every panel back the way the app ships it")}
+                            title={t("put_every_panel_back_the_way_the_app_ships_it")}
                             type="button"
                         >
                             <RefreshIcon size={12}/>
-                            {t("Restore default panels")}
+                            {t("restore_default_panels")}
                         </Ghost>
                     )}
 
                     {selectionMenu.available && (
                         <IconButton
                             onClick={(event) => selectionMenu.open(event.clientX, event.clientY)}
-                            title={t("Selection menu")}
+                            title={t("selection_menu")}
                             type="button"
                         >
                             <MenuIcon size={14}/>
@@ -2670,11 +2670,11 @@ export function OverviewView({
                             setPlaceRename(null);
                             setDriveRename(null);
                         }}
-                        title={editing ? t("Done") : t("Edit")}
+                        title={editing ? t("done") : t("edit")}
                         type="button"
                     >
                         {editing ? <CheckIcon size={13}/> : <PencilIcon size={13}/>}
-                        {editing ? t("Done") : t("Edit")}
+                        {editing ? t("done") : t("edit")}
                     </Ghost>
                 </Toolbar>
             )}
@@ -2730,7 +2730,7 @@ export function OverviewView({
                             onPointerDown={startBannerDrag}
                             onPointerMove={moveBanner}
                             onPointerUp={endBannerDrag}
-                            title={t("Drag to resize; double-click to reset")}
+                            title={t("drag_to_resize_double_click_to_reset")}
                         />
                     )}
                 </Banner>
@@ -2740,11 +2740,11 @@ export function OverviewView({
                 {editing && (
                     <BannerPanel>
                         <BannerPanelHead>
-                            <BannerPanelTitle>{t("Banners")}</BannerPanelTitle>
+                            <BannerPanelTitle>{t("banners")}</BannerPanelTitle>
                             {settings?.overviewBanner && (
-                                <Ghost onClick={() => setFraming(true)} title={t("Adjust framing…")} type="button">
+                                <Ghost onClick={() => setFraming(true)} title={t("adjust_framing")} type="button">
                                     <PencilIcon size={12}/>
-                                    {t("Adjust framing…")}
+                                    {t("adjust_framing")}
                                 </Ghost>
                             )}
                         </BannerPanelHead>
@@ -2753,12 +2753,12 @@ export function OverviewView({
                                 <BannerChoice
                                     $active={!settings?.overviewBanner}
                                     onClick={removeBanner}
-                                    title={t("No banner")}
+                                    title={t("no_banner")}
                                     type="button"
                                 >
                                     <NoBanner>
                                         <CrossIcon size={16}/>
-                                        <span>{t("No banner")}</span>
+                                        <span>{t("no_banner")}</span>
                                     </NoBanner>
                                 </BannerChoice>
                             </BannerItem>
@@ -2805,7 +2805,7 @@ export function OverviewView({
                                     </BannerChoice>
                                     <BannerRemove
                                         onClick={() => removeCustomBanner(path)}
-                                        title={t("Remove")}
+                                        title={t("remove")}
                                         type="button"
                                     >
                                         <CrossIcon size={10}/>
@@ -2813,9 +2813,9 @@ export function OverviewView({
                                 </BannerItem>
                             ))}
 
-                            <AddBanner onClick={() => void chooseBanner()} title={t("Add banner…")} type="button">
+                            <AddBanner onClick={() => void chooseBanner()} title={t("add_banner")} type="button">
                                 <PlusIcon size={18}/>
-                                <span>{t("Add banner…")}</span>
+                                <span>{t("add_banner")}</span>
                             </AddBanner>
                         </BannerChoices>
                         <BannerUrlRow>
@@ -2832,7 +2832,7 @@ export function OverviewView({
                                 onClick={() => void addBannerUrl()}
                                 type="button"
                             >
-                                {t("Add URL")}
+                                {t("add_url")}
                             </BannerUrlButton>
                         </BannerUrlRow>
                     </BannerPanel>
@@ -2855,7 +2855,7 @@ export function OverviewView({
                                                             id: panel.id
                                                         })}
                                                         onPointerDown={(event) => event.stopPropagation()}
-                                                        title={t("Change icon")}
+                                                        title={t("change_icon")}
                                                         type="button"
                                                     >
                                                         <PanelGlyph panel={panel} size={15}/>
@@ -2887,25 +2887,25 @@ export function OverviewView({
                                         <HeadEnd>
                                             {!editing && panel.kind === "recent" && (
                                                 <Ghost onClick={() => void clearRecent().then(onRecentCleared)}
-                                                       title={t("Clear")} type="button">
-                                                    {t("Clear")}
+                                                       title={t("clear")} type="button">
+                                                    {t("clear")}
                                                 </Ghost>
                                             )}
 
                                             {!editing && panel.kind === "frequent" && (
                                                 <Ghost
                                                     onClick={() => void clearFrequent().then(() => onHistoryChanged?.())}
-                                                    title={t("Clear the frequent list")}
+                                                    title={t("clear_the_frequent_list")}
                                                     type="button"
                                                 >
-                                                    {t("Clear")}
+                                                    {t("clear")}
                                                 </Ghost>
                                             )}
 
                                             {!editing && (panel.kind === "home" || panel.kind === "folder") && (
                                                 <Ghost onClick={() => onOpen(panel.path ?? homePath)}
-                                                       title={t("Open folder")} type="button">
-                                                    {t("Open")}
+                                                       title={t("open_folder")} type="button">
+                                                    {t("open")}
                                                 </Ghost>
                                             )}
 
@@ -2914,7 +2914,7 @@ export function OverviewView({
                                                     <IconButton
                                                         $active={panel.pinned}
                                                         onClick={() => togglePin(panel.id)}
-                                                        title={panel.pinned ? t("Unpin from the sidebar") : t("Pin to the sidebar")}
+                                                        title={panel.pinned ? t("unpin_from_the_sidebar") : t("pin_to_the_sidebar")}
                                                         type="button"
                                                     >
                                                         <PinIcon size={12}/>
@@ -2922,7 +2922,7 @@ export function OverviewView({
                                                     <IconButton
                                                         $active={panel.view === "list"}
                                                         onClick={() => setView(panel.id, "list")}
-                                                        title={t("List")}
+                                                        title={t("list")}
                                                         type="button"
                                                     >
                                                         <ListIcon size={13}/>
@@ -2930,7 +2930,7 @@ export function OverviewView({
                                                     <IconButton
                                                         $active={panel.view === "grid"}
                                                         onClick={() => setView(panel.id, "grid")}
-                                                        title={t("Grid")}
+                                                        title={t("grid")}
                                                         type="button"
                                                     >
                                                         <GridIcon size={13}/>
@@ -2938,7 +2938,7 @@ export function OverviewView({
                                                     <IconButton
                                                         disabled={index === 0}
                                                         onClick={() => move(panel.id, -1)}
-                                                        title={t("Move up")}
+                                                        title={t("move_up")}
                                                         type="button"
                                                     >
                                                         <ArrowUpIcon size={12}/>
@@ -2946,14 +2946,14 @@ export function OverviewView({
                                                     <IconButton
                                                         disabled={index === ids.length - 1}
                                                         onClick={() => move(panel.id, 1)}
-                                                        title={t("Move down")}
+                                                        title={t("move_down")}
                                                         type="button"
                                                     >
                                                         <ArrowUpIcon size={12}/>
                                                     </IconButton>
                                                     <IconButton
                                                         onClick={() => remove(panel.id)}
-                                                        title={t("Remove panel")}
+                                                        title={t("remove_panel")}
                                                         type="button"
                                                     >
                                                         <CrossIcon size={12}/>
@@ -3033,10 +3033,10 @@ function InlineEditor({value, onChange, onCommit, onCancel, maxLength = 120}: {
                 style={{width: `${Math.max(value.length + 1, 8)}ch`}}
                 value={value}
             />
-            <EditorButton onClick={onCancel} title={t("Cancel")} type="button">
+            <EditorButton onClick={onCancel} title={t("cancel")} type="button">
                 <CrossIcon size={11}/>
             </EditorButton>
-            <EditorButton $apply onClick={onCommit} title={t("Rename volume")} type="button">
+            <EditorButton $apply onClick={onCommit} title={t("rename_volume")} type="button">
                 <CheckIcon size={12}/>
             </EditorButton>
         </InlineEditorBox>
@@ -3071,13 +3071,13 @@ function FrequentBody({mode, onOpen, onContextMenu, onPick, onSelectionChange, v
     }, [version]);
 
     if (!entries)
-        return <Empty>{t("Reading…")}</Empty>;
+        return <Empty>{t("reading")}</Empty>;
 
     if (entries.length === 0)
-        return <Empty>{t("Folders you open often show up here.")}</Empty>;
+        return <Empty>{t("folders_you_open_often_show_up_here")}</Empty>;
 
     const subtitle = (entry: FrequentEntry) =>
-        plural(t, entry.count, "1 visit · {path}", "{count} visits · {path}", {path: entry.path});
+        plural(t, entry.count, "k_1_visit_path", "count_visits_path", {path: entry.path});
 
     if (mode === "grid")
         return (
@@ -3204,7 +3204,7 @@ function FolderBody({
     }, [path]);
 
     if (!listing)
-        return <Empty>{t("Reading…")}</Empty>;
+        return <Empty>{t("reading")}</Empty>;
 
     if (mode === "list")
         return (
@@ -3233,7 +3233,7 @@ function FolderBody({
     return (
         <Scroller>
             {listing.entries.length === 0
-                ? <Empty>{t("This folder is empty.")}</Empty>
+                ? <Empty>{t("this_folder_is_empty")}</Empty>
                 : (
                     <Tiles>
                         {listing.entries.map((entry) => {

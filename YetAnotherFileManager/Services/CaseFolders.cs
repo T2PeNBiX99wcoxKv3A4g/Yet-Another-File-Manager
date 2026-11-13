@@ -84,16 +84,16 @@ internal static class CaseFolders
     public static CaseSensitivePayload Set(string path, bool enabled)
     {
         if (!Supported)
-            return new(false, false, Localization.Get("Case-sensitive folders are a Windows feature."));
+            return new(false, false, Localization.Get("case_sensitive_folders_are_a_windows_feature"));
 
         if (!Directory.Exists(path))
-            return new(false, false, Localization.Get("The folder is no longer there."));
+            return new(false, false, Localization.Get("the_folder_is_no_longer_there"));
 
         try
         {
             var info = new DirectoryInfo(path);
             if (info.LinkTarget is not null)
-                return new(false, enabled, Localization.Get("A link cannot be converted this way."));
+                return new(false, enabled, Localization.Get("a_link_cannot_be_converted_this_way"));
 
             if (enabled && !CaseSensitivity.IsEmpty(path))
                 Convert(path);

@@ -16,9 +16,9 @@ import {type ThemePreset, ThemePresets} from "../themePresets";
 type ConceptId = "aurora" | "dunes" | "tide";
 
 const Concepts: { id: ConceptId; name: LocalizationKey }[] = [
-    {id: "aurora", name: "Aurora"},
-    {id: "dunes", name: "Dunes"},
-    {id: "tide", name: "Tide"},
+    {id: "aurora", name: "aurora"},
+    {id: "dunes", name: "dunes"},
+    {id: "tide", name: "tide"},
 ];
 
 export interface BackgroundVariant {
@@ -41,9 +41,9 @@ export interface VideoVariant {
 
 /** The short, silent loops generated for the app; they are ordinary files in the bundle. */
 export const BuiltInVideos: VideoVariant[] = [
-    {id: "builtin:video:drift", name: "Drift", url: driftVideo, poster: driftPoster},
-    {id: "builtin:video:ember", name: "Ember", url: emberVideo, poster: emberPoster},
-    {id: "builtin:video:bloom", name: "Bloom", url: bloomVideo, poster: bloomPoster},
+    {id: "builtin:video:drift", name: "drift", url: driftVideo, poster: driftPoster},
+    {id: "builtin:video:ember", name: "ember", url: emberVideo, poster: emberPoster},
+    {id: "builtin:video:bloom", name: "bloom", url: bloomVideo, poster: bloomPoster},
 ];
 
 /** One row per concept, each with a variant for every theme preset. */
@@ -62,9 +62,9 @@ export const BuiltInBackgrounds: { id: ConceptId; name: LocalizationKey; variant
 type BannerConceptId = "ridgeline" | "skyline" | "orbit";
 
 const BannerConcepts: { id: BannerConceptId; name: LocalizationKey }[] = [
-    {id: "ridgeline", name: "Ridgeline"},
-    {id: "skyline", name: "Skyline"},
-    {id: "orbit", name: "Orbit"},
+    {id: "ridgeline", name: "ridgeline"},
+    {id: "skyline", name: "skyline"},
+    {id: "orbit", name: "orbit"},
 ];
 
 /**

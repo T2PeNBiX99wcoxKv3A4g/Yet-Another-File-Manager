@@ -397,7 +397,7 @@ internal partial class FileSystemService : INativeMessageHandler
 
                 if (request is null || !Archives.TrySplit(request.Path, out var archive, out _))
                     return context.Reply("fs.archive.extract.result",
-                        new ArchiveExtractPayload(false, Localization.Get("The path is not inside an archive.")));
+                        new ArchiveExtractPayload(false, Localization.Get("the_path_is_not_inside_an_archive")));
 
                 // Extracting writes into the target and may replace what is already there.
                 if (GuardChange(request.Confirm, DeleteGuard.KeyFor("extract", [request.Target]),
@@ -526,7 +526,7 @@ internal partial class FileSystemService : INativeMessageHandler
                 var request = context.Payload<TransferRequest>();
                 if (request is null)
                     return context.Reply("fs.operation.transfer.result",
-                        new TransferResultPayload(false, Localization.Get("Nothing to transfer."), []));
+                        new TransferResultPayload(false, Localization.Get("nothing_to_transfer"), []));
 
                 var paths = await MapWorkspacePathsAsync(request.Paths);
                 var target = await MapWorkspacePathAsync(request.Target, true);

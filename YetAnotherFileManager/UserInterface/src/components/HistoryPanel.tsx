@@ -47,7 +47,7 @@ export function HistoryPanel() {
             <Button
                 $active={open}
                 onClick={() => setOpen((value) => !value)}
-                title={t("History")}
+                title={t("history")}
                 type="button"
             >
                 <ClockIcon size={14}/>
@@ -56,14 +56,14 @@ export function HistoryPanel() {
             {open && (
                 <Panel>
                     <Head>
-                        <Title>{t("History")}</Title>
-                        <Close onClick={() => setOpen(false)} title={t("Close")} type="button">
+                        <Title>{t("history")}</Title>
+                        <Close onClick={() => setOpen(false)} title={t("close")} type="button">
                             <CrossIcon size={10}/>
                         </Close>
                     </Head>
 
                     {entries.length === 0
-                        ? <Empty>{t("No operations yet.")}</Empty>
+                        ? <Empty>{t("no_operations_yet")}</Empty>
                         : (
                             <Rows>
                                 {entries.map((entry) => (
@@ -87,7 +87,7 @@ export function HistoryPanel() {
                                                 onClick={() => void undo(entry.id)}
                                                 type="button"
                                             >
-                                                {t("Undo")}
+                                                {t("undo")}
                                             </Undo>
                                         </Actions>
                                     </Row>
@@ -101,35 +101,35 @@ export function HistoryPanel() {
 }
 
 function historyLabel(t: Translate, label: string): string {
-    if (label === "New folder") return t("New folder");
-    if (label === "New file") return t("New file");
-    if (label === "Paste text") return t("Paste text");
-    if (label === "Paste image") return t("Paste image");
+    if (label === "new_folder") return t("new_folder");
+    if (label === "new_file") return t("new_file");
+    if (label === "paste_text") return t("paste_text");
+    if (label === "paste_image") return t("paste_image");
 
     const counted = label.match(/^(Move|Copy|Delete) (\d+) item\(s\)$/);
     if (counted) {
         const action = counted[1];
         const count = Number(counted[2]);
-        const key = action === "Move" ? "Move {count} items"
-            : action === "Copy" ? "Copy {count} items" : "Delete {count} items";
+        const key = action === "move" ? "move_count_items"
+            : action === "copy" ? "copy_count_items" : "delete_count_items";
         return t(key, {count});
     }
 
     const compress = label.match(/^Compress (.+)$/);
-    if (compress) return `${t("Compress")} ${compress[1]}`;
+    if (compress) return `${t("compress")} ${compress[1]}`;
 
     const rename = label.match(/^Rename (.+)$/);
-    if (rename) return `${t("Rename")} ${rename[1]}`;
+    if (rename) return `${t("rename")} ${rename[1]}`;
 
     return label;
 }
 
 function HistoryIcon({label}: { label: string }) {
-    if (label.startsWith("Delete")) return <TrashIcon size={13}/>;
-    if (label.startsWith("Move") || label.startsWith("Copy")) return <CopyIcon size={13}/>;
-    if (label.startsWith("Rename")) return <PencilIcon size={13}/>;
-    if (label.startsWith("Compress")) return <ArchiveIcon size={13}/>;
-    if (label.startsWith("New")) return <PlusIcon size={13}/>;
+    if (label.startsWith("delete")) return <TrashIcon size={13}/>;
+    if (label.startsWith("move") || label.startsWith("copy")) return <CopyIcon size={13}/>;
+    if (label.startsWith("rename")) return <PencilIcon size={13}/>;
+    if (label.startsWith("compress")) return <ArchiveIcon size={13}/>;
+    if (label.startsWith("new")) return <PlusIcon size={13}/>;
     return <ArrowRightIcon size={13}/>;
 }
 

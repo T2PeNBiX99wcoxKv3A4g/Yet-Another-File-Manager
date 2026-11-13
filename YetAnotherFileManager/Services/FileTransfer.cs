@@ -42,10 +42,10 @@ internal static class FileTransfer
             .ToList();
 
         if (list.Count == 0)
-            return (false, Localization.Get("There is nothing to copy or move."), []);
+            return (false, Localization.Get("there_is_nothing_to_copy_or_move"), []);
 
         if (!Directory.Exists(target))
-            return (false, Localization.Get("The target folder is no longer there."), []);
+            return (false, Localization.Get("the_target_folder_is_no_longer_there"), []);
 
         // Moving an entry onto the folder it already lives in would only create "name (2)".
         if (move)
@@ -64,7 +64,7 @@ internal static class FileTransfer
         }
 
         if (move && list.Any(source => IsInside(source, target)))
-            return (false, Localization.Get("A folder cannot be moved into itself."), []);
+            return (false, Localization.Get("a_folder_cannot_be_moved_into_itself"), []);
 
         // A folder the current user cannot write to is changed by an elevated copy of the app, so
         // the work keeps the app's conflict naming instead of being handed to the shell.
@@ -88,7 +88,7 @@ internal static class FileTransfer
                 var name = Path.GetFileName(source);
 
                 if (name.Length == 0)
-                    return (false, Localization.Get("A drive root cannot be copied this way."), created);
+                    return (false, Localization.Get("a_drive_root_cannot_be_copied_this_way"), created);
 
                 var destination = UniqueDestination(target, name, isDirectory, reserved);
 
@@ -201,7 +201,7 @@ internal static class FileTransfer
             TaskCenter.Instance.Complete(taskId);
         else
             TaskCenter.Instance.Fail(taskId, result.Error
-                                            ?? Localization.Get("Administrator rights are required to change this folder."));
+                                            ?? Localization.Get("administrator_rights_are_required_to_change_this_folder"));
 
         return (result.Ok, result.Error, [.. result.Created]);
     }

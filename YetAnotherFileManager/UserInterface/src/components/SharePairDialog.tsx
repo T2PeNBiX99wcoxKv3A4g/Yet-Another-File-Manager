@@ -35,15 +35,15 @@ export function SharePairDialog({deviceName, code, onAccept, onReject}: {
     return createPortal(
         <Overlay>
             <Card role="alertdialog" aria-modal="true">
-                <Title><ServerIcon size={15}/>{t("Pair for sharing")}</Title>
+                <Title><ServerIcon size={15}/>{t("pair_for_sharing")}</Title>
                 <Body>
-                    {t("{device} wants to pair with this device for sharing folders.", {device: deviceName})}
+                    {t("device_wants_to_pair_with_this_device_for_sharing_folders", {device: deviceName})}
                 </Body>
                 <Code>{code}</Code>
-                <Hint>{t("Check that the other device shows the same code before accepting.")}</Hint>
+                <Hint>{t("check_that_the_other_device_shows_the_same_code_before_accepting")}</Hint>
                 <Actions>
-                    <Button onClick={onReject} type="button">{t("Reject")}</Button>
-                    <Primary onClick={onAccept} ref={primary} type="button">{t("Accept")}</Primary>
+                    <Button onClick={onReject} type="button">{t("reject")}</Button>
+                    <Primary onClick={onAccept} ref={primary} type="button">{t("accept")}</Primary>
                 </Actions>
             </Card>
         </Overlay>,

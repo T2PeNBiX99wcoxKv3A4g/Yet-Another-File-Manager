@@ -71,7 +71,7 @@ internal partial class AppInfoService
         var url = context.Payload<UrlPayload>()?.Url;
 
         if (string.IsNullOrWhiteSpace(url))
-            return context.Fail("system.openUrl.result", Localization.Get("No URL was given."));
+            return context.Fail("system.openUrl.result", Localization.Get("no_url_was_given"));
 
         var opened = Try.Run(() => SystemLauncher.Open(url))
             .OnFailure(exception => Serilog.Log.Warning(exception, "Could not open {Url}", url))
@@ -79,6 +79,6 @@ internal partial class AppInfoService
 
         return opened
             ? context.Reply("system.openUrl.result", new OkPayload())
-            : context.Fail("system.openUrl.result", Localization.Get("Could not open the link."));
+            : context.Fail("system.openUrl.result", Localization.Get("could_not_open_the_link"));
     }
 }

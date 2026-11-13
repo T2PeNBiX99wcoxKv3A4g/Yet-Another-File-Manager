@@ -97,13 +97,13 @@ export function IconPicker({value, onPick, onClose, allowDefault = true}: IconPi
                             const file = await requestFile([".png", ".ico", ".svg", ".jpg", ".jpeg", ".webp"]);
                             if (file) onPick(`file:${file}`);
                         }}
-                        title={t("Choose an image")}
+                        title={t("choose_an_image")}
                         type="button"
                     >
                         <PlusIcon size={13}/>
                     </IconChoice>
                     {allowDefault && (
-                        <IconChoice $active={!value} onClick={() => onPick(null)} title={t("Default")} type="button">
+                        <IconChoice $active={!value} onClick={() => onPick(null)} title={t("default")} type="button">
                             <CrossIcon size={12}/>
                         </IconChoice>
                     )}

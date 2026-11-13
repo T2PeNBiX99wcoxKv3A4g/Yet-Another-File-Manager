@@ -177,21 +177,21 @@ const ClosedTabLimit = 20;
  * force a legacy code page for the file names, which is what Japanese ZIPs usually need.
  */
 const ArchiveEncodings: { value: string; label: LocalizationKey }[] = [
-    {value: "0", label: "Auto"},
-    {value: "932", label: "Japanese (CP932)"},
-    {value: "936", label: "Simplified Chinese (CP936)"},
-    {value: "950", label: "Traditional Chinese (CP950)"},
-    {value: "949", label: "Korean (CP949)"},
-    {value: "1252", label: "Western (CP1252)"},
-    {value: "1250", label: "Central European (CP1250)"},
-    {value: "1251", label: "Cyrillic (CP1251)"},
-    {value: "1254", label: "Turkish (CP1254)"},
-    {value: "1253", label: "Greek (CP1253)"},
-    {value: "1256", label: "Arabic (CP1256)"},
-    {value: "1255", label: "Hebrew (CP1255)"},
-    {value: "1257", label: "Baltic (CP1257)"},
-    {value: "874", label: "Thai (CP874)"},
-    {value: "65001", label: "UTF-8"},
+    {value: "0", label: "auto"},
+    {value: "932", label: "japanese_cp932"},
+    {value: "936", label: "simplified_chinese_cp936"},
+    {value: "950", label: "traditional_chinese_cp950"},
+    {value: "949", label: "korean_cp949"},
+    {value: "1252", label: "western_cp1252"},
+    {value: "1250", label: "central_european_cp1250"},
+    {value: "1251", label: "cyrillic_cp1251"},
+    {value: "1254", label: "turkish_cp1254"},
+    {value: "1253", label: "greek_cp1253"},
+    {value: "1256", label: "arabic_cp1256"},
+    {value: "1255", label: "hebrew_cp1255"},
+    {value: "1257", label: "baltic_cp1257"},
+    {value: "874", label: "thai_cp874"},
+    {value: "65001", label: "utf_8"},
 ];
 
 function locationOf(tab: Tab): string {
@@ -310,7 +310,7 @@ function statusLine(t: Translate, listing: DirectoryListing): string {
         ? listing.folderSizes[entry.name] ?? 0
         : Math.max(entry.size, 0)), 0);
 
-    return plural(t, listing.entries.length, "1 item · {size}", "{count} items · {size}",
+    return plural(t, listing.entries.length, "k_1_item_size", "count_items_size",
         {size: formatBytes(total)});
 }
 
@@ -1380,7 +1380,7 @@ export default function App() {
             return;
 
         if (!result.ok) {
-            void showMessage(result.error ?? t("The files could not be transferred."));
+            void showMessage(result.error ?? t("the_files_could_not_be_transferred"));
             return;
         }
 
@@ -1766,12 +1766,12 @@ export default function App() {
 
                 case "share.pair.code":
                     if (event.data?.code)
-                        void showMessage(t("Pairing code: {code}", {code: event.data.code}));
+                        void showMessage(t("pairing_code_code", {code: event.data.code}));
                     break;
 
                 case "share.pair.result":
                     if (event.data?.ok === false)
-                        void showMessage(event.data.error ?? t("Pairing failed."));
+                        void showMessage(event.data.error ?? t("pairing_failed"));
                     break;
             }
         });
@@ -2277,7 +2277,7 @@ export default function App() {
         }
 
         if (!result.ok) {
-            void showMessage(`${t("Could not extract the archive.")}${result.error ? `\n${result.error}` : ""}`);
+            void showMessage(`${t("could_not_extract_the_archive")}${result.error ? `\n${result.error}` : ""}`);
             return;
         }
 
@@ -2352,7 +2352,7 @@ export default function App() {
                     }
                     goBack();
                 }}
-                title={t("Back")}
+                title={t("back")}
                 type="button"
             >
                 <ArrowLeftIcon/>
@@ -2368,7 +2368,7 @@ export default function App() {
                     }
                     goForward();
                 }}
-                title={t("Forward")}
+                title={t("forward")}
                 type="button"
             >
                 <ArrowRightIcon/>
@@ -2382,7 +2382,7 @@ export default function App() {
                     if (wantsNewTab(event)) openFiles(activeParent);
                     else navigate(activeParent);
                 }}
-                title={t("Up one level")}
+                title={t("up_one_level")}
                 type="button"
             >
                 <ArrowUpIcon/>
@@ -2404,7 +2404,7 @@ export default function App() {
                         activeFolder,
                         () => void load(active.id, activeFolder, true),
                     )}
-                    title={t("New folder or file")}
+                    title={t("new_folder_or_file")}
                     type="button"
                 >
                     <PlusIcon/>
@@ -2414,7 +2414,7 @@ export default function App() {
             <IconButton
                 data-shortcut={prettyShortcut(shortcuts.find)}
                 onClick={() => kind === "files" ? openFind() : openViewFind()}
-                title={t("Search")}
+                title={t("search")}
                 type="button"
             >
                 <SearchIcon/>
@@ -2425,7 +2425,7 @@ export default function App() {
                     <ToolbarSeparator/>
                     <IconButton
                         onClick={(event) => requestSelectionMenu("primary", event)}
-                        title={t("Selection menu")}
+                        title={t("selection_menu")}
                         type="button"
                     >
                         <MenuIcon/>
@@ -2437,9 +2437,9 @@ export default function App() {
                 <ArchiveActions>
                     <ToolbarSeparator/>
                     {archiveEncrypted && (
-                        <ArchiveEncrypted title={t("This archive is encrypted and asks for a password when opened.")}>
+                        <ArchiveEncrypted title={t("this_archive_is_encrypted_and_asks_for_a_password_when_opened")}>
                             <LockIcon size={12}/>
-                            {t("Encrypted")}
+                            {t("encrypted")}
                         </ArchiveEncrypted>
                     )}
                     <IconButton
@@ -2448,7 +2448,7 @@ export default function App() {
                             event.preventDefault();
                             setExtractMenu({x: event.clientX, y: event.clientY});
                         }}
-                        title={t("Extract archive")}
+                        title={t("extract_archive")}
                         type="button"
                     >
                         <ArchiveIcon/>
@@ -2457,7 +2457,7 @@ export default function App() {
                         icon={<GlobeIcon size={15}/>}
                         onChange={changeArchiveEncoding}
                         options={ArchiveEncodings.map((option) => ({...option, label: t(option.label)}))}
-                        tooltip={`${t("Archive encoding")}: ${t(ArchiveEncodings.find((option) => option.value === String(archiveEncoding))?.label ?? "Auto")}`}
+                        tooltip={`${t("archive_encoding")}: ${t(ArchiveEncodings.find((option) => option.value === String(archiveEncoding))?.label ?? "auto")}`}
                         value={String(archiveEncoding)}
                     />
                 </ArchiveActions>
@@ -2516,11 +2516,11 @@ export default function App() {
                             archive: tabKind === "files" && isArchiveLocation(folder),
                             split: Boolean(partner),
                             title: tabKind === "files"
-                                ? quickName(quickAccess, folder, baseName(folder) || t("Files"))
+                                ? quickName(quickAccess, folder, baseName(folder) || t("files"))
                                 : t(viewTitles[tabKind]),
                             partner: partner
                                 ? {
-                                    title: quickName(quickAccess, partnerFolder, baseName(partnerFolder) || t("Files")),
+                                    title: quickName(quickAccess, partnerFolder, baseName(partnerFolder) || t("files")),
                                     place: quickPlace(quickAccess, partnerFolder),
                                 }
                                 : undefined,
@@ -2566,7 +2566,7 @@ export default function App() {
                                     onPrevious={() => stepViewFind(-1)}
                                     onQuery={(query) => setViewFind((current) => ({...current, query}))}
                                     onRegex={() => setViewFind((current) => ({...current, regex: !current.regex}))}
-                                    placeholder={t("Search")}
+                                    placeholder={t("search")}
                                     query={viewFind.query}
                                     regex={viewFind.regex}
                                     total={viewFindTotal}
@@ -2592,7 +2592,7 @@ export default function App() {
                                                         if (wantsNewTab(event)) openFiles(active.history[index]);
                                                         else void goTo(active.id, active.history[index], index);
                                                     }}
-                                                    title={t("Back")}
+                                                    title={t("back")}
                                                     type="button"
                                                 >
                                                     <ArrowLeftIcon/>
@@ -2606,7 +2606,7 @@ export default function App() {
                                                         if (wantsNewTab(event)) openFiles(active.history[index]);
                                                         else void goTo(active.id, active.history[index], index);
                                                     }}
-                                                    title={t("Forward")}
+                                                    title={t("forward")}
                                                     type="button"
                                                 >
                                                     <ArrowRightIcon/>
@@ -2619,7 +2619,7 @@ export default function App() {
                                                         if (wantsNewTab(event)) openFiles(activeParent);
                                                         else void load(active.id, activeParent);
                                                     }}
-                                                    title={t("Up one level")}
+                                                    title={t("up_one_level")}
                                                     type="button"
                                                 >
                                                     <ArrowUpIcon/>
@@ -2638,7 +2638,7 @@ export default function App() {
                                                         activeFolder,
                                                         () => void load(active.id, activeFolder, true),
                                                     )}
-                                                    title={t("New folder or file")}
+                                                    title={t("new_folder_or_file")}
                                                     type="button"
                                                 >
                                                     <PlusIcon/>
@@ -2646,7 +2646,7 @@ export default function App() {
                                                 <IconButton
                                                     data-shortcut={prettyShortcut(shortcuts.find)}
                                                     onClick={openFind}
-                                                    title={t("Search")}
+                                                    title={t("search")}
                                                     type="button"
                                                 >
                                                     <SearchIcon/>
@@ -2656,7 +2656,7 @@ export default function App() {
                                                         <ToolbarSeparator/>
                                                         <IconButton
                                                             onClick={(event) => requestSelectionMenu("primary", event)}
-                                                            title={t("Selection menu")}
+                                                            title={t("selection_menu")}
                                                             type="button"
                                                         >
                                                             <MenuIcon/>
@@ -2670,7 +2670,7 @@ export default function App() {
                                         <SplitDivider
                                             onDoubleClick={() => setSplitRatio(0.5)}
                                             onPointerDown={startSplitDrag}
-                                            title={t("Drag to resize; double-click to reset")}
+                                            title={t("drag_to_resize_double_click_to_reset")}
                                         />
                                         <Pane $enter style={{flex: 1 - splitRatio}}>
                                             <PaneToolbar
@@ -2686,7 +2686,7 @@ export default function App() {
                                                         if (wantsNewTab(event)) openFiles(secondary.history[index]);
                                                         else void goTo(secondary.id, secondary.history[index], index);
                                                     }}
-                                                    title={t("Back")}
+                                                    title={t("back")}
                                                     type="button"
                                                 >
                                                     <ArrowLeftIcon/>
@@ -2700,7 +2700,7 @@ export default function App() {
                                                         if (wantsNewTab(event)) openFiles(secondary.history[index]);
                                                         else void goTo(secondary.id, secondary.history[index], index);
                                                     }}
-                                                    title={t("Forward")}
+                                                    title={t("forward")}
                                                     type="button"
                                                 >
                                                     <ArrowRightIcon/>
@@ -2713,7 +2713,7 @@ export default function App() {
                                                         if (wantsNewTab(event)) openFiles(secondaryParent);
                                                         else void load(secondary.id, secondaryParent);
                                                     }}
-                                                    title={t("Up one level")}
+                                                    title={t("up_one_level")}
                                                     type="button"
                                                 >
                                                     <ArrowUpIcon/>
@@ -2732,7 +2732,7 @@ export default function App() {
                                                         secondaryFolder,
                                                         () => void load(secondary.id, secondaryFolder, true),
                                                     )}
-                                                    title={t("New folder or file")}
+                                                    title={t("new_folder_or_file")}
                                                     type="button"
                                                 >
                                                     <PlusIcon/>
@@ -2740,7 +2740,7 @@ export default function App() {
                                                 <IconButton
                                                     data-shortcut={prettyShortcut(shortcuts.find)}
                                                     onClick={openFind}
-                                                    title={t("Search")}
+                                                    title={t("search")}
                                                     type="button"
                                                 >
                                                     <SearchIcon/>
@@ -2750,7 +2750,7 @@ export default function App() {
                                                         <ToolbarSeparator/>
                                                         <IconButton
                                                             onClick={(event) => requestSelectionMenu("secondary", event)}
-                                                            title={t("Selection menu")}
+                                                            title={t("selection_menu")}
                                                             type="button"
                                                         >
                                                             <MenuIcon/>
@@ -2867,15 +2867,15 @@ export default function App() {
                                                 setSettingsFocus("updates");
                                                 openView("settings");
                                             }}
-                                            title={t("Version {version} is available.", {version: update.latest})}
+                                            title={t("version_version_is_available", {version: update.latest})}
                                             type="button"
                                         >
                                             <UpdateDot/>
-                                            {t("Update available")}
+                                            {t("update_available")}
                                         </UpdatePill>
                                     )}
                                 </StatusRight>
-                            ) : <span>{t("browser preview")}</span>}
+                            ) : <span>{t("browser_preview")}</span>}
                         </StatusBar>
                     </Main>
                 </Body>
@@ -2954,15 +2954,15 @@ export default function App() {
                     <ContextMenu
                         items={[
                             {
-                                label: t("Extract here"),
+                                label: t("extract_here"),
                                 onSelect: () => void extractActiveArchive("here"),
                             },
                             {
-                                label: t("Extract to a folder named after the archive"),
+                                label: t("extract_to_a_folder_named_after_the_archive"),
                                 onSelect: () => void extractActiveArchive("named"),
                             },
                             {
-                                label: t("Auto extract to the current folder"),
+                                label: t("auto_extract_to_the_current_folder"),
                                 onSelect: () => void extractActiveArchive("auto"),
                             },
                         ]}

@@ -60,7 +60,7 @@ export function ConfirmDialog({
                 <Title>{title}</Title>
                 <Message>{message}</Message>
                 <Actions>
-                    <Button onClick={onCancel} type="button">{t("Cancel")}</Button>
+                    <Button onClick={onCancel} type="button">{t("cancel")}</Button>
                     <Button $danger={danger} onClick={onConfirm} ref={confirm} type="button">
                         {confirmLabel}
                     </Button>

@@ -71,7 +71,7 @@
         <SettingsTypeScriptPath>$(MSBuildProjectDirectory)\UserInterface\src\api\settings.generated.ts</SettingsTypeScriptPath>
         <SettingsSchemaPath>$(MSBuildProjectDirectory)\UserInterface\src\api\settings.schema.json</SettingsSchemaPath>
         <LocalizationKeysPath>$(MSBuildProjectDirectory)\UserInterface\src\api\i18n.generated.ts</LocalizationKeysPath>
-        <TranslationFile>$(MSBuildProjectDirectory)\Resources\i18n\ja.jsonc</TranslationFile>
+        <TranslationFile>$(MSBuildProjectDirectory)\Resources\i18n\en.jsonc</TranslationFile>
     </PropertyGroup>
 
     <!-- The translation keys are not a build product; the file is read directly. -->

@@ -57,21 +57,21 @@ export function ProtectedDeleteDialog({action, hits, delaySeconds, permanent, on
             if (event.target === event.currentTarget) onCancel();
         }}>
             <Card role="alertdialog" aria-modal="true">
-                <Title>{t("Protected folder")}</Title>
-                <Lead>{t("These paths are protected by the safety settings:")}</Lead>
+                <Title>{t("protected_folder")}</Title>
+                <Lead>{t("these_paths_are_protected_by_the_safety_settings")}</Lead>
                 <Hits>
                     {hits.map((hit) => (
                         <Hit key={`${hit.path}|${hit.pattern}`}>
                             <PathTitle>{hit.path}</PathTitle>
-                            <PathPattern>{t("Protected by {pattern}", {pattern: hit.pattern})}</PathPattern>
+                            <PathPattern>{t("protected_by_pattern", {pattern: hit.pattern})}</PathPattern>
                         </Hit>
                     ))}
                 </Hits>
                 <Mode>{modeLabel(t, what, permanent ?? false)}</Mode>
                 <Warn>{warningLabel(t, what)}</Warn>
-                <Wait>{t("This waits {seconds}s before the button works.", {seconds: delaySeconds})}</Wait>
+                <Wait>{t("this_waits_seconds_s_before_the_button_works", {seconds: delaySeconds})}</Wait>
                 <Actions>
-                    <Button onClick={onCancel} ref={cancel} type="button">{t("Cancel")}</Button>
+                    <Button onClick={onCancel} ref={cancel} type="button">{t("cancel")}</Button>
                     <Danger disabled={left > 0} onClick={onConfirm} type="button">
                         {left > 0 ? confirmLabel(t, what, left) : confirmLabel(t, what, 0)}
                     </Danger>
@@ -86,13 +86,13 @@ export function ProtectedDeleteDialog({action, hits, delaySeconds, permanent, on
 function modeLabel(t: Translate, action: ProtectedAction, permanent: boolean): string {
     switch (action) {
         case "delete":
-            return permanent ? t("Deletes permanently") : t("Moves to the recycle bin");
+            return permanent ? t("deletes_permanently") : t("moves_to_the_recycle_bin");
         case "move":
-            return t("Moves the entries");
+            return t("moves_the_entries");
         case "rename":
-            return t("Renames the entry");
+            return t("renames_the_entry");
         case "write":
-            return t("Writes into this folder");
+            return t("writes_into_this_folder");
     }
 }
 
@@ -100,27 +100,27 @@ function modeLabel(t: Translate, action: ProtectedAction, permanent: boolean): s
 function warningLabel(t: Translate, action: ProtectedAction): string {
     switch (action) {
         case "delete":
-            return t("Nothing has been deleted.");
+            return t("nothing_has_been_deleted");
         case "move":
-            return t("Nothing has been moved.");
+            return t("nothing_has_been_moved");
         case "rename":
-            return t("Nothing has been renamed.");
+            return t("nothing_has_been_renamed");
         case "write":
-            return t("Nothing has been written.");
+            return t("nothing_has_been_written");
     }
 }
 
 function confirmLabel(t: Translate,
                       action: ProtectedAction, seconds: number): string {
     const key = seconds > 0
-        ? action === "delete" ? "Delete anyway ({seconds}s)"
-            : action === "move" ? "Move anyway ({seconds}s)"
-                : action === "rename" ? "Rename anyway ({seconds}s)"
-                    : "Write anyway ({seconds}s)"
-        : action === "delete" ? "Delete anyway"
-            : action === "move" ? "Move anyway"
-                : action === "rename" ? "Rename anyway"
-                    : "Write anyway";
+        ? action === "delete" ? "delete_anyway_seconds_s"
+            : action === "move" ? "move_anyway_seconds_s"
+                : action === "rename" ? "rename_anyway_seconds_s"
+                    : "write_anyway_seconds_s"
+        : action === "delete" ? "delete_anyway"
+            : action === "move" ? "move_anyway"
+                : action === "rename" ? "rename_anyway"
+                    : "write_anyway";
 
     return seconds > 0 ? t(key, {seconds}) : t(key);
 }

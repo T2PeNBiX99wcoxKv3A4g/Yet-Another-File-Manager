@@ -75,7 +75,7 @@ internal partial class ShareService
         var path = request?.Path?.Trim() ?? "";
 
         if (path.Length == 0 || !Directory.Exists(path))
-            return context.Fail("share.add.result", Localization.Get("That folder does not exist."));
+            return context.Fail("share.add.result", Localization.Get("that_folder_does_not_exist"));
 
         await ShareStore.Instance.AddAsync(Path.GetFullPath(path), ShareStore.NormalizeMode(request?.Mode));
         await WebShareServer.Instance.ApplyAsync();
@@ -202,7 +202,7 @@ internal partial class ShareService
         var request = context.Payload<SharePairStartRequest>();
         if (request is not { Host.Length: > 0, Port: > 0 })
             return Task.FromResult<NativeResponse?>(context.Fail("share.pair.start.result",
-                Localization.Get("A device address is required.")));
+                Localization.Get("a_device_address_is_required")));
 
         _ = Task.Run(() => RunPairAsync(request));
         return Task.FromResult<NativeResponse?>(context.Reply("share.pair.start.result", new OkPayload()));
@@ -213,7 +213,7 @@ internal partial class ShareService
         if (!await _outgoing.WaitAsync(0))
         {
             Push("share.pair.result", new SharePairResultPayload(false, null, null,
-                Localization.Get("Another pairing is already in progress.")));
+                Localization.Get("another_pairing_is_already_in_progress")));
             return;
         }
 
@@ -250,7 +250,7 @@ internal partial class ShareService
         var request = context.Payload<SharePairRespondRequest>();
         if (request is not { RequestId.Length: > 0 })
             return Task.FromResult<NativeResponse?>(context.Fail("share.pair.respond.result",
-                Localization.Get("The request id is missing.")));
+                Localization.Get("the_request_id_is_missing")));
 
         IncomingPairing? incoming;
         lock (_incomingLock)
@@ -401,7 +401,7 @@ internal partial class ShareService
         var request = context.Payload<ShareBrowseRequest>();
         if (request is not { DeviceId.Length: > 0, ShareId.Length: > 0 })
             return Task.FromResult<NativeResponse?>(context.Fail("share.browse.result",
-                Localization.Get("A device is required.")));
+                Localization.Get("a_device_is_required")));
 
         return BrowseCoreAsync(context, request);
     }
@@ -410,7 +410,7 @@ internal partial class ShareService
     {
         var peer = SharePeerStore.Instance.Find(request.DeviceId);
         if (peer is null)
-            return context.Fail("share.browse.result", Localization.Get("The device is not paired."));
+            return context.Fail("share.browse.result", Localization.Get("the_device_is_not_paired"));
 
         try
         {
@@ -467,7 +467,7 @@ internal partial class ShareService
         var request = context.Payload<ShareDownloadRequest>();
         if (request is not { DeviceId.Length: > 0, ShareId.Length: > 0, Path.Length: > 0 })
             return Task.FromResult<NativeResponse?>(context.Fail("share.download.result",
-                Localization.Get("A device, share and file are required.")));
+                Localization.Get("a_device_share_and_file_are_required")));
 
         return DownloadCoreAsync(context, request);
     }
@@ -476,7 +476,7 @@ internal partial class ShareService
     {
         var peer = SharePeerStore.Instance.Find(request.DeviceId);
         if (peer is null)
-            return context.Fail("share.download.result", Localization.Get("The device is not paired."));
+            return context.Fail("share.download.result", Localization.Get("the_device_is_not_paired"));
 
         var destination = LocalCachePath(request);
         try

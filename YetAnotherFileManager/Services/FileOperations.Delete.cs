@@ -18,12 +18,12 @@ internal static partial class FileOperations
     {
         var items = Selection(paths);
         if (items.Count == 0)
-            return new(false, false, Localization.Get("There is nothing to delete."));
+            return new(false, false, Localization.Get("there_is_nothing_to_delete"));
 
         // A policy or a volume setting can turn the bin off; that means "delete for good", which
         // Explorer asks about first, so the window gets the same chance.
         if (!permanent && items.Any(path => !RecycleBin.CanRecycle(path)))
-            return new(false, true, Localization.Get("The recycle bin is turned off for this volume."));
+            return new(false, true, Localization.Get("the_recycle_bin_is_turned_off_for_this_volume"));
 
         var deletedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var (step, deleted) = await DeleteWithProgressAsync(items, permanent);
@@ -49,7 +49,7 @@ internal static partial class FileOperations
         List<string> items, bool permanent)
     {
         if (items.Count == 0)
-            return (new(false, [], Localization.Get("There is nothing to delete.")), 0);
+            return (new(false, [], Localization.Get("there_is_nothing_to_delete")), 0);
 
         // Only the recycle bin is Windows-only (the freedesktop trash covers Linux); a permanent
         // delete works on every platform.

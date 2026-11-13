@@ -64,7 +64,7 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
                 $active={open}
                 disabled={disabled}
                 onClick={() => setOpen((current) => !current)}
-                title={t("View")}
+                title={t("view")}
                 type="button"
             >
                 {view.mode === "grid" ? <GridIcon size={14}/> : <ListIcon size={14}/>}
@@ -72,20 +72,20 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
 
             {open && (
                 <Panel>
-                    <SectionTitle>{t("View")}</SectionTitle>
+                    <SectionTitle>{t("view")}</SectionTitle>
                     <Segmented>
                         <Choice $on={view.mode === "list"} onClick={() => onChange({mode: "list"})} type="button">
-                            <ListIcon size={12}/> {t("List")}
+                            <ListIcon size={12}/> {t("list")}
                         </Choice>
                         <Choice $on={view.mode === "grid"} onClick={() => onChange({mode: "grid"})} type="button">
-                            <GridIcon size={12}/> {t("Grid")}
+                            <GridIcon size={12}/> {t("grid")}
                         </Choice>
                     </Segmented>
 
-                    <SectionTitle>{t("List icon size")}</SectionTitle>
+                    <SectionTitle>{t("list_icon_size")}</SectionTitle>
                     <SliderRow>
                         <input
-                            aria-label={t("List icon size")}
+                            aria-label={t("list_icon_size")}
                             max={48}
                             min={16}
                             onChange={(event) => onChange({iconSize: Number(event.target.value)})}
@@ -96,10 +96,10 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
                         <SizeValue>{view.iconSize}px</SizeValue>
                     </SliderRow>
 
-                    <SectionTitle>{t("Grid size")}</SectionTitle>
+                    <SectionTitle>{t("grid_size")}</SectionTitle>
                     <SliderRow>
                         <input
-                            aria-label={t("Grid size")}
+                            aria-label={t("grid_size")}
                             max={260}
                             min={100}
                             onChange={(event) => onChange({gridSize: Number(event.target.value)})}
@@ -111,13 +111,13 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
                     </SliderRow>
 
                     <SectionTitle>
-                        {t("Columns")}<GlobalTag/>
+                        {t("columns")}<GlobalTag/>
                         <ResetButton
                             onClick={() => window.dispatchEvent(new Event(ResetColumnWidthsEvent))}
-                            title={t("Reset column widths")}
+                            title={t("reset_column_widths")}
                             type="button"
                         >
-                            {t("Reset widths")}
+                            {t("reset_widths")}
                         </ResetButton>
                     </SectionTitle>
                     {ViewColumns.map((column) => (
@@ -136,17 +136,17 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
                             onChange={() => toggleColumn("linkTarget")}
                             type="checkbox"
                         />
-                        <span>{t("Link target after the name")}</span>
+                        <span>{t("link_target_after_the_name")}</span>
                     </Check>
 
-                    <SectionTitle>{t("Preview panel")}<GlobalTag/></SectionTitle>
+                    <SectionTitle>{t("preview_panel")}<GlobalTag/></SectionTitle>
                     <Check>
                         <input
                             checked={showImages}
                             onChange={() => onShowImages(!showImages)}
                             type="checkbox"
                         />
-                        <span>{t("Preview under the list")}</span>
+                        <span>{t("preview_under_the_list")}</span>
                     </Check>
                 </Panel>
             )}

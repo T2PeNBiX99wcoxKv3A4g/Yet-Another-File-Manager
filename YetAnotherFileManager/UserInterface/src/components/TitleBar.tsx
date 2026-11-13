@@ -145,7 +145,7 @@ export function TitleBar({
 
             <Tabs>
                 {overflow.left && (
-                    <ScrollButton onClick={() => scrollBy(-180)} title={t("Scroll tabs left")} type="button">
+                    <ScrollButton onClick={() => scrollBy(-180)} title={t("scroll_tabs_left")} type="button">
                         <ChevronLeftSmallSvg/>
                     </ScrollButton>
                 )}
@@ -231,7 +231,7 @@ export function TitleBar({
                                     event.stopPropagation();
                                     onClose(tab.id);
                                 }}
-                                title={t("Close tab")}
+                                title={t("close_tab")}
                             >
                                 <CloseSmallSvg/>
                             </TabClose>
@@ -240,7 +240,7 @@ export function TitleBar({
                 </Scroller>
 
                 {overflow.right && (
-                    <ScrollButton onClick={() => scrollBy(180)} title={t("Scroll tabs right")} type="button">
+                    <ScrollButton onClick={() => scrollBy(180)} title={t("scroll_tabs_right")} type="button">
                         <ChevronRightSmallSvg/>
                     </ScrollButton>
                 )}
@@ -248,7 +248,7 @@ export function TitleBar({
                 <NewTab
                     data-shortcut={prettyShortcut(shortcuts.newTab)}
                     onClick={onNewTab}
-                    title={t("New tab")}
+                    title={t("new_tab")}
                     type="button"
                 >
                     <PlusIcon size={13}/>
@@ -263,7 +263,7 @@ export function TitleBar({
                     data-shortcut={prettyShortcut(shortcuts.splitView)}
                     disabled={!canSplit}
                     onClick={onToggleSplit}
-                    title={split ? t("Close split view") : t("Split view")}
+                    title={split ? t("close_split_view") : t("split_view")}
                     type="button"
                 >
                     <SplitIcon size={15}/>
@@ -272,7 +272,7 @@ export function TitleBar({
                     $active={details}
                     disabled={!canDetails}
                     onClick={onToggleDetails}
-                    title={details ? t("Hide details panel") : t("Show details panel")}
+                    title={details ? t("hide_details_panel") : t("show_details_panel")}
                     type="button"
                 >
                     <PanelIcon size={15}/>
@@ -280,7 +280,7 @@ export function TitleBar({
                 <TrayButton
                     $active={trayVisible}
                     onClick={onToggleTray}
-                    title={trayVisible ? t("Hide file tray") : t("Show file tray")}
+                    title={trayVisible ? t("hide_file_tray") : t("show_file_tray")}
                     type="button"
                 >
                     <PackageIcon size={14}/>
@@ -302,19 +302,19 @@ export function TitleBar({
                     showImages={showImages}
                     view={view}
                 />
-                <ControlButton onClick={controls.minimize} title={t("Minimize")} type="button">
+                <ControlButton onClick={controls.minimize} title={t("minimize")} type="button">
                     <MinimizeSvg/>
                 </ControlButton>
                 <ControlButton
                     onClick={controls.toggleMaximize}
-                    title={controls.maximized ? t("Restore") : t("Maximize")}
+                    title={controls.maximized ? t("restore") : t("maximize")}
                     type="button"
                 >
                     {controls.maximized
                         ? <RestoreSmallSvg/>
                         : <MaximizeSvg/>}
                 </ControlButton>
-                <CloseButton onClick={controls.close} title={t("Close")} type="button">
+                <CloseButton onClick={controls.close} title={t("close")} type="button">
                     <CloseSmallSvg/>
                 </CloseButton>
             </Controls>

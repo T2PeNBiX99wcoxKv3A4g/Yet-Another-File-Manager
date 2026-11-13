@@ -197,7 +197,7 @@ internal static partial class FileOperations
     public static async Task<TransferResultPayload> TransferAsync(TransferRequest? request)
     {
         if (request is null || request.Paths.Count == 0 || string.IsNullOrWhiteSpace(request.Target))
-            return new(false, Localization.Get("Nothing to transfer."), []);
+            return new(false, Localization.Get("nothing_to_transfer"), []);
 
         var (ok, error, created) = await FileTransfer.RunAsync(request.Paths, request.Target, request.Move);
 
@@ -330,11 +330,11 @@ internal static partial class FileOperations
         var trimmed = name.Trim();
 
         if (trimmed.Length == 0 || trimmed is "." or ".." || trimmed.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-            return new(false, null, Localization.Get("That name is not valid."));
+            return new(false, null, Localization.Get("that_name_is_not_valid"));
 
         var directory = Path.GetDirectoryName(path);
         if (directory is null)
-            return new(false, null, Localization.Get("The entry has no parent folder."));
+            return new(false, null, Localization.Get("the_entry_has_no_parent_folder"));
 
         var target = Path.Combine(directory, trimmed);
 
@@ -355,7 +355,7 @@ internal static partial class FileOperations
     private static async Task<FileHistory.Step> RenameCoreAsync(string source, string target)
     {
         if (File.Exists(target) || Directory.Exists(target))
-            return new(false, ParentsOf([source]), Localization.Get("An entry with that name already exists."));
+            return new(false, ParentsOf([source]), Localization.Get("an_entry_with_that_name_already_exists"));
 
         var result = await Task.Run(() =>
         {
@@ -366,7 +366,7 @@ internal static partial class FileOperations
                 else if (File.Exists(source))
                     File.Move(source, target);
                 else
-                    return (Ok: false, Denied: false, Error: Localization.Get("The entry is no longer there."));
+                    return (Ok: false, Denied: false, Error: Localization.Get("the_entry_is_no_longer_there"));
 
                 return (Ok: true, Denied: false, Error: (string?)null);
             }
@@ -397,7 +397,7 @@ internal static partial class FileOperations
     public static async Task<PathOperationPayload> NewFolderAsync(string directory, bool caseSensitive = false)
     {
         if (!Directory.Exists(directory))
-            return new(false, null, Localization.Get("The folder is no longer there."));
+            return new(false, null, Localization.Get("the_folder_is_no_longer_there"));
 
         var path = UniqueName(directory, "New folder", "");
 
@@ -440,7 +440,7 @@ internal static partial class FileOperations
     public static async Task<PathOperationPayload> NewFileAsync(string directory, string? extension = null)
     {
         if (!Directory.Exists(directory))
-            return new(false, null, Localization.Get("The folder is no longer there."));
+            return new(false, null, Localization.Get("the_folder_is_no_longer_there"));
 
         var suffix = NormalizeExtension(extension);
         var path = UniqueName(directory, "New file", suffix);
@@ -625,7 +625,7 @@ internal static partial class FileOperations
         try
         {
             if (!Directory.Exists(path))
-                return new(false, ParentsOf([path]), Localization.Get("The folder is no longer there."));
+                return new(false, ParentsOf([path]), Localization.Get("the_folder_is_no_longer_there"));
 
             if (Directory.EnumerateFileSystemEntries(path).Any())
                 return new(false, ParentsOf([path]),
@@ -675,14 +675,14 @@ internal static partial class FileOperations
     public static async Task<PathOperationPayload> CompressAsync(CompressRequest? request)
     {
         if (request is null)
-            return new(false, null, Localization.Get("There is nothing to compress."));
+            return new(false, null, Localization.Get("there_is_nothing_to_compress"));
 
         var entries = request.Paths.Where(path => File.Exists(path) || Directory.Exists(path)).ToList();
         if (entries.Count == 0)
-            return new(false, null, Localization.Get("There is nothing to compress."));
+            return new(false, null, Localization.Get("there_is_nothing_to_compress"));
 
         if (!Directory.Exists(request.Directory))
-            return new(false, null, Localization.Get("The destination folder is no longer there."));
+            return new(false, null, Localization.Get("the_destination_folder_is_no_longer_there"));
 
         if (request.Format.ToLowerInvariant() is "zip" or "zipx" or "7z")
             return await CompressArchiveAsync(request, entries);
@@ -698,7 +698,7 @@ internal static partial class FileOperations
         };
 
         if (compression is null)
-            return new(false, null, Localization.Get("That archive format is not supported."));
+            return new(false, null, Localization.Get("that_archive_format_is_not_supported"));
 
         var baseName = request.Name.Trim();
         if (baseName.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
@@ -707,7 +707,7 @@ internal static partial class FileOperations
         if (baseName.Length == 0 || baseName is "." or ".."
                                  || baseName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
                                  || Path.GetFileName(baseName) != baseName)
-            return new(false, null, Localization.Get("That archive name is not valid."));
+            return new(false, null, Localization.Get("that_archive_name_is_not_valid"));
 
         var output = UniquePath(request.Directory, baseName, extension);
         var sources = entries.ToList();
@@ -782,7 +782,7 @@ internal static partial class FileOperations
         };
 
         if (extension.Length == 0)
-            return new(false, null, Localization.Get("That format cannot be encrypted or split."));
+            return new(false, null, Localization.Get("that_format_cannot_be_encrypted_or_split"));
 
         var split = request.SplitSize ?? 0;
         var method = (request.Method ?? "").ToLowerInvariant();
@@ -794,7 +794,7 @@ internal static partial class FileOperations
         if (baseName.Length == 0 || baseName is "." or ".."
                                  || baseName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
                                  || Path.GetFileName(baseName) != baseName)
-            return new(false, null, Localization.Get("That archive name is not valid."));
+            return new(false, null, Localization.Get("that_archive_name_is_not_valid"));
 
         var output = UniquePath(request.Directory, baseName, extension);
 
@@ -811,7 +811,7 @@ internal static partial class FileOperations
 
                 var files = ArchiveFiles(entries);
                 if (files.Count == 0)
-                    return new(false, null, Localization.Get("There is nothing to compress."));
+                    return new(false, null, Localization.Get("there_is_nothing_to_compress"));
 
                 var compressor = new SevenZipSharpCompressor
                 {

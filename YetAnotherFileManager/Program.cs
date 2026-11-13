@@ -618,13 +618,13 @@ internal static partial class Program
             Constants.Name,
             Constants.WindowTitle,
             iconPath,
-            Localization.Get("Open"),
-            Localization.Get("Settings"),
-            Localization.Get("Exit"),
+            Localization.Get("open"),
+            Localization.Get("settings"),
+            Localization.Get("exit"),
             () => manager.ShowMainWindow(),
             () => manager.ShowMainWindow($"{Constants.ViewScheme}settings"),
             manager.Exit,
             manager.ReloadWebView,
-            Localization.Get("Reload interface"));
+            Localization.Get("reload_interface"));
     }
 }

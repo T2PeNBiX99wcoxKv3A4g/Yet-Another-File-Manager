@@ -9,7 +9,7 @@ interface FontPickerProps {
     /** The chosen family, or null/empty for the role's built-in font. */
     value: string | null;
     fonts: string[];
-    /** What an empty choice is called, e.g. "Interface" or "Monospace". */
+    /** What an empty choice is called, e.g. "interface" or "monospace". */
     defaultLabel: string;
     /** The text rendered in each family; roles choose something representative. */
     sample: string;
@@ -113,7 +113,7 @@ export function FontPicker({value, fonts, defaultLabel, sample, disabled, onChan
                         <SearchIcon size={12}/>
                         <Filter
                             onChange={(event) => setQuery(event.target.value)}
-                            placeholder={t("Filter fonts…")}
+                            placeholder={t("filter_fonts")}
                             ref={search}
                             value={query}
                         />
@@ -126,7 +126,7 @@ export function FontPicker({value, fonts, defaultLabel, sample, disabled, onChan
                             role="option"
                             type="button"
                         >
-                            <ChoiceName>{defaultLabel} <Muted>{t("(default)")}</Muted></ChoiceName>
+                            <ChoiceName>{defaultLabel} <Muted>{t("default_2")}</Muted></ChoiceName>
                             {!value && <CheckIcon size={11}/>}
                         </Choice>
                         {filtered.map((family) => (
@@ -145,7 +145,7 @@ export function FontPicker({value, fonts, defaultLabel, sample, disabled, onChan
                                 {value === family && <CheckIcon size={11}/>}
                             </Choice>
                         ))}
-                        {filtered.length === 0 && <Empty>{t("No matching font.")}</Empty>}
+                        {filtered.length === 0 && <Empty>{t("no_matching_font")}</Empty>}
                     </List>
                 </Menu>,
                 document.body,

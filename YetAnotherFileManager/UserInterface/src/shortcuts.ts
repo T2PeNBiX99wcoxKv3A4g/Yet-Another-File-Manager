@@ -116,7 +116,7 @@ const KeyLabels: Record<string, string> = {
     arrowup: "↑",
     arrowdown: "↓",
     backspace: "Backspace",
-    delete: "Delete",
+    delete: "delete",
     enter: "Enter",
     escape: "Esc",
     space: "Space",

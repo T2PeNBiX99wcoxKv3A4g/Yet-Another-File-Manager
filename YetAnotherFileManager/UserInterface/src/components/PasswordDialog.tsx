@@ -52,11 +52,11 @@ export function PasswordDialog() {
             if (event.target === event.currentTarget) close(null);
         }}>
             <Card role="dialog" aria-modal="true">
-                <Title>{t("Archive password")}</Title>
+                <Title>{t("archive_password")}</Title>
                 <Body>
                     {prompt.wrong
-                        ? t("That password did not open the archive. Try again.")
-                        : t("This archive is encrypted. Enter its password.")}
+                        ? t("that_password_did_not_open_the_archive_try_again")
+                        : t("this_archive_is_encrypted_enter_its_password")}
                 </Body>
                 <ArchiveName title={prompt.archive}>{prompt.archive}</ArchiveName>
                 <Input
@@ -76,8 +76,8 @@ export function PasswordDialog() {
                     value={value}
                 />
                 <Actions>
-                    <Button onClick={() => close(null)} type="button">{t("Cancel")}</Button>
-                    <Primary disabled={value.length === 0} onClick={submit} type="button">{t("OK")}</Primary>
+                    <Button onClick={() => close(null)} type="button">{t("cancel")}</Button>
+                    <Primary disabled={value.length === 0} onClick={submit} type="button">{t("ok")}</Primary>
                 </Actions>
             </Card>
         </Overlay>,

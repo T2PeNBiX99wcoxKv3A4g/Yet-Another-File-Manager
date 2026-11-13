@@ -93,58 +93,58 @@ interface SettingsViewProps {
 const ShortcutRows: { id: keyof ShortcutMap; label: LocalizationKey; note: LocalizationKey }[] = [
     {
         id: "goBack",
-        label: "Back",
-        note: "The previous folder in this tab. The mouse back button and the browser back key always work."
+        label: "back",
+        note: "the_previous_folder_in_this_tab_the_mouse_back_button_and_the_browser_back_key_always_work"
     },
     {
         id: "goForward",
-        label: "Forward",
-        note: "The next folder in this tab. The mouse forward button and the browser forward key always work."
+        label: "forward",
+        note: "the_next_folder_in_this_tab_the_mouse_forward_button_and_the_browser_forward_key_always_work"
     },
-    {id: "goUp", label: "Up one level", note: "Opens the folder that contains the current one."},
-    {id: "home", label: "Home folder", note: "Jumps to the user's home folder, like Alt+Home in Dolphin."},
-    {id: "find", label: "Search", note: "Opens the floating search box. Typing a letter in a folder opens it too."},
-    {id: "location", label: "Edit location", note: "Turns the breadcrumbs into an editable path; Ctrl+L in Dolphin."},
-    {id: "closeTab", label: "Close tab", note: "Closes the tab that is open."},
-    {id: "newTab", label: "New tab", note: "Opens the overview in a new tab."},
-    {id: "reopenTab", label: "Reopen closed tab", note: "Brings back the tab you closed last, folder and all."},
-    {id: "nextTab", label: "Next tab", note: "Cycles to the next tab."},
-    {id: "previousTab", label: "Previous tab", note: "Cycles to the previous tab."},
-    {id: "copy", label: "Copy", note: "Ctrl+D copies too, following KDE's file manager."},
-    {id: "cut", label: "Cut", note: "Moves the selection on the next paste."},
-    {id: "paste", label: "Paste", note: "Copies or moves the clipboard's files into the current folder."},
-    {id: "undo", label: "Undo", note: "Undoes the last file operation in this session."},
-    {id: "redo", label: "Redo", note: "Repeats the operation that was just undone."},
-    {id: "delete", label: "Move to the recycle bin", note: "Delete is Del by default, not Ctrl+D."},
+    {id: "goUp", label: "up_one_level", note: "opens_the_folder_that_contains_the_current_one"},
+    {id: "home", label: "home_folder", note: "jumps_to_the_user_s_home_folder_like_alt_home_in_dolphin"},
+    {id: "find", label: "search", note: "opens_the_floating_search_box_typing_a_letter_in_a_folder_opens_it_too"},
+    {id: "location", label: "edit_location", note: "turns_the_breadcrumbs_into_an_editable_path_ctrl_l_in_dolphin"},
+    {id: "closeTab", label: "close_tab", note: "closes_the_tab_that_is_open"},
+    {id: "newTab", label: "new_tab", note: "opens_the_overview_in_a_new_tab"},
+    {id: "reopenTab", label: "reopen_closed_tab", note: "brings_back_the_tab_you_closed_last_folder_and_all"},
+    {id: "nextTab", label: "next_tab", note: "cycles_to_the_next_tab"},
+    {id: "previousTab", label: "previous_tab", note: "cycles_to_the_previous_tab"},
+    {id: "copy", label: "copy", note: "ctrl_d_copies_too_following_kde_s_file_manager"},
+    {id: "cut", label: "cut", note: "moves_the_selection_on_the_next_paste"},
+    {id: "paste", label: "paste", note: "copies_or_moves_the_clipboard_s_files_into_the_current_folder"},
+    {id: "undo", label: "undo", note: "undoes_the_last_file_operation_in_this_session"},
+    {id: "redo", label: "redo", note: "repeats_the_operation_that_was_just_undone"},
+    {id: "delete", label: "move_to_the_recycle_bin", note: "delete_is_del_by_default_not_ctrl_d"},
     {
         id: "deletePermanently",
-        label: "Delete permanently",
-        note: "Bypasses the recycle bin; Dolphin uses Shift+Delete."
+        label: "delete_permanently",
+        note: "bypasses_the_recycle_bin_dolphin_uses_shift_delete"
     },
-    {id: "rename", label: "Rename", note: "Renames the single selected entry."},
-    {id: "selectAll", label: "Select all", note: "Selects every entry in the current folder."},
+    {id: "rename", label: "rename", note: "renames_the_single_selected_entry"},
+    {id: "selectAll", label: "select_all", note: "selects_every_entry_in_the_current_folder"},
     {
         id: "invertSelection",
-        label: "Invert selection",
-        note: "Selects everything that is not selected; Dolphin uses Ctrl+Shift+A."
+        label: "invert_selection",
+        note: "selects_everything_that_is_not_selected_dolphin_uses_ctrl_shift_a"
     },
-    {id: "open", label: "Open", note: "Opens the selected folder or file."},
-    {id: "newFolder", label: "New folder", note: "Creates a folder in the current directory. F10 also works."},
-    {id: "properties", label: "Properties", note: "Opens the shell properties sheet."},
-    {id: "iconsView", label: "Icons view", note: "Switches the folder to the grid view."},
-    {id: "detailsView", label: "Details view", note: "Switches the folder to the list view."},
+    {id: "open", label: "open", note: "opens_the_selected_folder_or_file"},
+    {id: "newFolder", label: "new_folder", note: "creates_a_folder_in_the_current_directory_f10_also_works"},
+    {id: "properties", label: "properties", note: "opens_the_shell_properties_sheet"},
+    {id: "iconsView", label: "icons_view", note: "switches_the_folder_to_the_grid_view"},
+    {id: "detailsView", label: "details_view", note: "switches_the_folder_to_the_list_view"},
     {
         id: "terminal",
-        label: "Open terminal",
-        note: "Opens Windows Terminal in the current folder; Dolphin uses F4 for its terminal panel."
+        label: "open_terminal",
+        note: "opens_windows_terminal_in_the_current_folder_dolphin_uses_f4_for_its_terminal_panel"
     },
     {
         id: "hidden",
-        label: "Show hidden files",
-        note: "Toggles ordinary hidden files for this session. Alt+. also works; system files still follow Explorer."
+        label: "show_hidden_files",
+        note: "toggles_ordinary_hidden_files_for_this_session_alt_also_works_system_files_still_follow_explorer"
     },
-    {id: "splitView", label: "Split view", note: "Shows the next file tab beside the current one; F3 in Dolphin."},
-    {id: "openInNewTab", label: "Open in a new tab", note: "Hold this while clicking a folder."},
+    {id: "splitView", label: "split_view", note: "shows_the_next_file_tab_beside_the_current_one_f3_in_dolphin"},
+    {id: "openInNewTab", label: "open_in_a_new_tab", note: "hold_this_while_clicking_a_folder"},
 ];
 
 /** The language a fresh install uses until the picker changes it. */
@@ -161,17 +161,17 @@ interface UpdateDialogState {
 }
 
 const ThemeModes: { id: ThemeMode; label: LocalizationKey }[] = [
-    {id: "system", label: "Follow system"},
-    {id: "light", label: "Light"},
-    {id: "dark", label: "Dark"},
+    {id: "system", label: "follow_system"},
+    {id: "light", label: "light"},
+    {id: "dark", label: "dark"},
 ];
 
 /** The choices offered for every timestamp; "custom" reveals the pattern box. */
 const TimeModes: { id: string; label: LocalizationKey }[] = [
-    {id: "system", label: "System"},
-    {id: "24", label: "24-hour"},
-    {id: "12", label: "12-hour"},
-    {id: "custom", label: "Custom"},
+    {id: "system", label: "system"},
+    {id: "24", label: "k_24_hour"},
+    {id: "12", label: "k_12_hour"},
+    {id: "custom", label: "custom"},
 ];
 
 /** A fixed afternoon so the preview shows both the date and the hour clearly. */
@@ -190,26 +190,26 @@ const LocaleNames: Record<string, string> = {
 
 /** The sections the table of contents jumps to; the ids are what the list shows. */
 const SettingSections: { id: string; label: LocalizationKey }[] = [
-    {id: "application", label: "Application"},
-    {id: "startup", label: "Startup"},
-    {id: "fonts", label: "Fonts"},
-    {id: "time", label: "Time format"},
-    {id: "updates", label: "Updates"},
-    {id: "colors", label: "Colors"},
-    {id: "background", label: "Background"},
-    {id: "safety", label: "Safety"},
-    {id: "tags", label: "Tags"},
-    {id: "files-view", label: "Files view"},
-    {id: "shortcuts", label: "Shortcuts"},
-    {id: "memory", label: "Memory"},
-    {id: "overview", label: "Overview"},
-    {id: "gallery", label: "Gallery"},
-    {id: "icons", label: "Icons"},
-    {id: "extension-icons", label: "Icons by extension"},
-    {id: "folder-icons", label: "Folder icons"},
-    {id: "folder-index", label: "Folder index"},
-    {id: "indexing", label: "Index tasks"},
-    {id: "files", label: "Files"},
+    {id: "application", label: "application"},
+    {id: "startup", label: "startup"},
+    {id: "fonts", label: "fonts"},
+    {id: "time", label: "time_format"},
+    {id: "updates", label: "updates"},
+    {id: "colors", label: "colors"},
+    {id: "background", label: "background"},
+    {id: "safety", label: "safety"},
+    {id: "tags", label: "tags"},
+    {id: "files-view", label: "files_view"},
+    {id: "shortcuts", label: "shortcuts"},
+    {id: "memory", label: "memory"},
+    {id: "overview", label: "overview"},
+    {id: "gallery", label: "gallery"},
+    {id: "icons", label: "icons"},
+    {id: "extension-icons", label: "icons_by_extension"},
+    {id: "folder-icons", label: "folder_icons"},
+    {id: "folder-index", label: "folder_index"},
+    {id: "indexing", label: "index_tasks"},
+    {id: "files", label: "files"},
 ];
 
 type ColorRole = "accent" | "secondary";
@@ -603,7 +603,7 @@ export function SettingsView({
             setUpdateState(await checkUpdate());
         } catch {
             // The host answers a failed check with its own key; the interface has the sentence.
-            setUpdateError(t("Could not check for updates."));
+            setUpdateError(t("could_not_check_for_updates"));
         } finally {
             setUpdateBusy(false);
         }
@@ -639,7 +639,7 @@ export function SettingsView({
 
         try {
             const ack = await installUpdate();
-            if (!ack.ok) failDownload(ack.error ?? t("The update failed."));
+            if (!ack.ok) failDownload(ack.error ?? t("the_update_failed"));
         } catch (reason) {
             failDownload(reason instanceof Error ? reason.message : String(reason));
         }
@@ -705,7 +705,7 @@ export function SettingsView({
             setTags(await createTag(name, newTagColor));
             setNewTagName("");
         } catch {
-            setTagError(t("Could not add the tag."));
+            setTagError(t("could_not_add_the_tag"));
         } finally {
             setTagBusy(false);
         }
@@ -715,7 +715,7 @@ export function SettingsView({
         setTags((current) => current.map((tag) => tag.name === name ? {...tag, color} : tag));
 
         if (!await setTagColor(name, color))
-            setTagError(t("Could not change the tag's color."));
+            setTagError(t("could_not_change_the_tag_s_color"));
     };
 
     const removeTag = async (name: string) => {
@@ -1048,22 +1048,22 @@ export function SettingsView({
             <Main ref={page}>
                 <Section ref={anchor("application")}>
                     <Head
-                        note="The build, its yafm:// links, and what reopens at launch."
-                        title="Application"
+                        note="the_build_its_yafm_links_and_what_reopens_at_launch"
+                        title="application"
                     />
                     <Rows>
                         <Row>
-                            <Label>{t("Version")}</Label>
+                            <Label>{t("version")}</Label>
                             <Value>{appInfo ? `v${appInfo.version}` : "—"}</Value>
                         </Row>
                         <Row>
-                            <Label>{t("Platform")}</Label>
+                            <Label>{t("platform")}</Label>
                             <Value>{appInfo?.platform ?? "—"}</Value>
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>{t("Language")}</Label>
-                                <Note>{t("The language the interface uses. English is the default; the system option follows the operating system.")}</Note>
+                                <Label>{t("language")}</Label>
+                                <Note>{t("the_language_the_interface_uses_english_is_the_default_the_system_option_follows_the_operating_system")}</Note>
                             </RowText>
                             <RowEnd>
                                 <LanguagePicker
@@ -1076,8 +1076,8 @@ export function SettingsView({
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>{t("Picker window size")}</Label>
-                                <Note>{t("The size the folder and file picker opens at. Width and height are in pixels.")}</Note>
+                                <Label>{t("picker_window_size")}</Label>
+                                <Note>{t("the_size_the_folder_and_file_picker_opens_at_width_and_height_are_in_pixels")}</Note>
                             </RowText>
                             <RowEnd>
                                 <Input
@@ -1109,16 +1109,16 @@ export function SettingsView({
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>{t("Web server port")}</Label>
-                                <Note>{t("Random asks the operating system for one free port when the first web share starts, and every web share keeps using it. Custom always tries the port below.")}</Note>
+                                <Label>{t("web_server_port")}</Label>
+                                <Note>{t("random_asks_the_operating_system_for_one_free_port_when_the_first_web_share_starts_and_every_web_share_keeps_using_it_custom_always_tries_the_port_below")}</Note>
                             </RowText>
                             <RowEnd>
                                 <SelectMenu
                                     disabled={!settings}
                                     onChange={(value) => void changeSharePortMode(value)}
                                     options={[
-                                        {value: "random", label: t("Random")},
-                                        {value: "custom", label: t("Custom port")},
+                                        {value: "random", label: t("random")},
+                                        {value: "custom", label: t("custom_port")},
                                     ]}
                                     value={settings?.sharePortMode ?? "random"}
                                     width={160}
@@ -1128,8 +1128,8 @@ export function SettingsView({
                         {settings?.sharePortMode === "custom" && (
                             <Row>
                                 <RowText>
-                                    <Label>{t("Custom port")}</Label>
-                                    <Note>{t("A number from 1 to 65535. If it is already in use the app asks for a free port instead.")}</Note>
+                                    <Label>{t("custom_port")}</Label>
+                                    <Note>{t("a_number_from_1_to_65535_if_it_is_already_in_use_the_app_asks_for_a_free_port_instead")}</Note>
                                 </RowText>
                                 <RowEnd>
                                     <Input
@@ -1147,16 +1147,16 @@ export function SettingsView({
                         )}
                         <Row>
                             <RowText>
-                                <Label>{t("Link paths")}</Label>
-                                <Note>{t("Relative links keep working when the link and its target move together. Absolute links always store the full target path.")}</Note>
+                                <Label>{t("link_paths")}</Label>
+                                <Note>{t("relative_links_keep_working_when_the_link_and_its_target_move_together_absolute_links_always_store_the_full_target_path")}</Note>
                             </RowText>
                             <RowEnd>
                                 <SelectMenu
                                     disabled={!settings}
                                     onChange={(value) => void update({linkPathMode: value})}
                                     options={[
-                                        {value: "relative", label: t("Relative")},
-                                        {value: "absolute", label: t("Absolute")},
+                                        {value: "relative", label: t("relative")},
+                                        {value: "absolute", label: t("absolute")},
                                     ]}
                                     value={settings?.linkPathMode ?? "relative"}
                                     width={160}
@@ -1165,8 +1165,8 @@ export function SettingsView({
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>{t("Global hotkey")}</Label>
-                                <Note>{t("Brings the window forward from anywhere while the app is running. Empty means no global shortcut.")}</Note>
+                                <Label>{t("global_hotkey")}</Label>
+                                <Note>{t("brings_the_window_forward_from_anywhere_while_the_app_is_running_empty_means_no_global_shortcut")}</Note>
                             </RowText>
                             <RowEnd>
                                 <KeyButton
@@ -1176,39 +1176,39 @@ export function SettingsView({
                                     type="button"
                                 >
                                     {capturingGlobal
-                                        ? t("Press a key…")
+                                        ? t("press_a_key")
                                         : settings?.globalHotkey
                                             ? prettyShortcut(settings.globalHotkey)
-                                            : t("None")}
+                                            : t("none")}
                                 </KeyButton>
                                 {settings?.globalHotkey && (
                                     <SmallButton onClick={() => void update({globalHotkey: null})} type="button">
-                                        {t("Clear")}
+                                        {t("clear")}
                                     </SmallButton>
                                 )}
                             </RowEnd>
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>{t("Open yafm:// links")}</Label>
+                                <Label>{t("open_yafm_links")}</Label>
                                 <Note>
-                                    {t("Registers this app for yafm:// links, for the current user only. Turning it on writes this copy's path; starting the app never touches the registry.")}
+                                    {t("registers_this_app_for_yafm_links_for_the_current_user_only_turning_it_on_writes_this_copy_s_path_starting_the_app_never_touches_the_registry")}
                                 </Note>
                                 {scheme.registered && !scheme.pathMatches && (
                                     <TagError>
-                                        {t("The registered path points to {path}. Register again to use this build.",
+                                        {t("the_registered_path_points_to_path_register_again_to_use_this_build",
                                             {path: scheme.registeredPath ?? "?"})}
                                     </TagError>
                                 )}
                                 {schemeError && <TagError>{schemeError}</TagError>}
                             </RowText>
                             <RowEnd>
-                                <State $on={schemeActive}>{schemeActive ? t("Active") : t("Off")}</State>
+                                <State $on={schemeActive}>{schemeActive ? t("active") : t("off")}</State>
                                 <Toggle
                                     $on={schemeActive}
                                     disabled={schemeBusy}
                                     onClick={() => void toggleScheme()}
-                                    title={schemeActive ? t("Stop opening yafm:// links") : t("Open yafm:// links with this app")}
+                                    title={schemeActive ? t("stop_opening_yafm_links") : t("open_yafm_links_with_this_app")}
                                     type="button"
                                 >
                                     <Knob/>
@@ -1217,13 +1217,13 @@ export function SettingsView({
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>{t("Use as the default file manager")}</Label>
+                                <Label>{t("use_as_the_default_file_manager")}</Label>
                                 <Note>
-                                    {t("Registers this app for folder opens on this account. Explorer stays available from the context menu; on Linux this sets the inode/directory default.")}
+                                    {t("registers_this_app_for_folder_opens_on_this_account_explorer_stays_available_from_the_context_menu_on_linux_this_sets_the_inode_directory_default")}
                                 </Note>
                                 {defaultManagerStatus?.registered && !defaultManagerStatus.pathMatches && (
                                     <TagError>
-                                        {t("The registered path points to {path}. Register again to use this build.",
+                                        {t("the_registered_path_points_to_path_register_again_to_use_this_build",
                                             {path: defaultManagerStatus.registeredPath ?? "?"})}
                                     </TagError>
                                 )}
@@ -1231,15 +1231,15 @@ export function SettingsView({
                             </RowText>
                             <RowEnd>
                                 <State $on={defaultManagerRegistered}>
-                                    {defaultManagerRegistered ? t("Active") : t("Off")}
+                                    {defaultManagerRegistered ? t("active") : t("off")}
                                 </State>
                                 <Toggle
                                     $on={defaultManagerRegistered}
                                     disabled={!settings || defaultManagerBusy}
                                     onClick={() => void changeDefaultManager()}
                                     title={defaultManagerRegistered
-                                        ? t("Stop using this app for folders")
-                                        : t("Use this app for folders")}
+                                        ? t("stop_using_this_app_for_folders")
+                                        : t("use_this_app_for_folders")}
                                     type="button"
                                 >
                                     <Knob/>
@@ -1248,16 +1248,16 @@ export function SettingsView({
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>{t("Open archives with this app")}</Label>
+                                <Label>{t("open_archives_with_this_app")}</Label>
                                 <Note>
-                                    {t("Registers this app for ZIP, 7z, RAR, TAR and the other archive types on this account, so double-clicking one shows it as a folder here. Windows may still ask once which app to use.")}
+                                    {t("registers_this_app_for_zip_7z_rar_tar_and_the_other_archive_types_on_this_account_so_double_clicking_one_shows_it_as_a_folder_here_windows_may_still_ask_once_which_app_to_use")}
                                 </Note>
                                 <Note>
-                                    {t("When this is off, opening an archive uses the system's default application instead.")}
+                                    {t("when_this_is_off_opening_an_archive_uses_the_system_s_default_application_instead")}
                                 </Note>
                                 {archiveStatus?.registered && !archiveStatus.pathMatches && (
                                     <TagError>
-                                        {t("The registered path points to {path}. Register again to use this build.",
+                                        {t("the_registered_path_points_to_path_register_again_to_use_this_build",
                                             {path: archiveStatus.registeredPath ?? "?"})}
                                     </TagError>
                                 )}
@@ -1265,21 +1265,21 @@ export function SettingsView({
                             </RowText>
                             <RowEnd>
                                 <State $on={archiveRegistered}>
-                                    {archiveRegistered ? t("Active") : t("Off")}
+                                    {archiveRegistered ? t("active") : t("off")}
                                 </State>
                                 <ActionButton
                                     disabled={!settings || archiveBusy || archiveRegistered}
                                     onClick={() => void registerArchives()}
                                     type="button"
                                 >
-                                    {t("Register")}
+                                    {t("register")}
                                 </ActionButton>
                                 {appInfo?.platform === "windows" && (
                                     <ActionButton
                                         onClick={() => void openUrl("ms-settings:defaultapps")}
                                         type="button"
                                     >
-                                        {t("Default apps…")}
+                                        {t("default_apps")}
                                     </ActionButton>
                                 )}
                                 <DangerButton
@@ -1287,15 +1287,15 @@ export function SettingsView({
                                     onClick={() => void unregisterArchives()}
                                     type="button"
                                 >
-                                    {t("Unregister")}
+                                    {t("unregister")}
                                 </DangerButton>
                             </RowEnd>
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>{t("Reopen the tabs that were open")}</Label>
+                                <Label>{t("reopen_the_tabs_that_were_open")}</Label>
                                 <Note>
-                                    {t("Keeps the tabs and the folder each one shows, so they come back after a restart. A folder passed on the command line takes over instead.")}
+                                    {t("keeps_the_tabs_and_the_folder_each_one_shows_so_they_come_back_after_a_restart_a_folder_passed_on_the_command_line_takes_over_instead")}
                                 </Note>
                             </RowText>
                             <Toggle
@@ -1312,26 +1312,26 @@ export function SettingsView({
 
                 <Section ref={anchor("startup")}>
                     <Head
-                        note="How the app joins your login session, and whether it opens quietly in the tray."
-                        title="Startup"
+                        note="how_the_app_joins_your_login_session_and_whether_it_opens_quietly_in_the_tray"
+                        title="startup"
                     />
                     <Rows>
                         <Row>
                             <RowText>
-                                <Label>{t("Start with the computer")}</Label>
-                                <Note>{t("A shortcut uses the Startup folder (or XDG autostart). A task uses Task Scheduler (or a systemd user service), which starts earlier and is usually faster.")}</Note>
+                                <Label>{t("start_with_the_computer")}</Label>
+                                <Note>{t("a_shortcut_uses_the_startup_folder_or_xdg_autostart_a_task_uses_task_scheduler_or_a_systemd_user_service_which_starts_earlier_and_is_usually_faster")}</Note>
                                 {startupError && <TagError>{startupError}</TagError>}
                                 {startup && !startup.supported &&
-                                    <TagError>{t("This platform cannot create a per-user startup entry.")}</TagError>}
+                                    <TagError>{t("this_platform_cannot_create_a_per_user_startup_entry")}</TagError>}
                             </RowText>
                             <RowEnd>
                                 <SelectMenu
                                     disabled={!settings || startupBusy || (startup !== null && !startup.supported)}
                                     onChange={(value) => void changeStartup(value)}
                                     options={[
-                                        {value: "none", label: t("None")},
-                                        {value: "shortcut", label: t("Shortcut")},
-                                        {value: "task", label: t("Scheduled task")},
+                                        {value: "none", label: t("none")},
+                                        {value: "shortcut", label: t("shortcut")},
+                                        {value: "task", label: t("scheduled_task")},
                                     ]}
                                     value={startup?.mode ?? settings?.startupMode ?? "none"}
                                     width={170}
@@ -1340,8 +1340,8 @@ export function SettingsView({
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>{t("Start hidden in the tray")}</Label>
-                                <Note>{t("Launch straight to the tray icon instead of showing the window. The tray menu opens it again.")}</Note>
+                                <Label>{t("start_hidden_in_the_tray")}</Label>
+                                <Note>{t("launch_straight_to_the_tray_icon_instead_of_showing_the_window_the_tray_menu_opens_it_again")}</Note>
                             </RowText>
                             <RowEnd>
                                 <Toggle
@@ -1359,15 +1359,15 @@ export function SettingsView({
 
                 <Section ref={anchor("fonts")}>
                     <Head
-                        note="Choose the font each part of the interface uses. Every font installed on this system is listed, each one drawn in its own face."
-                        title="Fonts"
+                        note="choose_the_font_each_part_of_the_interface_uses_every_font_installed_on_this_system_is_listed_each_one_drawn_in_its_own_face"
+                        title="fonts"
                     />
                     <Rows>
                         {FontRoles.map((role) => (
                             <Row key={role.id}>
                                 <RowText>
                                     <Label>{t(role.label)}</Label>
-                                    <Note>{t("Falls back to {font} until another family is chosen.", {font: t(role.fallback as LocalizationKey)})}</Note>
+                                    <Note>{t("falls_back_to_font_until_another_family_is_chosen", {font: t(role.fallback as LocalizationKey)})}</Note>
                                 </RowText>
                                 <RowEnd>
                                     <FontPicker
@@ -1383,12 +1383,12 @@ export function SettingsView({
                         ))}
                         <Row>
                             <RowText>
-                                <Label>{t("Reset")}</Label>
-                                <Note>{t("Back to the app's built-in font for every role.")}</Note>
+                                <Label>{t("reset")}</Label>
+                                <Note>{t("back_to_the_app_s_built_in_font_for_every_role")}</Note>
                             </RowText>
                             <RowEnd>
                                 <ActionButton onClick={() => void update({fonts: {}})} type="button">
-                                    {t("Reset")}
+                                    {t("reset")}
                                 </ActionButton>
                             </RowEnd>
                         </Row>
@@ -1397,14 +1397,14 @@ export function SettingsView({
 
                 <Section ref={anchor("time")}>
                     <Head
-                        note="Every timestamp in the interface uses this format: follow the system, force 24-hour or 12-hour time, or define your own pattern."
-                        title="Time format"
+                        note="every_timestamp_in_the_interface_uses_this_format_follow_the_system_force_24_hour_or_12_hour_time_or_define_your_own_pattern"
+                        title="time_format"
                     />
                     <Rows>
                         <Block>
                             <BlockHead>
-                                <Label>{t("Format")}</Label>
-                                <Note>{t("Follow the system, force 24-hour or 12-hour time, or define your own pattern.")}</Note>
+                                <Label>{t("format")}</Label>
+                                <Note>{t("follow_the_system_force_24_hour_or_12_hour_time_or_define_your_own_pattern")}</Note>
                             </BlockHead>
                             <SegmentRow>
                                 {TimeModes.map((mode) => (
@@ -1421,7 +1421,7 @@ export function SettingsView({
                             {(settings?.timeFormat ?? "24") === "custom" && (
                                 <>
                                     <TimePatternInput
-                                        aria-label={t("Pattern")}
+                                        aria-label={t("pattern")}
                                         onBlur={commitTimePattern}
                                         onChange={(event) => setTimeDraft(event.target.value)}
                                         onKeyDown={(event) => {
@@ -1435,11 +1435,11 @@ export function SettingsView({
                                         spellCheck={false}
                                         value={timeDraft ?? settings?.timeFormatPattern ?? DefaultTimePattern}
                                     />
-                                    <Note>{t("Tokens: yyyy year, MM month, dd day, HH 24-hour, mm minute, ss second, hh 12-hour and a AM/PM. Other characters are copied.")}</Note>
+                                    <Note>{t("tokens_yyyy_year_mm_month_dd_day_hh_24_hour_mm_minute_ss_second_hh_12_hour_and_a_am_pm_other_characters_are_copied")}</Note>
                                 </>
                             )}
                             <TimePreview>
-                                <span>{t("Preview")}</span>
+                                <span>{t("preview")}</span>
                                 <code>
                                     {formatDateWith(
                                         TimePreviewSample,
@@ -1454,16 +1454,16 @@ export function SettingsView({
 
                 <Section ref={anchor("updates")}>
                     <Head
-                        note="The running build and the newest one published."
-                        title="Updates"
+                        note="the_running_build_and_the_newest_one_published"
+                        title="updates"
                     />
                     <Rows>
                         <Row>
-                            <Label>{t("Current version")}</Label>
+                            <Label>{t("current_version")}</Label>
                             <Value>{appInfo ? `v${appInfo.version}` : "—"}</Value>
                         </Row>
                         <Row>
-                            <Label>{t("Latest version")}</Label>
+                            <Label>{t("latest_version")}</Label>
                             <Value>{updateState ? `v${updateState.latest}` : "—"}</Value>
                         </Row>
                         <Row>
@@ -1471,14 +1471,14 @@ export function SettingsView({
                                 <Label>
                                     {updateState
                                         ? updateState.available
-                                            ? t("Version {version} is available.", {version: updateState.latest})
-                                            : t("You are on the latest version.")
-                                        : t("Not checked yet")}
+                                            ? t("version_version_is_available", {version: updateState.latest})
+                                            : t("you_are_on_the_latest_version")
+                                        : t("not_checked_yet")}
                                 </Label>
                                 <Note>
                                     {updateState?.available
-                                        ? t("The installer downloads, installs itself, and closes the app.")
-                                        : t("Reads the version file the release workflow publishes.")}
+                                        ? t("the_installer_downloads_installs_itself_and_closes_the_app")
+                                        : t("reads_the_version_file_the_release_workflow_publishes")}
                                 </Note>
                             </RowText>
                             <RowEnd>
@@ -1488,7 +1488,7 @@ export function SettingsView({
                                             onClick={() => void openReleasePage()}
                                             type="button"
                                         >
-                                            {t("Open release page")}
+                                            {t("open_release_page")}
                                         </ActionButton>
                                         {isWindows && (
                                             <ActionButton
@@ -1496,7 +1496,7 @@ export function SettingsView({
                                                 onClick={() => void downloadAndInstall()}
                                                 type="button"
                                             >
-                                                {t("Download and install")}
+                                                {t("download_and_install")}
                                             </ActionButton>
                                         )}
                                     </>
@@ -1507,13 +1507,13 @@ export function SettingsView({
                                             onClick={() => void checkNow()}
                                             type="button"
                                         >
-                                            {updateBusy ? t("Checking…") : t("Check for updates")}
+                                            {updateBusy ? t("checking") : t("check_for_updates")}
                                         </ActionButton>
                                         <ActionButton
                                             onClick={() => void openLogsFolder()}
                                             type="button"
                                         >
-                                            {t("Open log folder")}
+                                            {t("open_log_folder")}
                                         </ActionButton>
                                     </>
                                 )}
@@ -1529,14 +1529,14 @@ export function SettingsView({
 
                 <Section ref={anchor("colors")}>
                     <Head
-                        note="The accent and highlight colours the whole window uses."
-                        title="Colors"
+                        note="the_accent_and_highlight_colours_the_whole_window_uses"
+                        title="colors"
                     />
                     <Rows>
                         <Block>
                             <BlockHead>
-                                <Label>{t("Theme")}</Label>
-                                <Note>{t("Follow the operating system, or always use the light or dark palette.")}</Note>
+                                <Label>{t("theme")}</Label>
+                                <Note>{t("follow_the_operating_system_or_always_use_the_light_or_dark_palette")}</Note>
                             </BlockHead>
                             <SegmentRow>
                                 {ThemeModes.map((mode) => (
@@ -1553,8 +1553,8 @@ export function SettingsView({
                         </Block>
                         <Block>
                             <BlockHead>
-                                <Label>{t("Presets")}</Label>
-                                <Note>{t("One click changes the accent and the highlight together.")}</Note>
+                                <Label>{t("presets")}</Label>
+                                <Note>{t("one_click_changes_the_accent_and_the_highlight_together")}</Note>
                             </BlockHead>
                             <PresetGrid>
                                 {ThemePresets.map((preset) => (
@@ -1591,7 +1591,7 @@ export function SettingsView({
                                         </Preset>
                                         <PresetRemove
                                             onClick={() => void removePreset(index)}
-                                            title={t("Remove preset")}
+                                            title={t("remove_preset")}
                                             type="button"
                                         >
                                             <CrossIcon size={9}/>
@@ -1622,15 +1622,15 @@ export function SettingsView({
                                                         setDraftPreset(null);
                                                     }
                                                 }}
-                                                placeholder={t("Preset name")}
+                                                placeholder={t("preset_name")}
                                                 spellCheck={false}
                                                 value={draftPreset.name}
                                             />
                                             <SmallButton onClick={() => void savePreset()} type="button">
-                                                {t("Save")}
+                                                {t("save")}
                                             </SmallButton>
                                             <SmallButton onClick={() => setDraftPreset(null)} type="button">
-                                                {t("Cancel")}
+                                                {t("cancel")}
                                             </SmallButton>
                                         </PresetDraft>
                                     )
@@ -1642,19 +1642,19 @@ export function SettingsView({
                                                 accent: accentNow,
                                                 secondary: secondaryNow,
                                             })}
-                                            title={t("Save the current colours as a preset")}
+                                            title={t("save_the_current_colours_as_a_preset")}
                                             type="button"
                                         >
                                             <PlusIcon size={12}/>
-                                            {t("Add preset")}
+                                            {t("add_preset")}
                                         </AddPreset>
                                     )}
                             </PresetGrid>
                         </Block>
                         <Row>
                             <RowText>
-                                <Label>{t("Accent color")}</Label>
-                                <Note>{t("Buttons, selections, focus rings, and active navigation.")}</Note>
+                                <Label>{t("accent_color")}</Label>
+                                <Note>{t("buttons_selections_focus_rings_and_active_navigation")}</Note>
                             </RowText>
                             <RowEnd>
                                 <RecentSwatches
@@ -1663,7 +1663,7 @@ export function SettingsView({
                                     onApply={(color) => applyColor("accent", color)}
                                 />
                                 <ColorWell
-                                    aria-label={t("Accent color")}
+                                    aria-label={t("accent_color")}
                                     disabled={!settings}
                                     onBlur={() => finishColor("accent")}
                                     onChange={(event) => void update({accentColor: event.target.value})}
@@ -1676,8 +1676,8 @@ export function SettingsView({
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>{t("Secondary color")}</Label>
-                                <Note>{t("Gradients, highlights, and the second end of the accent ramp.")}</Note>
+                                <Label>{t("secondary_color")}</Label>
+                                <Note>{t("gradients_highlights_and_the_second_end_of_the_accent_ramp")}</Note>
                             </RowText>
                             <RowEnd>
                                 <RecentSwatches
@@ -1686,7 +1686,7 @@ export function SettingsView({
                                     onApply={(color) => applyColor("secondary", color)}
                                 />
                                 <ColorWell
-                                    aria-label={t("Secondary color")}
+                                    aria-label={t("secondary_color")}
                                     disabled={!settings}
                                     onBlur={() => finishColor("secondary")}
                                     onChange={(event) => void update({secondaryColor: event.target.value})}
@@ -1699,8 +1699,8 @@ export function SettingsView({
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>{t("Reset colors")}</Label>
-                                <Note>{t("Returns the interface to the default blue and indigo theme.")}</Note>
+                                <Label>{t("reset_colors")}</Label>
+                                <Note>{t("returns_the_interface_to_the_default_blue_and_indigo_theme")}</Note>
                             </RowText>
                             <RowEnd>
                                 <SmallButton
@@ -1712,7 +1712,7 @@ export function SettingsView({
                                     }}
                                     type="button"
                                 >
-                                    {t("Reset")}
+                                    {t("reset")}
                                 </SmallButton>
                             </RowEnd>
                         </Row>
@@ -1721,23 +1721,23 @@ export function SettingsView({
 
                 <Section ref={anchor("background")}>
                     <Head
-                        note="A picture or video behind the whole window, from the title bar to the bottom."
-                        title="Background"
+                        note="a_picture_or_video_behind_the_whole_window_from_the_title_bar_to_the_bottom"
+                        title="background"
                     />
                     <Rows>
                         <Block>
                             <BlockHead>
-                                <Label>{t("Wallpaper")}</Label>
-                                <Note>{t("None keeps the normal dark surface. Every built-in concept comes in the app's colour presets; your own pictures, SVGs and videos are kept in the gallery.")}</Note>
+                                <Label>{t("wallpaper")}</Label>
+                                <Note>{t("none_keeps_the_normal_dark_surface_every_built_in_concept_comes_in_the_app_s_colour_presets_your_own_pictures_sv_gs_and_videos_are_kept_in_the_gallery")}</Note>
                             </BlockHead>
                             <VariantRow>
                                 <Variant
                                     $active={!settings?.backgroundSource}
                                     onClick={() => void update({backgroundSource: null})}
-                                    title={t("None")}
+                                    title={t("none")}
                                     type="button"
                                 >
-                                    <NoneLabel>{t("None")}</NoneLabel>
+                                    <NoneLabel>{t("none")}</NoneLabel>
                                 </Variant>
                             </VariantRow>
                             <Gallery>
@@ -1761,7 +1761,7 @@ export function SettingsView({
                                 ))}
 
                                 <GalleryGroup>
-                                    <GalleryLabel>{t("Motion")}</GalleryLabel>
+                                    <GalleryLabel>{t("motion")}</GalleryLabel>
                                     <VariantRow>
                                         {BuiltInVideos.map((video) => (
                                             <Variant
@@ -1779,7 +1779,7 @@ export function SettingsView({
                                 </GalleryGroup>
 
                                 <GalleryGroup>
-                                    <GalleryLabel>{t("Custom")}</GalleryLabel>
+                                    <GalleryLabel>{t("custom")}</GalleryLabel>
                                     <VariantRow>
                                         {(settings?.backgroundCustom ?? []).map((path) => (
                                             <CustomWallpaper
@@ -1798,13 +1798,13 @@ export function SettingsView({
                                             onClick={() => void addBackground([".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".svg"])}
                                             type="button"
                                         >
-                                            <PlusIcon size={12}/>{t("Image…")}
+                                            <PlusIcon size={12}/>{t("image_2")}
                                         </AddTile>
                                         <AddTile
                                             onClick={() => void addBackground([".mp4", ".webm", ".mkv", ".mov", ".m4v", ".avi", ".wmv", ".ogv"])}
                                             type="button"
                                         >
-                                            <PlusIcon size={12}/>{t("Video…")}
+                                            <PlusIcon size={12}/>{t("video")}
                                         </AddTile>
                                     </VariantRow>
                                 </GalleryGroup>
@@ -1812,8 +1812,8 @@ export function SettingsView({
                         </Block>
                         <Row>
                             <RowText>
-                                <Label>{t("Image or video URL")}</Label>
-                                <Note>{t("Paste a direct http(s) link. The picture or video is loaded from the network each time the window starts.")}</Note>
+                                <Label>{t("image_or_video_url")}</Label>
+                                <Note>{t("paste_a_direct_http_s_link_the_picture_or_video_is_loaded_from_the_network_each_time_the_window_starts")}</Note>
                             </RowText>
                             <RowEnd>
                                 <Input
@@ -1829,12 +1829,12 @@ export function SettingsView({
                                     onClick={() => void addBackgroundUrl()}
                                     type="button"
                                 >
-                                    {t("Add")}
+                                    {t("add")}
                                 </SmallButton>
                             </RowEnd>
                         </Row>
                         <Row>
-                            <Label>{t("Blur")}</Label>
+                            <Label>{t("blur")}</Label>
                             <RowEnd>
                                 <RangeInput
                                     max={40}
@@ -1847,7 +1847,7 @@ export function SettingsView({
                             </RowEnd>
                         </Row>
                         <Row>
-                            <Label>{t("Saturation")}</Label>
+                            <Label>{t("saturation")}</Label>
                             <RowEnd>
                                 <RangeInput
                                     max={200}
@@ -1860,7 +1860,7 @@ export function SettingsView({
                             </RowEnd>
                         </Row>
                         <Row>
-                            <Label>{t("Brightness")}</Label>
+                            <Label>{t("brightness")}</Label>
                             <RowEnd>
                                 <RangeInput
                                     max={150}
@@ -1877,20 +1877,20 @@ export function SettingsView({
 
                 <Section ref={anchor("safety")}>
                     <Head
-                        note="Deleting, moving, renaming or writing to a protected folder, anything inside a recursive entry, or a folder that contains one always waits for an explicit confirmation."
-                        title="Safety"
+                        note="deleting_moving_renaming_or_writing_to_a_protected_folder_anything_inside_a_recursive_entry_or_a_folder_that_contains_one_always_waits_for_an_explicit_confirmation"
+                        title="safety"
                     />
                     <Rows>
                         <Block>
                             <BlockHead>
-                                <Label>{t("Protected folders")}</Label>
-                                <Note>{t("Rules are full-path globs: * stays inside one name, ** crosses folders, and ? matches one character. A rule without a folder part, such as *.log, applies to that name at any depth. %VARS%, $VARS and ~ are expanded first.")}</Note>
+                                <Label>{t("protected_folders")}</Label>
+                                <Note>{t("rules_are_full_path_globs_stays_inside_one_name_crosses_folders_and_matches_one_character_a_rule_without_a_folder_part_such_as_log_applies_to_that_name_at_any_depth_vars_vars_and_are_expanded_first")}</Note>
                             </BlockHead>
                             <ProtectList>
                                 {(settings?.protectedPaths ?? []).map((pattern) => (
                                     <ProtectRow key={pattern}>
                                         <ProtectInput
-                                            aria-label={t("Protected path")}
+                                            aria-label={t("protected_path")}
                                             onBlur={commitRule}
                                             onChange={(event) => setRuleDraft({
                                                 from: pattern,
@@ -1910,7 +1910,7 @@ export function SettingsView({
                                         />
                                         <ProtectRemove
                                             onClick={() => removeProtected(pattern)}
-                                            title={t("Remove")}
+                                            title={t("remove")}
                                             type="button"
                                         >
                                             <CrossIcon size={10}/>
@@ -1920,7 +1920,7 @@ export function SettingsView({
                             </ProtectList>
                             <ProtectNewRule>
                                 <RuleInput
-                                    aria-label={t("New protected rule")}
+                                    aria-label={t("new_protected_rule")}
                                     onChange={(event) => setNewProtectedRule(event.target.value)}
                                     onKeyDown={(event) => {
                                         if (event.key === "Enter") {
@@ -1933,22 +1933,22 @@ export function SettingsView({
                                     value={newProtectedRule}
                                 />
                                 <SmallButton onClick={addProtectedRule} type="button">
-                                    {t("Add the rule")}
+                                    {t("add_the_rule")}
                                 </SmallButton>
                             </ProtectNewRule>
                             <ProtectAdd>
                                 <SmallButton onClick={() => void restoreProtectedDefaults()} type="button">
-                                    {t("Restore defaults")}
+                                    {t("restore_defaults")}
                                 </SmallButton>
                                 <SmallButton onClick={() => void addProtectedFolder()} type="button">
-                                    {t("Add folder…")}
+                                    {t("add_folder_2")}
                                 </SmallButton>
                             </ProtectAdd>
                         </Block>
                         <Row>
                             <RowText>
-                                <Label>{t("Confirmation delay")}</Label>
-                                <Note>{t("The delete button in the protected-folder dialog stays disabled for this many seconds. At least 2.")}</Note>
+                                <Label>{t("confirmation_delay")}</Label>
+                                <Note>{t("the_delete_button_in_the_protected_folder_dialog_stays_disabled_for_this_many_seconds_at_least_2")}</Note>
                             </RowText>
                             <RowEnd>
                                 <RangeInput
@@ -1966,15 +1966,15 @@ export function SettingsView({
 
                 <Section ref={anchor("tags")}>
                     <Head
-                        note="Every tag in the catalogue; add, rename, recolour or remove them here."
-                        title="Tags"
+                        note="every_tag_in_the_catalogue_add_rename_recolour_or_remove_them_here"
+                        title="tags"
                     />
                     <Rows>
                         <Row>
                             <RowText>
                                 <LabelRow>
                                     <TagColorInput
-                                        aria-label={t("Color of the new tag")}
+                                        aria-label={t("color_of_the_new_tag")}
                                         onChange={(event) => setNewTagColor(event.target.value)}
                                         type="color"
                                         value={newTagColor}
@@ -1987,12 +1987,12 @@ export function SettingsView({
                                                 void addTag();
                                             }
                                         }}
-                                        placeholder={t("New tag")}
+                                        placeholder={t("new_tag")}
                                         spellCheck={false}
                                         value={newTagName}
                                     />
                                 </LabelRow>
-                                <Note>{t("Add a tag here; it is available in every folder.")}</Note>
+                                <Note>{t("add_a_tag_here_it_is_available_in_every_folder")}</Note>
                             </RowText>
                             <RowEnd>
                                 <SmallButton
@@ -2000,7 +2000,7 @@ export function SettingsView({
                                     onClick={() => void addTag()}
                                     type="button"
                                 >
-                                    {t("Add")}
+                                    {t("add")}
                                 </SmallButton>
                             </RowEnd>
                         </Row>
@@ -2013,7 +2013,7 @@ export function SettingsView({
                         {tags.length === 0 && (
                             <Row>
                                 <Note>
-                                    {t("No tags yet. Add one below; it is available in every folder.")}
+                                    {t("no_tags_yet_add_one_below_it_is_available_in_every_folder")}
                                 </Note>
                             </Row>
                         )}
@@ -2025,9 +2025,9 @@ export function SettingsView({
                                             <RowText>
                                                 <LabelRow>
                                                     <TagColorInput
-                                                        aria-label={t("Color of {tag}", {tag: tag.name})}
+                                                        aria-label={t("color_of_tag", {tag: tag.name})}
                                                         onChange={(event) => void recolorTag(tag.name, event.target.value)}
-                                                        title={t("Change this tag's color")}
+                                                        title={t("change_this_tag_s_color")}
                                                         type="color"
                                                         value={tag.color ?? DefaultTagColor}
                                                     />
@@ -2050,16 +2050,16 @@ export function SettingsView({
                                                         value={editingTag.value}
                                                     />
                                                 </LabelRow>
-                                                <Note>{t("Press Enter to save, Escape to cancel.")}</Note>
+                                                <Note>{t("press_enter_to_save_escape_to_cancel")}</Note>
                                             </RowText>
                                             <RowEnd>
                                                 <SmallButton disabled={tagBusy} onClick={() => void saveTagName()}
                                                              type="button">
-                                                    {t("Save")}
+                                                    {t("save")}
                                                 </SmallButton>
                                                 <SmallButton disabled={tagBusy} onClick={() => setEditingTag(null)}
                                                              type="button">
-                                                    {t("Cancel")}
+                                                    {t("cancel")}
                                                 </SmallButton>
                                             </RowEnd>
                                         </>
@@ -2069,16 +2069,16 @@ export function SettingsView({
                                             <RowText>
                                                 <LabelRow>
                                                     <TagColorInput
-                                                        aria-label={t("Color of {tag}", {tag: tag.name})}
+                                                        aria-label={t("color_of_tag", {tag: tag.name})}
                                                         onChange={(event) => void recolorTag(tag.name, event.target.value)}
-                                                        title={t("Change this tag's color")}
+                                                        title={t("change_this_tag_s_color")}
                                                         type="color"
                                                         value={tag.color ?? DefaultTagColor}
                                                     />
                                                     <Label>{tag.name}</Label>
                                                 </LabelRow>
                                                 <Note>
-                                                    {plural(t, tag.folders, "Used in 1 folder. Renaming or removing it updates that folder's index.", "Used in {count} folders. Renaming or removing it updates those folders' indexes.")}
+                                                    {plural(t, tag.folders, "used_in_1_folder_renaming_or_removing_it_updates_that_folder_s_index", "used_in_count_folders_renaming_or_removing_it_updates_those_folders_indexes")}
                                                 </Note>
                                             </RowText>
                                             <RowEnd>
@@ -2087,7 +2087,7 @@ export function SettingsView({
                                                     onClick={() => setEditingTag({name: tag.name, value: tag.name})}
                                                     type="button"
                                                 >
-                                                    {t("Edit")}
+                                                    {t("edit")}
                                                 </SmallButton>
                                                 <DangerButton
                                                     disabled={tagBusy}
@@ -2095,7 +2095,7 @@ export function SettingsView({
                                                     type="button"
                                                 >
                                                     <TrashIcon size={13}/>
-                                                    {t("Remove")}
+                                                    {t("remove")}
                                                 </DangerButton>
                                             </RowEnd>
                                         </>
@@ -2107,16 +2107,16 @@ export function SettingsView({
 
                 <Section ref={anchor("files-view")}>
                     <Head
-                        note="The defaults every folder starts with; a folder can still override them."
-                        title="Files view"
+                        note="the_defaults_every_folder_starts_with_a_folder_can_still_override_them"
+                        title="files_view"
                         global
                     />
                     <Rows>
                         <Row>
                             <RowText>
-                                <Label>{t("Default view")}</Label>
+                                <Label>{t("default_view")}</Label>
                                 <Note>
-                                    {t("The mode every folder starts with. A folder can still remember its own list or grid mode from the title bar.")}
+                                    {t("the_mode_every_folder_starts_with_a_folder_can_still_remember_its_own_list_or_grid_mode_from_the_title_bar")}
                                 </Note>
                             </RowText>
                             <RowEnd>
@@ -2128,7 +2128,7 @@ export function SettingsView({
                                         })}
                                         type="button"
                                     >
-                                        {t("List")}
+                                        {t("list")}
                                     </Segment>
                                     <Segment
                                         $on={defaultView.mode === "grid"}
@@ -2137,15 +2137,15 @@ export function SettingsView({
                                         })}
                                         type="button"
                                     >
-                                        {t("Grid")}
+                                        {t("grid")}
                                     </Segment>
                                 </Segmented>
                             </RowEnd>
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>{t("List icon size")}</Label>
-                                <Note>{t("The icon in the list rows.")}</Note>
+                                <Label>{t("list_icon_size")}</Label>
+                                <Note>{t("the_icon_in_the_list_rows")}</Note>
                             </RowText>
                             <RowEnd>
                                 <RangeInput
@@ -2163,8 +2163,8 @@ export function SettingsView({
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>{t("Grid size")}</Label>
-                                <Note>{t("The height of a grid tile; the icon inside follows it.")}</Note>
+                                <Label>{t("grid_size")}</Label>
+                                <Note>{t("the_height_of_a_grid_tile_the_icon_inside_follows_it")}</Note>
                             </RowText>
                             <RowEnd>
                                 <RangeInput
@@ -2183,11 +2183,11 @@ export function SettingsView({
                         <Row>
                             <RowText>
                                 <LabelRow>
-                                    <Label>{t("Selection checkboxes")}</Label>
+                                    <Label>{t("selection_checkboxes")}</Label>
                                     <GlobalTag/>
                                 </LabelRow>
                                 <Note>
-                                    {t("Show a checkbox before every name, the way Explorer does. Checked entries can be copied, cut or deleted together.")}
+                                    {t("show_a_checkbox_before_every_name_the_way_explorer_does_checked_entries_can_be_copied_cut_or_deleted_together")}
                                 </Note>
                             </RowText>
                             <Toggle
@@ -2202,11 +2202,11 @@ export function SettingsView({
                         <Row>
                             <RowText>
                                 <LabelRow>
-                                    <Label>{t("Open with a single click")}</Label>
+                                    <Label>{t("open_with_a_single_click")}</Label>
                                     <GlobalTag/>
                                 </LabelRow>
                                 <Note>
-                                    {t("Off means double-click, like Explorer's default. The checkbox still only selects, so a click on it never opens the entry.")}
+                                    {t("off_means_double_click_like_explorer_s_default_the_checkbox_still_only_selects_so_a_click_on_it_never_opens_the_entry")}
                                 </Note>
                             </RowText>
                             <Toggle
@@ -2221,11 +2221,11 @@ export function SettingsView({
                         <Row>
                             <RowText>
                                 <LabelRow>
-                                    <Label>{t("Open the file tray while dragging")}</Label>
+                                    <Label>{t("open_the_file_tray_while_dragging")}</Label>
                                     <GlobalTag/>
                                 </LabelRow>
                                 <Note>
-                                    {t("The tray appears when a drag starts and closes again if it is still empty. Off leaves it to the title bar button.")}
+                                    {t("the_tray_appears_when_a_drag_starts_and_closes_again_if_it_is_still_empty_off_leaves_it_to_the_title_bar_button")}
                                 </Note>
                             </RowText>
                             <Toggle
@@ -2240,11 +2240,11 @@ export function SettingsView({
                         <Row>
                             <RowText>
                                 <LabelRow>
-                                    <Label>{t("Confirm before deleting")}</Label>
+                                    <Label>{t("confirm_before_deleting")}</Label>
                                     <GlobalTag/>
                                 </LabelRow>
                                 <Note>
-                                    {t("Asks before moving items to the recycle bin. Shift+Del always asks, because that deletes permanently.")}
+                                    {t("asks_before_moving_items_to_the_recycle_bin_shift_del_always_asks_because_that_deletes_permanently")}
                                 </Note>
                             </RowText>
                             <Toggle
@@ -2259,11 +2259,11 @@ export function SettingsView({
                         <Row>
                             <RowText>
                                 <LabelRow>
-                                    <Label>{t("Play audio in video previews")}</Label>
+                                    <Label>{t("play_audio_in_video_previews")}</Label>
                                     <GlobalTag/>
                                 </LabelRow>
                                 <Note>
-                                    {t("Video previews play muted by default. Turn this on to hear their audio while the details panel is open.")}
+                                    {t("video_previews_play_muted_by_default_turn_this_on_to_hear_their_audio_while_the_details_panel_is_open")}
                                 </Note>
                             </RowText>
                             <Toggle
@@ -2278,11 +2278,11 @@ export function SettingsView({
                         <Row>
                             <RowText>
                                 <LabelRow>
-                                    <Label>{t("Autoplay video previews")}</Label>
+                                    <Label>{t("autoplay_video_previews")}</Label>
                                     <GlobalTag/>
                                 </LabelRow>
                                 <Note>
-                                    {t("Off by default. Turn this on to start a video as soon as its details panel opens; the play button still works when it is off.")}
+                                    {t("off_by_default_turn_this_on_to_start_a_video_as_soon_as_its_details_panel_opens_the_play_button_still_works_when_it_is_off")}
                                 </Note>
                             </RowText>
                             <Toggle
@@ -2299,11 +2299,11 @@ export function SettingsView({
                         <Row>
                             <RowText>
                                 <LabelRow>
-                                    <Label>{t("Preview panel under the list")}</Label>
+                                    <Label>{t("preview_panel_under_the_list")}</Label>
                                     <GlobalTag/>
                                 </LabelRow>
                                 <Note>
-                                    {t("Shows the pictures, videos and documents the shell can preview as grid tiles below the list. The tiles follow the grid size, and the panel only appears in list mode.")}
+                                    {t("shows_the_pictures_videos_and_documents_the_shell_can_preview_as_grid_tiles_below_the_list_the_tiles_follow_the_grid_size_and_the_panel_only_appears_in_list_mode")}
                                 </Note>
                             </RowText>
                             <Toggle
@@ -2319,10 +2319,10 @@ export function SettingsView({
                         <Row>
                             <RowText>
                                 <LabelRow>
-                                    <Label>{t("Columns")}</Label>
+                                    <Label>{t("columns")}</Label>
                                     <GlobalTag/>
                                 </LabelRow>
-                                <Note>{t("Shown in every folder; changing them changes all folders at once.")}</Note>
+                                <Note>{t("shown_in_every_folder_changing_them_changes_all_folders_at_once")}</Note>
                             </RowText>
                         </Row>
                         <Row>
@@ -2343,21 +2343,21 @@ export function SettingsView({
                                         onChange={() => void toggleColumn("linkTarget")}
                                         type="checkbox"
                                     />
-                                    <span>{t("Link target after the name")}</span>
+                                    <span>{t("link_target_after_the_name")}</span>
                                 </ColumnCheck>
                             </ColumnGrid>
                         </Row>
                     </Rows>
                     <Footnote>
-                        {t("The default view, list icon size and grid size are only defaults: a folder can still remember its own from the title bar.")}{" "}
-                        <GlobalTag/> {t("Anything marked as global always applies to every folder.")}
+                        {t("the_default_view_list_icon_size_and_grid_size_are_only_defaults_a_folder_can_still_remember_its_own_from_the_title_bar")}{" "}
+                        <GlobalTag/> {t("anything_marked_as_global_always_applies_to_every_folder")}
                     </Footnote>
                 </Section>
 
                 <Section ref={anchor("shortcuts")}>
                     <Head
-                        note="The keys this window listens for. Click a combination to record a new one."
-                        title="Shortcuts"
+                        note="the_keys_this_window_listens_for_click_a_combination_to_record_a_new_one"
+                        title="shortcuts"
                     />
                     <Rows>
                         {ShortcutRows.map(({id, label, note}) => (
@@ -2372,22 +2372,22 @@ export function SettingsView({
                                         onClick={() => setCapturing(id)}
                                         type="button"
                                     >
-                                        {capturing === id ? t("Press a key…") : prettyShortcut(keys[id])}
+                                        {capturing === id ? t("press_a_key") : prettyShortcut(keys[id])}
                                     </KeyButton>
                                 </RowEnd>
                             </Row>
                         ))}
                         <Row>
                             <RowText>
-                                <Label>{t("Reset")}</Label>
-                                <Note>{t("Back to the default combination for every action.")}</Note>
+                                <Label>{t("reset")}</Label>
+                                <Note>{t("back_to_the_default_combination_for_every_action")}</Note>
                             </RowText>
                             <RowEnd>
                                 <ActionButton
                                     onClick={() => void update({shortcuts: {...DefaultShortcuts}})}
                                     type="button"
                                 >
-                                    {t("Reset")}
+                                    {t("reset")}
                                 </ActionButton>
                             </RowEnd>
                         </Row>
@@ -2396,13 +2396,13 @@ export function SettingsView({
 
                 <Section ref={anchor("memory")}>
                     <Head
-                        note="What the process holds and how to give it back."
-                        title="Memory"
+                        note="what_the_process_holds_and_how_to_give_it_back"
+                        title="memory"
                     />
                     <Rows>
                         <Gauge>
                             <GaugeHead>
-                                <Label>{t("Process memory")}</Label>
+                                <Label>{t("process_memory")}</Label>
                                 <Value>
                                     {memory ? `${formatBytes(memory.private)} · ${percent(memory.private, memory.available)}` : "—"}
                                 </Value>
@@ -2415,18 +2415,18 @@ export function SettingsView({
                             </Track>
                             <Note>
                                 {memory
-                                    ? t("Committed of {available} the runtime can use; {resident} is resident. The webview runs in its own process.",
+                                    ? t("committed_of_available_the_runtime_can_use_resident_is_resident_the_webview_runs_in_its_own_process",
                                         {
                                             available: formatBytes(memory.available),
                                             resident: formatBytes(memory.workingSet)
                                         })
-                                    : t("Reading the current usage…")}
+                                    : t("reading_the_current_usage")}
                             </Note>
                         </Gauge>
 
                         <Gauge>
                             <GaugeHead>
-                                <Label>{t("Managed heap")}</Label>
+                                <Label>{t("managed_heap")}</Label>
                                 <Value>
                                     {memory ? `${formatBytes(memory.managed)} · ${percent(memory.managed, memory.private)}` : "—"}
                                 </Value>
@@ -2438,13 +2438,13 @@ export function SettingsView({
                                 />
                             </Track>
                             <Note>
-                                {t("Share of this process that the .NET heap holds; thumbnails and folder size walks live here. The runtime grows it on demand and gives it back after a collection.")}
+                                {t("share_of_this_process_that_the_net_heap_holds_thumbnails_and_folder_size_walks_live_here_the_runtime_grows_it_on_demand_and_gives_it_back_after_a_collection")}
                             </Note>
                         </Gauge>
 
                         <Gauge>
                             <GaugeHead>
-                                <Label>{t("Native and runtime")}</Label>
+                                <Label>{t("native_and_runtime")}</Label>
                                 <Value>
                                     {memory
                                         ? `${formatBytes(Math.max(0, memory.private - memory.managed))} · ${percent(Math.max(0, memory.private - memory.managed), memory.private)}`
@@ -2458,18 +2458,18 @@ export function SettingsView({
                                 />
                             </Track>
                             <Note>
-                                {t("The runtime, loaded libraries and the Rust helper share this part. Rust runs inside the process, so it has no separate figure.")}
+                                {t("the_runtime_loaded_libraries_and_the_rust_helper_share_this_part_rust_runs_inside_the_process_so_it_has_no_separate_figure")}
                             </Note>
                         </Gauge>
 
                         <Row>
                             <RowText>
-                                <Label>{t("Free memory")}</Label>
-                                <Note>{t("Compacts the heap and returns unused pages to the system. Always safe.")}</Note>
+                                <Label>{t("free_memory")}</Label>
+                                <Note>{t("compacts_the_heap_and_returns_unused_pages_to_the_system_always_safe")}</Note>
                             </RowText>
                             <RowEnd>
                                 <ActionButton onClick={() => void trimMemory().then(setMemory)} type="button">
-                                    {t("Trim now")}
+                                    {t("trim_now")}
                                 </ActionButton>
                             </RowEnd>
                         </Row>
@@ -2478,14 +2478,14 @@ export function SettingsView({
 
                 <Section ref={anchor("overview")}>
                     <Head
-                        note="The home tab's history and how much of it it shows."
-                        title="Overview"
+                        note="the_home_tab_s_history_and_how_much_of_it_it_shows"
+                        title="overview"
                     />
                     <Rows>
                         <Row>
                             <RowText>
-                                <Label>{t("Recent items")}</Label>
-                                <Note>{t("How many recently opened folders the overview lists. 0 hides the section.")}</Note>
+                                <Label>{t("recent_items")}</Label>
+                                <Note>{t("how_many_recently_opened_folders_the_overview_lists_0_hides_the_section")}</Note>
                             </RowText>
                             <RowEnd>
                                 <Input
@@ -2501,8 +2501,8 @@ export function SettingsView({
 
                 <Section ref={anchor("gallery")}>
                     <Head
-                        note="The folders the gallery scans for pictures and videos."
-                        title="Gallery"
+                        note="the_folders_the_gallery_scans_for_pictures_and_videos"
+                        title="gallery"
                     />
                     <Rows>
                         {(settings?.galleryRoots ?? []).map((path) => (
@@ -2514,7 +2514,7 @@ export function SettingsView({
                                 <RowEnd>
                                     <IconButton
                                         onClick={() => void saveGallery((settings?.galleryRoots ?? []).filter((item) => item !== path))}
-                                        title={t("Stop scanning this folder")}
+                                        title={t("stop_scanning_this_folder")}
                                         type="button"
                                     >
                                         <CrossIcon size={12}/>
@@ -2525,16 +2525,16 @@ export function SettingsView({
 
                         <Row>
                             <RowText>
-                                <Label>{t("Scan folders")}</Label>
+                                <Label>{t("scan_folders")}</Label>
                                 <Note>
                                     {(settings?.galleryRoots ?? []).length === 0
-                                        ? t("Nothing added yet, so the gallery reads the Pictures folder.")
-                                        : t("Only these folders are scanned, three levels deep.")}
+                                        ? t("nothing_added_yet_so_the_gallery_reads_the_pictures_folder")
+                                        : t("only_these_folders_are_scanned_three_levels_deep")}
                                 </Note>
                             </RowText>
                             <RowEnd>
                                 <ActionButton onClick={() => void addGalleryRoot()} type="button">
-                                    {t("Choose folder…")}
+                                    {t("choose_folder")}
                                 </ActionButton>
                             </RowEnd>
                         </Row>
@@ -2543,14 +2543,14 @@ export function SettingsView({
 
                 <Section ref={anchor("icons")}>
                     <Head
-                        note="Where the shell's own icons and the built-in glyphs come from."
-                        title="Icons"
+                        note="where_the_shell_s_own_icons_and_the_built_in_glyphs_come_from"
+                        title="icons"
                     />
                     <Rows>
                         <Row>
                             <RowText>
-                                <Label>{t("Use system file icons")}</Label>
-                                <Note>{t("Ask the shell for the icon of each file type instead of the built-in glyphs.")}</Note>
+                                <Label>{t("use_system_file_icons")}</Label>
+                                <Note>{t("ask_the_shell_for_the_icon_of_each_file_type_instead_of_the_built_in_glyphs")}</Note>
                             </RowText>
                             <Toggle
                                 $on={settings?.systemIcons ?? false}
@@ -2563,9 +2563,9 @@ export function SettingsView({
                         </Row>
                         <Row>
                             <RowText>
-                                <Label>{t("Use custom folder icons")}</Label>
+                                <Label>{t("use_custom_folder_icons")}</Label>
                                 <Note>
-                                    {t("Folders that define an icon (desktop.ini) keep showing it even when system icons are off.")}
+                                    {t("folders_that_define_an_icon_desktop_ini_keep_showing_it_even_when_system_icons_are_off")}
                                 </Note>
                             </RowText>
                             <Toggle
@@ -2582,8 +2582,8 @@ export function SettingsView({
 
                 <Section ref={anchor("extension-icons")}>
                     <Head
-                        note="A custom glyph for one file extension."
-                        title="Icons by extension"
+                        note="a_custom_glyph_for_one_file_extension"
+                        title="icons_by_extension"
                     />
                     <Rows>
                         {Object.entries(settings?.extensionIcons ?? {})
@@ -2598,7 +2598,7 @@ export function SettingsView({
                                         <Preview source={source}/>
                                         <IconButton
                                             onClick={() => void setOverride(extension, null)}
-                                            title={t("Remove this rule")}
+                                            title={t("remove_this_rule")}
                                             type="button"
                                         >
                                             <CrossIcon size={12}/>
@@ -2609,8 +2609,8 @@ export function SettingsView({
 
                         <Row>
                             <RowText>
-                                <Label>{t("Add a rule")}</Label>
-                                <Note>{t("Extension and the icon to draw for it.")}</Note>
+                                <Label>{t("add_a_rule")}</Label>
+                                <Note>{t("extension_and_the_icon_to_draw_for_it")}</Note>
                             </RowText>
                             <RowEnd>
                                 <Input
@@ -2622,7 +2622,7 @@ export function SettingsView({
                                 <IconTrigger>
                                     <IconButton
                                         onClick={() => setPickingIcon((current) => !current)}
-                                        title={t("Choose the icon")}
+                                        title={t("choose_the_icon")}
                                         type="button"
                                     >
                                         <Preview source={newIcon}/>
@@ -2639,7 +2639,7 @@ export function SettingsView({
                                         />
                                     )}
                                 </IconTrigger>
-                                <IconButton onClick={() => void addRule()} title={t("Add the rule")} type="button">
+                                <IconButton onClick={() => void addRule()} title={t("add_the_rule")} type="button">
                                     <PlusIcon size={13}/>
                                 </IconButton>
                             </RowEnd>
@@ -2649,21 +2649,21 @@ export function SettingsView({
 
                 <Section ref={anchor("folder-icons")}>
                     <Head
-                        note="A single folder can carry an icon of its own."
-                        title="Folder icons"
+                        note="a_single_folder_can_carry_an_icon_of_its_own"
+                        title="folder_icons"
                     />
                     <Rows>
                         <Row>
                             <RowText>
-                                <Label>{t("Give a folder its own icon")}</Label>
+                                <Label>{t("give_a_folder_its_own_icon")}</Label>
                                 <Note>
-                                    {t("Stored in the folder's parent {index}, so it stays with the files.", {index: ".yafm-index.db"})}
+                                    {t("stored_in_the_folder_s_parent_index_so_it_stays_with_the_files", {index: ".yafm-index.db"})}
                                 </Note>
                             </RowText>
                             <RowEnd>
                                 {folderIcon && <Thumb src={folderIcon.icon}/>}
                                 <ActionButton disabled={busy} onClick={() => void assignFolderIcon()} type="button">
-                                    {busy ? t("Choosing…") : t("Choose folder and icon…")}
+                                    {busy ? t("choosing") : t("choose_folder_and_icon")}
                                 </ActionButton>
                             </RowEnd>
                         </Row>
@@ -2674,7 +2674,7 @@ export function SettingsView({
                                     <Note>{folderIcon.folder}</Note>
                                 </RowText>
                                 <RowEnd>
-                                    <Badge><CheckIcon size={11}/> {t("Saved")}</Badge>
+                                    <Badge><CheckIcon size={11}/> {t("saved")}</Badge>
                                 </RowEnd>
                             </Row>
                         )}
@@ -2683,15 +2683,15 @@ export function SettingsView({
 
                 <Section ref={anchor("folder-index")}>
                     <Head
-                        note="The hidden cache that makes a folder open instantly next time."
-                        title="Folder index"
+                        note="the_hidden_cache_that_makes_a_folder_open_instantly_next_time"
+                        title="folder_index"
                     />
                     <Rows>
                         <Row>
                             <RowText>
-                                <Label>{t("Keep a {index} in every folder", {index: ".yafm-index.db"})}</Label>
+                                <Label>{t("keep_a_index_in_every_folder", {index: ".yafm-index.db"})}</Label>
                                 <Note>
-                                    {t("Holds icons, cached folder sizes and the folder's last listing, so it opens instantly next time. Hidden and marked as a system file on Windows; skipped where the folder is read-only.")}
+                                    {t("holds_icons_cached_folder_sizes_and_the_folder_s_last_listing_so_it_opens_instantly_next_time_hidden_and_marked_as_a_system_file_on_windows_skipped_where_the_folder_is_read_only")}
                                 </Note>
                             </RowText>
                             <Toggle
@@ -2705,14 +2705,14 @@ export function SettingsView({
                         </Row>
                         <Block>
                             <BlockHead>
-                                <Label>{t("Directory index blacklist")}</Label>
-                                <Note>{t("Rules are full-path globs: * matches within one path segment and ** crosses folders. Matching folders use the central database instead of creating .yafm-index.db files.")}</Note>
+                                <Label>{t("directory_index_blacklist")}</Label>
+                                <Note>{t("rules_are_full_path_globs_matches_within_one_path_segment_and_crosses_folders_matching_folders_use_the_central_database_instead_of_creating_yafm_index_db_files")}</Note>
                             </BlockHead>
                             <ProtectList>
                                 {(settings?.directoryIndexBlacklist ?? []).map((pattern) => (
                                     <ProtectRow key={pattern}>
                                         <ProtectInput
-                                            aria-label={t("Directory index blacklist rule")}
+                                            aria-label={t("directory_index_blacklist_rule")}
                                             onBlur={commitDirectoryRule}
                                             onChange={(event) => setDirectoryRuleDraft({
                                                 from: pattern,
@@ -2732,7 +2732,7 @@ export function SettingsView({
                                         />
                                         <ProtectRemove
                                             onClick={() => removeDirectoryRule(pattern)}
-                                            title={t("Remove")}
+                                            title={t("remove")}
                                             type="button"
                                         >
                                             <CrossIcon size={10}/>
@@ -2742,7 +2742,7 @@ export function SettingsView({
                             </ProtectList>
                             <ProtectNewRule>
                                 <RuleInput
-                                    aria-label={t("Directory index blacklist rule")}
+                                    aria-label={t("directory_index_blacklist_rule")}
                                     onChange={(event) => setNewDirectoryRule(event.target.value)}
                                     onKeyDown={(event) => {
                                         if (event.key === "Enter") {
@@ -2755,15 +2755,15 @@ export function SettingsView({
                                     value={newDirectoryRule}
                                 />
                                 <SmallButton onClick={addDirectoryRule} type="button">
-                                    {t("Add the rule")}
+                                    {t("add_the_rule")}
                                 </SmallButton>
                             </ProtectNewRule>
                             <ProtectAdd>
                                 <SmallButton onClick={restoreDirectoryRules} type="button">
-                                    {t("Restore defaults")}
+                                    {t("restore_defaults")}
                                 </SmallButton>
                                 <SmallButton onClick={() => void addDirectoryFolder()} type="button">
-                                    {t("Add folder…")}
+                                    {t("add_folder_2")}
                                 </SmallButton>
                             </ProtectAdd>
                         </Block>
@@ -2775,35 +2775,35 @@ export function SettingsView({
 
                 <Section ref={anchor("indexing")}>
                     <Head
-                        note="Background folder size and item-count walks."
-                        title="Index tasks"
+                        note="background_folder_size_and_item_count_walks"
+                        title="index_tasks"
                     />
                     <IndexTaskList/>
                 </Section>
 
                 <Section ref={anchor("files")}>
                     <Head
-                        note="What the listings include."
-                        title="Files"
+                        note="what_the_listings_include"
+                        title="files"
                     />
                     <Rows>
                         <Row>
-                            <Label>{t("Hidden items")}</Label>
+                            <Label>{t("hidden_items")}</Label>
                             <Value>{describe(t, visibility?.showHidden)}</Value>
                         </Row>
                         <Row>
-                            <Label>{t("Protected operating system files")}</Label>
+                            <Label>{t("protected_operating_system_files")}</Label>
                             <Value>{describe(t, visibility?.showSystem)}</Value>
                         </Row>
                     </Rows>
                     <Footnote>
-                        {t("Listings follow the file manager's own settings: hidden and protected items are only shown when the operating system is set to show them.")}
+                        {t("listings_follow_the_file_manager_s_own_settings_hidden_and_protected_items_are_only_shown_when_the_operating_system_is_set_to_show_them")}
                     </Footnote>
                 </Section>
             </Main>
 
-            <Toc aria-label={t("Settings sections")}>
-                <TocLabel>{t("Sections")}</TocLabel>
+            <Toc aria-label={t("settings_sections")}>
+                <TocLabel>{t("sections")}</TocLabel>
                 <TocList>
                     {SettingSections.map(({id, label}) => (
                         <TocItem
@@ -2816,26 +2816,26 @@ export function SettingsView({
                         </TocItem>
                     ))}
                 </TocList>
-                <TocNote>{t("Changes are saved as you make them.")}</TocNote>
+                <TocNote>{t("changes_are_saved_as_you_make_them")}</TocNote>
             </Toc>
 
             {updateDialog && createPortal(
                 <UpdateOverlay>
                     <UpdatePanel aria-modal="true" role="dialog">
                         <UpdateHead>
-                            <h2>{t("Software update")}</h2>
+                            <h2>{t("software_update")}</h2>
                             <p>
                                 {updateState?.latest
-                                    ? t("Version {version}", {version: updateState.latest})
-                                    : t("Preparing the update…")}
+                                    ? t("version_version", {version: updateState.latest})
+                                    : t("preparing_the_update")}
                             </p>
                         </UpdateHead>
 
-                        <ChangelogHead>{t("Changelog")}</ChangelogHead>
+                        <ChangelogHead>{t("changelog")}</ChangelogHead>
                         <Changelog>
                             {updateDialog.changelog || (updateDialog.phase === "changelog"
-                                ? t("Loading the changelog…")
-                                : t("The changelog could not be loaded."))}
+                                ? t("loading_the_changelog")
+                                : t("the_changelog_could_not_be_loaded"))}
                         </Changelog>
 
                         <ProgressRow>
@@ -2852,21 +2852,21 @@ export function SettingsView({
                         <UpdateActions>
                             {(updateDialog.phase === "changelog" || updateDialog.phase === "downloading") && (
                                 <ActionButton onClick={() => void cancelDownload()} type="button">
-                                    {t("Cancel")}
+                                    {t("cancel")}
                                 </ActionButton>
                             )}
                             {updateDialog.phase === "ready" && (
                                 <ActionButton onClick={() => void installNow()} type="button">
-                                    {t("Install update")}
+                                    {t("install_update")}
                                 </ActionButton>
                             )}
                             {updateDialog.phase === "installing" && (
-                                <ActionButton disabled type="button">{t("Installing…")}</ActionButton>
+                                <ActionButton disabled type="button">{t("installing")}</ActionButton>
                             )}
                             {(updateDialog.phase === "ready" || updateDialog.phase === "error"
                                 || updateDialog.phase === "cancelled" || updateDialog.phase === "installing") && (
                                 <ActionButton onClick={() => setUpdateDialog(null)} type="button">
-                                    {t("Close")}
+                                    {t("close")}
                                 </ActionButton>
                             )}
                         </UpdateActions>
@@ -2877,9 +2877,9 @@ export function SettingsView({
 }
 
 function describe(t: Translate, value: boolean | undefined): string {
-    if (value === undefined) return t("Reading…");
+    if (value === undefined) return t("reading");
 
-    return value ? t("Shown") : t("Hidden");
+    return value ? t("shown") : t("hidden");
 }
 
 /**
@@ -2911,15 +2911,15 @@ function IndexTaskList() {
     }, []);
 
     if (!tasks)
-        return <Notice>{t("Index task information is unavailable.")}</Notice>;
+        return <Notice>{t("index_task_information_is_unavailable")}</Notice>;
 
     if (tasks.count === 0)
-        return <Notice>{t("No indexing tasks are running.")}</Notice>;
+        return <Notice>{t("no_indexing_tasks_are_running")}</Notice>;
 
     return (
         <Rows>
             <Row>
-                <Label>{t("{count} indexing tasks", {count: tasks.count})}</Label>
+                <Label>{t("count_indexing_tasks", {count: tasks.count})}</Label>
             </Row>
             {tasks.directories.slice(0, 50).map((directory) => (
                 <Row key={directory}>
@@ -2931,16 +2931,16 @@ function IndexTaskList() {
 }
 
 function folderIndexNotice(t: Translate, platform: string | undefined): string {
-    const place = t(platform === "windows" ? "%APPDATA%, which sits on the system drive (usually C:)"
-        : platform === "linux" ? "your home folder, which often shares a partition with the system"
-            : "the app's settings folder, which usually sits on the system drive");
+    const place = t(platform === "windows" ? "appdata_which_sits_on_the_system_drive_usually_c"
+        : platform === "linux" ? "your_home_folder_which_often_shares_a_partition_with_the_system"
+            : "the_app_s_settings_folder_which_usually_sits_on_the_system_drive");
 
-    return t("Indexes are off. Every folder's icons, sizes and cached listing now live in one database in {place}, so that drive grows with every folder you open — that is the cost of keeping folders free of extra files.",
+    return t("indexes_are_off_every_folder_s_icons_sizes_and_cached_listing_now_live_in_one_database_in_place_so_that_drive_grows_with_every_folder_you_open_that_is_the_cost_of_keeping_folders_free_of_extra_files",
         {place});
 }
 
 function describeSource(t: Translate, source: string): string {
-    return source.startsWith("file:") ? source.slice(5) : t("built-in: {source}", {source});
+    return source.startsWith("file:") ? source.slice(5) : t("built_in_source", {source});
 }
 
 function Preview({source}: { source: string }) {
@@ -2983,7 +2983,7 @@ function CustomWallpaper({path, active, onSelect, onRemove}: {
                     : <img alt="" src={url}/>)}
                 {video && <PlayBadge><VideoIcon size={11}/></PlayBadge>}
             </Variant>
-            <Remove onClick={onRemove} title={t("Remove")} type="button">
+            <Remove onClick={onRemove} title={t("remove")} type="button">
                 <CrossIcon size={9}/>
             </Remove>
         </CustomItem>
@@ -3087,7 +3087,7 @@ function LanguagePicker({value, options, onChange, disabled}: {
 
 /** What the picker shows for a stored value: an endonym, or the auto option. */
 function labelOf(t: Translate, code: string): string {
-    if (code === SystemLanguage) return t("System default");
+    if (code === SystemLanguage) return t("system_default");
 
     return LocaleNames[code] ?? code;
 }
@@ -3110,18 +3110,18 @@ function RecentSwatches({colors, current, onApply}: {
             <PreviousColor
                 $color={previous}
                 onClick={() => onApply(previous)}
-                title={t("Previous colour · {colour}", {colour: previous})}
+                title={t("previous_colour_colour", {colour: previous})}
                 type="button"
             >
                 <i/>
-                {t("Previous")}
+                {t("previous")}
             </PreviousColor>
             {rest.map((color) => (
                 <Swatch
                     $color={color}
                     key={color}
                     onClick={() => onApply(color)}
-                    title={t("Use {colour}", {colour: color})}
+                    title={t("use_colour", {colour: color})}
                     type="button"
                 >
                     {color.toLowerCase() === current.toLowerCase() && <CheckIcon size={9}/>}
@@ -3532,17 +3532,17 @@ function percent(part: number, whole: number): string {
 function updatePhaseLabel(progress: UpdateDialogState, t: Translate): string {
     switch (progress.phase) {
         case "changelog":
-            return t("Preparing the update…");
+            return t("preparing_the_update");
         case "downloading":
-            return t("Downloading the update…");
+            return t("downloading_the_update");
         case "ready":
-            return t("Download complete.");
+            return t("download_complete");
         case "cancelled":
-            return t("Update cancelled.");
+            return t("update_cancelled");
         case "error":
-            return t("The update failed.");
+            return t("the_update_failed");
         case "installing":
-            return t("Installing…");
+            return t("installing");
         default:
             return "";
     }

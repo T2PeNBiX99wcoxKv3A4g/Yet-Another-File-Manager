@@ -308,7 +308,7 @@ internal static class ElevatedOperation
     }
 
     private static ElevatedOperationResult Denied() =>
-        Failed(Localization.Get("Administrator rights are required to change this folder."));
+        Failed(Localization.Get("administrator_rights_are_required_to_change_this_folder"));
 
     private static ElevatedOperationResult Failed(string error) => new(false, error, [], null);
 }

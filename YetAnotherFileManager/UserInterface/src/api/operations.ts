@@ -58,7 +58,7 @@ export interface TransferResult {
 
 /** Copies or moves paths into a folder without going through the shell. */
 export async function transferPaths(paths: string[], target: string, move: boolean): Promise<TransferResult> {
-    if (!Native.available || paths.length === 0) return {ok: false, error: "Nothing to transfer.", created: []};
+    if (!Native.available || paths.length === 0) return {ok: false, error: "nothing_to_transfer", created: []};
 
     return await askProtectedChange(
         {action: move ? "move" : "write"},
@@ -182,7 +182,7 @@ export async function renamePath(path: string, name: string): Promise<PathOperat
     );
 }
 
-/** Creates the next free "New folder" in a directory, optionally case-sensitive. */
+/** Creates the next free "new_folder" in a directory, optionally case-sensitive. */
 export async function newFolder(directory: string, caseSensitive = false): Promise<PathOperation> {
     if (!Native.available) return {ok: false, path: null, error: "Creating folders needs the desktop app."};
 

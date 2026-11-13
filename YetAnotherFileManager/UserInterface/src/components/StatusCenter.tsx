@@ -39,7 +39,7 @@ export function StatusCenter({tasks, onClear, open, onOpenChange}: StatusCenterP
             <ActivityButton
                 $active={open}
                 onClick={() => onOpenChange(!open)}
-                title={running > 0 ? plural(t, running, "1 operation running", "{count} operations running") : t("Status center")}
+                title={running > 0 ? plural(t, running, "k_1_operation_running", "count_operations_running") : t("status_center")}
                 type="button"
             >
                 <StatusIcon size={13}/>
@@ -49,23 +49,23 @@ export function StatusCenter({tasks, onClear, open, onOpenChange}: StatusCenterP
             {open && (
                 <Panel>
                     <PanelHead>
-                        <PanelTitle>{t("Status center")}</PanelTitle>
+                        <PanelTitle>{t("status_center")}</PanelTitle>
                         <PanelActions>
                             <TextButton
                                 disabled={tasks.every((task) => task.state === "running")}
                                 onClick={onClear}
                                 type="button"
                             >
-                                {t("Clear finished")}
+                                {t("clear_finished")}
                             </TextButton>
-                            <ClosePanel onClick={() => onOpenChange(false)} title={t("Close")} type="button">
+                            <ClosePanel onClick={() => onOpenChange(false)} title={t("close")} type="button">
                                 <CrossIcon size={10}/>
                             </ClosePanel>
                         </PanelActions>
                     </PanelHead>
 
                     {tasks.length === 0
-                        ? <Empty>{t("No operations yet.")}</Empty>
+                        ? <Empty>{t("no_operations_yet")}</Empty>
                         : (
                             <List>
                                 {tasks.map((task) => <TaskRow key={task.id} task={task}/>)}

@@ -21,8 +21,8 @@ export interface TabInfo {
 
 /** Titles for the pages that are not a folder. */
 export const viewTitles: Record<Exclude<TabKind, "files">, LocalizationKey> = {
-    home: "Overview",
-    settings: "Settings",
-    recycle: "Recycle Bin",
-    gallery: "Gallery",
+    home: "overview",
+    settings: "settings",
+    recycle: "recycle_bin",
+    gallery: "gallery",
 };

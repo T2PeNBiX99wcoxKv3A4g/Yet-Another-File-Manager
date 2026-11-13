@@ -55,14 +55,14 @@ const RowPage = 300;
 
 /** The columns the list can show besides the name. `linkTarget` is drawn inside the name cell. */
 export const ViewColumns: { id: string; label: LocalizationKey; width: number }[] = [
-    {id: "type", label: "Type", width: 150},
-    {id: "size", label: "Size", width: 100},
-    {id: "modified", label: "Modified", width: 150},
-    {id: "created", label: "Created", width: 150},
-    {id: "items", label: "Items", width: 70},
-    {id: "linkCount", label: "Links", width: 70},
-    {id: "linkStatus", label: "Link", width: 90},
-    {id: "tags", label: "Tags", width: 150},
+    {id: "type", label: "type", width: 150},
+    {id: "size", label: "size", width: 100},
+    {id: "modified", label: "modified", width: 150},
+    {id: "created", label: "created", width: 150},
+    {id: "items", label: "items", width: 70},
+    {id: "linkCount", label: "links", width: 70},
+    {id: "linkStatus", label: "link", width: 90},
+    {id: "tags", label: "tags", width: 150},
 ];
 
 interface FileListProps {
@@ -892,7 +892,7 @@ export function FileList({
             onCompress={async (options: CompressOptions) => {
                 const result = await compressPaths(compressDialog.paths, options);
                 if (!result.ok || !result.path) {
-                    void showMessage(result.error ?? t("Could not create the archive."));
+                    void showMessage(result.error ?? t("could_not_create_the_archive"));
                     return false;
                 }
 
@@ -919,14 +919,14 @@ export function FileList({
 
                 const entry = rowsRef.current.find((row) => row.entry.fullPath === path)?.entry;
                 if (entry?.isDirectory) {
-                    void showMessage(t("Folders on a shared device cannot be copied yet."));
+                    void showMessage(t("folders_on_a_shared_device_cannot_be_copied_yet"));
                     return;
                 }
 
                 try {
                     local.push(await downloadSharedFile(path));
                 } catch (error) {
-                    void showMessage(error instanceof Error ? error.message : t("The file could not be copied."));
+                    void showMessage(error instanceof Error ? error.message : t("the_file_could_not_be_copied"));
                     return;
                 }
             }
@@ -950,7 +950,7 @@ export function FileList({
         if (result.cancelled)
             return;
         if (!result.ok) {
-            void showMessage(t("Nothing on the clipboard could be pasted here."));
+            void showMessage(t("nothing_on_the_clipboard_could_be_pasted_here"));
             return;
         }
 
@@ -968,7 +968,7 @@ export function FileList({
             : await newFile(currentDirectory, extension);
 
         if (!result.ok || result.path === null) {
-            void showMessage(result.error ?? t("Could not create the item."));
+            void showMessage(result.error ?? t("could_not_create_the_item"));
             return;
         }
 
@@ -1016,7 +1016,7 @@ export function FileList({
             // guarantees the name on disk is the one on screen.
             window.setTimeout(() => refresh(), 250);
         } else {
-            void showMessage(result.error ?? t("Could not rename the entry."));
+            void showMessage(result.error ?? t("could_not_rename_the_entry"));
         }
     }, [clearSelection, onRename, refresh, t]);
 
@@ -1040,8 +1040,8 @@ export function FileList({
                 return;
 
             void showMessage(result.error ?? (permanent
-                ? t("Could not delete the selection.")
-                : t("Could not move the selection to the recycle bin.")));
+                ? t("could_not_delete_the_selection")
+                : t("could_not_move_the_selection_to_the_recycle_bin")));
             return;
         }
 
@@ -1198,17 +1198,17 @@ export function FileList({
 
     const confirmDialog = pendingConfirm && (
         <ConfirmDialog
-            confirmLabel={pendingConfirm.permanent ? t("Delete") : t("Move")}
+            confirmLabel={pendingConfirm.permanent ? t("delete") : t("move")}
             danger={pendingConfirm.permanent}
             message={pendingConfirm.permanent
-                ? t("Permanently delete {target}? This cannot be undone.",
-                    {target: pendingConfirm.paths.length === 1 ? t("this item") : t("{count} items", {count: pendingConfirm.paths.length})})
-                : t("Move {target} to the recycle bin?",
-                    {target: pendingConfirm.paths.length === 1 ? t("this item") : t("{count} items", {count: pendingConfirm.paths.length})})}
+                ? t("permanently_delete_target_this_cannot_be_undone",
+                    {target: pendingConfirm.paths.length === 1 ? t("this_item") : t("count_items", {count: pendingConfirm.paths.length})})
+                : t("move_target_to_the_recycle_bin",
+                    {target: pendingConfirm.paths.length === 1 ? t("this_item") : t("count_items", {count: pendingConfirm.paths.length})})}
             onCancel={() => settleDelete(false)}
             onConfirm={() => settleDelete(true)}
             open
-            title={pendingConfirm.permanent ? t("Delete permanently") : t("Move to the recycle bin")}
+            title={pendingConfirm.permanent ? t("delete_permanently") : t("move_to_the_recycle_bin")}
         />
     );
 
@@ -1236,14 +1236,14 @@ export function FileList({
             size: total,
             modified: 0,
             fields: [
-                {label: t("Type"), value: t("Folder")},
-                {label: t("Location"), value: listing.parent ?? "—"},
-                {label: t("Path"), value: listing.path},
-                {label: t("Size"), value: formatBytes(total)},
-                {label: t("Items"), value: plural(t, count, "1 item", "{count} items")},
-                {label: t("Modified"), value: "—"},
-                {label: t("Created"), value: "—"},
-                {label: t("Attributes"), value: "—"},
+                {label: t("type"), value: t("folder")},
+                {label: t("location"), value: listing.parent ?? "—"},
+                {label: t("path"), value: listing.path},
+                {label: t("size"), value: formatBytes(total)},
+                {label: t("items"), value: plural(t, count, "k_1_item", "count_items")},
+                {label: t("modified"), value: "—"},
+                {label: t("created"), value: "—"},
+                {label: t("attributes"), value: "—"},
             ],
         };
     }, [listing, t]);
@@ -1267,47 +1267,47 @@ export function FileList({
             modified: previewEntry.modified,
             created: previewEntry.created,
             fields: [
-                {label: t("Type"), value: typeLabel(previewEntry, t)},
+                {label: t("type"), value: typeLabel(previewEntry, t)},
                 ...(previewEntry.isEncrypted
-                    ? [{label: t("Encryption"), value: t("Password required")}]
+                    ? [{label: t("encryption"), value: t("password_required")}]
                     : []),
-                {label: t("Extension"), value: previewEntry.isDirectory ? "—" : extension},
-                {label: t("Location"), value: listing.path},
-                {label: t("Full path"), value: previewEntry.fullPath},
+                {label: t("extension"), value: previewEntry.isDirectory ? "—" : extension},
+                {label: t("location"), value: listing.path},
+                {label: t("full_path"), value: previewEntry.fullPath},
                 {
-                    label: t("Size"),
+                    label: t("size"),
                     value: previewEntry.isDirectory
                         ? folderSize === undefined ? "—" : formatBytes(folderSize)
                         : formatBytes(previewEntry.size),
                 },
                 ...(previewEntry.isDirectory
                     ? [{
-                        label: t("Items"),
+                        label: t("items"),
                         value: `${listing.counts[previewEntry.name] ?? "—"}`,
                     }]
                     : []),
-                {label: t("Modified"), value: formatDate(previewEntry.modified)},
-                {label: t("Created"), value: formatDate(previewEntry.created)},
+                {label: t("modified"), value: formatDate(previewEntry.modified)},
+                {label: t("created"), value: formatDate(previewEntry.created)},
                 {
-                    label: t("Link status"),
+                    label: t("link_status"),
                     value: previewEntry.linkTarget != null
-                        ? previewEntry.linkValid ? "OK" : t("Broken")
-                        : previewEntry.linkCount > 1 ? t("Hard link") : "—",
+                        ? previewEntry.linkValid ? "ok" : t("broken")
+                        : previewEntry.linkCount > 1 ? t("hard_link") : "—",
                 },
                 ...(previewEntry.linkTarget
-                    ? [{label: t("Target"), value: previewEntry.linkTarget}]
+                    ? [{label: t("target"), value: previewEntry.linkTarget}]
                     : []),
                 ...(previewEntry.linkCount > 1
-                    ? [{label: t("Links"), value: String(previewEntry.linkCount)}]
+                    ? [{label: t("links"), value: String(previewEntry.linkCount)}]
                     : []),
                 {
-                    label: t("Attributes"),
+                    label: t("attributes"),
                     value: [
-                        previewEntry.isHidden ? t("Hidden") : "",
-                        previewEntry.isSystem ? t("System") : "",
+                        previewEntry.isHidden ? t("hidden") : "",
+                        previewEntry.isSystem ? t("system") : "",
                     ].filter(Boolean).join(", ") || "—",
                 },
-                ...(tags.length > 0 ? [{label: t("Tags"), value: tags.join(", ")}] : []),
+                ...(tags.length > 0 ? [{label: t("tags"), value: tags.join(", ")}] : []),
             ],
         };
     }, [listing, previewEntry, t]);
@@ -1328,7 +1328,7 @@ export function FileList({
         <PreviewPane
             info={previewInfo}
             onWidth={resizePreview}
-            selectionNote={selected.size > 1 ? plural(t, selected.size, "1 item selected", "{count} items selected") : undefined}
+            selectionNote={selected.size > 1 ? plural(t, selected.size, "k_1_item_selected", "count_items_selected") : undefined}
             videoAudio={previewVideoAudio}
             videoAutoplay={previewVideoAutoplay}
             width={previewWidth}
@@ -1339,7 +1339,7 @@ export function FileList({
         return <Center><ErrorText>{error}</ErrorText></Center>;
 
     if (!listing && !loading)
-        return <Center><Muted>{t("Nothing selected.")}</Muted></Center>;
+        return <Center><Muted>{t("nothing_selected")}</Muted></Center>;
 
     if (view.mode === "grid")
         return (
@@ -1364,15 +1364,15 @@ export function FileList({
                                 <SelectAll
                                     $checked={!singleSelect && allSelected}
                                     $partial={!singleSelect && someSelected}
-                                    aria-label={allSelected ? t("Select none") : t("Select all")}
+                                    aria-label={allSelected ? t("select_none") : t("select_all")}
                                     disabled={singleSelect}
                                     onClick={toggleAll}
-                                    title={allSelected ? t("Select none") : t("Select all")}
+                                    title={allSelected ? t("select_none") : t("select_all")}
                                     type="button"
                                 >
                                     {allSelected ? <CheckIcon size={10}/> : someSelected ? <Dash/> : null}
                                 </SelectAll>
-                                <span>{allSelected ? t("Select none") : t("Select all")}</span>
+                                <span>{allSelected ? t("select_none") : t("select_all")}</span>
                             </GridSelectAll>
                         )}
 
@@ -1404,8 +1404,8 @@ export function FileList({
                             <EmptyCell>
                                 <Muted>
                                     {error ?? (searching && find.mode === "hide"
-                                        ? t("No entries match the search.")
-                                        : t("This folder is empty."))}
+                                        ? t("no_entries_match_the_search")
+                                        : t("this_folder_is_empty"))}
                                 </Muted>
                             </EmptyCell>
                         )}
@@ -1466,23 +1466,23 @@ export function FileList({
                             <SelectAll
                                 $checked={!singleSelect && allSelected}
                                 $partial={!singleSelect && someSelected}
-                                aria-label={allSelected ? t("Select none") : t("Select all")}
+                                aria-label={allSelected ? t("select_none") : t("select_all")}
                                 disabled={singleSelect}
                                 onClick={(event) => {
                                     event.stopPropagation();
                                     toggleAll();
                                 }}
-                                title={allSelected ? t("Select none") : t("Select all")}
+                                title={allSelected ? t("select_none") : t("select_all")}
                                 type="button"
                             >
                                 {allSelected ? <CheckIcon size={10}/> : someSelected ? <Dash/> : null}
                             </SelectAll>
                         )}
                         <HeaderButton onClick={() => onSort("name")} type="button">
-                            {t("Name")}{markOf(view, "name")}
+                            {t("name")}{markOf(view, "name")}
                         </HeaderButton>
                         <ResizeHandle
-                            aria-label={t("Resize column")}
+                            aria-label={t("resize_column")}
                             onDoubleClick={() => visible[0] && resetWidth(visible[0].id)}
                             onPointerDown={startNameResize}
                             role="separator"
@@ -1495,7 +1495,7 @@ export function FileList({
                             </HeaderButton>
                             {index < visible.length - 1 && (
                                 <ResizeHandle
-                                    aria-label={t("Resize column")}
+                                    aria-label={t("resize_column")}
                                     onDoubleClick={() => resetWidth(column.id)}
                                     onPointerDown={(event) => startColumnResize(event, index)}
                                     role="separator"
@@ -1569,8 +1569,8 @@ export function FileList({
                         <Center>
                             <Muted>
                                 {error ?? (searching && find.mode === "hide"
-                                    ? t("No entries match the search.")
-                                    : t("This folder is empty."))}
+                                    ? t("no_entries_match_the_search")
+                                    : t("this_folder_is_empty"))}
                             </Muted>
                         </Center>
                     )}
@@ -1583,11 +1583,11 @@ export function FileList({
                             onPointerDown={startStripDrag}
                             onPointerMove={dragStrip}
                             onPointerUp={endStripDrag}
-                            title={t("Drag to resize; double-click to reset")}
+                            title={t("drag_to_resize_double_click_to_reset")}
                         />
                         <Strip style={{height: stripHeight}}>
                             <StripHead>
-                                {t("Preview")}
+                                {t("preview")}
                                 <StripCount>
                                     {previewTotal > PreviewLimit
                                         ? `${shownPreviews.length} / ${previewTotal}`
@@ -1747,9 +1747,9 @@ const PreviewKindRules: GroupRule[] = PreviewKindLabels.map(({kind, label}) => (
 
 /** The grid keeps folders first, then pictures and videos, and everything else last. */
 const GridRules: GroupRule[] = [
-    {id: "folders", label: "Folders", match: (row) => row.entry.isDirectory},
+    {id: "folders", label: "folders", match: (row) => row.entry.isDirectory},
     ...PreviewKindRules.filter((rule) => rule.id === "image" || rule.id === "video"),
-    {id: "files", label: "Other files", match: () => true},
+    {id: "files", label: "other_files", match: () => true},
 ];
 
 /** Splits rows into the first matching section, dropping the sections that stay empty. */
@@ -1771,16 +1771,16 @@ function gridIconSize(gridSize: number): number {
 
 /** Human labels for the file categories the extension map knows. */
 const TypeLabels: Record<string, LocalizationKey> = {
-    file: "File",
-    folder: "Folder",
-    text: "Text file",
-    code: "source file",
+    file: "file",
+    folder: "folder",
+    text: "text_file",
+    code: "source_file",
     image: "image",
-    video: "Video",
-    audio: "Audio",
+    video: "video_2",
+    audio: "audio",
     archive: "archive",
-    pdf: "PDF",
-    executable: "Application",
+    pdf: "pdf",
+    executable: "application",
     font: "font",
     database: "database",
     config: "configuration",
@@ -1794,19 +1794,19 @@ function typeLabel(entry: FileEntry, t: Translate): string {
     const lower = entry.name.toLowerCase();
 
     if (lower.endsWith(".lnk"))
-        return t("Shortcut");
+        return t("shortcut");
     if (lower.endsWith(".url") || lower.endsWith(".website"))
-        return t("Internet shortcut");
+        return t("internet_shortcut");
     if (entry.linkTarget != null)
-        return entry.isDirectory ? t("Folder link") : t("Symbolic link");
+        return entry.isDirectory ? t("folder_link") : t("symbolic_link");
     if (entry.isDirectory)
-        return t("Folder");
+        return t("folder");
 
     const dot = entry.name.lastIndexOf(".");
     const extension = dot > 0 && dot < entry.name.length - 1 ? entry.name.slice(dot + 1).toUpperCase() : "";
     const kind = t(TypeLabels[iconForName(entry.name)] ?? "file");
 
-    return extension.length > 0 ? `${extension} ${kind}` : t("File");
+    return extension.length > 0 ? `${extension} ${kind}` : t("file");
 }
 
 /** What one list cell shows. */
@@ -1825,8 +1825,8 @@ function cellValue(column: string, entry: FileEntry, listing: DirectoryListing, 
         case "linkCount":
             return entry.linkCount > 1 ? String(entry.linkCount) : "—";
         case "linkStatus":
-            if (entry.linkTarget != null) return entry.linkValid ? "OK" : t("Broken");
-            return entry.linkCount > 1 ? "OK" : "—";
+            if (entry.linkTarget != null) return entry.linkValid ? "ok" : t("broken");
+            return entry.linkCount > 1 ? "ok" : "—";
         default:
             return "";
     }
@@ -1908,7 +1908,7 @@ function EntryIcon({entry, size = 18}: { entry: FileEntry; size?: number }) {
                             ? <FolderIcon size={size}/>
                             : <BuiltinIcon name={iconForName(entry.name)} size={size}/>}
             {entry.isEncrypted && (
-                <EncryptedMark title={t("This archive is encrypted and asks for a password when opened.")}>
+                <EncryptedMark title={t("this_archive_is_encrypted_and_asks_for_a_password_when_opened")}>
                     <LockIcon size={Math.max(8, Math.round(size * 0.52))}/>
                 </EncryptedMark>
             )}
@@ -2070,7 +2070,7 @@ const GridTile = memo(function GridTile({
                         onToggle(path);
                     }}
                     onDoubleClick={(event) => event.stopPropagation()}
-                    title={selected ? t("Deselect") : t("Select")}
+                    title={selected ? t("deselect") : t("select")}
                     type="button"
                 >
                     {selected && <CheckIcon size={10}/>}
@@ -2111,23 +2111,23 @@ const GridTile = memo(function GridTile({
                         </TileName>
                     )}
                 {row.entry.isEncrypted && (
-                    <EncryptedBadge title={t("This archive is encrypted and asks for a password when opened.")}>
+                    <EncryptedBadge title={t("this_archive_is_encrypted_and_asks_for_a_password_when_opened")}>
                         <LockIcon size={9}/>
-                        {t("Encrypted")}
+                        {t("encrypted")}
                     </EncryptedBadge>
                 )}
                 {row.cut && (
-                    <CutBadge title={t("This item is cut and will move when something is pasted.")}>
+                    <CutBadge title={t("this_item_is_cut_and_will_move_when_something_is_pasted")}>
                         <CutIcon size={9}/>
-                        {t("Cut")}
+                        {t("cut")}
                     </CutBadge>
                 )}
                 <TileMeta>
                     {row.entry.isDirectory
                         ? (itemCount === undefined
                             ? typeLabel(row.entry, t)
-                            : t("{type} · {count} items", {type: typeLabel(row.entry, t), count: itemCount}))
-                        : t("{type} · {size}", {type: typeLabel(row.entry, t), size: formatBytes(row.entry.size)})}
+                            : t("type_count_items", {type: typeLabel(row.entry, t), count: itemCount}))
+                        : t("type_size", {type: typeLabel(row.entry, t), size: formatBytes(row.entry.size)})}
                 </TileMeta>
                 {showTarget && row.entry.linkTarget && (
                     <LinkBadge $block $broken={row.entry.linkValid === false} title={row.entry.linkTarget}>
@@ -2341,7 +2341,7 @@ const ListRow = memo(function ListRow({
                             onToggle(path);
                         }}
                         onDoubleClick={(event) => event.stopPropagation()}
-                        title={selected ? t("Deselect") : t("Select")}
+                        title={selected ? t("deselect") : t("select")}
                         type="button"
                     >
                         {selected && <CheckIcon size={10}/>}
@@ -2365,15 +2365,15 @@ const ListRow = memo(function ListRow({
                         </NameText>
                     )}
                 {row.entry.isEncrypted && (
-                    <EncryptedBadge title={t("This archive is encrypted and asks for a password when opened.")}>
+                    <EncryptedBadge title={t("this_archive_is_encrypted_and_asks_for_a_password_when_opened")}>
                         <LockIcon size={9}/>
-                        {t("Encrypted")}
+                        {t("encrypted")}
                     </EncryptedBadge>
                 )}
                 {row.cut && (
-                    <CutBadge title={t("This item is cut and will move when something is pasted.")}>
+                    <CutBadge title={t("this_item_is_cut_and_will_move_when_something_is_pasted")}>
                         <CutIcon size={9}/>
-                        {t("Cut")}
+                        {t("cut")}
                     </CutBadge>
                 )}
                 {showTarget && row.entry.linkTarget && (
@@ -2392,7 +2392,7 @@ const ListRow = memo(function ListRow({
                                     event.stopPropagation();
                                     onTagEdit(row.entry, event.clientX, event.clientY);
                                 }}
-                                title={t("Edit tags")}
+                                title={t("edit_tags")}
                                 type="button"
                             >
                                 {row.tags.length > 0
@@ -2409,7 +2409,7 @@ const ListRow = memo(function ListRow({
                             </TagsButton>
                         )
                         : column.id === "linkStatus" && row.entry.linkValid === false
-                            ? <Broken>{t("Broken")}</Broken>
+                            ? <Broken>{t("broken")}</Broken>
                             : cellValue(column.id, row.entry, listing, t)}
                 </Cell>
             ))}

@@ -5,7 +5,7 @@ import {useTranslation} from "@photino-net-utils/bridge";
 export function GlobalTag() {
     const t = useTranslation();
 
-    return <Tag title={t("Always applies to every folder")}>{t("Global")}</Tag>;
+    return <Tag title={t("always_applies_to_every_folder")}>{t("global")}</Tag>;
 }
 
 const Tag = styled.span`

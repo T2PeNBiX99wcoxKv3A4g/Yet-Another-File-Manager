@@ -283,7 +283,7 @@ export async function getSettings(): Promise<AppSettings> {
     };
 }
 
-/** The protected rules a fresh install starts with, for the "Restore defaults" button. */
+/** The protected rules a fresh install starts with, for the "restore_defaults" button. */
 export async function getDefaultProtectedPaths(): Promise<string[]> {
     if (!Native.available) return [];
 

@@ -26,7 +26,7 @@ interface FindBarProps {
     onSelectMatches?: () => void;
     /** Pages without a list of matches only need the box, the flags and the close button. */
     compact?: boolean;
-    /** Overrides the file browser's "Search this folder" wording. */
+    /** Overrides the file browser's "search_this_folder" wording. */
     placeholder?: string;
 }
 
@@ -40,7 +40,7 @@ export function FindBar({
                         }: FindBarProps) {
     const t = useTranslation();
     const input = useRef<HTMLInputElement | null>(null);
-    const label = placeholder ?? t("Search this folder");
+    const label = placeholder ?? t("search_this_folder");
 
     useEffect(() => {
         const element = input.current;
@@ -89,29 +89,29 @@ export function FindBar({
                         <Tool
                             disabled={total === 0}
                             onClick={onSelectMatches}
-                            title={t("Select all matches")}
+                            title={t("select_all_matches")}
                             type="button"
                         >
                             <CheckIcon size={12}/>
                         </Tool>
                     )}
 
-                    <Tool $chevron onClick={() => toggle(onPrevious)} title={t("Previous match (Shift+Enter)")}
+                    <Tool $chevron onClick={() => toggle(onPrevious)} title={t("previous_match_shift_enter")}
                           type="button">
                         <ChevronRightIcon size={12}/>
                     </Tool>
 
-                    <Tool $chevron $down onClick={() => toggle(onNext)} title={t("Next match (Enter)")} type="button">
+                    <Tool $chevron $down onClick={() => toggle(onNext)} title={t("next_match_enter")} type="button">
                         <ChevronRightIcon size={12}/>
                     </Tool>
                 </>
             )}
 
-            <Toggle $on={matchCase} onClick={() => toggle(onMatchCase)} title={t("Match case")} type="button">
+            <Toggle $on={matchCase} onClick={() => toggle(onMatchCase)} title={t("match_case")} type="button">
                 Aa
             </Toggle>
 
-            <Toggle $on={regex} onClick={() => toggle(onRegex)} title={t("Regular expression")} type="button">
+            <Toggle $on={regex} onClick={() => toggle(onRegex)} title={t("regular_expression")} type="button">
                 .*
             </Toggle>
 
@@ -119,14 +119,14 @@ export function FindBar({
                 <Mode
                     $on={mode === "hide"}
                     onClick={() => toggle(onMode)}
-                    title={mode === "hide" ? t("Non-matching entries are hidden") : t("Non-matching entries are dimmed")}
+                    title={mode === "hide" ? t("non_matching_entries_are_hidden") : t("non_matching_entries_are_dimmed")}
                     type="button"
                 >
                     {mode === "hide" ? <EyeOffIcon size={12}/> : <EyeIcon size={12}/>}
                 </Mode>
             )}
 
-            <Tool onClick={onClose} title={t("Close search (Esc)")} type="button">
+            <Tool onClick={onClose} title={t("close_search_esc")} type="button">
                 <CrossIcon size={12}/>
             </Tool>
         </Bar>

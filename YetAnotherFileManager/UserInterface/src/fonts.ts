@@ -18,30 +18,30 @@ export interface FontRole {
  * different face is useful (titles, file names, monospace paths and previews).
  */
 export const FontRoles: FontRole[] = [
-    {id: "ui", label: "Interface", sample: "Yet Another File Manager", variable: "--font-sans", fallback: "Inter"},
-    {id: "title", label: "Titles", sample: "Overview · Settings", variable: "--font-title", fallback: "Interface"},
-    {id: "names", label: "File names", sample: "holiday-photo.jpg", variable: "--font-names", fallback: "Interface"},
+    {id: "ui", label: "interface", sample: "Yet Another File Manager", variable: "--font-sans", fallback: "Inter"},
+    {id: "title", label: "titles", sample: "Overview · Settings", variable: "--font-title", fallback: "interface"},
+    {id: "names", label: "file_names", sample: "holiday-photo.jpg", variable: "--font-names", fallback: "interface"},
     {
         id: "details",
-        label: "Details panel",
+        label: "details_panel",
         sample: "Size · Modified · Attributes",
         variable: "--font-details",
-        fallback: "Interface"
+        fallback: "interface"
     },
     {
         id: "path",
-        label: "Address bar",
+        label: "address_bar",
         sample: "C:\\Users\\me\\Documents",
         variable: "--font-path",
-        fallback: "Monospace"
+        fallback: "monospace"
     },
-    {id: "mono", label: "Monospace", sample: "const answer = 42;", variable: "--font-mono", fallback: "JetBrains Mono"},
+    {id: "mono", label: "monospace", sample: "const answer = 42;", variable: "--font-mono", fallback: "JetBrains Mono"},
     {
         id: "preview",
-        label: "Text preview",
+        label: "text_preview",
         sample: "The quick brown fox jumps over the lazy dog.",
         variable: "--font-preview",
-        fallback: "Monospace"
+        fallback: "monospace"
     },
 ];
 

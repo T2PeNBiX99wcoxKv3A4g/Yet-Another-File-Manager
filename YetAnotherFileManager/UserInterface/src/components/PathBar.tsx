@@ -26,7 +26,7 @@ import {useTranslation} from "@photino-net-utils/bridge";
 
 interface PathBarProps {
     path: string;
-    /** Shown instead of the path when the tab is on a built-in page, e.g. "Overview". */
+    /** Shown instead of the path when the tab is on a built-in page, e.g. "overview". */
     label?: string;
     /** The built-in page's icon, shown beside its label. */
     icon?: ReactNode;
@@ -251,14 +251,14 @@ export function PathBar({path, label, icon, focusToken, onNavigate, onContextMen
                         spellCheck={false}
                         value={draft}
                     />
-                    <EditorButton onClick={() => setEditing(false)} title={t("Cancel")} type="button">
+                    <EditorButton onClick={() => setEditing(false)} title={t("cancel")} type="button">
                         <CrossIcon size={12}/>
                     </EditorButton>
                     <EditorButton
                         $apply
                         onClick={commit}
                         onPointerDown={(event) => event.stopPropagation()}
-                        title={t("Open this path")}
+                        title={t("open_this_path")}
                         type="button"
                     >
                         <CheckIcon size={14}/>
@@ -294,7 +294,7 @@ export function PathBar({path, label, icon, focusToken, onNavigate, onContextMen
 
     return (
         <>
-            <Trail onClick={start} title={t("Click to type a path")}>
+            <Trail onClick={start} title={t("click_to_type_a_path")}>
                 {crumbs.map((crumb, index) => (
                     <Crumb key={crumb.path} $last={index === crumbs.length - 1}>
                         {index > 0 && <Chevron><ChevronRightIcon size={9}/></Chevron>}
@@ -324,33 +324,33 @@ export function PathBar({path, label, icon, focusToken, onNavigate, onContextMen
                 <ContextMenu
                     items={[
                         {
-                            label: t("Open"),
+                            label: t("open"),
                             icon: <ArrowRightIcon size={14}/>,
                             onSelect: () => onNavigate(crumbMenu.path),
                         },
                         {
-                            label: t("Open in new tab"),
+                            label: t("open_in_new_tab"),
                             icon: <PlusIcon size={14}/>,
                             onSelect: () => onNavigate(crumbMenu.path, true),
                         },
                         {
-                            label: t("Copy as path"),
+                            label: t("copy_as_path"),
                             icon: <CopyIcon size={14}/>,
                             separatorBefore: true,
                             onSelect: () => void navigator.clipboard.writeText(crumbMenu.path),
                         },
                         // yafm:// pages are not file system objects, so neither the shell's
-                        // "Open with" nor the shell's Properties dialog can do anything for them.
+                        // "open_with_2" nor the shell's Properties dialog can do anything for them.
                         ...(!isViewLocation(crumbMenu.path)
                             ? []
                             : [
                                 {
-                                    label: t("Open with…"),
+                                    label: t("open_with"),
                                     icon: <ExecutableIcon size={14}/>,
                                     onSelect: () => void openWith(crumbMenu.path),
                                 },
                                 {
-                                    label: t("Properties"),
+                                    label: t("properties"),
                                     icon: <GearIcon size={14}/>,
                                     onSelect: () => void showProperties([crumbMenu.path]),
                                 },
@@ -410,7 +410,7 @@ function breadcrumbs(path: string): Crumb[] {    const separator = path.includes
 }
 
 /**
- * Breadcrumbs with the longest named folder folded into its Quick access name, so "Documents"
+ * Breadcrumbs with the longest named folder folded into its Quick access name, so "documents"
  * replaces "C: / Users / me / Documents" — the full path only appears while editing.
  */
 function crumbsFor(path: string, quick: Record<string, Place>): Crumb[] {

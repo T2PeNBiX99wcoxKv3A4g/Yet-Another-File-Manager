@@ -23,18 +23,18 @@ internal partial class FileSystemService
     private static async Task<LinkPayload> CreateLinkAsync(LinkRequest? request)
     {
         if (request is null || request.Source.Length == 0 || request.Link.Length == 0)
-            return new(false, null, Localization.Get("No link was given."));
+            return new(false, null, Localization.Get("no_link_was_given"));
 
         var isDirectory = Directory.Exists(request.Source);
 
         if (!isDirectory && !File.Exists(request.Source))
-            return new(false, null, Localization.Get("The source no longer exists."));
+            return new(false, null, Localization.Get("the_source_no_longer_exists"));
 
         if (request.Kind is LinkCopy.HardCopy or LinkCopy.SymbolicCopy or LinkCopy.SmartCopy
             or LinkCopy.SmartMirror or LinkCopy.MultiVersionSmartCopy)
         {
             if (!isDirectory)
-                return new(false, null, Localization.Get("A link copy needs a folder source."));
+                return new(false, null, Localization.Get("a_link_copy_needs_a_folder_source"));
 
             var copied = await Task.Run(() => LinkCopy.Create(request.Kind, request.Source, request.Link));
             return copied.Ok

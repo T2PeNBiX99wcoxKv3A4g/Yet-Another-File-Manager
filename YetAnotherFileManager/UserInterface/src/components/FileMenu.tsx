@@ -248,7 +248,7 @@ export function FileMenu({
         };
         const result = await compressPaths(paths, options);
         if (result.ok && result.path) onArchiveCreated?.(result.path, true);
-        else void showMessage(result.error ?? t("Could not create the archive."));
+        else void showMessage(result.error ?? t("could_not_create_the_archive"));
     };
 
     const copyAsPath = async (paths: string[]) => {
@@ -265,7 +265,7 @@ export function FileMenu({
         const result = await setCaseSensitive(casePath, !caseState);
 
         if (!result.ok) {
-            void showMessage(result.error ?? t("Could not change the case sensitivity."));
+            void showMessage(result.error ?? t("could_not_change_the_case_sensitivity"));
             return;
         }
 
@@ -288,7 +288,7 @@ export function FileMenu({
         }
 
         if (!result.ok) {
-            void showMessage(result.error ?? t("Could not create the link."));
+            void showMessage(result.error ?? t("could_not_create_the_link"));
             return;
         }
 
@@ -349,7 +349,7 @@ export function FileMenu({
         const anyFile = paths.some((entry) => !entry.isDirectory);
         const anyDirectory = paths.some((entry) => entry.isDirectory);
         const clear: ContextMenuItem = {
-            label: t("Cancel selected link"), icon: <CrossIcon size={14}/>,
+            label: t("cancel_selected_link"), icon: <CrossIcon size={14}/>,
             onSelect: () => setLinkSource(null),
         };
 
@@ -357,38 +357,38 @@ export function FileMenu({
             clear,
             ...(anyFile
                 ? [{
-                    label: t("Hard link"), icon: <FileIcon size={14}/>, separatorBefore: true,
+                    label: t("hard_link"), icon: <FileIcon size={14}/>, separatorBefore: true,
                     onSelect: () => void makeSourceLink("hard"),
                 }]
                 : []),
             {
-                label: t("Symbolic link"), icon: <FileIcon size={14}/>, separatorBefore: !anyFile,
+                label: t("symbolic_link"), icon: <FileIcon size={14}/>, separatorBefore: !anyFile,
                 onSelect: () => void makeSourceLink("symbolic-file"),
             },
             ...(anyDirectory
                 ? [
                     {
-                        label: t("Directory junction"), icon: <FolderIcon size={14}/>,
+                        label: t("directory_junction"), icon: <FolderIcon size={14}/>,
                         onSelect: () => void makeSourceLink("junction"),
                     },
                     {
-                        label: t("Smart copy"), icon: <CopyIcon size={14}/>, separatorBefore: true,
+                        label: t("smart_copy"), icon: <CopyIcon size={14}/>, separatorBefore: true,
                         onSelect: () => void makeSourceLink("smart-copy"),
                     },
                     {
-                        label: t("Smart mirror"), icon: <CopyIcon size={14}/>,
+                        label: t("smart_mirror"), icon: <CopyIcon size={14}/>,
                         onSelect: () => void makeSourceLink("smart-mirror"),
                     },
                     {
-                        label: t("Multi-version smart copy"), icon: <CopyIcon size={14}/>,
+                        label: t("multi_version_smart_copy"), icon: <CopyIcon size={14}/>,
                         onSelect: () => void makeSourceLink("multi-version-smart-copy"),
                     },
                     {
-                        label: t("Hardlink copy"), icon: <CopyIcon size={14}/>, separatorBefore: true,
+                        label: t("hardlink_copy"), icon: <CopyIcon size={14}/>, separatorBefore: true,
                         onSelect: () => void makeSourceLink("hard-copy"),
                     },
                     {
-                        label: t("Symbolic link copy"), icon: <CopyIcon size={14}/>,
+                        label: t("symbolic_link_copy"), icon: <CopyIcon size={14}/>,
                         onSelect: () => void makeSourceLink("symbolic-copy"),
                     },
                 ]
@@ -399,7 +399,7 @@ export function FileMenu({
     if (menu.background) {
         if (onCreateFolder) {
             quick.push({
-                label: t("New folder"), icon: <PlusIcon size={16}/>,
+                label: t("new_folder"), icon: <PlusIcon size={16}/>,
                 shortcut: prettyShortcut(shortcuts.newFolder),
                 onSelect: onCreateFolder,
             });
@@ -410,12 +410,12 @@ export function FileMenu({
 
             if (onCreateFolder) {
                 newItems.push({
-                    label: t("Folder"), icon: <FolderIcon size={14}/>,
+                    label: t("folder"), icon: <FolderIcon size={14}/>,
                     onSelect: () => onCreateFolder(false),
                 });
                 if (!archiveView)
                     newItems.push({
-                        label: t("Case-sensitive folder"), icon: <CaseSensitiveIcon size={14}/>,
+                        label: t("case_sensitive_folder"), icon: <CaseSensitiveIcon size={14}/>,
                         onSelect: () => onCreateFolder(true),
                     });
             }
@@ -430,7 +430,7 @@ export function FileMenu({
             }
 
             items.push({
-                label: t("New"),
+                label: t("new"),
                 icon: <PlusIcon size={14}/>,
                 children: newItems,
                 onSelect: () => undefined,
@@ -439,7 +439,7 @@ export function FileMenu({
 
         if (!archiveView) {
             items.push({
-                label: t("Create link"),
+                label: t("create_link"),
                 icon: <ShareIcon size={14}/>,
                 disabled: !linkSource,
                 children: sourceLinkItems(),
@@ -455,26 +455,26 @@ export function FileMenu({
         // they would move the view itself out from under the user.
         if (!archiveView && onOpen) {
             items.push({
-                label: t("Open in new tab"), icon: <PlusIcon size={14}/>,
+                label: t("open_in_new_tab"), icon: <PlusIcon size={14}/>,
                 onSelect: () => onOpen(directory, true),
             });
         }
 
         items.push({
-            label: t("Copy as path"), icon: <CopyIcon size={14}/>,
+            label: t("copy_as_path"), icon: <CopyIcon size={14}/>,
             onSelect: () => void copyAsPath([directory]),
         });
 
         if (onAddToTray) {
             items.push({
-                label: t("Add to file tray"), icon: <PackageIcon size={14}/>,
+                label: t("add_to_file_tray"), icon: <PackageIcon size={14}/>,
                 onSelect: () => onAddToTray([directory]),
             });
         }
 
         if (!archiveView && (allFavorites ? onRemoveFavorite : onAddFavorite)) {
             items.push({
-                label: allFavorites ? t("Remove from favorites") : t("Add to favorites"),
+                label: allFavorites ? t("remove_from_favorites") : t("add_to_favorites"),
                 icon: allFavorites ? <HeartMinusIcon size={14}/> : <HeartIcon size={14}/>,
                 onSelect: () => allFavorites
                     ? onRemoveFavorite?.([directory])
@@ -484,7 +484,7 @@ export function FileMenu({
 
         if (!archiveView && caseState !== null) {
             items.push({
-                label: t("Case-sensitive names"), icon: <CaseSensitiveIcon size={14}/>,
+                label: t("case_sensitive_names"), icon: <CaseSensitiveIcon size={14}/>,
                 checked: caseState,
                 onSelect: () => void toggleCaseSensitivity(),
             });
@@ -492,32 +492,32 @@ export function FileMenu({
 
         if (!archiveView && allowCompression) {
             items.push({
-                label: t("Open in Terminal"), icon: <TerminalIcon size={14}/>,
+                label: t("open_in_terminal"), icon: <TerminalIcon size={14}/>,
                 onSelect: () => void openTerminal(directory),
             });
             items.push({
-                label: t("Show in Explorer"), icon: <FolderIcon size={14}/>, separatorBefore: true,
+                label: t("show_in_explorer"), icon: <FolderIcon size={14}/>, separatorBefore: true,
                 onSelect: () => void showInExplorer(directory),
             });
         }
 
         if (onPaste) {
             quick.push({
-                label: t("Paste"), icon: <PasteIcon size={16}/>, disabled: !canPaste,
+                label: t("paste"), icon: <PasteIcon size={16}/>, disabled: !canPaste,
                 shortcut: prettyShortcut(shortcuts.paste),
                 onSelect: () => onPaste(directory),
             });
         }
         if (!archiveView)
             quick.push({
-                label: t("Properties"), icon: <GearIcon size={16}/>,
+                label: t("properties"), icon: <GearIcon size={16}/>,
                 shortcut: prettyShortcut(shortcuts.properties),
                 onSelect: () => void showProperties([directory]),
             });
     } else {
         if (onOpen) {
             items.push({
-                label: t("Open"), icon: <ArrowRightIcon size={14}/>, onSelect: () => {
+                label: t("open"), icon: <ArrowRightIcon size={14}/>, onSelect: () => {
                     if (target?.isDirectory) onOpen(target.path);
                     else if (target) onOpenFile?.(target.path);
                 },
@@ -527,43 +527,43 @@ export function FileMenu({
         if (target?.isDirectory) {
             if (onOpen) {
                 items.push({
-                    label: t("Open in new tab"), icon: <PlusIcon size={14}/>,
+                    label: t("open_in_new_tab"), icon: <PlusIcon size={14}/>,
                     onSelect: () => onOpen(target.path, true),
                 });
             }
             if (onPaste) {
                 items.push({
-                    label: t("Paste into folder"), icon: <PasteIcon size={14}/>, disabled: !canPaste,
+                    label: t("paste_into_folder"), icon: <PasteIcon size={14}/>, disabled: !canPaste,
                     onSelect: () => onPaste(target.path),
                 });
             }
             if (!archiveView)
                 items.push({
-                    label: t("Open in Terminal"), icon: <TerminalIcon size={14}/>,
+                    label: t("open_in_terminal"), icon: <TerminalIcon size={14}/>,
                     onSelect: () => void openTerminal(target.path),
                 });
         }
 
         if (!archiveView && single && target && !target.isDirectory && isArchivePath(target.path) && onExtractArchive) {
             items.push({
-                label: t("Extract archive"),
+                label: t("extract_archive"),
                 icon: <ArchiveIcon size={14}/>,
                 separatorBefore: true,
                 children: [
                     {
-                        label: t("Extract here"), icon: <ArchiveIcon size={14}/>,
+                        label: t("extract_here"), icon: <ArchiveIcon size={14}/>,
                         onSelect: () => onExtractArchive(target.path, "here"),
                     },
                     {
-                        label: t("Extract to a folder named after the archive"), icon: <ArchiveIcon size={14}/>,
+                        label: t("extract_to_a_folder_named_after_the_archive"), icon: <ArchiveIcon size={14}/>,
                         onSelect: () => onExtractArchive(target.path, "named"),
                     },
                     {
-                        label: t("Auto extract to the current folder"), icon: <ArchiveIcon size={14}/>,
+                        label: t("auto_extract_to_the_current_folder"), icon: <ArchiveIcon size={14}/>,
                         onSelect: () => onExtractArchive(target.path, "auto"),
                     },
                     {
-                        label: t("Extract to…"), icon: <FolderIcon size={14}/>, separatorBefore: true,
+                        label: t("extract_to"), icon: <FolderIcon size={14}/>, separatorBefore: true,
                         onSelect: () => onExtractArchive(target.path, "choose"),
                     },
                 ],
@@ -575,12 +575,12 @@ export function FileMenu({
             const children: ContextMenuItem[] = [];
 
             if (openWithApps.loading) {
-                children.push({label: t("Loading apps…"), loading: true, disabled: true, onSelect: () => undefined});
+                children.push({label: t("loading_apps"), loading: true, disabled: true, onSelect: () => undefined});
             } else {
                 for (const app of openWithApps.recommended) {
                     children.push({
                         label: app.name,
-                        group: t("Suggested apps"),
+                        group: t("suggested_apps"),
                         icon: app.icon ? <img alt="" height={14} src={app.icon} width={14}/> :
                             <ExecutableIcon size={14}/>,
                         onSelect: () => void openWithProgram(target.path, app.path).then((opened) => {
@@ -592,7 +592,7 @@ export function FileMenu({
                 for (const app of openWithApps.other) {
                     children.push({
                         label: app.name,
-                        group: t("Other apps"),
+                        group: t("other_apps"),
                         icon: app.icon ? <img alt="" height={14} src={app.icon} width={14}/> :
                             <ExecutableIcon size={14}/>,
                         onSelect: () => void openWithProgram(target.path, app.path).then((opened) => {
@@ -603,14 +603,14 @@ export function FileMenu({
             }
 
             children.push({
-                label: t("Choose another app…"),
+                label: t("choose_another_app"),
                 icon: <ExecutableIcon size={14}/>,
                 separatorBefore: true,
                 onSelect: () => void openWith(target.path),
             });
 
             items.push({
-                label: t("Open with"),
+                label: t("open_with_2"),
                 icon: <ExecutableIcon size={14}/>,
                 children,
                 onSelect: () => void openWith(target.path),
@@ -619,14 +619,14 @@ export function FileMenu({
 
         if (!archiveView) {
             items.push({
-                label: t("Compress"), icon: <ArchiveIcon size={14}/>, separatorBefore: true,
+                label: t("compress"), icon: <ArchiveIcon size={14}/>, separatorBefore: true,
                 children: [
                     {
-                        label: t("Compress to ZIP"), icon: <ArchiveIcon size={14}/>,
+                        label: t("compress_to_zip"), icon: <ArchiveIcon size={14}/>,
                         onSelect: () => void compressZip(menu.paths),
                     },
                     {
-                        label: t("Compress to…"), icon: <ArchiveIcon size={14}/>,
+                        label: t("compress_to"), icon: <ArchiveIcon size={14}/>,
                         onSelect: () => onCompressTo?.(menu.paths, selectedArchiveName()),
                     },
                 ],
@@ -637,12 +637,12 @@ export function FileMenu({
         if (!archiveView && (menu?.paths.length ?? 0) > 0) {
             const links: ContextMenuItem[] = [
                 {
-                    label: t("Select link source"), icon: <ShareIcon size={14}/>,
+                    label: t("select_link_source"), icon: <ShareIcon size={14}/>,
                     onSelect: () => void chooseLinkSource(),
                 },
                 ...(linkSource
                     ? [{
-                        label: t("Cancel selected link"), icon: <CrossIcon size={14}/>,
+                        label: t("cancel_selected_link"), icon: <CrossIcon size={14}/>,
                         onSelect: () => setLinkSource(null),
                     }]
                     : []),
@@ -650,41 +650,41 @@ export function FileMenu({
                     ? target.isDirectory
                         ? [
                             {
-                                label: t("Symbolic link"), icon: <FolderIcon size={14}/>, separatorBefore: true,
+                                label: t("symbolic_link"), icon: <FolderIcon size={14}/>, separatorBefore: true,
                                 onSelect: () => void makeLink("symbolic-folder"),
                             },
                             {
-                                label: t("Directory junction"), icon: <FolderIcon size={14}/>,
+                                label: t("directory_junction"), icon: <FolderIcon size={14}/>,
                                 onSelect: () => void makeLink("junction"),
                             },
                             {
-                                label: t("Smart copy"), icon: <CopyIcon size={14}/>, separatorBefore: true,
+                                label: t("smart_copy"), icon: <CopyIcon size={14}/>, separatorBefore: true,
                                 onSelect: () => void makeLink("smart-copy"),
                             },
                             {
-                                label: t("Smart mirror"), icon: <CopyIcon size={14}/>,
+                                label: t("smart_mirror"), icon: <CopyIcon size={14}/>,
                                 onSelect: () => void makeLink("smart-mirror"),
                             },
                             {
-                                label: t("Multi-version smart copy"), icon: <CopyIcon size={14}/>,
+                                label: t("multi_version_smart_copy"), icon: <CopyIcon size={14}/>,
                                 onSelect: () => void makeLink("multi-version-smart-copy"),
                             },
                             {
-                                label: t("Hardlink copy"), icon: <CopyIcon size={14}/>, separatorBefore: true,
+                                label: t("hardlink_copy"), icon: <CopyIcon size={14}/>, separatorBefore: true,
                                 onSelect: () => void makeLink("hard-copy"),
                             },
                             {
-                                label: t("Symbolic link copy"), icon: <CopyIcon size={14}/>,
+                                label: t("symbolic_link_copy"), icon: <CopyIcon size={14}/>,
                                 onSelect: () => void makeLink("symbolic-copy"),
                             },
                         ]
                         : [
                             {
-                                label: t("Symbolic link"), icon: <FileIcon size={14}/>, separatorBefore: true,
+                                label: t("symbolic_link"), icon: <FileIcon size={14}/>, separatorBefore: true,
                                 onSelect: () => void makeLink("symbolic-file"),
                             },
                             {
-                                label: t("Hard link"), icon: <FileIcon size={14}/>,
+                                label: t("hard_link"), icon: <FileIcon size={14}/>,
                                 onSelect: () => void makeLink("hard"),
                             },
                         ]
@@ -692,7 +692,7 @@ export function FileMenu({
             ];
 
             items.push({
-                label: t("Create link"), icon: <ShareIcon size={14}/>,
+                label: t("create_link"), icon: <ShareIcon size={14}/>,
                 children: links,
                 onSelect: () => undefined,
             });
@@ -700,27 +700,27 @@ export function FileMenu({
 
         if (!archiveView && target?.isDirectory && caseState !== null) {
             items.push({
-                label: t("Case-sensitive names"), icon: <CaseSensitiveIcon size={14}/>,
+                label: t("case_sensitive_names"), icon: <CaseSensitiveIcon size={14}/>,
                 checked: caseState,
                 onSelect: () => void toggleCaseSensitivity(),
             });
         }
 
         items.push({
-            label: t("Copy as path"), icon: <CopyIcon size={14}/>,
+            label: t("copy_as_path"), icon: <CopyIcon size={14}/>,
             onSelect: () => void copyAsPath(menu.paths),
         });
 
         if (onAddToTray) {
             items.push({
-                label: t("Add to file tray"), icon: <PackageIcon size={14}/>,
+                label: t("add_to_file_tray"), icon: <PackageIcon size={14}/>,
                 onSelect: () => onAddToTray(menu.paths),
             });
         }
 
         if (!archiveView && (allFavorites ? onRemoveFavorite : onAddFavorite)) {
             items.push({
-                label: allFavorites ? t("Remove from favorites") : t("Add to favorites"),
+                label: allFavorites ? t("remove_from_favorites") : t("add_to_favorites"),
                 icon: allFavorites ? <HeartMinusIcon size={14}/> : <HeartIcon size={14}/>,
                 onSelect: () => allFavorites
                     ? onRemoveFavorite?.(favoriteTargets)
@@ -730,18 +730,18 @@ export function FileMenu({
 
         if (!archiveView)
             items.push({
-                label: t("Show in Explorer"), icon: <FolderIcon size={14}/>, separatorBefore: true,
+                label: t("show_in_explorer"), icon: <FolderIcon size={14}/>, separatorBefore: true,
                 onSelect: () => void showInExplorer(favoriteTargets[0]),
             });
 
         if (onCopy) {
             quick.push(
                 {
-                    label: t("Cut"), icon: <CutIcon size={16}/>, shortcut: prettyShortcut(shortcuts.cut),
+                    label: t("cut"), icon: <CutIcon size={16}/>, shortcut: prettyShortcut(shortcuts.cut),
                     onSelect: () => onCopy(menu.paths, true),
                 },
                 {
-                    label: t("Copy"), icon: <CopyIcon size={16}/>, shortcut: prettyShortcut(shortcuts.copy),
+                    label: t("copy"), icon: <CopyIcon size={16}/>, shortcut: prettyShortcut(shortcuts.copy),
                     onSelect: () => onCopy(menu.paths, false),
                 },
             );
@@ -749,14 +749,14 @@ export function FileMenu({
 
         if (single && target && onRename) {
             quick.push({
-                label: t("Rename"), icon: <PencilIcon size={16}/>, shortcut: prettyShortcut(shortcuts.rename),
+                label: t("rename"), icon: <PencilIcon size={16}/>, shortcut: prettyShortcut(shortcuts.rename),
                 onSelect: () => onRename(target.path),
             });
         }
 
         if (onDelete) {
             quick.push({
-                label: t("Delete"), icon: <TrashIcon size={16}/>, danger: true,
+                label: t("delete"), icon: <TrashIcon size={16}/>, danger: true,
                 shortcut: prettyShortcut(shortcuts.delete),
                 onSelect: () => onDelete(menu.paths),
             });
@@ -764,7 +764,7 @@ export function FileMenu({
 
         if (!archiveView)
             quick.push({
-                label: t("Properties"), icon: <GearIcon size={16}/>,
+                label: t("properties"), icon: <GearIcon size={16}/>,
                 shortcut: prettyShortcut(shortcuts.properties),
                 onSelect: () => void showProperties(menu.paths),
             });
@@ -772,7 +772,7 @@ export function FileMenu({
 
     if (shell.loading) {
         items.push({
-            label: t("More actions"),
+            label: t("more_actions"),
             icon: <ExecutableIcon size={14}/>,
             loading: true,
             disabled: true,
@@ -816,7 +816,7 @@ export function FileMenu({
         ];
 
         items.push({
-            label: t(shell.safe ? "More actions" : "More actions (extensions)"),
+            label: t(shell.safe ? "more_actions" : "more_actions_extensions"),
             icon: <ExecutableIcon size={14}/>,
             separatorBefore: true,
             children: toItems(root),

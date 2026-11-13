@@ -8,31 +8,31 @@ import {SelectMenu} from "./SelectMenu";
 import {type LocalizationKey, useTranslation} from "@photino-net-utils/bridge";
 
 const Formats: { value: CompressOptions["format"]; label: string; extension: string; level: boolean }[] = [
-    {value: "zip", label: "ZIP archive", extension: ".zip", level: true},
-    {value: "zipx", label: "ZIPX archive", extension: ".zipx", level: true},
-    {value: "7z", label: "7z archive (LZMA2)", extension: ".7z", level: false},
-    {value: "tar", label: "TAR archive", extension: ".tar", level: false},
-    {value: "tar.gz", label: "TAR + GZip", extension: ".tar.gz", level: true},
-    {value: "tar.bz2", label: "TAR + BZip2", extension: ".tar.bz2", level: false},
+    {value: "zip", label: "zip_archive", extension: ".zip", level: true},
+    {value: "zipx", label: "zipx_archive", extension: ".zipx", level: true},
+    {value: "7z", label: "k_7z_archive_lzma2", extension: ".7z", level: false},
+    {value: "tar", label: "tar_archive", extension: ".tar", level: false},
+    {value: "tar.gz", label: "tar_g_zip", extension: ".tar.gz", level: true},
+    {value: "tar.bz2", label: "tar_b_zip2", extension: ".tar.bz2", level: false},
 ];
 
 const Methods = [
-    {value: "default", label: "Automatic"},
-    {value: "store", label: "Store (no compression)"},
-    {value: "deflate", label: "Deflate"},
-    {value: "deflate64", label: "Deflate64"},
-    {value: "bzip2", label: "BZip2"},
-    {value: "lzma", label: "LZMA"},
+    {value: "default", label: "automatic"},
+    {value: "store", label: "store_no_compression"},
+    {value: "deflate", label: "deflate"},
+    {value: "deflate64", label: "deflate64"},
+    {value: "bzip2", label: "b_zip2"},
+    {value: "lzma", label: "lzma"},
     {value: "xz", label: "XZ"},
-    {value: "ppmd", label: "PPMd"},
+    {value: "ppmd", label: "pp_md"},
 ];
 
 const Encryptions = [
-    {value: "none", label: "None"},
-    {value: "zipcrypto", label: "ZipCrypto"},
-    {value: "aes128", label: "AES-128"},
-    {value: "aes192", label: "AES-192"},
-    {value: "aes256", label: "AES-256"},
+    {value: "none", label: "none"},
+    {value: "zipcrypto", label: "zip_crypto"},
+    {value: "aes128", label: "aes_128"},
+    {value: "aes192", label: "aes_192"},
+    {value: "aes256", label: "aes_256"},
 ];
 
 const Splits = [
@@ -46,11 +46,11 @@ const Splits = [
 ];
 
 const Levels = [
-    {value: "0", label: "Store (no compression)"},
-    {value: "1", label: "Fastest"},
-    {value: "5", label: "Normal"},
-    {value: "9", label: "Maximum"},
-    {value: "-1", label: "Automatic"},
+    {value: "0", label: "store_no_compression"},
+    {value: "1", label: "fastest"},
+    {value: "5", label: "normal"},
+    {value: "9", label: "maximum"},
+    {value: "-1", label: "automatic"},
 ];
 
 export function CompressDialog({initialDirectory, initialName, onCancel, onCompress}: {
@@ -117,9 +117,9 @@ export function CompressDialog({initialDirectory, initialName, onCancel, onCompr
             if (event.target === event.currentTarget && !busy) onCancel();
         }}>
             <Card aria-modal="true" role="dialog">
-                <Title>{t("Compress to…")}</Title>
+                <Title>{t("compress_to")}</Title>
                 <Field>
-                    <Label>{t("Archive name")}</Label>
+                    <Label>{t("archive_name")}</Label>
                     <NameInput
                         onChange={(event) => setName(event.target.value)}
                         ref={nameInput}
@@ -131,7 +131,7 @@ export function CompressDialog({initialDirectory, initialName, onCancel, onCompr
                     <Extension>{chosenFormat.extension}</Extension>
                 </Field>
                 <Field>
-                    <Label>{t("Format")}</Label>
+                    <Label>{t("format")}</Label>
                     <SelectMenu
                         onChange={(value) => setFormat(value as CompressOptions["format"])}
                         options={Formats.map((item) => ({value: item.value, label: t(item.label as LocalizationKey)}))}
@@ -141,7 +141,7 @@ export function CompressDialog({initialDirectory, initialName, onCancel, onCompr
                     />
                 </Field>
                 <Field>
-                    <Label>{t("Method")}</Label>
+                    <Label>{t("method")}</Label>
                     <SelectMenu
                         disabled={!zipFormat}
                         onChange={setMethod}
@@ -152,7 +152,7 @@ export function CompressDialog({initialDirectory, initialName, onCancel, onCompr
                     />
                 </Field>
                 <Field>
-                    <Label>{t("Encryption")}</Label>
+                    <Label>{t("encryption")}</Label>
                     <SelectMenu
                         disabled={!canEncrypt}
                         onChange={(value) => {
@@ -167,7 +167,7 @@ export function CompressDialog({initialDirectory, initialName, onCancel, onCompr
                 </Field>
                 {encrypted && (
                     <Field>
-                        <Label>{t("Password")}</Label>
+                        <Label>{t("password")}</Label>
                         <NameInput
                             autoFocus
                             onChange={(event) => setPassword(event.target.value)}
@@ -177,7 +177,7 @@ export function CompressDialog({initialDirectory, initialName, onCancel, onCompr
                     </Field>
                 )}
                 <Field>
-                    <Label>{t("Split volumes")}</Label>
+                    <Label>{t("split_volumes")}</Label>
                     <SelectMenu
                         disabled={!canSplit}
                         onChange={setSplit}
@@ -188,7 +188,7 @@ export function CompressDialog({initialDirectory, initialName, onCancel, onCompr
                     />
                 </Field>
                 <Field>
-                    <Label>{t("Compression level")}</Label>
+                    <Label>{t("compression_level")}</Label>
                     <SelectMenu
                         disabled={!chosenFormat.level}
                         onChange={setLevel}
@@ -199,19 +199,19 @@ export function CompressDialog({initialDirectory, initialName, onCancel, onCompr
                     />
                 </Field>
                 <Field $stack>
-                    <Label>{t("Destination")}</Label>
+                    <Label>{t("destination")}</Label>
                     <DestinationRow>
                         <Path title={directory}>{directory}</Path>
                         <Button disabled={busy} onClick={() => void requestFolder(directory).then((value) => {
                             if (value) setDirectory(value);
-                        })} type="button">{t("Choose folder…")}</Button>
+                        })} type="button">{t("choose_folder")}</Button>
                     </DestinationRow>
                 </Field>
                 <Actions>
-                    <Button disabled={busy} onClick={onCancel} type="button">{t("Cancel")}</Button>
+                    <Button disabled={busy} onClick={onCancel} type="button">{t("cancel")}</Button>
                     <Primary disabled={busy || !name.trim() || (encrypted && password.length === 0)}
                              onClick={() => void submit()} type="button">
-                        {busy ? t("Compressing…") : t("Compress")}
+                        {busy ? t("compressing") : t("compress")}
                     </Primary>
                 </Actions>
             </Card>

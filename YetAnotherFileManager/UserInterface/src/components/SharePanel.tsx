@@ -59,7 +59,7 @@ export function SharePanel({currentFolder}: { currentFolder: string }) {
             <Button
                 $active={open}
                 onClick={() => setOpen((value) => !value)}
-                title={t("Share folders")}
+                title={t("share_folders")}
                 type="button"
             >
                 <ServerIcon size={15}/>
@@ -71,8 +71,8 @@ export function SharePanel({currentFolder}: { currentFolder: string }) {
             {open && (
                 <Panel>
                     <Head>
-                        <Title>{t("Share")}</Title>
-                        <Close onClick={() => setOpen(false)} title={t("Close")} type="button">
+                        <Title>{t("share")}</Title>
+                        <Close onClick={() => setOpen(false)} title={t("close")} type="button">
                             <CrossIcon size={10}/>
                         </Close>
                     </Head>
@@ -81,12 +81,12 @@ export function SharePanel({currentFolder}: { currentFolder: string }) {
                         <Device>
                             <AppIcon size={15}/>
                             <span>
-                                <strong>{list?.deviceName || t("This device")}</strong>
+                                <strong>{list?.deviceName || t("this_device")}</strong>
                                 <Small>{list?.fingerprint ?? ""}</Small>
                             </span>
                         </Device>
 
-                        {list?.shares.length === 0 && <Empty>{t("No folders are shared yet.")}</Empty>}
+                        {list?.shares.length === 0 && <Empty>{t("no_folders_are_shared_yet")}</Empty>}
 
                         {list?.shares.map((share) => (
                             <Row key={share.id}>
@@ -95,7 +95,7 @@ export function SharePanel({currentFolder}: { currentFolder: string }) {
                                     <Remove
                                         disabled={busy}
                                         onClick={() => void run(() => removeShare(share.id))}
-                                        title={t("Stop sharing")}
+                                        title={t("stop_sharing")}
                                         type="button"
                                     >
                                         <CrossIcon size={10}/>
@@ -106,18 +106,18 @@ export function SharePanel({currentFolder}: { currentFolder: string }) {
                                     <ModeButton
                                         $active={share.mode === "client"}
                                         onClick={() => void run(() => setShareMode(share.id, "client"))}
-                                        title={t("Only paired devices can open this folder in the app.")}
+                                        title={t("only_paired_devices_can_open_this_folder_in_the_app")}
                                         type="button"
                                     >
-                                        <AppIcon size={11}/>{t("App")}
+                                        <AppIcon size={11}/>{t("app")}
                                     </ModeButton>
                                     <ModeButton
                                         $active={share.mode === "web"}
                                         onClick={() => void run(() => setShareMode(share.id, "web"))}
-                                        title={t("Any device with a browser can open this folder.")}
+                                        title={t("any_device_with_a_browser_can_open_this_folder")}
                                         type="button"
                                     >
-                                        <GlobeIcon size={11}/>{t("Web")}
+                                        <GlobeIcon size={11}/>{t("web")}
                                     </ModeButton>
                                 </Modes>
                             </Row>
@@ -126,25 +126,25 @@ export function SharePanel({currentFolder}: { currentFolder: string }) {
                         <Add
                             disabled={busy || currentFolder.length === 0 || alreadyShared}
                             onClick={() => void run(() => addShare(currentFolder, "client"))}
-                            title={alreadyShared ? t("This folder is already shared.") : currentFolder}
+                            title={alreadyShared ? t("this_folder_is_already_shared") : currentFolder}
                             type="button"
                         >
                             <PlusIcon size={12}/>
-                            {t("Share this folder")}
+                            {t("share_this_folder")}
                         </Add>
 
                         {list?.webRunning && (
                             <Web>
                                 <WebHead>
                                     <GlobeIcon size={12}/>
-                                    {t("Browser access")}
+                                    {t("browser_access")}
                                 </WebHead>
                                 {list.urls.map((url) => (
                                     <UrlButton key={url} onClick={() => void openUrl(url)} type="button">
                                         {url}
                                     </UrlButton>
                                 ))}
-                                <Small>{t("Open one of these addresses on any device on the same network.")}</Small>
+                                <Small>{t("open_one_of_these_addresses_on_any_device_on_the_same_network")}</Small>
                             </Web>
                         )}
                     </Body>

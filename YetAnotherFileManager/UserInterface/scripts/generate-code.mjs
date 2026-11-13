@@ -1,7 +1,7 @@
-// Regenerates the TypeScript views of the C# settings model and of the translation files with the
-// shared code generator. A setting cannot be added on one side only (settings.generated.ts is what
-// api/settings.ts is checked against), and a renamed translation key breaks the build at every call
-// site, because i18n.generated.ts augments the bridge's LocalizationKeys interface.
+// Regenerates the TypeScript view of the translation keys with the shared code generator. A renamed
+// key breaks the build at every call site, because i18n.generated.ts augments the bridge's
+// LocalizationKeys interface. settings.generated.ts comes from the compiled model, so the MSBuild
+// target writes it after CoreCompile instead of this script.
 import {spawnSync} from "node:child_process";
 import {existsSync} from "node:fs";
 import path from "node:path";
@@ -20,18 +20,9 @@ if (!existsSync(binary)) {
     process.exit(1);
 }
 
-const run = (args) => {
-    const result = spawnSync(binary, args, {stdio: "inherit"});
-    if (result.status !== 0) process.exit(result.status ?? 1);
-};
-
-run([
-    "--model", path.join(app, "Models", "AppSettings.cs"),
-    "--out", path.join(ui, "src", "api", "settings.generated.ts"),
-]);
-
-// English is the key itself, so en.jsonc has no entries; every translated file lists every key.
-run([
-    "--i18n", path.join(app, "Resources", "i18n", "ja.jsonc"),
+const result = spawnSync(binary, [
+    "--i18n", path.join(app, "Resources", "i18n", "en.jsonc"),
     "--i18n-out", path.join(ui, "src", "api", "i18n.generated.ts"),
-]);
+], {stdio: "inherit"});
+
+process.exit(result.status ?? 1);

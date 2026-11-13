@@ -99,7 +99,7 @@ internal partial class FileHistory
             lock (_entries)
             {
                 if (_index == 0)
-                    return new(false, Localization.Get("Nothing to undo."), []);
+                    return new(false, Localization.Get("nothing_to_undo"), []);
 
                 entry = _entries[_index - 1];
             }
@@ -135,7 +135,7 @@ internal partial class FileHistory
             lock (_entries)
             {
                 if (_index >= _entries.Count)
-                    return new(false, Localization.Get("Nothing to redo."), []);
+                    return new(false, Localization.Get("nothing_to_redo"), []);
 
                 entry = _entries[_index];
             }

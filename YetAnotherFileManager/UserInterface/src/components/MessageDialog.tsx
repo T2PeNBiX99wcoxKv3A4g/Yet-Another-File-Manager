@@ -54,10 +54,10 @@ export function MessageDialog() {
             if (event.target === event.currentTarget) close();
         }}>
             <Card role="alertdialog" aria-modal="true">
-                <Title>{t("Notice")}</Title>
+                <Title>{t("notice")}</Title>
                 <Body>{message}</Body>
                 <Actions>
-                    <Button onClick={close} ref={button} type="button">{t("OK")}</Button>
+                    <Button onClick={close} ref={button} type="button">{t("ok")}</Button>
                 </Actions>
             </Card>
         </Overlay>,
