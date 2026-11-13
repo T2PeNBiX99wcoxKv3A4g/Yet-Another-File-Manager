@@ -1,7 +1,6 @@
 using System.Text.Json;
 using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Services;
-using PhotinoNetUtils.Utils;
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
 
@@ -9,10 +8,10 @@ namespace YetAnotherFileManager.Services;
 
 /// <summary>
 ///     Owns <see cref="AppSettings" /> and its TOML file; the shared base answers
-///     <c>settings.get</c> and <c>settings.save</c>, normalizes and writes atomically.
+///     <c>settings.get</c> and <c>settings.save</c>, normalizes and writes atomically, and hands out
+///     the process-wide <c>Instance</c>.
 /// </summary>
-[Singleton]
-internal partial class SettingsService : SettingsServiceBase<AppSettings, AppSettings>
+internal sealed class SettingsService : SettingsServiceBase<SettingsService, AppSettings, AppSettings>
 {
     private const string Header =
         "# Yet Another File Manager settings. The comments come from the app; values are rewritten on save.";
@@ -26,7 +25,7 @@ internal partial class SettingsService : SettingsServiceBase<AppSettings, AppSet
 
     private readonly SemaphoreSlim _writeGate = new(1, 1);
 
-    private SettingsService() : base(new TomlSettingsStore<AppSettings>(
+    public SettingsService() : base(new TomlSettingsStore<AppSettings>(
         Path.Combine(Constants.SettingsDirectory, "settings.toml"),
         AppSettings.Default,
         AppTomlContext.Default.AppSettings,
