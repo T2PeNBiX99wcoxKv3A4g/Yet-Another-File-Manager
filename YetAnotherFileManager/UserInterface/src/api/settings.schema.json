@@ -1,0 +1,499 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AppSettings",
+  "type": "object",
+  "properties": {
+    "systemIcons": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Use the shell's icon for each file type."
+    },
+    "customFolderIcons": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Let a folder show the icon it carries."
+    },
+    "writeDirectoryIndex": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Keep a hidden .yafm-index.db inside every folder that is browsed."
+    },
+    "directoryIndexBlacklist": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Glob rules for folders that keep their index in the central store."
+    },
+    "extensionIcons": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Built-in icon name or file:<path> for one extension."
+    },
+    "quickAccess": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Quick access folders, in order; empty keeps the well-known defaults."
+    },
+    "recentLimit": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "How many recent folders to show; 0 turns the list off."
+    },
+    "galleryRoots": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Folders the gallery scans; empty uses the Pictures folder."
+    },
+    "overviewPanels": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Overview panels, in the order they are shown."
+    },
+    "overviewHidden": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Panels older versions hid; only read to migrate them away."
+    },
+    "overviewColumns": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Overview columns, 1 to 5."
+    },
+    "placeNames": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Name given to a quick-access folder, by path."
+    },
+    "shortcuts": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Key combination per action, e.g. ctrl+w."
+    },
+    "placeIcons": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Icon given to a quick-access folder, by path."
+    },
+    "overviewTitles": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Title given to an overview panel, by panel id."
+    },
+    "overviewViews": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "List or grid per overview panel, by panel id."
+    },
+    "overviewIcons": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Icon per overview panel, by panel id."
+    },
+    "overviewPinned": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Overview panels that also appear in the sidebar."
+    },
+    "linksEnabled": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Open yafm:// links with this app."
+    },
+    "panelPlaces": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "description": "Folders shown by one quick-access panel, by panel id."
+    },
+    "restoreTabs": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Reopen the tabs that were open when the app closed."
+    },
+    "openTabs": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Tabs open at the last close; the window keeps these up to date."
+    },
+    "activeTab": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Index of the tab that was focused."
+    },
+    "defaultView": {
+      "anyOf": [
+        {},
+        {
+          "type": "null"
+        }
+      ],
+      "description": "View mode, sizes and preview strip every folder starts with."
+    },
+    "showCheckboxes": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Show a selection checkbox before every name."
+    },
+    "openOnSingleClick": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Open a folder or file with one click instead of two."
+    },
+    "confirmDelete": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Ask before moving items to the recycle bin."
+    },
+    "previewVideoAudio": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Play audio in video previews."
+    },
+    "previewVideoAutoplay": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Start a video preview automatically."
+    },
+    "trayAutoShow": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Show the floating file tray when a drag starts."
+    },
+    "accentColor": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Colour the whole interface is built around."
+    },
+    "secondaryColor": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Second colour of the accent gradient."
+    },
+    "language": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Interface language; 'system' follows the operating system."
+    },
+    "themePresets": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {},
+      "description": "Colour pairs the user saved."
+    },
+    "defaultFileManager": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Register this app for folder opens."
+    },
+    "backgroundSource": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Backdrop picture, video or built-in concept; empty keeps the dark surface."
+    },
+    "backgroundCustom": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Backdrop files the user added."
+    },
+    "backgroundBlur": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Backdrop blur, in pixels."
+    },
+    "backgroundSaturation": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Backdrop saturation, in percent."
+    },
+    "backgroundBrightness": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Backdrop brightness, in percent."
+    },
+    "protectedPaths": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Paths a change must stop at; a trailing ** covers the subtree."
+    },
+    "deleteDelaySeconds": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Seconds the protected-folder confirmation stays disabled."
+    },
+    "timeFormat": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Every timestamp: 'system', '12', '24' or 'custom'."
+    },
+    "timeFormatPattern": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Pattern used when timeFormat is custom."
+    },
+    "showHidden": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Show ordinary hidden files."
+    },
+    "archiveHandler": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Register this app for archive files."
+    },
+    "pickerWindowWidth": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Width of the folder and file picker window."
+    },
+    "pickerWindowHeight": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Height of the folder and file picker window."
+    },
+    "linkPathMode": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Links are created relative unless this is 'absolute'."
+    },
+    "overviewBanner": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Picture or video above the overview panels."
+    },
+    "overviewBannerHeight": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Overview banner height, in pixels."
+    },
+    "overviewBanners": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Banner media the user added."
+    },
+    "overviewBannerOffset": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Vertical crop of the banner, 0 is the top."
+    },
+    "globalHotkey": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Key combination that brings the window forward; empty disables it."
+    },
+    "fonts": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Font family per interface role; empty uses the built-in faces."
+    },
+    "sharePortMode": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "'random' lets the OS pick a free port; 'custom' uses sharePort."
+    },
+    "sharePort": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Port used when sharePortMode is custom."
+    },
+    "startupMode": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "'none', 'shortcut' or 'task': how the app joins the session."
+    },
+    "startHidden": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Start in the tray instead of showing the window."
+    },
+    "favorites": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {},
+      "description": "Files and folders pinned to the overview Favorites panel."
+    },
+    "themeMode": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Interface theme; 'system' follows the operating system, otherwise 'light' or 'dark'."
+    }
+  },
+  "additionalProperties": false
+}
