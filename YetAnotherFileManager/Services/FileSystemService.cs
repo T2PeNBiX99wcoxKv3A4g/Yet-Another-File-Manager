@@ -8,6 +8,7 @@ using System.Text.Json;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Messaging;
+using PhotinoNetUtils.Platform;
 using PhotinoNetUtils.Utils;
 using YetAnotherFileManager.Interop;
 using YetAnotherFileManager.Messaging;
@@ -1166,9 +1167,9 @@ internal partial class FileSystemService : INativeMessageHandler
                 .ToList();
         });
 
-        // Shortcuts carry their target inside the file; the shell reader runs on the STA pool.
+        // Shortcuts carry their target inside the file; the shared reader parses it.
         if (OperatingSystem.IsWindows())
-            all = await ResolveShortcutsAsync(all);
+            all = ResolveShortcuts(all);
 
         // Storing is best effort and must not hold the listing back or repeat itself: the write is
         // coalesced and skipped while the folder still holds what the index already has.
@@ -1537,31 +1538,27 @@ internal partial class FileSystemService : INativeMessageHandler
 
     /// <summary>
     ///     Fills in the target of every <c>.lnk</c>, so a dead shortcut can be shown struck through.
-    ///     The shell's shortcut reader needs an STA caller, so it runs on that pool.
+    ///     A shortcut whose file cannot be read keeps a null target, which the interface draws as a
+    ///     link of unknown state.
     /// </summary>
     [SupportedOSPlatform("windows")]
-    private static async Task<List<FileEntry>> ResolveShortcutsAsync(List<FileEntry> entries)
+    private static List<FileEntry> ResolveShortcuts(List<FileEntry> entries)
     {
-        var shortcuts = entries
+        var targets = entries
             .Where(entry => !entry.IsDirectory && entry.Name.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
-            .ToList();
+            .ToDictionary(entry => entry.FullPath,
+                entry => WindowsShortcut.ReadTarget(entry.FullPath),
+                StringComparer.OrdinalIgnoreCase);
 
-        if (shortcuts.Count == 0)
-            return entries;
-
-        var resolved = await Task.WhenAll(shortcuts.Select(async entry =>
-        {
-            var (target, valid) = await StaThread.RunAsync(() => Interop.ShellLink.Resolve(entry.FullPath));
-            return entry with
-            {
-                LinkTarget = target,
-                LinkValid = valid
-            };
-        }));
-
-        var byPath = resolved.ToDictionary(entry => entry.FullPath, StringComparer.OrdinalIgnoreCase);
-
-        return entries.Select(entry => byPath.GetValueOrDefault(entry.FullPath) ?? entry).ToList();
+        return targets.Count == 0
+            ? entries
+            : entries.Select(entry => targets.GetValueOrDefault(entry.FullPath) is { Length: > 0 } target
+                ? entry with
+                {
+                    LinkTarget = target,
+                    LinkValid = File.Exists(target) || Directory.Exists(target)
+                }
+                : entry).ToList();
     }
 
     /// <summary>

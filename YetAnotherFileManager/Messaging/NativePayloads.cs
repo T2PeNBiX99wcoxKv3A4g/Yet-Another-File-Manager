@@ -11,10 +11,6 @@ internal sealed record OkPayload(bool Ok = true);
 /// <summary>Payload for <c>app.openUrl</c>: the address to hand to the default browser.</summary>
 internal sealed record UrlPayload(string Url);
 
-/// <summary>Body for <c>app.info</c>.</summary>
-internal sealed record AppInfoPayload(string Version, string Platform, bool Rounded, string LogDirectory,
-    bool Debug);
-
 /// <summary>Body for <c>app.fonts</c>: every family the operating system offers.</summary>
 internal sealed record FontsPayload(IReadOnlyList<string> Fonts);
 
