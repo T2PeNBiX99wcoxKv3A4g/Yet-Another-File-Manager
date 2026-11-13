@@ -23,6 +23,8 @@ internal static class ArchiveAssociations
         {
             if (OperatingSystem.IsWindows())
                 ApplyWindows(enabled);
+            else if (OperatingSystem.IsLinux())
+                ApplyLinux(enabled);
         }).OnFailure(ex => Log.Warning(ex, "Could not apply the archive associations"));
 
     /// <summary>
@@ -31,9 +33,18 @@ internal static class ArchiveAssociations
     /// </summary>
     public static ArchiveStatusPayload Status()
     {
+        if (OperatingSystem.IsLinux())
+            return StatusLinux();
+
         if (!OperatingSystem.IsWindows())
             return new(false, false, null);
 
+        return StatusOf(ReadWindowsExecutable());
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static string? ReadWindowsExecutable()
+    {
         string? registeredPath = null;
 
         Try.Run(() =>
@@ -43,6 +54,20 @@ internal static class ArchiveAssociations
             registeredPath = RegistryCommand.Executable(command?.GetValue(null) as string);
         }).OnFailure(ex => Log.Debug(ex, "Could not read the archive association status"));
 
+        return registeredPath;
+    }
+
+    [SupportedOSPlatform("linux")]
+    private static ArchiveStatusPayload StatusLinux()
+    {
+        var desktop = LinuxDesktop.Query("application/zip");
+        return desktop.Length == 0
+            ? new(false, false, null)
+            : StatusOf(LinuxDesktop.ExecutableOf(desktop) ?? desktop);
+    }
+
+    private static ArchiveStatusPayload StatusOf(string? registeredPath)
+    {
         var current = Environment.ProcessPath;
         var matches = registeredPath is { Length: > 0 } && current is { Length: > 0 }
                                                         && Try.Run(() => string.Equals(
@@ -146,11 +171,94 @@ internal static class ArchiveAssociations
         }
     }
 
+    private const string DesktopName = "yafm-archive.desktop";
+
+    /// <summary>The archive types freedesktop knows; the rest stay unregistered on Linux.</summary>
+    private static readonly (string Extension, string Mime)[] LinuxTypes =
+    [
+        (".zip", "application/zip"),
+        (".zipx", "application/zip"),
+        (".jar", "application/java-archive"),
+        (".7z", "application/x-7z-compressed"),
+        (".rar", "application/vnd.rar"),
+        (".tar", "application/x-tar"),
+        (".gz", "application/gzip"),
+        (".tgz", "application/gzip"),
+        (".bz2", "application/x-bzip2"),
+        (".xz", "application/x-xz")
+    ];
+
+    [SupportedOSPlatform("linux")]
+    private static void ApplyLinux(bool enabled)
+    {
+        if (enabled)
+            ApplyLinuxOn();
+        else
+            ApplyLinuxOff();
+    }
+
+    [SupportedOSPlatform("linux")]
+    private static void ApplyLinuxOn()
+    {
+        if (Environment.ProcessPath is not { Length: > 0 } executable)
+            return;
+
+        LinuxDesktop.Write(DesktopName,
+            $"""
+             [Desktop Entry]
+             Type=Application
+             Name=Yet Another File Manager (archives)
+             Exec="{executable}" %F
+             Icon=yafm
+             Terminal=false
+             NoDisplay=true
+             MimeType={string.Join(';', MimeTypes())};
+             """);
+
+        var store = AssociationBackupStore.Read();
+        var changed = false;
+        store.LinuxArchiveDefaults ??= [];
+
+        foreach (var mime in MimeTypes())
+        {
+            if (store.LinuxArchiveDefaults.ContainsKey(mime))
+                continue;
+
+            store.LinuxArchiveDefaults[mime] = LinuxDesktop.Query(mime);
+            changed = true;
+        }
+
+        // Save the handlers the user had before this app took the types.
+        if (changed && !AssociationBackupStore.Write(store))
+            return;
+
+        foreach (var mime in MimeTypes())
+            LinuxDesktop.SetDefault(DesktopName, mime);
+    }
+
+    [SupportedOSPlatform("linux")]
+    private static void ApplyLinuxOff()
+    {
+        var store = AssociationBackupStore.Read();
+
+        foreach (var (mime, previous) in store.LinuxArchiveDefaults ?? [])
+            if (previous.Length > 0)
+                LinuxDesktop.SetDefault(previous, mime);
+
+        store.LinuxArchiveDefaults = null;
+        AssociationBackupStore.Write(store);
+        LinuxDesktop.Remove(DesktopName);
+    }
+
+    private static IEnumerable<string> MimeTypes() =>
+        LinuxTypes.Select(type => type.Mime).Distinct(StringComparer.Ordinal);
+
     [SupportedOSPlatform("windows")]
     private static void DeleteKey(string keyPath) =>
         Try.Run(() => Registry.CurrentUser.DeleteSubKeyTree(keyPath, false));
 
     /// <summary>The extension's current per-user default, or null when it is this app's own ProgId.</summary>
+    [SupportedOSPlatform("windows")]
     private static string? ReadCurrentDefault(string extension)
     {
         var value = Try.Run(() => Registry.CurrentUser
@@ -172,10 +280,10 @@ internal static class ArchiveAssociations
             if (previous is null)
             {
                 if (string.Equals(key.GetValue(null) as string, ProgId, StringComparison.OrdinalIgnoreCase))
-                    key.DeleteValue(null, false);
+                    key.DeleteValue("", false);
             }
             else
-                key.SetValue(null, previous);
+                key.SetValue("", previous);
 
             using var openWith = key.OpenSubKey("OpenWithProgids", true);
             openWith?.DeleteValue(ProgId, false);

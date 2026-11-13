@@ -8,8 +8,7 @@ namespace YetAnotherFileManager.Services;
 ///     A global key combination that brings the window forward. It polls the keyboard instead of
 ///     registering a hotkey, so it also works when another process owns the foreground window.
 /// </summary>
-[SupportedOSPlatform("windows")]
-internal static class GlobalHotkey
+internal static partial class GlobalHotkey
 {
     private static readonly Dictionary<string, int> Keys = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -43,7 +42,16 @@ internal static class GlobalHotkey
     {
         Stop();
 
-        if (!OperatingSystem.IsWindows() || string.IsNullOrWhiteSpace(combination))
+        if (string.IsNullOrWhiteSpace(combination))
+            return;
+
+        if (OperatingSystem.IsLinux())
+        {
+            StartLinux(combination);
+            return;
+        }
+
+        if (!OperatingSystem.IsWindows())
             return;
 
         var parts = combination.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -66,30 +74,38 @@ internal static class GlobalHotkey
         _stop = new();
         var token = _stop.Token;
 
-        Task.Run(() =>
+        StartPolling(keys, token);
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static void StartPolling(List<int> keys, CancellationToken token) =>
+        _ = Task.Run(() => Poll(keys, token), token);
+
+    /// <summary>The polling loop; <c>GetAsyncKeyState</c> is a Win32 call, so it is Windows only.</summary>
+    [SupportedOSPlatform("windows")]
+    private static void Poll(List<int> keys, CancellationToken token)
+    {
+        while (!token.IsCancellationRequested)
         {
-            while (!token.IsCancellationRequested)
+            try
             {
-                try
-                {
-                    var down = keys.All(key => (GetAsyncKeyState(key) & 0x8000) != 0);
+                var down = keys.All(key => (GetAsyncKeyState(key) & 0x8000) != 0);
 
-                    if (down && !_wasDown)
-                    {
-                        _wasDown = true;
-                        WindowManager.Instance.ShowMainWindow();
-                    }
-                    else if (!down)
-                        _wasDown = false;
-                }
-                catch (Exception ex)
+                if (down && !_wasDown)
                 {
-                    Log.Debug(ex, "Could not poll the global hotkey");
+                    _wasDown = true;
+                    WindowManager.Instance.ShowMainWindow();
                 }
-
-                Thread.Sleep(80);
+                else if (!down)
+                    _wasDown = false;
             }
-        }, token);
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Could not poll the global hotkey");
+            }
+
+            Thread.Sleep(80);
+        }
     }
 
     private static void Stop()
@@ -98,6 +114,130 @@ internal static class GlobalHotkey
         _stop?.Dispose();
         _stop = null;
     }
+
+    /// <summary>
+    ///     X11 keeps the keyboard state in the server, so <c>XQueryKeymap</c> polls it the same way
+    ///     the Windows loop uses <c>GetAsyncKeyState</c>. A Wayland session only answers while
+    ///     XWayland has the focus, so the combination may stay inert there; nothing fails.
+    /// </summary>
+    [SupportedOSPlatform("linux")]
+    private static void StartLinux(string combination)
+    {
+        var names = new List<string>();
+
+        foreach (var part in combination.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (LinuxKeyName(part) is not { } name)
+                return;
+
+            names.Add(name);
+        }
+
+        if (names.Count == 0)
+            return;
+
+        _wasDown = false;
+        _stop = new();
+        var token = _stop.Token;
+
+        _ = Task.Run(() =>
+        {
+            // A Wayland-only machine may not even have libX11; a missing hotkey is not an error.
+            var display = IntPtr.Zero;
+
+            try
+            {
+                display = XOpenDisplay(null);
+                if (display == IntPtr.Zero)
+                    return;
+
+                var codes = names
+                    .Select(name => XKeysymToKeycode(display, XStringToKeysym(name)))
+                    .Where(code => code != 0)
+                    .ToArray();
+
+                if (codes.Length != names.Count)
+                    return;
+
+                var state = new byte[32];
+
+                while (!token.IsCancellationRequested)
+                {
+                    XQueryKeymap(display, state);
+
+                    var down = codes.All(code => (state[code >> 3] & (1 << (code & 7))) != 0);
+
+                    if (down && !_wasDown)
+                    {
+                        _wasDown = true;
+                        WindowManager.Instance.ShowMainWindow();
+                    }
+                    else if (!down)
+                        _wasDown = false;
+
+                    Thread.Sleep(80);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Could not poll the global hotkey");
+            }
+            finally
+            {
+                if (display != IntPtr.Zero)
+                    XCloseDisplay(display);
+            }
+        }, token);
+    }
+
+    /// <summary>The X11 keysym name for one part of the combination.</summary>
+    private static string? LinuxKeyName(string part)
+    {
+        if (part.Length == 1 && char.IsLetterOrDigit(part[0]))
+            return char.ToLowerInvariant(part[0]).ToString();
+
+        if (part.Length is >= 2 and <= 3 && part[0] is 'f' or 'F'
+                                            && int.TryParse(part[1..], out var function) && function is >= 1 and <= 24)
+            return $"F{function}";
+
+        return part.ToLowerInvariant() switch
+        {
+            "ctrl" or "control" => "Control_L",
+            "shift" => "Shift_L",
+            "alt" => "Alt_L",
+            "win" or "meta" or "super" => "Super_L",
+            "space" => "space",
+            "enter" or "return" => "Return",
+            "tab" => "Tab",
+            "escape" or "esc" => "Escape",
+            "insert" => "Insert",
+            "delete" => "Delete",
+            "home" => "Home",
+            "end" => "End",
+            "pageup" => "Prior",
+            "pagedown" => "Next",
+            "up" => "Up",
+            "down" => "Down",
+            "left" => "Left",
+            "right" => "Right",
+            _ => null
+        };
+    }
+
+    [LibraryImport("libX11.so.6", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial IntPtr XOpenDisplay(string? name);
+
+    [LibraryImport("libX11.so.6")]
+    private static partial int XCloseDisplay(IntPtr display);
+
+    [LibraryImport("libX11.so.6", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial ulong XStringToKeysym(string name);
+
+    [LibraryImport("libX11.so.6")]
+    private static partial byte XKeysymToKeycode(IntPtr display, ulong keysym);
+
+    [LibraryImport("libX11.so.6")]
+    private static partial int XQueryKeymap(IntPtr display, byte[] keys);
 
     [DllImport("user32.dll")]
     private static extern short GetAsyncKeyState(int virtualKey);

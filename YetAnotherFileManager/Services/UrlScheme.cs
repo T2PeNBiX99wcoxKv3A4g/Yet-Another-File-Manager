@@ -9,11 +9,15 @@ namespace YetAnotherFileManager.Services;
 
 /// <summary>
 ///     Registers <c>yafm://</c> with the shell, per user, so a link can open this file manager.
-///     Nothing is installed machine-wide and the entry is removed again when the user turns it off.
+///     Windows writes the scheme under <c>Software\Classes</c>; Linux writes a desktop entry and
+///     points <c>xdg-mime</c> at it. Nothing is installed machine-wide and the entry is removed
+///     again when the user turns it off.
 /// </summary>
 internal static class UrlScheme
 {
     private const string Scheme = "yafm";
+    private const string MimeType = "x-scheme-handler/yafm";
+    private const string DesktopName = "yafm-url.desktop";
     private const string KeyPath = $@"Software\Classes\{Scheme}";
     private const string CommandPath = $@"{KeyPath}\shell\open\command";
 
@@ -23,25 +27,47 @@ internal static class UrlScheme
     /// </summary>
     public static SchemeStatusPayload Status()
     {
+        if (OperatingSystem.IsLinux())
+            return StatusLinux();
+
         if (!OperatingSystem.IsWindows())
             return new(false, false, null);
 
+        return StatusOf(ReadWindowsExecutable());
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static string? ReadWindowsExecutable()
+    {
         string? command = null;
 
         Try.Run(() => command = Registry.CurrentUser.OpenSubKey(CommandPath)?.GetValue(null) as string)
             .OnFailure(ex => Log.Debug(ex, "Could not read the yafm:// registration"));
 
-        var registeredPath = RegistryCommand.Executable(command);
+        return RegistryCommand.Executable(command);
+    }
+
+    [SupportedOSPlatform("linux")]
+    private static SchemeStatusPayload StatusLinux()
+    {
+        var desktop = LinuxDesktop.Query(MimeType);
+        return desktop.Length == 0
+            ? new(false, false, null)
+            : StatusOf(LinuxDesktop.ExecutableOf(desktop) ?? desktop);
+    }
+
+    private static SchemeStatusPayload StatusOf(string? executable)
+    {
         var current = Environment.ProcessPath;
 
-        var matches = registeredPath is { Length: > 0 } && current is { Length: > 0 }
+        var matches = executable is { Length: > 0 } && current is { Length: > 0 }
                                                                 && Try.Run(() => string.Equals(
-                                                                    Path.GetFullPath(registeredPath),
+                                                                    Path.GetFullPath(executable),
                                                                     Path.GetFullPath(current),
                                                                     StringComparison.OrdinalIgnoreCase))
                                                                     .GetOrElse(_ => false);
 
-        return new(registeredPath is { Length: > 0 }, matches, registeredPath);
+        return new(executable is { Length: > 0 }, matches, executable);
     }
 
     /// <summary>True when the shell would open this build.</summary>
@@ -49,6 +75,9 @@ internal static class UrlScheme
 
     public static bool Register()
     {
+        if (OperatingSystem.IsLinux())
+            return RegisterLinux();
+
         if (!OperatingSystem.IsWindows())
             return false;
 
@@ -75,12 +104,39 @@ internal static class UrlScheme
         }).GetOrElse(_ => false);
     }
 
-    public static bool Unregister()
+    [SupportedOSPlatform("linux")]
+    private static bool RegisterLinux()
     {
-        if (!OperatingSystem.IsWindows())
+        if (Environment.ProcessPath is not { Length: > 0 } executable)
             return false;
 
-        UnregisterWindows();
+        return Try.Run(() =>
+        {
+            LinuxDesktop.Write(DesktopName,
+                $"""
+                 [Desktop Entry]
+                 Type=Application
+                 Name=Yet Another File Manager (links)
+                 Exec="{executable}" %u
+                 Icon=yafm
+                 Terminal=false
+                 NoDisplay=true
+                 MimeType={MimeType};
+                 """);
+
+            LinuxDesktop.SetDefault(DesktopName, MimeType);
+            return true;
+        }).GetOrElse(_ => false);
+    }
+
+    public static bool Unregister()
+    {
+        if (OperatingSystem.IsLinux())
+            LinuxDesktop.Remove(DesktopName);
+        else if (OperatingSystem.IsWindows())
+            UnregisterWindows();
+        else
+            return false;
 
         return !IsRegistered();
     }

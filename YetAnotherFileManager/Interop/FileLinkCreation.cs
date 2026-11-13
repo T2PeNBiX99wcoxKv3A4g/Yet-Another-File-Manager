@@ -7,11 +7,11 @@ using PhotinoNetUtils.Utils;
 namespace YetAnotherFileManager.Interop;
 
 /// <summary>
-///     Creates the link kinds Windows itself understands: symbolic links for files and folders,
-///     hard links for files on the same volume, and directory junctions. Junctions and hard links
-///     need no special rights; a symbolic link needs Developer Mode or an elevated process.
+///     Creates the link kinds the platform understands: symbolic links for files and folders, hard
+///     links for files on the same volume, and (on Windows) directory junctions. Junctions and hard
+///     links need no special rights on Windows; a symbolic link needs Developer Mode or an elevated
+///     process. On Linux both link kinds map to the standard file system calls.
 /// </summary>
-[SupportedOSPlatform("windows")]
 internal static partial class FileLinkCreation
 {
     public const string SymbolicFile = "symbolic-file";
@@ -41,6 +41,18 @@ internal static partial class FileLinkCreation
         if (File.Exists(link) || Directory.Exists(link))
             return new(false, "Something with that name already exists there.", 0);
 
+        if (OperatingSystem.IsWindows())
+            return CreateWindows(kind, source, link, elevated);
+
+        if (OperatingSystem.IsLinux())
+            return CreateLinux(kind, source, link);
+
+        return new(false, "Links are not supported on this platform.", 0);
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static Result CreateWindows(string kind, string source, string link, bool elevated)
+    {
         try
         {
             switch (kind)
@@ -69,6 +81,36 @@ internal static partial class FileLinkCreation
             while (nativeError.InnerException is not null) nativeError = nativeError.InnerException;
             var errorCode = nativeError is Win32Exception win32 ? win32.NativeErrorCode : 0;
             return new(false, ex.Message, errorCode);
+        }
+    }
+
+    [SupportedOSPlatform("linux")]
+    private static Result CreateLinux(string kind, string source, string link)
+    {
+        try
+        {
+            switch (kind)
+            {
+                case SymbolicFile:
+                    File.CreateSymbolicLink(link, source);
+                    return new(true, "", 0);
+                case SymbolicFolder:
+                    Directory.CreateSymbolicLink(link, source);
+                    return new(true, "", 0);
+                case Hard:
+                    if (LinkNative(source, link) != 0)
+                        return new(false, "The hard link could not be created.",
+                            Marshal.GetLastWin32Error());
+                    return new(true, "", 0);
+                case Junction:
+                    return new(false, "Directory junctions are a Windows feature; use a symbolic link.", 0);
+                default:
+                    return new(false, "Unknown link type.", 0);
+            }
+        }
+        catch (Exception ex)
+        {
+            return new(false, ex.Message, 0);
         }
     }
 
@@ -155,6 +197,9 @@ internal static partial class FileLinkCreation
             CloseHandle(handle);
         }
     }
+
+    [LibraryImport("libc", EntryPoint = "link", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int LinkNative(string existing, string link);
 
     [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", StringMarshalling = StringMarshalling.Utf16,
         SetLastError = true)]

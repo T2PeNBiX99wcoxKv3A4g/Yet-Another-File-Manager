@@ -1151,7 +1151,7 @@ internal partial class FileSystemService : INativeMessageHandler
 
                 // Only archive files pay for opening the container; the result is cached by its
                 // size and timestamp, so a folder listing is not re-reading the same archive.
-                if (!entry.IsDirectory && Archives.IsArchive(info.Name))
+                if (entry is not null && !entry.IsDirectory && Archives.IsArchive(info.Name))
                     entry = entry with
                     {
                         IsEncrypted = Archives.IsEncrypted(info.FullName)

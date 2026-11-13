@@ -42,9 +42,18 @@ internal static class DefaultFileManager
     /// <summary>Whether the registered folder command still points at this executable.</summary>
     public static DefaultManagerStatusPayload Status()
     {
+        if (OperatingSystem.IsLinux())
+            return StatusLinux();
+
         if (!OperatingSystem.IsWindows())
             return new(false, false, null);
 
+        return StatusWindows();
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static DefaultManagerStatusPayload StatusWindows()
+    {
         string? registeredPath = null;
         var active = false;
 
@@ -57,6 +66,20 @@ internal static class DefaultFileManager
             registeredPath = RegistryCommand.Executable(command?.GetValue(null) as string);
         }).OnFailure(ex => Log.Debug(ex, "Could not read the default file manager status"));
 
+        return StatusOf(active, registeredPath);
+    }
+
+    [SupportedOSPlatform("linux")]
+    private static DefaultManagerStatusPayload StatusLinux()
+    {
+        var desktop = LinuxDesktop.Query("inode/directory");
+        return desktop.Length == 0
+            ? new(false, false, null)
+            : StatusOf(true, LinuxDesktop.ExecutableOf(desktop) ?? desktop);
+    }
+
+    private static DefaultManagerStatusPayload StatusOf(bool active, string? registeredPath)
+    {
         var current = Environment.ProcessPath;
         var matches = registeredPath is { Length: > 0 } && current is { Length: > 0 }
                                                         && Try.Run(() => string.Equals(Path.GetFullPath(registeredPath),
@@ -253,9 +276,9 @@ internal static class DefaultFileManager
             return;
 
         if (backup.Value is null)
-            key.DeleteValue(null, false);
+            key.DeleteValue("", false);
         else
-            key.SetValue(null, backup.Value);
+            key.SetValue("", backup.Value);
     }
 
     private static bool IsCurrent(string executable) =>

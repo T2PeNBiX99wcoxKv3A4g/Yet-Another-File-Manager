@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Runtime.Versioning;
 using System.Diagnostics;
 using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Utils;
@@ -15,6 +16,7 @@ namespace YetAnotherFileManager.Services;
 /// </summary>
 internal static class CaseFolders
 {
+    [SupportedOSPlatformGuard("windows")]
     public static bool Supported => OperatingSystem.IsWindows();
 
     public static bool Query(string path) =>

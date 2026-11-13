@@ -829,7 +829,7 @@ internal static class FolderIndex
     // ---- plumbing ----
 
     private static async Task<T?> ReadAsync<T>(string directory, string sql, Func<SqliteDataReader, Task<T>> read,
-        Action<SqliteCommand>? bind = null) where T : class
+        Action<SqliteCommand>? bind = null) where T : class?
     {
         var result = await Try.Run(async () =>
         {
@@ -845,7 +845,7 @@ internal static class FolderIndex
     }
 
     private static async Task<T> ReadOnConnectionAsync<T>(SqliteConnection connection, string sql,
-        Func<SqliteDataReader, Task<T>> read, Action<SqliteCommand>? bind = null)
+        Func<SqliteDataReader, Task<T>> read, Action<SqliteCommand>? bind = null) where T : class?
     {
         await using var command = connection.CreateCommand();
         command.CommandText = sql;

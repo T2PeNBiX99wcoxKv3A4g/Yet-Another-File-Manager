@@ -52,6 +52,9 @@ public sealed class AssociationBackupFile
 
     /// <summary>The Linux <c>inode/directory</c> handler; null when it was never stored.</summary>
     public string? LinuxDefaultManager { get; set; }
+
+    /// <summary>The Linux handler per MIME type before this app took it; null when never stored.</summary>
+    public Dictionary<string, string>? LinuxArchiveDefaults { get; set; }
 }
 
 /// <summary>A folder (or, later, a file) that was opened recently.</summary>

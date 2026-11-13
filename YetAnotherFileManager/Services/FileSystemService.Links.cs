@@ -16,14 +16,14 @@ internal partial class FileSystemService
     private static Task<bool> OpenWithProgramAsync(string filePath, string programPath) =>
         StaThread.RunAsync(() => AssociatedPrograms.Open(filePath, programPath));
 
-    /// <summary>Creates a link normally and asks for elevation only if Windows says it is required.</summary>
+    /// <summary>
+    ///     Creates a link normally and asks for elevation only when Windows says it is required.
+    ///     Linux uses its own symbolic and hard link calls, so the same menu works there.
+    /// </summary>
     private static async Task<LinkPayload> CreateLinkAsync(LinkRequest? request)
     {
         if (request is null || request.Source.Length == 0 || request.Link.Length == 0)
             return new(false, null, Localization.Get("No link was given."));
-
-        if (!OperatingSystem.IsWindows())
-            return new(false, null, Localization.Get("Creating links is a Windows feature."));
 
         var isDirectory = Directory.Exists(request.Source);
 

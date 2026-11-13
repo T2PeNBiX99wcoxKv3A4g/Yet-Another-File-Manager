@@ -187,7 +187,7 @@ internal static partial class LinuxIcons
         });
 
     private static string? ReadDataUrl(string file) =>
-        Try.Run(() =>
+        Try.Run<string?>(() =>
         {
             var mime = Path.GetExtension(file).Equals(".svg", StringComparison.OrdinalIgnoreCase)
                 ? "image/svg+xml"

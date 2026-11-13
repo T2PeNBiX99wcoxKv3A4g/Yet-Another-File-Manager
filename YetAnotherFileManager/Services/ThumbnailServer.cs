@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
-using System.Reflection;
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Text;
@@ -285,7 +284,9 @@ internal partial class ThumbnailServer
 
             if (Path.GetFileNameWithoutExtension(executable).Equals("dotnet", StringComparison.OrdinalIgnoreCase))
             {
-                var assembly = Assembly.GetEntryAssembly()?.Location;
+                // A single-file app has no Assembly.Location; the command line names the entry point
+                // in both layouts (the .dll when the host is dotnet, the apphost otherwise).
+                var assembly = Environment.GetCommandLineArgs().FirstOrDefault();
                 if (string.IsNullOrEmpty(assembly))
                     return null;
 
