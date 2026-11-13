@@ -1,7 +1,7 @@
 import {useEffect, useLayoutEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
-import {useTranslation} from "@photino-net-utils/bridge";
+import {useTranslation} from "../api/i18n";
 import {requestFile} from "../folder-picker";
 import {PanelIcons} from "../panels";
 import {menuInStyle} from "../ui/motion";

@@ -91,7 +91,8 @@ import {TitleBar} from "./components/TitleBar";
 import {TooltipLayer} from "./components/TooltipLayer";
 import {type TabKind, viewTitles} from "./tabs";
 import {buildPanels} from "./panels";
-import {Native, ResizeHandles, type Translate, useTranslation, useWindowCorners} from "@photino-net-utils/bridge";
+import {Native, ResizeHandles, useWindowCorners} from "@photino-net-utils/bridge";
+import {type LocalizationKey, type Translate, useTranslation} from "./api/i18n";
 import {
     applyTimeFormat,
     archiveFile,
@@ -168,7 +169,7 @@ const ClosedTabLimit = 20;
  * The code pages an archive can be read with. 0 lets the archive's own metadata decide; the rest
  * force a legacy code page for the file names, which is what Japanese ZIPs usually need.
  */
-const ArchiveEncodings = [
+const ArchiveEncodings: { value: string; label: LocalizationKey }[] = [
     {value: "0", label: "Auto"},
     {value: "932", label: "Japanese (CP932)"},
     {value: "936", label: "Simplified Chinese (CP936)"},

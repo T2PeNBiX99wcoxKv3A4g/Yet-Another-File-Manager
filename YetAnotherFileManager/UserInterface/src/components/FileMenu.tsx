@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from "react";
-import {useTranslation} from "@photino-net-utils/bridge";
+import {useTranslation} from "../api/i18n";
 import {
     type CompressOptions,
     compressPaths,

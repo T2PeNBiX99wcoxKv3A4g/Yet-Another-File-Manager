@@ -1,6 +1,6 @@
 import {type MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import styled from "styled-components";
-import {useTranslation} from "@photino-net-utils/bridge";
+import {runtimeKey, useTranslation} from "../api/i18n";
 import {
     deleteRecycleEntries,
     emptyRecycleBin,
@@ -429,7 +429,7 @@ export function RecycleView({
             size: previewEntry.size,
             modified: previewEntry.deleted,
             fields: [
-                {label: t("Type"), value: t(typeOf(previewEntry))},
+                {label: t("Type"), value: t(runtimeKey(typeOf(previewEntry)))},
                 {label: t("Original location"), value: previewEntry.originalPath},
                 {label: t("Date deleted"), value: formatDate(previewEntry.deleted)},
                 {
@@ -604,7 +604,7 @@ export function RecycleView({
                                     <Origin>{entry.originalPath}</Origin>
                                     <Deleted>{formatDate(entry.deleted)}</Deleted>
                                     <Size>{entry.isDirectory ? "—" : formatBytes(entry.size)}</Size>
-                                    <Type>{t(typeOf(entry))}</Type>
+                                    <Type>{t(runtimeKey(typeOf(entry)))}</Type>
                                     <RowActions>
                                         {entry.removable && !entry.isOrphan && (
                                             <RowButton

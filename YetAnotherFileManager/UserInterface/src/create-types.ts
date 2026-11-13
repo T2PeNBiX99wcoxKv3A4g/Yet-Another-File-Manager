@@ -1,5 +1,7 @@
+import type {LocalizationKey} from "./api/i18n";
+
 /** The file types the New menu can create, in the order Explorer-like menus usually list them. */
-export const CreateFileTypes: { extension: string; label: string }[] = [
+export const CreateFileTypes: { extension: string; label: LocalizationKey }[] = [
     {extension: ".txt", label: "Text file"},
     {extension: ".md", label: "Markdown file"},
     {extension: ".json", label: "JSON file"},

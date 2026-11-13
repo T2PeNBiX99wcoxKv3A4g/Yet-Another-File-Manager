@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
-import {loadStrings, type Translate, useTranslation} from "@photino-net-utils/bridge";
+import {loadStrings} from "@photino-net-utils/bridge";
+import {type LocalizationKey, type Translate, runtimeKey, useTranslation} from "../api/i18n";
 import styled, {css} from "styled-components";
 import {DefaultViewDefaults, type FileVisibility, getVisibility, type IndexTasks, listIndexTasks} from "../api/files";
 import {clearIconCache, useIconFile, useMediaUrl} from "../api/icons";
@@ -83,7 +84,7 @@ interface SettingsViewProps {
 }
 
 /** The actions the interface can bind; the ids are what settings.toml stores. */
-const ShortcutRows: { id: keyof ShortcutMap; label: string; note: string }[] = [
+const ShortcutRows: { id: keyof ShortcutMap; label: LocalizationKey; note: LocalizationKey }[] = [
     {
         id: "goBack",
         label: "Back",
@@ -108,7 +109,7 @@ const ShortcutRows: { id: keyof ShortcutMap; label: string; note: string }[] = [
     {id: "paste", label: "Paste", note: "Copies or moves the clipboard's files into the current folder."},
     {id: "undo", label: "Undo", note: "Undoes the last file operation in this session."},
     {id: "redo", label: "Redo", note: "Repeats the operation that was just undone."},
-    {id: "delete", label: "Move to recycle bin", note: "Delete is Del by default, not Ctrl+D."},
+    {id: "delete", label: "Move to the recycle bin", note: "Delete is Del by default, not Ctrl+D."},
     {
         id: "deletePermanently",
         label: "Delete permanently",
@@ -154,7 +155,7 @@ interface UpdateDialogState {
 }
 
 /** The choices offered for every timestamp; "custom" reveals the pattern box. */
-const TimeModes: { id: string; label: string }[] = [
+const TimeModes: { id: string; label: LocalizationKey }[] = [
     {id: "system", label: "System"},
     {id: "24", label: "24-hour"},
     {id: "12", label: "12-hour"},
@@ -176,7 +177,7 @@ const LocaleNames: Record<string, string> = {
 };
 
 /** The sections the table of contents jumps to; the ids are what the list shows. */
-const SettingSections: { id: string; label: string }[] = [
+const SettingSections: { id: string; label: LocalizationKey }[] = [
     {id: "application", label: "Application"},
     {id: "startup", label: "Startup"},
     {id: "fonts", label: "Fonts"},
@@ -642,8 +643,8 @@ export function SettingsView({
         }
         : current)), []);
 
-    useEffect(() => onUpdateChangelog((text) => setUpdateDialog((current) =>
-        current ? {...current, changelog: text} : current)), []);
+    useEffect(() => onUpdateChangelog((changelog) => setUpdateDialog((current) =>
+        current ? {...current, changelog: changelog.text} : current)), []);
 
     /** Saves the current pair under the name in the draft, or the two colours when it is blank. */
     const savePreset = async () => {
@@ -1352,11 +1353,11 @@ export function SettingsView({
                             <Row key={role.id}>
                                 <RowText>
                                     <Label>{t(role.label)}</Label>
-                                    <Note>{t("Falls back to {font} until another family is chosen.", {font: t(role.fallback)})}</Note>
+                                    <Note>{t("Falls back to {font} until another family is chosen.", {font: t(runtimeKey(role.fallback))})}</Note>
                                 </RowText>
                                 <RowEnd>
                                     <FontPicker
-                                        defaultLabel={t(role.fallback)}
+                                        defaultLabel={t(runtimeKey(role.fallback))}
                                         disabled={!settings}
                                         fonts={fonts}
                                         onChange={(family) => void setFont(role.id, family)}
@@ -1844,7 +1845,7 @@ export function SettingsView({
 
                 <Section ref={anchor("safety")}>
                     <Head
-                        note="Deleting a protected folder, anything inside a recursive entry, or a folder that contains one always waits for an explicit confirmation."
+                        note="Deleting, moving, renaming or writing to a protected folder, anything inside a recursive entry, or a folder that contains one always waits for an explicit confirmation."
                         title="Safety"
                     />
                     <Rows>
@@ -3099,7 +3100,7 @@ function RecentSwatches({colors, current, onApply}: {
 }
 
 /** The title block above a card; every section explains itself in one line. */
-function Head({title, note, global = false}: { title: string; note: string; global?: boolean }) {
+function Head({title, note, global = false}: { title: LocalizationKey; note: LocalizationKey; global?: boolean }) {
     const t = useTranslation();
 
     return (

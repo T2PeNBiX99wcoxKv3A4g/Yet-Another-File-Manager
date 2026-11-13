@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
-import {useTranslation} from "@photino-net-utils/bridge";
+import {type Translate, useTranslation} from "../api/i18n";
 import type {ProtectedAction, ProtectedHit} from "../api/safety";
 import {fadeInStyle, popInStyle} from "../ui/motion";
 
@@ -83,7 +83,7 @@ export function ProtectedDeleteDialog({action, hits, delaySeconds, permanent, on
 }
 
 /** What the operation would do, in one short line. */
-function modeLabel(t: (key: string) => string, action: ProtectedAction, permanent: boolean): string {
+function modeLabel(t: Translate, action: ProtectedAction, permanent: boolean): string {
     switch (action) {
         case "delete":
             return permanent ? t("Deletes permanently") : t("Moves to the recycle bin");
@@ -97,7 +97,7 @@ function modeLabel(t: (key: string) => string, action: ProtectedAction, permanen
 }
 
 /** Reassurance that nothing has happened yet. */
-function warningLabel(t: (key: string) => string, action: ProtectedAction): string {
+function warningLabel(t: Translate, action: ProtectedAction): string {
     switch (action) {
         case "delete":
             return t("Nothing has been deleted.");
@@ -110,7 +110,7 @@ function warningLabel(t: (key: string) => string, action: ProtectedAction): stri
     }
 }
 
-function confirmLabel(t: (key: string, values?: Record<string, string | number>) => string,
+function confirmLabel(t: Translate,
                       action: ProtectedAction, seconds: number): string {
     const key = seconds > 0
         ? action === "delete" ? "Delete anyway ({seconds}s)"

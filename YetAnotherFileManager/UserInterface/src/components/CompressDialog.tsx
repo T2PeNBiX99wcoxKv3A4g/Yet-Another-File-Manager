@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
-import {useTranslation} from "@photino-net-utils/bridge";
+import {runtimeKey, useTranslation} from "../api/i18n";
 import type {CompressOptions} from "../api/operations";
 import {requestFolder} from "../folder-picker";
 import {fadeInStyle, popInStyle} from "../ui/motion";
@@ -134,7 +134,7 @@ export function CompressDialog({initialDirectory, initialName, onCancel, onCompr
                     <Label>{t("Format")}</Label>
                     <SelectMenu
                         onChange={(value) => setFormat(value as CompressOptions["format"])}
-                        options={Formats.map((item) => ({value: item.value, label: t(item.label)}))}
+                        options={Formats.map((item) => ({value: item.value, label: t(runtimeKey(item.label))}))}
                         value={format}
                         width={236}
                         zIndex={3700}
@@ -145,7 +145,7 @@ export function CompressDialog({initialDirectory, initialName, onCancel, onCompr
                     <SelectMenu
                         disabled={!zipFormat}
                         onChange={setMethod}
-                        options={Methods.map((item) => ({...item, label: t(item.label)}))}
+                        options={Methods.map((item) => ({...item, label: t(runtimeKey(item.label))}))}
                         value={zipFormat ? method : "default"}
                         width={236}
                         zIndex={3700}
@@ -159,7 +159,7 @@ export function CompressDialog({initialDirectory, initialName, onCancel, onCompr
                             setEncryption(value);
                             if (value === "none") setPassword("");
                         }}
-                        options={Encryptions.map((item) => ({...item, label: t(item.label)}))}
+                        options={Encryptions.map((item) => ({...item, label: t(runtimeKey(item.label))}))}
                         value={canEncrypt ? encryption : "none"}
                         width={236}
                         zIndex={3700}
@@ -181,7 +181,7 @@ export function CompressDialog({initialDirectory, initialName, onCancel, onCompr
                     <SelectMenu
                         disabled={!canSplit}
                         onChange={setSplit}
-                        options={Splits.map((item) => ({...item, label: t(item.label)}))}
+                        options={Splits.map((item) => ({...item, label: t(runtimeKey(item.label))}))}
                         value={canSplit ? split : "0"}
                         width={236}
                         zIndex={3700}
@@ -192,7 +192,7 @@ export function CompressDialog({initialDirectory, initialName, onCancel, onCompr
                     <SelectMenu
                         disabled={!chosenFormat.level}
                         onChange={setLevel}
-                        options={Levels.map((item) => ({...item, label: t(item.label)}))}
+                        options={Levels.map((item) => ({...item, label: t(runtimeKey(item.label))}))}
                         value={chosenFormat.level ? level : format === "tar" ? "0" : "-1"}
                         width={236}
                         zIndex={3700}

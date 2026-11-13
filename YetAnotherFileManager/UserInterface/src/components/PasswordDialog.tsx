@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
-import {useTranslation} from "@photino-net-utils/bridge";
+import {useTranslation} from "../api/i18n";
 import {setPasswordAsker} from "../api/dialogs";
 import {fadeInStyle, popInStyle} from "../ui/motion";
 

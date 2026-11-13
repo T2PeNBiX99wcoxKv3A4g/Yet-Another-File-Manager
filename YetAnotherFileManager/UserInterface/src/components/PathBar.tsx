@@ -1,7 +1,7 @@
 import {type ReactNode, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
-import {useTranslation} from "@photino-net-utils/bridge";
+import {useTranslation} from "../api/i18n";
 import {listDirectory, type Place} from "../api/files";
 import {getSharePeers, isShareLocation, parseShareLocation, shareLocation} from "../api/share";
 import {openWith, showProperties} from "../api/operations";

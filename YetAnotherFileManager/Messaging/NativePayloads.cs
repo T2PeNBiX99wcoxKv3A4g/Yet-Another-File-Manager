@@ -8,7 +8,7 @@ namespace YetAnotherFileManager.Messaging;
 /// <summary>Body for a bare <c>{ "ok": true }</c> acknowledgement.</summary>
 internal sealed record OkPayload(bool Ok = true);
 
-/// <summary>Payload for <c>app.openUrl</c>: the address to hand to the default browser.</summary>
+/// <summary>Payload for <c>system.openUrl</c>: the address to hand to the default browser.</summary>
 internal sealed record UrlPayload(string Url);
 
 /// <summary>Body for <c>app.fonts</c>: every family the operating system offers.</summary>

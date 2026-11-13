@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
-import {type Translate, useTranslation} from "@photino-net-utils/bridge";
+import {type Translate, useTranslation} from "../api/i18n";
 import {type HistoryEntry, listHistory, undoHistory} from "../api/history";
 import {formatClock} from "../utils/format";
 import {elevatedPanel} from "../ui/panel";

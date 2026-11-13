@@ -1,9 +1,10 @@
 import {Native} from "@photino-net-utils/bridge";
+import type {LocalizationKey} from "./api/i18n";
 
 /** One part of the interface the user can give its own font family. */
 export interface FontRole {
     id: string;
-    label: string;
+    label: LocalizationKey;
     /** What the preview shows in the picker. */
     sample: string;
     /** The CSS variable every component with that role reads. */

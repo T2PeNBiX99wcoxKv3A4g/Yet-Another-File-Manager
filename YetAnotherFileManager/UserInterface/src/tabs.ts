@@ -1,4 +1,5 @@
 import type {Place} from "./api/files";
+import type {LocalizationKey} from "./api/i18n";
 
 /** What a tab shows: a folder, or one of the app's own pages. */
 export type TabKind = "files" | "home" | "settings" | "recycle" | "gallery";
@@ -19,7 +20,7 @@ export interface TabInfo {
 }
 
 /** Titles for the pages that are not a folder. */
-export const viewTitles: Record<Exclude<TabKind, "files">, string> = {
+export const viewTitles: Record<Exclude<TabKind, "files">, LocalizationKey> = {
     home: "Overview",
     settings: "Settings",
     recycle: "Recycle Bin",

@@ -1,6 +1,6 @@
 import {startTransition, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import styled from "styled-components";
-import {useTranslation} from "@photino-net-utils/bridge";
+import {useTranslation} from "../api/i18n";
 import {
     type DirectoryListing,
     type FileEntry,

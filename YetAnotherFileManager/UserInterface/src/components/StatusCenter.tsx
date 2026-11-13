@@ -1,6 +1,6 @@
 import {useEffect, useRef} from "react";
 import styled from "styled-components";
-import {useTranslation} from "@photino-net-utils/bridge";
+import {useTranslation} from "../api/i18n";
 import type {TaskInfo} from "../api/tasks";
 import {formatBytes, plural} from "../utils/format";
 import {CheckIcon, CrossIcon, StatusIcon} from "./Icons";

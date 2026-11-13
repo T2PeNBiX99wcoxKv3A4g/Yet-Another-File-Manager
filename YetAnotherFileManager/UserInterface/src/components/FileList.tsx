@@ -33,7 +33,7 @@ import {canPreview, PreviewKindLabels, previewKindOf} from "../preview";
 import {quickPlace, useQuickAccess} from "../quick";
 import {baseName, formatBytes, formatDate, plural, samePath} from "../utils/format";
 import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "../storage";
-import {type Translate, useTranslation} from "@photino-net-utils/bridge";
+import {type LocalizationKey, type Translate, runtimeKey, useTranslation} from "../api/i18n";
 import {CheckIcon, CutIcon, FolderIcon, LinkIcon, LockIcon} from "./Icons";
 import {type ArchiveExtractMode, FileMenu} from "./FileMenu";
 import {CompressDialog} from "./CompressDialog";
@@ -54,7 +54,7 @@ const PreviewLimit = 60;
 const RowPage = 300;
 
 /** The columns the list can show besides the name. `linkTarget` is drawn inside the name cell. */
-export const ViewColumns: { id: string; label: string; width: number }[] = [
+export const ViewColumns: { id: string; label: LocalizationKey; width: number }[] = [
     {id: "type", label: "Type", width: 150},
     {id: "size", label: "Size", width: 100},
     {id: "modified", label: "Modified", width: 150},
@@ -1770,7 +1770,7 @@ function gridIconSize(gridSize: number): number {
 }
 
 /** Human labels for the file categories the extension map knows. */
-const TypeLabels: Record<string, string> = {
+const TypeLabels: Record<string, LocalizationKey> = {
     file: "File",
     folder: "Folder",
     text: "Text file",
@@ -2189,7 +2189,7 @@ function GridContent({
             {groups.map((group) => (
                 <GridSection key={group.id}>
                     <GridHeader>
-                        {t(group.label)}
+                        {t(runtimeKey(group.label))}
                         <GridCount>{group.rows.length}</GridCount>
                         <GridRule/>
                     </GridHeader>

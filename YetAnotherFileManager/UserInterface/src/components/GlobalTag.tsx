@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import {useTranslation} from "@photino-net-utils/bridge";
+import {useTranslation} from "../api/i18n";
 
 /** Marks a view setting that applies to every folder, not only the one on screen. */
 export function GlobalTag() {

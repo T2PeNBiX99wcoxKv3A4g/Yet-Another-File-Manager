@@ -65,20 +65,20 @@ internal partial class AppInfoService
     }
 
     /// <summary>Hands a URL to the shell, so the release page opens in the user's browser.</summary>
-    [NativeMessage("app.openUrl")]
+    [NativeMessage("system.openUrl")]
     private static NativeResponse OpenUrl(NativeContext context)
     {
         var url = context.Payload<UrlPayload>()?.Url;
 
         if (string.IsNullOrWhiteSpace(url))
-            return context.Fail("app.openUrl.result", Localization.Get("No URL was given."));
+            return context.Fail("system.openUrl.result", Localization.Get("No URL was given."));
 
         var opened = Try.Run(() => SystemLauncher.Open(url))
             .OnFailure(exception => Serilog.Log.Warning(exception, "Could not open {Url}", url))
             .IsSuccess;
 
         return opened
-            ? context.Reply("app.openUrl.result", new OkPayload())
-            : context.Fail("app.openUrl.result", Localization.Get("Could not open the link."));
+            ? context.Reply("system.openUrl.result", new OkPayload())
+            : context.Fail("system.openUrl.result", Localization.Get("Could not open the link."));
     }
 }

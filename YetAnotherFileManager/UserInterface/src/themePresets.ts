@@ -1,6 +1,8 @@
+import type {LocalizationKey} from "./api/i18n";
+
 /** Two colours a preset applies at once, like a Windows accent palette does with one. */
 export interface ThemePreset {
-    name: string;
+    name: LocalizationKey;
     accent: string;
     secondary: string;
 }

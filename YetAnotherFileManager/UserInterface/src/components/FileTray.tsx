@@ -1,6 +1,6 @@
 import {type DragEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState} from "react";
 import styled from "styled-components";
-import {useTranslation} from "@photino-net-utils/bridge";
+import {useTranslation} from "../api/i18n";
 import {PathIcon} from "./PathIcon";
 import {CheckIcon, CrossIcon, PackageIcon} from "./Icons";
 import {elevatedPanel} from "../ui/panel";

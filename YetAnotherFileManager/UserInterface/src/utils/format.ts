@@ -4,8 +4,8 @@ import type {Translate} from "@photino-net-utils/bridge";
  * Picks the singular or plural English key, so a sentence reads naturally in English instead of
  * carrying a "(s)" marker. Languages without plural forms translate both keys the same way.
  */
-export function plural(t: Translate, count: number, one: string, many: string,
-                       params: Record<string, string | number> = {}): string {
+export function plural<TKey extends string>(t: Translate<TKey>, count: number, one: TKey, many: TKey,
+                                            params: Record<string, string | number> = {}): string {
     return t(count === 1 ? one : many, {count, ...params});
 }
 
