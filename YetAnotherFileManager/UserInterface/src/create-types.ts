@@ -1,4 +1,4 @@
-import type {LocalizationKey} from "./api/i18n";
+import type {LocalizationKey} from "@photino-net-utils/bridge";
 
 /** The file types the New menu can create, in the order Explorer-like menus usually list them. */
 export const CreateFileTypes: { extension: string; label: LocalizationKey }[] = [

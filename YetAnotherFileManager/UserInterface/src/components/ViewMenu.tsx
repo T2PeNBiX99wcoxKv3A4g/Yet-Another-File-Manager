@@ -1,11 +1,11 @@
 import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
-import {useTranslation} from "../api/i18n";
 import type {DirectoryView, ResolvedView} from "../api/files";
 import {GlobalTag} from "./GlobalTag";
 import {elevatedPanel} from "../ui/panel";
 import {ViewColumns, ResetColumnWidthsEvent} from "./FileList";
 import {GridIcon, ListIcon} from "./Icons";
+import {useTranslation} from "@photino-net-utils/bridge";
 
 interface ViewMenuProps {
     view: ResolvedView;

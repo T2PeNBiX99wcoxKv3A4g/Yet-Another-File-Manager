@@ -1,9 +1,9 @@
 import {useEffect, useRef} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
-import {useTranslation} from "../api/i18n";
 import {fadeInStyle, popInStyle} from "../ui/motion";
 import {ServerIcon} from "./Icons";
+import {useTranslation} from "@photino-net-utils/bridge";
 
 /** The confirmation another device's pairing request produces. The code must match both screens. */
 export function SharePairDialog({deviceName, code, onAccept, onReject}: {

@@ -4,7 +4,7 @@ import driftPoster from "./videos/drift.jpg";
 import driftVideo from "./videos/drift.mp4";
 import emberPoster from "./videos/ember.jpg";
 import emberVideo from "./videos/ember.mp4";
-import type {LocalizationKey} from "../api/i18n";
+import type {LocalizationKey} from "@photino-net-utils/bridge";
 import {type ThemePreset, ThemePresets} from "../themePresets";
 
 /**

@@ -1,9 +1,9 @@
 import {useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
-import {useTranslation} from "../api/i18n";
 import {setMessageAsker} from "../api/dialogs";
 import {fadeInStyle, popInStyle} from "../ui/motion";
+import {useTranslation} from "@photino-net-utils/bridge";
 
 /** The window's themed replacement for `window.alert`; one message at a time. */
 export function MessageDialog() {

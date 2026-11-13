@@ -1,11 +1,11 @@
 import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
-import {type Translate, useTranslation} from "../api/i18n";
 import {type HistoryEntry, listHistory, undoHistory} from "../api/history";
 import {formatClock} from "../utils/format";
 import {elevatedPanel} from "../ui/panel";
 import {panelInStyle} from "../ui/motion";
 import {ArchiveIcon, ArrowRightIcon, ClockIcon, CopyIcon, CrossIcon, PencilIcon, PlusIcon, TrashIcon} from "./Icons";
+import {type Translate, useTranslation} from "@photino-net-utils/bridge";
 
 /** The panel's session history, newest first, with an undo button per row. */
 export function HistoryPanel() {

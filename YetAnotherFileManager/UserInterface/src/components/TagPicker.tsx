@@ -1,9 +1,9 @@
 import {useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
-import {useTranslation} from "../api/i18n";
 import {popInStyle} from "../ui/motion";
 import {CheckIcon, CrossIcon} from "./Icons";
+import {useTranslation} from "@photino-net-utils/bridge";
 
 /** The color a tag gets until the user picks one. */
 export const DefaultTagColor = "#64748b";

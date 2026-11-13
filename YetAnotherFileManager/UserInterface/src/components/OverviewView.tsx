@@ -28,8 +28,7 @@ import {type AppSettings, getSettings, saveSettings} from "../api/settings";
 import {type PageFind, useTextSearch} from "../ui/textSearch";
 import {requestFile, requestFolder} from "../folder-picker";
 import {useMediaUrl} from "../api/icons";
-import {Native} from "@photino-net-utils/bridge";
-import {runtimeKey, useTranslation} from "../api/i18n";
+import {type LocalizationKey, Native, useTranslation} from "@photino-net-utils/bridge";
 import {FileList} from "./FileList";
 import {
     ArrowUpIcon,
@@ -2879,7 +2878,7 @@ export function OverviewView({
                                                         }}
                                                     />
                                                 )
-                                                : <Title>{t(runtimeKey(panel.title))}</Title>}
+                                                : <Title>{t(panel.title as LocalizationKey)}</Title>}
                                         </HeadStart>
 
                                         <HeadEnd>

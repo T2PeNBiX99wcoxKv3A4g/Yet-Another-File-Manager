@@ -1,10 +1,10 @@
 import {type PointerEvent as ReactPointerEvent, useEffect, useRef, useState} from "react";
 import styled from "styled-components";
-import {useTranslation} from "../api/i18n";
 import {previewText, type TextPreview} from "../api/files";
 import {useArchiveEntryPath, useIcon, useMediaUrl, usePdfPreview, useThumbnail} from "../api/icons";
 import {readStoredNumber, writeStoredNumber} from "../storage";
 import {FileIcon, FolderIcon, PlayIcon} from "./Icons";
+import {useTranslation} from "@photino-net-utils/bridge";
 
 export interface PreviewInfo {
     name: string;

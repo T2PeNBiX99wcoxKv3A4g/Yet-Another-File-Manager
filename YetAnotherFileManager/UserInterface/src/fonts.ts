@@ -1,5 +1,5 @@
 import {Native} from "@photino-net-utils/bridge";
-import type {LocalizationKey} from "./api/i18n";
+import type {LocalizationKey} from "@photino-net-utils/bridge";
 
 /** One part of the interface the user can give its own font family. */
 export interface FontRole {

@@ -1,11 +1,11 @@
 import {type DragEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState} from "react";
 import styled from "styled-components";
-import {useTranslation} from "../api/i18n";
 import {PathIcon} from "./PathIcon";
 import {CheckIcon, CrossIcon, PackageIcon} from "./Icons";
 import {elevatedPanel} from "../ui/panel";
 import {popInStyle} from "../ui/motion";
 import {parentPath} from "../utils/format";
+import {useTranslation} from "@photino-net-utils/bridge";
 
 /** One entry the tray holds; it can come from an in-app copy, a cut, or the system clipboard. */
 export interface TrayItem {

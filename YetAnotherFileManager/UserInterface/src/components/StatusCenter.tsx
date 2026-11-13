@@ -1,12 +1,12 @@
 import {useEffect, useRef} from "react";
 import styled from "styled-components";
-import {useTranslation} from "../api/i18n";
 import type {TaskInfo} from "../api/tasks";
 import {formatBytes, plural} from "../utils/format";
 import {CheckIcon, CrossIcon, StatusIcon} from "./Icons";
 import {CountBadge} from "./CountBadge";
 import {elevatedPanel} from "../ui/panel";
 import {fadeInStyle, panelInStyle} from "../ui/motion";
+import {useTranslation} from "@photino-net-utils/bridge";
 
 interface StatusCenterProps {
     tasks: TaskInfo[];

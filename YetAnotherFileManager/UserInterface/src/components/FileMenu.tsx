@@ -1,5 +1,4 @@
 import {useEffect, useRef, useState} from "react";
-import {useTranslation} from "../api/i18n";
 import {
     type CompressOptions,
     compressPaths,
@@ -25,6 +24,7 @@ import {prettyShortcut, type ShortcutMap} from "../shortcuts";
 import {CreateFileTypes} from "../create-types";
 import {baseName, isArchiveLocation, isArchivePath, normalizePath} from "../utils/format";
 import {setLinkSource, useLinkSource} from "../ui/linkSource";
+import {useTranslation} from "@photino-net-utils/bridge";
 import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
 import {
     AppIcon,

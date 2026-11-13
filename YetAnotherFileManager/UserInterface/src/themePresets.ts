@@ -1,4 +1,4 @@
-import type {LocalizationKey} from "./api/i18n";
+import type {LocalizationKey} from "@photino-net-utils/bridge";
 
 /** Two colours a preset applies at once, like a Windows accent palette does with one. */
 export interface ThemePreset {

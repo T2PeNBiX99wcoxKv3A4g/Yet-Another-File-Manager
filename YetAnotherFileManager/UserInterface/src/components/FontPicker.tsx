@@ -1,9 +1,9 @@
 import {useEffect, useMemo, useRef, useState} from "react";
 import {createPortal} from "react-dom";
-import {useTranslation} from "../api/i18n";
 import styled from "styled-components";
 import {menuInStyle} from "../ui/motion";
 import {CheckIcon, SearchIcon} from "./Icons";
+import {useTranslation} from "@photino-net-utils/bridge";
 
 interface FontPickerProps {
     /** The chosen family, or null/empty for the role's built-in font. */

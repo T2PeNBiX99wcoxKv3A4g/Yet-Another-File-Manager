@@ -1,7 +1,7 @@
 // Regenerates the TypeScript views of the C# settings model and of the translation files with the
 // shared code generator. A setting cannot be added on one side only (settings.generated.ts is what
-// api/settings.ts is checked against), and a translation key that is renamed or removed breaks the
-// build at every call site, because the union in i18n.generated.ts is the key type of t().
+// api/settings.ts is checked against), and a renamed translation key breaks the build at every call
+// site, because i18n.generated.ts augments the bridge's LocalizationKeys interface.
 import {spawnSync} from "node:child_process";
 import {existsSync} from "node:fs";
 import path from "node:path";

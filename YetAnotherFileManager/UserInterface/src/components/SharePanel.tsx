@@ -1,6 +1,5 @@
 import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
-import {useTranslation} from "../api/i18n";
 import {addShare, getShares, removeShare, setShareMode, type ShareList,} from "../api/share";
 import {openUrl} from "../api/system";
 import {elevatedPanel} from "../ui/panel";
@@ -8,6 +7,7 @@ import {samePath} from "../utils/format";
 import {panelInStyle} from "../ui/motion";
 import {AppIcon, CrossIcon, GlobeIcon, PlusIcon, ServerIcon} from "./Icons";
 import {CountBadge} from "./CountBadge";
+import {useTranslation} from "@photino-net-utils/bridge";
 
 /** The title bar's share panel: the folders this device offers and how each one is reachable. */
 export function SharePanel({currentFolder}: { currentFolder: string }) {

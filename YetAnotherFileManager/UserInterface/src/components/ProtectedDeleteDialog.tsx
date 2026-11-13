@@ -1,9 +1,9 @@
 import {useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
-import {type Translate, useTranslation} from "../api/i18n";
 import type {ProtectedAction, ProtectedHit} from "../api/safety";
 import {fadeInStyle, popInStyle} from "../ui/motion";
+import {type Translate, useTranslation} from "@photino-net-utils/bridge";
 
 /**
  * The last stop before an operation touches a protected path. The confirm button is dead for the

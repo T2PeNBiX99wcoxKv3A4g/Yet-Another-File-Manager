@@ -1,9 +1,9 @@
 import {useEffect, useRef} from "react";
 import styled from "styled-components";
-import {useTranslation} from "../api/i18n";
 import type {FindMode} from "../find";
 import {slideDownStyle} from "../ui/motion";
 import {CheckIcon, ChevronRightIcon, CrossIcon, EyeIcon, EyeOffIcon, SearchIcon} from "./Icons";
+import {useTranslation} from "@photino-net-utils/bridge";
 
 interface FindBarProps {
     query: string;

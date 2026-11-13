@@ -1,6 +1,5 @@
 import {useEffect, useState} from "react";
-import {Native} from "@photino-net-utils/bridge";
-import {runtimeKey, useTranslation} from "../api/i18n";
+import {type LocalizationKey, Native, useTranslation} from "@photino-net-utils/bridge";
 import styled from "styled-components";
 import {
     type DirectoryListing,
@@ -139,7 +138,7 @@ export function Sidebar({
                 <Menu key={panel.id}>
                     <Item as="div" $active={false}>
                         <Glyph><PanelGlyph panel={panel} size={16}/></Glyph>
-                        <Label>{t(runtimeKey(panel.title))}</Label>
+                        <Label>{t(panel.title as LocalizationKey)}</Label>
                     </Item>
                     <Sub>
                         <Inner>

@@ -1,7 +1,6 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import styled from "styled-components";
-import {useWindowControls, useWindowDrag} from "@photino-net-utils/bridge";
-import {useTranslation} from "../api/i18n";
+import {useWindowControls, useWindowDrag, useTranslation} from "@photino-net-utils/bridge";
 import type {TabInfo} from "../tabs";
 import type {DirectoryView, ResolvedView} from "../api/files";
 import {prettyShortcut, type ShortcutMap} from "../shortcuts";

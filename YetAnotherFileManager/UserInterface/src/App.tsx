@@ -91,8 +91,7 @@ import {TitleBar} from "./components/TitleBar";
 import {TooltipLayer} from "./components/TooltipLayer";
 import {type TabKind, viewTitles} from "./tabs";
 import {buildPanels} from "./panels";
-import {Native, ResizeHandles, useWindowCorners} from "@photino-net-utils/bridge";
-import {type LocalizationKey, type Translate, useTranslation} from "./api/i18n";
+import {Native, ResizeHandles, useWindowCorners, type LocalizationKey, type Translate, useTranslation} from "@photino-net-utils/bridge";
 import {
     applyTimeFormat,
     archiveFile,

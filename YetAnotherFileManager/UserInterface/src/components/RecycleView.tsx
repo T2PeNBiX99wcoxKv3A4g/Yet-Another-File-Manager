@@ -1,6 +1,5 @@
 import {type MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import styled from "styled-components";
-import {runtimeKey, useTranslation} from "../api/i18n";
 import {
     deleteRecycleEntries,
     emptyRecycleBin,
@@ -23,6 +22,7 @@ import RestoreSvg from "./icons/restore.svg?react";
 import {ConfirmDialog} from "./ConfirmDialog";
 import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
 import {type PreviewInfo, PreviewPane} from "./PreviewPane";
+import {type LocalizationKey, useTranslation} from "@photino-net-utils/bridge";
 
 type SortColumn = "name" | "original" | "deleted" | "size" | "type";
 
@@ -429,7 +429,7 @@ export function RecycleView({
             size: previewEntry.size,
             modified: previewEntry.deleted,
             fields: [
-                {label: t("Type"), value: t(runtimeKey(typeOf(previewEntry)))},
+                {label: t("Type"), value: t(typeOf(previewEntry) as LocalizationKey)},
                 {label: t("Original location"), value: previewEntry.originalPath},
                 {label: t("Date deleted"), value: formatDate(previewEntry.deleted)},
                 {
@@ -604,7 +604,7 @@ export function RecycleView({
                                     <Origin>{entry.originalPath}</Origin>
                                     <Deleted>{formatDate(entry.deleted)}</Deleted>
                                     <Size>{entry.isDirectory ? "—" : formatBytes(entry.size)}</Size>
-                                    <Type>{t(runtimeKey(typeOf(entry)))}</Type>
+                                    <Type>{t(typeOf(entry) as LocalizationKey)}</Type>
                                     <RowActions>
                                         {entry.removable && !entry.isOrphan && (
                                             <RowButton

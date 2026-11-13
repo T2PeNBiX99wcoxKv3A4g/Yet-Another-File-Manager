@@ -1,5 +1,5 @@
 import type {Place} from "./api/files";
-import type {LocalizationKey} from "./api/i18n";
+import type {LocalizationKey} from "@photino-net-utils/bridge";
 
 /** What a tab shows: a folder, or one of the app's own pages. */
 export type TabKind = "files" | "home" | "settings" | "recycle" | "gallery";

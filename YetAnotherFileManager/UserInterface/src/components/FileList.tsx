@@ -33,7 +33,6 @@ import {canPreview, PreviewKindLabels, previewKindOf} from "../preview";
 import {quickPlace, useQuickAccess} from "../quick";
 import {baseName, formatBytes, formatDate, plural, samePath} from "../utils/format";
 import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "../storage";
-import {type LocalizationKey, type Translate, runtimeKey, useTranslation} from "../api/i18n";
 import {CheckIcon, CutIcon, FolderIcon, LinkIcon, LockIcon} from "./Icons";
 import {type ArchiveExtractMode, FileMenu} from "./FileMenu";
 import {CompressDialog} from "./CompressDialog";
@@ -46,6 +45,7 @@ import {isPathDrag, readDraggedPaths, writeDraggedPaths} from "./FileTray";
 import {showMessage} from "../api/dialogs";
 import {downloadSharedFile, isShareLocation} from "../api/share";
 import {setSelectionMenu} from "../ui/selectionMenu";
+import {type LocalizationKey, type Translate, useTranslation} from "@photino-net-utils/bridge";
 
 /** The strip is a glance, not a gallery; thousands of thumbnails would stall the window. */
 const PreviewLimit = 60;
@@ -2189,7 +2189,7 @@ function GridContent({
             {groups.map((group) => (
                 <GridSection key={group.id}>
                     <GridHeader>
-                        {t(runtimeKey(group.label))}
+                        {t(group.label as LocalizationKey)}
                         <GridCount>{group.rows.length}</GridCount>
                         <GridRule/>
                     </GridHeader>

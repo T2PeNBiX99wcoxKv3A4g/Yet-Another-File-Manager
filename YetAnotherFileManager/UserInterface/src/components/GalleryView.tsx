@@ -1,6 +1,5 @@
 import {startTransition, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import styled from "styled-components";
-import {useTranslation} from "../api/i18n";
 import {
     type DirectoryListing,
     type FileEntry,
@@ -19,6 +18,7 @@ import {useSelectionMenu} from "../ui/selectionMenu";
 import {type PreviewInfo, PreviewPane} from "./PreviewPane";
 import {type FindView, matchesName, NoFind} from "../find";
 import type {PageFind} from "../ui/textSearch";
+import {useTranslation} from "@photino-net-utils/bridge";
 
 /** How many pictures one request carries; the rest are prefetched before the bottom is reached. */
 const PageSize = 150;

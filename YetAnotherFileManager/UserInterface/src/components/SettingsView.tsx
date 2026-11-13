@@ -1,7 +1,6 @@
 import {useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
-import {loadStrings} from "@photino-net-utils/bridge";
-import {type LocalizationKey, type Translate, runtimeKey, useTranslation} from "../api/i18n";
+import {loadStrings, type LocalizationKey, type Translate, useTranslation} from "@photino-net-utils/bridge";
 import styled, {css} from "styled-components";
 import {DefaultViewDefaults, type FileVisibility, getVisibility, type IndexTasks, listIndexTasks} from "../api/files";
 import {clearIconCache, useIconFile, useMediaUrl} from "../api/icons";
@@ -1353,11 +1352,11 @@ export function SettingsView({
                             <Row key={role.id}>
                                 <RowText>
                                     <Label>{t(role.label)}</Label>
-                                    <Note>{t("Falls back to {font} until another family is chosen.", {font: t(runtimeKey(role.fallback))})}</Note>
+                                    <Note>{t("Falls back to {font} until another family is chosen.", {font: t(role.fallback as LocalizationKey)})}</Note>
                                 </RowText>
                                 <RowEnd>
                                     <FontPicker
-                                        defaultLabel={t(runtimeKey(role.fallback))}
+                                        defaultLabel={t(role.fallback as LocalizationKey)}
                                         disabled={!settings}
                                         fonts={fonts}
                                         onChange={(family) => void setFont(role.id, family)}

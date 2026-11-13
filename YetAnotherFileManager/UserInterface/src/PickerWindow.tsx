@@ -1,7 +1,6 @@
 import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
-import {Native, ResizeHandles, useWindowDrag} from "@photino-net-utils/bridge";
-import {useTranslation} from "./api/i18n";
+import {Native, ResizeHandles, useWindowDrag, useTranslation} from "@photino-net-utils/bridge";
 import {type AppSettings, getSettings} from "./api/settings";
 import {DefaultViewDefaults, type DirectoryView, type ResolvedView} from "./api/files";
 import {type ProtectedPrompt, setProtectedAsker} from "./api/safety";

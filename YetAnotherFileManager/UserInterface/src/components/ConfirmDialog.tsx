@@ -1,8 +1,8 @@
 import {useEffect, useRef} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
-import {useTranslation} from "../api/i18n";
 import {fadeInStyle, popInStyle} from "../ui/motion";
+import {useTranslation} from "@photino-net-utils/bridge";
 
 interface ConfirmDialogProps {
     open: boolean;
