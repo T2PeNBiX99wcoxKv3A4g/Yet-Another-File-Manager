@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Reflection;
 using JetBrains.Annotations;
 using PhotinoNetUtils;
 using PhotinoNetUtils.Extensions;
@@ -14,14 +15,13 @@ namespace YetAnotherFileManager.Services;
 [Singleton]
 internal partial class AppInfoService
 {
+    private static readonly Assembly Build = typeof(AppInfoService).Assembly;
+
     /// <summary>The version declared in the csproj (<c>&lt;Version&gt;</c>).</summary>
-    [PublicAPI] public static readonly string Version =
-        typeof(AppInfoService).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+    [PublicAPI] public static readonly string Version = BuildInfo.VersionOf(Build);
 
     /// <summary>Lower-case platform id, so the UI can adapt platform-specific actions.</summary>
-    [PublicAPI] public static readonly string Platform =
-        OperatingSystem.IsWindows() ? "windows" :
-        OperatingSystem.IsLinux() ? "linux" : "unknown";
+    [PublicAPI] public static readonly string Platform = BuildInfo.Platform;
 
     /// <summary>True for a development build, so the interface can say so in the status bar.</summary>
 #if DEBUG
@@ -34,7 +34,7 @@ internal partial class AppInfoService
     ///     Changes whenever this build does. The interface is always served from the same address, so
     ///     this is what tells the web view that what it cached belongs to an older build.
     /// </summary>
-    [PublicAPI] public static readonly string BuildToken = ResolveBuildToken();
+    [PublicAPI] public static readonly string BuildToken = BuildInfo.BuildTokenFor(Build);
 
     private AppInfoService()
     {
@@ -78,14 +78,5 @@ internal partial class AppInfoService
         return opened
             ? context.Reply("app.openUrl.result", new OkPayload())
             : context.Fail("app.openUrl.result", Localization.Get("Could not open the link."));
-    }
-
-    /// <summary>The executable's write time, which a replacement binary always changes.</summary>
-    private static string ResolveBuildToken()
-    {
-        var executable = Environment.ProcessPath;
-        return string.IsNullOrEmpty(executable)
-            ? Version
-            : File.GetLastWriteTimeUtc(executable).Ticks.ToString();
     }
 }

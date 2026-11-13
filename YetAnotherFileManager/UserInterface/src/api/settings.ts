@@ -1,5 +1,16 @@
 import {Native} from "@photino-net-utils/bridge";
 import type {ViewDefaults} from "./files";
+import type {AppSettingsGenerated} from "./settings.generated";
+
+/**
+ * Compile-time guard: the C# model and the interface below must declare the same keys. A setting
+ * added on one side only leaves a key in one of the two sets, which turns this type from `never`
+ * into that key, and the assignment stops compiling. Regenerate the interface with
+ * `npm run build` (or `node scripts/generate-settings.mjs`).
+ */
+type DifferingSettingsKeys = Exclude<keyof AppSettings, keyof AppSettingsGenerated>
+    | Exclude<keyof AppSettingsGenerated, keyof AppSettings>;
+export const settingsKeysMatch: DifferingSettingsKeys extends never ? true : never = true;
 
 export interface AppSettings {
     systemIcons: boolean;
@@ -50,6 +61,8 @@ export interface AppSettings {
     activeTab: number | null;
     /** The view directories use when they have no settings of their own. */
     defaultView: ViewDefaults | null;
+    /** Show ordinary hidden files; the title bar toggles this while the app runs. */
+    showHidden: boolean | null;
     /** Show a selection checkbox in front of every name. */
     showCheckboxes: boolean;
     /** Open a folder or file with one click instead of two. */
@@ -159,6 +172,7 @@ const fallback: AppSettings = {
     openTabs: null,
     activeTab: 0,
     defaultView: null,
+    showHidden: null,
     showCheckboxes: true,
     openOnSingleClick: false,
     confirmDelete: false,
@@ -227,6 +241,7 @@ export async function getSettings(): Promise<AppSettings> {
         openTabs: raw?.openTabs ?? null,
         activeTab: raw?.activeTab ?? 0,
         defaultView: raw?.defaultView ?? null,
+        showHidden: raw?.showHidden ?? null,
         showCheckboxes: raw?.showCheckboxes ?? true,
         openOnSingleClick: raw?.openOnSingleClick ?? false,
         confirmDelete: raw?.confirmDelete ?? false,
@@ -357,6 +372,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         openTabs: saved?.openTabs ?? settings.openTabs,
         activeTab: saved?.activeTab ?? settings.activeTab,
         defaultView: saved?.defaultView ?? settings.defaultView,
+        showHidden: saved?.showHidden ?? settings.showHidden,
         showCheckboxes: saved?.showCheckboxes ?? settings.showCheckboxes,
         openOnSingleClick: saved?.openOnSingleClick ?? settings.openOnSingleClick,
         confirmDelete: saved?.confirmDelete ?? settings.confirmDelete,

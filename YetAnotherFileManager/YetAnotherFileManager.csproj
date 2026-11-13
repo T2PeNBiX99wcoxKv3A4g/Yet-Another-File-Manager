@@ -79,6 +79,9 @@
 
     <ItemGroup>
         <EmbeddedResource Include="Resources\**" />
+        <!-- The translation files feed the localization key generator and its analyzer: a key a
+             Localization.Get call names must exist in them, and a key may be declared once. -->
+        <AdditionalFiles Include="Resources\i18n\*.jsonc" />
     </ItemGroup>
 
     <ItemGroup>
