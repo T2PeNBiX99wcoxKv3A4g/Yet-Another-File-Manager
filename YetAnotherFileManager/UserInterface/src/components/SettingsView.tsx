@@ -1,8 +1,9 @@
-import {useEffect, useRef, useState} from "react";
+import {type MouseEvent, useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
 import {
     type LocalizationKey,
     loadStrings,
+    Markdown,
     type ThemeMode,
     type Translate,
     useTheme,
@@ -2832,11 +2833,15 @@ export function SettingsView({
                         </UpdateHead>
 
                         <ChangelogHead>{t("changelog")}</ChangelogHead>
-                        <Changelog>
-                            {updateDialog.changelog || (updateDialog.phase === "changelog"
-                                ? t("loading_the_changelog")
-                                : t("the_changelog_could_not_be_loaded"))}
-                        </Changelog>
+                        {updateDialog.changelog
+                            ? <Changelog onClick={openChangelogLink}>
+                                <Markdown source={updateDialog.changelog}/>
+                            </Changelog>
+                            : <ChangelogNote>
+                                {updateDialog.phase === "changelog"
+                                    ? t("loading_the_changelog")
+                                    : t("the_changelog_could_not_be_loaded")}
+                            </ChangelogNote>}
 
                         <ProgressRow>
                             <span>{updatePhaseLabel(updateDialog, t)}</span>
@@ -3614,17 +3619,99 @@ const ChangelogHead = styled.span`
     color: var(--text-muted);
 `;
 
-/** The changelog the release publishes, kept short enough to sit inside the panel. */
-const Changelog = styled.pre`
-    margin: 0;
+/** The release notes, rendered from Markdown by the shared bridge component. */
+const Changelog = styled.div`
     max-height: 260px;
     overflow: auto;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    line-height: 1.6;
-    white-space: pre-wrap;
+    font-size: 12px;
+    line-height: 1.55;
     color: var(--text-secondary);
+
+    > :first-child {
+        margin-top: 0;
+    }
+
+    h1,
+    h2,
+    h3 {
+        margin: 10px 0 4px;
+        font-family: var(--font-title), var(--font-cjk);
+        font-size: 12px;
+        color: var(--text-primary);
+    }
+
+    p {
+        margin: 4px 0;
+    }
+
+    ul,
+    ol {
+        margin: 4px 0;
+        padding-left: 18px;
+    }
+
+    li {
+        margin: 2px 0;
+    }
+
+    a {
+        color: var(--accent-primary);
+        text-decoration: none;
+
+        &:hover {
+            text-decoration: underline;
+        }
+    }
+
+    code {
+        padding: 1px 4px;
+        border-radius: 4px;
+        background: rgba(var(--accent-rgb), 0.14);
+        font-family: var(--font-mono);
+        font-size: 11px;
+    }
+
+    pre {
+        margin: 6px 0;
+        padding: 8px 10px;
+        border-radius: var(--radius-sm);
+        background: var(--bg-input);
+        overflow: auto;
+
+        code {
+            padding: 0;
+            background: none;
+        }
+    }
+
+    blockquote {
+        margin: 6px 0;
+        padding-left: 10px;
+        border-left: 2px solid var(--border-color-hover);
+        color: var(--text-muted);
+    }
+
+    hr {
+        margin: 8px 0;
+        border: 0;
+        border-top: 1px solid var(--border-color);
+    }
 `;
+
+const ChangelogNote = styled.p`
+    margin: 0;
+    font-size: 11px;
+    color: var(--text-muted);
+`;
+
+/** Release notes link to GitHub; opening them in the window would replace the interface. */
+function openChangelogLink(event: MouseEvent<HTMLDivElement>) {
+    const anchor = (event.target as Element | null)?.closest("a");
+    if (!anchor) return;
+
+    event.preventDefault();
+    void openUrl(anchor.href);
+}
 
 const ProgressRow = styled.div`
     display: flex;
