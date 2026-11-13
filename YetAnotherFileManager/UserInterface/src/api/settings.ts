@@ -198,7 +198,7 @@ const fallback: AppSettings = {
 export async function getSettings(): Promise<AppSettings> {
     if (!Native.available) return fallback;
 
-    const raw = await Native.request<Partial<AppSettings> | null>("app.settings");
+    const raw = await Native.request<Partial<AppSettings> | null>("settings.get");
 
     return {
         systemIcons: raw?.systemIcons ?? true,
@@ -328,7 +328,7 @@ export async function unregisterArchiveHandler(): Promise<ArchiveStatus> {
 export async function saveSettings(settings: AppSettings): Promise<AppSettings> {
     if (!Native.available) return settings;
 
-    const saved = await Native.request<Partial<AppSettings> | null>("app.settings.set", settings);
+    const saved = await Native.request<Partial<AppSettings> | null>("settings.save", settings);
 
     return {
         systemIcons: saved?.systemIcons ?? settings.systemIcons,

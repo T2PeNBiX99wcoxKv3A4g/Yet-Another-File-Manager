@@ -38,6 +38,14 @@ internal static class Protection
     /// <summary>The stored patterns, or the defaults that ship with the app.</summary>
     public static List<string> Patterns(AppSettings settings) => settings.ProtectedPaths ?? PathGlob.Defaults();
 
+    /// <summary>The settings as the interface reads them, with the rules and the delay filled in.</summary>
+    public static AppSettings Resolve(AppSettings settings) =>
+        settings with
+        {
+            ProtectedPaths = Patterns(settings),
+            DeleteDelaySeconds = DelaySeconds(settings)
+        };
+
     /// <summary>The confirmation wait, never below the two-second floor.</summary>
     public static int DelaySeconds(AppSettings settings) => Math.Clamp(settings.DeleteDelaySeconds ?? 5, 2, 3600);
 

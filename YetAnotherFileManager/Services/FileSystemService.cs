@@ -106,7 +106,7 @@ internal partial class FileSystemService : INativeMessageHandler
                 return context.Reply("fs.hidden.toggle.result", await Task.Run(async () =>
                 {
                     var showHidden = FileVisibility.ToggleHidden();
-                    await SettingsService.Instance.UpdateAsync(settings => settings with
+                    await SettingsService.Instance.UpdateSilentlyAsync(settings => settings with
                     {
                         ShowHidden = showHidden
                     });
@@ -247,36 +247,9 @@ internal partial class FileSystemService : INativeMessageHandler
             case "fs.recycle.admin.purge":
                 return await PurgeOrphansAsAdmin(context);
 
-            case "app.settings":
-                return context.Reply("app.settings.result", WithProtection(SettingsService.Instance.Current));
-
             case "app.protection.defaults":
                 return context.Reply("app.protection.defaults.result",
                     new ProtectedDefaultsPayload(Protection.Defaults()));
-
-            case "app.settings.set":
-                if (context.Payload<AppSettings>() is { } settings)
-                {
-                    var saved = await SettingsService.Instance.UpdateAsync(current => settings with
-                    {
-                        // The settings page never edits tabs; the window owns them through app.tabs.set.
-                        OpenTabs = current.OpenTabs,
-                        ActiveTab = current.ActiveTab,
-                        DirectoryIndexBlacklist = settings.DirectoryIndexBlacklist
-                                                  ?? current.DirectoryIndexBlacklist
-                                                  ?? DirectoryIndexBlacklist.Defaults(),
-                        // Only app.scheme.set changes the link registration.
-                        LinksEnabled = current.LinksEnabled
-                    });
-
-                    // The folder and archive registrations have their own endpoints; a settings save
-                    // must not re-point them at whichever copy happens to be running.
-                    GlobalHotkey.Apply(saved.GlobalHotkey);
-                    WindowManager.Instance.Notify("settings.changed", new OkPayload());
-                    return context.Reply("app.settings.result", WithProtection(saved));
-                }
-
-                return context.Reply("app.settings.result", SettingsService.Instance.Current);
 
             case "app.tabs.set":
                 return context.Reply("app.tabs.set.result",
@@ -813,7 +786,7 @@ internal partial class FileSystemService : INativeMessageHandler
     /// <summary>Pins the given folders to Quick access, in order, and answers with the resulting list.</summary>
     private static async Task<List<PlaceEntry>> SetPlacesAsync(List<string>? paths)
     {
-        await SettingsService.Instance.UpdateAsync(settings => settings with
+        await SettingsService.Instance.UpdateSilentlyAsync(settings => settings with
         {
             QuickAccess = paths
         });
@@ -827,10 +800,10 @@ internal partial class FileSystemService : INativeMessageHandler
         if (request is null)
             return false;
 
-        // A cap keeps a misbehaving window from growing settings.json without bound.
+        // A cap keeps a misbehaving window from growing settings.toml without bound.
         var tabs = request.Tabs.Where(tab => tab.Length > 0).Take(64).ToList();
 
-        await SettingsService.Instance.UpdateAsync(settings => settings with
+        await SettingsService.Instance.UpdateSilentlyAsync(settings => settings with
         {
             OpenTabs = tabs,
             ActiveTab = Math.Clamp(request.Active, 0, Math.Max(tabs.Count - 1, 0))
@@ -875,7 +848,7 @@ internal partial class FileSystemService : INativeMessageHandler
         else
             names[request.Path] = request.Name.Trim();
 
-        await SettingsService.Instance.UpdateAsync(settings => settings with
+        await SettingsService.Instance.UpdateSilentlyAsync(settings => settings with
         {
             PlaceNames = names
         });
@@ -1010,16 +983,6 @@ internal partial class FileSystemService : INativeMessageHandler
     }
 
     /// <summary>Runs the same elevated helper with deletion enabled.</summary>
-    /// <summary>
-    ///     Fills the defaults into the reply so the settings page can show the protected folders
-    ///     without keeping a second copy of the list.
-    /// </summary>
-    private static AppSettings WithProtection(AppSettings settings) =>
-        settings with
-        {
-            ProtectedPaths = Protection.Patterns(settings),
-            DeleteDelaySeconds = Protection.DelaySeconds(settings)
-        };
 
     /// <summary>
     ///     Blocks a delete that touches a protected path until the window confirms it after the

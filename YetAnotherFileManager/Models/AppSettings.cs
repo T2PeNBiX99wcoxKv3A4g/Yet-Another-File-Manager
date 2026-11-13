@@ -7,92 +7,91 @@ namespace YetAnotherFileManager.Models;
 ///     default", so the fields are nullable and read through the accessors below.
 /// </summary>
 public sealed record AppSettings(
-    bool? SystemIcons,
-    bool? CustomFolderIcons,
-    bool? WriteDirectoryIndex,
-    List<string>? DirectoryIndexBlacklist,
-    Dictionary<string, string>? ExtensionIcons,
-    List<string>? QuickAccess,
-    int? RecentLimit,
-    List<string>? GalleryRoots,
-    List<string>? OverviewPanels,
-    List<string>? OverviewHidden,
-    int? OverviewColumns,
-    Dictionary<string, string>? PlaceNames,
-    Dictionary<string, string>? Shortcuts,
-    Dictionary<string, string>? PlaceIcons,
-    Dictionary<string, string>? OverviewTitles,
-    Dictionary<string, string>? OverviewViews,
-    Dictionary<string, string>? OverviewIcons,
-    List<string>? OverviewPinned,
-    bool? LinksEnabled,
-    Dictionary<string, List<string>>? PanelPlaces,
-    bool? RestoreTabs,
-    List<string>? OpenTabs,
-    int? ActiveTab,
-    ViewDefaults? DefaultView,
-    bool? ShowCheckboxes,
-    bool? OpenOnSingleClick,
-    bool? ConfirmDelete,
-    bool? PreviewVideoAudio,
-    bool? PreviewVideoAutoplay,
+    bool? SystemIcons = null,
+    bool? CustomFolderIcons = null,
+    bool? WriteDirectoryIndex = null,
+    List<string>? DirectoryIndexBlacklist = null,
+    Dictionary<string, string>? ExtensionIcons = null,
+    List<string>? QuickAccess = null,
+    int? RecentLimit = null,
+    List<string>? GalleryRoots = null,
+    List<string>? OverviewPanels = null,
+    List<string>? OverviewHidden = null,
+    int? OverviewColumns = null,
+    Dictionary<string, string>? PlaceNames = null,
+    Dictionary<string, string>? Shortcuts = null,
+    Dictionary<string, string>? PlaceIcons = null,
+    Dictionary<string, string>? OverviewTitles = null,
+    Dictionary<string, string>? OverviewViews = null,
+    Dictionary<string, string>? OverviewIcons = null,
+    List<string>? OverviewPinned = null,
+    bool? LinksEnabled = null,
+    Dictionary<string, List<string>>? PanelPlaces = null,
+    bool? RestoreTabs = null,
+    List<string>? OpenTabs = null,
+    int? ActiveTab = null,
+    ViewDefaults? DefaultView = null,
+    bool? ShowCheckboxes = null,
+    bool? OpenOnSingleClick = null,
+    bool? ConfirmDelete = null,
+    bool? PreviewVideoAudio = null,
+    bool? PreviewVideoAutoplay = null,
     /// <summary>Show the floating file tray when a drag starts; null means on.</summary>
-    bool? TrayAutoShow,
-    string? AccentColor,
-    string? SecondaryColor,
+    bool? TrayAutoShow = null,
+    string? AccentColor = null,
+    string? SecondaryColor = null,
     /// <summary>UI language; null means English, "system" follows the operating system.</summary>
-    string? Language,
-    List<ThemePreset>? ThemePresets,
+    string? Language = null,
+    List<ThemePreset>? ThemePresets = null,
     /// <summary>Register this app as the folder handler; off by default and per-user only.</summary>
-    bool? DefaultFileManager,
+    bool? DefaultFileManager = null,
     /// <summary>None, a built-in concept, or "file:&lt;path&gt;" for a custom image/video.</summary>
-    string? BackgroundSource,
+    string? BackgroundSource = null,
     /// <summary>Paths the user added to the background gallery; images, SVGs and videos.</summary>
-    List<string>? BackgroundCustom,
-    int? BackgroundBlur,
-    int? BackgroundSaturation,
-    int? BackgroundBrightness,
+    List<string>? BackgroundCustom = null,
+    int? BackgroundBlur = null,
+    int? BackgroundSaturation = null,
+    int? BackgroundBrightness = null,
     /// <summary>Folders a delete must stop at; a trailing "**" includes the subtree.</summary>
-    List<string>? ProtectedPaths,
+    List<string>? ProtectedPaths = null,
     /// <summary>Seconds the protected-delete confirmation stays disabled.</summary>
-    int? DeleteDelaySeconds,
+    int? DeleteDelaySeconds = null,
     /// <summary>"system", "12", "24" or "custom" for every timestamp in the interface.</summary>
-    string? TimeFormat,
+    string? TimeFormat = null,
     /// <summary>Pattern used when <see cref="TimeFormat" /> is "custom".</summary>
-    string? TimeFormatPattern,
+    string? TimeFormatPattern = null,
     /// <summary>Show ordinary hidden files; null follows Explorer (or off elsewhere).</summary>
-    bool? ShowHidden,
+    bool? ShowHidden = null,
     /// <summary>Register this app for the usual archive extensions, per user and reversible.</summary>
-    bool? ArchiveHandler,
+    bool? ArchiveHandler = null,
     /// <summary>Preferred width of the standalone folder/file picker window.</summary>
-    int? PickerWindowWidth,
+    int? PickerWindowWidth = null,
     /// <summary>Preferred height of the standalone folder/file picker window.</summary>
-    int? PickerWindowHeight,
+    int? PickerWindowHeight = null,
     /// <summary>"relative" or "absolute" for created symbolic links.</summary>
-    string? LinkPathMode,
+    string? LinkPathMode = null,
     /// <summary>Image or video shown above the overview panels; null hides the banner.</summary>
-    string? OverviewBanner,
+    string? OverviewBanner = null,
     /// <summary>Height of the overview banner in pixels.</summary>
-    int? OverviewBannerHeight,
+    int? OverviewBannerHeight = null,
     /// <summary>Custom banner media the user added.</summary>
-    List<string>? OverviewBanners,
+    List<string>? OverviewBanners = null,
     /// <summary>Vertical crop of the overview banner, 0 = top, 1 = bottom.</summary>
-    double? OverviewBannerOffset,
+    double? OverviewBannerOffset = null,
     /// <summary>Global key combination that brings the window forward; empty disables it.</summary>
-    string? GlobalHotkey,
+    string? GlobalHotkey = null,
     /// <summary>Font family per interface role, by role id; null or missing uses the built-in font.</summary>
-    Dictionary<string, string>? Fonts,
+    Dictionary<string, string>? Fonts = null,
     /// <summary>"random" (the OS picks a free port) or "custom" for <see cref="SharePort" />.</summary>
-    string? SharePortMode,
+    string? SharePortMode = null,
     /// <summary>Port used when <see cref="SharePortMode" /> is custom; null or 0 picks a free port.</summary>
-    int? SharePort,
+    int? SharePort = null,
     /// <summary>"none", "shortcut" or "task": how the app joins the user's login session.</summary>
-    string? StartupMode,
+    string? StartupMode = null,
     /// <summary>Start in the tray instead of showing the window at launch.</summary>
-    bool? StartHidden,
+    bool? StartHidden = null,
     /// <summary>Files and folders pinned to the overview's Favorites panel.</summary>
-    List<FavoriteEntry>? Favorites)
-{
+    List<FavoriteEntry>? Favorites = null){
     public static AppSettings Default =>
         new(true, true, true, ["**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null,
             ["quick", "frequent", "recent", "home", "drives", "share", "favorites"], null, 1, null,
@@ -100,7 +99,7 @@ public sealed record AppSettings(
             true, false, false, false, false, true, null, null, null, null, false, null, null, null, null, null, null, 5,
             "24", null, null, false, 1200, 800, "relative", null, 220, [], 0.3, null, null, null, null, null, null, null);
 
-    // The accessors below are derived, so they are kept out of settings.json entirely; only the
+    // The accessors below are derived, so they are kept out of settings.toml entirely; only the
     // fields above are stored, and the JSON stays readable and stable.
 
     /// <summary>Ask the shell for the icon of each file type.</summary>

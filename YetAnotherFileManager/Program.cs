@@ -113,7 +113,7 @@ internal static partial class Program
         // Settings are read once before any service asks for them; the message loop needs the real
         // values as soon as the window is up. Main must stay synchronous on its STA thread, so this
         // single startup read waits here instead of racing the services.
-        SettingsService.Instance.InitializeAsync().GetAwaiter().GetResult();
+        SettingsService.Instance.LoadAsync().GetAwaiter().GetResult();
         FileVisibility.SetHidden(SettingsService.Instance.Current.ShowHidden);
 
         // Local sharing: reads the stored folders and peers and starts discovery, the encrypted

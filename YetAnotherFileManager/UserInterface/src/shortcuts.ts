@@ -1,4 +1,4 @@
-/** The key combinations the interface listens for; the values are what settings.json holds. */
+/** The key combinations the interface listens for; the values are what settings.toml holds. */
 export interface ShortcutMap {
     goBack: string;
     goForward: string;

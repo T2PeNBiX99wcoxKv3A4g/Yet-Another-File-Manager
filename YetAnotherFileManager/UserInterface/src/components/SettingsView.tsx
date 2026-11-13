@@ -82,7 +82,7 @@ interface SettingsViewProps {
     onSearchMatches?: (count: number) => void;
 }
 
-/** The actions the interface can bind; the ids are what settings.json stores. */
+/** The actions the interface can bind; the ids are what settings.toml stores. */
 const ShortcutRows: { id: keyof ShortcutMap; label: string; note: string }[] = [
     {
         id: "goBack",

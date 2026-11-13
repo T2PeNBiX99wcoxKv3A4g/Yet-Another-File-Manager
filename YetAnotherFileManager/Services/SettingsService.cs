@@ -1,21 +1,40 @@
 using System.Text.Json;
-using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Localization;
+using PhotinoNetUtils.Services;
 using PhotinoNetUtils.Utils;
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
 
 namespace YetAnotherFileManager.Services;
 
-/// <summary>Stores <see cref="AppSettings" /> next to the app's other user data.</summary>
+/// <summary>
+///     Owns <see cref="AppSettings" /> and its TOML file; the shared base answers
+///     <c>settings.get</c> and <c>settings.save</c>, normalizes and writes atomically.
+/// </summary>
 [Singleton]
-internal partial class SettingsService
+internal partial class SettingsService : SettingsServiceBase<AppSettings, AppSettings>
 {
-    private static readonly string SettingsPath = Path.Combine(Constants.SettingsDirectory, "settings.json");
+    private const string Header =
+        "# Yet Another File Manager settings. Rewritten when settings are saved; comments are not kept.";
+
+    /// <summary>The JSON file older builds wrote, read once and converted to TOML.</summary>
+    private static readonly string? LegacySettingsPath = new[]
+    {
+        Path.Combine(Constants.SettingsDirectory, "settings.json"),
+        Path.Combine(Constants.DataDirectory, "settings.json")
+    }.FirstOrDefault(File.Exists);
 
     private readonly SemaphoreSlim _writeGate = new(1, 1);
 
-    public AppSettings Current { get; private set; } = AppSettings.Default;
+    private SettingsService() : base(new TomlSettingsStore<AppSettings>(
+        Path.Combine(Constants.SettingsDirectory, "settings.toml"),
+        AppSettings.Default,
+        AppTomlContext.Default.AppSettings,
+        json => JsonSerializer.Deserialize(json, AppJsonContext.Default.AppSettings),
+        LegacySettingsPath,
+        Header))
+    {
+    }
 
     /// <summary>
     ///     The stored language setting: a locale code, or <see cref="Localization.SystemLocale" /> to follow
@@ -25,32 +44,13 @@ internal partial class SettingsService
         ? language
         : Localization.DefaultLocale;
 
-    /// <summary>Reads the settings once at startup, before any service asks for <see cref="Current" />.</summary>
-    public async Task InitializeAsync()
-    {
-        if (!File.Exists(SettingsPath))
-        {
-            Current = AppSettings.Default;
-            return;
-        }
-
-        var result = await Try.Run(() => File.ReadAllTextAsync(SettingsPath));
-        var json = result.OnFailure(ex => Log.Warning(ex, "Could not read the settings")).GetOrNull();
-
-        Current = json is null
-            ? AppSettings.Default
-            : Try.Run(() => JsonSerializer.Deserialize(json, AppJsonContext.Default.AppSettings))
-                .GetOrNull() ?? AppSettings.Default;
-    }
-
     /// <summary>Applies a change to the current settings and stores the result.</summary>
     public async Task<AppSettings> UpdateAsync(Func<AppSettings, AppSettings> change)
     {
         await _writeGate.WaitAsync();
         try
         {
-            Current = change(Current);
-            await WriteAsync(Current);
+            await SaveAsync(change(Current));
             return Current;
         }
         finally
@@ -59,10 +59,43 @@ internal partial class SettingsService
         }
     }
 
-    private async Task WriteAsync(AppSettings settings)
+    /// <summary>
+    ///     Applies a change the interface already made itself — the open tabs, the hidden-item
+    ///     toggle — without pushing the whole settings document back at it.
+    /// </summary>
+    public async Task UpdateSilentlyAsync(Func<AppSettings, AppSettings> change)
     {
-        var json = JsonSerializer.Serialize(settings, AppJsonContext.Default.AppSettings);
-        var result = await Try.Run(() => File.WriteAllTextAsync(SettingsPath, json));
-        result.OnFailure(ex => Log.Warning(ex, "Could not save the settings"));
+        await _writeGate.WaitAsync();
+        try
+        {
+            await SaveSilentlyAsync(change(Current));
+        }
+        finally
+        {
+            _writeGate.Release();
+        }
     }
+
+    /// <summary>The settings as the interface reads them, with the protection rules filled in.</summary>
+    protected override AppSettings Payload() => Protection.Resolve(Current);
+
+    /// <summary>
+    ///     Keeps the fields the interface must not own: the window records its own tabs, and the
+    ///     registration and startup choices have their own messages, so a settings save must not
+    ///     undo what those wrote.
+    /// </summary>
+    protected override AppSettings Merge(AppSettings incoming) => incoming with
+    {
+        OpenTabs = Current.OpenTabs,
+        ActiveTab = Current.ActiveTab,
+        DirectoryIndexBlacklist = incoming.DirectoryIndexBlacklist
+                                  ?? Current.DirectoryIndexBlacklist
+                                  ?? DirectoryIndexBlacklist.Defaults(),
+        LinksEnabled = Current.LinksEnabled,
+        DefaultFileManager = Current.DefaultFileManager,
+        ArchiveHandler = Current.ArchiveHandler,
+        StartupMode = Current.StartupMode
+    };
+
+    protected override void OnSaved(AppSettings settings) => GlobalHotkey.Apply(settings.GlobalHotkey);
 }

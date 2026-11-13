@@ -164,7 +164,7 @@ internal static class ElevatedOperation
 
         IsHelper = true;
         Logging.Initialize(Constants.Name, "elevated");
-        SettingsService.Instance.InitializeAsync().GetAwaiter().GetResult();
+        SettingsService.Instance.LoadAsync().GetAwaiter().GetResult();
 
         var requestPath = args[index + 1];
         var resultPath = args[index + 2];
