@@ -1,4 +1,5 @@
 global using PhotinoNetUtils.Extensions;
+global using PhotinoNetUtils.Platform;
 global using PhotinoNetUtils.Utils;
 using JetBrains.Annotations;
 using PhotinoNetUtils;

@@ -125,7 +125,8 @@ internal static partial class Program
         // Registrations are written only when the user changes them in the settings; starting a copy
         // never touches the registry, so a development build cannot take the installed one's
         // folder handler, archive handler or link handler back by simply running.
-        GlobalHotkey.Apply(SettingsService.Instance.Current.GlobalHotkey);
+        GlobalHotkey.Apply(SettingsService.Instance.Current.GlobalHotkey,
+            () => WindowManager.Instance.ShowMainWindow());
 
         // UI strings come from Resources/i18n; the settings select the language.
         Localization.Initialize(typeof(Program).Assembly, "YetAnotherFileManager.Resources.i18n.",

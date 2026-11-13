@@ -96,5 +96,6 @@ internal sealed class SettingsService : SettingsServiceBase<SettingsService, App
         StartupMode = Current.StartupMode
     };
 
-    protected override void OnSaved(AppSettings settings) => GlobalHotkey.Apply(settings.GlobalHotkey);
+    protected override void OnSaved(AppSettings settings) =>
+        GlobalHotkey.Apply(settings.GlobalHotkey, () => WindowManager.Instance.ShowMainWindow());
 }
