@@ -145,7 +145,7 @@ const Bar = styled.div`
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     background: var(--bg-card);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+    box-shadow: var(--shadow-float);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     color: var(--text-muted);

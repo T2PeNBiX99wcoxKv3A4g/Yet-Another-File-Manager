@@ -195,6 +195,7 @@ declare module "@photino-net-utils/bridge"
         "Cycles to the next tab.": true;
         "Cycles to the previous tab.": true;
         "Cyrillic (CP1251)": true;
+        "Dark": true;
         "database": true;
         "Date deleted": true;
         "Default": true;
@@ -278,6 +279,8 @@ declare module "@photino-net-utils/bridge"
         "Folders that define an icon (desktop.ini) keep showing it even when system icons are off.": true;
         "Folders you open often show up here.": true;
         "Folder…": true;
+        "Follow system": true;
+        "Follow the operating system, or always use the light or dark palette.": true;
         "Follow the system, force 24-hour or 12-hour time, or define your own pattern.": true;
         "font": true;
         "Fonts": true;
@@ -341,6 +344,7 @@ declare module "@photino-net-utils/bridge"
         "Language": true;
         "Latest version": true;
         "Launch straight to the tray icon instead of showing the window. The tray menu opens it again.": true;
+        "Light": true;
         "Link": true;
         "Link paths": true;
         "Link status": true;
@@ -728,6 +732,7 @@ declare module "@photino-net-utils/bridge"
         "The target folder is no longer there.": true;
         "The tray appears when a drag starts and closes again if it is still empty. Off leaves it to the title bar button.": true;
         "The update failed.": true;
+        "Theme": true;
         "There is nothing to compress.": true;
         "There is nothing to copy or move.": true;
         "There is nothing to delete.": true;

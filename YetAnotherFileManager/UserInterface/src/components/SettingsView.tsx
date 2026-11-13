@@ -1,6 +1,12 @@
 import {useEffect, useRef, useState} from "react";
 import {createPortal} from "react-dom";
-import {loadStrings, type LocalizationKey, type Translate, useTranslation} from "@photino-net-utils/bridge";
+import {
+    type LocalizationKey,
+    loadStrings,
+    type ThemeMode,
+    type Translate,
+    useTranslation,
+} from "@photino-net-utils/bridge";
 import styled, {css} from "styled-components";
 import {DefaultViewDefaults, type FileVisibility, getVisibility, type IndexTasks, listIndexTasks} from "../api/files";
 import {clearIconCache, useIconFile, useMediaUrl} from "../api/icons";
@@ -152,6 +158,12 @@ interface UpdateDialogState {
     percent: number;
     error?: string;
 }
+
+const ThemeModes: { id: ThemeMode; label: LocalizationKey }[] = [
+    {id: "system", label: "Follow system"},
+    {id: "light", label: "Light"},
+    {id: "dark", label: "Dark"},
+];
 
 /** The choices offered for every timestamp; "custom" reveals the pattern box. */
 const TimeModes: { id: string; label: LocalizationKey }[] = [
@@ -1391,18 +1403,18 @@ export function SettingsView({
                                 <Label>{t("Format")}</Label>
                                 <Note>{t("Follow the system, force 24-hour or 12-hour time, or define your own pattern.")}</Note>
                             </BlockHead>
-                            <TimeModesRow>
+                            <SegmentRow>
                                 {TimeModes.map((mode) => (
-                                    <TimeMode
+                                    <SegmentButton
                                         $active={(settings?.timeFormat ?? "24") === mode.id}
                                         key={mode.id}
                                         onClick={() => void update({timeFormat: mode.id})}
                                         type="button"
                                     >
                                         {t(mode.label)}
-                                    </TimeMode>
+                                    </SegmentButton>
                                 ))}
-                            </TimeModesRow>
+                            </SegmentRow>
                             {(settings?.timeFormat ?? "24") === "custom" && (
                                 <>
                                     <TimePatternInput
@@ -1518,6 +1530,24 @@ export function SettingsView({
                         title="Colors"
                     />
                     <Rows>
+                        <Block>
+                            <BlockHead>
+                                <Label>{t("Theme")}</Label>
+                                <Note>{t("Follow the operating system, or always use the light or dark palette.")}</Note>
+                            </BlockHead>
+                            <SegmentRow>
+                                {ThemeModes.map((mode) => (
+                                    <SegmentButton
+                                        $active={(settings?.themeMode ?? "system") === mode.id}
+                                        key={mode.id}
+                                        onClick={() => void update({themeMode: mode.id})}
+                                        type="button"
+                                    >
+                                        {t(mode.label)}
+                                    </SegmentButton>
+                                ))}
+                            </SegmentRow>
+                        </Block>
                         <Block>
                             <BlockHead>
                                 <Label>{t("Presets")}</Label>
@@ -3547,7 +3577,7 @@ const UpdatePanel = styled.div`
     border: 1px solid var(--border-color);
     border-radius: 14px;
     background: var(--bg-secondary);
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    box-shadow: var(--shadow-dialog);
 `;
 
 const UpdateHead = styled.div`
@@ -3938,7 +3968,7 @@ const PickerMenu = styled.div`
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     background: var(--bg-secondary);
-    box-shadow: 0 18px 44px rgba(2, 6, 23, 0.55);
+    box-shadow: var(--shadow-menu);
 `;
 
 const PickerOption = styled.button<{ $active: boolean }>`
@@ -4222,13 +4252,13 @@ const RuleInput = styled.input`
     }
 `;
 
-const TimeModesRow = styled.div`
+const SegmentRow = styled.div`
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
 `;
 
-const TimeMode = styled.button<{ $active?: boolean }>`
+const SegmentButton = styled.button<{ $active?: boolean }>`
     padding: 6px 12px;
     border: 1px solid ${({$active}) => $active ? "var(--border-color-focus)" : "var(--border-color)"};
     border-radius: var(--radius-sm);

@@ -11,8 +11,12 @@ import "@fontsource/jetbrains-mono/latin-400.css";
 import "@fontsource/jetbrains-mono/latin-500.css";
 import App from "./App";
 import {PickerWindow} from "./PickerWindow";
-import {LocalizationProvider} from "@photino-net-utils/bridge";
+import {LocalizationProvider, systemPrefersDark} from "@photino-net-utils/bridge";
 import {loadStoredState, flushStoredState} from "./storage";
+
+// The palette is applied again once the settings arrive; this only keeps the first paint from
+// flashing the other theme while that reply is still on its way.
+document.documentElement.dataset.theme = systemPrefersDark() ? "dark" : "light";
 
 // WebKit needs the prefixed property, and the effect is only worth using when the engine really
 // has it: without it the floating panels keep an almost opaque background so text stays readable.

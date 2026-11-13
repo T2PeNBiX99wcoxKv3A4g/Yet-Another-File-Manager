@@ -239,7 +239,7 @@ const Card = styled.div`
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     background: var(--bg-secondary);
-    box-shadow: 0 24px 60px rgba(2, 6, 23, 0.6);
+    box-shadow: var(--shadow-dialog);
     ${popInStyle}
 `;
 

@@ -213,7 +213,7 @@ const Panel = styled.div`
     border: 1px solid var(--border-color-hover);
     border-radius: var(--radius-sm);
     background: rgba(7, 11, 18, 0.96);
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+    box-shadow: var(--shadow-float);
     pointer-events: none;
     ${fadeInStyle}
 `;

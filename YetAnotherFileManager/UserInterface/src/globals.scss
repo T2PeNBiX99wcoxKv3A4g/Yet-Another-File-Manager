@@ -55,11 +55,47 @@ html {
   --radius-md: 12px;
   --radius-lg: 18px;
   --shadow-panel: 0 18px 48px rgba(0, 0, 0, 0.45);
+  --shadow-float: 0 12px 30px rgba(0, 0, 0, 0.45);
+  --shadow-menu: 0 18px 44px rgba(2, 6, 23, 0.55);
+  --shadow-dialog: 0 24px 60px rgba(2, 6, 23, 0.6);
 
   // Floating panels stay nearly opaque when the engine cannot blur; the class below makes them
   // translucent only where backdrop-filter really renders (WebKitGTK especially).
   --panel-alpha: 0.96;
   --panel-blur: none;
+}
+
+// The light palette. applyTheme() rewrites the surfaces and the accent-derived tokens once the
+// settings are known; these values are the same defaults, so the first paint is already light.
+html[data-theme="light"] {
+  --bg-primary: hsl(220 14% 96%);
+  --bg-secondary: hsl(220 14% 93%);
+  --bg-card: hsl(220 14% 99% / 0.72);
+  --bg-card-hover: hsl(220 14% 96% / 0.90);
+  --bg-input: hsl(220 14% 99% / 0.80);
+  --bg-elevated: hsl(220 14% 99% / 0.97);
+  --bg-media: hsl(220 14% 91%);
+  --bg-rgb: 240, 242, 245;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #5a6779;
+
+  --border-color: rgba(59, 130, 246, 0.20);
+  --border-color-hover: rgba(59, 130, 246, 0.45);
+  --border-color-focus: #3b82f6;
+  --selection-bg: rgba(59, 130, 246, 0.16);
+  --selection-border: rgba(59, 130, 246, 0.42);
+  --accent-glow: 0 0 28px rgba(59, 130, 246, 0.16);
+
+  --success: #15803d;
+  --warning: #b45309;
+  --danger: #dc2626;
+
+  --shadow-panel: 0 18px 48px rgba(15, 23, 42, 0.16);
+  --shadow-float: 0 10px 24px rgba(15, 23, 42, 0.14);
+  --shadow-menu: 0 16px 36px rgba(15, 23, 42, 0.16);
+  --shadow-dialog: 0 24px 60px rgba(15, 23, 42, 0.20);
 }
 
 html.backdrop-blur {

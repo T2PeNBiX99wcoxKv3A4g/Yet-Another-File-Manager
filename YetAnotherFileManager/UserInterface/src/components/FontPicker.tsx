@@ -209,7 +209,7 @@ const Menu = styled.div`
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     background: var(--bg-secondary);
-    box-shadow: 0 18px 44px rgba(2, 6, 23, 0.55);
+    box-shadow: var(--shadow-menu);
     ${menuInStyle}
 `;
 

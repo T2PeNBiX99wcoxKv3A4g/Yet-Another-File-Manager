@@ -122,4 +122,6 @@ export interface AppSettingsGenerated {
     startHidden: boolean | null;
     /** Files and folders pinned to the overview Favorites panel. */
     favorites: unknown[] | null;
+    /** Interface theme; 'system' follows the operating system, otherwise 'light' or 'dark'. */
+    themeMode: string | null;
 }

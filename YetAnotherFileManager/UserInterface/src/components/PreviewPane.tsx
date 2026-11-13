@@ -485,7 +485,8 @@ const CenterPlay = styled.button<{ $visible: boolean }>`
     padding: 0;
     border: 1px solid rgba(255, 255, 255, 0.35);
     border-radius: 50%;
-    background: rgba(var(--bg-rgb), 0.62);
+    /* A media control stays dark in both palettes: the picture behind it is either way. */
+    background: rgba(8, 10, 18, 0.62);
     color: #fff;
     cursor: pointer;
     backdrop-filter: blur(4px);

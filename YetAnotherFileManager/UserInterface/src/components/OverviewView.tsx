@@ -749,7 +749,7 @@ const PanelMenu = styled.div`
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     background: var(--bg-secondary);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+    box-shadow: var(--shadow-float);
 `;
 
 const PanelMenuItem = styled.button`

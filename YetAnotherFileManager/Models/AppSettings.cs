@@ -128,7 +128,9 @@ public sealed record AppSettings(
     [property: Setting(Comment = "Start in the tray instead of showing the window.")]
     bool? StartHidden = null,
     [property: Setting(Comment = "Files and folders pinned to the overview Favorites panel.")]
-    List<FavoriteEntry>? Favorites = null)
+    List<FavoriteEntry>? Favorites = null,
+    [property: Setting(Comment = "Interface theme; 'system' follows the operating system, otherwise 'light' or 'dark'.")]
+    string? ThemeMode = null)
 {
     public static AppSettings Default =>
         new(true, true, true, ["**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null,

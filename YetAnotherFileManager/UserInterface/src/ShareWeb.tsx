@@ -1,5 +1,6 @@
 import {useEffect, useMemo, useRef, useState} from "react";
 import styled, {createGlobalStyle} from "styled-components";
+import {useTheme} from "@photino-net-utils/bridge";
 import {applyTheme} from "./theme";
 import {formatBytes} from "./utils/format";
 import {
@@ -89,6 +90,8 @@ export function ShareWeb() {
     const [language, setLanguage] = useState<ShareLanguage>(detectShareLanguage);
     const t = shareStrings(language);
     const [config, setConfig] = useState<ShareWebConfig | null>(null);
+    // A visitor's browser decides, not the machine that serves the share.
+    const theme = useTheme("system");
     const [shares, setShares] = useState<ShareWebShare[]>([]);
     const [active, setActive] = useState<string | null>(null);
     const [listing, setListing] = useState<ShareWebListing | null>(null);
@@ -115,11 +118,14 @@ export function ShareWeb() {
     }, [language]);
 
     useEffect(() => {
+        if (config) applyTheme(config.accent, config.secondary, theme);
+    }, [config, theme]);
+
+    useEffect(() => {
         void (async () => {
             try {
                 const next = await getJson<ShareWebConfig>("/api/config");
                 setConfig(next);
-                applyTheme(next.accent, next.secondary);
                 document.title = `${next.device} · ${next.app}`;
 
                 // A visitor's own choice wins; otherwise follow the app's language setting.

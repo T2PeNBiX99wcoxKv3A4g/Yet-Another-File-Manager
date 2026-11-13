@@ -1,3 +1,5 @@
+import type {ResolvedTheme, ThemeMode} from "@photino-net-utils/bridge";
+
 /** The blue theme the app ships with. Custom colours override these two tokens. */
 export const DefaultAccentColor = "#3b82f6";
 export const DefaultSecondaryColor = "#6366f1";
@@ -64,35 +66,48 @@ function surfaceRgb(hue: number, saturation: number, lightness: number): string 
     return [r, g, b].map((channel) => Math.round((channel + m) * 255)).join(", ");
 }
 
-/** Applies the two theme colours as CSS variables; null values restore the default blue theme. */
-export function applyTheme(accent: string | null | undefined, secondary: string | null | undefined) {
+/** A stored theme mode, whatever an older settings file may contain. */
+export function normalizeThemeMode(value: string | null | undefined): ThemeMode {
+    return value === "light" || value === "dark" ? value : "system";
+}
+
+/**
+ * Applies the two theme colours as CSS variables; null values restore the default blue theme.
+ * The surfaces follow the accent's hue in both palettes: the dark one stays near black, the light
+ * one near white, so every preset has a light and a dark version without a second colour table.
+ */
+export function applyTheme(accent: string | null | undefined, secondary: string | null | undefined,
+                           theme: ResolvedTheme) {
     const primary = normalizeColor(accent, DefaultAccentColor);
     const second = normalizeColor(secondary, DefaultSecondaryColor);
     const [r, g, b] = rgb(primary);
     const [sr, sg, sb] = rgb(second);
     const {hue, saturation} = hueOf(primary);
+    const light = theme === "light";
     // Muted accents (slate, grey) still tint the window, just less than a saturated one.
-    const tint = Math.round(Math.min(Math.max(saturation * 0.35, 6), 30));
+    const tint = Math.round(Math.min(Math.max(saturation * (light ? 0.20 : 0.35), light ? 4 : 6),
+        light ? 18 : 30));
     const root = document.documentElement.style;
 
+    root.setProperty("color-scheme", theme);
     root.setProperty("--accent-primary", primary);
     root.setProperty("--accent-rgb", `${r}, ${g}, ${b}`);
     root.setProperty("--accent-secondary", second);
     root.setProperty("--accent-secondary-rgb", `${sr}, ${sg}, ${sb}`);
-    root.setProperty("--border-color", `rgba(${r}, ${g}, ${b}, 0.13)`);
-    root.setProperty("--border-color-hover", `rgba(${r}, ${g}, ${b}, 0.40)`);
+    root.setProperty("--border-color", `rgba(${r}, ${g}, ${b}, ${light ? 0.20 : 0.13})`);
+    root.setProperty("--border-color-hover", `rgba(${r}, ${g}, ${b}, ${light ? 0.45 : 0.40})`);
     root.setProperty("--border-color-focus", primary);
     root.setProperty("--accent-gradient", `linear-gradient(135deg, ${primary} 0%, ${second} 100%)`);
-    root.setProperty("--accent-glow", `0 0 28px rgba(${r}, ${g}, ${b}, 0.28)`);
-    root.setProperty("--selection-bg", `rgba(${r}, ${g}, ${b}, 0.11)`);
-    root.setProperty("--selection-border", `rgba(${r}, ${g}, ${b}, 0.36)`);
+    root.setProperty("--accent-glow", `0 0 28px rgba(${r}, ${g}, ${b}, ${light ? 0.16 : 0.28})`);
+    root.setProperty("--selection-bg", `rgba(${r}, ${g}, ${b}, ${light ? 0.16 : 0.11})`);
+    root.setProperty("--selection-border", `rgba(${r}, ${g}, ${b}, ${light ? 0.42 : 0.36})`);
 
-    root.setProperty("--bg-primary", surface(hue, tint, 7));
-    root.setProperty("--bg-secondary", surface(hue, tint, 11));
-    root.setProperty("--bg-card", surface(hue, tint, 14, 0.75));
-    root.setProperty("--bg-card-hover", surface(hue, tint, 20, 0.85));
-    root.setProperty("--bg-input", surface(hue, tint, 9, 0.75));
-    root.setProperty("--bg-elevated", surface(hue, tint, 8, 0.96));
-    root.setProperty("--bg-media", surface(hue, tint, 4));
-    root.setProperty("--bg-rgb", surfaceRgb(hue, tint, 7));
+    root.setProperty("--bg-primary", surface(hue, tint, light ? 96 : 7));
+    root.setProperty("--bg-secondary", surface(hue, tint, light ? 93 : 11));
+    root.setProperty("--bg-card", surface(hue, tint, light ? 99 : 14, light ? 0.72 : 0.75));
+    root.setProperty("--bg-card-hover", surface(hue, tint, light ? 96 : 20, light ? 0.90 : 0.85));
+    root.setProperty("--bg-input", surface(hue, tint, light ? 99 : 9, light ? 0.80 : 0.75));
+    root.setProperty("--bg-elevated", surface(hue, tint, light ? 99 : 8, light ? 0.97 : 0.96));
+    root.setProperty("--bg-media", surface(hue, tint, light ? 91 : 4));
+    root.setProperty("--bg-rgb", surfaceRgb(hue, tint, light ? 96 : 7));
 }

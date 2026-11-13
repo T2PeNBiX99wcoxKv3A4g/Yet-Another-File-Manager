@@ -91,7 +91,15 @@ import {TitleBar} from "./components/TitleBar";
 import {TooltipLayer} from "./components/TooltipLayer";
 import {type TabKind, viewTitles} from "./tabs";
 import {buildPanels} from "./panels";
-import {Native, ResizeHandles, useWindowCorners, type LocalizationKey, type Translate, useTranslation} from "@photino-net-utils/bridge";
+import {
+    type LocalizationKey,
+    Native,
+    ResizeHandles,
+    type Translate,
+    useTheme,
+    useTranslation,
+    useWindowCorners,
+} from "@photino-net-utils/bridge";
 import {
     applyTimeFormat,
     archiveFile,
@@ -104,7 +112,7 @@ import {
     plural,
     samePath
 } from "./utils/format";
-import {applyTheme} from "./theme";
+import {applyTheme, normalizeThemeMode} from "./theme";
 import {applyFonts} from "./fonts";
 import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "./storage";
 import {
@@ -335,6 +343,8 @@ export default function App() {
     const [recent, setRecent] = useState<RecentEntry[]>([]);
     const [recentLimit, setRecentLimit] = useState(10);
     const [settings, setSettings] = useState<AppSettings | null>(null);
+    // The window chrome follows the stored mode; while "system" a change in the OS flips it live.
+    const theme = useTheme(normalizeThemeMode(settings?.themeMode));
     /** Normalized favorite paths; the context menu offers Remove for entries already pinned. */
     const favoritePaths = useMemo(
         () => (settings?.favorites ?? []).map((entry) => normalizePath(entry.path)),
@@ -427,8 +437,8 @@ export default function App() {
     const view: ResolvedView = resolveView(focusedTab, viewDefaults);
 
     useEffect(() => {
-        applyTheme(settings?.accentColor, settings?.secondaryColor);
-    }, [settings?.accentColor, settings?.secondaryColor]);
+        applyTheme(settings?.accentColor, settings?.secondaryColor, theme);
+    }, [settings?.accentColor, settings?.secondaryColor, theme]);
 
     // Font choices live on the root element, so every component picks them up through its role.
     useEffect(() => {
@@ -3034,6 +3044,11 @@ const Body = styled.div`
 
     html.has-wallpaper & {
         background: linear-gradient(180deg, rgba(var(--bg-rgb), 0.12), rgba(var(--bg-rgb), 0.3));
+
+        /* Over a picture the light palette needs a stronger veil to keep dark text readable. */
+        html[data-theme="light"] & {
+            background: linear-gradient(180deg, rgba(var(--bg-rgb), 0.45), rgba(var(--bg-rgb), 0.68));
+        }
     }
 `;
 

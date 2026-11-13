@@ -364,7 +364,7 @@ const Aside = styled.aside`
         width: 224px;
         padding: 10px 10px;
         background: rgba(var(--bg-rgb), 0.90);
-        box-shadow: 14px 0 36px rgba(0, 0, 0, 0.45), 0 0 28px rgba(var(--accent-secondary-rgb), 0.06);
+        box-shadow: 14px 0 36px var(--shadow-menu), 0 0 28px rgba(var(--accent-secondary-rgb), 0.06);
         overflow-y: auto;
         scrollbar-width: none;
     }

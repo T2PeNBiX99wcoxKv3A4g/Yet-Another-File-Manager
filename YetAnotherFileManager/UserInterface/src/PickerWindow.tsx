@@ -1,10 +1,10 @@
 import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
-import {Native, ResizeHandles, useWindowDrag, useTranslation} from "@photino-net-utils/bridge";
+import {Native, ResizeHandles, useTheme, useWindowDrag, useTranslation} from "@photino-net-utils/bridge";
 import {type AppSettings, getSettings} from "./api/settings";
 import {DefaultViewDefaults, type DirectoryView, type ResolvedView} from "./api/files";
 import {type ProtectedPrompt, setProtectedAsker} from "./api/safety";
-import {applyTheme} from "./theme";
+import {applyTheme, normalizeThemeMode} from "./theme";
 import {FolderPicker} from "./components/FolderPicker";
 import {ViewMenu} from "./components/ViewMenu";
 import {ProtectedDeleteDialog} from "./components/ProtectedDeleteDialog";
@@ -26,6 +26,7 @@ export function PickerWindow({mode, multiple, extensions, initial}: PickerWindow
     const t = useTranslation();
     const drag = useWindowDrag();
     const [settings, setSettings] = useState<AppSettings | null>(null);
+    const theme = useTheme(normalizeThemeMode(settings?.themeMode));
     // The picker's view is a session choice; it starts from the app defaults and is not saved.
     const [viewOverrides, setViewOverrides] = useState<Partial<DirectoryView>>({});
     const [columns, setColumns] = useState<string[] | null>(null);
@@ -52,14 +53,12 @@ export function PickerWindow({mode, multiple, extensions, initial}: PickerWindow
     }, []);
 
     useEffect(() => {
-        void getSettings().then(
-            (value) => {
-                setSettings(value);
-                applyTheme(value.accentColor, value.secondaryColor);
-            },
-            () => undefined,
-        );
+        void getSettings().then(setSettings, () => undefined);
     }, []);
+
+    useEffect(() => {
+        applyTheme(settings?.accentColor, settings?.secondaryColor, theme);
+    }, [settings?.accentColor, settings?.secondaryColor, theme]);
 
     const viewDefaults = settings?.defaultView ?? DefaultViewDefaults;
     const view: ResolvedView = {

@@ -68,4 +68,10 @@ const Shade = styled.div`
     inset: 0;
     background: linear-gradient(180deg, rgba(var(--bg-rgb), 0.28), rgba(var(--bg-rgb), 0.5)),
     radial-gradient(1200px 700px at 20% 0%, rgba(var(--accent-secondary-rgb), 0.08), transparent 60%);
+
+    /* In the light palette the picture is washed towards the surface colour instead of darkened. */
+    html[data-theme="light"] & {
+        background: linear-gradient(180deg, rgba(var(--bg-rgb), 0.66), rgba(var(--bg-rgb), 0.86)),
+        radial-gradient(1200px 700px at 20% 0%, rgba(var(--accent-secondary-rgb), 0.10), transparent 60%);
+    }
 `;

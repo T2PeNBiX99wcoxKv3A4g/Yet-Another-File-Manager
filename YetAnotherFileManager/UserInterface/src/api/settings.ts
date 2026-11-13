@@ -1,4 +1,5 @@
-import {Native} from "@photino-net-utils/bridge";
+import {type ThemeMode, Native} from "@photino-net-utils/bridge";
+import {normalizeThemeMode} from "../theme";
 import type {ViewDefaults} from "./files";
 import type {AppSettingsGenerated} from "./settings.generated";
 
@@ -79,6 +80,8 @@ export interface AppSettings {
     accentColor: string | null;
     /** The gradient/highlight colour, or null for the default indigo. */
     secondaryColor: string | null;
+    /** Follow the operating system, or always use the light or dark palette. */
+    themeMode: ThemeMode;
     /** None, a built-in concept ("builtin:aurora:violet") or "file:<path>" for a custom image/video. */
     backgroundSource: string | null;
     /** Paths the user added to the background gallery; images, SVGs and videos. */
@@ -181,6 +184,7 @@ const fallback: AppSettings = {
     trayAutoShow: true,
     accentColor: null,
     secondaryColor: null,
+    themeMode: "system",
     backgroundSource: null,
     backgroundCustom: [],
     backgroundBlur: 0,
@@ -250,6 +254,7 @@ export async function getSettings(): Promise<AppSettings> {
         trayAutoShow: raw?.trayAutoShow ?? true,
         accentColor: raw?.accentColor ?? null,
         secondaryColor: raw?.secondaryColor ?? null,
+        themeMode: normalizeThemeMode(raw?.themeMode),
         backgroundSource: raw?.backgroundSource ?? null,
         backgroundCustom: raw?.backgroundCustom ?? [],
         backgroundBlur: raw?.backgroundBlur ?? 0,
@@ -381,6 +386,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         trayAutoShow: saved?.trayAutoShow ?? settings.trayAutoShow,
         accentColor: saved?.accentColor ?? settings.accentColor,
         secondaryColor: saved?.secondaryColor ?? settings.secondaryColor,
+        themeMode: normalizeThemeMode(saved?.themeMode ?? settings.themeMode),
         backgroundSource: saved?.backgroundSource ?? settings.backgroundSource,
         backgroundCustom: saved?.backgroundCustom ?? settings.backgroundCustom,
         backgroundBlur: saved?.backgroundBlur ?? settings.backgroundBlur,

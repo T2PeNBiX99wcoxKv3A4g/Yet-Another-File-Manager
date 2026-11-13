@@ -129,7 +129,7 @@ const IconMenu = styled.div`
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
     background: var(--bg-secondary);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+    box-shadow: var(--shadow-float);
     ${menuInStyle}
     transform-origin: top left;
 `;
