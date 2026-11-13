@@ -691,7 +691,7 @@
   "no_folders_are_shared_yet": "まだフォルダーが共有されていません。",
   "stop_sharing": "共有を停止",
   "only_paired_devices_can_open_this_folder_in_the_app": "ペアリング済みの端末だけがアプリでこのフォルダーを開けます。",
-  "web": "Web",
+  "web": "ウェブ",
   "app": "アプリ",
   "any_device_with_a_browser_can_open_this_folder": "ブラウザーがある端末ならどれでもこのフォルダーを開けます。",
   "this_folder_is_already_shared": "このフォルダーはすでに共有されています。",
