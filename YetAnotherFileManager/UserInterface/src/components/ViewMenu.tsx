@@ -24,6 +24,7 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
 
     useEffect(() => {
         if (!open) return;
+        const close = () => setOpen(false);
 
         const closeOnPointer = (event: PointerEvent) => {
             if (!root.current?.contains(event.target as Node)) setOpen(false);
@@ -33,9 +34,11 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
         };
 
         window.addEventListener("pointerdown", closeOnPointer);
+        window.addEventListener("blur", close);
         window.addEventListener("keydown", closeOnEscape);
         return () => {
             window.removeEventListener("pointerdown", closeOnPointer);
+            window.removeEventListener("blur", close);
             window.removeEventListener("keydown", closeOnEscape);
         };
     }, [open]);

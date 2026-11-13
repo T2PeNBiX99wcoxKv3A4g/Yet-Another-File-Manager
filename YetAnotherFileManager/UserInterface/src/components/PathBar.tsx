@@ -119,7 +119,11 @@ export function PathBar({path, label, icon, focusToken, onNavigate, onContextMen
 
         const cancel = () => setEditing(false);
         window.addEventListener("pointerdown", cancel);
-        return () => window.removeEventListener("pointerdown", cancel);
+        window.addEventListener("blur", cancel);
+        return () => {
+            window.removeEventListener("pointerdown", cancel);
+            window.removeEventListener("blur", cancel);
+        };
     }, [editing]);
 
     const start = () => {

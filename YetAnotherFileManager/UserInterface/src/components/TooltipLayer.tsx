@@ -148,6 +148,7 @@ export function TooltipLayer() {
         window.addEventListener("focusin", onFocusIn);
         window.addEventListener("focusout", onFocusOut);
         window.addEventListener("pointerdown", hide, true);
+        window.addEventListener("blur", hide);
         window.addEventListener("scroll", hide, true);
         window.addEventListener("resize", hide);
 
@@ -159,6 +160,7 @@ export function TooltipLayer() {
             window.removeEventListener("focusin", onFocusIn);
             window.removeEventListener("focusout", onFocusOut);
             window.removeEventListener("pointerdown", hide, true);
+            window.removeEventListener("blur", hide);
             window.removeEventListener("scroll", hide, true);
             window.removeEventListener("resize", hide);
         };

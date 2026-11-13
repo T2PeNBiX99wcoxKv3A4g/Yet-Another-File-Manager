@@ -30,8 +30,13 @@ export function StatusCenter({tasks, onClear, open, onOpenChange}: StatusCenterP
             if (!root.current?.contains(event.target as Node)) onOpenChange(false);
         };
 
+        const dismiss = () => onOpenChange(false);
         window.addEventListener("pointerdown", close);
-        return () => window.removeEventListener("pointerdown", close);
+        window.addEventListener("blur", dismiss);
+        return () => {
+            window.removeEventListener("pointerdown", close);
+            window.removeEventListener("blur", dismiss);
+        };
     }, [open, onOpenChange]);
 
     return (

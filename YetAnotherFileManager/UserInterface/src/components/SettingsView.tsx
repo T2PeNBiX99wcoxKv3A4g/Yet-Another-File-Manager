@@ -3022,12 +3022,14 @@ function LanguagePicker({value, options, onChange, disabled}: {
 
         window.addEventListener("pointerdown", onPointerDown, true);
         window.addEventListener("keydown", onKey, true);
+        window.addEventListener("blur", close);
         window.addEventListener("scroll", close, true);
         window.addEventListener("resize", close);
 
         return () => {
             window.removeEventListener("pointerdown", onPointerDown, true);
             window.removeEventListener("keydown", onKey, true);
+            window.removeEventListener("blur", close);
             window.removeEventListener("scroll", close, true);
             window.removeEventListener("resize", close);
         };

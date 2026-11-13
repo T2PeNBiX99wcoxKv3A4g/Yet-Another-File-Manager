@@ -54,11 +54,13 @@ export function FontPicker({value, fonts, defaultLabel, sample, disabled, onChan
 
         window.addEventListener("pointerdown", onPointerDown, true);
         window.addEventListener("keydown", onKey, true);
+        window.addEventListener("blur", close);
         window.addEventListener("resize", close);
 
         return () => {
             window.removeEventListener("pointerdown", onPointerDown, true);
             window.removeEventListener("keydown", onKey, true);
+            window.removeEventListener("blur", close);
             window.removeEventListener("resize", close);
         };
     }, [anchor]);

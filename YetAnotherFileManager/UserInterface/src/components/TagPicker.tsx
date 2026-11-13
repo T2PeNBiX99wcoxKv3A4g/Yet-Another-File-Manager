@@ -55,9 +55,11 @@ export function TagPicker({x, y, tags, allTags, colors, onChange, onClose}: TagP
 
         window.addEventListener("pointerdown", closeOnPointer);
         window.addEventListener("keydown", closeOnEscape);
+        window.addEventListener("blur", onClose);
         return () => {
             window.removeEventListener("pointerdown", closeOnPointer);
             window.removeEventListener("keydown", closeOnEscape);
+            window.removeEventListener("blur", onClose);
         };
     }, [onClose]);
 

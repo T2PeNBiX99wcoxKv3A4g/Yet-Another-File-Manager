@@ -1528,10 +1528,12 @@ export function OverviewView({
         };
 
         window.addEventListener("pointerdown", closeOnPointer);
+        window.addEventListener("blur", close);
         window.addEventListener("resize", close);
         document.addEventListener("scroll", close, true);
         return () => {
             window.removeEventListener("pointerdown", closeOnPointer);
+            window.removeEventListener("blur", close);
             window.removeEventListener("resize", close);
             document.removeEventListener("scroll", close, true);
         };
@@ -1543,7 +1545,11 @@ export function OverviewView({
 
         const close = () => setAddOpen(false);
         window.addEventListener("pointerdown", close);
-        return () => window.removeEventListener("pointerdown", close);
+        window.addEventListener("blur", close);
+        return () => {
+            window.removeEventListener("pointerdown", close);
+            window.removeEventListener("blur", close);
+        };
     }, [addOpen]);
 
     const panels = buildPanels(settings);

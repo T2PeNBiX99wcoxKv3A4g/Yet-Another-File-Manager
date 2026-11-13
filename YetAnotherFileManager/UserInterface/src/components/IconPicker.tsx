@@ -61,10 +61,12 @@ export function IconPicker({value, onPick, onClose, allowDefault = true}: IconPi
         };
 
         window.addEventListener("pointerdown", closeOnPointer);
+        window.addEventListener("blur", onClose);
         window.addEventListener("resize", onClose);
         document.addEventListener("scroll", onClose, true);
         return () => {
             window.removeEventListener("pointerdown", closeOnPointer);
+            window.removeEventListener("blur", onClose);
             window.removeEventListener("resize", onClose);
             document.removeEventListener("scroll", onClose, true);
         };

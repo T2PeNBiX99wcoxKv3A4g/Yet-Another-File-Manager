@@ -25,10 +25,13 @@ export function HistoryPanel() {
         const close = (event: PointerEvent) => {
             if (!root.current?.contains(event.target as Node)) setOpen(false);
         };
+        const dismiss = () => setOpen(false);
         window.addEventListener("pointerdown", close);
+        window.addEventListener("blur", dismiss);
         return () => {
             window.clearInterval(timer);
             window.removeEventListener("pointerdown", close);
+            window.removeEventListener("blur", dismiss);
         };
     }, [open]);
 
