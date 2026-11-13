@@ -271,7 +271,19 @@ internal partial class StartupService
     {
         var result = await Try.Run(async () =>
         {
-            var captured = await Process.RunAndCaptureTextAsync(file, arguments);
+            // A GUI app must hide the console of the helper it starts; schtasks and systemctl are
+            // console programs, so without this a terminal window flashes on screen.
+            var start = new ProcessStartInfo(file)
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden
+            };
+
+            foreach (var argument in arguments)
+                start.ArgumentList.Add(argument);
+
+            var captured = await Process.RunAndCaptureTextAsync(start);
             var output = captured.StandardOutput;
             var error = captured.StandardError;
 
