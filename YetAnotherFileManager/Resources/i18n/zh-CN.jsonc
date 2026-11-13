@@ -1,4 +1,4 @@
-// Simplified Chinese. Keys are the English source text; {placeholders} are kept as-is.
+// Simplified Chinese. Keys are paths; en.jsonc holds the English text. {placeholders} are kept as-is.
 {
   "accent_color": "强调色",
   "active": "已启用",

@@ -1,4 +1,4 @@
-// Traditional Chinese. Keys are the English source text; {placeholders} are kept as-is.
+// Traditional Chinese. Keys are paths; en.jsonc holds the English text. {placeholders} are kept as-is.
 {
   "accent_color": "強調色",
   "active": "使用中",

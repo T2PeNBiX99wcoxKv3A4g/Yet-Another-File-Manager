@@ -1,4 +1,4 @@
-// Japanese. Keys are the English source text; {placeholders} are kept as-is.
+// Japanese. Keys are paths; en.jsonc holds the English text. {placeholders} are kept as-is.
 {
   "accent_color": "アクセントカラー",
   "active": "有効",
