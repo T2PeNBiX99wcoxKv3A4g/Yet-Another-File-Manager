@@ -1,5 +1,79 @@
 # Changelog
 
+## [0.7.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.6.0..v0.7.0) - 2026-11-13
+
+### ⛰️  Features
+
+- *(ui)* Draw a light version of every built-in background - ([f76c53e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/f76c53e1472b0bb488c8454440773859ebd5985a))
+- *(ui)* Follow the system theme and give every palette a light version - ([20f4fac](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/20f4facf7cdf9ab6f3083df01ca344c3331176fe))
+- Keep the settings in TOML and let the shared service own them - ([0a5149a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/0a5149a42985d5cab0c08c97b7306e41b61582d4))
+- Protect a path from every change, not just from deletion - ([1889fba](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1889fba74e6e66aed83c88d23e98780526c1b0d1))
+- Run updates through the shared service and show a download panel - ([f970dfc](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/f970dfce9bd32f147b1c8134b18ba19f7ca7beae))
+
+### 🐛 Bug Fixes
+
+- *(build)* Generate the settings types from the compiled model - ([f29e9d3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/f29e9d30a3034e3a995163b0b7b35ae9150b0384))
+- *(i18n)* Translate the share-mode label - ([657d7ae](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/657d7ae0d180732bc5806c77bdc7b117c7979fd9))
+- Clear every build warning and add the Linux half of the shell features - ([3c4edd4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/3c4edd4fca4c6abe31729af3d87e36ac4c0de9dd))
+- Show which copy owns the yafm:// links, like the other registrations - ([8566241](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/8566241e50dd7468d7423adf1a9e36a5db5bc8f9))
+- Keep the interface's stored layout across builds and launches - ([b0c374f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b0c374fbca44ad4ed5a14f7b3dab8f7fcfd8e318))
+- Repair a dead folder registration at launch and share one instance again - ([17b28e3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/17b28e38d1832f73c7acc9d58e97323aa345531a))
+- Let a copy keep its yafm:// and login registrations too - ([58dc034](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/58dc03409bbe020cf09ca926dc32e322571c74b6))
+- Keep the folder handler on the build that was set, and mark debug builds - ([56aea3a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/56aea3acfd648a57d7784a382f49aa72a73fc0dd))
+- Keep alpha in picture thumbnails and make the strip and the tray behave - ([719a4dd](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/719a4dd8f98d9e3fd652552c503dc160c1f03815))
+
+### 🚜 Refactor
+
+- *(i18n)* Use path-shaped keys and a real English file - ([03c167a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/03c167af829a65482078d98253378d1fb77af822))
+- *(ui)* Take the i18n keys and system client from the shared bridge - ([dc1e74b](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/dc1e74b0998ac806305f1128d3af4680f5641aea))
+- Reuse the shared app.info handler and shortcut reader - ([ae1e2e0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/ae1e2e058d77a77adbd162111a61b97fee36b097))
+- Generate the settings interface and build info from the shared library - ([27afe6f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/27afe6f0e99a743f2f5fcdd0cab1daebf5c373c8))
+- Add global PhotinoNetUtils usings - ([63e2772](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/63e277223e0db7952698058a0bb8bb1ca49c7fdf))
+- Take the settings instance from the shared base - ([938c165](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/938c16501c9bd90577567f4f015a0868c32c7785))
+- Adopt the library's generated singletons and message dispatchers - ([fd6a4b4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/fd6a4b4a4b16efc7a9aa5aa245d8bee7e91a1461))
+- Keep the interface's panel sizes in the app's own file - ([6a917e1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/6a917e1c1c407013d3c5ac9eecf108b65c58134e))
+- Write the registrations only when the setting changes - ([7a75c47](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7a75c47679f484629c6c2c00cf52be0e7797b786))
+- Close a registry key before deleting its stale class - ([126224a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/126224a0115c15d11a9f8deb07d04563a1c59c11))
+
+### 📚 Documentation
+
+- *(i18n)* Replace the stale English-key comment - ([8f7c90f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/8f7c90f4526aceff2e19823527032aa6d75d04e6))
+- Describe every setting in the TOML file - ([7b776cf](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7b776cfe90d9090c05f53ac187911e200d0aac2f))
+
+### ⚙️ Miscellaneous Tasks
+
+- Update PhotinoNetUtils bridge to version 0.25.1 - ([61f44e8](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/61f44e87b957d7a5572fb7882e5c6f891e7275a8))
+- Build with the .NET 11 SDK - ([5462708](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/5462708f10830b4f61434eb2e33963af94921a14))
+- Update PhotinoNetUtils bridge to version 0.25.0 - ([9b8051e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/9b8051e1c2ba787957005d1364e59b3e08234553))
+- Update PhotinoNetUtils bridge to version 0.23.0 - ([bf1aae7](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/bf1aae766c8162bd238cf9d4dea2bdb2c6662e79))
+- Update the bridge to 0.22.0 and drop the app-side i18n wrapper - ([b8749a6](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b8749a632340d154ff0b8e0924ba1065c8e50391))
+- Update PhotinoNetUtils bridge to version 0.21.0 - ([3295dc1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/3295dc1626fb781732f96e601dfa2ac516801f2d))
+- Update PhotinoNetUtils bridge to version 0.20.2 - ([eaf89c3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/eaf89c3a438001922f3512cd4f56add23c590d83))
+- Configure platform-specific settings codegen path - ([3e61c74](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/3e61c74d3729e12d52120c6ba652db3f398e6042))
+- Update Photino-Net-Utils-Bridge to v0.20.0 and replace package file - ([30b7be1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/30b7be112d5ef082c7bcac0fd83ff10b893146b0))
+- Update the shared generator - ([625bf05](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/625bf057e528af15e8991039d0272060532f8097))
+- Update the shared generator - ([6e119c6](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/6e119c6bb2e229cfdf31b6cdd1261fe314e4b280))
+- Update the shared generator - ([91f77b3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/91f77b3063613fb36b6d3ee9ee135e24d14f8ed1))
+- Update the shared generator - ([be63619](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/be636194e441f29bcdce3361de5aadb9f74034f4))
+- Update the shared generator - ([8e098b0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/8e098b04f324cab84ebd1c12e2a2af2b9e46e9d3))
+- Update the shared generator - ([0ee4106](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/0ee410681ef3e6d53a0530d1902fce20bd4d90bb))
+- Update the shared generator - ([b143c63](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b143c638f34a2c0624e2129e07c827b982a35fd3))
+- Update the shared generator - ([6aea357](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/6aea357e7fe4821ad79dd0351976fd29f69e9393))
+- Update the shared generator - ([fcf015f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/fcf015fe67e3ea57790dd3f5ed2447e40f50d747))
+- Validate every translation file - ([2a25e7f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/2a25e7f65229df72fa70844b5ddfccc7c7659c9d))
+- Adopt the shared analyzers - ([c0f79a5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c0f79a5c7a1237d24bffe68aa46d904f13dbb134))
+- Add the shared source generator - ([1ac9ff4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1ac9ff40bc902fd3ae20113861de232998022f5f))
+- Move the app to .NET 11 - ([43e0009](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/43e0009a0874705ad22013761f969c0564dd50c7))
+- Update Photino-Net-Utils-Bridge to v0.17.0 and replace package file - ([5153a2a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/5153a2a3b4a798bc146de336205562b87561b22a))
+- Update Photino-Net-Utils-Bridge to v0.16.1 and replace package file - ([dc952bc](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/dc952bcd5ad4ac2384f4825ad56fda8dd9d4888d))
+- Update Photino-Net-Utils-Bridge to v0.16.0 and replace package file - ([d6c63f7](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d6c63f77d0f646a007a0f109973f8fe50b878e43))
+- Bump the nuget group with 1 update - ([a4eb0db](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/a4eb0db2d7eb4139d9e9c5c6e9f5d49ade864ca1))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([5afbae8](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/5afbae8a9fd5dc113120c02670e733b497d10161))
+
+
 ## [0.6.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.5.1..v0.6.0) - 2026-11-11
 
 ### ⛰️  Features
