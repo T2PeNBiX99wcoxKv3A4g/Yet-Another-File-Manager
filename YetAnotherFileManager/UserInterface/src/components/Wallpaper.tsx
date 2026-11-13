@@ -1,3 +1,4 @@
+import type {ResolvedTheme} from "@photino-net-utils/bridge";
 import styled from "styled-components";
 import {useMediaUrl} from "../api/icons";
 import type {AppSettings} from "../api/settings";
@@ -12,12 +13,12 @@ export function isVideoPath(path: string): boolean {
 }
 
 /** The wallpaper behind the whole window, including the title bar. */
-export function Wallpaper({settings}: { settings: AppSettings | null }) {
+export function Wallpaper({settings, theme}: { settings: AppSettings | null; theme: ResolvedTheme }) {
     const source = settings?.backgroundSource ?? null;
     const remote = source?.startsWith("url:") ? source.slice(4) : isRemoteUrl(source) ? source : null;
     const customPath = source?.startsWith("file:") ? source.slice(5) : null;
     const customUrl = useMediaUrl(customPath);
-    const url = source?.startsWith("builtin:") ? builtInUrl(source) : remote ?? customUrl;
+    const url = source?.startsWith("builtin:") ? builtInUrl(source, theme) : remote ?? customUrl;
     const video = remote !== null
         ? isVideoPath(remote.split(/[?#]/)[0])
         : customPath !== null ? isVideoPath(customPath) : source !== null && isBuiltInVideo(source);
@@ -69,9 +70,8 @@ const Shade = styled.div`
     background: linear-gradient(180deg, rgba(var(--bg-rgb), 0.28), rgba(var(--bg-rgb), 0.5)),
     radial-gradient(1200px 700px at 20% 0%, rgba(var(--accent-secondary-rgb), 0.08), transparent 60%);
 
-    /* In the light palette the picture is washed towards the surface colour instead of darkened. */
+    /* The light artwork is drawn pale already, so it only keeps a faint accent glow. */
     html[data-theme="light"] & {
-        background: linear-gradient(180deg, rgba(var(--bg-rgb), 0.66), rgba(var(--bg-rgb), 0.86)),
-        radial-gradient(1200px 700px at 20% 0%, rgba(var(--accent-secondary-rgb), 0.10), transparent 60%);
+        background: radial-gradient(1200px 700px at 20% 0%, rgba(var(--accent-secondary-rgb), 0.06), transparent 60%);
     }
 `;

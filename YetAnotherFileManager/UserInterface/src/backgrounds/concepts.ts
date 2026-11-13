@@ -4,7 +4,7 @@ import driftPoster from "./videos/drift.jpg";
 import driftVideo from "./videos/drift.mp4";
 import emberPoster from "./videos/ember.jpg";
 import emberVideo from "./videos/ember.mp4";
-import type {LocalizationKey} from "@photino-net-utils/bridge";
+import type {LocalizationKey, ResolvedTheme} from "@photino-net-utils/bridge";
 import {type ThemePreset, ThemePresets} from "../themePresets";
 
 /**
@@ -26,7 +26,10 @@ export interface BackgroundVariant {
     id: string;
     concept: LocalizationKey;
     preset: LocalizationKey;
+    /** The dark rendering, which the dark palette uses. */
     url: string;
+    /** The light rendering, so the artwork follows the palette like the surfaces do. */
+    lightUrl: string;
 }
 
 export interface VideoVariant {
@@ -51,7 +54,8 @@ export const BuiltInBackgrounds: { id: ConceptId; name: LocalizationKey; variant
             id: `builtin:${concept.id}:${preset.name.toLowerCase()}`,
             concept: concept.name,
             preset: preset.name,
-            url: svgUrl(draw(concept.id, preset)),
+            url: svgUrl(draw(concept.id, preset, false)),
+            lightUrl: svgUrl(draw(concept.id, preset, true)),
         })),
     }));
 
@@ -72,7 +76,8 @@ export const BuiltinBanners: BackgroundVariant[] = BannerConcepts.flatMap((conce
         id: `builtin:${concept.id}:${preset.name.toLowerCase()}`,
         concept: concept.name,
         preset: preset.name,
-        url: svgUrl(drawBanner(concept.id, preset)),
+        url: svgUrl(drawBanner(concept.id, preset, false)),
+        lightUrl: svgUrl(drawBanner(concept.id, preset, true)),
     })));
 
 const variantsById = new Map(
@@ -83,13 +88,16 @@ const variantsById = new Map(
 );
 const videosById = new Map(BuiltInVideos.map((video) => [video.id, video] as const));
 
-/** Resolves a stored "builtin:" source; older saves omit the preset and get the indigo one. */
-export function builtInUrl(source: string): string | null {
-    if (variantsById.has(source)) return variantsById.get(source)!.url;
+/**
+ * Resolves a stored "builtin:" source; older saves omit the preset and get the indigo one. The
+ * artwork has a light and a dark rendering, and videos are the same file in both palettes.
+ */
+export function builtInUrl(source: string, theme: ResolvedTheme = "dark"): string | null {
     if (videosById.has(source)) return videosById.get(source)!.url;
 
-    const concept = source.split(":")[1];
-    return concept ? variantsById.get(`builtin:${concept}:indigo`)?.url ?? null : null;
+    const variant = variantsById.get(source)
+        ?? variantsById.get(`builtin:${source.split(":")[1] ?? ""}:indigo`);
+    return variant ? (theme === "light" ? variant.lightUrl : variant.url) : null;
 }
 
 export function builtInName(source: string): string | null {
@@ -110,12 +118,14 @@ function svgUrl(svg: string): string {
     return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
-function draw(concept: ConceptId, preset: ThemePreset): string {
-    return concept === "dunes" ? dunes(preset) : concept === "tide" ? tide(preset) : aurora(preset);
+function draw(concept: ConceptId, preset: ThemePreset, light: boolean): string {
+    return concept === "dunes" ? dunes(preset, light) : concept === "tide" ? tide(preset, light)
+        : aurora(preset, light);
 }
 
-function drawBanner(concept: BannerConceptId, preset: ThemePreset): string {
-    return concept === "skyline" ? skyline(preset) : concept === "orbit" ? orbit(preset) : ridgeline(preset);
+function drawBanner(concept: BannerConceptId, preset: ThemePreset, light: boolean): string {
+    return concept === "skyline" ? skyline(preset, light) : concept === "orbit" ? orbit(preset, light)
+        : ridgeline(preset, light);
 }
 
 /* ---------------------------------------------------------------------------------------------- */
@@ -124,18 +134,20 @@ function drawBanner(concept: BannerConceptId, preset: ThemePreset): string {
 
 /* ---------------------------------------------------------------------------------------------- */
 
-function ridgeline({accent, secondary}: ThemePreset): string {
-    const skyTop = mix(secondary, "#05070f", 0.86);
-    const skyBottom = mix(accent, "#0b1020", 0.72);
-    const far = mix(secondary, "#0a0f1d", 0.66);
-    const near = mix(accent, "#060a14", 0.74);
+function ridgeline({accent, secondary}: ThemePreset, light: boolean): string {
+    const skyTop = mix(secondary, light ? "#e8eefc" : "#05070f", light ? 0.9 : 0.86);
+    const skyBottom = mix(accent, light ? "#f6f8ff" : "#0b1020", light ? 0.84 : 0.72);
+    const far = mix(secondary, light ? "#dbe3f0" : "#0a0f1d", light ? 0.55 : 0.66);
+    const near = mix(accent, light ? "#c3cfdf" : "#060a14", light ? 0.6 : 0.74);
+    const horizon = light ? "#e9eefb" : "#05070d";
+    const front = mix(accent, light ? "#a9b8cc" : "#03050a", light ? 0.62 : 0.9);
 
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
     <defs>
         <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stop-color="${skyTop}"/>
             <stop offset="0.62" stop-color="${skyBottom}"/>
-            <stop offset="1" stop-color="#05070d"/>
+            <stop offset="1" stop-color="${horizon}"/>
         </linearGradient>
         <radialGradient id="sun" cx="0.5" cy="0.5" r="0.5">
             <stop offset="0" stop-color="${secondary}" stop-opacity="0.95"/>
@@ -145,20 +157,20 @@ function ridgeline({accent, secondary}: ThemePreset): string {
     </defs>
     <rect width="1920" height="1080" fill="url(#sky)"/>
     <circle cx="1450" cy="330" r="360" fill="url(#sun)"/>
-    <circle cx="1450" cy="330" r="120" fill="${mix(secondary, "#ffffff", 0.2)}" opacity="0.75"/>
+    <circle cx="1450" cy="330" r="120" fill="${mix(secondary, "#ffffff", light ? 0.45 : 0.2)}" opacity="0.75"/>
     <path d="M0 650 L260 470 L470 610 L720 380 L980 640 L1240 430 L1520 620 L1750 470 L1920 560 V1080 H0 Z" fill="${far}" opacity="0.72"/>
     <path d="M0 790 L300 620 L560 760 L860 540 L1120 760 L1420 600 L1700 780 L1920 680 V1080 H0 Z" fill="${near}"/>
-    <path d="M0 900 L240 810 L520 900 L800 760 L1080 900 L1380 800 L1660 900 L1920 830 V1080 H0 Z" fill="${mix(accent, "#03050a", 0.9)}"/>
+    <path d="M0 900 L240 810 L520 900 L800 760 L1080 900 L1380 800 L1660 900 L1920 830 V1080 H0 Z" fill="${front}"/>
     <path d="M0 650 L260 470 L470 610 L720 380 L980 640 L1240 430 L1520 620 L1750 470 L1920 560"
           fill="none" stroke="${accent}" stroke-width="2.5" opacity="0.5"/>
     </svg>`;
 }
 
-function skyline({accent, secondary}: ThemePreset): string {
-    const skyTop = mix(secondary, "#07040d", 0.84);
-    const skyBottom = mix(accent, "#100716", 0.7);
-    const building = mix(accent, "#08050e", 0.82);
-    const buildingLight = mix(secondary, "#0b0613", 0.78);
+function skyline({accent, secondary}: ThemePreset, light: boolean): string {
+    const skyTop = mix(secondary, light ? "#e9eefc" : "#07040d", light ? 0.9 : 0.84);
+    const skyBottom = mix(accent, light ? "#f4f6ff" : "#100716", light ? 0.82 : 0.7);
+    const building = mix(accent, light ? "#b7c4d6" : "#08050e", light ? 0.7 : 0.82);
+    const buildingLight = mix(secondary, light ? "#c9d3e2" : "#0b0613", light ? 0.66 : 0.78);
 
     const towers = [
         [60, 560, 110], [190, 470, 90], [300, 620, 130], [450, 390, 100], [570, 510, 120],
@@ -177,7 +189,7 @@ function skyline({accent, secondary}: ThemePreset): string {
         <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stop-color="${skyTop}"/>
             <stop offset="0.7" stop-color="${skyBottom}"/>
-            <stop offset="1" stop-color="#05030a"/>
+            <stop offset="1" stop-color="${light ? "#e6ebf8" : "#05030a"}"/>
         </linearGradient>
         <linearGradient id="beam" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0" stop-color="${accent}" stop-opacity="0"/>
@@ -189,21 +201,21 @@ function skyline({accent, secondary}: ThemePreset): string {
     <circle cx="420" cy="260" r="180" fill="${secondary}" opacity="0.16"/>
     <path d="M0 600 L1920 520 V700 L0 780 Z" fill="url(#beam)"/>
     ${blocks}
-    <rect x="0" y="720" width="1920" height="360" fill="${mix(accent, "#040208", 0.94)}" opacity="0.72"/>
+    <rect x="0" y="720" width="1920" height="360" fill="${mix(accent, light ? "#d5deea" : "#040208", light ? 0.7 : 0.94)}" opacity="0.72"/>
     <path d="M0 720 H1920" stroke="${accent}" stroke-width="2" opacity="0.35"/>
     </svg>`;
 }
 
-function orbit({accent, secondary}: ThemePreset): string {
-    const base = mix(accent, "#03050d", 0.9);
-    const deep = mix(secondary, "#05030c", 0.94);
+function orbit({accent, secondary}: ThemePreset, light: boolean): string {
+    const base = mix(accent, light ? "#eef3ff" : "#03050d", light ? 0.88 : 0.9);
+    const deep = mix(secondary, light ? "#f8faff" : "#05030c", light ? 0.9 : 0.94);
     const ring = mix(secondary, accent, 0.35);
 
     const stars = Array.from({length: 90}, (_, index) => {
         const x = (index * 197 + 83) % 1920;
         const y = (index * 311 + 149) % 1080;
         const r = index % 9 === 0 ? 2.4 : 1.2;
-        return `<circle cx="${x}" cy="${y}" r="${r}" fill="#ffffff" opacity="${0.18 + (index % 5) * 0.08}"/>`;
+        return `<circle cx="${x}" cy="${y}" r="${r}" fill="${light ? "#64748b" : "#ffffff"}" opacity="${0.18 + (index % 5) * 0.08}"/>`;
     }).join("");
 
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
@@ -216,7 +228,7 @@ function orbit({accent, secondary}: ThemePreset): string {
         <radialGradient id="planet" cx="0.35" cy="0.3" r="0.8">
             <stop offset="0" stop-color="${mix(secondary, "#ffffff", 0.32)}"/>
             <stop offset="0.6" stop-color="${secondary}"/>
-            <stop offset="1" stop-color="${mix(accent, "#08050f", 0.7)}"/>
+            <stop offset="1" stop-color="${mix(accent, light ? "#cfd9e6" : "#08050f", light ? 0.55 : 0.7)}"/>
         </radialGradient>
     </defs>
     <rect width="1920" height="1080" fill="url(#space)"/>
@@ -266,10 +278,10 @@ function mix(a: string, b: string, amount: number): string {
 
 /* ---------------------------------------------------------------------------------------------- */
 
-function aurora({accent, secondary}: ThemePreset): string {
-    const base = mix(accent, "#05070f", 0.9);
-    const middle = mix(secondary, "#070b1c", 0.85);
-    const deep = mix(accent, "#04060c", 0.94);
+function aurora({accent, secondary}: ThemePreset, light: boolean): string {
+    const base = mix(accent, light ? "#f2f6ff" : "#05070f", 0.9);
+    const middle = mix(secondary, light ? "#eef2ff" : "#070b1c", light ? 0.86 : 0.85);
+    const deep = mix(accent, light ? "#e8f0fb" : "#04060c", light ? 0.9 : 0.94);
 
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
     <defs>
@@ -292,35 +304,37 @@ function aurora({accent, secondary}: ThemePreset): string {
         </filter>
     </defs>
     <rect width="1920" height="1080" fill="url(#bg)"/>
-    <ellipse cx="420" cy="260" rx="540" ry="300" fill="${accent}" opacity="0.7" filter="url(#soft)"/>
-    <ellipse cx="1450" cy="220" rx="460" ry="260" fill="${secondary}" opacity="0.66" filter="url(#soft)"/>
-    <ellipse cx="1050" cy="820" rx="620" ry="300" fill="${mix(accent, secondary, 0.5)}" opacity="0.42" filter="url(#soft)"/>
-    <path d="M-100 700 C 380 460 760 880 1180 640 S 1780 380 2050 600" fill="none" stroke="url(#ribbon)" stroke-width="90" opacity="0.5" filter="url(#soft2)"/>
-    <path d="M-100 760 C 380 520 760 940 1180 700 S 1780 420 2050 660" fill="none" stroke="${accent}" stroke-width="3" opacity="0.42" filter="url(#soft2)"/>
-    <path d="M-100 860 C 420 640 820 1040 1240 800 S 1820 540 2050 760" fill="none" stroke="${secondary}" stroke-width="3" opacity="0.36" filter="url(#soft2)"/>
+    <ellipse cx="420" cy="260" rx="540" ry="300" fill="${accent}" opacity="${light ? 0.45 : 0.7}" filter="url(#soft)"/>
+    <ellipse cx="1450" cy="220" rx="460" ry="260" fill="${secondary}" opacity="${light ? 0.4 : 0.66}" filter="url(#soft)"/>
+    <ellipse cx="1050" cy="820" rx="620" ry="300" fill="${mix(accent, secondary, 0.5)}" opacity="${light ? 0.26 : 0.42}" filter="url(#soft)"/>
+    <path d="M-100 700 C 380 460 760 880 1180 640 S 1780 380 2050 600" fill="none" stroke="url(#ribbon)" stroke-width="90" opacity="${light ? 0.32 : 0.5}" filter="url(#soft2)"/>
+    <path d="M-100 760 C 380 520 760 940 1180 700 S 1780 420 2050 660" fill="none" stroke="${accent}" stroke-width="3" opacity="${light ? 0.3 : 0.42}" filter="url(#soft2)"/>
+    <path d="M-100 860 C 420 640 820 1040 1240 800 S 1820 540 2050 760" fill="none" stroke="${secondary}" stroke-width="3" opacity="${light ? 0.26 : 0.36}" filter="url(#soft2)"/>
 </svg>`;
 }
 
-function dunes({accent, secondary}: ThemePreset): string {
-    const skyTop = mix(secondary, "#120a05", 0.84);
-    const skyMiddle = mix(secondary, "#1c0f07", 0.7);
+function dunes({accent, secondary}: ThemePreset, light: boolean): string {
+    const skyTop = mix(secondary, light ? "#fff4e2" : "#120a05", light ? 0.9 : 0.84);
+    const skyMiddle = mix(secondary, light ? "#fff8ee" : "#1c0f07", light ? 0.82 : 0.7);
     const sand = mix(accent, secondary, 0.25);
-    const sandDeep = mix(accent, "#160b04", 0.55);
+    const sandDeep = mix(accent, light ? "#e2cdae" : "#160b04", light ? 0.5 : 0.55);
+    const haze = mix(accent, light ? "#ecdcc2" : "#1a0d05", light ? 0.6 : 0.7);
+    const foreground = mix(accent, light ? "#d9c1a2" : "#0b0603", light ? 0.7 : 0.82);
 
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
     <defs>
         <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stop-color="${skyTop}"/>
             <stop offset="0.5" stop-color="${skyMiddle}"/>
-            <stop offset="1" stop-color="#0d0703"/>
+            <stop offset="1" stop-color="${light ? "#f6ecdd" : "#0d0703"}"/>
         </linearGradient>
         <linearGradient id="dune1" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stop-color="${sand}" stop-opacity="0.65"/>
-            <stop offset="1" stop-color="${sandDeep}" stop-opacity="0.2"/>
+            <stop offset="0" stop-color="${sand}" stop-opacity="${light ? 0.5 : 0.65}"/>
+            <stop offset="1" stop-color="${sandDeep}" stop-opacity="${light ? 0.16 : 0.2}"/>
         </linearGradient>
         <linearGradient id="dune2" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stop-color="${secondary}" stop-opacity="0.4"/>
-            <stop offset="1" stop-color="${mix(accent, "#1a0d05", 0.7)}" stop-opacity="0.15"/>
+            <stop offset="0" stop-color="${secondary}" stop-opacity="${light ? 0.34 : 0.4}"/>
+            <stop offset="1" stop-color="${haze}" stop-opacity="0.15"/>
         </linearGradient>
         <filter id="haze" x="-160%" y="-160%" width="420%" height="420%">
             <feGaussianBlur stdDeviation="90"/>
@@ -331,14 +345,14 @@ function dunes({accent, secondary}: ThemePreset): string {
     <circle cx="1480" cy="250" r="110" fill="${mix(secondary, "#ffffff", 0.25)}" opacity="0.18" filter="url(#haze)"/>
     <path d="M0 690 C 320 600 560 700 840 650 C 1180 590 1430 680 1920 610 V1080 H0 Z" fill="url(#dune1)"/>
     <path d="M0 820 C 360 740 680 860 980 800 C 1320 730 1620 830 1920 770 V1080 H0 Z" fill="url(#dune2)"/>
-    <path d="M0 940 C 420 880 760 980 1100 930 C 1440 880 1700 950 1920 910 V1080 H0 Z" fill="${mix(accent, "#0b0603", 0.82)}" opacity="0.75"/>
+    <path d="M0 940 C 420 880 760 980 1100 930 C 1440 880 1700 950 1920 910 V1080 H0 Z" fill="${foreground}" opacity="${light ? 0.5 : 0.75}"/>
 </svg>`;
 }
 
-function tide({accent, secondary}: ThemePreset): string {
-    const base = mix(accent, "#02070a", 0.9);
-    const middle = mix(secondary, "#03100f", 0.82);
-    const deep = mix(accent, "#020609", 0.94);
+function tide({accent, secondary}: ThemePreset, light: boolean): string {
+    const base = mix(accent, light ? "#e6f7fb" : "#02070a", light ? 0.88 : 0.9);
+    const middle = mix(secondary, light ? "#eefaf8" : "#03100f", light ? 0.85 : 0.82);
+    const deep = mix(accent, light ? "#dff2f7" : "#020609", light ? 0.9 : 0.94);
 
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
     <defs>
@@ -357,9 +371,9 @@ function tide({accent, secondary}: ThemePreset): string {
         </linearGradient>
     </defs>
     <rect width="1920" height="1080" fill="url(#sea)"/>
-    <ellipse cx="350" cy="840" rx="620" ry="280" fill="${accent}" opacity="0.45" filter="url(#blur)"/>
-    <ellipse cx="1550" cy="240" rx="520" ry="260" fill="${secondary}" opacity="0.38" filter="url(#blur)"/>
-    <ellipse cx="1200" cy="960" rx="700" ry="240" fill="${mix(accent, secondary, 0.4)}" opacity="0.5" filter="url(#blur)"/>
+    <ellipse cx="350" cy="840" rx="620" ry="280" fill="${accent}" opacity="${light ? 0.3 : 0.45}" filter="url(#blur)"/>
+    <ellipse cx="1550" cy="240" rx="520" ry="260" fill="${secondary}" opacity="${light ? 0.26 : 0.38}" filter="url(#blur)"/>
+    <ellipse cx="1200" cy="960" rx="700" ry="240" fill="${mix(accent, secondary, 0.4)}" opacity="${light ? 0.34 : 0.5}" filter="url(#blur)"/>
     <path d="M-50 640 C 400 560 760 720 1160 640 S 1780 520 2000 600" fill="none" stroke="url(#wave)" stroke-width="3"/>
     <path d="M-50 740 C 420 660 800 820 1200 730 S 1800 620 2000 700" fill="none" stroke="url(#wave)" stroke-width="2"/>
     <path d="M-50 850 C 460 760 820 920 1220 830 S 1820 720 2000 800" fill="none" stroke="url(#wave)" stroke-width="2" opacity="0.75"/>

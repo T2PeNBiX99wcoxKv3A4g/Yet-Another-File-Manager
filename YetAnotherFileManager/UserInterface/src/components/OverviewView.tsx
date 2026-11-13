@@ -28,7 +28,7 @@ import {type AppSettings, getSettings, saveSettings} from "../api/settings";
 import {type PageFind, useTextSearch} from "../ui/textSearch";
 import {requestFile, requestFolder} from "../folder-picker";
 import {useMediaUrl} from "../api/icons";
-import {type LocalizationKey, Native, useTranslation} from "@photino-net-utils/bridge";
+import {type LocalizationKey, Native, type ResolvedTheme, useTranslation} from "@photino-net-utils/bridge";
 import {FileList} from "./FileList";
 import {
     ArrowUpIcon,
@@ -98,14 +98,16 @@ interface OverviewViewProps {
     onExtractArchive?: (path: string, mode: ArchiveExtractMode) => void;
     /** Bumped when the app reloaded settings, so the favorites (and layout) stay in step. */
     settingsVersion?: number;
+    /** Which palette the artwork matches. */
+    theme: ResolvedTheme;
 }
 
-function BannerThumb({source, poster}: { source: string; poster?: string }) {
+function BannerThumb({source, poster, theme}: { source: string; poster?: string; theme: ResolvedTheme }) {
     const remote = isRemoteUrl(source);
     const extension = source.split(/[?#]/)[0].split(".").pop()?.toLowerCase() ?? "";
     const file = source.startsWith("builtin:") || remote ? null : source;
     const media = useMediaUrl(file, 0, extension ? `.${extension}` : "");
-    const src = poster ?? builtInUrl(source) ?? (remote ? source : media);
+    const src = poster ?? builtInUrl(source, theme) ?? (remote ? source : media);
     const video = !poster && ["mp4", "webm", "mkv", "mov", "m4v", "ogv"].includes(extension);
 
     if (!src) return null;
@@ -1323,6 +1325,7 @@ const PairButton = styled.button`
 `;
 
 export function OverviewView({
+                                 theme,
                                  places,
                                  drives,
                                  recent,
@@ -1368,7 +1371,7 @@ export function OverviewView({
         : ["mp4", "webm", "mkv", "mov", "m4v", "ogv"].includes(bannerExtension);
     const bannerMedia = useMediaUrl(bannerFile.length > 0 ? bannerFile : null, 0,
         bannerExtension ? `.${bannerExtension}` : "");
-    const bannerSource = bannerPath ? builtInUrl(bannerPath) ?? bannerRemote ?? bannerMedia : null;
+    const bannerSource = bannerPath ? builtInUrl(bannerPath, theme) ?? bannerRemote ?? bannerMedia : null;
     const [bannerUrl, setBannerUrl] = useState("");
     const [iconEditor, setIconEditor] = useState<{ kind: "panel" | "place"; id: string } | null>(null);
     const [addOpen, setAddOpen] = useState(false);
@@ -2768,7 +2771,7 @@ export function OverviewView({
                                         title={`${t(variant.concept)} · ${t(variant.preset)}`}
                                         type="button"
                                     >
-                                        <BannerThumb poster={variant.url} source={variant.id}/>
+                                        <BannerThumb source={variant.id} theme={theme}/>
                                     </BannerChoice>
                                 </BannerItem>
                             ))}
@@ -2781,7 +2784,7 @@ export function OverviewView({
                                         title={t(video.name)}
                                         type="button"
                                     >
-                                        <BannerThumb poster={video.poster} source={video.id}/>
+                                        <BannerThumb poster={video.poster} source={video.id} theme={theme}/>
                                         <PlayBadge><VideoIcon size={11}/></PlayBadge>
                                     </BannerChoice>
                                 </BannerItem>
@@ -2798,7 +2801,7 @@ export function OverviewView({
                                         title={path}
                                         type="button"
                                     >
-                                        <BannerThumb source={path}/>
+                                        <BannerThumb source={path} theme={theme}/>
                                     </BannerChoice>
                                     <BannerRemove
                                         onClick={() => removeCustomBanner(path)}

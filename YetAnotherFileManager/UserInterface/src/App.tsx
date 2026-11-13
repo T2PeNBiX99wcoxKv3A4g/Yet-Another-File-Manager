@@ -2472,7 +2472,7 @@ export default function App() {
     return (
         <QuickAccessProvider value={quickAccess}>
             <Root $rounded={corners}>
-                <Wallpaper settings={settings}/>
+                <Wallpaper settings={settings} theme={theme}/>
                 <TitleBar
                     activeId={active.id}
                     onClose={closeTab}
@@ -2804,6 +2804,7 @@ export default function App() {
                                     favoritePaths={favoritePaths}
                                     onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
                                     settingsVersion={settingsVersion}
+                                    theme={theme}
                                     onOpen={navigate}
                                     onLayoutChanged={reloadSettings}
                                     onPlacesChanged={setPlaces}
@@ -3045,9 +3046,9 @@ const Body = styled.div`
     html.has-wallpaper & {
         background: linear-gradient(180deg, rgba(var(--bg-rgb), 0.12), rgba(var(--bg-rgb), 0.3));
 
-        /* Over a picture the light palette needs a stronger veil to keep dark text readable. */
+        /* The light artwork needs no veil: its own colours are pale enough for dark text. */
         html[data-theme="light"] & {
-            background: linear-gradient(180deg, rgba(var(--bg-rgb), 0.45), rgba(var(--bg-rgb), 0.68));
+            background: transparent;
         }
     }
 `;

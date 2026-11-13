@@ -5,6 +5,7 @@ import {
     loadStrings,
     type ThemeMode,
     type Translate,
+    useTheme,
     useTranslation,
 } from "@photino-net-utils/bridge";
 import styled, {css} from "styled-components";
@@ -55,7 +56,7 @@ import {createTag, deleteTag, listTags, renameTag, setTagColor, type TagCatalogE
 import {CheckIcon, ChevronRightIcon, CrossIcon, PlusIcon, TrashIcon, VideoIcon} from "./Icons";
 import {IconPicker} from "./IconPicker";
 import {DefaultTagColor} from "./TagPicker";
-import {DefaultAccentColor, DefaultSecondaryColor, normalizeColor} from "../theme";
+import {DefaultAccentColor, DefaultSecondaryColor, normalizeColor, normalizeThemeMode} from "../theme";
 import {comboOf, DefaultShortcuts, prettyShortcut, type ShortcutMap} from "../shortcuts";
 import {BuiltinIcon} from "../icons/fileTypes";
 import {ThemePresets} from "../themePresets";
@@ -238,6 +239,8 @@ export function SettingsView({
     const [languages, setLanguages] = useState<string[]>([]);
     const [visibility, setVisibility] = useState<FileVisibility | null>(null);
     const [settings, setSettings] = useState<AppSettings | null>(null);
+    // The background gallery previews the artwork the window would show right now.
+    const theme = useTheme(normalizeThemeMode(settings?.themeMode));
     const [folderIcon, setFolderIcon] = useState<{ folder: string; icon: string } | null>(null);
     const [newExtension, setNewExtension] = useState("");
     const [newIcon, setNewIcon] = useState<string>("file");
@@ -1750,7 +1753,7 @@ export function SettingsView({
                                                     title={`${t(concept.name)} · ${t(variant.preset)}`}
                                                     type="button"
                                                 >
-                                                    <img alt="" src={variant.url}/>
+                                                    <img alt="" src={theme === "light" ? variant.lightUrl : variant.url}/>
                                                 </Variant>
                                             ))}
                                         </VariantRow>

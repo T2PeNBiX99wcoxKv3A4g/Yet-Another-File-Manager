@@ -108,6 +108,7 @@ export function PickerWindow({mode, multiple, extensions, initial}: PickerWindow
                     onSelect={(paths) => Native.send({type: "pick.submit", payload: {paths}})}
                     showImages={showImages ?? viewDefaults.showImages}
                     fileView={view}
+                    theme={theme}
                 />
             </Content>
 

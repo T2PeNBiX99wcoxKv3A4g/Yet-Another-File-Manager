@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {createPortal} from "react-dom";
 import styled from "styled-components";
-import {Native, useTranslation} from "@photino-net-utils/bridge";
+import {Native, type ResolvedTheme, useTranslation} from "@photino-net-utils/bridge";
 import {
     DefaultView,
     DefaultViewDefaults,
@@ -55,6 +55,8 @@ interface FolderPickerProps {
     /** The window title bar owns the view controls, so it passes the resolved view in. */
     fileView?: ResolvedView;
     showImages?: boolean;
+    /** Which palette the background previews follow. */
+    theme: ResolvedTheme;
     places?: Place[];
     onCancel: () => void;
     onSelect: (paths: string[]) => void;
@@ -73,6 +75,7 @@ export function FolderPicker({
                                  places: suppliedPlaces,
                                  fileView,
                                  showImages,
+                                 theme,
                                  onCancel,
                                  onSelect,
                              }: FolderPickerProps) {
@@ -516,6 +519,7 @@ export function FolderPicker({
                         <>
                             <OverviewView
                                 drives={drives}
+                                theme={theme}
                                 historyVersion={0}
                                 homePath={places.find((place) => place.kind === "home")?.path ?? ""}
                                 onOpen={(target) => navigate(target)}
