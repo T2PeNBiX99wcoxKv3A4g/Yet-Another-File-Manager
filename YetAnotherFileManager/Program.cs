@@ -159,6 +159,7 @@ internal static partial class Program
                 Log.Information("arg: {Arg}", arg);
 
             var startupPaths = ResolvePaths(args);
+            var autostart = args.Contains(Constants.AutostartArgument) || LaunchedAtLogin();
 
             // Only one instance may run; later launches hand their paths to it and exit.
             using var singleInstance = new SingleInstance(Constants.Name);
@@ -212,9 +213,11 @@ internal static partial class Program
             // Without a tray the window is the only way back in, so it always shows there.
             var hasTray = OperatingSystem.IsWindows() ||
                           OperatingSystem.IsLinux() && LinuxDiagnostics.AppIndicatorLibrary is not null;
-            // Opening a folder or a yafm:// link is a direct user action. Do not swallow that launch
-            // into a hidden tray start just because the logon entry normally starts quietly.
+            // Opening a folder or a yafm:// link is a direct user action, and so is any launch that
+            // is not the logon entry (Win+E, the Start menu, an IDE). Only the logon entry obeys the
+            // "start hidden" setting; everything else shows the window.
             manager.ShowMainWindowOnStartup = startupPaths.Count > 0
+                                              || !autostart
                                               || !SettingsService.Instance.Current.StartsHidden
                                               || !hasTray;
 
@@ -306,10 +309,32 @@ internal static partial class Program
     [LibraryImport("kernel32.dll")]
     private static partial uint SetErrorMode(uint mode);
 
+    /// <summary>
+    ///     Whether the logon entry started this process. Task Scheduler owns the task launch and the
+    ///     Startup folder is handled by the <c>--autostart</c> argument, so any other parent means
+    ///     the user (or another program) asked for the window.
+    /// </summary>
+    private static bool LaunchedAtLogin() =>
+        OperatingSystem.IsWindows()
+        && ParentProcess.Name() is "taskhostw" or "taskhost" or "svchost" or "taskeng";
+
     /// <summary>Shows every path a second launch forwarded, the way Explorer reuses its window.</summary>
     private static void DispatchPaths(WindowManager manager, IReadOnlyList<string> args)
     {
-        foreach (var path in ResolvePaths(args))
+        var paths = ResolvePaths(args);
+
+        // A second launch with no folder (Win+E, the Start menu, running the exe again) asks for
+        // the window, not for another tab. Show it even when the app started hidden in the tray,
+        // unless the logon entry itself forwarded.
+        if (paths.Count == 0)
+        {
+            if (!args.Contains(Constants.AutostartArgument))
+                manager.ShowMainWindow();
+
+            return;
+        }
+
+        foreach (var path in paths)
             manager.ShowPath(path);
     }
 
@@ -370,7 +395,8 @@ internal static partial class Program
         if (args[index + 1] == "create")
             foreach (var argument in new[]
                      {
-                         "/Create", "/SC", "ONLOGON", "/IT", "/TN", Constants.Name, "/TR", $"\"{executable}\"", "/RL",
+                         "/Create", "/SC", "ONLOGON", "/IT", "/TN", Constants.Name, "/TR",
+                         $"\"{executable}\" {Constants.AutostartArgument}", "/RL",
                          "LIMITED", "/F"
                      })
                 start.ArgumentList.Add(argument);

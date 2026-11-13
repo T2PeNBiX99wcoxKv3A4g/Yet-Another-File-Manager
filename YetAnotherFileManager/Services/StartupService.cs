@@ -27,10 +27,15 @@ internal partial class StartupService
         "app",
         Constants.WindowTitle,
         "yafm",
-        Constants.DisplayName);
+        Constants.DisplayName,
+        Constants.AutostartArgument);
 
     private StartupService()
     {
+        // A shortcut written before the logon argument existed is rewritten once, so a quiet logon
+        // start stays quiet after the update.
+        if (_shortcut.IsCurrent)
+            _shortcut.Refresh();
     }
 
     /// <summary>True where a per-user login entry can be written.</summary>
@@ -97,8 +102,9 @@ internal partial class StartupService
             case "task":
                 _shortcut.SetEnabled(false);
                 // Writing a Windows task needs an administrator token, so a launch only repairs the
-                // shortcut and leaves the task to the settings page.
-                return interactive && !TaskCurrent() ? await CreateTaskAsync() : (true, null);
+                // shortcut and leaves the task to the settings page. Choosing the mode there always
+                // rewrites the task, so an entry from an older build picks up the logon argument.
+                return interactive ? await CreateTaskAsync() : (true, null);
 
             default:
                 _shortcut.SetEnabled(false);
@@ -133,7 +139,7 @@ internal partial class StartupService
 
                         [Service]
                         Type=simple
-                        ExecStart="{executable}"
+                        ExecStart="{executable}" {Constants.AutostartArgument}
                         WorkingDirectory="{Path.GetDirectoryName(executable)}"
 
                         [Install]
@@ -277,6 +283,8 @@ internal partial class StartupService
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
                 WindowStyle = ProcessWindowStyle.Hidden
             };
 

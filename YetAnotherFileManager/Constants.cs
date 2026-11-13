@@ -57,6 +57,9 @@ public static class Constants
     /// <summary>Elevated one-off helper for the Windows logon task: create or delete it, then exit.</summary>
     public const string StartupTaskArgument = "--startup-task";
 
+    /// <summary>Set by the logon entry, so only that launch follows the "start hidden" setting.</summary>
+    public const string AutostartArgument = "--autostart";
+
     /// <summary>
     ///     Elevated one-off helper: runs one file operation for a folder the window cannot change,
     ///     writes the answer to a JSON file and exits: <c>--elevated-operation request result</c>.
