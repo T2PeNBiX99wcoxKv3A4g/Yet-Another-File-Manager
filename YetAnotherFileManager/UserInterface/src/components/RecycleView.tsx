@@ -166,6 +166,9 @@ export function RecycleView({
             matchesName(entry.name, find) || matchesName(entry.originalPath, find));
     }, [rows, find?.open, find?.query, find?.matchCase, find?.regex]);
 
+    // The columns and the details pane stay visible, so the empty note lives inside the row area.
+    const noRows = find?.open && find.query.trim().length > 0 ? visibleRows.length === 0 : rows.length === 0;
+
     const listRef = useRef<HTMLDivElement | null>(null);
 
     // The shared page search highlights matches and dims or hides rows without any.
@@ -531,15 +534,8 @@ export function RecycleView({
 
             {adminNotice && <Notice>{adminNotice}</Notice>}
             {error && <Message>{error}</Message>}
-            {!error && !loading && (find?.open && find.query.trim().length > 0 ? visibleRows.length === 0 : rows.length === 0) && (
-                <Message>
-                    {find?.open && find.query.trim().length > 0
-                        ? t("no_matching_items")
-                        : t("the_recycle_bin_is_empty")}
-                </Message>
-            )}
 
-            {rows.length > 0 && (
+            {!error && (
                 <SplitPane>
                     <Table ref={listRef}>
                         <Head>
@@ -575,6 +571,13 @@ export function RecycleView({
                                     setSelected(new Set());
                             }}
                         >
+                            {!loading && noRows && (
+                                <Message>
+                                    {find?.open && find.query.trim().length > 0
+                                        ? t("no_matching_items")
+                                        : t("the_recycle_bin_is_empty")}
+                                </Message>
+                            )}
                             {rows.map((entry) => (
                                 <Row
                                     $checked={selected.has(entry.id)}
