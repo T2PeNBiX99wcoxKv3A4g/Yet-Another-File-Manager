@@ -521,6 +521,13 @@
         "null"
       ],
       "description": "Seconds a refused browser stays blocked."
+    },
+    "windowsShellMenu": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Show the Windows 11 File Explorer command for this app."
     }
   },
   "additionalProperties": false

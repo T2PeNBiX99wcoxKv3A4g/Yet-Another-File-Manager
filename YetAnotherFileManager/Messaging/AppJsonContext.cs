@@ -174,6 +174,8 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(ArchiveApplyPayload))]
 [JsonSerializable(typeof(ArchiveStatusPayload))]
 [JsonSerializable(typeof(DefaultManagerStatusPayload))]
+[JsonSerializable(typeof(ShellMenuStatusPayload))]
+[JsonSerializable(typeof(ShellMenuRequest))]
 [JsonSerializable(typeof(DefaultManagerRequest))]
 [JsonSerializable(typeof(ArchiveOpenPayload))]
 [JsonSerializable(typeof(CompressRequest))]

@@ -17,14 +17,17 @@ import {
     type AppSettings,
     type ArchiveStatus,
     type DefaultManagerStatus,
+    type ShellMenuStatus,
     getArchiveStatus,
     getDefaultManagerStatus,
     getDefaultProtectedPaths,
     getSettings,
+    getShellMenuStatus,
     registerArchiveHandler,
     saveSettings,
     setDefaultManager,
     setEntryIcon,
+    setShellMenu,
     unregisterArchiveHandler,
 } from "../api/settings";
 import type {AppInfo} from "../api/system";
@@ -263,6 +266,9 @@ export function SettingsView({
     const [schemeError, setSchemeError] = useState<string | null>(null);
     const [archiveStatus, setArchiveStatus] = useState<ArchiveStatus | null>(null);
     const [defaultManagerStatus, setDefaultManagerStatus] = useState<DefaultManagerStatus | null>(null);
+    const [shellMenuStatus, setShellMenuStatus] = useState<ShellMenuStatus | null>(null);
+    const [shellMenuBusy, setShellMenuBusy] = useState(false);
+    const [shellMenuError, setShellMenuError] = useState<string | null>(null);
     const [archiveBusy, setArchiveBusy] = useState(false);
     const [archiveError, setArchiveError] = useState<string | null>(null);
     const [defaultManagerBusy, setDefaultManagerBusy] = useState(false);
@@ -399,6 +405,7 @@ export function SettingsView({
         void getScheme().then(setSchemeState, () => setSchemeState(EmptyScheme));
         void getArchiveStatus().then(setArchiveStatus, () => setArchiveStatus(null));
         void getDefaultManagerStatus().then(setDefaultManagerStatus, () => setDefaultManagerStatus(null));
+        void getShellMenuStatus().then(setShellMenuStatus, () => setShellMenuStatus(null));
         void listTags().then(setTags, () => setTags([]));
     }, []);
 
@@ -823,6 +830,34 @@ export function SettingsView({
             setSchemeError("The request to Windows failed. Try again.");
         } finally {
             setSchemeBusy(false);
+        }
+    };
+
+    const changeShellMenu = async () => {
+        if (shellMenuBusy || !shellMenuStatus?.supported) return;
+
+        const enable = !shellMenuStatus.registered;
+
+        setShellMenuBusy(true);
+        setShellMenuError(null);
+
+        try {
+            const status = await setShellMenu(enable);
+            setShellMenuStatus(status);
+
+            const active = status.registered;
+            setSettings((current) => current ? {...current, windowsShellMenu: active} : current);
+            onSettingsChanged();
+
+            if (status.error) setShellMenuError(status.error);
+            else if (active !== enable)
+                setShellMenuError(enable
+                    ? t("windows_did_not_accept_the_context_menu_package_try_again")
+                    : t("the_context_menu_registration_is_still_there_try_turning_it_off_again"));
+        } catch {
+            setShellMenuError(t("the_request_to_windows_failed_try_again"));
+        } finally {
+            setShellMenuBusy(false);
         }
     };
 
@@ -1289,6 +1324,41 @@ export function SettingsView({
                                 </Toggle>
                             </RowEnd>
                         </Row>
+                        {isWindows && (
+                            <Row>
+                                <RowText>
+                                    <Label>{t("windows_11_context_menu")}</Label>
+                                    <Note>
+                                        {t("adds_open_with_yet_another_file_manager_to_the_new_right_click_menu_in_file_explorer")}
+                                    </Note>
+                                    {shellMenuStatus && !shellMenuStatus.supported && (
+                                        <Note>
+                                            {t("this_windows_version_cannot_show_app_commands_in_the_new_menu")}
+                                        </Note>
+                                    )}
+                                    {shellMenuStatus?.registered && (
+                                        <Note>{t("restart_file_explorer_if_the_command_does_not_appear")}</Note>
+                                    )}
+                                    {shellMenuError && <TagError>{shellMenuError}</TagError>}
+                                </RowText>
+                                <RowEnd>
+                                    <State $on={shellMenuStatus?.registered ?? false}>
+                                        {shellMenuStatus?.registered ? t("active") : t("off")}
+                                    </State>
+                                    <Toggle
+                                        $on={shellMenuStatus?.registered ?? false}
+                                        disabled={!settings || shellMenuBusy || !shellMenuStatus?.supported}
+                                        onClick={() => void changeShellMenu()}
+                                        title={shellMenuStatus?.registered
+                                            ? t("remove_the_file_explorer_command")
+                                            : t("add_the_file_explorer_command")}
+                                        type="button"
+                                    >
+                                        <Knob/>
+                                    </Toggle>
+                                </RowEnd>
+                            </Row>
+                        )}
                         <Row>
                             <RowText>
                                 <Label>{t("open_archives_with_this_app")}</Label>

@@ -227,6 +227,15 @@ internal sealed record DefaultManagerStatusPayload(bool Registered, bool PathMat
 /// <summary>Body for <c>app.defaultManager.set</c>: turn the folder handler on or off.</summary>
 internal sealed record DefaultManagerRequest(bool Enabled);
 
+/// <summary>
+///     Body for <c>app.shellMenu.status</c>: whether the Windows 11 Explorer command can be used,
+///     whether it is registered, and why registration failed when it is not.
+/// </summary>
+internal sealed record ShellMenuStatusPayload(bool Supported, bool Registered, string? Error);
+
+/// <summary>Body for <c>app.shellMenu.set</c>: add or remove the Explorer command.</summary>
+internal sealed record ShellMenuRequest(bool Enabled);
+
 /// <summary>Physical path of a temporary archive entry, or why it could not be extracted.</summary>
 internal sealed record ArchiveOpenPayload(string? Path, string? Error = null);
 

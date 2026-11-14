@@ -77,6 +77,21 @@
             <Component Id="ShellMenuHelper" Directory="INSTALLFOLDER" Guid="*">
                 <File Id="YafmShellMenuExe" Source="$(var.SourceDir)\yafm-shellmenu.exe" KeyPath="yes" />
             </Component>
+            <!-- The command the Windows 11 context menu loads; the app registers it as a package. -->
+            <Component Id="ExplorerCommand" Directory="INSTALLFOLDER" Guid="*">
+                <File Id="YafmShellDll" Source="$(var.SourceDir)\yafm_shell.dll" KeyPath="yes" />
+            </Component>
+            <Directory Id="ShellAssetsFolder" Name="shell">
+                <Component Id="ExplorerCommandLogos" Guid="*">
+                    <File Id="ShellLogo44" Source="$(var.SourceDir)\shell\Square44x44Logo.png" KeyPath="yes" />
+                </Component>
+                <Component Id="ExplorerCommandLogo150" Guid="*">
+                    <File Id="ShellLogo150" Source="$(var.SourceDir)\shell\Square150x150Logo.png" KeyPath="yes" />
+                </Component>
+                <Component Id="ExplorerCommandStoreLogo" Guid="*">
+                    <File Id="ShellStoreLogo" Source="$(var.SourceDir)\shell\StoreLogo.png" KeyPath="yes" />
+                </Component>
+            </Directory>
         </ComponentGroup>
     </Fragment>
 </Wix>

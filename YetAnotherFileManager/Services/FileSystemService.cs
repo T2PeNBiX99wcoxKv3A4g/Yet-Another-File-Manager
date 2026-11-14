@@ -290,6 +290,28 @@ internal partial class FileSystemService : INativeMessageHandler
                 return context.Reply("app.defaultManager.set.result", DefaultFileManager.Status());
             }
 
+            case "app.shellMenu.status":
+                return context.Reply("app.shellMenu.status.result", OperatingSystem.IsWindows()
+                    ? await ExplorerMenu.StatusAsync()
+                    : new ShellMenuStatusPayload(false, false, null));
+
+            case "app.shellMenu.set":
+            {
+                var enabled = context.Payload<ShellMenuRequest>()?.Enabled ?? false;
+                await SettingsService.Instance.UpdateAsync(settings => settings with
+                {
+                    WindowsShellMenu = enabled
+                });
+
+                var status = OperatingSystem.IsWindows()
+                    ? await ExplorerMenu.ApplyAsync(enabled)
+                    : new ShellMenuStatusPayload(false, false, null);
+
+
+                WindowManager.Instance.Notify("settings.changed", new OkPayload());
+                return context.Reply("app.shellMenu.set.result", status);
+            }
+
             case "app.archive.register":
                 await SettingsService.Instance.UpdateAsync(settings => settings with
                 {

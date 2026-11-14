@@ -138,7 +138,10 @@ public sealed record AppSettings(
     [property: Setting(Comment = "Minutes an approved browser stays allowed.")]
     int? ShareApprovalMinutes = null,
     [property: Setting(Comment = "Seconds a refused browser stays blocked.")]
-    int? ShareDenialSeconds = null)
+    int? ShareDenialSeconds = null,
+    [property: Setting(Comment = "Show the Windows 11 File Explorer command for this app.")]
+    bool? WindowsShellMenu = null)
+
 {
     public static AppSettings Default =>
         new(true, true, true, ["**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null,
