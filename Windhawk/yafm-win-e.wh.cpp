@@ -2,7 +2,7 @@
 // @id              yafm-win-e
 // @name            Win+E opens Yet Another File Manager
 // @description     Swallows Win+E and starts Yet Another File Manager instead of File Explorer
-// @version         1.0.1
+// @version         1.0.2
 // @author          T2PeNBiX99wcoxKv3A4g
 // @github          https://github.com/T2PeNBiX99wcoxKv3A4g
 // @include         windhawk.exe
@@ -57,6 +57,11 @@ When none of those exists, Win+E is passed through and Explorer opens as usual.
   $description: >-
     Command line arguments passed to the app, for example a folder to open.
     Leave empty to let the app restore its own tabs.
+- ReplaceWinE: 1
+  $name: Replace Win+E
+  $description: >-
+    Turn this off to leave Win+E with File Explorer without disabling the rest
+    of the mod.
 */
 // ==/WindhawkModSettings==
 
@@ -72,6 +77,7 @@ static constexpr UINT kLaunchMessage = WM_APP + 1;
 static HHOOK g_hook = nullptr;
 static DWORD g_threadId = 0;
 static bool g_suppressE = false;
+static bool g_replaceWinE = true;
 static std::wstring g_executable;
 static std::wstring g_arguments;
 
@@ -233,6 +239,10 @@ static LRESULT CALLBACK KeyboardHook(int code, WPARAM message, LPARAM param) {
         return CallNextHookEx(nullptr, code, message, param);
     }
 
+    if (!g_replaceWinE) {
+        return CallNextHookEx(nullptr, code, message, param);
+    }
+
     // Resolve on every key press: the registration may point at a build installed or moved after
     // this process loaded, and caching it here is what kept starting an old copy.
     g_executable = ResolveExecutable();
@@ -270,6 +280,7 @@ static DWORD WINAPI HookThread(void*) {
 BOOL WhTool_ModInit() {
     // The keyboard hook resolves the executable on every press, so nothing is cached here.
     g_arguments = GetStringSetting(L"Arguments");
+    g_replaceWinE = Wh_GetIntSetting(L"ReplaceWinE") != 0;
 
     HANDLE thread = CreateThread(nullptr, 0, HookThread, nullptr, 0, &g_threadId);
     if (!thread) {
@@ -283,6 +294,7 @@ BOOL WhTool_ModInit() {
 void WhTool_ModSettingsChanged() {
     g_executable.clear();
     g_arguments = GetStringSetting(L"Arguments");
+    g_replaceWinE = Wh_GetIntSetting(L"ReplaceWinE") != 0;
 }
 
 void WhTool_ModUninit() {

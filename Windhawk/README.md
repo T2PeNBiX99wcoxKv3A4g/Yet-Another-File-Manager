@@ -15,6 +15,9 @@ If it is somewhere else, set **File manager path** in the mod's settings. This
 lookup runs on every Win+E, so a build installed or moved after Windhawk
 started is followed without restarting it.
 
+**Replace Win+E** in the mod's settings turns only the key replacement off,
+without unloading the mod.
+
 ## Limits
 
 - Only a bare Win+E is taken; Ctrl/Shift/Alt combinations pass through.
