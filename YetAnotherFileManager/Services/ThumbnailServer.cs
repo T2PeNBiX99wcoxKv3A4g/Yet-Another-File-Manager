@@ -187,7 +187,14 @@ internal partial class ThumbnailServer
         if (_cache.TryGetValue(key, out var cached))
             return cached;
 
-        if (!File.Exists(path) || !OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
+        // A file inside an archive has no copy on disk yet; extract it once so the shell or the
+        // decoder can read it. The cache stays keyed by the virtual path, so the temporary copy
+        // never becomes a second entry.
+        var source = path;
+        if (!File.Exists(source) && Archives.TrySplit(path, out _, out var inner) && inner.Length > 0)
+            source = await Task.Run(() => Try.Run(() => Archives.ExtractEntry(path)).GetOrElse(_ => path));
+
+        if (!File.Exists(source) || !OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
             return null;
 
         await _gate.WaitAsync();
@@ -199,9 +206,9 @@ internal partial class ThumbnailServer
             byte[]? bytes;
 
             if (OperatingSystem.IsWindows())
-                bytes = await WindowsThumbnailAsync(path, size);
+                bytes = await WindowsThumbnailAsync(source, size);
             else if (OperatingSystem.IsLinux())
-                bytes = await LinuxThumbnailAsync(path, size);
+                bytes = await LinuxThumbnailAsync(source, size);
             else
                 return null;
 
