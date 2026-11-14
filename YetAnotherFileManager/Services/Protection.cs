@@ -9,8 +9,8 @@ namespace YetAnotherFileManager.Services;
 /// </summary>
 internal static class Protection
 {
-    /// <summary>What a delete of this path would hit, if anything.</summary>
-    public static List<ProtectedHit> Hits(IEnumerable<string> paths)
+    /// <summary>What a change of this path, or a write into this folder, would hit.</summary>
+    public static List<ProtectedHit> Hits(IEnumerable<string> paths, string? contentDirectory = null)
     {
         var settings = SettingsService.Instance.Current;
         var patterns = Patterns(settings);
@@ -30,6 +30,23 @@ internal static class Protection
                 hits[target] = new(target, pattern);
                 break;
             }
+        }
+
+        // A write into a folder is not the same as touching the folder itself: a non-recursive rule
+        // such as "%USERPROFILE%\*" protects the profile and its immediate entries, not the inside
+        // of one of those entries.
+        if (contentDirectory is not null)
+        {
+            var target = PathGlob.Normalize(contentDirectory);
+            if (target.Length > 0)
+                foreach (var pattern in patterns)
+                {
+                    if (!PathGlob.CoversContents(target, pattern))
+                        continue;
+
+                    hits.TryAdd(target, new(target, pattern));
+                    break;
+                }
         }
 
         return hits.Values.ToList();

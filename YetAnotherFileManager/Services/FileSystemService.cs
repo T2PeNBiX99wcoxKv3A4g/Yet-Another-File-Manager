@@ -355,16 +355,15 @@ internal partial class FileSystemService : INativeMessageHandler
                 var request = context.Payload<PasteRequest>();
                 var directory = await MapWorkspacePathAsync(request?.Directory ?? "", true);
 
-                // A paste writes into the folder, and a cut also takes the entries out of theirs.
+                // A paste writes into the folder; a cut also takes the entries out of theirs.
                 var clipboard = ClipboardService.ReadPayload();
-                var guarded = clipboard.Entries.Count == 0
-                    ? []
-                    : (clipboard is { Move: true }
-                        ? clipboard.Entries.Select(entry => entry.Path)
-                        : []).Append(directory).ToList();
+                var sources = clipboard is { Move: true }
+                    ? clipboard.Entries.Select(entry => entry.Path).ToList()
+                    : [];
+                var guarded = sources.Append(directory).ToList();
 
-                if (guarded.Count > 0
-                    && GuardChange(request?.Confirm, DeleteGuard.KeyFor("paste", guarded), guarded)
+                if (clipboard.Entries.Count > 0
+                    && GuardChange(request?.Confirm, DeleteGuard.KeyFor("paste", guarded), sources, directory)
                     is { } blocked)
                     return context.Reply("fs.clipboard.paste.result",
                         new ClipboardPastePayload(false, [], true, blocked.Token, blocked.Hits,
@@ -401,7 +400,7 @@ internal partial class FileSystemService : INativeMessageHandler
 
                 // Extracting writes into the target and may replace what is already there.
                 if (GuardChange(request.Confirm, DeleteGuard.KeyFor("extract", [request.Target]),
-                        [request.Target]) is { } blocked)
+                        [], request.Target) is { } blocked)
                     return context.Reply("fs.archive.extract.result",
                         new ArchiveExtractPayload(false, null, true, blocked.Token, blocked.Hits,
                             blocked.DelaySeconds));
@@ -533,9 +532,10 @@ internal partial class FileSystemService : INativeMessageHandler
 
                 // A move changes both ends: it takes the entries out of their folder and writes them
                 // into the target. A copy only writes.
-                var guarded = request.Move ? paths.Append(target).ToList() : [target];
+                var sources = request.Move ? paths : [];
+                var guarded = sources.Append(target).ToList();
 
-                if (GuardChange(request.Confirm, DeleteGuard.KeyFor("transfer", guarded), guarded)
+                if (GuardChange(request.Confirm, DeleteGuard.KeyFor("transfer", guarded), sources, target)
                     is { } blocked)
                     return context.Reply("fs.operation.transfer.result",
                         new TransferResultPayload(false, null, [], true, blocked.Token, blocked.Hits,
@@ -1011,9 +1011,10 @@ internal partial class FileSystemService : INativeMessageHandler
     ///     The same check for anything else that changes a protected path: a move, a rename, or a
     ///     write into a folder. Null means the operation may run.
     /// </summary>
-    private static Guard? GuardChange(string? confirm, string key, IReadOnlyList<string> paths)
+    private static Guard? GuardChange(string? confirm, string key, IReadOnlyList<string> paths,
+        string? contentDirectory = null)
     {
-        var hits = Protection.Hits(paths);
+        var hits = Protection.Hits(paths, contentDirectory);
         if (hits.Count == 0)
             return null;
 
