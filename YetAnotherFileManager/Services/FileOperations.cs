@@ -1163,8 +1163,9 @@ internal static partial class FileOperations
             if (!OperatingSystem.IsWindows())
                 return;
 
-            // A terminal outlives the click, so nothing here keeps its handle.
-            var started = Try.Run(() => Process.StartAndForget(new ProcessStartInfo("wt.exe")
+            // A terminal outlives the click, so nothing here keeps its handle. Start is used rather
+            // than StartAndForget: the shell app alias needs UseShellExecute, which that API refuses.
+            var started = Try.Run(() => Process.Start(new ProcessStartInfo("wt.exe")
             {
                 UseShellExecute = true,
                 ArgumentList =
@@ -1179,7 +1180,7 @@ internal static partial class FileOperations
 
             var quoted = directory.Replace("'", "''");
 
-            Try.Run(() => Process.StartAndForget(new ProcessStartInfo("powershell.exe",
+            Try.Run(() => Process.Start(new ProcessStartInfo("powershell.exe",
                 $"-NoExit -Command Set-Location -LiteralPath '{quoted}'")
             {
                 UseShellExecute = true
@@ -1210,7 +1211,7 @@ internal static partial class FileOperations
             if (OperatingSystem.IsWindows())
             {
                 // Explorer parses this command line itself, so the quoted path travels as one string.
-                Try.Run(() => Process.StartAndForget(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"")
+                Try.Run(() => Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"")
                 {
                     UseShellExecute = true
                 })).OnFailure(ex => Log.Warning(ex, "Could not reveal {Path}", path));

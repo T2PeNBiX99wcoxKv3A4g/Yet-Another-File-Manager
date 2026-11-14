@@ -5,6 +5,7 @@ using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Platform;
 using PhotinoNetUtils.Utils;
+using YetAnotherFileManager.Interop;
 using YetAnotherFileManager.Messaging;
 
 namespace YetAnotherFileManager.Services;
@@ -257,8 +258,8 @@ internal partial class StartupService
                 WorkingDirectory = Path.GetDirectoryName(executable) ?? ""
             };
 
-            var status = await Process.RunAsync(start);
-            return status.ExitCode == 0
+            var code = await ProcessRunner.RunAsync(start);
+            return code == 0
                 ? (true, null)
                 : (false, "Windows refused the scheduled task.");
         }

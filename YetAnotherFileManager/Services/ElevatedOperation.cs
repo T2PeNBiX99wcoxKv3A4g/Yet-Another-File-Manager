@@ -6,6 +6,7 @@ using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Utils;
 using Serilog;
+using YetAnotherFileManager.Interop;
 using YetAnotherFileManager.Messaging;
 
 namespace YetAnotherFileManager.Services;
@@ -95,7 +96,7 @@ internal static class ElevatedOperation
             start.ArgumentList.Add(requestPath);
             start.ArgumentList.Add(resultPath);
 
-            await Process.RunAsync(start);
+            await ProcessRunner.RunAsync(start);
 
             if (!File.Exists(resultPath))
                 return Denied();
