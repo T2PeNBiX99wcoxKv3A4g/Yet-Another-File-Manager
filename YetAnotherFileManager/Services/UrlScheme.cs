@@ -50,7 +50,7 @@ internal static class UrlScheme
     [SupportedOSPlatform("linux")]
     private static SchemeStatusPayload StatusLinux()
     {
-        var desktop = LinuxDesktop.Query(MimeType);
+        var desktop = LinuxAssociations.Query(MimeType);
         return desktop.Length == 0
             ? new(false, false, null)
             : StatusOf(LinuxDesktop.ExecutableOf(desktop) ?? desktop);
@@ -117,14 +117,14 @@ internal static class UrlScheme
                  [Desktop Entry]
                  Type=Application
                  Name=Yet Another File Manager (links)
-                 Exec="{executable}" %u
+                 Exec={LinuxAssociations.Executable(executable)} %u
                  Icon=yafm
                  Terminal=false
                  NoDisplay=true
                  MimeType={MimeType};
                  """);
 
-            LinuxDesktop.SetDefault(DesktopName, MimeType);
+            LinuxAssociations.SetDefault(DesktopName, MimeType);
             return true;
         }).GetOrElse(_ => false);
     }

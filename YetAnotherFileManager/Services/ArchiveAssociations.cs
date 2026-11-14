@@ -60,7 +60,7 @@ internal static class ArchiveAssociations
     [SupportedOSPlatform("linux")]
     private static ArchiveStatusPayload StatusLinux()
     {
-        var desktop = LinuxDesktop.Query("application/zip");
+        var desktop = LinuxAssociations.Query("application/zip");
         return desktop.Length == 0
             ? new(false, false, null)
             : StatusOf(LinuxDesktop.ExecutableOf(desktop) ?? desktop);
@@ -208,7 +208,7 @@ internal static class ArchiveAssociations
              [Desktop Entry]
              Type=Application
              Name=Yet Another File Manager (archives)
-             Exec="{executable}" %F
+             Exec={LinuxAssociations.Executable(executable)} %F
              Icon=yafm
              Terminal=false
              NoDisplay=true
@@ -224,7 +224,7 @@ internal static class ArchiveAssociations
             if (store.LinuxArchiveDefaults.ContainsKey(mime))
                 continue;
 
-            store.LinuxArchiveDefaults[mime] = LinuxDesktop.Query(mime);
+            store.LinuxArchiveDefaults[mime] = LinuxAssociations.Query(mime);
             changed = true;
         }
 
@@ -233,7 +233,7 @@ internal static class ArchiveAssociations
             return;
 
         foreach (var mime in MimeTypes())
-            LinuxDesktop.SetDefault(DesktopName, mime);
+            LinuxAssociations.SetDefault(DesktopName, mime);
     }
 
     [SupportedOSPlatform("linux")]
@@ -243,7 +243,7 @@ internal static class ArchiveAssociations
 
         foreach (var (mime, previous) in store.LinuxArchiveDefaults ?? [])
             if (previous.Length > 0)
-                LinuxDesktop.SetDefault(previous, mime);
+                LinuxAssociations.SetDefault(previous, mime);
 
         store.LinuxArchiveDefaults = null;
         AssociationBackupStore.Write(store);

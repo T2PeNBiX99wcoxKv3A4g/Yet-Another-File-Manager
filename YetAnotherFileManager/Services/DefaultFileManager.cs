@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Runtime.Versioning;
 using Microsoft.Win32;
 using PhotinoNetUtils.Extensions;
@@ -72,7 +71,7 @@ internal static class DefaultFileManager
     [SupportedOSPlatform("linux")]
     private static DefaultManagerStatusPayload StatusLinux()
     {
-        var desktop = LinuxDesktop.Query("inode/directory");
+        var desktop = LinuxAssociations.Query("inode/directory");
         return desktop.Length == 0
             ? new(false, false, null)
             : StatusOf(true, LinuxDesktop.ExecutableOf(desktop) ?? desktop);
@@ -175,7 +174,7 @@ internal static class DefaultFileManager
                  [Desktop Entry]
                  Type=Application
                  Name=Yet Another File Manager
-                 Exec="{executable}" %F
+                 Exec={LinuxAssociations.Executable(executable)} %F
                  Icon=yafm
                  Terminal=false
                  Categories=System;FileManager;
@@ -189,12 +188,12 @@ internal static class DefaultFileManager
         {
             if (store.LinuxDefaultManager is null)
             {
-                store.LinuxDefaultManager = Run("xdg-mime", ["query", "default", "inode/directory"]).Trim();
+                store.LinuxDefaultManager = LinuxAssociations.Query("inode/directory");
                 if (!AssociationBackupStore.Write(store))
                     return;
             }
 
-            Run("xdg-mime", ["default", "yafm.desktop", "inode/directory"]);
+            LinuxAssociations.SetDefault("yafm.desktop", "inode/directory");
             return;
         }
 
@@ -203,7 +202,7 @@ internal static class DefaultFileManager
 
         // Restore the handler the user had before this setting was turned on.
         if (store.LinuxDefaultManager.Length > 0)
-            Run("xdg-mime", ["default", store.LinuxDefaultManager, "inode/directory"]);
+            LinuxAssociations.SetDefault(store.LinuxDefaultManager, "inode/directory");
 
         store.LinuxDefaultManager = null;
         AssociationBackupStore.Write(store);
@@ -285,9 +284,4 @@ internal static class DefaultFileManager
         Environment.ProcessPath is { Length: > 0 } current
         && Try.Run(() => string.Equals(Path.GetFullPath(executable), Path.GetFullPath(current),
             StringComparison.OrdinalIgnoreCase)).GetOrElse(_ => false);
-
-    /// <summary>Runs a helper and keeps its standard output; a failure is simply no output.</summary>
-    private static string Run(string command, string[] arguments) =>
-        Try.Run(() => Process.RunAndCaptureText(command, arguments, TimeSpan.FromSeconds(2)).StandardOutput)
-            .GetOrElse(_ => "");
 }
