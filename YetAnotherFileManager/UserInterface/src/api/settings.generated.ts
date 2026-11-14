@@ -124,4 +124,6 @@ export interface AppSettingsGenerated {
     favorites: unknown[] | null;
     /** Interface theme; 'system' follows the operating system, otherwise 'light' or 'dark'. */
     themeMode: string | null;
+    /** Suffix for a name that is already taken: 'space_parentheses', 'underscore' or 'dot'. */
+    conflictNameStyle: string | null;
 }

@@ -1066,12 +1066,16 @@ internal static partial class FileOperations
     private static string UniquePath(string directory, string baseName, string extension) =>
         UniqueName(directory, baseName, extension);
 
-    /// <summary>The first free "name", "name (2)" … in a folder; a GUID fallback avoids an endless loop.</summary>
+    /// <summary>The first free "name", "name (1)" ... in a folder; a GUID fallback avoids an endless loop.</summary>
     private static string UniqueName(string directory, string baseName, string extension)
     {
-        for (var attempt = 1; attempt < 1000; attempt++)
+        var style = ConflictNames.CurrentStyle();
+
+        for (var copy = 0; copy < 1000; copy++)
         {
-            var name = attempt == 1 ? $"{baseName}{extension}" : $"{baseName} ({attempt}){extension}";
+            var name = copy == 0
+                ? $"{baseName}{extension}"
+                : $"{ConflictNames.Suffix(baseName, copy, style)}{extension}";
             var path = Path.Combine(directory, name);
 
             if (!File.Exists(path) && !Directory.Exists(path))

@@ -130,7 +130,9 @@ public sealed record AppSettings(
     [property: Setting(Comment = "Files and folders pinned to the overview Favorites panel.")]
     List<FavoriteEntry>? Favorites = null,
     [property: Setting(Comment = "Interface theme; 'system' follows the operating system, otherwise 'light' or 'dark'.")]
-    string? ThemeMode = null)
+    string? ThemeMode = null,
+    [property: Setting(Comment = "Suffix for a name that is already taken: 'space_parentheses', 'underscore' or 'dot'.")]
+    string? ConflictNameStyle = null)
 {
     public static AppSettings Default =>
         new(true, true, true, ["**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null,

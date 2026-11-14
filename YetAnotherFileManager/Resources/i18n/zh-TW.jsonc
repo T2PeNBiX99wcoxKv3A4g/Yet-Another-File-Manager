@@ -19,6 +19,8 @@
   "ask_the_shell_for_the_icon_of_each_file_type_instead_of_the_built_in_glyphs": "向系統殼層取得每種檔案類型的圖示，而不是使用內建圖示。",
   "asks_before_moving_items_to_the_recycle_bin_shift_del_always_asks_because_that_deletes_permanently": "移至資源回收筒前先詢問。Shift+Del 一律詢問，因為那是永久刪除。",
   "attributes": "屬性",
+  "automatic_rename_suffix": "自動重新命名後綴",
+  "the_suffix_added_when_a_copy_or_a_new_item_would_have_the_same_name": "複製或新建項目遇到同名時，附加在名稱後面的格式。",
   "auto": "自動",
   "arabic_cp1256": "阿拉伯文 (CP1256)",
   "archive_encoding": "壓縮檔編碼",

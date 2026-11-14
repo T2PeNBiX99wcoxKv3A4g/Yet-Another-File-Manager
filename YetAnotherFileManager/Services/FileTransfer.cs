@@ -354,27 +354,28 @@ internal static class FileTransfer
     private static string UniqueDestination(string directory, string name, bool isDirectory,
         HashSet<string> reserved)
     {
+        var style = ConflictNames.CurrentStyle();
         var candidate = Path.Combine(directory, name);
 
         if (isDirectory)
         {
-            for (var attempt = 2;
+            for (var copy = 1;
                  reserved.Contains(candidate) || Directory.Exists(candidate) || File.Exists(candidate);
-                 attempt++)
-                candidate = Path.Combine(directory, $"{name} ({attempt})");
+                 copy++)
+                candidate = Path.Combine(directory, ConflictNames.Suffix(name, copy, style));
 
             reserved.Add(candidate);
             return candidate;
         }
 
-        // A file keeps its extension: "photo (2).jpg", not "photo.jpg (2)".
+        // A file keeps its extension: "photo (1).jpg", not "photo.jpg (1)".
         var extension = Path.GetExtension(name);
         var stem = Path.GetFileNameWithoutExtension(name);
 
-        for (var attempt = 2;
+        for (var copy = 1;
              reserved.Contains(candidate) || File.Exists(candidate) || Directory.Exists(candidate);
-             attempt++)
-            candidate = Path.Combine(directory, $"{stem} ({attempt}){extension}");
+             copy++)
+            candidate = Path.Combine(directory, $"{ConflictNames.Suffix(stem, copy, style)}{extension}");
 
         reserved.Add(candidate);
         return candidate;

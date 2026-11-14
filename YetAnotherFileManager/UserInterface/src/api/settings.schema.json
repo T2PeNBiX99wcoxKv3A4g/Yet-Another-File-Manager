@@ -493,6 +493,13 @@
         "null"
       ],
       "description": "Interface theme; 'system' follows the operating system, otherwise 'light' or 'dark'."
+    },
+    "conflictNameStyle": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Suffix for a name that is already taken: 'space_parentheses', 'underscore' or 'dot'."
     }
   },
   "additionalProperties": false

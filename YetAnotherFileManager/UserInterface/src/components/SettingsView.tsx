@@ -2274,6 +2274,30 @@ export function SettingsView({
                         <Row>
                             <RowText>
                                 <LabelRow>
+                                    <Label>{t("automatic_rename_suffix")}</Label>
+                                    <GlobalTag/>
+                                </LabelRow>
+                                <Note>
+                                    {t("the_suffix_added_when_a_copy_or_a_new_item_would_have_the_same_name")}
+                                </Note>
+                            </RowText>
+                            <RowEnd>
+                                <SelectMenu
+                                    disabled={!settings}
+                                    onChange={(value) => void update({conflictNameStyle: value})}
+                                    options={[
+                                        {value: "space_parentheses", label: "Test (1).txt"},
+                                        {value: "underscore", label: "Test_1.txt"},
+                                        {value: "dot", label: "Test.1.txt"},
+                                    ]}
+                                    value={settings?.conflictNameStyle ?? "space_parentheses"}
+                                    width={160}
+                                />
+                            </RowEnd>
+                        </Row>
+                        <Row>
+                            <RowText>
+                                <LabelRow>
                                     <Label>{t("play_audio_in_video_previews")}</Label>
                                     <GlobalTag/>
                                 </LabelRow>

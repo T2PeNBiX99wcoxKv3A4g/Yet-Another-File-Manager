@@ -19,6 +19,8 @@
   "ask_the_shell_for_the_icon_of_each_file_type_instead_of_the_built_in_glyphs": "組み込みのグリフではなく、シェルからファイルの種類ごとのアイコンを取得します。",
   "asks_before_moving_items_to_the_recycle_bin_shift_del_always_asks_because_that_deletes_permanently": "ごみ箱に移動する前に確認します。Shift+Del は完全削除なので常に確認します。",
   "attributes": "属性",
+  "automatic_rename_suffix": "自動リネームの接尾辞",
+  "the_suffix_added_when_a_copy_or_a_new_item_would_have_the_same_name": "コピーや新規作成で名前が重複したときに付ける接尾辞。",
   "auto": "自動",
   "arabic_cp1256": "アラビア語 (CP1256)",
   "archive_encoding": "アーカイブの文字コード",

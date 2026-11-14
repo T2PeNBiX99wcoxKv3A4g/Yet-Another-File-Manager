@@ -132,6 +132,8 @@ export interface AppSettings {
     startHidden: boolean;
     /** Files and folders pinned to the overview's Favorites panel. */
     favorites: FavoriteEntry[];
+    /** Suffix for a name that is already taken: "space_parentheses", "underscore" or "dot". */
+    conflictNameStyle: string;
 }
 
 /** A file or folder pinned to the overview's Favorites panel. */
@@ -210,6 +212,7 @@ const fallback: AppSettings = {
     startupMode: null,
     startHidden: false,
     favorites: [],
+    conflictNameStyle: "space_parentheses",
 };
 
 /** The interface settings, persisted by the host. */
@@ -280,6 +283,7 @@ export async function getSettings(): Promise<AppSettings> {
         startupMode: raw?.startupMode ?? null,
         startHidden: raw?.startHidden ?? false,
         favorites: raw?.favorites ?? [],
+        conflictNameStyle: raw?.conflictNameStyle ?? "space_parentheses",
     };
 }
 
@@ -412,6 +416,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         startupMode: saved?.startupMode ?? settings.startupMode,
         startHidden: saved?.startHidden ?? settings.startHidden,
         favorites: saved?.favorites ?? settings.favorites,
+        conflictNameStyle: saved?.conflictNameStyle ?? settings.conflictNameStyle,
     };
 }
 

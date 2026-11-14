@@ -61,6 +61,7 @@ declare module "@photino-net-utils/bridge"
         "aurora": true;
         "auto": true;
         "automatic": true;
+        "automatic_rename_suffix": true;
         "autoplay_video_previews": true;
         "auto_extract_to_the_current_folder": true;
         "a_custom_glyph_for_one_file_extension": true;
@@ -749,6 +750,7 @@ declare module "@photino-net-utils/bridge"
         "the_runtime_loaded_libraries_and_the_rust_helper_share_this_part_rust_runs_inside_the_process_so_it_has_no_separate_figure": true;
         "the_size_the_folder_and_file_picker_opens_at_width_and_height_are_in_pixels": true;
         "the_source_no_longer_exists": true;
+        "the_suffix_added_when_a_copy_or_a_new_item_would_have_the_same_name": true;
         "the_target_folder_is_no_longer_there": true;
         "the_tray_appears_when_a_drag_starts_and_closes_again_if_it_is_still_empty_off_leaves_it_to_the_title_bar_button": true;
         "the_update_failed": true;
