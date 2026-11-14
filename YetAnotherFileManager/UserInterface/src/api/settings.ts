@@ -140,8 +140,6 @@ export interface AppSettings {
     shareApprovalMinutes: number;
     /** Seconds a refused browser stays blocked. */
     shareDenialSeconds: number;
-    /** Show the Windows 11 File Explorer command for this app. */
-    windowsShellMenu: boolean | null;
 }
 
 /** A file or folder pinned to the overview's Favorites panel. */
@@ -224,7 +222,6 @@ const fallback: AppSettings = {
     shareAccessEnabled: true,
     shareApprovalMinutes: 60,
     shareDenialSeconds: 10,
-    windowsShellMenu: null,
 };
 
 /** The interface settings, persisted by the host. */
@@ -299,7 +296,6 @@ export async function getSettings(): Promise<AppSettings> {
         shareAccessEnabled: raw?.shareAccessEnabled ?? true,
         shareApprovalMinutes: raw?.shareApprovalMinutes ?? 60,
         shareDenialSeconds: raw?.shareDenialSeconds ?? 10,
-        windowsShellMenu: raw?.windowsShellMenu ?? null,
     };
 }
 
@@ -341,31 +337,6 @@ export async function setDefaultManager(enabled: boolean): Promise<DefaultManage
     if (!Native.available) return EmptyDefaultManagerStatus;
 
     return await Native.request<DefaultManagerStatus>("app.defaultManager.set", {enabled});
-}
-
-export interface ShellMenuStatus {
-    /** This Windows version can show an app's command in the new menu. */
-    supported: boolean;
-    /** The package is registered for this copy. */
-    registered: boolean;
-    /** Why Windows rejected the package, when it did. */
-    error: string | null;
-}
-
-const EmptyShellMenuStatus: ShellMenuStatus = {supported: false, registered: false, error: null};
-
-/** Reads whether the Windows 11 context menu command is registered for this copy. */
-export async function getShellMenuStatus(): Promise<ShellMenuStatus> {
-    if (!Native.available) return EmptyShellMenuStatus;
-
-    return await Native.request<ShellMenuStatus>("app.shellMenu.status");
-}
-
-/** Adds or removes the File Explorer command and answers with the new registration. */
-export async function setShellMenu(enabled: boolean): Promise<ShellMenuStatus> {
-    if (!Native.available) return EmptyShellMenuStatus;
-
-    return await Native.request<ShellMenuStatus>("app.shellMenu.set", {enabled});
 }
 
 /** Reads the current user's archive association and compares its path with this build. */
@@ -461,7 +432,6 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         shareAccessEnabled: saved?.shareAccessEnabled ?? settings.shareAccessEnabled,
         shareApprovalMinutes: saved?.shareApprovalMinutes ?? settings.shareApprovalMinutes,
         shareDenialSeconds: saved?.shareDenialSeconds ?? settings.shareDenialSeconds,
-        windowsShellMenu: saved?.windowsShellMenu ?? settings.windowsShellMenu,
     };
 }
 

@@ -14,7 +14,6 @@ declare module "@photino-net-utils/bridge"
         "add": true;
         "address_bar": true;
         "address_e_g_192_168_1_20_45701": true;
-        "adds_open_with_yet_another_file_manager_to_the_new_right_click_menu_in_file_explorer": true;
         "add_a_panel": true;
         "add_a_rule": true;
         "add_a_tag_here_it_is_available_in_every_folder": true;
@@ -24,7 +23,6 @@ declare module "@photino-net-utils/bridge"
         "add_folder_2": true;
         "add_panel": true;
         "add_preset": true;
-        "add_the_file_explorer_command": true;
         "add_the_rule": true;
         "add_to_favorites": true;
         "add_to_file_tray": true;
@@ -581,7 +579,6 @@ declare module "@photino-net-utils/bridge"
         "remove_from_quick_access": true;
         "remove_panel": true;
         "remove_preset": true;
-        "remove_the_file_explorer_command": true;
         "remove_the_leftover_record": true;
         "remove_this_rule": true;
         "rename": true;
@@ -599,7 +596,6 @@ declare module "@photino-net-utils/bridge"
         "reset_column_widths": true;
         "reset_widths": true;
         "resize_column": true;
-        "restart_file_explorer_if_the_command_does_not_appear": true;
         "restorable": true;
         "restore": true;
         "restored_done_of_1_item": true;
@@ -744,7 +740,6 @@ declare module "@photino-net-utils/bridge"
         "the_app_s_settings_folder_which_usually_sits_on_the_system_drive": true;
         "the_build_its_yafm_links_and_what_reopens_at_launch": true;
         "the_changelog_could_not_be_loaded": true;
-        "the_context_menu_registration_is_still_there_try_turning_it_off_again": true;
         "the_defaults_every_folder_starts_with_a_folder_can_still_override_them": true;
         "the_default_view_list_icon_size_and_grid_size_are_only_defaults_a_folder_can_still_remember_its_own_from_the_title_bar": true;
         "the_delete_button_in_the_protected_folder_dialog_stays_disabled_for_this_many_seconds_at_least_1": true;
@@ -777,7 +772,6 @@ declare module "@photino-net-utils/bridge"
         "the_recycle_bin_is_turned_off_for_this_volume": true;
         "the_registered_path_points_to_path_register_again_to_use_this_build": true;
         "the_request_id_is_missing": true;
-        "the_request_to_windows_failed_try_again": true;
         "the_running_build_and_the_newest_one_published": true;
         "the_runtime_loaded_libraries_and_the_rust_helper_share_this_part_rust_runs_inside_the_process_so_it_has_no_separate_figure": true;
         "the_size_the_folder_and_file_picker_opens_at_width_and_height_are_in_pixels": true;
@@ -797,7 +791,6 @@ declare module "@photino-net-utils/bridge"
         "this_pc": true;
         "this_platform_cannot_create_a_per_user_startup_entry": true;
         "this_waits_seconds_s_before_the_button_works": true;
-        "this_windows_version_cannot_show_app_commands_in_the_new_menu": true;
         "tide": true;
         "time_format": true;
         "titles": true;
@@ -846,8 +839,6 @@ declare module "@photino-net-utils/bridge"
         "what_the_process_holds_and_how_to_give_it_back": true;
         "when_this_is_off_opening_an_archive_uses_the_system_s_default_application_instead": true;
         "where_the_shell_s_own_icons_and_the_built_in_glyphs_come_from": true;
-        "windows_11_context_menu": true;
-        "windows_did_not_accept_the_context_menu_package_try_again": true;
         "working": true;
         "writes_into_this_folder": true;
         "write_anyway": true;

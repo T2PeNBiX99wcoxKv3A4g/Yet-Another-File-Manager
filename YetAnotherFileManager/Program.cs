@@ -125,12 +125,6 @@ internal static partial class Program
         if (picker is null)
             ShareService.Instance.InitializeAsync().GetAwaiter().GetResult();
 
-        // The Explorer command is a package this app owns. A build or install that moved the app
-        // leaves the registration pointing at the old folder, so it is repaired in the background
-        // instead of delaying the window.
-        if (OperatingSystem.IsWindows() && SettingsService.Instance.Current.WindowsShellMenu == true)
-            _ = Task.Run(ExplorerMenu.RepairAsync);
-
         // Registrations are written only when the user changes them in the settings; starting a copy
         // never touches the registry, so a development build cannot take the installed one's
         // folder handler, archive handler or link handler back by simply running.

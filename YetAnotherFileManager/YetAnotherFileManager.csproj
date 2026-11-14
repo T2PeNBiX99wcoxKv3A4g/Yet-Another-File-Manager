@@ -131,9 +131,6 @@
         <!-- 7z.dll is redistributed under the LGPL, so its license ships beside it. -->
         <None Include="Native\licenses\**" Link="licenses\%(RecursiveDir)%(Filename)%(Extension)"
               CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-        <!-- The logos the sparse package manifest requires; the app copies them into the package. -->
-        <None Include="Resources\shell\**" Link="shell\%(RecursiveDir)%(Filename)%(Extension)"
-              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     </ItemGroup>
 
     <!-- Rust handles bulk filesystem work: the gallery scan, ZIP creation, measuring and deleting
@@ -187,27 +184,6 @@
 
     <Target Name="CopyRustShellMenuOnPublish" AfterTargets="Publish" Condition="'$(OS)' == 'Windows_NT' and Exists('$(RustReleaseDir)/yafm-shellmenu.exe')">
         <Copy SourceFiles="$(RustReleaseDir)/yafm-shellmenu.exe" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
-    </Target>
-
-    <!-- The Windows 11 Explorer command is a separate crate: the shell loads it as a COM server. -->
-    <PropertyGroup>
-        <RustShellManifest>$(MSBuildProjectDirectory)/Native/yafm-shell/Cargo.toml</RustShellManifest>
-        <RustShellReleaseDir>$(MSBuildProjectDirectory)/Native/yafm-shell/target/release</RustShellReleaseDir>
-    </PropertyGroup>
-
-    <Target Name="BuildRustShell" BeforeTargets="Build"
-            Condition="'$(OS)' == 'Windows_NT' and Exists('$(RustShellManifest)')">
-        <Exec Command="&quot;$(CargoCommand)&quot; build --release --manifest-path &quot;$(RustShellManifest)&quot;" />
-    </Target>
-
-    <Target Name="CopyRustShell" AfterTargets="Build"
-            Condition="'$(OS)' == 'Windows_NT' and Exists('$(RustShellReleaseDir)/yafm_shell.dll')">
-        <Copy SourceFiles="$(RustShellReleaseDir)/yafm_shell.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
-    </Target>
-
-    <Target Name="CopyRustShellOnPublish" AfterTargets="Publish"
-            Condition="'$(OS)' == 'Windows_NT' and Exists('$(RustShellReleaseDir)/yafm_shell.dll')">
-        <Copy SourceFiles="$(RustShellReleaseDir)/yafm_shell.dll" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
     </Target>
 
 </Project>

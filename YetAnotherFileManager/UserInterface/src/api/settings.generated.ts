@@ -132,6 +132,4 @@ export interface AppSettingsGenerated {
     shareApprovalMinutes: number | null;
     /** Seconds a refused browser stays blocked. */
     shareDenialSeconds: number | null;
-    /** Show the Windows 11 File Explorer command for this app. */
-    windowsShellMenu: boolean | null;
 }
