@@ -236,10 +236,10 @@ export function FolderPicker({
     // Mouse back and forward buttons; WebView2 would otherwise walk its own history.
     useEffect(() => {
         const onDown = (event: MouseEvent) => {
-            if (event.button === 3) {
+            if (event.button === 3 || event.button === 8) {
                 event.preventDefault();
                 goBack();
-            } else if (event.button === 4) {
+            } else if (event.button === 4 || event.button === 9) {
                 event.preventDefault();
                 goForward();
             }
@@ -279,6 +279,26 @@ export function FolderPicker({
         setBack((stack) => [...stack, path]);
         setPath(target);
     };
+
+    // WebKitGTK does not report the side buttons to the page, so the native layer forwards them.
+    useEffect(() => {
+        if (!Native.available)
+            return;
+
+        return Native.on((evt) => {
+            const event = evt as { type?: string; data?: { direction?: string } };
+            if (event.type !== "picker.navigation") return;
+
+            switch (event.data?.direction) {
+                case "back":
+                    goBack();
+                    break;
+                case "forward":
+                    goForward();
+                    break;
+            }
+        });
+    });
 
     const currentFolder = listing?.path ?? path;
     const parent = listing?.parent ?? (path ? parentPath(path) : null);

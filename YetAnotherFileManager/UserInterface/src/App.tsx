@@ -1987,17 +1987,18 @@ export default function App() {
     // Back and forward on the mouse: WebView2 would otherwise walk its own history and reload the app.
     useEffect(() => {
         const onDown = (event: MouseEvent) => {
-            if (event.button === 3) {
+            if (event.button === 3 || event.button === 8) {
                 event.preventDefault();
                 goBack();
-            } else if (event.button === 4) {
+            } else if (event.button === 4 || event.button === 9) {
                 event.preventDefault();
                 goForward();
             }
         };
 
         const swallow = (event: MouseEvent) => {
-            if (event.button === 3 || event.button === 4) event.preventDefault();
+            if (event.button === 3 || event.button === 4 || event.button === 8 || event.button === 9)
+                event.preventDefault();
         };
 
         window.addEventListener("mousedown", onDown);
@@ -2009,6 +2010,26 @@ export default function App() {
             window.removeEventListener("mouseup", swallow);
             window.removeEventListener("auxclick", swallow);
         };
+    }, [goBack, goForward]);
+
+    // WebKitGTK never reports the extra mouse buttons to the page: the native layer sends these
+    // instead, so the side buttons navigate the same way they do on Windows.
+    useEffect(() => {
+        if (!Native.available) return;
+
+        return Native.on((evt) => {
+            const event = evt as { type?: string; data?: { direction?: string } };
+            if (event.type !== "app.navigation") return;
+
+            switch (event.data?.direction) {
+                case "back":
+                    goBack();
+                    break;
+                case "forward":
+                    goForward();
+                    break;
+            }
+        });
     }, [goBack, goForward]);
 
     // Every file tab reports its folder, whichever page is on screen. The overview and pinned

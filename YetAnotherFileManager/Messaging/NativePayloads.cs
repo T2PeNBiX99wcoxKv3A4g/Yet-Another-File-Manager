@@ -173,6 +173,12 @@ internal sealed record HiddenFilesPayload(bool ShowHidden, bool ShowSystem, bool
 /// </summary>
 internal sealed record NavigatePayload(string Path, bool Startup);
 
+/// <summary>
+///     Body for <c>app.navigation</c>: a back or forward request from the mouse's side buttons,
+///     which WebKitGTK never passes to the page.
+/// </summary>
+internal sealed record NavigationPayload(string Direction);
+
 /// <summary>Payload for the clipboard and file-operation messages: the paths they act on.</summary>
 internal sealed record PathsPayload(List<string> Paths);
 

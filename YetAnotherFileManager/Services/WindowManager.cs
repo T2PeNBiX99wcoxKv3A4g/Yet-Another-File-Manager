@@ -7,6 +7,7 @@ using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Platform;
 using PhotinoNetUtils.Services;
 using PhotinoNetUtils.Utils;
+using YetAnotherFileManager.Interop;
 using YetAnotherFileManager.Messaging;
 
 namespace YetAnotherFileManager.Services;
@@ -228,6 +229,12 @@ internal partial class WindowManager
             {
                 LinuxWindow.UseClientSideFrame(window.Title);
                 DrawsWindowCorners = LinuxWindow.EnableTransparency(window.Title);
+
+                // WebKitGTK drops the mouse's side buttons before the page sees them; the picker
+                // and the main window each get their own event name.
+                var navigation = Picker is null ? "app.navigation" : "picker.navigation";
+                LinuxMouseButtons.Attach(window.Title,
+                    direction => Notify(navigation, new NavigationPayload(direction)));
             }
 
             if (!ShowMainWindowOnStartup)
