@@ -12,9 +12,12 @@ namespace YetAnotherFileManager.Services;
 /// </summary>
 internal sealed record PickerOptions(
     bool FileMode,
+    bool SaveMode,
     bool Multiple,
     IReadOnlyList<string> Extensions,
     string Initial,
+    string InitialName,
+    string DefaultExtension,
     string? Output);
 
 /// <summary>Command line pick mode: parse the flags, build the window URL, and report the result.</summary>
@@ -24,7 +27,8 @@ internal static class CliPicker
     public static PickerOptions? Parse(IReadOnlyList<string> args)
     {
         var folder = args.Contains(Constants.PickFolderArgument);
-        var file = args.Contains(Constants.PickFileArgument);
+        var save = args.Contains(Constants.PickSaveArgument);
+        var file = args.Contains(Constants.PickFileArgument) || save;
 
         if (!folder && !file)
             return null;
@@ -40,9 +44,12 @@ internal static class CliPicker
 
         return new(
             file,
+            save,
             args.Contains(Constants.PickMultipleArgument),
             Extensions(Value(args, Constants.PickFilterArgument)),
             initial ?? "",
+            Value(args, Constants.PickNameArgument) ?? "",
+            Value(args, Constants.PickExtensionArgument) ?? "",
             Value(args, Constants.PickOutputArgument));
     }
 
@@ -52,13 +59,19 @@ internal static class CliPicker
         var url = new StringBuilder(appUrl)
             .Append(appUrl.Contains('?') ? '&' : '?')
             .Append("picker=")
-            .Append(options.FileMode ? "file" : "folder");
+            .Append(options.SaveMode ? "save" : options.FileMode ? "file" : "folder");
 
         if (options.Multiple)
             url.Append("&multiple=1");
 
         if (options.Extensions.Count > 0)
             url.Append("&filter=").Append(Uri.EscapeDataString(string.Join(';', options.Extensions)));
+
+        if (options.InitialName.Length > 0)
+            url.Append("&name=").Append(Uri.EscapeDataString(options.InitialName));
+
+        if (options.DefaultExtension.Length > 0)
+            url.Append("&ext=").Append(Uri.EscapeDataString(options.DefaultExtension));
 
         if (options.Initial.Length > 0)
             url.Append("&initial=").Append(Uri.EscapeDataString(options.Initial));

@@ -278,7 +278,7 @@ internal static partial class Program
 
         var settings = SettingsService.Instance.Current;
         manager.CreateMainWindow(
-            Localization.Get(picker.FileMode ? "Choose a file" : "Choose a folder"),
+            Localization.Get(picker.SaveMode ? "save_as" : picker.FileMode ? "choose_a_file" : "choose_a_folder"),
             settings.PickerWidth, settings.PickerHeight, 720, 480);
 
         manager.Run();

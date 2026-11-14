@@ -57,6 +57,8 @@ interface FolderPickerProps {
     showImages?: boolean;
     /** Which palette the background previews follow. */
     theme: ResolvedTheme;
+    /** Tells the save row which folder the picker is showing. */
+    onDirectoryChange?: (path: string) => void;
     places?: Place[];
     onCancel: () => void;
     onSelect: (paths: string[]) => void;
@@ -76,6 +78,7 @@ export function FolderPicker({
                                  fileView,
                                  showImages,
                                  theme,
+                                 onDirectoryChange,
                                  onCancel,
                                  onSelect,
                              }: FolderPickerProps) {
@@ -90,6 +93,9 @@ export function FolderPicker({
     const [selected, setSelected] = useState<Set<string>>(() => new Set());
     const [places, setPlaces] = useState<Place[]>(suppliedPlaces ?? []);
     const [drives, setDrives] = useState<Drive[]>([]);
+
+    // The save row needs the folder the picker currently shows, not the one it started in.
+    useEffect(() => onDirectoryChange?.(path), [path, onDirectoryChange]);
     const [recent, setRecent] = useState<RecentEntry[]>([]);
     const [back, setBack] = useState<string[]>([]);
     const [forward, setForward] = useState<string[]>([]);

@@ -1,5 +1,6 @@
 // Japanese. Keys are paths; en.jsonc holds the English text. {placeholders} are kept as-is.
 {
+  "a_file_with_that_name_already_exists_overwrite_it": "同じ名前のファイルが既に存在します。上書きしますか？",
   "accent_color": "アクセントカラー",
   "active": "有効",
   "activity": "アクティビティ",
@@ -26,6 +27,9 @@
   "follow_system": "システムに合わせる",
   "follow_the_operating_system_or_always_use_the_light_or_dark_palette": "オペレーティング システムの設定に合わせるか、常にライトまたはダークの配色を使用します。",
   "light": "ライト",
+  "overwrite": "上書き",
+  "save_as": "名前を付けて保存",
+  "the_file_name_is_not_valid": "ファイル名に使用できない文字が含まれています。",
   "theme": "テーマ",
   "this_archive_is_encrypted_enter_its_password": "このアーカイブは暗号化されています。パスワードを入力してください。",
   "that_password_did_not_open_the_archive_try_again": "パスワードではアーカイブを開けませんでした。もう一度入力してください。",

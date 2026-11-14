@@ -74,6 +74,15 @@ public static class Constants
 
     public const string PickFileArgument = "--pick-file";
 
+    /// <summary>Save dialog: the picker returns the path the user typed, not an existing file.</summary>
+    public const string PickSaveArgument = "--pick-save";
+
+    /// <summary>Name a save dialog starts with.</summary>
+    public const string PickNameArgument = "--initial-name";
+
+    /// <summary>Extension appended when the typed name has none.</summary>
+    public const string PickExtensionArgument = "--default-extension";
+
     /// <summary>Lets a pick mode return several paths instead of one.</summary>
     public const string PickMultipleArgument = "--multiple";
 

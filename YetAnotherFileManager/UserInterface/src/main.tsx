@@ -41,12 +41,15 @@ if (rootElement) {
     createRoot(rootElement).render(
         <StrictMode>
             <LocalizationProvider>
-                {pickMode === "folder" || pickMode === "file"
+                {pickMode === "folder" || pickMode === "file" || pickMode === "save"
                     ? <PickerWindow
+                        defaultExtension={parameters.get("ext") ?? ""}
                         extensions={pickFilter ? pickFilter.split(";").filter(Boolean) : []}
                         initial={parameters.get("initial") ?? ""}
-                        mode={pickMode}
+                        initialName={parameters.get("name") ?? ""}
+                        mode={pickMode === "folder" ? "folder" : "file"}
                         multiple={parameters.get("multiple") === "1"}
+                        save={pickMode === "save"}
                     />
                     : <App/>}
             </LocalizationProvider>

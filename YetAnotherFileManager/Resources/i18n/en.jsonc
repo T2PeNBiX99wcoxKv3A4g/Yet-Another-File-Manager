@@ -1,5 +1,6 @@
 {
   // English is the source language; the keys are paths, the values are the text.
+  "a_file_with_that_name_already_exists_overwrite_it": "A file with that name already exists. Overwrite it?",
   "accent_color": "Accent color",
   "active": "Active",
   "activity": "Activity",
@@ -26,6 +27,9 @@
   "follow_system": "Follow system",
   "follow_the_operating_system_or_always_use_the_light_or_dark_palette": "Follow the operating system, or always use the light or dark palette.",
   "light": "Light",
+  "overwrite": "Overwrite",
+  "save_as": "Save as",
+  "the_file_name_is_not_valid": "The file name is not valid.",
   "theme": "Theme",
   "this_archive_is_encrypted_enter_its_password": "This archive is encrypted. Enter its password.",
   "that_password_did_not_open_the_archive_try_again": "That password did not open the archive. Try again.",

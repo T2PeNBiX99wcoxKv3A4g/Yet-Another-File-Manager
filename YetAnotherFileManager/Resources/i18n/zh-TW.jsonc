@@ -1,5 +1,6 @@
 // Traditional Chinese. Keys are paths; en.jsonc holds the English text. {placeholders} are kept as-is.
 {
+  "a_file_with_that_name_already_exists_overwrite_it": "同名檔案已存在，要覆寫嗎？",
   "accent_color": "強調色",
   "active": "使用中",
   "activity": "活動",
@@ -26,6 +27,9 @@
   "follow_system": "跟隨系統",
   "follow_the_operating_system_or_always_use_the_light_or_dark_palette": "跟隨作業系統設定，或一律使用淺色或深色配色。",
   "light": "淺色",
+  "overwrite": "覆寫",
+  "save_as": "另存新檔",
+  "the_file_name_is_not_valid": "檔案名稱包含無效字元。",
   "theme": "主題",
   "this_archive_is_encrypted_enter_its_password": "此壓縮檔已加密，請輸入密碼。",
   "that_password_did_not_open_the_archive_try_again": "密碼無法開啟此壓縮檔，請再試一次。",

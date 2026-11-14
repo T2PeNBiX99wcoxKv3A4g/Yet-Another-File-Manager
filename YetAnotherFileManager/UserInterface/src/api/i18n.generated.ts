@@ -68,6 +68,7 @@ declare module "@photino-net-utils/bridge"
         "a_device_is_required": true;
         "a_device_share_and_file_are_required": true;
         "a_drive_root_cannot_be_copied_this_way": true;
+        "a_file_with_that_name_already_exists_overwrite_it": true;
         "a_folder_cannot_be_moved_into_itself": true;
         "a_link_cannot_be_converted_this_way": true;
         "a_link_copy_needs_a_folder_source": true;
@@ -485,6 +486,7 @@ declare module "@photino-net-utils/bridge"
         "other_files": true;
         "other_profile": true;
         "overview": true;
+        "overwrite": true;
         "owner": true;
         "pair": true;
         "paired": true;
@@ -609,6 +611,7 @@ declare module "@photino-net-utils/bridge"
         "saturation": true;
         "save": true;
         "saved": true;
+        "save_as": true;
         "save_the_current_colours_as_a_preset": true;
         "scanning": true;
         "scan_folders": true;
@@ -722,6 +725,7 @@ declare module "@photino-net-utils/bridge"
         "the_files_could_not_be_transferred": true;
         "the_file_could_not_be_copied": true;
         "the_file_is_no_longer_in_the_archive": true;
+        "the_file_name_is_not_valid": true;
         "the_folders_the_gallery_scans_for_pictures_and_videos": true;
         "the_folder_is_no_longer_there": true;
         "the_height_of_a_grid_tile_the_icon_inside_follows_it": true;

@@ -1,5 +1,6 @@
 // Simplified Chinese. Keys are paths; en.jsonc holds the English text. {placeholders} are kept as-is.
 {
+  "a_file_with_that_name_already_exists_overwrite_it": "同名文件已存在，要覆盖吗？",
   "accent_color": "强调色",
   "active": "已启用",
   "activity": "活动",
@@ -26,6 +27,9 @@
   "follow_system": "跟随系统",
   "follow_the_operating_system_or_always_use_the_light_or_dark_palette": "跟随操作系统设置，或始终使用浅色或深色配色。",
   "light": "浅色",
+  "overwrite": "覆盖",
+  "save_as": "另存为",
+  "the_file_name_is_not_valid": "文件名包含无效字符。",
   "theme": "主题",
   "this_archive_is_encrypted_enter_its_password": "此压缩包已加密，请输入密码。",
   "that_password_did_not_open_the_archive_try_again": "密码无法打开此压缩包，请重试。",
