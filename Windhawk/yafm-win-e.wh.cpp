@@ -2,7 +2,7 @@
 // @id              yafm-win-e
 // @name            Win+E opens Yet Another File Manager
 // @description     Swallows Win+E and starts Yet Another File Manager instead of File Explorer
-// @version         1.0.0
+// @version         1.0.1
 // @author          T2PeNBiX99wcoxKv3A4g
 // @github          https://github.com/T2PeNBiX99wcoxKv3A4g
 // @include         windhawk.exe
@@ -233,8 +233,10 @@ static LRESULT CALLBACK KeyboardHook(int code, WPARAM message, LPARAM param) {
         return CallNextHookEx(nullptr, code, message, param);
     }
 
-    // Without a copy to start, Explorer keeps the key.
-    if (!FileExists(g_executable) && (g_executable = ResolveExecutable()).empty()) {
+    // Resolve on every key press: the registration may point at a build installed or moved after
+    // this process loaded, and caching it here is what kept starting an old copy.
+    g_executable = ResolveExecutable();
+    if (g_executable.empty()) {
         return CallNextHookEx(nullptr, code, message, param);
     }
 
@@ -266,7 +268,7 @@ static DWORD WINAPI HookThread(void*) {
 }
 
 BOOL WhTool_ModInit() {
-    g_executable = ResolveExecutable();
+    // The keyboard hook resolves the executable on every press, so nothing is cached here.
     g_arguments = GetStringSetting(L"Arguments");
 
     HANDLE thread = CreateThread(nullptr, 0, HookThread, nullptr, 0, &g_threadId);
@@ -279,7 +281,7 @@ BOOL WhTool_ModInit() {
 }
 
 void WhTool_ModSettingsChanged() {
-    g_executable = ResolveExecutable();
+    g_executable.clear();
     g_arguments = GetStringSetting(L"Arguments");
 }
 

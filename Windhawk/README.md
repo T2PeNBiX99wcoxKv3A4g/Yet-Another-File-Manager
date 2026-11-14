@@ -11,7 +11,9 @@ instead. It is a tool mod: the low-level keyboard hook runs in a dedicated
 3. Press Win+E.
 
 The app is found through its `yafm://` handler or the per-user install folder.
-If it is somewhere else, set **File manager path** in the mod's settings.
+If it is somewhere else, set **File manager path** in the mod's settings. This
+lookup runs on every Win+E, so a build installed or moved after Windhawk
+started is followed without restarting it.
 
 ## Limits
 
