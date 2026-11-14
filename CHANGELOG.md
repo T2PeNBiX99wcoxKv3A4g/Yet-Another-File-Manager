@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.8.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.7.2..v0.8.0) - 2026-11-14
+
+### ⛰️  Features
+
+- *(picker)* Add a save mode with a file name and overwrite confirmation - ([54ab5b4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/54ab5b4859de024564fd9bf19e1508483cc49a8e))
+- *(windhawk)* Replace the classic file dialogs with the app picker - ([3b52667](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/3b526670d2d0a9d9f5fc992884b25ab80b22be02))
+- *(windhawk)* Add a Replace Win+E switch - ([d8ac61c](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d8ac61cbb4b2bbab2f23b61d5e5ea4c6e56738ed))
+
+### 🐛 Bug Fixes
+
+- *(picker)* Reuse the name box for save mode - ([fa01e35](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/fa01e35fd1f97e0dfa8333eed129c36b360aa80c))
+
+### ⚙️ Miscellaneous Tasks
+
+- Update PhotinoNetUtils bridge to version 0.28.3 - ([de0f91f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/de0f91fedf0e16a72513402495c8830d901176c5))
+- Update PhotinoNetUtils bridge to version 0.28.2 - ([a481eca](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/a481eca1887a6b80702835193c991ee5a4416c6e))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([fa34e95](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/fa34e95e0487927f2a459c0445ddf9190752ebd1))
+
+
 ## [0.7.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.7.1..v0.7.2) - 2026-11-14
 
 ### 🐛 Bug Fixes
