@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.9.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.8.0..v0.9.0) - 2026-11-14
+
+### ⛰️  Features
+
+- *(linux)* Navigate with the mouse's back and forward buttons - ([9d3693f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/9d3693fec503c488cb06a41b489e8eaf6b5b2b39))
+
+### 🐛 Bug Fixes
+
+- *(linux)* Resolve handlers through GIO and write unquoted Exec lines - ([f87c7d8](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/f87c7d8eb3d26333eb96e83aa7e531ac48669830))
+- Open files again with the shell API that allows it - ([c36afd6](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c36afd66a76f008da3226cb5d4916013ff3566ef))
+
+### 🚜 Refactor
+
+- Keep UseShellExecute only where the shell is the point - ([9186bad](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/9186badf6ad64ba31c96e2ee3c912b61673bdfcd))
+- Open files through the one shell-start path - ([39caa64](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/39caa64cc30fe5f28c6abaca2460e58e40115348))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([d3a9bb8](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d3a9bb868842fbcd32865ceb0597f510ec6594c4))
+
+
 ## [0.8.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.7.2..v0.8.0) - 2026-11-14
 
 ### ⛰️  Features
