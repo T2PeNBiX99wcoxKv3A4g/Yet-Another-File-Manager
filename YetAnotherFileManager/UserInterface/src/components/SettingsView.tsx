@@ -1440,7 +1440,7 @@ export function SettingsView({
                                 <LabelRow>
                                     <Label>{t("devices")}</Label>
                                 </LabelRow>
-                                <Note>{t("share_access_no_devices")}</Note>
+                                <Note>{t("share_access_devices_note")}</Note>
                             </RowText>
                         </Row>
                         <ShareDeviceList
@@ -3116,7 +3116,8 @@ function ShareDeviceList({approvalMinutes, denialSeconds}: {
                             {t("share_access_last_seen")}: {new Date(device.lastSeen).toLocaleString()}
                         </DeviceMeta>
                         <DeviceMeta>
-                            {stateLabel(device)} · {t("share_access_expires")}: {expiryLabel(device)}
+                            {stateLabel(device)}
+                            {device.state !== "" && <> · {t("share_access_expires")}: {expiryLabel(device)}</>}
                         </DeviceMeta>
                     </DeviceInfo>
                     <SelectMenu

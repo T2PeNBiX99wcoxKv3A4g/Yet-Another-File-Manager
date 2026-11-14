@@ -33,6 +33,8 @@ export interface ShareStrings {
     password: string;
     unlock: string;
     wrongPassword: string;
+    accessTitle: string;
+    passwordNote: string;
 }
 
 const English: ShareStrings = {
@@ -61,6 +63,8 @@ const English: ShareStrings = {
     password: "Share password",
     unlock: "Unlock",
     wrongPassword: "That password did not match. Try again after the wait.",
+    accessTitle: "Web share access",
+    passwordNote: "Enter the share password to open these folders. This device is then remembered.",
 };
 
 const Japanese: ShareStrings = {
@@ -89,6 +93,8 @@ const Japanese: ShareStrings = {
     password: "共有パスワード",
     unlock: "ロック解除",
     wrongPassword: "パスワードが一致しません。待ってからもう一度お試しください。",
+    accessTitle: "Web 共有アクセス",
+    passwordNote: "これらのフォルダーを開くには共有パスワードを入力してください。このデバイスは記憶されます。",
 };
 
 const SimplifiedChinese: ShareStrings = {
@@ -117,6 +123,8 @@ const SimplifiedChinese: ShareStrings = {
     password: "分享密码",
     unlock: "解锁",
     wrongPassword: "密码不正确，请等待后再试。",
+    accessTitle: "Web 分享访问",
+    passwordNote: "输入分享密码即可打开这些文件夹，稍后会记住此设备。",
 };
 
 const TraditionalChinese: ShareStrings = {
@@ -145,6 +153,8 @@ const TraditionalChinese: ShareStrings = {
     password: "分享密碼",
     unlock: "解鎖",
     wrongPassword: "密碼不正確，請等待後再試。",
+    accessTitle: "Web 分享存取",
+    passwordNote: "輸入分享密碼即可開啟這些資料夾，之後會記住此裝置。",
 };
 
 const Dictionaries: Record<ShareLanguage, ShareStrings> = {

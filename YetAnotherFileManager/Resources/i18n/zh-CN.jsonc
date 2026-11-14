@@ -30,6 +30,7 @@
   "share_access_allow_forever": "永久允许",
   "share_access_block_forever": "永久阻止",
   "share_access_no_devices": "还没有浏览器请求访问。",
+  "share_access_devices_note": "所有请求过访问的浏览器都会列在这里，可以把决定设为永久，或移除设备。",
   "share_access_not_decided": "未决定",
   "share_access_forever": "永久",
   "share_access_expired": "已过期",

@@ -205,6 +205,10 @@ export function ShareWeb() {
             return () => window.clearInterval(timer);
         }
 
+        // A fresh challenge means the previous refusal is over; the next attempt starts clean.
+        if (access.state === "password")
+            setPasswordWrong(false);
+
         if (access.state === "allowed" && !pageLoaded.current) {
             pageLoaded.current = true;
             void loadPage();
@@ -351,7 +355,7 @@ export function ShareWeb() {
                 <Gate>
                     <GateCard>
                         <Logo><img alt="" src="/app-icon"/></Logo>
-                        <GateTitle>{t.sharedFolders}</GateTitle>
+                        <GateTitle>{t.accessTitle}</GateTitle>
 
                         {!access && (
                             <>
@@ -369,7 +373,7 @@ export function ShareWeb() {
 
                         {access?.state === "denied" && (
                             <>
-                                <GateNote>{t.accessDenied}</GateNote>
+                                <GateNote>{passwordWrong ? t.wrongPassword : t.accessDenied}</GateNote>
                                 <GateNote>{t.retryIn.replace("{seconds}", String(retryIn))}</GateNote>
                                 <GateButton disabled={retryIn > 0} onClick={() => void loadAccess()}>
                                     {t.tryAgain}
@@ -378,10 +382,12 @@ export function ShareWeb() {
                         )}
 
                         {access?.state === "password" && (
-                            <form onSubmit={(event) => void submitPassword(event)}>
-                                <GateLabel>{t.password}</GateLabel>
+                            <GateForm onSubmit={(event) => void submitPassword(event)}>
+                                <GateNote>{t.passwordNote}</GateNote>
+                                <GateLabel htmlFor="share-password">{t.password}</GateLabel>
                                 <GateInput
                                     autoFocus
+                                    id="share-password"
                                     onChange={(event) => setPassword(event.target.value)}
                                     type="password"
                                     value={password}
@@ -390,7 +396,7 @@ export function ShareWeb() {
                                     {t.unlock}
                                 </GateButton>
                                 {passwordWrong && <GateError>{t.wrongPassword}</GateError>}
-                            </form>
+                            </GateForm>
                         )}
                     </GateCard>
                 </Gate>
@@ -722,13 +728,20 @@ const GateDevice = styled.span`
     font-size: 12px;
 `;
 
-const GateLabel = styled.label`
+const GateForm = styled.form`
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     margin-top: 4px;
+`;
+
+const GateLabel = styled.label`
     color: var(--text-muted);
     font-size: 12px;
 `;
 
 const GateInput = styled.input`
+    width: 100%;
     height: 34px;
     padding: 0 10px;
     border: 1px solid var(--border-color);

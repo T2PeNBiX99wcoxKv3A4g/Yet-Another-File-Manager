@@ -651,6 +651,7 @@ declare module "@photino-net-utils/bridge"
         "share_access_denial_seconds": true;
         "share_access_denied": true;
         "share_access_deny": true;
+        "share_access_devices_note": true;
         "share_access_device_hint": true;
         "share_access_expired": true;
         "share_access_expires": true;

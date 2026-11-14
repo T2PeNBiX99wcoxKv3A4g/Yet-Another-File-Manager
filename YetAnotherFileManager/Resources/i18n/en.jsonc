@@ -30,6 +30,7 @@
   "share_access_allow_forever": "Allow forever",
   "share_access_block_forever": "Block forever",
   "share_access_no_devices": "No browser has asked for access yet.",
+  "share_access_devices_note": "Every browser that has asked is listed here. A decision can be made permanent, or the device removed.",
   "share_access_not_decided": "Not decided",
   "share_access_forever": "Forever",
   "share_access_expired": "Expired",

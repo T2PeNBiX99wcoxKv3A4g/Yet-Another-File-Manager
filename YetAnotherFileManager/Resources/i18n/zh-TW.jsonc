@@ -30,6 +30,7 @@
   "share_access_allow_forever": "永久允許",
   "share_access_block_forever": "永久封鎖",
   "share_access_no_devices": "還沒有瀏覽器要求存取。",
+  "share_access_devices_note": "所有要求過存取的瀏覽器都會列在這裡，可以把決定設為永久，或移除裝置。",
   "share_access_not_decided": "未決定",
   "share_access_forever": "永久",
   "share_access_expired": "已過期",
