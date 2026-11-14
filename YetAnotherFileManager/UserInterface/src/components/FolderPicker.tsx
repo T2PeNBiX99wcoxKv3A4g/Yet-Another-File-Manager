@@ -17,7 +17,9 @@ import {
 } from "../api/files";
 import {type AppSettings, getSettings} from "../api/settings";
 import {DefaultShortcuts} from "../shortcuts";
-import {newFile, newFolder} from "../api/operations";
+import {newFile, newFolder, inspectPaths} from "../api/operations";
+import {showMessage} from "../api/dialogs";
+import {ConfirmDialog} from "./ConfirmDialog";
 import {EmptyFind, type FindState, matchesName} from "../find";
 import {elevatedPanel} from "../ui/panel";
 import {fadeInStyle, popInStyle} from "../ui/motion";
@@ -55,10 +57,12 @@ interface FolderPickerProps {
     /** The window title bar owns the view controls, so it passes the resolved view in. */
     fileView?: ResolvedView;
     showImages?: boolean;
+    /** Save mode: the name box returns a path that does not have to exist yet. */
+    save?: boolean;
+    initialName?: string;
+    defaultExtension?: string;
     /** Which palette the background previews follow. */
     theme: ResolvedTheme;
-    /** Tells the save row which folder the picker is showing. */
-    onDirectoryChange?: (path: string) => void;
     places?: Place[];
     onCancel: () => void;
     onSelect: (paths: string[]) => void;
@@ -77,8 +81,10 @@ export function FolderPicker({
                                  places: suppliedPlaces,
                                  fileView,
                                  showImages,
+                                 save = false,
+                                 initialName = "",
+                                 defaultExtension = "",
                                  theme,
-                                 onDirectoryChange,
                                  onCancel,
                                  onSelect,
                              }: FolderPickerProps) {
@@ -94,12 +100,11 @@ export function FolderPicker({
     const [places, setPlaces] = useState<Place[]>(suppliedPlaces ?? []);
     const [drives, setDrives] = useState<Drive[]>([]);
 
-    // The save row needs the folder the picker currently shows, not the one it started in.
-    useEffect(() => onDirectoryChange?.(path), [path, onDirectoryChange]);
     const [recent, setRecent] = useState<RecentEntry[]>([]);
     const [back, setBack] = useState<string[]>([]);
     const [forward, setForward] = useState<string[]>([]);
-    const [fileName, setFileName] = useState("");
+    const [fileName, setFileName] = useState(initialName);
+    const [overwrite, setOverwrite] = useState<string | null>(null);
     const [allFiles, setAllFiles] = useState(supported.length === 0);
     const [view, setView] = useState<"files" | "overview" | "gallery">("files");
     const [reload, setReload] = useState(0);
@@ -136,14 +141,16 @@ export function FolderPicker({
         setLoading(true);
         setError(null);
         setSelected(new Set());
-        setFileName(isFileMode ? "" : baseName(path));
+        if (!save)
+            setFileName(isFileMode ? "" : baseName(path));
 
         void listDirectory(path || undefined, false).then(
             (result) => {
                 if (!alive) return;
                 setListing(result);
                 setPath(result.path);
-                setFileName(isFileMode ? "" : baseName(result.path));
+                if (!save)
+                    setFileName(isFileMode ? "" : baseName(result.path));
                 setLoading(false);
             },
             (cause) => {
@@ -354,6 +361,30 @@ export function FolderPicker({
         if (loading || error)
             return;
 
+        // Save mode reports the typed name, even when a row happens to be selected: the name box
+        // is the save dialog's "File name" field, exactly like the system dialog.
+        if (save) {
+            const name = typed;
+
+            if (name.length === 0)
+                return;
+
+            if (name === "." || name === ".." || /[<>:"/\\|?*\u0000-\u001F]/.test(name)) {
+                void showMessage(t("the_file_name_is_not_valid"));
+                return;
+            }
+
+            const suffix = defaultExtension.length > 0 && !/\.[^.]*$/.test(name)
+                ? defaultExtension.startsWith(".") ? defaultExtension : `.${defaultExtension}`
+                : "";
+            const target = isAbsolutePath(name) ? name + suffix : joinPath(currentFolder, name + suffix);
+
+            void inspectPaths([target])
+                .then((entries) => entries[0]?.exists ? setOverwrite(target) : onSelect([target]),
+                    () => onSelect([target]));
+            return;
+        }
+
         const picked = multiple ? [...selected] : [...selected].slice(0, 1);
 
         if (picked.length > 0) {
@@ -373,16 +404,25 @@ export function FolderPicker({
     /** The file list and the gallery both report their selection; the footer follows it. */
     const handleSelection = useCallback((paths: string[]) => {
         setSelected(new Set(paths));
-        setFileName(paths.length === 1
-            ? baseName(paths[0])
-            : paths.length === 0 && !isFileMode ? baseName(currentFolder) : "");
-    }, [currentFolder, isFileMode]);
+
+        if (paths.length === 1)
+            setFileName(baseName(paths[0]));
+        else if (!save)
+            setFileName(paths.length === 0 && !isFileMode ? baseName(currentFolder) : "");
+    }, [currentFolder, isFileMode, save]);
 
     const openEntry = (target: string) => {
         const entry = listing?.entries.find((item) => item.fullPath === target);
 
         if (entry?.isDirectory) {
             navigate(target);
+            return;
+        }
+
+        // In save mode a double click only puts the file's name in the box; the user still has to
+        // press Save, which is what the system dialog does.
+        if (save) {
+            setFileName(baseName(target));
             return;
         }
 
@@ -434,7 +474,7 @@ export function FolderPicker({
         <Footer>
             {/* The file type gets its own line, so the name keeps the whole width above it. */}
             <SelectionGrid>
-                <FieldLabel>{isFileMode ? t("file_name") : t("folder_3")}</FieldLabel>
+                <FieldLabel>{isFileMode || save ? t("file_name") : t("folder_3")}</FieldLabel>
                 <NameInput
                     onChange={(event) => onName(event.target.value)}
                     onKeyDown={(event) => {
@@ -471,14 +511,29 @@ export function FolderPicker({
                 <Button onClick={onCancel} type="button">{t("cancel")}</Button>
                 <Button
                     $primary
-                    disabled={loading || error !== null || (isFileMode && selected.size === 0 && typed.length === 0)}
+                    disabled={loading || error !== null || (save
+                        ? typed.length === 0
+                        : isFileMode && selected.size === 0 && typed.length === 0)}
                     onClick={choose}
                     type="button"
                 >
                     <CheckIcon size={12}/>
-                    {isFileMode ? t("select_this_file") : t("select_this_folder")}
+                    {save ? t("save_as") : isFileMode ? t("select_this_file") : t("select_this_folder")}
                 </Button>
             </Actions>
+
+            <ConfirmDialog
+                confirmLabel={t("overwrite")}
+                message={t("a_file_with_that_name_already_exists_overwrite_it")}
+                onCancel={() => setOverwrite(null)}
+                onConfirm={() => {
+                    const path = overwrite;
+                    setOverwrite(null);
+                    if (path) onSelect([path]);
+                }}
+                open={overwrite !== null}
+                title={t("overwrite")}
+            />
         </Footer>
     );
 
@@ -488,7 +543,7 @@ export function FolderPicker({
                 <Header>
                     <Title>
                         <FolderIcon size={16}/>
-                        {isFileMode ? t("choose_a_file") : t("choose_a_folder")}
+                        {save ? t("save_as") : isFileMode ? t("choose_a_file") : t("choose_a_folder")}
                     </Title>
                     <CloseButton onClick={onCancel} title={t("cancel")} type="button">
                         <CrossIcon size={12}/>
