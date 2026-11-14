@@ -298,7 +298,8 @@ internal sealed record ShellVerb(
     bool Checked,
     string? Group,
     int Depth,
-    List<string>? GroupPath = null);
+    List<string>? GroupPath = null,
+    string? GroupIcon = null);
 
 /// <summary>Body for <c>shell.verbs</c>: everything that could be read without showing a menu.</summary>
 internal sealed record ShellVerbsPayload(List<ShellVerb> Verbs, bool Safe);

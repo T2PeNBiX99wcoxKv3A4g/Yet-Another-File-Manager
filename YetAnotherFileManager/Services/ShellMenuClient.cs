@@ -187,7 +187,9 @@ internal static class ShellMenuClient
             if (process is null)
                 return null;
 
-            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            // The helper builds the menu twice so a cold read cannot leave entries out, and a
+            // handler may start a packaged COM server on the first build.
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(8));
 
             try
             {

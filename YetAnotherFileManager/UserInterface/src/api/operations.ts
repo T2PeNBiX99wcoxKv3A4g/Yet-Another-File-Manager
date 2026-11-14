@@ -339,6 +339,8 @@ export interface ShellVerb {
     offset: number;
     /** A built-in icon name, a PNG data URL, or null for the generic glyph. */
     icon: string | null;
+    /** The icon of the submenu this entry belongs to, when the shell has one. */
+    groupIcon: string | null;
     enabled: boolean;
     checked: boolean;
     /** The submenu this entry came from, or null for a top-level entry. */

@@ -813,6 +813,19 @@ export function FileMenu({
             node.items.push(verb);
         }
 
+        /** The icon the shell gave the submenu itself, taken from any entry inside it. */
+        const groupIcon = (node: ShellNode): string | null => {
+            for (const verb of node.items)
+                if (verb.groupIcon) return verb.groupIcon;
+
+            for (const child of node.children.values()) {
+                const icon = groupIcon(child);
+                if (icon) return icon;
+            }
+
+            return null;
+        };
+
         const toItems = (node: ShellNode): ContextMenuItem[] => [
             ...node.items.map((verb) => ({
                 label: verb.label,
@@ -823,6 +836,7 @@ export function FileMenu({
             })),
             ...[...node.children.entries()].map(([label, child]) => ({
                 label,
+                icon: <MenuIcon source={groupIcon(child)}/>,
                 children: toItems(child),
                 onSelect: () => undefined,
             })),
