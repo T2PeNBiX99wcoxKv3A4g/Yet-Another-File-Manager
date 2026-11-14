@@ -2,7 +2,10 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using System.Security.Principal;
+using System.Text;
 using System.Text.Json;
+using System.Xml.Linq;
 using PhotinoNetUtils;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Interop;
@@ -384,37 +387,113 @@ internal static partial class Program
         if (executable is null)
             return 1;
 
-        var start = new ProcessStartInfo("schtasks")
-        {
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
-        };
-
-        if (args[index + 1] == "create")
-            foreach (var argument in new[]
-                     {
-                         "/Create", "/SC", "ONLOGON", "/IT", "/TN", Constants.Name, "/TR",
-                         $"\"{executable}\" {Constants.AutostartArgument}", "/RL",
-                         "LIMITED", "/F"
-                     })
-                start.ArgumentList.Add(argument);
-        else
-            foreach (var argument in new[]
-                     {
-                         "/Delete", "/TN", Constants.Name, "/F"
-                     })
-                start.ArgumentList.Add(argument);
+        var create = args[index + 1] == "create";
+        var user = index + 2 < args.Length && args[index + 2].Length > 0
+            ? args[index + 2]
+            : WindowsIdentity.GetCurrent().Name;
+        string? definition = null;
 
         try
         {
+            var start = new ProcessStartInfo("schtasks")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+
+            if (create)
+            {
+                // schtasks's /TR option drops the arguments when the command is quoted, and it
+                // cannot write the logon delay or the battery settings at all, so the task is
+                // described in its own XML instead.
+                definition = WriteStartupTaskXml(executable, user);
+
+                foreach (var argument in new[]
+                         {
+                             "/Create", "/TN", Constants.Name, "/XML", definition, "/F"
+                         })
+                    start.ArgumentList.Add(argument);
+            }
+            else
+            {
+                foreach (var argument in new[]
+                         {
+                             "/Delete", "/TN", Constants.Name, "/F"
+                         })
+                    start.ArgumentList.Add(argument);
+            }
+
             return Process.Run(start).ExitCode;
         }
         catch
         {
             return 1;
         }
+        finally
+        {
+            if (definition is not null)
+                Try.Run(() => File.Delete(definition));
+        }
+    }
+
+    /// <summary>
+    ///     Writes the logon task for the current user: the trigger only fires for that user, the app
+    ///     starts with the quiet-logon argument, and a short delay keeps it away from the busiest
+    ///     part of the logon. Running on battery must not stop it, and it has no time limit.
+    /// </summary>
+    [SupportedOSPlatform("windows")]
+    private static string WriteStartupTaskXml(string executable, string user)
+    {
+        XNamespace ns = "http://schemas.microsoft.com/windows/2004/02/mit/task";
+
+        var document = new XDocument(
+            new XDeclaration("1.0", "UTF-16", null),
+            new XElement(ns + "Task", new XAttribute("version", "1.3"),
+                new XElement(ns + "RegistrationInfo",
+                    new XElement(ns + "Description", $"{Constants.DisplayName} at logon")),
+                new XElement(ns + "Triggers",
+                    new XElement(ns + "LogonTrigger",
+                        new XElement(ns + "Enabled", "true"),
+                        new XElement(ns + "UserId", user),
+                        new XElement(ns + "Delay", "PT20S"))),
+                new XElement(ns + "Principals",
+                    new XElement(ns + "Principal",
+                        new XElement(ns + "UserId", user),
+                        new XElement(ns + "LogonType", "InteractiveToken"),
+                        new XElement(ns + "RunLevel", "LeastPrivilege"))),
+                new XElement(ns + "Settings",
+                    new XElement(ns + "MultipleInstancesPolicy", "IgnoreNew"),
+                    new XElement(ns + "DisallowStartIfOnBatteries", "false"),
+                    new XElement(ns + "StopIfGoingOnBatteries", "false"),
+                    new XElement(ns + "AllowHardTerminate", "true"),
+                    new XElement(ns + "StartWhenAvailable", "true"),
+                    new XElement(ns + "RunOnlyIfNetworkAvailable", "false"),
+                    new XElement(ns + "IdleSettings",
+                        new XElement(ns + "Duration", "PT10M"),
+                        new XElement(ns + "WaitTimeout", "PT1H"),
+                        new XElement(ns + "StopOnIdleEnd", "true"),
+                        new XElement(ns + "RestartOnIdle", "false")),
+                    new XElement(ns + "AllowStartOnDemand", "true"),
+                    new XElement(ns + "Enabled", "true"),
+                    new XElement(ns + "Hidden", "false"),
+                    new XElement(ns + "RunOnlyIfIdle", "false"),
+                    new XElement(ns + "DisallowStartOnRemoteAppSession", "false"),
+                    new XElement(ns + "UseUnifiedSchedulingEngine", "true"),
+                    new XElement(ns + "WakeToRun", "false"),
+                    new XElement(ns + "ExecutionTimeLimit", "PT0S"),
+                    new XElement(ns + "Priority", "7")),
+                new XElement(ns + "Actions",
+                    new XElement(ns + "Exec",
+                        new XElement(ns + "Command", executable),
+                        new XElement(ns + "Arguments", Constants.AutostartArgument),
+                        new XElement(ns + "WorkingDirectory", Path.GetDirectoryName(executable) ?? "")))));
+
+        var path = Path.Combine(Path.GetTempPath(), $"yafm-task-{Guid.NewGuid():N}.xml");
+        using var writer = new StreamWriter(path, false, new UnicodeEncoding(false, true));
+        document.Save(writer);
+        return path;
     }
 
     private static void RunShellVerbs(string[] args)

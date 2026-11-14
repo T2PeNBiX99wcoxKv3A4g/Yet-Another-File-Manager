@@ -1,5 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Runtime.Versioning;
+using System.Security.Principal;
 using System.Xml.Linq;
 using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Messaging;
@@ -33,10 +35,23 @@ internal partial class StartupService
 
     private StartupService()
     {
-        // A shortcut written before the logon argument existed is rewritten once, so a quiet logon
-        // start stays quiet after the update.
-        if (_shortcut.IsCurrent)
-            _shortcut.Refresh();
+        var mode = SettingsService.Instance.Current.Startup;
+
+        // Only shortcut mode may write the Startup folder entry. In task mode the task owns logon,
+        // so a leftover shortcut is removed once the task is this build's entry: doing it while the
+        // task is still the old, broken one would leave the user with no working autostart at all.
+        if (mode == "shortcut")
+        {
+            // A shortcut written before the logon argument existed is rewritten once, so a quiet
+            // logon start stays quiet after the update.
+            if (_shortcut.IsCurrent)
+                _shortcut.Refresh();
+
+            return;
+        }
+
+        if (mode == "task" && _shortcut.IsEnabled && TaskCurrent())
+            _shortcut.SetEnabled(false);
     }
 
     /// <summary>True where a per-user login entry can be written.</summary>
@@ -101,11 +116,13 @@ internal partial class StartupService
                     : (false, "The executable path is unknown.");
 
             case "task":
-                _shortcut.SetEnabled(false);
-                // Writing a Windows task needs an administrator token, so a launch only repairs the
-                // shortcut and leaves the task to the settings page. Choosing the mode there always
-                // rewrites the task, so an entry from an older build picks up the logon argument.
-                return interactive ? await CreateTaskAsync() : (true, null);
+                // Write the task first: a cancelled elevation prompt must leave the shortcut that
+                // is still working in place.
+                var (ok, error) = interactive ? await CreateTaskAsync() : (true, null);
+                if (ok)
+                    _shortcut.SetEnabled(false);
+
+                return (ok, error);
 
             default:
                 _shortcut.SetEnabled(false);
@@ -214,13 +231,42 @@ internal partial class StartupService
         if (code != 0)
             return false;
 
-        var command = Try.Run(() => XDocument.Parse(output)
-                .Descendants()
-                .FirstOrDefault(element => element.Name.LocalName == "Command")?.Value)
-            .GetOrNull();
+        var document = Try.Run(() => XDocument.Parse(output)).GetOrNull();
+        if (document is null)
+            return false;
 
-        // Task Scheduler stores the quoted command line it was given, so the quotes come off first.
-        return StartupRegistration.SamePath(Unquoted(command), executable);
+        string? Value(string element) =>
+            document.Descendants().FirstOrDefault(item => item.Name.LocalName == element)?.Value;
+
+        var command = Value("Command");
+        var arguments = Value("Arguments");
+        var principal = document.Descendants().FirstOrDefault(item => item.Name.LocalName == "Principal");
+        var principalUser = principal?.Elements().FirstOrDefault(item => item.Name.LocalName == "UserId")?.Value;
+        var trigger = document.Descendants().FirstOrDefault(item => item.Name.LocalName == "LogonTrigger");
+        var triggerUser = trigger?.Elements().FirstOrDefault(item => item.Name.LocalName == "UserId")?.Value;
+        var user = WindowsIdentity.GetCurrent().Name;
+
+        // The old task had no --autostart and fired for every user; both make it not this build's
+        // entry, so the settings page offers to write it again.
+        return StartupRegistration.SamePath(Unquoted(command), executable)
+               && string.Equals(arguments?.Trim(), Constants.AutostartArgument, StringComparison.Ordinal)
+               && SameUser(triggerUser, user)
+               && SameUser(principalUser, user);
+    }
+
+    /// <summary>Whether a task's stored account is the current user, by name or by SID.</summary>
+    [SupportedOSPlatform("windows")]
+    private static bool SameUser(string? stored, string current)
+    {
+        if (stored is not { Length: > 0 })
+            return false;
+
+        if (string.Equals(stored, current, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return Try.Run(() => new SecurityIdentifier(stored).Translate(typeof(NTAccount)).Value)
+            .GetOrElse(_ => "")
+            .Equals(current, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>The path inside a quoted or bare command line.</summary>
@@ -243,6 +289,7 @@ internal partial class StartupService
         return end > 1 ? value[1..end] : null;
     }
 
+    [SupportedOSPlatform("windows")]
     private static async Task<(bool Ok, string? Error)> RunElevatedHelperAsync(string action)
     {
         if (Executable is not { Length: > 0 } executable)
@@ -254,7 +301,7 @@ internal partial class StartupService
             {
                 UseShellExecute = true,
                 Verb = "runas",
-                Arguments = $"{Constants.StartupTaskArgument} {action}",
+                Arguments = $"{Constants.StartupTaskArgument} {action} \"{WindowsIdentity.GetCurrent().Name}\"",
                 WorkingDirectory = Path.GetDirectoryName(executable) ?? ""
             };
 
