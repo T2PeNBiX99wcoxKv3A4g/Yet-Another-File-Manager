@@ -1366,7 +1366,12 @@ export function FileList({
                                     $partial={!singleSelect && someSelected}
                                     aria-label={allSelected ? t("select_none") : t("select_all")}
                                     disabled={singleSelect}
-                                    onClick={toggleAll}
+                                    onClick={(event) => {
+                                        // The grid body clears the selection on a click that misses
+                                        // a row; without this the select-all click is undone at once.
+                                        event.stopPropagation();
+                                        toggleAll();
+                                    }}
                                     title={allSelected ? t("select_none") : t("select_all")}
                                     type="button"
                                 >
