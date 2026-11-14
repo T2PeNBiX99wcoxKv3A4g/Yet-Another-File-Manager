@@ -2193,6 +2193,7 @@ export default function App() {
 
         return (
             <FileList
+            platform={appInfo?.platform}
                 confirmDelete={settings?.confirmDelete ?? false}
                 cutPaths={cutPaths}
                 previewVideoAudio={settings?.previewVideoAudio ?? false}
@@ -2835,6 +2836,7 @@ export default function App() {
                                 )
                             ) : kind === "home" ? (
                                 <OverviewView
+                                platform={appInfo?.platform}
                                     drives={drives}
                                     find={pageFind}
                                     historyVersion={historyVersion}
@@ -2868,6 +2870,7 @@ export default function App() {
                                 />
                             ) : kind === "gallery" ? (
                                 <GalleryView
+                                platform={appInfo?.platform}
                                     confirmDelete={settings?.confirmDelete ?? false}
                                     find={pageFind}
                                     onSearchMatches={setViewFindTotal}

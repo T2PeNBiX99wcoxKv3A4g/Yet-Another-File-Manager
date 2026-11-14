@@ -65,6 +65,8 @@ interface OverviewViewProps {
     recent: RecentEntry[];
     recentLimit: number;
     homePath: string;
+    /** The host platform; the Windows share sheet has no Linux equivalent. */
+    platform?: string;
     /** Bumped when the recent or frequent history is cleared, so those panels reload. */
     historyVersion: number;
     onOpen: (path: string, newTab?: boolean) => void;
@@ -1350,6 +1352,7 @@ export function OverviewView({
                                  favoritePaths,
                                  onExtractArchive,
                                  settingsVersion = 0,
+                                 platform,
                              }: OverviewViewProps) {
     const t = useTranslation();
     const quick = useQuickAccess();
@@ -2585,6 +2588,7 @@ export function OverviewView({
                         onSelectionChange={onSelectionChange}
                         openOnSingleClick={settings?.openOnSingleClick ?? false}
                         path={panel.path ?? homePath}
+                        platform={platform}
                         selectionMenuId={`overview:${panel.id}`}
                         showCheckboxes={settings?.showCheckboxes ?? true}
                         visibilityVersion={visibilityVersion}
@@ -3160,7 +3164,8 @@ function FolderBody({
                         selectionMenuId,
                         showCheckboxes,
                         openOnSingleClick,
-                        visibilityVersion
+                        visibilityVersion,
+                        platform
                     }: {
     path: string;
     mode: ViewMode;
@@ -3172,6 +3177,8 @@ function FolderBody({
     showCheckboxes: boolean;
     openOnSingleClick: boolean;
     visibilityVersion: number;
+    /** The host platform; the Windows share sheet has no Linux equivalent. */
+    platform?: string;
 }) {
     const t = useTranslation();
     const [listing, setListing] = useState<DirectoryListing | null>(null);
@@ -3216,6 +3223,7 @@ function FolderBody({
         return (
             <Preview>
                 <FileList
+                    platform={platform}
                     error={null}
                     listing={listing}
                     loading={false}

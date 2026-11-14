@@ -19,6 +19,7 @@
   "ask_the_shell_for_the_icon_of_each_file_type_instead_of_the_built_in_glyphs": "Ask the shell for the icon of each file type instead of the built-in glyphs.",
   "asks_before_moving_items_to_the_recycle_bin_shift_del_always_asks_because_that_deletes_permanently": "Asks before moving items to the recycle bin. Shift+Del always asks, because that deletes permanently.",
   "attributes": "Attributes",
+  "could_not_open_the_share_sheet": "The Windows share sheet could not be opened.",
   "devices": "Devices",
   "share_access": "Web share access",
   "share_access_note": "New browsers need approval on this device before they can browse a web share.",

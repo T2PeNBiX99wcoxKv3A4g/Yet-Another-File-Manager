@@ -19,6 +19,7 @@
   "ask_the_shell_for_the_icon_of_each_file_type_instead_of_the_built_in_glyphs": "組み込みのグリフではなく、シェルからファイルの種類ごとのアイコンを取得します。",
   "asks_before_moving_items_to_the_recycle_bin_shift_del_always_asks_because_that_deletes_permanently": "ごみ箱に移動する前に確認します。Shift+Del は完全削除なので常に確認します。",
   "attributes": "属性",
+  "could_not_open_the_share_sheet": "Windows の共有パネルを開けませんでした。",
   "devices": "デバイス",
   "share_access": "Web 共有アクセス",
   "share_access_note": "新しいブラウザは、このデバイスで承認されるまで Web 共有を閲覧できません。",

@@ -19,6 +19,7 @@
   "ask_the_shell_for_the_icon_of_each_file_type_instead_of_the_built_in_glyphs": "向系统外壳请求每种文件类型的图标，而不是使用内置图标。",
   "asks_before_moving_items_to_the_recycle_bin_shift_del_always_asks_because_that_deletes_permanently": "移到回收站前先询问。Shift+Del 始终询问，因为那是永久删除。",
   "attributes": "属性",
+  "could_not_open_the_share_sheet": "无法打开 Windows 分享面板。",
   "devices": "设备",
   "share_access": "Web 分享访问",
   "share_access_note": "新的浏览器需要先在此设备上获得批准才能浏览 Web 分享。",

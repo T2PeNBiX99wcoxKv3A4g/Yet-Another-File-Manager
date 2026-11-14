@@ -103,6 +103,11 @@ internal partial class FileSystemService : INativeMessageHandler
                 return context.Reply("fs.visibility.result", visibility);
             }
 
+            case "fs.share":
+                return context.Reply("fs.share.result", OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763)
+                    ? await WindowsShare.ShareAsync(context.Payload<ShareRequest>()?.Paths ?? [])
+                    : new ShareResultPayload(false, "Sharing is only available on Windows."));
+
             case "fs.hidden.toggle":
                 return context.Reply("fs.hidden.toggle.result", await Task.Run(async () =>
                 {

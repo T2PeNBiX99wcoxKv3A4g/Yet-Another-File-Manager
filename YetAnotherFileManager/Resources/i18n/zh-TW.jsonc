@@ -19,6 +19,7 @@
   "ask_the_shell_for_the_icon_of_each_file_type_instead_of_the_built_in_glyphs": "向系統殼層取得每種檔案類型的圖示，而不是使用內建圖示。",
   "asks_before_moving_items_to_the_recycle_bin_shift_del_always_asks_because_that_deletes_permanently": "移至資源回收筒前先詢問。Shift+Del 一律詢問，因為那是永久刪除。",
   "attributes": "屬性",
+  "could_not_open_the_share_sheet": "無法開啟 Windows 分享面板。",
   "devices": "裝置",
   "share_access": "Web 分享存取",
   "share_access_note": "新的瀏覽器需要先在此裝置上取得核准才能瀏覽 Web 分享。",

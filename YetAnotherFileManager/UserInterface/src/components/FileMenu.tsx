@@ -15,6 +15,7 @@ import {
     type OpenWithProgram,
     setCaseSensitive,
     type ShellVerb,
+    sharePaths,
     showInExplorer,
     showProperties,
 } from "../api/operations";
@@ -88,6 +89,8 @@ interface FileMenuProps {
     onCreateFile?: (extension: string | null) => void;
     /** The New button only needs the creation entries, not the folder background actions. */
     creationOnly?: boolean;
+    /** The host platform; the Windows share sheet has no Linux equivalent. */
+    platform?: string;
     onRefresh?: () => void;
     onAddToTray?: (paths: string[]) => void;
     /** Pins the selected files and folders to the overview's Favorites panel. */
@@ -130,6 +133,7 @@ export function FileMenu({
                              favoritePaths,
                              onExtractArchive,
                              allowCompression = false,
+                             platform,
                              onCompressTo,
                              onArchiveCreated,
                          }: FileMenuProps) {
@@ -614,6 +618,15 @@ export function FileMenu({
                 icon: <ExecutableIcon size={14}/>,
                 children,
                 onSelect: () => void openWith(target.path),
+            });
+        }
+
+        if (!archiveView && platform === "windows" && menu.paths.length > 0) {
+            items.push({
+                label: t("share"), icon: <ShareIcon size={14}/>, separatorBefore: true,
+                onSelect: () => void sharePaths(menu.paths).then((result) => {
+                    if (!result.ok) void showMessage(result.error ?? t("could_not_open_the_share_sheet"));
+                }),
             });
         }
 

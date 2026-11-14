@@ -243,8 +243,23 @@ export async function showProperties(paths: string[]): Promise<void> {
     await Native.request("fs.operation.properties", {paths});
 }
 
-/** Opens the "How do you want to open this file?" dialog. */
-export async function openWith(path: string): Promise<void> {
+/** Whether the Windows share sheet opened, and why it did not. */
+export interface ShareSheetResult {
+    ok: boolean;
+    error: string | null;
+}
+
+/**
+ * Hands files and folders to the Windows share sheet. Only Windows has one; the menu hides the
+ * entry elsewhere, so a call from another platform reports that instead of doing nothing.
+ */
+export async function sharePaths(paths: string[]): Promise<ShareSheetResult> {
+    if (!Native.available || paths.length === 0) return {ok: false, error: null};
+
+    return await Native.request<ShareSheetResult>("fs.share", {paths});
+}
+
+/** Opens the "How do you want to open this file?" dialog. */export async function openWith(path: string): Promise<void> {
     if (!Native.available) return;
 
     await Native.request("fs.operation.openWith", {path});

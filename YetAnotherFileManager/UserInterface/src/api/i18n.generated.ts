@@ -170,6 +170,7 @@ declare module "@photino-net-utils/bridge"
         "could_not_find_a_free_name_for_the_new_folder": true;
         "could_not_move_the_selection_to_the_recycle_bin": true;
         "could_not_open_the_link": true;
+        "could_not_open_the_share_sheet": true;
         "could_not_read_this_file": true;
         "could_not_rename_the_entry": true;
         "count_columns": true;

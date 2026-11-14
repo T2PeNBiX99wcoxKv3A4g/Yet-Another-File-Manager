@@ -34,6 +34,8 @@ const MoreSpace = 600;
 interface GalleryViewProps {
     /** Open a picture with one click instead of two, following the file browser's setting. */
     openOnSingleClick?: boolean;
+    /** The host platform; the Windows share sheet has no Linux equivalent. */
+    platform?: string;
     /** Show the selection checkbox on each picture, following the file browser's setting. */
     showCheckboxes?: boolean;
     /** Ask before moving a picture to the recycle bin, following the file browser's setting. */
@@ -87,6 +89,7 @@ export function GalleryView({
                                 favoritePaths,
                                 onExtractArchive,
                                 onPreviewChange,
+                                platform,
                             }: GalleryViewProps) {
     const t = useTranslation();
     const selectionMenu = useSelectionMenu("gallery");
@@ -386,6 +389,7 @@ export function GalleryView({
                 <GalleryBody>
                     <GridPane>
                         <FileList
+                        platform={platform}
                             confirmDelete={confirmDelete}
                             find={findView}
                             selectMatchesToken={selectMatchesToken}

@@ -227,6 +227,12 @@ internal sealed record DefaultManagerStatusPayload(bool Registered, bool PathMat
 /// <summary>Body for <c>app.defaultManager.set</c>: turn the folder handler on or off.</summary>
 internal sealed record DefaultManagerRequest(bool Enabled);
 
+/// <summary>Body for <c>fs.share</c>: the paths to hand to the Windows share sheet.</summary>
+internal sealed record ShareRequest(List<string>? Paths);
+
+/// <summary>Body for <c>fs.share</c>: whether the sheet opened, and why it did not.</summary>
+internal sealed record ShareResultPayload(bool Ok, string? Error);
+
 /// <summary>Physical path of a temporary archive entry, or why it could not be extracted.</summary>
 internal sealed record ArchiveOpenPayload(string? Path, string? Error = null);
 

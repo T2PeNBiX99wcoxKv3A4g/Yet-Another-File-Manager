@@ -105,6 +105,8 @@ interface FileListProps {
     onTransfer?: (paths: string[], target: string, move: boolean) => void;
     /** Adds the selection to the floating file tray without dragging it. */
     onAddToTray?: (paths: string[]) => void;
+    /** The host platform; the Windows share sheet has no Linux equivalent. */
+    platform?: string;
     /** Pins the selection to the overview's Favorites panel. */
     onAddFavorite?: (paths: string[]) => void;
     /** Removes the selection from Favorites; shown when every selected path is already pinned. */
@@ -205,6 +207,7 @@ export function FileList({
                              cutPaths = NoPaths,
                              onTransfer,
                              onAddToTray,
+                             platform,
                              onAddFavorite,
                              onRemoveFavorite,
                              favoritePaths,
@@ -1422,6 +1425,7 @@ export function FileList({
                         <FileMenu
                             canPaste={canPaste}
                             directory={currentDirectory}
+                            platform={platform}
                             allowCompression
                             menu={menu}
                             onAddToTray={onAddToTray}
@@ -1643,6 +1647,7 @@ export function FileList({
                     <FileMenu
                         canPaste={canPaste}
                         directory={currentDirectory}
+                        platform={platform}
                         allowCompression
                         menu={menu}
                         onAddToTray={onAddToTray}
