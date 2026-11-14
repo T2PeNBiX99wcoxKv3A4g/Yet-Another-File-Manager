@@ -10,12 +10,11 @@ import {
 } from "../api/files";
 import type {ShortcutMap} from "../shortcuts";
 import {appLocale, formatBytes, formatDate, plural} from "../utils/format";
-import {readStoredNumber, writeStoredNumber} from "../storage";
 import {MenuIcon, RefreshIcon} from "./Icons";
 import {FileList} from "./FileList";
 import type {ArchiveExtractMode} from "./FileMenu";
 import {useSelectionMenu} from "../ui/selectionMenu";
-import {type PreviewInfo, PreviewPane} from "./PreviewPane";
+import {type PreviewInfo} from "./PreviewPane";
 import {type FindView, matchesName, NoFind} from "../find";
 import type {PageFind} from "../ui/textSearch";
 import {useTranslation} from "@photino-net-utils/bridge";
@@ -63,12 +62,8 @@ interface GalleryViewProps {
     favoritePaths?: string[];
     /** Extracts an archive selected in the gallery. */
     onExtractArchive?: (path: string, mode: ArchiveExtractMode) => void;
-    /** Draw the right-side details pane, like the file browser and the recycle bin. */
-    showDetails?: boolean;
-    /** Play a video preview's audio; off means muted. */
-    videoAudio?: boolean;
-    /** Start a video preview automatically; off means the user presses play. */
-    videoAutoplay?: boolean;
+    /** Reports the selection to the window-level details pane. */
+    onPreviewChange?: (info: PreviewInfo | null, note?: string) => void;
 }
 
 /**
@@ -91,9 +86,7 @@ export function GalleryView({
                                 onRemoveFavorite,
                                 favoritePaths,
                                 onExtractArchive,
-                                showDetails = true,
-                                videoAudio = false,
-                                videoAutoplay = false,
+                                onPreviewChange,
                             }: GalleryViewProps) {
     const t = useTranslation();
     const selectionMenu = useSelectionMenu("gallery");
@@ -103,10 +96,6 @@ export function GalleryView({
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
     const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
-    const [previewWidth, setPreviewWidth] = useState(() => {
-        const saved = readStoredNumber("yafm.preview.width", 320);
-        return saved >= 220 ? saved : 320;
-    });
 
     const entriesRef = useRef<GalleryEntry[]>([]);
     const totalRef = useRef(0);
@@ -317,11 +306,6 @@ export function GalleryView({
         onSelectionChange?.(paths);
     }, [onSelectionChange]);
 
-    const resizePreview = (width: number) => {
-        setPreviewWidth(width);
-        writeStoredNumber("yafm.preview.width", width);
-    };
-
     const previewEntry = selectedPaths.length > 0
         ? entries.find((entry) => entry.path === selectedPaths[0]) ?? null
         : null;
@@ -352,6 +336,21 @@ export function GalleryView({
             ],
         }
         : null;
+
+    const previewNote = selectedPaths.length > 1
+        ? plural(t, selectedPaths.length, "k_1_item_selected", "count_items_selected")
+        : undefined;
+    const reportedPreview = useRef("");
+
+    // The window owns the details pane; this page only says what it should show.
+    useEffect(() => {
+        const key = `${previewInfo?.path ?? ""}|${previewInfo?.modified ?? 0}|${previewNote ?? ""}`;
+        if (reportedPreview.current === key)
+            return;
+
+        reportedPreview.current = key;
+        onPreviewChange?.(previewInfo, previewNote);
+    }, [previewInfo, previewNote, onPreviewChange]);
 
     return (
         <Page>
@@ -416,19 +415,6 @@ export function GalleryView({
                             allowBackgroundMenu={false}
                         />
                     </GridPane>
-                    {showDetails && (
-                        <PreviewPane
-                            emptyNote={t("nothing_selected")}
-                            info={previewInfo}
-                            onWidth={resizePreview}
-                            selectionNote={selectedPaths.length > 1
-                                ? plural(t, selectedPaths.length, "k_1_item_selected", "count_items_selected")
-                                : undefined}
-                            videoAudio={videoAudio}
-                            videoAutoplay={videoAutoplay}
-                            width={previewWidth}
-                        />
-                    )}
                 </GalleryBody>
             )}
         </Page>

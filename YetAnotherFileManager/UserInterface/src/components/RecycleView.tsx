@@ -16,12 +16,12 @@ import {setSelectionMenu, useSelectionMenu} from "../ui/selectionMenu";
 import {matchesName} from "../find";
 import {type PageFind, useTextSearch} from "../ui/textSearch";
 import {formatBytes, formatDate, plural} from "../utils/format";
-import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "../storage";
+import {readStoredJson, writeStoredJson} from "../storage";
 import {CheckIcon, CopyIcon, FileIcon, FolderIcon, GearIcon, MenuIcon, RefreshIcon, TrashIcon} from "./Icons";
 import RestoreSvg from "./icons/restore.svg?react";
 import {ConfirmDialog} from "./ConfirmDialog";
 import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
-import {type PreviewInfo, PreviewPane} from "./PreviewPane";
+import {type PreviewInfo} from "./PreviewPane";
 import {type LocalizationKey, useTranslation} from "@photino-net-utils/bridge";
 
 type SortColumn = "name" | "original" | "deleted" | "size" | "type";
@@ -35,14 +35,10 @@ interface RecycleViewProps {
     onSearchMatches?: (count: number) => void;
     /** Bumped by the find bar's select-all button. */
     selectMatchesToken?: number;
-    /** Draw the right-side details pane. */
-    showDetails?: boolean;
     /** Called when a double click should reveal the details pane. */
     onShowDetails?: () => void;
-    /** Play audio in video previews; off means muted. */
-    videoAudio?: boolean;
-    /** Start a video preview automatically; off means the user presses play. */
-    videoAutoplay?: boolean;
+    /** Reports the selection to the window-level details pane. */
+    onPreviewChange?: (info: PreviewInfo | null, note?: string) => void;
     /** The host platform; the elevated all-profiles view only exists on Windows. */
     platform?: string;
 }
@@ -57,10 +53,8 @@ export function RecycleView({
                                 find,
                                 onSearchMatches,
                                 selectMatchesToken,
-                                showDetails = true,
                                 onShowDetails,
-                                videoAudio = false,
-                                videoAutoplay = false,
+                                onPreviewChange,
                                 platform,
                             }: RecycleViewProps) {
     const t = useTranslation();
@@ -86,16 +80,7 @@ export function RecycleView({
     });
     const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
     const [confirm, setConfirm] = useState<"delete" | "empty" | "purge" | null>(null);
-    const [previewWidth, setPreviewWidth] = useState(() => {
-        const saved = readStoredNumber("yafm.recycle.preview.width", 320);
-        return saved >= 220 ? saved : 320;
-    });
     const root = useRef<HTMLDivElement | null>(null);
-
-    const resizePreview = (width: number) => {
-        setPreviewWidth(width);
-        writeStoredNumber("yafm.recycle.preview.width", width);
-    };
 
     const reload = useCallback(async () => {
         setLoading(true);
@@ -450,6 +435,21 @@ export function RecycleView({
         }
         : null;
 
+    const previewNote = selectedEntries.length > 1
+        ? plural(t, selectedEntries.length, "k_1_item_selected", "count_items_selected")
+        : undefined;
+    const reportedPreview = useRef("");
+
+    // The window owns the details pane; this page only says what it should show.
+    useEffect(() => {
+        const key = `${previewInfo?.path ?? ""}|${previewInfo?.modified ?? 0}|${previewNote ?? ""}`;
+        if (reportedPreview.current === key)
+            return;
+
+        reportedPreview.current = key;
+        onPreviewChange?.(previewInfo, previewNote);
+    }, [previewInfo, previewNote, onPreviewChange]);
+
     return (
         <Page ref={root} onContextMenu={(event) => openMenu(event)}>
             <Header>
@@ -640,20 +640,6 @@ export function RecycleView({
                             ))}
                         </Body>
                     </Table>
-
-                    {showDetails && (
-                        <PreviewPane
-                            emptyNote={t("nothing_selected")}
-                            info={previewInfo}
-                            onWidth={resizePreview}
-                            selectionNote={selectedEntries.length > 1
-                                ? plural(t, selectedEntries.length, "k_1_item_selected", "count_items_selected")
-                                : undefined}
-                            videoAudio={videoAudio}
-                            videoAutoplay={videoAutoplay}
-                            width={previewWidth}
-                        />
-                    )}
                 </SplitPane>
             )}
 

@@ -361,6 +361,13 @@ export default function App() {
     });
     const [primaryPreview, setPrimaryPreview] = useState<PreviewInfo | null>(null);
     const [secondaryPreview, setSecondaryPreview] = useState<PreviewInfo | null>(null);
+
+    /** The preview the gallery or the recycle bin reports; the page itself no longer draws one. */
+    const [pagePreview, setPagePreview] = useState<{
+        kind: "gallery" | "recycle" | null;
+        info: PreviewInfo | null;
+        note?: string;
+    }>({kind: null, info: null});
     const [activePane, setActivePane] = useState<"primary" | "secondary">("primary");
     const [createMenu, setCreateMenu] = useState<{
         x: number;
@@ -1029,10 +1036,42 @@ export default function App() {
         writeStoredNumber("yafm.preview.width", width);
     }, []);
 
+    /** Takes the current preview from a page that does not own the details pane. */
+    const reportPagePreview = useCallback((kind: "gallery" | "recycle", info: PreviewInfo | null, note?: string) =>
+        setPagePreview((current) => {
+            if (current.kind === kind
+                && current.info?.path === info?.path
+                && current.info?.modified === info?.modified
+                && current.info?.name === info?.name
+                && current.note === note)
+                return current;
+
+            return {kind, info, note};
+        }), []);
+
+    const reportGalleryPreview = useCallback((info: PreviewInfo | null, note?: string) =>
+        reportPagePreview("gallery", info, note), [reportPagePreview]);
+
+    const reportRecyclePreview = useCallback((info: PreviewInfo | null, note?: string) =>
+        reportPagePreview("recycle", info, note), [reportPagePreview]);
+
     /** The pane whose selection the shared details panel follows; the other side is the fallback. */
     const detailsInfo = splitActive
         ? activePane === "secondary" ? secondaryPreview ?? primaryPreview : primaryPreview ?? secondaryPreview
         : primaryPreview;
+
+    /** One details pane, one set of values, whichever page is on screen. */
+    const detailsCount = splitActive && activePane === "secondary"
+        ? selectionCounts.secondary
+        : selectionCounts.primary;
+    const detailsPaneInfo = kind === "files"
+        ? detailsInfo
+        : pagePreview.kind === kind ? pagePreview.info : null;
+    const detailsNote = kind === "files"
+        ? detailsCount > 1
+            ? plural(t, detailsCount, "k_1_item_selected", "count_items_selected")
+            : undefined
+        : pagePreview.kind === kind ? pagePreview.note : undefined;
 
     const splitRef = useRef<HTMLDivElement | null>(null);
 
@@ -1043,9 +1082,9 @@ export default function App() {
         const bounds = splitRef.current?.getBoundingClientRect();
         if (!bounds) return;
 
-        // The details panel takes its own width; the divider only splits what is left of it.
-        const reserved = detailsVisible ? detailsWidth : 0;
-        const paneWidth = Math.max(bounds.width - reserved - 7, 1);
+        // The details pane sits outside the split now, so its width is already gone from the
+        // measured box; only the divider itself is taken out.
+        const paneWidth = Math.max(bounds.width - 7, 1);
 
         const move = (moveEvent: PointerEvent) => {
             const ratio = Math.min(Math.max((moveEvent.clientX - bounds.left) / paneWidth, 0.2), 0.8);
@@ -2565,6 +2604,8 @@ export default function App() {
                     />
 
                     <Main>
+                        <FileArea>
+                            <FileColumn>
                         {kind !== "files" && mainToolbar}
 
                         <ViewShell key={kind}>
@@ -2782,33 +2823,15 @@ export default function App() {
                                             {filePane(secondary, false)}
                                             {activePane === "secondary" && findBar}
                                         </Pane>
-                                        <PreviewPane
-                                            info={detailsInfo}
-                                            onWidth={resizeDetails}
-                                            open={detailsVisible}
-                                            videoAudio={settings?.previewVideoAudio ?? false}
-                                            videoAutoplay={settings?.previewVideoAutoplay ?? false}
-                                            width={detailsWidth}
-                                        />
                                     </Split>
                                 ) : (
-                                    <FileArea>
-                                        <FileColumn>
-                                            {mainToolbar}
-                                            <Files>
-                                                {filePane(active, true)}
-                                                {findBar}
-                                            </Files>
-                                        </FileColumn>
-                                        <PreviewPane
-                                            info={primaryPreview}
-                                            onWidth={resizeDetails}
-                                            open={detailsVisible}
-                                            videoAudio={settings?.previewVideoAudio ?? false}
-                                            videoAutoplay={settings?.previewVideoAutoplay ?? false}
-                                            width={detailsWidth}
-                                        />
-                                    </FileArea>
+                                    <>
+                                        {mainToolbar}
+                                        <Files>
+                                            {filePane(active, true)}
+                                            {findBar}
+                                        </Files>
+                                    </>
                                 )
                             ) : kind === "home" ? (
                                 <OverviewView
@@ -2857,9 +2880,7 @@ export default function App() {
                                     shortcuts={shortcuts}
                                     showCheckboxes={settings?.showCheckboxes ?? true}
                                     selectMatchesToken={selectMatchesToken}
-                                    showDetails={detailsVisible}
-                                    videoAudio={settings?.previewVideoAudio ?? false}
-                                    videoAutoplay={settings?.previewVideoAutoplay ?? false}
+                                    onPreviewChange={reportGalleryPreview}
                                     view={view}
                                 />
                             ) : (
@@ -2869,12 +2890,24 @@ export default function App() {
                                     onShowDetails={() => setDetailsVisible(true)}
                                     platform={appInfo?.platform}
                                     selectMatchesToken={selectMatchesToken}
-                                    showDetails={detailsVisible}
-                                    videoAudio={settings?.previewVideoAudio ?? false}
-                                    videoAutoplay={settings?.previewVideoAutoplay ?? false}
+                                    onPreviewChange={reportRecyclePreview}
                                 />
                             )}
                         </ViewShell>
+                            </FileColumn>
+                            {(kind === "files" || kind === "gallery" || kind === "recycle") && (
+                                <PreviewPane
+                                    emptyNote={t("nothing_selected")}
+                                    info={detailsPaneInfo}
+                                    onWidth={resizeDetails}
+                                    open={detailsVisible}
+                                    selectionNote={detailsNote}
+                                    videoAudio={settings?.previewVideoAudio ?? false}
+                                    videoAutoplay={settings?.previewVideoAutoplay ?? false}
+                                    width={detailsWidth}
+                                />
+                            )}
+                        </FileArea>
 
                         <StatusBar>
                             <span>{kind === "files" && active.listing ? statusLine(t, active.listing) : ""}</span>
