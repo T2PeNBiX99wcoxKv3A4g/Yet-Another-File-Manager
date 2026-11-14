@@ -34,3 +34,14 @@ internal sealed record ShareWebUploadPayload(int Saved);
 
 /// <summary>Body for a failed browser request.</summary>
 internal sealed record ShareWebErrorPayload(string Error);
+/// <summary>Body for <c>/api/access/state</c>: what the browser page should show.</summary>
+internal sealed record ShareWebAccessPayload(
+    string State,
+    string? Device,
+    long? ExpiresAt,
+    int? RetryAfter,
+    bool HasPassword,
+    string? Salt,
+    string? Nonce,
+    int ApprovalMinutes,
+    int DenialSeconds);

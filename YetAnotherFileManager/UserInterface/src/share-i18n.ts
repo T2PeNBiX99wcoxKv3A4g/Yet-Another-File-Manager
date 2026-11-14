@@ -25,6 +25,14 @@ export interface ShareStrings {
     language: string;
     download: string;
     error: string;
+    checkingAccess: string;
+    waitingForApproval: string;
+    accessDenied: string;
+    retryIn: string;
+    tryAgain: string;
+    password: string;
+    unlock: string;
+    wrongPassword: string;
 }
 
 const English: ShareStrings = {
@@ -45,6 +53,14 @@ const English: ShareStrings = {
     language: "language",
     download: "Download",
     error: "Something went wrong.",
+    checkingAccess: "Checking access…",
+    waitingForApproval: "Waiting for approval on the device that shares these folders.",
+    accessDenied: "This device is not allowed to open the share.",
+    retryIn: "Try again in {seconds} seconds.",
+    tryAgain: "Try again",
+    password: "Share password",
+    unlock: "Unlock",
+    wrongPassword: "That password did not match. Try again after the wait.",
 };
 
 const Japanese: ShareStrings = {
@@ -65,6 +81,14 @@ const Japanese: ShareStrings = {
     language: "言語",
     download: "ダウンロード",
     error: "問題が発生しました。",
+    checkingAccess: "アクセスを確認しています…",
+    waitingForApproval: "共有元のデバイスで承認を待っています。",
+    accessDenied: "このデバイスは共有を開くことを許可されていません。",
+    retryIn: "{seconds} 秒後にもう一度お試しください。",
+    tryAgain: "再試行",
+    password: "共有パスワード",
+    unlock: "ロック解除",
+    wrongPassword: "パスワードが一致しません。待ってからもう一度お試しください。",
 };
 
 const SimplifiedChinese: ShareStrings = {
@@ -85,6 +109,14 @@ const SimplifiedChinese: ShareStrings = {
     language: "语言",
     download: "下载",
     error: "发生错误。",
+    checkingAccess: "正在检查访问权限…",
+    waitingForApproval: "正在等待分享端设备批准。",
+    accessDenied: "此设备没有打开分享的权限。",
+    retryIn: "请在 {seconds} 秒后重试。",
+    tryAgain: "重试",
+    password: "分享密码",
+    unlock: "解锁",
+    wrongPassword: "密码不正确，请等待后再试。",
 };
 
 const TraditionalChinese: ShareStrings = {
@@ -105,6 +137,14 @@ const TraditionalChinese: ShareStrings = {
     language: "語言",
     download: "下載",
     error: "發生錯誤。",
+    checkingAccess: "正在檢查存取權限…",
+    waitingForApproval: "正在等待分享端裝置核准。",
+    accessDenied: "此裝置沒有開啟分享的權限。",
+    retryIn: "請在 {seconds} 秒後重試。",
+    tryAgain: "重試",
+    password: "分享密碼",
+    unlock: "解鎖",
+    wrongPassword: "密碼不正確，請等待後再試。",
 };
 
 const Dictionaries: Record<ShareLanguage, ShareStrings> = {

@@ -134,6 +134,12 @@ export interface AppSettings {
     favorites: FavoriteEntry[];
     /** Suffix for a name that is already taken: "space_parentheses", "underscore" or "dot". */
     conflictNameStyle: string;
+    /** Ask before a new browser may use a web share. */
+    shareAccessEnabled: boolean;
+    /** Minutes an approved browser stays allowed. */
+    shareApprovalMinutes: number;
+    /** Seconds a refused browser stays blocked. */
+    shareDenialSeconds: number;
 }
 
 /** A file or folder pinned to the overview's Favorites panel. */
@@ -213,6 +219,9 @@ const fallback: AppSettings = {
     startHidden: false,
     favorites: [],
     conflictNameStyle: "space_parentheses",
+    shareAccessEnabled: true,
+    shareApprovalMinutes: 60,
+    shareDenialSeconds: 10,
 };
 
 /** The interface settings, persisted by the host. */
@@ -284,6 +293,9 @@ export async function getSettings(): Promise<AppSettings> {
         startHidden: raw?.startHidden ?? false,
         favorites: raw?.favorites ?? [],
         conflictNameStyle: raw?.conflictNameStyle ?? "space_parentheses",
+        shareAccessEnabled: raw?.shareAccessEnabled ?? true,
+        shareApprovalMinutes: raw?.shareApprovalMinutes ?? 60,
+        shareDenialSeconds: raw?.shareDenialSeconds ?? 10,
     };
 }
 
@@ -417,6 +429,9 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         startHidden: saved?.startHidden ?? settings.startHidden,
         favorites: saved?.favorites ?? settings.favorites,
         conflictNameStyle: saved?.conflictNameStyle ?? settings.conflictNameStyle,
+        shareAccessEnabled: saved?.shareAccessEnabled ?? settings.shareAccessEnabled,
+        shareApprovalMinutes: saved?.shareApprovalMinutes ?? settings.shareApprovalMinutes,
+        shareDenialSeconds: saved?.shareDenialSeconds ?? settings.shareDenialSeconds,
     };
 }
 

@@ -492,3 +492,18 @@ internal sealed record StartupStatusPayload(bool Supported, string Mode, bool Ac
 
 /// <summary>Payload for <c>ui.state.set</c>: the values to store, keyed by name.</summary>
 internal sealed record UiStateSetRequest(Dictionary<string, string>? Entries);
+
+/// <summary>Body for <c>share.devices.list</c>: every browser that has been allowed or refused.</summary>
+internal sealed record ShareDevicesPayload(IReadOnlyList<ShareDevice> Devices);
+
+/// <summary>Payload for <c>share.devices.set</c>: one device and the state to give it.</summary>
+internal sealed record ShareDeviceSetRequest(string? Id, string? State, bool? Permanent);
+
+/// <summary>Payload for <c>share.devices.remove</c>.</summary>
+internal sealed record ShareDeviceRemoveRequest(string? Id);
+
+/// <summary>Payload for <c>share.access.password</c>; null or empty clears the password.</summary>
+internal sealed record ShareAccessPasswordRequest(string? Password);
+
+/// <summary>Body for <c>share.access.password</c> and <c>share.access.status</c>.</summary>
+internal sealed record ShareAccessPasswordPayload(bool HasPassword);

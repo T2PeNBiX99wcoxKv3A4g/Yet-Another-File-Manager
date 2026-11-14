@@ -126,4 +126,10 @@ export interface AppSettingsGenerated {
     themeMode: string | null;
     /** Suffix for a name that is already taken: 'space_parentheses', 'underscore' or 'dot'. */
     conflictNameStyle: string | null;
+    /** Ask before a new browser may use a web share. */
+    shareAccessEnabled: boolean | null;
+    /** Minutes an approved browser stays allowed. */
+    shareApprovalMinutes: number | null;
+    /** Seconds a refused browser stays blocked. */
+    shareDenialSeconds: number | null;
 }

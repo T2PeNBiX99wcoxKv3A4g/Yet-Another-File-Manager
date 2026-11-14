@@ -229,6 +229,39 @@ internal partial class WebShareServer
                 return;
             }
 
+            if (path.Equals("/api/access/state", StringComparison.OrdinalIgnoreCase))
+            {
+                var state = await ShareAccess.Instance.EvaluateAsync(context);
+                await WriteJsonAsync(context, state, AppJsonContext.Default.ShareWebAccessPayload);
+                return;
+            }
+
+            if (path.Equals("/api/access/password", StringComparison.OrdinalIgnoreCase) &&
+                HttpMethods.IsPost(context.Request.Method))
+            {
+                var form = await context.Request.ReadFormAsync();
+                var state = await ShareAccess.Instance.SubmitPasswordAsync(context, form["nonce"], form["proof"]);
+                await WriteJsonAsync(context, state, AppJsonContext.Default.ShareWebAccessPayload);
+                return;
+            }
+
+            // The gate page needs its own styles and scripts before it is allowed through.
+            if (path.StartsWith("/assets/", StringComparison.OrdinalIgnoreCase))
+            {
+                await ServeStaticAsync(context, path.TrimStart('/'));
+                return;
+            }
+
+            // Everything below reads or writes a share, so the device must be allowed first. A
+            // browser that calls an endpoint directly sees the same gate payload as the page.
+            var access = await ShareAccess.Instance.EvaluateAsync(context);
+            if (access.State != "allowed")
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                await WriteJsonAsync(context, access, AppJsonContext.Default.ShareWebAccessPayload);
+                return;
+            }
+
             if (path.Equals("/api/shares", StringComparison.OrdinalIgnoreCase))
             {
                 var shares = ShareStore.Instance.All
@@ -257,12 +290,6 @@ internal partial class WebShareServer
             if (path.StartsWith("/file/", StringComparison.OrdinalIgnoreCase))
             {
                 await DownloadAsync(context, path["/file/".Length..]);
-                return;
-            }
-
-            if (path.StartsWith("/assets/", StringComparison.OrdinalIgnoreCase))
-            {
-                await ServeStaticAsync(context, path.TrimStart('/'));
                 return;
             }
 

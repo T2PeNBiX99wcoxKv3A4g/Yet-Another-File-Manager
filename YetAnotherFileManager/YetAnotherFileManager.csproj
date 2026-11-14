@@ -28,6 +28,20 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <!-- The toast types live in the Windows projection; it ships beside the app without
+             changing the target framework, as the shared library's README describes. -->
+        <PackageDownload Include="Microsoft.Windows.SDK.NET.Ref" Version="[10.0.28000.87]" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+        <Reference Include="Microsoft.Windows.SDK.NET" Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+            <HintPath>$(NuGetPackageRoot)microsoft.windows.sdk.net.ref\10.0.28000.87\lib\net9.0\Microsoft.Windows.SDK.NET.dll</HintPath>
+            <Private>true</Private>
+        </Reference>
+        <Reference Include="WinRT.Runtime" Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+            <HintPath>$(NuGetPackageRoot)microsoft.windows.sdk.net.ref\10.0.28000.87\lib\net9.0\WinRT.Runtime.dll</HintPath>
+            <Private>true</Private>
+        </Reference>
+    </ItemGroup>
+
+    <ItemGroup>
         <!-- The gallery decodes and re-encodes pictures in this process. Garbage that the runtime
              would normally leave lying around is a lot of memory for a file manager, so the GC is
              told to be eager about giving it back instead of waiting for the next collection. -->

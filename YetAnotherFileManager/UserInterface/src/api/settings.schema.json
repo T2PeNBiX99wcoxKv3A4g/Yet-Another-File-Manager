@@ -500,6 +500,27 @@
         "null"
       ],
       "description": "Suffix for a name that is already taken: 'space_parentheses', 'underscore' or 'dot'."
+    },
+    "shareAccessEnabled": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Ask before a new browser may use a web share."
+    },
+    "shareApprovalMinutes": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Minutes an approved browser stays allowed."
+    },
+    "shareDenialSeconds": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Seconds a refused browser stays blocked."
     }
   },
   "additionalProperties": false

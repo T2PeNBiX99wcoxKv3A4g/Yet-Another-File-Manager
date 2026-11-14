@@ -1,8 +1,9 @@
-import {useEffect, useMemo, useRef, useState} from "react";
+import {type FormEvent, useEffect, useMemo, useRef, useState} from "react";
 import styled, {createGlobalStyle} from "styled-components";
 import {useTheme} from "@photino-net-utils/bridge";
 import {applyTheme} from "./theme";
 import {formatBytes} from "./utils/format";
+import {shareProof} from "./share-crypto";
 import {
     detectShareLanguage,
     hasSavedShareLanguage,
@@ -20,6 +21,18 @@ interface ShareWebConfig {
     secondary: string | null;
     version: string;
     language: string | null;
+}
+
+interface ShareWebAccess {
+    state: "allowed" | "pending" | "denied" | "password";
+    device: string | null;
+    expiresAt: number | null;
+    retryAfter: number | null;
+    hasPassword: boolean;
+    salt: string | null;
+    nonce: string | null;
+    approvalMinutes: number;
+    denialSeconds: number;
 }
 
 interface ShareWebShare {
@@ -98,6 +111,12 @@ export function ShareWeb() {
     const [busy, setBusy] = useState(true);
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [access, setAccess] = useState<ShareWebAccess | null>(null);
+    const [password, setPassword] = useState("");
+    const [passwordBusy, setPasswordBusy] = useState(false);
+    const [passwordWrong, setPasswordWrong] = useState(false);
+    const [retryIn, setRetryIn] = useState(0);
+    const pageLoaded = useRef(false);
     const [showHidden, setShowHidden] = useState(() => readFlag("yafm.share.hidden"));
     const [showSystem, setShowSystem] = useState(() => readFlag("yafm.share.system"));
     const [sort, setSort] = useState<SortState>(() => {
@@ -121,32 +140,107 @@ export function ShareWeb() {
         if (config) applyTheme(config.accent, config.secondary, theme);
     }, [config, theme]);
 
+    const loadPage = async () => {
+        try {
+            const next = await getJson<ShareWebConfig>("/api/config");
+            setConfig(next);
+            document.title = `${next.device} · ${next.app}`;
+
+            // A visitor's own choice wins; otherwise follow the app's language setting.
+            if (!hasSavedShareLanguage() && next.language)
+                setLanguage(normalizeShareLanguage(next.language));
+        } catch {
+            // The page works with the default theme even when the header config fails.
+        }
+
+        try {
+            const data = await getJson<{ shares: ShareWebShare[] }>("/api/shares");
+            setShares(data.shares);
+            setActive((current) => current ?? data.shares[0]?.id ?? null);
+            if (data.shares.length === 0)
+                setBusy(false);
+        } catch (cause) {
+            setBusy(false);
+            setError(message(cause));
+        }
+    };
+
+    const loadAccess = async (): Promise<ShareWebAccess | null> => {
+        try {
+            const state = await getJson<ShareWebAccess>("/api/access/state");
+            setAccess(state);
+            return state;
+        } catch {
+            return null;
+        }
+    };
+
     useEffect(() => {
         void (async () => {
-            try {
-                const next = await getJson<ShareWebConfig>("/api/config");
-                setConfig(next);
-                document.title = `${next.device} · ${next.app}`;
-
-                // A visitor's own choice wins; otherwise follow the app's language setting.
-                if (!hasSavedShareLanguage() && next.language)
-                    setLanguage(normalizeShareLanguage(next.language));
-            } catch {
-                // The page works with the default theme even when the header config fails.
-            }
-
-            try {
-                const data = await getJson<{ shares: ShareWebShare[] }>("/api/shares");
-                setShares(data.shares);
-                setActive((current) => current ?? data.shares[0]?.id ?? null);
-                if (data.shares.length === 0)
-                    setBusy(false);
-            } catch (cause) {
+            const state = await loadAccess();
+            if (state?.state !== "allowed") {
                 setBusy(false);
-                setError(message(cause));
+                return;
             }
+
+            pageLoaded.current = true;
+            await loadPage();
         })();
     }, []);
+
+    // A device waiting for the desktop polls; a refused one counts its wait down and lets the
+    // visitor ask again once it is over.
+    useEffect(() => {
+        if (!access)
+            return;
+
+        if (access.state === "pending") {
+            const timer = window.setInterval(() => void loadAccess(), 2000);
+            return () => window.clearInterval(timer);
+        }
+
+        if (access.state === "denied") {
+            setRetryIn(access.retryAfter ?? 0);
+            const timer = window.setInterval(() => setRetryIn((value) => Math.max(0, value - 1)), 1000);
+            return () => window.clearInterval(timer);
+        }
+
+        if (access.state === "allowed" && !pageLoaded.current) {
+            pageLoaded.current = true;
+            void loadPage();
+        }
+    }, [access?.state, access?.retryAfter]);
+
+    const submitPassword = async (event: FormEvent) => {
+        event.preventDefault();
+
+        if (!access?.salt || !access.nonce || passwordBusy || password.length === 0)
+            return;
+
+        setPasswordBusy(true);
+        setPasswordWrong(false);
+
+        try {
+            const body = new URLSearchParams({
+                nonce: access.nonce,
+                proof: shareProof(password, access.salt, access.nonce)
+            });
+            const response = await fetch("/api/access/password", {
+                method: "POST",
+                headers: {"Content-Type": "application/x-www-form-urlencoded"},
+                body
+            });
+            const state = await response.json() as ShareWebAccess;
+            setPassword("");
+            setAccess(state);
+            if (state.state !== "allowed")
+                setPasswordWrong(true);
+        } catch {
+            setPasswordWrong(true);
+        } finally {
+            setPasswordBusy(false);
+        }
+    };
 
     const load = async (shareId: string, path: string, hidden = showHidden, system = showSystem) => {
         setBusy(true);
@@ -249,6 +343,60 @@ export function ShareWeb() {
 
     const path = listing?.path ?? "";
     const crumbs = path.split("/").filter(Boolean);
+
+    if (access?.state !== "allowed") {
+        return (
+            <Root>
+                <Page/>
+                <Gate>
+                    <GateCard>
+                        <Logo><img alt="" src="/app-icon"/></Logo>
+                        <GateTitle>{t.sharedFolders}</GateTitle>
+
+                        {!access && (
+                            <>
+                                <GateNote>{t.checkingAccess}</GateNote>
+                                <GateButton onClick={() => void loadAccess()}>{t.tryAgain}</GateButton>
+                            </>
+                        )}
+
+                        {access?.state === "pending" && (
+                            <>
+                                <GateNote>{t.waitingForApproval}</GateNote>
+                                <GateDevice>{access.device ?? ""}</GateDevice>
+                            </>
+                        )}
+
+                        {access?.state === "denied" && (
+                            <>
+                                <GateNote>{t.accessDenied}</GateNote>
+                                <GateNote>{t.retryIn.replace("{seconds}", String(retryIn))}</GateNote>
+                                <GateButton disabled={retryIn > 0} onClick={() => void loadAccess()}>
+                                    {t.tryAgain}
+                                </GateButton>
+                            </>
+                        )}
+
+                        {access?.state === "password" && (
+                            <form onSubmit={(event) => void submitPassword(event)}>
+                                <GateLabel>{t.password}</GateLabel>
+                                <GateInput
+                                    autoFocus
+                                    onChange={(event) => setPassword(event.target.value)}
+                                    type="password"
+                                    value={password}
+                                />
+                                <GateButton disabled={passwordBusy || password.length === 0} type="submit">
+                                    {t.unlock}
+                                </GateButton>
+                                {passwordWrong && <GateError>{t.wrongPassword}</GateError>}
+                            </form>
+                        )}
+                    </GateCard>
+                </Gate>
+            </Root>
+        );
+    }
 
     return (
         <Root>
@@ -534,6 +682,90 @@ function ArrowUpGlyph({size}: { size: number }) {
         </svg>
     );
 }
+
+const Gate = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+`;
+
+const GateCard = styled.section`
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: min(400px, 100%);
+    padding: 26px;
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    background: rgba(var(--bg-rgb), 0.94);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+`;
+
+const GateTitle = styled.h1`
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+`;
+
+const GateNote = styled.p`
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.5;
+`;
+
+const GateDevice = styled.span`
+    color: var(--text-secondary);
+    font-size: 12px;
+`;
+
+const GateLabel = styled.label`
+    margin-top: 4px;
+    color: var(--text-muted);
+    font-size: 12px;
+`;
+
+const GateInput = styled.input`
+    height: 34px;
+    padding: 0 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 13px;
+
+    &:focus {
+        border-color: var(--border-color-focus);
+        outline: 0;
+    }
+`;
+
+const GateButton = styled.button`
+    height: 34px;
+    padding: 0 16px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--accent-gradient);
+    color: #fff;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+`;
+
+const GateError = styled.p`
+    margin: 0;
+    color: var(--danger);
+    font-size: 12px;
+`;
 
 const Root = styled.div`
     min-height: 100vh;

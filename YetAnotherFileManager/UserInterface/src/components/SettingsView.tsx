@@ -4,6 +4,7 @@ import {
     type LocalizationKey,
     loadStrings,
     Markdown,
+    Native,
     type ThemeMode,
     type Translate,
     useTheme,
@@ -78,6 +79,14 @@ import {readStoredJson, writeStoredJson} from "../storage";
 import {FontRoles, listFonts} from "../fonts";
 import {FontPicker} from "./FontPicker";
 import {setSharePort} from "../api/share";
+import {
+    getSharePasswordStatus,
+    listShareDevices,
+    removeShareDevice,
+    setShareDevice,
+    setSharePassword,
+    type ShareDevice,
+} from "../api/share";
 
 interface SettingsViewProps {
     appInfo: AppInfo | null;
@@ -192,6 +201,7 @@ const LocaleNames: Record<string, string> = {
 /** The sections the table of contents jumps to; the ids are what the list shows. */
 const SettingSections: { id: string; label: LocalizationKey }[] = [
     {id: "application", label: "application"},
+    {id: "share-access", label: "share_access"},
     {id: "startup", label: "startup"},
     {id: "fonts", label: "fonts"},
     {id: "time", label: "time_format"},
@@ -284,6 +294,8 @@ export function SettingsView({
     const [activeSection, setActiveSection] = useState(SettingSections[0].id);
     const [fonts, setFonts] = useState<string[]>([]);
     const [portDraft, setPortDraft] = useState<string | null>(null);
+    const [sharePasswordDraft, setSharePasswordDraft] = useState("");
+    const [hasSharePassword, setHasSharePassword] = useState(false);
     const [startup, setStartup] = useState<StartupStatus | null>(null);
     const [startupError, setStartupError] = useState<string | null>(null);
     const [startupBusy, setStartupBusy] = useState(false);
@@ -985,6 +997,22 @@ export function SettingsView({
         await setSharePort(port, custom ? "custom" : "random");
     };
 
+    useEffect(() => {
+        void getSharePasswordStatus().then(setHasSharePassword, () => undefined);
+    }, []);
+
+    const saveSharePassword = async () => {
+        if (sharePasswordDraft.length === 0)
+            return;
+
+        setHasSharePassword(await setSharePassword(sharePasswordDraft));
+        setSharePasswordDraft("");
+    };
+
+    const clearSharePassword = async () => {
+        setHasSharePassword(await setSharePassword(null));
+    };
+
     const changeStartup = async (mode: string) => {
         const next = mode === "shortcut" || mode === "task" ? mode : "none";
 
@@ -1322,6 +1350,103 @@ export function SettingsView({
                                 <Knob/>
                             </Toggle>
                         </Row>
+                    </Rows>
+                </Section>
+
+                <Section ref={anchor("share-access")}>
+                    <Head note="share_access_note" title="share_access"/>
+                    <Rows>
+                        <Row>
+                            <RowText>
+                                <LabelRow>
+                                    <Label>{t("share_access_require_approval")}</Label>
+                                    <GlobalTag/>
+                                </LabelRow>
+                                <Note>{t("share_access_note")}</Note>
+                            </RowText>
+                            <Toggle
+                                $on={settings?.shareAccessEnabled ?? true}
+                                disabled={!settings}
+                                onClick={() => void update({shareAccessEnabled: !(settings?.shareAccessEnabled ?? true)})}
+                                type="button"
+                            >
+                                <Knob/>
+                            </Toggle>
+                        </Row>
+                        <Row>
+                            <RowText>
+                                <Label>{t("share_access_approval_minutes")}</Label>
+                            </RowText>
+                            <RowEnd>
+                                <NumberInput
+                                    max={1440}
+                                    min={1}
+                                    onChange={(event) => void update({
+                                        shareApprovalMinutes: Math.min(1440, Math.max(1, Number(event.target.value) || 60))
+                                    })}
+                                    type="number"
+                                    value={settings?.shareApprovalMinutes ?? 60}
+                                />
+                            </RowEnd>
+                        </Row>
+                        <Row>
+                            <RowText>
+                                <Label>{t("share_access_denial_seconds")}</Label>
+                            </RowText>
+                            <RowEnd>
+                                <NumberInput
+                                    max={3600}
+                                    min={1}
+                                    onChange={(event) => void update({
+                                        shareDenialSeconds: Math.min(3600, Math.max(1, Number(event.target.value) || 10))
+                                    })}
+                                    type="number"
+                                    value={settings?.shareDenialSeconds ?? 10}
+                                />
+                            </RowEnd>
+                        </Row>
+                        <Row>
+                            <RowText>
+                                <LabelRow>
+                                    <Label>{t("password")}</Label>
+                                </LabelRow>
+                                <Note>{t("share_access_password_note")}</Note>
+                                {hasSharePassword && <Note>{t("share_access_password_is_set")}</Note>}
+                            </RowText>
+                            <RowEnd>
+                                <PasswordInput
+                                    autoComplete="new-password"
+                                    onChange={(event) => setSharePasswordDraft(event.target.value)}
+                                    placeholder={t("password")}
+                                    type="password"
+                                    value={sharePasswordDraft}
+                                />
+                                <ActionButton
+                                    disabled={sharePasswordDraft.length === 0}
+                                    onClick={() => void saveSharePassword()}
+                                    type="button"
+                                >
+                                    {t("save")}
+                                </ActionButton>
+                                {hasSharePassword && (
+                                    <DangerButton onClick={() => void clearSharePassword()} type="button">
+                                        {t("clear")}
+                                    </DangerButton>
+                                )}
+                            </RowEnd>
+                        </Row>
+                        <Row>
+                            <RowText>
+                                <LabelRow>
+                                    <Label>{t("devices")}</Label>
+                                </LabelRow>
+                                <Note>{t("share_access_no_devices")}</Note>
+                            </RowText>
+                        </Row>
+                        <ShareDeviceList
+                            approvalMinutes={settings?.shareApprovalMinutes ?? 60}
+                            denialSeconds={settings?.shareDenialSeconds ?? 10}
+                        />
                     </Rows>
                 </Section>
 
@@ -2919,6 +3044,111 @@ export function SettingsView({
     );
 }
 
+/** The browsers that asked the web shares for access, and the decision each one has. */
+function ShareDeviceList({approvalMinutes, denialSeconds}: {
+    approvalMinutes: number;
+    denialSeconds: number;
+}) {
+    const t = useTranslation();
+    const [devices, setDevices] = useState<ShareDevice[]>([]);
+    const [busy, setBusy] = useState(false);
+
+    useEffect(() => {
+        const load = () => void listShareDevices().then(setDevices, () => setDevices([]));
+        load();
+
+        if (!Native.available)
+            return;
+
+        return Native.on((evt) => {
+            if ((evt as { type?: string }).type === "share.devices.changed")
+                load();
+        });
+    }, []);
+
+    const apply = async (id: string, state: "allowed" | "denied", permanent: boolean) => {
+        setBusy(true);
+        try {
+            setDevices(await setShareDevice(id, state, permanent));
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const remove = async (id: string) => {
+        setBusy(true);
+        try {
+            setDevices(await removeShareDevice(id));
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const stateLabel = (device: ShareDevice) => {
+        if (device.state === "allowed")
+            return device.expiresAt > 0 && device.expiresAt < Date.now()
+                ? `${t("share_access_allowed")} · ${t("share_access_expired")}`
+                : t("share_access_allowed");
+
+        if (device.state === "denied")
+            return device.expiresAt > 0 && device.expiresAt < Date.now()
+                ? `${t("share_access_denied")} · ${t("share_access_expired")}`
+                : t("share_access_denied");
+
+        return t("share_access_not_decided");
+    };
+
+    const expiryLabel = (device: ShareDevice) =>
+        device.expiresAt === 0
+            ? t("share_access_forever")
+            : new Date(device.expiresAt).toLocaleString();
+
+    return (
+        <DeviceList>
+            {devices.length === 0 && <DeviceEmpty>{t("share_access_no_devices")}</DeviceEmpty>}
+            {devices.map((device) => (
+                <DeviceRow key={device.id}>
+                    <DeviceInfo>
+                        <DeviceName>{device.name || t("share_access_not_decided")}</DeviceName>
+                        <DeviceMeta>
+                            {device.address}
+                            {device.address ? " · " : ""}
+                            {t("share_access_last_seen")}: {new Date(device.lastSeen).toLocaleString()}
+                        </DeviceMeta>
+                        <DeviceMeta>
+                            {stateLabel(device)} · {t("share_access_expires")}: {expiryLabel(device)}
+                        </DeviceMeta>
+                    </DeviceInfo>
+                    <SelectMenu
+                        disabled={busy}
+                        onChange={(value) => {
+                            const [action, permanence] = value.split(":");
+                            if (action === "remove")
+                                void remove(device.id);
+                            else if (action !== "none")
+                                void apply(device.id, action as "allowed" | "denied", permanence === "forever");
+                        }}
+                        options={[
+                            {value: "none:", label: t("share_access_not_decided")},
+                            {value: "allowed:timed", label: `${t("share_access_allowed")} (${approvalMinutes}m)`},
+                            {value: "allowed:forever", label: t("share_access_allow_forever")},
+                            {value: "denied:timed", label: `${t("share_access_denied")} (${denialSeconds}s)`},
+                            {value: "denied:forever", label: t("share_access_block_forever")},
+                            {value: "remove:", label: t("remove")},
+                        ]}
+                        value={device.state === "allowed"
+                            ? device.expiresAt === 0 ? "allowed:forever" : "allowed:timed"
+                            : device.state === "denied"
+                                ? device.expiresAt === 0 ? "denied:forever" : "denied:timed"
+                                : "none:"}
+                        width={190}
+                    />
+                </DeviceRow>
+            ))}
+        </DeviceList>
+    );
+}
+
 function describe(t: Translate, value: boolean | undefined): string {
     if (value === undefined) return t("reading");
 
@@ -3815,6 +4045,83 @@ const TrackFill = styled.div<{ $ratio: number; $tone: string }>`
     border-radius: 3px;
     background: ${({$tone}) => $tone};
     transition: width 220ms ease;
+`;
+
+const DeviceList = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-color);
+`;
+
+const DeviceEmpty = styled.div`
+    padding: 8px 2px;
+    color: var(--text-muted);
+    font-size: 11px;
+`;
+
+const DeviceRow = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+`;
+
+const DeviceInfo = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+`;
+
+const DeviceName = styled.span`
+    color: var(--text-primary);
+    font-size: 12px;
+`;
+
+const DeviceMeta = styled.span`
+    color: var(--text-muted);
+    font-size: 10.5px;
+    overflow-wrap: anywhere;
+`;
+
+const NumberInput = styled.input`
+    width: 92px;
+    height: 32px;
+    padding: 0 9px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 11px;
+    outline: 0;
+
+    &:focus {
+        border-color: var(--border-color-focus);
+    }
+`;
+
+const PasswordInput = styled.input`
+    width: 190px;
+    height: 32px;
+    padding: 0 9px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 11px;
+    outline: 0;
+
+    &:focus {
+        border-color: var(--border-color-focus);
+    }
 `;
 
 const Row = styled.div`

@@ -196,3 +196,47 @@ export async function downloadSharedFile(location: string): Promise<string> {
 export async function openSharedFile(location: string): Promise<void> {
     await openFile(await downloadSharedFile(location));
 }
+
+/** One browser that has been allowed or refused by the web shares. */
+export interface ShareDevice {
+    id: string;
+    name: string;
+    address: string;
+    state: string;
+    firstSeen: number;
+    lastSeen: number;
+    /** Unix milliseconds; 0 means permanent. */
+    expiresAt: number;
+}
+
+export async function listShareDevices(): Promise<ShareDevice[]> {
+    if (!Native.available) return [];
+    const data = await Native.request<{ devices: ShareDevice[] }>("share.devices.list");
+    return data.devices ?? [];
+}
+
+export async function setShareDevice(id: string, state: "allowed" | "denied",
+                                     permanent: boolean): Promise<ShareDevice[]> {
+    if (!Native.available) return [];
+    const data = await Native.request<{ devices: ShareDevice[] }>("share.devices.set",
+        {id, state, permanent});
+    return data.devices ?? [];
+}
+
+export async function removeShareDevice(id: string): Promise<ShareDevice[]> {
+    if (!Native.available) return [];
+    const data = await Native.request<{ devices: ShareDevice[] }>("share.devices.remove", {id});
+    return data.devices ?? [];
+}
+
+export async function getSharePasswordStatus(): Promise<boolean> {
+    if (!Native.available) return false;
+    const data = await Native.request<{ hasPassword: boolean }>("share.access.status");
+    return data.hasPassword;
+}
+
+export async function setSharePassword(password: string | null): Promise<boolean> {
+    if (!Native.available) return false;
+    const data = await Native.request<{ hasPassword: boolean }>("share.access.password", {password});
+    return data.hasPassword;
+}

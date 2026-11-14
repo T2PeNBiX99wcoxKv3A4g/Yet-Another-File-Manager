@@ -62,3 +62,33 @@ public sealed class SharePeerInfo
 
     public List<ShareRemoteEntry> Shares { get; set; } = [];
 }
+/// <summary>
+///     A browser that asked a web share for access. The id is the random value in its device
+///     cookie; the state and expiry decide whether the share pages answer it.
+/// </summary>
+public sealed class ShareDevice
+{
+    public string Id { get; set; } = string.Empty;
+
+    public string Name { get; set; } = string.Empty;
+
+    public string Address { get; set; } = string.Empty;
+
+    /// <summary>"allowed" or "denied".</summary>
+    public string State { get; set; } = string.Empty;
+
+    public long FirstSeen { get; set; }
+
+    public long LastSeen { get; set; }
+
+    /// <summary>Unix milliseconds; 0 means permanent.</summary>
+    public long ExpiresAt { get; set; }
+}
+
+/// <summary>The salt and the salted SHA-256 verifier for the optional web-share password.</summary>
+public sealed class SharePasswordSecret
+{
+    public string Salt { get; set; } = string.Empty;
+
+    public string Hash { get; set; } = string.Empty;
+}

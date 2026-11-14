@@ -39,6 +39,8 @@ internal partial class ShareService
     {
         await ShareStore.Instance.InitializeAsync();
         await SharePeerStore.Instance.InitializeAsync();
+        await ShareDeviceStore.Instance.InitializeAsync();
+        await SharePasswordStore.Instance.InitializeAsync();
 
         ShareDiscovery.Instance.Apply(true, ShareIdentity.Instance.DeviceName);
         SharePeerServer.Instance.Apply(true);
@@ -131,14 +133,46 @@ internal partial class ShareService
         return context.Reply("share.port.result", ListPayload());
     }
 
+    [NativeMessage("share.devices.list")]
+    private NativeResponse Devices(NativeContext context) =>
+        context.Reply("share.devices.list.result", new ShareDevicesPayload(ShareDeviceStore.Instance.All));
+
+    [NativeMessage("share.devices.set")]
+    private async Task<NativeResponse?> SetDeviceAsync(NativeContext context)
+    {
+        var request = context.Payload<ShareDeviceSetRequest>();
+        if (request?.Id is not { Length: > 0 } id || request.State is not ("allowed" or "denied"))
+            return context.Fail("share.devices.set.result", Localization.Get("the_device_is_unknown"));
+
+        await ShareAccess.Instance.SetStateAsync(id, request.State, request.Permanent ?? false);
+        return context.Reply("share.devices.set.result", new ShareDevicesPayload(ShareDeviceStore.Instance.All));
+    }
+
+    [NativeMessage("share.devices.remove")]
+    private async Task<NativeResponse?> RemoveDeviceAsync(NativeContext context)
+    {
+        await ShareAccess.Instance.RemoveDeviceAsync(context.Payload<ShareDeviceRemoveRequest>()?.Id ?? "");
+        return context.Reply("share.devices.remove.result", new ShareDevicesPayload(ShareDeviceStore.Instance.All));
+    }
+
+    [NativeMessage("share.access.status")]
+    private NativeResponse AccessStatus(NativeContext context) =>
+        context.Reply("share.access.status.result", new ShareAccessPasswordPayload(ShareAccess.HasPassword));
+
+    [NativeMessage("share.access.password")]
+    private async Task<NativeResponse?> SetSharePasswordAsync(NativeContext context)
+    {
+        var has = await ShareAccess.Instance.SetPasswordAsync(context.Payload<ShareAccessPasswordRequest>()?.Password);
+        return context.Reply("share.access.password.result", new ShareAccessPasswordPayload(has));
+    }
+
     [NativeMessage("share.peers.refresh")]
 
     private async Task<NativeResponse?> RefreshPeersAsync(NativeContext context)
     {
         await Task.WhenAll(SharePeerStore.Instance.All.Select(peer => RefreshCatalogAsync(peer, true)));
 
-        await PushPeersAsync();
-        return context.Reply("share.peers.result", new SharePeersPayload(await PeersSnapshotAsync()));
+        await PushPeersAsync();        return context.Reply("share.peers.result", new SharePeersPayload(await PeersSnapshotAsync()));
     }
 
     [NativeMessage("share.peer.remove")]

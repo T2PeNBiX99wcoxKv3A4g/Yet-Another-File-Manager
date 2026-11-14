@@ -132,7 +132,13 @@ public sealed record AppSettings(
     [property: Setting(Comment = "Interface theme; 'system' follows the operating system, otherwise 'light' or 'dark'.")]
     string? ThemeMode = null,
     [property: Setting(Comment = "Suffix for a name that is already taken: 'space_parentheses', 'underscore' or 'dot'.")]
-    string? ConflictNameStyle = null)
+    string? ConflictNameStyle = null,
+    [property: Setting(Comment = "Ask before a new browser may use a web share.")]
+    bool? ShareAccessEnabled = null,
+    [property: Setting(Comment = "Minutes an approved browser stays allowed.")]
+    int? ShareApprovalMinutes = null,
+    [property: Setting(Comment = "Seconds a refused browser stays blocked.")]
+    int? ShareDenialSeconds = null)
 {
     public static AppSettings Default =>
         new(true, true, true, ["**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null,

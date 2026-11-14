@@ -4,6 +4,7 @@ using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Hosting;
 using PhotinoNetUtils.Interop;
 using PhotinoNetUtils.Messaging;
+using PhotinoNetUtils.Notifications;
 using PhotinoNetUtils.Platform;
 using PhotinoNetUtils.Services;
 using PhotinoNetUtils.Utils;
@@ -83,6 +84,9 @@ internal partial class WindowManager
 
     /// <summary>Raised once the window's native handle exists (the message loop is about to start).</summary>
     public event Action? MainWindowCreated;
+
+    /// <summary>The native window, for a child window such as the share approval prompt.</summary>
+    internal PhotinoWindow? MainWindow => _mainWindow;
 
     /// <summary>
     ///     Runs when the interface reports <c>app.ready</c>: the window commands and the events the
@@ -243,6 +247,9 @@ internal partial class WindowManager
                 Log.Information("Starting hidden; the window stays minimised until its interface has rendered");
                 _ = Task.Delay(TimeSpan.FromSeconds(10)).ContinueWith(_ => HideWhenRendered());
             }
+
+            if (Picker is null)
+                NotificationService.Attach(window);
 
             MainWindowCreated?.Invoke();
         });
