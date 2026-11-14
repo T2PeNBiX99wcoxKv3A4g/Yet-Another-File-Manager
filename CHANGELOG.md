@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.7.1..v0.7.2) - 2026-11-14
+
+### 🐛 Bug Fixes
+
+- *(windhawk)* Resolve the app on every Win+E instead of at mod load - ([1702d14](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1702d14f081f51c05566f32c89f392c652eafa6a))
+- Show the window for every launch that is not the logon start - ([e19b548](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/e19b548a63c5b34c7f29e448aa11f14417cf4f6e))
+
+### ⚙️ Miscellaneous Tasks
+
+- Update PhotinoNetUtils bridge to version 0.27.0 - ([9d99516](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/9d9951639d786e90efe4e0c0b9debcccbc06aa86))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([bfa5cac](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/bfa5cac23f89750e39b5c36ae40dd9cdb4f8f92e))
+
+
 ## [0.7.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.7.0..v0.7.1) - 2026-11-13
 
 ### 🐛 Bug Fixes
