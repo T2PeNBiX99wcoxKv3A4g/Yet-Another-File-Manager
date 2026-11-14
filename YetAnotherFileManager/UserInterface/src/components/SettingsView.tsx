@@ -277,6 +277,9 @@ export function SettingsView({
     const [updateBusy, setUpdateBusy] = useState(false);
     const [updateError, setUpdateError] = useState<string | null>(null);
     const [updateDialog, setUpdateDialog] = useState<UpdateDialogState | null>(null);
+
+    /** Guards the automatic install so a re-render cannot start the installer twice. */
+    const installStarted = useRef(false);
     const [colorStart, setColorStart] = useState<{ role: ColorRole; color: string } | null>(null);
     const [activeSection, setActiveSection] = useState(SettingSections[0].id);
     const [fonts, setFonts] = useState<string[]>([]);
@@ -612,6 +615,7 @@ export function SettingsView({
 
     /** Opens the update panel and starts fetching the installer; progress arrives as events. */
     const downloadAndInstall = async () => {
+        installStarted.current = false;
         setUpdateError(null);
         setUpdateDialog({phase: "changelog", changelog: "", downloaded: 0, total: 0, percent: 0});
 
@@ -626,12 +630,12 @@ export function SettingsView({
     const failDownload = (message: string) =>
         setUpdateDialog((current) => current ? {...current, phase: "error", error: message} : current);
 
-    const cancelDownload = async () => {
-        try {
-            await cancelUpdateDownload();
-        } catch (reason) {
-            setUpdateError(reason instanceof Error ? reason.message : String(reason));
-        }
+    const cancelDownload = () => {
+        // Close first: cancelling is the close action, not a step before one.
+        setUpdateDialog(null);
+
+        void cancelUpdateDownload().catch((reason) =>
+            setUpdateError(reason instanceof Error ? reason.message : String(reason)));
     };
 
     /** Runs the installer the download left behind; the app closes from there. */
@@ -660,6 +664,16 @@ export function SettingsView({
 
     useEffect(() => onUpdateChangelog((changelog) => setUpdateDialog((current) =>
         current ? {...current, changelog: changelog.text} : current)), []);
+
+    // The click that started the download is the confirmation: once the installer is on disk it
+    // runs without another click. The guard keeps a re-render from starting it twice.
+    useEffect(() => {
+        if (updateDialog?.phase !== "ready" || installStarted.current)
+            return;
+
+        installStarted.current = true;
+        void installNow();
+    }, [updateDialog?.phase]);
 
     /** Saves the current pair under the name in the draft, or the two colours when it is blank. */
     const savePreset = async () => {
