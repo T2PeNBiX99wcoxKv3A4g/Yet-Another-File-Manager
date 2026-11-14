@@ -939,24 +939,19 @@ internal partial class FileSystemService : INativeMessageHandler
 
         return await Task.Run(() => Try.Run(() =>
             {
-                if (OperatingSystem.IsWindows())
+                // UseShellExecute hands the file to the desktop: the shell on Windows, xdg-open on
+                // Linux, open on macOS. StartAndForget cannot be used here, because a shell start
+                // may hand the request to a running program and create no process to return an id
+                // for, so that API refuses UseShellExecute outright.
+                Process.Start(new ProcessStartInfo(path)
                 {
-                    // The shell may hand the file to a running program, which is a launch without a
-                    // process of its own, so Start (not StartAndForget) is the API that fits here.
-                    Process.Start(new ProcessStartInfo(path)
-                    {
-                        UseShellExecute = true,
-                        // A script or program started from a file expects the file's folder as its working
-                        // directory, the way Explorer starts it. Without this, a .bat that calls a relative
-                        // path next to it runs in the app's folder and silently does nothing.
-                        WorkingDirectory = Path.GetDirectoryName(path) ?? ""
-                    });
-                    return true;
-                }
-
-                // Linux and macOS hand the file to the desktop: xdg-open follows the user's MIME
-                // defaults, and UseShellExecute has no shell to execute through there.
-                Process.StartAndForget(OperatingSystem.IsMacOS() ? "open" : "xdg-open", [path]);
+                    UseShellExecute = true,
+                    // A script or program started from a file expects the file's folder as its working
+                    // directory, the way Explorer starts it. Without this, a .bat that calls a relative
+                    // path next to it runs in the app's folder and silently does nothing. Linux and
+                    // macOS launchers ignore the value.
+                    WorkingDirectory = Path.GetDirectoryName(path) ?? ""
+                });
                 return true;
             })
             .OnFailure(ex => Serilog.Log.Warning(ex, "Could not open {Path}", path))
