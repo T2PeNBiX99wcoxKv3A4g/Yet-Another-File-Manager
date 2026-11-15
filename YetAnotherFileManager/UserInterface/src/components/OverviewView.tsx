@@ -86,6 +86,11 @@ interface OverviewViewProps {
     readOnly?: boolean;
     /** The picker chooses a card or a panel entry instead of opening it. */
     onPick?: (path: string) => void;
+    /**
+     * A card is selected for the footer instead of opened, which is what the picker wants in both
+     * of its modes: one click selects, two clicks enter the folder.
+     */
+    selectCards?: boolean;
     /** Reports a selected entry from a folder panel, so the picker's footer can use it. */
     onSelectionChange?: (paths: string[]) => void;
     /** Adds an entry to the file tray, like the file browser's menu. */
@@ -1345,6 +1350,7 @@ export function OverviewView({
                                  onSearchMatches,
                                  readOnly = false,
                                  onPick,
+                                 selectCards = false,
                                  onSelectionChange,
                                  onAddToTray,
                                  onAddFavorite,
@@ -1420,7 +1426,7 @@ export function OverviewView({
 
     /** In the picker, a card selects for the footer instead of opening a tab. */
     const pickCard = (path: string, isDirectory = false): boolean => {
-        if (!onPick)
+        if (!selectCards)
             return false;
 
         setSelectedPath(path);
@@ -1937,7 +1943,7 @@ export function OverviewView({
                                     if (entry.isDirectory) onOpen(entry.path, wantsNewTab(event));
                                     else void openFile(entry.path);
                                 }}
-                                onDoubleClick={() => onPick?.(entry.path)}
+                                onDoubleClick={() => onOpen(entry.path, false)}
                                 onContextMenu={(event) => openCardMenu(event, entry.path, entry.isDirectory)}
                                 title={entry.path}
                             >
@@ -1970,7 +1976,7 @@ export function OverviewView({
                                     if (entry.isDirectory) onOpen(entry.path, wantsNewTab(event));
                                     else void openFile(entry.path);
                                 }}
-                                onDoubleClick={() => onPick?.(entry.path)}
+                                onDoubleClick={() => onOpen(entry.path, false)}
                                 onContextMenu={(event) => openCardMenu(event, entry.path, entry.isDirectory)}
                                 title={entry.path}
                                 type="button"
@@ -2078,7 +2084,7 @@ export function OverviewView({
                                 $plain={editing}
                                 $selected={selectedPath === entry.path}
                                 onClick={(event) => openFavorite(event, entry.path, entry.isDirectory)}
-                                onDoubleClick={() => !editing && onPick?.(entry.path)}
+                                onDoubleClick={() => !editing && onOpen(entry.path, false)}
                                 onContextMenu={(event) => !editing && openCardMenu(event, entry.path, entry.isDirectory)}
                                 title={entry.path}
                             >
@@ -2122,7 +2128,7 @@ export function OverviewView({
                             key={entry.path}
                             $selected={selectedPath === entry.path}
                             onClick={(event) => openFavorite(event, entry.path, entry.isDirectory)}
-                            onDoubleClick={() => !editing && onPick?.(entry.path)}
+                            onDoubleClick={() => !editing && onOpen(entry.path, false)}
                             onContextMenu={(event) => !editing && openCardMenu(event, entry.path, entry.isDirectory)}
                             title={entry.path}
                             type="button"
@@ -2204,7 +2210,7 @@ export function OverviewView({
                                 if (!editingName) onOpen(drive.name, wantsNewTab(event));
                             }
                         }}
-                        onDoubleClick={() => !editingName && onPick?.(drive.name)}
+                        onDoubleClick={() => !editingName && onOpen(drive.name, false)}
                         onContextMenu={(event) => !editingName && openCardMenu(event, drive.name, true)}
                         title={drive.name}
                     >
@@ -2227,7 +2233,7 @@ export function OverviewView({
                         onClick={editingName ? undefined : (event: MouseEvent<HTMLElement>) => {
                             if (!pickCard(drive.name, true)) onOpen(drive.name, wantsNewTab(event));
                         }}
-                        onDoubleClick={editingName ? undefined : () => onPick?.(drive.name)}
+                        onDoubleClick={editingName ? undefined : () => onOpen(drive.name, false)}
                         onContextMenu={editingName ? undefined : (event: MouseEvent<HTMLElement>) => openCardMenu(event, drive.name, true)}
                         title={drive.name}
                         type={editingName ? undefined : "button"}
@@ -2379,7 +2385,7 @@ export function OverviewView({
                                         if (!editing && !pickCard(place.path, true))
                                             onOpen(place.path, wantsNewTab(event));
                                     }}
-                                    onDoubleClick={() => !editing && onPick?.(place.path)}
+                                    onDoubleClick={() => !editing && onOpen(place.path, false)}
                                     onContextMenu={(event) => !editing && openCardMenu(event, place.path, true)}
                                     title={place.path}
                                 >
@@ -2477,7 +2483,7 @@ export function OverviewView({
                                         if (!editing && !pickCard(place.path, true))
                                             onOpen(place.path, wantsNewTab(event));
                                     }}
-                                    onDoubleClick={() => !editing && onPick?.(place.path)}
+                                    onDoubleClick={() => !editing && onOpen(place.path, false)}
                                     onContextMenu={(event) => !editing && openCardMenu(event, place.path, true)}
                                     title={place.path}
                                     type="button"
@@ -2569,8 +2575,9 @@ export function OverviewView({
             }
 
             case "frequent":
-                return <FrequentBody mode={panel.view} onContextMenu={openCardMenu} onOpen={onOpen} onPick={onPick}
-                                     onSelectionChange={onSelectionChange} version={historyVersion}/>;
+                return <FrequentBody mode={panel.view} onContextMenu={openCardMenu} onOpen={onOpen}
+                                     onSelectionChange={onSelectionChange} selectCards={selectCards}
+                                     version={historyVersion}/>;
 
             case "recent":
                 return renderRecent(panel);
@@ -2586,6 +2593,7 @@ export function OverviewView({
                         onOpen={onOpen}
                         onPick={onPick}
                         onSelectionChange={onSelectionChange}
+                        selectCards={selectCards}
                         openOnSingleClick={settings?.openOnSingleClick ?? false}
                         path={panel.path ?? homePath}
                         platform={platform}
@@ -3054,12 +3062,13 @@ function InlineEditor({value, onChange, onCommit, onCancel, maxLength = 120}: {
 }
 
 /** The folders this user opens most often, ranked by how many visits the host counted. */
-function FrequentBody({mode, onOpen, onContextMenu, onPick, onSelectionChange, version}: {
+function FrequentBody({mode, onOpen, onContextMenu, onSelectionChange, selectCards = false, version}: {
     mode: ViewMode;
     onOpen: (path: string, newTab?: boolean) => void;
     onContextMenu?: (event: MouseEvent<HTMLElement>, path: string, isDirectory: boolean) => void;
-    onPick?: (path: string) => void;
     onSelectionChange?: (paths: string[]) => void;
+    /** One click selects, two clicks enter, which is what the picker asks for. */
+    selectCards?: boolean;
     version: number;
 }) {
     const t = useTranslation();
@@ -3068,7 +3077,7 @@ function FrequentBody({mode, onOpen, onContextMenu, onPick, onSelectionChange, v
     const quick = useQuickAccess();
 
     const pick = (path: string): boolean => {
-        if (!onPick)
+        if (!selectCards)
             return false;
 
         setSelectedPath(path);
@@ -3103,7 +3112,7 @@ function FrequentBody({mode, onOpen, onContextMenu, onPick, onSelectionChange, v
                             onClick={(event) => {
                                 if (!pick(entry.path)) onOpen(entry.path, wantsNewTab(event));
                             }}
-                            onDoubleClick={() => onPick?.(entry.path)}
+                            onDoubleClick={() => onOpen(entry.path, false)}
                             onContextMenu={(event) => onContextMenu?.(event, entry.path, true)}
                             title={entry.path}
                         >
@@ -3134,7 +3143,7 @@ function FrequentBody({mode, onOpen, onContextMenu, onPick, onSelectionChange, v
                         onClick={(event) => {
                             if (!pick(entry.path)) onOpen(entry.path, wantsNewTab(event));
                         }}
-                        onDoubleClick={() => onPick?.(entry.path)}
+                        onDoubleClick={() => onOpen(entry.path, false)}
                         onContextMenu={(event) => onContextMenu?.(event, entry.path, true)}
                         title={entry.path}
                         type="button"
@@ -3161,6 +3170,7 @@ function FolderBody({
                         onContextMenu,
                         onPick,
                         onSelectionChange,
+                        selectCards = false,
                         selectionMenuId,
                         showCheckboxes,
                         openOnSingleClick,
@@ -3173,6 +3183,8 @@ function FolderBody({
     onContextMenu?: (event: MouseEvent<HTMLElement>, path: string, isDirectory: boolean) => void;
     onPick?: (path: string) => void;
     onSelectionChange?: (paths: string[]) => void;
+    /** One click selects, two clicks enter, which is what the picker asks for. */
+    selectCards?: boolean;
     selectionMenuId?: string;
     showCheckboxes: boolean;
     openOnSingleClick: boolean;
@@ -3227,7 +3239,7 @@ function FolderBody({
                     error={null}
                     listing={listing}
                     loading={false}
-                    onOpen={onPick ?? onOpen}
+                    onOpen={onOpen}
                     onOpenFile={onPick ?? ((file) => void openFile(file))}
                     onRefresh={reload}
                     onRename={applyRename}
@@ -3258,7 +3270,7 @@ function FolderBody({
                                     key={entry.fullPath}
                                     $selected={selectedPath === entry.fullPath}
                                     onClick={(event) => {
-                                        if (onPick) {
+                                        if (selectCards) {
                                             setSelectedPath(entry.fullPath);
                                             onSelectionChange?.([entry.fullPath]);
                                             return;
@@ -3267,7 +3279,9 @@ function FolderBody({
                                         if (entry.isDirectory) onOpen(entry.fullPath, wantsNewTab(event));
                                         else void openFile(entry.fullPath);
                                     }}
-                                    onDoubleClick={() => onPick?.(entry.fullPath)}
+                                    onDoubleClick={() => entry.isDirectory
+                                        ? onOpen(entry.fullPath, false)
+                                        : onPick?.(entry.fullPath)}
                                     onContextMenu={(event) => onContextMenu?.(event, entry.fullPath, entry.isDirectory)}
                                     title={entry.name}
                                     type="button"
