@@ -3588,8 +3588,17 @@ const SectionHead = styled.header`
         color: var(--text-primary);
     }
 
+    h2::before {
+        content: "";
+        width: 3px;
+        height: 13px;
+        flex-shrink: 0;
+        border-radius: 2px;
+        background: var(--accent-gradient);
+    }
+
     p {
-        padding-left: 21px;
+        padding-left: 32px;
         font-size: 10.5px;
         color: var(--text-muted);
     }

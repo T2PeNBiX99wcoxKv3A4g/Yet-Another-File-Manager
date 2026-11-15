@@ -170,6 +170,15 @@ const PanelTitle = styled.span`
     letter-spacing: 0.1em;
     text-transform: uppercase;
 
+    &::before {
+        content: "";
+        width: 2px;
+        height: 10px;
+        flex-shrink: 0;
+        border-radius: 2px;
+        background: var(--accent-gradient);
+    }
+
     svg {
         flex-shrink: 0;
         color: var(--accent-primary);

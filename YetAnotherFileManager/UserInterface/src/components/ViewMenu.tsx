@@ -219,6 +219,15 @@ const SectionTitle = styled.div`
     text-transform: uppercase;
     color: var(--text-muted);
 
+    &::before {
+        content: "";
+        width: 2px;
+        height: 9px;
+        flex-shrink: 0;
+        border-radius: 2px;
+        background: var(--accent-gradient);
+    }
+
     svg {
         flex-shrink: 0;
         color: var(--accent-primary);

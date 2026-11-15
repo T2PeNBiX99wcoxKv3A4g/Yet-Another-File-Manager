@@ -3502,8 +3502,17 @@ import{n as e}from"./rolldown-runtime-WkwZ5CU-.js";import{A as t,B as n,C as r,D
         color: var(--text-primary);
     }
 
+    h2::before {
+        content: "";
+        width: 3px;
+        height: 13px;
+        flex-shrink: 0;
+        border-radius: 2px;
+        background: var(--accent-gradient);
+    }
+
     p {
-        padding-left: 21px;
+        padding-left: 32px;
         font-size: 10.5px;
         color: var(--text-muted);
     }
@@ -4984,6 +4993,15 @@ import{n as e}from"./rolldown-runtime-WkwZ5CU-.js";import{A as t,B as n,C as r,D
     letter-spacing: 0.1em;
     text-transform: uppercase;
 
+    &::before {
+        content: "";
+        width: 2px;
+        height: 10px;
+        flex-shrink: 0;
+        border-radius: 2px;
+        background: var(--accent-gradient);
+    }
+
     svg {
         flex-shrink: 0;
         color: var(--accent-primary);
@@ -5169,6 +5187,15 @@ import{n as e}from"./rolldown-runtime-WkwZ5CU-.js";import{A as t,B as n,C as r,D
     letter-spacing: 0.1em;
     text-transform: uppercase;
 
+    &::before {
+        content: "";
+        width: 2px;
+        height: 10px;
+        flex-shrink: 0;
+        border-radius: 2px;
+        background: var(--accent-gradient);
+    }
+
     svg {
         flex-shrink: 0;
         color: var(--accent-primary);
@@ -5308,6 +5335,15 @@ import{n as e}from"./rolldown-runtime-WkwZ5CU-.js";import{A as t,B as n,C as r,D
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
+
+    &::before {
+        content: "";
+        width: 2px;
+        height: 10px;
+        flex-shrink: 0;
+        border-radius: 2px;
+        background: var(--accent-gradient);
+    }
 
     svg {
         flex-shrink: 0;
@@ -5540,6 +5576,15 @@ import{n as e}from"./rolldown-runtime-WkwZ5CU-.js";import{A as t,B as n,C as r,D
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-muted);
+
+    &::before {
+        content: "";
+        width: 2px;
+        height: 9px;
+        flex-shrink: 0;
+        border-radius: 2px;
+        background: var(--accent-gradient);
+    }
 
     svg {
         flex-shrink: 0;
