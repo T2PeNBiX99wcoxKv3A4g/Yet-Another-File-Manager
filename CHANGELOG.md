@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.13.4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.13.3..v0.13.4) - 2026-11-15
+
+### 🐛 Bug Fixes
+
+- *(ui)* Let a grid tile blend with the background - ([e63a709](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/e63a709ac350f3a59ceba359625b8631d581aaa6))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([079df4d](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/079df4df034bb99238d37f6358555e3b0607f31d))
+
+
 ## [0.13.3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.13.2..v0.13.3) - 2026-11-15
 
 ### Action
