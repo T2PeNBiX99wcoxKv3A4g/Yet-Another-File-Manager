@@ -69,6 +69,23 @@ replaced.
 2. Replace `EditorWorkspace\mod.wh.cpp` with this file and press `Ctrl+B`.
 3. In any classic Windows program, open a file or use Save As.
 
+### Verify it
+
+`verify-picker.ps1` starts a small probe that calls one of the replaced APIs and
+checks that the app's picker took its place instead of the original dialog:
+
+```powershell
+pwsh -File Windhawk\verify-picker.ps1 open
+pwsh -File Windhawk\verify-picker.ps1 save
+pwsh -File Windhawk\verify-picker.ps1 folder
+```
+
+It prints `PASS` when a `--pick-file` / `--pick-save` / `--pick-folder` process
+appears, closes the picker so the probe returns as if Cancel had been pressed,
+and prints what the caller received. For a full round trip, run the probe
+directly (`dotnet run --project Windhawk\picker-probe -- open <folder>`) and
+choose a file; it prints the path the caller gets.
+
 ### Limits
 
 - Only the classic common dialogs are covered. The newer COM item dialogs
@@ -77,5 +94,11 @@ replaced.
 - A low-integrity mod cannot inject into elevated processes, so dialogs opened
   by an administrator program are not replaced.
 - If no copy of the app is found, the original dialog is shown.
+- Another mod that hooks the same function can take the call first. This was
+  seen with `modernize-folder-picker-dialog`, which replaces
+  `SHBrowseForFolderW` with its own folder dialog; while it is enabled, folder
+  pickers are not replaced by this mod and `verify-picker.ps1 folder` reports
+  `FAIL`. Disable the other mod (or its folder replacement) to use this one.
+
 
 Both files are what a submission to the Windhawk mod collection needs.
