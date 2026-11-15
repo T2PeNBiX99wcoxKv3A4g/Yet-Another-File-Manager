@@ -6,7 +6,30 @@ const int OFN_NOCHANGEDIR = 0x00000008;
 const int OFN_OVERWRITEPROMPT = 0x00000002;
 const int OFN_PATHMUSTEXIST = 0x00000800;
 
-var mode = args.Length > 0 ? args[0] : "open";
+var mode = args.Length > 0 ? args[0].ToLowerInvariant() : "open";
+
+if (mode is "-h" or "--help" or "/?" or "help")
+{
+    Console.WriteLine("""
+                      usage: PickerProbe <open|save|folder> [initial-folder]
+
+                        open    calls GetOpenFileNameW (the classic Open dialog)
+                        save    calls GetSaveFileNameW (the classic Save As dialog)
+                        folder  calls SHBrowseForFolderW (the classic folder dialog)
+
+                      The program blocks on the dialog like any other program. It prints
+                      "result=picked file=..." or "result=cancelled" and exits 0 only when
+                      a path came back.
+                      """);
+    return 0;
+}
+
+if (mode is not ("open" or "save" or "folder"))
+{
+    Console.Error.WriteLine($"unknown mode '{args[0]}'; use open, save or folder");
+    return 2;
+}
+
 var initial = args.Length > 1 ? args[1] : Path.GetTempPath();
 
 Console.WriteLine($"probe mode={mode} initial={initial}");
