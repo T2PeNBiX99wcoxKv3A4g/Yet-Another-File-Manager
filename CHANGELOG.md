@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.13.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.12.0..v0.13.0) - 2026-11-15
+
+### ⛰️  Features
+
+- *(ui)* Move the gallery and recycle bin into the shared toolbar - ([e0c23c0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/e0c23c0a0ea21e614276d49fbcf221f8f19a6289))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([b0a50e6](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b0a50e608957deaef16e9bd5b1703b8d21f68722))
+
+
 ## [0.12.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.11.3..v0.12.0) - 2026-11-15
 
 ### ⛰️  Features
