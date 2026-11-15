@@ -2972,12 +2972,14 @@ const Tile = styled.div<{ $dim: boolean; $current: boolean; $selected: boolean; 
             ? "rgba(var(--accent-rgb), 0.5)"
             : $selected ? "rgba(var(--accent-rgb), 0.4)" : "var(--border-color)"};
     border-radius: var(--radius-lg);
-    /* A picture tile has no surface of its own, so a transparent image shows the wallpaper. */
+    /* A picture tile has no surface of its own, so a transparent image shows the wallpaper. The
+       other tiles only carry a tint: over the wallpaper an opaque card reads as a hole in the
+       window, while a tinted one blends the way a list row does. */
     background: ${({$image, $current, $selected}) => $current
             ? "rgba(var(--accent-rgb), 0.14)"
             : $selected
                 ? "rgba(var(--accent-rgb), 0.1)"
-                : $image ? "transparent" : "var(--bg-primary)"};
+                : $image ? "transparent" : "rgba(var(--bg-rgb), 0.24)"};
     opacity: ${({$dim}) => $dim ? 0.3 : 1};
     cursor: default;
     user-select: none;
@@ -2986,7 +2988,7 @@ const Tile = styled.div<{ $dim: boolean; $current: boolean; $selected: boolean; 
     transform 140ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 140ms ease;
 
     &:hover {
-        background: ${({$image}) => $image ? "rgba(var(--bg-rgb), 0.2)" : "var(--bg-card-hover)"};
+        background: ${({$image}) => $image ? "rgba(var(--bg-rgb), 0.2)" : "rgba(var(--bg-rgb), 0.45)"};
         border-color: var(--border-color-hover);
         box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
         transform: translateY(-1px);
