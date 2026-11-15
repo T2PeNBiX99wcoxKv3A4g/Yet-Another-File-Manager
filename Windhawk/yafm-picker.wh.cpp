@@ -50,19 +50,19 @@ COM dialog and keep their own appearance.
   $description: >-
     Full path to the executable. Leave empty to use the yafm:// handler or the
     default install folder.
-- ReplaceOpenFilePickers: 1
+- ReplaceOpenFilePickers: true
   $name: Replace Open file pickers
   $description: >-
     Replace GetOpenFileName with the app picker.
-- ReplaceSaveFilePickers: 1
+- ReplaceSaveFilePickers: true
   $name: Replace Save As pickers
   $description: >-
     Replace GetSaveFileName with the app picker's save mode.
-- ReplaceFolderPickers: 1
+- ReplaceFolderPickers: true
   $name: Replace folder pickers
   $description: >-
     Replace SHBrowseForFolder with the app picker.
-- ReplaceModernFilePickers: 1
+- ReplaceModernFilePickers: true
   $name: Replace modern file dialogs
   $description: >-
     Replace IFileOpenDialog and IFileSaveDialog, the dialogs Discord, Telegram
@@ -324,8 +324,10 @@ static std::vector<std::wstring> ReadPaths(const std::wstring& path) {
 
 static PickResult RunPicker(const PickerRequest& request, std::vector<std::wstring>& paths) {
     std::wstring executable = ResolveExecutable();
-    if (executable.empty())
+    if (executable.empty()) {
+        Wh_Log(L"picker: no executable could be resolved");
         return PickResult::NoApp;
+    }
 
     std::wstring output = TempOutputPath();
     DeleteFileW(output.c_str());
@@ -521,8 +523,11 @@ static BOOL CallOpenSaveOriginal(LPOPENFILENAMEW ofn, bool save) {
 
 static BOOL ShowOpenSave(LPOPENFILENAMEW ofn, bool save) {
     const bool enabled = save ? g_replaceSave : g_replaceOpen;
-    if (!enabled || !ofn || !ofn->lpstrFile || ofn->nMaxFile == 0)
+    if (!enabled || !ofn || !ofn->lpstrFile || ofn->nMaxFile == 0) {
+        Wh_Log(L"classic %s: passing through (enabled=%d, ofn=%d)", save ? L"save" : L"open",
+               enabled ? 1 : 0, ofn != nullptr ? 1 : 0);
         return CallOpenSaveOriginal(ofn, save);
+    }
 
     PickerRequest request;
     request.Save = save;
@@ -535,8 +540,11 @@ static BOOL ShowOpenSave(LPOPENFILENAMEW ofn, bool save) {
     std::vector<std::wstring> paths;
     PickResult result = RunPicker(request, paths);
 
-    if (result == PickResult::NoApp)
+    if (result == PickResult::NoApp) {
+        Wh_Log(L"classic %s: no copy of the app was found, showing the original dialog",
+               save ? L"save" : L"open");
         return CallOpenSaveOriginal(ofn, save);
+    }
 
     if (result == PickResult::Cancelled)
         return FALSE;
@@ -724,43 +732,50 @@ struct ModernDialogState {
     std::wstring name;
     std::wstring extension;
     std::wstring title;
-    std::vector<std::vector<std::wstring>> filters;
+    std::vector<std::wstring> filters;
     UINT filterIndex = 1;
     std::vector<std::wstring> results;
 };
 
-static std::vector<std::wstring> SplitPatterns(PCWSTR spec) {
-    std::vector<std::wstring> patterns;
+/// The extension list the picker takes, from one filter spec: `*.txt;*.png` becomes `.txt;.png`.
+/// A spec of `*.*` means "every file" and leaves the list empty, so the picker keeps only its
+/// All files entry and does not hide anything behind a "supported files" filter.
+static std::wstring ExtensionList(PCWSTR spec) {
+    std::wstring result;
     if (!spec)
-        return patterns;
+        return result;
 
-    std::wstring current;
-    for (PCWSTR p = spec;; p++) {
-        if (*p == L';' || *p == L'\0') {
-            if (!current.empty()) {
-                patterns.push_back(current);
-                current.clear();
-            }
+    std::wstring text = spec;
+    size_t start = 0;
 
-            if (*p == L'\0')
-                break;
-        } else {
-            current.push_back(*p);
-        }
+    while (start <= text.size()) {
+        size_t end = text.find(L';', start);
+        if (end == std::wstring::npos)
+            end = text.size();
+
+        std::wstring pattern = text.substr(start, end - start);
+        start = end + 1;
+
+        while (!pattern.empty() && pattern.front() == L' ')
+            pattern.erase(0, 1);
+        while (!pattern.empty() && pattern.back() == L' ')
+            pattern.pop_back();
+
+        if (pattern == L"*" || pattern == L"*.*")
+            continue;
+
+        if (!pattern.empty() && pattern[0] == L'*')
+            pattern.erase(0, 1);
+
+        if (pattern.empty())
+            continue;
+
+        if (!result.empty())
+            result.push_back(L';');
+        result += pattern;
     }
 
-    return patterns;
-}
-
-static std::wstring JoinPatterns(const std::vector<std::wstring>& patterns) {
-    std::wstring joined;
-    for (const auto& pattern : patterns) {
-        if (!joined.empty())
-            joined.push_back(L';');
-        joined += pattern;
-    }
-
-    return joined;
+    return result;
 }
 
 static std::wstring ItemPath(IShellItem* item) {
@@ -932,6 +947,8 @@ class DialogProxy : public TInterface {
     }
 
     HRESULT STDMETHODCALLTYPE Show(HWND owner) override {
+        Wh_Log(L"modern %s: Show", state_.save ? L"save" : L"open");
+
         PickerRequest request;
         request.Save = state_.save;
         request.Folder = !state_.save && (state_.options & FOS_PICKFOLDERS) != 0;
@@ -944,7 +961,7 @@ class DialogProxy : public TInterface {
             UINT index = state_.filterIndex >= 1 && state_.filterIndex <= state_.filters.size()
                              ? state_.filterIndex - 1
                              : 0;
-            request.Filter = JoinPatterns(state_.filters[index]);
+            request.Filter = state_.filters[index];
         }
 
         std::vector<std::wstring> paths;
@@ -958,13 +975,14 @@ class DialogProxy : public TInterface {
         if (result == PickResult::Cancelled)
             return HRESULT_FROM_WIN32(ERROR_CANCELLED);
 
+        Wh_Log(L"modern: no copy of the app was found, showing the original dialog");
         return ShowNativeDialog(owner, state_);
     }
 
     HRESULT STDMETHODCALLTYPE SetFileTypes(UINT count, const COMDLG_FILTERSPEC* specs) override {
         state_.filters.clear();
         for (UINT i = 0; specs && i < count; i++)
-            state_.filters.push_back(SplitPatterns(specs[i].pszSpec));
+            state_.filters.push_back(ExtensionList(specs[i].pszSpec));
         return S_OK;
     }
 
