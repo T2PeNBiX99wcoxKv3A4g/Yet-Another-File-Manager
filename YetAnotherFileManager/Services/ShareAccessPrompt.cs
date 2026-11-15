@@ -3,6 +3,7 @@ using Photino.NET;
 using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Utils;
 using Serilog;
+using YetAnotherFileManager.Interop;
 
 namespace YetAnotherFileManager.Services;
 
@@ -98,6 +99,12 @@ internal partial class ShareAccessPrompt
         // Photino creates the native window in WaitForClose. The main window already started the
         // shared message loop, so this call builds and shows this window without blocking.
         window.WaitForClose();
+
+        // The interface paints the rounded corners and their border; Windows 11 has to clip the
+        // window to the same shape, or the square background shows behind them.
+        if (OperatingSystem.IsWindows())
+            WindowCorners.Round(window.WindowHandle);
+
         _window = window;
 
         // Some window managers clear the topmost style while showing a chromeless window.
@@ -152,6 +159,12 @@ internal partial class ShareAccessPrompt
         var deny = WebUtility.HtmlEncode(Localization.Get("share_access_deny"));
         var allow = WebUtility.HtmlEncode(Localization.Get("share_access_allow"));
 
+        // Windows 11 clips the window to this radius in code; elsewhere the window stays square and
+        // only the border is drawn, so the corners do not show an unfilled gap.
+        var frame = OperatingSystem.IsWindows()
+            ? "border-radius: 8px; box-shadow: inset 0 0 0 1px #3a3d44;"
+            : "";
+
         return $$"""
                  <!doctype html>
                  <html>
@@ -166,6 +179,7 @@ internal partial class ShareAccessPrompt
                      padding: 24px;
                      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
                      background: #1c1d21; color: #f2f3f5;
+                     {{frame}}
                    }
                    .card { width: 100%; }
                    .badge {
