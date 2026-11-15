@@ -63,12 +63,14 @@ import {SelectMenu} from "./SelectMenu";
 import {type PageFind, useTextSearch} from "../ui/textSearch";
 import {createTag, deleteTag, listTags, renameTag, setTagColor, type TagCatalogEntry} from "../api/tags";
 import {
+    ArchiveIcon,
     CameraIcon,
     CheckIcon,
     ChevronRightIcon,
     ClockIcon,
     CrossIcon,
     DatabaseIcon,
+    DownloadsIcon,
     EyeIcon,
     FileIcon,
     FolderIcon,
@@ -76,11 +78,13 @@ import {
     GearIcon,
     IconThemeIcon,
     KeyboardIcon,
+    LinkIcon,
     ListIcon,
     LockIcon,
     OverviewIcon,
     PackageIcon,
     PaletteIcon,
+    PencilIcon,
     PicturesIcon,
     PlayIcon,
     PlusIcon,
@@ -1339,7 +1343,7 @@ export function SettingsView({
                                 </KeyButton>
                                 {settings?.globalHotkey && (
                                     <SmallButton onClick={() => void update({globalHotkey: null})} type="button">
-                                        {t("clear")}
+                                        <CrossIcon size={13}/>{t("clear")}
                                     </SmallButton>
                                 )}
                             </RowEnd>
@@ -1428,14 +1432,14 @@ export function SettingsView({
                                     onClick={() => void registerArchives()}
                                     type="button"
                                 >
-                                    {t("register")}
+                                    <ArchiveIcon size={13}/>{t("register")}
                                 </ActionButton>
                                 {appInfo?.platform === "windows" && (
                                     <ActionButton
                                         onClick={() => void openUrl("ms-settings:defaultapps")}
                                         type="button"
                                     >
-                                        {t("default_apps")}
+                                        <GearIcon size={13}/>{t("default_apps")}
                                     </ActionButton>
                                 )}
                                 <DangerButton
@@ -1443,7 +1447,7 @@ export function SettingsView({
                                     onClick={() => void unregisterArchives()}
                                     type="button"
                                 >
-                                    {t("unregister")}
+                                    <CrossIcon size={13}/>{t("unregister")}
                                 </DangerButton>
                             </RowEnd>
                         </Row>
@@ -1539,11 +1543,11 @@ export function SettingsView({
                                     onClick={() => void saveSharePassword()}
                                     type="button"
                                 >
-                                    {t("save")}
+                                    <CheckIcon size={13}/>{t("save")}
                                 </ActionButton>
                                 {hasSharePassword && (
                                     <DangerButton onClick={() => void clearSharePassword()} type="button">
-                                        {t("clear")}
+                                        <CrossIcon size={13}/>{t("clear")}
                                     </DangerButton>
                                 )}
                             </RowEnd>
@@ -1641,7 +1645,7 @@ export function SettingsView({
                             </RowText>
                             <RowEnd>
                                 <ActionButton onClick={() => void update({fonts: {}})} type="button">
-                                    {t("reset")}
+                                    <RefreshIcon size={13}/>{t("reset")}
                                 </ActionButton>
                             </RowEnd>
                         </Row>
@@ -1741,7 +1745,7 @@ export function SettingsView({
                                             onClick={() => void openReleasePage()}
                                             type="button"
                                         >
-                                            {t("open_release_page")}
+                                            <LinkIcon size={13}/>{t("open_release_page")}
                                         </ActionButton>
                                         {isWindows && (
                                             <ActionButton
@@ -1749,7 +1753,7 @@ export function SettingsView({
                                                 onClick={() => void downloadAndInstall()}
                                                 type="button"
                                             >
-                                                {t("download_and_install")}
+                                                <DownloadsIcon size={13}/>{t("download_and_install")}
                                             </ActionButton>
                                         )}
                                     </>
@@ -1761,13 +1765,13 @@ export function SettingsView({
                                     onClick={() => void checkNow()}
                                     type="button"
                                 >
-                                    {updateBusy ? t("checking") : t("check_for_updates")}
+                                    <RefreshIcon size={13}/>{updateBusy ? t("checking") : t("check_for_updates")}
                                 </ActionButton>
                                 <ActionButton
                                     onClick={() => void openLogsFolder()}
                                     type="button"
                                 >
-                                    {t("open_log_folder")}
+                                    <FolderIcon size={13}/>{t("open_log_folder")}
                                 </ActionButton>
                             </RowEnd>
                         </Row>
@@ -1879,10 +1883,10 @@ export function SettingsView({
                                                 value={draftPreset.name}
                                             />
                                             <SmallButton onClick={() => void savePreset()} type="button">
-                                                {t("save")}
+                                                <CheckIcon size={13}/>{t("save")}
                                             </SmallButton>
                                             <SmallButton onClick={() => setDraftPreset(null)} type="button">
-                                                {t("cancel")}
+                                                <CrossIcon size={13}/>{t("cancel")}
                                             </SmallButton>
                                         </PresetDraft>
                                     )
@@ -1964,7 +1968,7 @@ export function SettingsView({
                                     }}
                                     type="button"
                                 >
-                                    {t("reset")}
+                                    <RefreshIcon size={13}/>{t("reset")}
                                 </SmallButton>
                             </RowEnd>
                         </Row>
@@ -2081,7 +2085,7 @@ export function SettingsView({
                                     onClick={() => void addBackgroundUrl()}
                                     type="button"
                                 >
-                                    {t("add")}
+                                    <PlusIcon size={13}/>{t("add")}
                                 </SmallButton>
                             </RowEnd>
                         </Row>
@@ -2185,15 +2189,15 @@ export function SettingsView({
                                     value={newProtectedRule}
                                 />
                                 <SmallButton onClick={addProtectedRule} type="button">
-                                    {t("add_the_rule")}
+                                    <PlusIcon size={13}/>{t("add_the_rule")}
                                 </SmallButton>
                             </ProtectNewRule>
                             <ProtectAdd>
                                 <SmallButton onClick={() => void restoreProtectedDefaults()} type="button">
-                                    {t("restore_defaults")}
+                                    <RefreshIcon size={13}/>{t("restore_defaults")}
                                 </SmallButton>
                                 <SmallButton onClick={() => void addProtectedFolder()} type="button">
-                                    {t("add_folder_2")}
+                                    <FolderIcon size={13}/>{t("add_folder_2")}
                                 </SmallButton>
                             </ProtectAdd>
                         </Block>
@@ -2252,7 +2256,7 @@ export function SettingsView({
                                     onClick={() => void addTag()}
                                     type="button"
                                 >
-                                    {t("add")}
+                                    <PlusIcon size={13}/>{t("add")}
                                 </SmallButton>
                             </RowEnd>
                         </Row>
@@ -2307,11 +2311,11 @@ export function SettingsView({
                                             <RowEnd>
                                                 <SmallButton disabled={tagBusy} onClick={() => void saveTagName()}
                                                              type="button">
-                                                    {t("save")}
+                                                    <CheckIcon size={13}/>{t("save")}
                                                 </SmallButton>
                                                 <SmallButton disabled={tagBusy} onClick={() => setEditingTag(null)}
                                                              type="button">
-                                                    {t("cancel")}
+                                                    <CrossIcon size={13}/>{t("cancel")}
                                                 </SmallButton>
                                             </RowEnd>
                                         </>
@@ -2339,7 +2343,7 @@ export function SettingsView({
                                                     onClick={() => setEditingTag({name: tag.name, value: tag.name})}
                                                     type="button"
                                                 >
-                                                    {t("edit")}
+                                                    <PencilIcon size={13}/>{t("edit")}
                                                 </SmallButton>
                                                 <DangerButton
                                                     disabled={tagBusy}
@@ -2663,7 +2667,7 @@ export function SettingsView({
                                     onClick={() => void update({shortcuts: {...DefaultShortcuts}})}
                                     type="button"
                                 >
-                                    {t("reset")}
+                                    <RefreshIcon size={13}/>{t("reset")}
                                 </ActionButton>
                             </RowEnd>
                         </Row>
@@ -2745,7 +2749,7 @@ export function SettingsView({
                             </RowText>
                             <RowEnd>
                                 <ActionButton onClick={() => void trimMemory().then(setMemory)} type="button">
-                                    {t("trim_now")}
+                                    <PackageIcon size={13}/>{t("trim_now")}
                                 </ActionButton>
                             </RowEnd>
                         </Row>
@@ -2810,7 +2814,7 @@ export function SettingsView({
                             </RowText>
                             <RowEnd>
                                 <ActionButton onClick={() => void addGalleryRoot()} type="button">
-                                    {t("choose_folder")}
+                                    <FolderIcon size={13}/>{t("choose_folder")}
                                 </ActionButton>
                             </RowEnd>
                         </Row>
@@ -2939,7 +2943,7 @@ export function SettingsView({
                             <RowEnd>
                                 {folderIcon && <Thumb src={folderIcon.icon}/>}
                                 <ActionButton disabled={busy} onClick={() => void assignFolderIcon()} type="button">
-                                    {busy ? t("choosing") : t("choose_folder_and_icon")}
+                                    <FolderIcon size={13}/>{busy ? t("choosing") : t("choose_folder_and_icon")}
                                 </ActionButton>
                             </RowEnd>
                         </Row>
@@ -3031,15 +3035,15 @@ export function SettingsView({
                                     value={newDirectoryRule}
                                 />
                                 <SmallButton onClick={addDirectoryRule} type="button">
-                                    {t("add_the_rule")}
+                                    <PlusIcon size={13}/>{t("add_the_rule")}
                                 </SmallButton>
                             </ProtectNewRule>
                             <ProtectAdd>
                                 <SmallButton onClick={restoreDirectoryRules} type="button">
-                                    {t("restore_defaults")}
+                                    <RefreshIcon size={13}/>{t("restore_defaults")}
                                 </SmallButton>
                                 <SmallButton onClick={() => void addDirectoryFolder()} type="button">
-                                    {t("add_folder_2")}
+                                    <FolderIcon size={13}/>{t("add_folder_2")}
                                 </SmallButton>
                             </ProtectAdd>
                         </Block>
@@ -3162,21 +3166,21 @@ export function SettingsView({
                         <UpdateActions>
                             {(updateDialog.phase === "changelog" || updateDialog.phase === "downloading") && (
                                 <ActionButton onClick={() => void cancelDownload()} type="button">
-                                    {t("cancel")}
+                                    <CrossIcon size={13}/>{t("cancel")}
                                 </ActionButton>
                             )}
                             {updateDialog.phase === "ready" && (
                                 <ActionButton onClick={() => void installNow()} type="button">
-                                    {t("install_update")}
+                                    <PlayIcon size={13}/>{t("install_update")}
                                 </ActionButton>
                             )}
                             {updateDialog.phase === "installing" && (
-                                <ActionButton disabled type="button">{t("installing")}</ActionButton>
+                                <ActionButton disabled type="button"><RefreshIcon size={13}/>{t("installing")}</ActionButton>
                             )}
                             {(updateDialog.phase === "ready" || updateDialog.phase === "error"
                                 || updateDialog.phase === "cancelled" || updateDialog.phase === "installing") && (
                                 <ActionButton onClick={() => setUpdateDialog(null)} type="button">
-                                    {t("close")}
+                                    <CrossIcon size={13}/>{t("close")}
                                 </ActionButton>
                             )}
                         </UpdateActions>
@@ -4407,6 +4411,9 @@ const RenameTagInput = styled.input`
 `;
 
 const SmallButton = styled.button`
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     padding: 5px 9px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
@@ -4425,6 +4432,11 @@ const SmallButton = styled.button`
     &:disabled {
         opacity: 0.45;
         cursor: default;
+    }
+
+    svg {
+        width: 12px;
+        height: 12px;
     }
 `;
 
@@ -4964,6 +4976,9 @@ const KeyButton = styled.button<{ $listening: boolean }>`
 `;
 
 const ActionButton = styled.button`
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     padding: 6px 12px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
