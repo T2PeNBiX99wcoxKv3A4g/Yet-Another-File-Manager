@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.11.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.11.1..v0.11.2) - 2026-11-15
+
+### 🐛 Bug Fixes
+
+- *(ui)* Give the tray the same title as the other panels - ([49346fd](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/49346fd67953ad7bb56bd137dff36f2cefbbec3f))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([c458151](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c4581510a44cbc92fd53682650b7fd3e45e474f1))
+
+
 ## [0.11.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.11.0..v0.11.1) - 2026-11-15
 
 ### 🐛 Bug Fixes
