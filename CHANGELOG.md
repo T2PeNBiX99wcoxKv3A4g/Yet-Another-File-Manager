@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.10.4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.10.3..v0.10.4) - 2026-11-15
+
+### 🐛 Bug Fixes
+
+- *(share)* Round the approval window and draw its border - ([534c9f4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/534c9f4d5fbc5fa33697b17a53281ff1e027eb36))
+
+### 📚 Documentation
+
+- Tell tiling window managers to leave the approval window alone - ([df8ce1b](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/df8ce1b46b87d17f2776af0148d4639e327e044e))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([5e09c77](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/5e09c778674df5b44368a5174f64d52a27a57d57))
+
+
 ## [0.10.3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.10.2..v0.10.3) - 2026-11-15
 
 ### 🐛 Bug Fixes
