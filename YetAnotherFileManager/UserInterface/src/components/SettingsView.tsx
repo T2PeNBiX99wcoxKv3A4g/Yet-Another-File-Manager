@@ -432,19 +432,38 @@ export function SettingsView({
         setActiveSection(id);
     };
 
-    /** The wheel over the section list scrolls the settings column, the only thing that moves. */
-    const scrollFromToc = (event: WheelEvent<HTMLElement>) => {
-        const main = page.current;
-        if (!main) return;
+    /** When the wheel last stepped a section, so one spin does not skip three of them. */
+    const stepLock = useRef(0);
 
+    /**
+     * A wheel notch over the section list moves the settings column one section at a time, the way
+     * a page-turner would: the list is short, so scrolling it sideways would do nothing, and
+     * dragging the whole column along felt wrong. A rail that is long enough to scroll keeps its
+     * own wheel until it reaches an end.
+     */
+    const stepFromToc = (event: WheelEvent<HTMLElement>) => {
         const rail = event.currentTarget;
-        const scrollable = rail.scrollHeight > rail.clientHeight + 1;
-        const atStart = rail.scrollTop <= 0 && event.deltaY < 0;
-        const atEnd = rail.scrollTop + rail.clientHeight >= rail.scrollHeight - 1 && event.deltaY > 0;
+        const direction = Math.sign(event.deltaY);
+        if (direction === 0) return;
 
-        if (scrollable && !atStart && !atEnd) return;
+        if (rail.scrollHeight > rail.clientHeight + 1) {
+            const atStart = rail.scrollTop <= 0 && direction < 0;
+            const atEnd = rail.scrollTop + rail.clientHeight >= rail.scrollHeight - 1 && direction > 0;
+            if (!atStart && !atEnd) return;
+        }
 
-        main.scrollTop += event.deltaY;
+        // A trackpad sends a stream of events for one gesture, and the smooth scroll needs a
+        // moment; without this, one flick would run through half the page.
+        const now = Date.now();
+        if (now < stepLock.current) return;
+
+        const index = SettingSections.findIndex((section) => section.id === activeSection);
+        const from = index < 0 ? 0 : index;
+        const next = Math.min(Math.max(from + direction, 0), SettingSections.length - 1);
+        if (next === from) return;
+
+        stepLock.current = now + 400;
+        jumpTo(SettingSections[next].id);
     };
 
     // The footer's update dot opens this page straight at the update section.
@@ -3089,7 +3108,7 @@ export function SettingsView({
                 </Section>
             </Main>
 
-            <Toc aria-label={t("settings_sections")} onWheel={scrollFromToc}>
+            <Toc aria-label={t("settings_sections")} onWheel={stepFromToc}>
                 <TocLabel>{t("sections")}</TocLabel>
                 <TocList>
                     {SettingSections.map(({id, label}) => (
