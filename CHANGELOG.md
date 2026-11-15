@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.12.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.11.3..v0.12.0) - 2026-11-15
+
+### ⛰️  Features
+
+- *(ui)* Step through settings sections from the section list - ([6ced6dc](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/6ced6dc082dd4911906e2dce4fd3ed3c0be37e3a))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([7d9a351](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7d9a3512cce5d0af4e11d062d114448473a557b2))
+
+
 ## [0.11.3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.11.2..v0.11.3) - 2026-11-15
 
 ### 🐛 Bug Fixes
