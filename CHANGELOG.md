@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.11.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.10.4..v0.11.0) - 2026-11-15
+
+### ⛰️  Features
+
+- *(picker)* Replace the Common Item Dialog too - ([e6e15af](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/e6e15afaa7b54b746ba3a883c5c813e963bcc120))
+- *(ui)* Icons, frosted panels and a real hidden-items switch - ([7557075](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7557075d11f185f3aca214910ed1cd3ef06ff085))
+
+### 🐛 Bug Fixes
+
+- *(picker)* Make the modern dialog acceptable to real callers - ([b9b4f1f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b9b4f1fc0ef678bf34ec6ac5a9768f93253ef624))
+- *(picker)* Toggles in the settings and an honest all-files filter - ([5118110](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/5118110a20242a1a642a3cba5ad391531fe13471))
+
+### 📚 Documentation
+
+- *(picker)* A readme the catalog can show - ([c9c33cd](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c9c33cdee30d4da9badbc3e9c51a0e06dcd14c57))
+
+### 🧪 Testing
+
+- *(picker)* Explain the probe's own arguments - ([0b6ba0b](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/0b6ba0b35210c668c8999492cb1a352de8b90951))
+- *(picker)* A probe that proves the classic dialogs are replaced - ([638545f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/638545fbdee9379f8826ae16319f8e99bb335f75))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([efb2742](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/efb27423f1602e9551cab61850efeb1e911cd737))
+
+
 ## [0.10.4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.10.3..v0.10.4) - 2026-11-15
 
 ### 🐛 Bug Fixes
