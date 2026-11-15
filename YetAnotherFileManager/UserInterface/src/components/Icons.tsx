@@ -68,6 +68,9 @@ import LockSvg from "./icons/lock.svg?react";
 import LinkSvg from "./icons/link.svg?react";
 import EyeSvg from "./icons/eye.svg?react";
 import EyeOffSvg from "./icons/eye-off.svg?react";
+import PaletteSvg from "./icons/palette.svg?react";
+import TagSvg from "./icons/tag.svg?react";
+import KeyboardSvg from "./icons/keyboard.svg?react";
 
 interface IconProps extends SVGProps<SVGSVGElement> {
     size?: number;
@@ -148,4 +151,7 @@ export const SplitIcon = sized(SplitSvg, 16);
 export const PanelIcon = sized(PanelSvg, 16);
 export const MenuIcon = sized(MenuSvg, 16);
 export const LockIcon = sized(LockSvg, 14);
+export const PaletteIcon = sized(PaletteSvg, 18);
+export const TagIcon = sized(TagSvg, 18);
+export const KeyboardIcon = sized(KeyboardSvg, 18);
 export const LinkIcon = sized(LinkSvg, 14);

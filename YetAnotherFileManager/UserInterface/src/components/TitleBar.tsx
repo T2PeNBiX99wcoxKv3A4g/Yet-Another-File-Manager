@@ -358,9 +358,22 @@ const Bar = styled.header`
     -webkit-user-select: none;
 
     html.has-wallpaper & {
-        background: rgba(var(--bg-rgb), 0.5);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
+        // The blur lives on a pseudo-element, not on the bar itself: an element with backdrop-filter
+        // becomes a backdrop root, and every floating panel opened from this bar (share, status
+        // centre, view, history) would then blur nothing but the bar's own paint.
+        background: transparent;
+        isolation: isolate;
+
+        &::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            background: rgba(var(--bg-rgb), 0.5);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            pointer-events: none;
+        }
     }
 `;
 

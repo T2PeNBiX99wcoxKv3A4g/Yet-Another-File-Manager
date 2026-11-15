@@ -308,6 +308,7 @@ declare module "@photino-net-utils/bridge"
         "hebrew_cp1255": true;
         "hidden": true;
         "hidden_items": true;
+        "hidden_items_follow_this_app_s_switch_protected_operating_system_files_still_follow_windows": true;
         "hide": true;
         "hide_details_panel": true;
         "hide_file_tray": true;
@@ -365,7 +366,6 @@ declare module "@photino-net-utils/bridge"
         "link_status": true;
         "link_target_after_the_name": true;
         "list": true;
-        "listings_follow_the_file_manager_s_own_settings_hidden_and_protected_items_are_only_shown_when_the_operating_system_is_set_to_show_them": true;
         "list_icon_size": true;
         "loading": true;
         "loading_apps": true;

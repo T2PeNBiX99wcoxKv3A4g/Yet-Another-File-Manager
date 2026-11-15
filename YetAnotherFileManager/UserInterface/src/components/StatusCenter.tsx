@@ -54,7 +54,7 @@ export function StatusCenter({tasks, onClear, open, onOpenChange}: StatusCenterP
             {open && (
                 <Panel>
                     <PanelHead>
-                        <PanelTitle>{t("status_center")}</PanelTitle>
+                        <PanelTitle><StatusIcon size={12}/>{t("status_center")}</PanelTitle>
                         <PanelActions>
                             <TextButton
                                 disabled={tasks.every((task) => task.state === "running")}
@@ -170,12 +170,9 @@ const PanelTitle = styled.span`
     letter-spacing: 0.1em;
     text-transform: uppercase;
 
-    &::before {
-        content: "";
-        width: 2px;
-        height: 10px;
-        border-radius: 2px;
-        background: var(--accent-gradient);
+    svg {
+        flex-shrink: 0;
+        color: var(--accent-primary);
     }
 `;
 

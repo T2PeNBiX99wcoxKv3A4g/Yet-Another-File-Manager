@@ -1,4 +1,4 @@
-import {type MouseEvent, useEffect, useRef, useState} from "react";
+import {type MouseEvent, type ReactNode, useEffect, useRef, useState, type WheelEvent} from "react";
 import {createPortal} from "react-dom";
 import {
     type LocalizationKey,
@@ -11,7 +11,14 @@ import {
     useTranslation,
 } from "@photino-net-utils/bridge";
 import styled, {css} from "styled-components";
-import {DefaultViewDefaults, type FileVisibility, getVisibility, type IndexTasks, listIndexTasks} from "../api/files";
+import {
+    DefaultViewDefaults,
+    type FileVisibility,
+    getVisibility,
+    type IndexTasks,
+    listIndexTasks,
+    setHiddenFiles,
+} from "../api/files";
 import {clearIconCache, useIconFile, useMediaUrl} from "../api/icons";
 import {
     type AppSettings,
@@ -55,7 +62,35 @@ import {requestFile, requestFolder} from "../folder-picker";
 import {SelectMenu} from "./SelectMenu";
 import {type PageFind, useTextSearch} from "../ui/textSearch";
 import {createTag, deleteTag, listTags, renameTag, setTagColor, type TagCatalogEntry} from "../api/tags";
-import {CheckIcon, ChevronRightIcon, CrossIcon, PlusIcon, TrashIcon, VideoIcon} from "./Icons";
+import {
+    AppIcon,
+    CameraIcon,
+    CheckIcon,
+    ChevronRightIcon,
+    ClockIcon,
+    CrossIcon,
+    DatabaseIcon,
+    EyeIcon,
+    FileIcon,
+    FolderIcon,
+    FontIcon,
+    GearIcon,
+    KeyboardIcon,
+    ListIcon,
+    LockIcon,
+    OverviewIcon,
+    PackageIcon,
+    PaletteIcon,
+    PicturesIcon,
+    PlayIcon,
+    PlusIcon,
+    RefreshIcon,
+    ShareIcon,
+    StatusIcon,
+    TagIcon,
+    TrashIcon,
+    VideoIcon,
+} from "./Icons";
 import {IconPicker} from "./IconPicker";
 import {DefaultTagColor} from "./TagPicker";
 import {DefaultAccentColor, DefaultSecondaryColor, normalizeColor, normalizeThemeMode} from "../theme";
@@ -223,6 +258,34 @@ const SettingSections: { id: string; label: LocalizationKey }[] = [
     {id: "files", label: "files"},
 ];
 
+/**
+ * One glyph per section, keyed by the heading's own text key so a heading and its entry in the
+ * table of contents cannot drift apart.
+ */
+const SectionGlyphs: Partial<Record<LocalizationKey, ReactNode>> = {
+    application: <GearIcon size={13}/>,
+    share_access: <ShareIcon size={13}/>,
+    startup: <PlayIcon size={13}/>,
+    fonts: <FontIcon size={13}/>,
+    time_format: <ClockIcon size={13}/>,
+    updates: <RefreshIcon size={13}/>,
+    colors: <PaletteIcon size={13}/>,
+    background: <PicturesIcon size={13}/>,
+    safety: <LockIcon size={13}/>,
+    tags: <TagIcon size={13}/>,
+    files_view: <ListIcon size={13}/>,
+    shortcuts: <KeyboardIcon size={13}/>,
+    memory: <DatabaseIcon size={13}/>,
+    overview: <OverviewIcon size={13}/>,
+    gallery: <CameraIcon size={13}/>,
+    icons: <AppIcon size={13}/>,
+    icons_by_extension: <FileIcon size={13}/>,
+    folder_icons: <FolderIcon size={13}/>,
+    folder_index: <PackageIcon size={13}/>,
+    index_tasks: <StatusIcon size={13}/>,
+    files: <EyeIcon size={13}/>,
+};
+
 type ColorRole = "accent" | "secondary";
 
 /** Colours the user applied before, most recent first; kept locally like the recycle bin sort. */
@@ -249,6 +312,7 @@ export function SettingsView({
     const t = useTranslation();
     const [languages, setLanguages] = useState<string[]>([]);
     const [visibility, setVisibility] = useState<FileVisibility | null>(null);
+    const [hiddenBusy, setHiddenBusy] = useState(false);
     const [settings, setSettings] = useState<AppSettings | null>(null);
     // The background gallery previews the artwork the window would show right now.
     const theme = useTheme(normalizeThemeMode(settings?.themeMode));
@@ -366,6 +430,21 @@ export function SettingsView({
     const jumpTo = (id: string) => {
         sectionRefs.current[id]?.scrollIntoView({behavior: "smooth", block: "start"});
         setActiveSection(id);
+    };
+
+    /** The wheel over the section list scrolls the settings column, the only thing that moves. */
+    const scrollFromToc = (event: WheelEvent<HTMLElement>) => {
+        const main = page.current;
+        if (!main) return;
+
+        const rail = event.currentTarget;
+        const scrollable = rail.scrollHeight > rail.clientHeight + 1;
+        const atStart = rail.scrollTop <= 0 && event.deltaY < 0;
+        const atEnd = rail.scrollTop + rail.clientHeight >= rail.scrollHeight - 1 && event.deltaY > 0;
+
+        if (scrollable && !atStart && !atEnd) return;
+
+        main.scrollTop += event.deltaY;
     };
 
     // The footer's update dot opens this page straight at the update section.
@@ -823,6 +902,21 @@ export function SettingsView({
             setSchemeError("The request to Windows failed. Try again.");
         } finally {
             setSchemeBusy(false);
+        }
+    };
+
+    /** Shows or hides ordinary hidden files for this app only; null goes back to following Explorer. */
+    const changeHidden = async (show: boolean | null) => {
+        if (hiddenBusy) return;
+
+        setHiddenBusy(true);
+
+        try {
+            setVisibility(await setHiddenFiles(show));
+            // The listings the window already has were read with the old setting.
+            onSettingsChanged();
+        } finally {
+            setHiddenBusy(false);
         }
     };
 
@@ -2952,8 +3046,37 @@ export function SettingsView({
                     />
                     <Rows>
                         <Row>
-                            <Label>{t("hidden_items")}</Label>
-                            <Value>{describe(t, visibility?.showHidden)}</Value>
+                            <RowText>
+                                <Label>{t("show_hidden_files")}</Label>
+                                <Note>
+                                    {t("toggles_ordinary_hidden_files_for_this_session_alt_also_works_system_files_still_follow_explorer")}
+                                    {visibility?.overridden && (
+                                        <ResetInline
+                                            disabled={hiddenBusy}
+                                            onClick={() => void changeHidden(null)}
+                                            type="button"
+                                        >
+                                            {t("follow_system")}
+                                        </ResetInline>
+                                    )}
+                                </Note>
+                            </RowText>
+                            <RowEnd>
+                                <State $on={visibility?.showHidden ?? false}>
+                                    {visibility?.overridden
+                                        ? describe(t, visibility.showHidden)
+                                        : t("follow_system")}
+                                </State>
+                                <Toggle
+                                    $on={visibility?.showHidden ?? false}
+                                    disabled={!visibility || hiddenBusy}
+                                    onClick={() => void changeHidden(!(visibility?.showHidden ?? false))}
+                                    title={t("show_hidden_files")}
+                                    type="button"
+                                >
+                                    <Knob/>
+                                </Toggle>
+                            </RowEnd>
                         </Row>
                         <Row>
                             <Label>{t("protected_operating_system_files")}</Label>
@@ -2961,12 +3084,12 @@ export function SettingsView({
                         </Row>
                     </Rows>
                     <Footnote>
-                        {t("listings_follow_the_file_manager_s_own_settings_hidden_and_protected_items_are_only_shown_when_the_operating_system_is_set_to_show_them")}
+                        {t("hidden_items_follow_this_app_s_switch_protected_operating_system_files_still_follow_windows")}
                     </Footnote>
                 </Section>
             </Main>
 
-            <Toc aria-label={t("settings_sections")}>
+            <Toc aria-label={t("settings_sections")} onWheel={scrollFromToc}>
                 <TocLabel>{t("sections")}</TocLabel>
                 <TocList>
                     {SettingSections.map(({id, label}) => (
@@ -2976,6 +3099,7 @@ export function SettingsView({
                             onClick={() => jumpTo(id)}
                             type="button"
                         >
+                            <Glyph>{SectionGlyphs[label]}</Glyph>
                             <span>{t(label)}</span>
                         </TocItem>
                     ))}
@@ -3413,7 +3537,10 @@ function Head({title, note, global = false}: { title: LocalizationKey; note: Loc
 
     return (
         <SectionHead>
-            <h2>{t(title)}{global && <GlobalTag/>}</h2>
+            <h2>
+                <Glyph>{SectionGlyphs[title]}</Glyph>
+                {t(title)}{global && <GlobalTag/>}
+            </h2>
             <p>{t(note)}</p>
         </SectionHead>
     );
@@ -3461,20 +3588,22 @@ const SectionHead = styled.header`
         color: var(--text-primary);
     }
 
-    h2::before {
-        content: "";
-        width: 3px;
-        height: 13px;
-        flex-shrink: 0;
-        border-radius: 2px;
-        background: var(--accent-gradient);
-    }
-
     p {
-        padding-left: 11px;
+        padding-left: 21px;
         font-size: 10.5px;
         color: var(--text-muted);
     }
+`;
+
+/** The section marker: the icon carries the accent, so the heading needs no extra rule of its own. */
+const Glyph = styled.i`
+    display: grid;
+    place-items: center;
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+    color: var(--accent-primary);
+    opacity: 0.85;
 `;
 
 const Rows = styled.div`
@@ -3707,12 +3836,16 @@ const PreviousColor = styled.button<{ $color: string }>`
 `;
 
 const Toc = styled.nav`
-    align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
     flex-shrink: 0;
-    width: 150px;
+    width: 172px;
+    min-height: 0;
     max-height: 100%;
     overflow-y: auto;
     padding: 6px 0 12px;
+    scrollbar-width: thin;
 `;
 
 const TocLabel = styled.span`
@@ -3747,6 +3880,7 @@ const TocItem = styled.button<{ $active: boolean }>`
     position: relative;
     display: flex;
     align-items: center;
+    gap: 7px;
     padding: 6px 6px 6px 17px;
     border: 0;
     border-radius: var(--radius-sm);
@@ -4192,6 +4326,24 @@ const Value = styled.span`
     font-family: var(--font-mono);
     font-size: 10.5px;
     color: var(--text-muted);
+`;
+
+/** A one-word way back to the default, kept inside the note so it reads as part of the sentence. */
+const ResetInline = styled.button`
+    margin-left: 6px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent-primary);
+    font: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
 `;
 
 const TagColorInput = styled.input`

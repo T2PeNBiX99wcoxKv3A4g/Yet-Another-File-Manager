@@ -99,7 +99,8 @@ internal partial class FileSystemService : INativeMessageHandler
             case "fs.visibility":
             {
                 var visibility = await Task.Run(() => new FsVisibilityPayload(FileVisibility.ShowHidden,
-                    FileVisibility.ShowSystem));
+                    FileVisibility.ShowSystem,
+                    FileVisibility.ShowHidden != FileVisibility.FollowsSystemHidden));
                 return context.Reply("fs.visibility.result", visibility);
             }
 
@@ -117,6 +118,19 @@ internal partial class FileSystemService : INativeMessageHandler
                     });
                     return new HiddenFilesPayload(showHidden, FileVisibility.ShowSystem,
                         showHidden != FileVisibility.FollowsSystemHidden);
+                }));
+
+            case "fs.hidden.set":
+                return context.Reply("fs.hidden.set.result", await Task.Run(async () =>
+                {
+                    var show = context.Payload<HiddenFilesRequest>()?.Show;
+                    FileVisibility.SetHidden(show);
+                    await SettingsService.Instance.UpdateSilentlyAsync(settings => settings with
+                    {
+                        ShowHidden = show
+                    });
+                    return new HiddenFilesPayload(FileVisibility.ShowHidden, FileVisibility.ShowSystem,
+                        show is not null);
                 }));
 
             case "fs.gallery":

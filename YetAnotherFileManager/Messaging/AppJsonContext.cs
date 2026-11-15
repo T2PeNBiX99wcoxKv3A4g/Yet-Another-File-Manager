@@ -142,6 +142,7 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(List<RecycleEntry>))]
 [JsonSerializable(typeof(FsVisibilityPayload))]
 [JsonSerializable(typeof(HiddenFilesPayload))]
+[JsonSerializable(typeof(HiddenFilesRequest))]
 [JsonSerializable(typeof(IconRequest))]
 [JsonSerializable(typeof(IconPayload))]
 [JsonSerializable(typeof(RecycleRequest))]

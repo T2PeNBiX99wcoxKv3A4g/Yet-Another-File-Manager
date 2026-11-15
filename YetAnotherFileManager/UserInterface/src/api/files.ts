@@ -173,6 +173,8 @@ export interface FrequentEntry {
 export interface FileVisibility {
     showHidden: boolean;
     showSystem: boolean;
+    /** True when this app shows hidden items differently from Explorer, which sets the choice. */
+    overridden: boolean;
 }
 
 /** Lists one directory. Omit the path to start at the user's home directory. */
@@ -472,6 +474,19 @@ export async function toggleHiddenFiles(): Promise<{
         showSystem: boolean;
         overridden: boolean;
     }>("fs.hidden.toggle");
+}
+
+/** Chooses whether hidden items are shown here; null goes back to following Explorer. */
+export async function setHiddenFiles(show: boolean | null): Promise<{
+    showHidden: boolean;
+    showSystem: boolean;
+    overridden: boolean;
+}> {
+    return await Native.request<{
+        showHidden: boolean;
+        showSystem: boolean;
+        overridden: boolean;
+    }>("fs.hidden.set", {show});
 }
 
 /** Folders waiting for a background size/index walk. */

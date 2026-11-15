@@ -4,7 +4,7 @@ import type {DirectoryView, ResolvedView} from "../api/files";
 import {GlobalTag} from "./GlobalTag";
 import {elevatedPanel} from "../ui/panel";
 import {ViewColumns, ResetColumnWidthsEvent} from "./FileList";
-import {GridIcon, ListIcon} from "./Icons";
+import {EyeIcon, GridIcon, ListIcon, PanelIcon, SplitIcon} from "./Icons";
 import {useTranslation} from "@photino-net-utils/bridge";
 
 interface ViewMenuProps {
@@ -75,7 +75,7 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
 
             {open && (
                 <Panel>
-                    <SectionTitle>{t("view")}</SectionTitle>
+                    <SectionTitle><PanelIcon size={11}/>{t("view")}</SectionTitle>
                     <Segmented>
                         <Choice $on={view.mode === "list"} onClick={() => onChange({mode: "list"})} type="button">
                             <ListIcon size={12}/> {t("list")}
@@ -85,7 +85,7 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
                         </Choice>
                     </Segmented>
 
-                    <SectionTitle>{t("list_icon_size")}</SectionTitle>
+                    <SectionTitle><ListIcon size={11}/>{t("list_icon_size")}</SectionTitle>
                     <SliderRow>
                         <input
                             aria-label={t("list_icon_size")}
@@ -99,7 +99,7 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
                         <SizeValue>{view.iconSize}px</SizeValue>
                     </SliderRow>
 
-                    <SectionTitle>{t("grid_size")}</SectionTitle>
+                    <SectionTitle><GridIcon size={11}/>{t("grid_size")}</SectionTitle>
                     <SliderRow>
                         <input
                             aria-label={t("grid_size")}
@@ -114,7 +114,7 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
                     </SliderRow>
 
                     <SectionTitle>
-                        {t("columns")}<GlobalTag/>
+                        <SplitIcon size={11}/>{t("columns")}<GlobalTag/>
                         <ResetButton
                             onClick={() => window.dispatchEvent(new Event(ResetColumnWidthsEvent))}
                             title={t("reset_column_widths")}
@@ -142,7 +142,7 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
                         <span>{t("link_target_after_the_name")}</span>
                     </Check>
 
-                    <SectionTitle>{t("preview_panel")}<GlobalTag/></SectionTitle>
+                    <SectionTitle><EyeIcon size={11}/>{t("preview_panel")}<GlobalTag/></SectionTitle>
                     <Check>
                         <input
                             checked={showImages}
@@ -219,13 +219,9 @@ const SectionTitle = styled.div`
     text-transform: uppercase;
     color: var(--text-muted);
 
-    &::before {
-        content: "";
-        width: 2px;
-        height: 9px;
+    svg {
         flex-shrink: 0;
-        border-radius: 2px;
-        background: var(--accent-gradient);
+        color: var(--accent-primary);
     }
 
     &:first-child {

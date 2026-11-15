@@ -59,7 +59,7 @@ export function HistoryPanel() {
             {open && (
                 <Panel>
                     <Head>
-                        <Title>{t("history")}</Title>
+                        <Title><ClockIcon size={12}/>{t("history")}</Title>
                         <Close onClick={() => setOpen(false)} title={t("close")} type="button">
                             <CrossIcon size={10}/>
                         </Close>
@@ -191,12 +191,9 @@ const Title = styled.span`
     letter-spacing: 0.1em;
     text-transform: uppercase;
 
-    &::before {
-        content: "";
-        width: 2px;
-        height: 10px;
-        border-radius: 2px;
-        background: var(--accent-gradient);
+    svg {
+        flex-shrink: 0;
+        color: var(--accent-primary);
     }
 `;
 

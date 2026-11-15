@@ -5,7 +5,7 @@ import {openUrl} from "../api/system";
 import {elevatedPanel} from "../ui/panel";
 import {samePath} from "../utils/format";
 import {panelInStyle} from "../ui/motion";
-import {AppIcon, CrossIcon, GlobeIcon, PlusIcon, ServerIcon} from "./Icons";
+import {AppIcon, CrossIcon, GlobeIcon, PlusIcon, ServerIcon, ShareIcon} from "./Icons";
 import {CountBadge} from "./CountBadge";
 import {useTranslation} from "@photino-net-utils/bridge";
 
@@ -74,7 +74,7 @@ export function SharePanel({currentFolder}: { currentFolder: string }) {
             {open && (
                 <Panel>
                     <Head>
-                        <Title>{t("share")}</Title>
+                        <Title><ShareIcon size={12}/>{t("share")}</Title>
                         <Close onClick={() => setOpen(false)} title={t("close")} type="button">
                             <CrossIcon size={10}/>
                         </Close>
@@ -212,12 +212,9 @@ const Title = styled.span`
     letter-spacing: 0.1em;
     text-transform: uppercase;
 
-    &::before {
-        content: "";
-        width: 2px;
-        height: 10px;
-        border-radius: 2px;
-        background: var(--accent-gradient);
+    svg {
+        flex-shrink: 0;
+        color: var(--accent-primary);
     }
 `;
 

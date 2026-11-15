@@ -161,8 +161,11 @@ internal sealed record SchemeRequest(bool Enabled);
 /// <summary>Body for <c>app.scheme</c>: whether <c>yafm://</c> links are registered, and to which copy.</summary>
 internal sealed record SchemeStatusPayload(bool Registered, bool PathMatches, string? RegisteredPath);
 
-/// <summary>Body for <c>fs.visibility</c>: the shell's hidden-item options.</summary>
-internal sealed record FsVisibilityPayload(bool ShowHidden, bool ShowSystem);
+/// <summary>Body for <c>fs.visibility</c>: the shell's hidden-item options and this app's own choice.</summary>
+internal sealed record FsVisibilityPayload(bool ShowHidden, bool ShowSystem, bool Overridden);
+
+/// <summary>Body for <c>fs.hidden.set</c>: null follows the shell again, a value overrides it.</summary>
+internal sealed record HiddenFilesRequest(bool? Show);
 
 /// <summary>Body for <c>fs.hidden.toggle</c>: the session's ordinary-hidden state.</summary>
 internal sealed record HiddenFilesPayload(bool ShowHidden, bool ShowSystem, bool Overridden);
