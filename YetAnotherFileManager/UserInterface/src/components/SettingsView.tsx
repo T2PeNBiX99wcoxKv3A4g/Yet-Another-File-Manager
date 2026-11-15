@@ -4235,7 +4235,7 @@ const DeviceRow = styled.div`
     padding: 8px 10px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
-    background: var(--bg-input);
+    background: rgba(var(--bg-rgb), 0.35);
 `;
 
 const DeviceInfo = styled.div`

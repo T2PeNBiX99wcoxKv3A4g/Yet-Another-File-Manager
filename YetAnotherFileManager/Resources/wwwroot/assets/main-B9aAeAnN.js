@@ -4004,7 +4004,7 @@ import{n as e}from"./rolldown-runtime-WkwZ5CU-.js";import{A as t,B as n,C as r,D
     padding: 8px 10px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
-    background: var(--bg-input);
+    background: rgba(var(--bg-rgb), 0.35);
 `,Rg=v.div`
     display: flex;
     flex-direction: column;
