@@ -42,6 +42,10 @@ if (-not (Test-Path (Join-Path $source "yafm-shellmenu.exe"))) {
     throw "No yafm-shellmenu.exe in $source; the shell menu helper was not published."
 }
 
+if (-not (Test-Path (Join-Path $source "x64\7z.dll"))) {
+    throw "No x64\7z.dll in $source; RAR and the other 7-Zip formats would not open."
+}
+
 # WiX ships as a .NET tool; keep it local to this repository instead of polluting the machine.
 # Version 5 is the newest release that does not require agreeing to the WiX maintenance fee.
 $toolPath = Join-Path $PSScriptRoot ".wix"

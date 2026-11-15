@@ -45,7 +45,11 @@
         <!-- Same place per-user installers normally use, so no elevation is involved. -->
         <StandardDirectory Id="LocalAppDataFolder">
             <Directory Id="ProgramsFolder" Name="Programs">
-                <Directory Id="INSTALLFOLDER" Name="Yet Another File Manager" />
+                <Directory Id="INSTALLFOLDER" Name="Yet Another File Manager">
+                    <!-- 7z.dll is loaded by path at runtime, so it has to stay a separate file. -->
+                    <Directory Id="SevenZipFolder" Name="x64" />
+                    <Directory Id="LicensesFolder" Name="licenses" />
+                </Directory>
             </Directory>
         </StandardDirectory>
 
@@ -76,6 +80,14 @@
                  component whose keypath carries a version, and these Rust binaries carry none. -->
             <Component Id="ShellMenuHelper" Directory="INSTALLFOLDER" Guid="*">
                 <File Id="YafmShellMenuExe" Source="$(var.SourceDir)\yafm-shellmenu.exe" KeyPath="yes" />
+            </Component>
+            <!-- RAR, ISO, CAB and the other formats the managed readers do not know are read by
+                 7z.dll, which the app looks for beside the executable. -->
+            <Component Id="SevenZipLib" Directory="SevenZipFolder" Guid="*">
+                <File Id="SevenZipDll" Source="$(var.SourceDir)\x64\7z.dll" KeyPath="yes" />
+            </Component>
+            <Component Id="SevenZipLicense" Directory="LicensesFolder" Guid="*">
+                <File Id="SevenZipLicenseTxt" Source="$(var.SourceDir)\licenses\7-Zip.txt" KeyPath="yes" />
             </Component>
         </ComponentGroup>
     </Fragment>
