@@ -2,7 +2,7 @@
 
     <!-- Windows-only sources are compiled only on a Windows host, which is also the only host
          where the Windows SDK projection is referenced; Linux builds leave them out. -->
-    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'win-x64' Or ('$(RuntimeIdentifier)' == '' And '$(NETCoreSdkPortableRuntimeIdentifier)' == 'win-x64')">
         <DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
     </PropertyGroup>
 
@@ -39,12 +39,12 @@
     <ItemGroup>
         <!-- The toast types live in the Windows projection; it ships beside the app without
              changing the target framework, as the shared library's README describes. -->
-        <PackageDownload Include="Microsoft.Windows.SDK.NET.Ref" Version="[10.0.28000.87]" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
-        <Reference Include="Microsoft.Windows.SDK.NET" Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+        <PackageDownload Include="Microsoft.Windows.SDK.NET.Ref" Version="[10.0.28000.87]" Condition="'$(RuntimeIdentifier)' == 'win-x64' Or ('$(RuntimeIdentifier)' == '' And '$(NETCoreSdkPortableRuntimeIdentifier)' == 'win-x64')" />
+        <Reference Include="Microsoft.Windows.SDK.NET" Condition="'$(RuntimeIdentifier)' == 'win-x64' Or ('$(RuntimeIdentifier)' == '' And '$(NETCoreSdkPortableRuntimeIdentifier)' == 'win-x64')">
             <HintPath>$(NuGetPackageRoot)microsoft.windows.sdk.net.ref\10.0.28000.87\lib\net9.0\Microsoft.Windows.SDK.NET.dll</HintPath>
             <Private>true</Private>
         </Reference>
-        <Reference Include="WinRT.Runtime" Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+        <Reference Include="WinRT.Runtime" Condition="'$(RuntimeIdentifier)' == 'win-x64' Or ('$(RuntimeIdentifier)' == '' And '$(NETCoreSdkPortableRuntimeIdentifier)' == 'win-x64')">
             <HintPath>$(NuGetPackageRoot)microsoft.windows.sdk.net.ref\10.0.28000.87\lib\net9.0\WinRT.Runtime.dll</HintPath>
             <Private>true</Private>
         </Reference>
