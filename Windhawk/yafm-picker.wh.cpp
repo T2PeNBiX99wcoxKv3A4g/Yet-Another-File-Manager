@@ -13,36 +13,37 @@
 /*
 # Yet Another File Manager pickers
 
-Replaces the Win32 common dialogs with the picker built into Yet Another File
-Manager. The picker is a normal process: the mod starts it with `--pick-file`,
-`--pick-save` or `--pick-folder`, waits for it to close, and hands the chosen
-paths back to the caller.
+Swap every Windows file dialog for the picker from
+[Yet Another File Manager](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager).
 
-## What is replaced
+Install the app first. Without it the mod stays out of the way and each program
+keeps its own dialog.
 
-- `GetOpenFileNameW/A` - Open file
-- `GetSaveFileNameW/A` - Save As
-- `SHBrowseForFolderW/A` - Select folder
-- `IFileOpenDialog` / `IFileSaveDialog` - the Common Item Dialog that Discord,
-  Telegram and most Electron and Qt 6 applications ask COM for
+## What changes
 
-The dialog's initial folder, file name, extension filter and default extension
-are passed to the picker. Multi-selection is preserved for Open.
+- **Open** and **Save As**, including the newer COM dialogs that Discord,
+  Telegram, VS Code and most Electron and Qt programs open.
+- **Select folder**.
 
-The COM dialog is answered by a stand-in object. It also accepts
-`IFileDialog::Advise` and raises `OnFileOk` before `Show` returns, because Qt
-refuses to continue when `Advise` fails and `comdlg32` falls back to its legacy
-dialog. A Save As result is a path that does not exist yet, so `GetResult`
-returns an item the mod builds itself; the shell refuses to make one.
+The picker opens where the program asked, with its file name, filter and
+default extension already filled in, and multi-select still works.
+
+## Settings
+
+Four switches, one per dialog type. Turn one off and only that dialog stays
+native.
+
+## Conflicts
+
+Only one mod can own a dialog. **Modernize Folder Picker Dialog**
+(`modernize-folder-picker-dialog`) replaces folder pickers with its own, so
+folder pickers stay native while it is on. Turn it off to use this one.
 
 ## Limits
 
-- A low-integrity mod cannot inject into elevated processes, so pickers opened
-  by an administrator program are not replaced.
-- The picker is a separate window and takes a moment to start; the calling
-  program waits for it, which is what a modal dialog does anyway.
-- If no copy of the app is found, the hook calls the original dialog.
-- The three `Replace ...` settings can each be turned off on their own.
+- Dialogs opened by an administrator program are not replaced.
+- If the app cannot be found, the original dialog is used.
+- The WinRT pickers a few Store apps use are not covered.
 */
 // ==/WindhawkModReadme==
 
