@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.10.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.9.0..v0.10.0) - 2026-11-14
+
+### ⛰️  Features
+
+- *(share)* Approve web-share devices and protect them with a password - ([d73cd9c](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d73cd9cfb54179ac4880f9241e38b507383d6681))
+- *(shell)* Share the selection through the Windows share sheet - ([4502f78](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/4502f78a5541dae00477f97ebc8ee8f237783eab))
+- *(shell)* Add the Windows 11 File Explorer command - ([37d62f0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/37d62f0a6e5740e62675edf015073335072eadd6))
+- *(update)* Install when the download finishes and close the panel on cancel - ([6c6b53e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/6c6b53ed16b710c9fb00fce999ac2a166c91cebe))
+- Choose the suffix used when an automatic name collides - ([c19fb50](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c19fb50525a6f128d5d81998acc856d9abbdf8f6))
+- Show archive pictures in grid tiles and the preview strip - ([1623466](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/162346601b2c6ea55b3ee9dfe667080e6bb2d0c8))
+- Give the gallery and recycle bin the file browser's details pane - ([a43cd8f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/a43cd8fc3e894b48229cb5f75832433195b9a7ac))
+
+### 🐛 Bug Fixes
+
+- *(share)* Tidy the access gate and device list - ([0baa213](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/0baa2130bfa578f4297b73ae5788eea838ea83c5))
+- *(shell)* Read more of the Windows context menu - ([66f4bbc](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/66f4bbcaee1bb16097ada4e72fd0d875cc7710d8))
+- Stop a write inside a protected child folder from asking for confirmation - ([028b31d](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/028b31d2ae32bffcba07d1ec827c2cbe6ce5f8b5))
+- Let the grid's select-all button keep the selection it makes - ([d9f134a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d9f134a14c3c4ca91a9fe97ee19d6c5e1aaa3539))
+- Make the logon task start one copy, for the right user, with --autostart - ([d6c539e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d6c539eb3aa293c8a52247ce8b378ca96dfa43d2))
+
+### ⚙️ Miscellaneous Tasks
+
+- Update PhotinoNetUtils bridge to version 0.29.0 - ([0d9f79c](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/0d9f79cdea48fdb8c457997a8c684d1b2afae82a))
+
+### ◀️ Revert
+
+- Drop the Windows 11 context menu package - ([dd72eec](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/dd72eecf0efba46b73ea7611ba214a352646fc88))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([f99f761](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/f99f7611af77f566bb04608695f551e3d95c08c4))
+
+
 ## [0.9.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.8.0..v0.9.0) - 2026-11-14
 
 ### ⛰️  Features
