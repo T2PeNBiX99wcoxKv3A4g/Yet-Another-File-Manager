@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.10.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.10.0..v0.10.1) - 2026-11-15
+
+### 🐛 Bug Fixes
+
+- *(build)* Keep the share sheet out of the Linux build - ([cf5ff6d](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/cf5ff6ddc21d623a68b431312e46feb9e5afb272))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([05307e3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/05307e3e381f614ebb676aa56086cd843697aacd))
+
+### Build
+
+- Treat every Windows runtime identifier as Windows - ([a3366b5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/a3366b5cdf9e63465c0b8acbbbf17b6e6604a86e))
+- Follow the runtime identifier for the Windows projection - ([a7b8ff7](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/a7b8ff7dbbf72c6f40d5354fb2f1dcb9e2dbc539))
+
+
 ## [0.10.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.9.0..v0.10.0) - 2026-11-14
 
 ### ⛰️  Features
