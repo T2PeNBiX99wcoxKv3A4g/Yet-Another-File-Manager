@@ -339,7 +339,7 @@ export function FileTray({
         >
             <Head onPointerDown={startDrag} onPointerMove={movePanel} onPointerUp={endDrag}>
                 <Title>
-                    <PackageIcon size={13}/>
+                    <PackageIcon size={12}/>
                     {t("tray")}
                     <Count>{total}</Count>
                 </Title>
@@ -441,11 +441,26 @@ const Head = styled.div`
 const Title = styled.span`
     display: flex;
     align-items: center;
-    gap: 6px;
-    color: var(--text-primary);
-    font-size: 11px;
+    gap: 7px;
+    color: var(--text-secondary);
+    font-size: 10px;
     font-weight: 600;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+
+    &::before {
+        content: "";
+        width: 2px;
+        height: 10px;
+        flex-shrink: 0;
+        border-radius: 2px;
+        background: var(--accent-gradient);
+    }
+
+    svg {
+        flex-shrink: 0;
+        color: var(--accent-primary);
+    }
 `;
 
 const Count = styled.span`
