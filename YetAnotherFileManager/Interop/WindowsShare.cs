@@ -1,3 +1,4 @@
+#if WINDOWS
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using PhotinoNetUtils.Utils;
@@ -125,3 +126,4 @@ internal static class WindowsShare
         void ShowShareUIForWindow(IntPtr window);
     }
 }
+#endif

@@ -104,9 +104,8 @@ internal partial class FileSystemService : INativeMessageHandler
             }
 
             case "fs.share":
-                return context.Reply("fs.share.result", OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763)
-                    ? await WindowsShare.ShareAsync(context.Payload<ShareRequest>()?.Paths ?? [])
-                    : new ShareResultPayload(false, "Sharing is only available on Windows."));
+                return context.Reply("fs.share.result",
+                    await ShareAsync(context.Payload<ShareRequest>()?.Paths ?? []));
 
             case "fs.hidden.toggle":
                 return context.Reply("fs.hidden.toggle.result", await Task.Run(async () =>
@@ -662,6 +661,19 @@ internal partial class FileSystemService : INativeMessageHandler
                 return null;
         }
     }
+
+    /// <summary>
+    ///     Hands the selection to the Windows share sheet. The Linux build has no share sheet and
+    ///     leaves the Windows-only source out entirely, so the answer is a plain refusal there.
+    /// </summary>
+    private static Task<ShareResultPayload> ShareAsync(IReadOnlyList<string> paths) =>
+#if WINDOWS
+        OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763)
+            ? WindowsShare.ShareAsync(paths)
+            : Task.FromResult(new ShareResultPayload(false, "Sharing is only available on Windows."));
+#else
+        Task.FromResult(new ShareResultPayload(false, "Sharing is only available on Windows."));
+#endif
 
     /// <summary>The icon the shell would show, or null when the settings and the shell have none.</summary>
     private static async Task<string?> IconAsync(IconRequest? request)

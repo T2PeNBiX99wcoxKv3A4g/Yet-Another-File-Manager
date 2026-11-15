@@ -1,5 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+    <!-- Windows-only sources are compiled only on a Windows host, which is also the only host
+         where the Windows SDK projection is referenced; Linux builds leave them out. -->
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+        <DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
+    </PropertyGroup>
+
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
         <TargetFramework>net11.0</TargetFramework>
