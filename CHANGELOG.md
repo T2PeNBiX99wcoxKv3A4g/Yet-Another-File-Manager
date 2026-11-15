@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.14.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.13.5..v0.14.0) - 2026-11-15
+
+### ⛰️  Features
+
+- *(ui)* Give the settings buttons their icons - ([0738194](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/07381942e21b6487877f80383d18b137c60f3529))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([e91f85e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/e91f85e4fcc945a3c205384fbe9f9192fa0b4ade))
+
+
 ## [0.13.5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.13.4..v0.13.5) - 2026-11-15
 
 ### 🐛 Bug Fixes
