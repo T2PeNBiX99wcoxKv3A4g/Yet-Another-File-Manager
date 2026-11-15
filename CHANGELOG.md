@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.13.5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.13.4..v0.13.5) - 2026-11-15
+
+### 🐛 Bug Fixes
+
+- *(picker)* Open a folder on double click, not pick it - ([60745b7](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/60745b7b57b52859ff6e0a7902055f9921504814))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([112488e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/112488ee960e017c219600c117c73898ffb01dc7))
+
+
 ## [0.13.4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.13.3..v0.13.4) - 2026-11-15
 
 ### 🐛 Bug Fixes
