@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.11.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.11.0..v0.11.1) - 2026-11-15
+
+### 🐛 Bug Fixes
+
+- *(ui)* Put the accent rule back beside the section icons - ([36cc730](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/36cc730409f1cc77137e1aa5e5b042c22a77230d))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([5b3e05d](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/5b3e05d2ef2b686e385e0feaef025817a49debd7))
+
+
 ## [0.11.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.10.4..v0.11.0) - 2026-11-15
 
 ### ⛰️  Features
