@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.10.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.10.1..v0.10.2) - 2026-11-15
+
+### 🐛 Bug Fixes
+
+- *(installer)* Ship 7z.dll with the MSI - ([123f548](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/123f548eac1dc35d44fa05b4b01613280629b8fb))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([d200550](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d200550a5617c10420c15cde97fdf3dbdfeab5c0))
+
+
 ## [0.10.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.10.0..v0.10.1) - 2026-11-15
 
 ### 🐛 Bug Fixes
