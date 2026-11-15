@@ -7,10 +7,16 @@
 #   pwsh -File Windhawk\verify-picker.ps1 open
 #   pwsh -File Windhawk\verify-picker.ps1 save
 #   pwsh -File Windhawk\verify-picker.ps1 folder
+#   pwsh -File Windhawk\verify-picker.ps1 dialog-open
+#   pwsh -File Windhawk\verify-picker.ps1 dialog-save
+#   pwsh -File Windhawk\verify-picker.ps1 dialog-folder
+#
+# The dialog-* modes use IFileOpenDialog / IFileSaveDialog, which Discord,
+# Telegram and other modern programs open.
 #
 # "open" and "save" accept an initial folder as the second argument.
 param(
-    [ValidateSet("open", "save", "folder")]
+    [ValidateSet("open", "save", "folder", "dialog-open", "dialog-save", "dialog-folder")]
     [string]$Mode = "open",
     [string]$Initial = $env:TEMP
 )
@@ -19,7 +25,7 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $project = Join-Path $root "picker-probe"
-$exe = Join-Path $project "bin/Release/net11.0/PickerProbe.exe"
+$exe = Join-Path $project "bin/Release/net11.0-windows/PickerProbe.exe"
 
 dotnet build $project -c Release --nologo | Out-Null
 if (-not (Test-Path $exe)) {
@@ -27,8 +33,8 @@ if (-not (Test-Path $exe)) {
 }
 
 $flag = switch ($Mode) {
-    "save" { "--pick-save" }
-    "folder" { "--pick-folder" }
+    { $_ -in "save", "dialog-save" } { "--pick-save" }
+    { $_ -in "folder", "dialog-folder" } { "--pick-folder" }
     default { "--pick-file" }
 }
 

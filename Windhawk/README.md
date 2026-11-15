@@ -48,6 +48,8 @@ app's own Open / Save As / Select folder.
 - `GetOpenFileNameW/A` - Open file
 - `GetSaveFileNameW/A` - Save As
 - `SHBrowseForFolderW/A` - Select folder
+- `IFileOpenDialog` / `IFileSaveDialog` - the Common Item Dialog, which Discord,
+  Telegram and most Electron and Qt 6 applications use
 
 The dialog's initial folder, file name, extension filter and default extension
 are passed to the picker, and multi-selection is preserved for Open. The app is
@@ -59,9 +61,19 @@ Each group has its own switch in the mod's settings:
 - **Replace Open file pickers**
 - **Replace Save As pickers**
 - **Replace folder pickers**
+- **Replace modern file dialogs**
 
 Turning one off leaves that dialog untouched while the others are still
 replaced.
+
+### Conflicts
+
+Only one mod can own a dialog. This was seen with
+**Modernize Folder Picker Dialog** (`modernize-folder-picker-dialog`), which
+replaces `SHBrowseForFolderW` with its own folder dialog and never calls the
+original when it succeeds. While it is enabled, folder pickers are not replaced
+by this mod, and `verify-picker.ps1 folder` reports `FAIL`. Disable it (or its
+folder replacement) to use this mod's folder picker.
 
 ### Try it
 
@@ -78,7 +90,13 @@ checks that the app's picker took its place instead of the original dialog:
 pwsh -File Windhawk\verify-picker.ps1 open
 pwsh -File Windhawk\verify-picker.ps1 save
 pwsh -File Windhawk\verify-picker.ps1 folder
+pwsh -File Windhawk\verify-picker.ps1 dialog-open
+pwsh -File Windhawk\verify-picker.ps1 dialog-save
+pwsh -File Windhawk\verify-picker.ps1 dialog-folder
 ```
+
+The `dialog-*` modes go through `IFileOpenDialog` / `IFileSaveDialog`, the way
+Discord, Telegram and other modern programs ask for a file.
 
 It prints `PASS` when a `--pick-file` / `--pick-save` / `--pick-folder` process
 appears, closes the picker so the probe returns as if Cancel had been pressed,
@@ -88,17 +106,13 @@ choose a file; it prints the path the caller gets.
 
 ### Limits
 
-- Only the classic common dialogs are covered. The newer COM item dialogs
-  (`IFileOpenDialog` / `IFileSaveDialog`) are not replaced yet; some newer
-  applications use them and keep their own appearance.
+- The WinRT `FileOpenPicker` / `FileSavePicker` that a few Store-style apps use
+  are not covered.
 - A low-integrity mod cannot inject into elevated processes, so dialogs opened
   by an administrator program are not replaced.
 - If no copy of the app is found, the original dialog is shown.
-- Another mod that hooks the same function can take the call first. This was
-  seen with `modernize-folder-picker-dialog`, which replaces
-  `SHBrowseForFolderW` with its own folder dialog; while it is enabled, folder
-  pickers are not replaced by this mod and `verify-picker.ps1 folder` reports
-  `FAIL`. Disable the other mod (or its folder replacement) to use this one.
+- Another mod that hooks the same function can take the call first; see
+  **Conflicts** above.
 
 
 Both files are what a submission to the Windhawk mod collection needs.

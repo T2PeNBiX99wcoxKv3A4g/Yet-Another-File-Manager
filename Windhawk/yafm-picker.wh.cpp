@@ -1,12 +1,12 @@
 // ==WindhawkMod==
 // @id              yafm-picker
 // @name            Yet Another File Manager pickers
-// @description     Replaces the classic Windows Open, Save As and folder dialogs with the app's picker
-// @version         1.0.0
+// @description     Replaces the Windows Open, Save As and folder dialogs with the app's picker
+// @version         1.1.0
 // @author          T2PeNBiX99wcoxKv3A4g
 // @github          https://github.com/T2PeNBiX99wcoxKv3A4g
 // @include         *
-// @compilerOptions -lole32 -lshell32 -lshlwapi
+// @compilerOptions -lole32 -lshell32 -lshlwapi -luuid
 // ==/WindhawkMod==
 
 // ==WindhawkModReadme==
@@ -62,13 +62,21 @@ COM dialog and keep their own appearance.
   $name: Replace folder pickers
   $description: >-
     Replace SHBrowseForFolder with the app picker.
+- ReplaceModernFilePickers: 1
+  $name: Replace modern file dialogs
+  $description: >-
+    Replace IFileOpenDialog and IFileSaveDialog, the dialogs Discord, Telegram
+    and most Electron and Qt 6 applications open.
 */
 // ==/WindhawkModSettings==
 
 #include <windows.h>
 #include <commdlg.h>
 #include <shlobj.h>
+#include <shobjidl.h>
 #include <shlwapi.h>
+
+#include <new>
 
 #include <string>
 #include <vector>
@@ -94,6 +102,7 @@ struct PickerRequest {
 static bool g_replaceOpen = true;
 static bool g_replaceSave = true;
 static bool g_replaceFolder = true;
+static bool g_replaceModern = true;
 
 using GetOpenFileNameW_t = BOOL(WINAPI*)(LPOPENFILENAMEW);
 using GetOpenFileNameA_t = BOOL(WINAPI*)(LPOPENFILENAMEA);
@@ -113,6 +122,7 @@ static void ReadSettings() {
     g_replaceOpen = Wh_GetIntSetting(L"ReplaceOpenFilePickers") != 0;
     g_replaceSave = Wh_GetIntSetting(L"ReplaceSaveFilePickers") != 0;
     g_replaceFolder = Wh_GetIntSetting(L"ReplaceFolderPickers") != 0;
+    g_replaceModern = Wh_GetIntSetting(L"ReplaceModernFilePickers") != 0;
 }
 
 static std::wstring GetStringSetting(PCWSTR name) {
@@ -696,6 +706,486 @@ static void InstallHook(HMODULE module, PCSTR name, void* hook, void** original)
         Wh_Log(L"Could not hook %S", name);
 }
 
+// ---------------------------------------------------------------------------
+// IFileOpenDialog / IFileSaveDialog
+//
+// Programs built on a modern toolkit (Discord, Telegram, most Electron and Qt 6
+// applications) do not call the common dialogs above. They create the Common
+// Item Dialog through COM and call Show on it. The object handed out here
+// answers that call with the app's picker and keeps the chosen paths for
+// GetResult / GetResults; everything else the caller sets is remembered so the
+// picker opens in the same place and with the same filter.
+// ---------------------------------------------------------------------------
+
+struct ModernDialogState {
+    bool save = false;
+    FILEOPENDIALOGOPTIONS options = 0;
+    std::wstring folder;
+    std::wstring name;
+    std::wstring extension;
+    std::wstring title;
+    std::vector<std::vector<std::wstring>> filters;
+    UINT filterIndex = 1;
+    std::vector<std::wstring> results;
+};
+
+static std::vector<std::wstring> SplitPatterns(PCWSTR spec) {
+    std::vector<std::wstring> patterns;
+    if (!spec)
+        return patterns;
+
+    std::wstring current;
+    for (PCWSTR p = spec;; p++) {
+        if (*p == L';' || *p == L'\0') {
+            if (!current.empty()) {
+                patterns.push_back(current);
+                current.clear();
+            }
+
+            if (*p == L'\0')
+                break;
+        } else {
+            current.push_back(*p);
+        }
+    }
+
+    return patterns;
+}
+
+static std::wstring JoinPatterns(const std::vector<std::wstring>& patterns) {
+    std::wstring joined;
+    for (const auto& pattern : patterns) {
+        if (!joined.empty())
+            joined.push_back(L';');
+        joined += pattern;
+    }
+
+    return joined;
+}
+
+static std::wstring ItemPath(IShellItem* item) {
+    if (!item)
+        return {};
+
+    PWSTR text = nullptr;
+    if (FAILED(item->GetDisplayName(SIGDN_FILESYSPATH, &text)) || !text)
+        return {};
+
+    std::wstring path = text;
+    CoTaskMemFree(text);
+    return path;
+}
+
+static HRESULT ItemFromPath(const std::wstring& path, IShellItem** item) {
+    return SHCreateItemFromParsingName(path.c_str(), nullptr, IID_PPV_ARGS(item));
+}
+
+using CreateItemArray_t = HRESULT(WINAPI*)(UINT, const ITEMIDLIST* const*, IShellItemArray**);
+
+static HRESULT ArrayFromPaths(const std::vector<std::wstring>& paths, IShellItemArray** array) {
+    if (!array)
+        return E_POINTER;
+
+    *array = nullptr;
+
+    std::vector<PIDLIST_ABSOLUTE> pidls;
+    for (const auto& path : paths) {
+        PIDLIST_ABSOLUTE pidl = ILCreateFromPathW(path.c_str());
+        if (pidl)
+            pidls.push_back(pidl);
+    }
+
+    HRESULT hr = E_FAIL;
+    if (!pidls.empty()) {
+        // Looked up by hand: the SDK and MinGW disagree about the pointer constness here.
+        static auto createArray = reinterpret_cast<CreateItemArray_t>(
+            GetProcAddress(GetModuleHandleW(L"shell32.dll"), "SHCreateShellItemArrayFromIDLists"));
+
+        if (createArray) {
+            std::vector<const ITEMIDLIST*> items(pidls.begin(), pidls.end());
+            hr = createArray(static_cast<UINT>(items.size()), items.data(), array);
+        }
+    }
+
+    for (auto pidl : pidls)
+        CoTaskMemFree(pidl);
+
+    return hr;
+}
+
+static void CollectResults(IFileDialog* dialog, bool multiple, std::vector<std::wstring>& results) {
+    if (!dialog)
+        return;
+
+    if (multiple) {
+        IFileOpenDialog* open = nullptr;
+        if (SUCCEEDED(dialog->QueryInterface(IID_PPV_ARGS(&open))) && open) {
+            IShellItemArray* array = nullptr;
+            if (SUCCEEDED(open->GetResults(&array)) && array) {
+                DWORD count = 0;
+                array->GetCount(&count);
+
+                for (DWORD i = 0; i < count; i++) {
+                    IShellItem* item = nullptr;
+                    if (SUCCEEDED(array->GetItemAt(i, &item)) && item) {
+                        std::wstring path = ItemPath(item);
+                        if (!path.empty())
+                            results.push_back(path);
+                        item->Release();
+                    }
+                }
+
+                array->Release();
+            }
+
+            open->Release();
+        }
+
+        if (!results.empty())
+            return;
+    }
+
+    IShellItem* item = nullptr;
+    if (SUCCEEDED(dialog->GetResult(&item)) && item) {
+        std::wstring path = ItemPath(item);
+        if (!path.empty())
+            results.push_back(path);
+        item->Release();
+    }
+}
+
+using CoCreateInstance_t = HRESULT(WINAPI*)(REFCLSID, LPUNKNOWN, DWORD, REFIID, LPVOID*);
+static CoCreateInstance_t CoCreateInstance_Original;
+
+/// The original dialog, for the one case the picker cannot answer: no copy of the app.
+static HRESULT ShowNativeDialog(HWND owner, ModernDialogState& state) {
+    if (!CoCreateInstance_Original)
+        return E_FAIL;
+
+    const CLSID& clsid = state.save ? CLSID_FileSaveDialog : CLSID_FileOpenDialog;
+    IFileDialog* dialog = nullptr;
+
+    HRESULT hr = CoCreateInstance_Original(clsid, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog));
+    if (FAILED(hr) || !dialog)
+        return hr;
+
+    if (state.options)
+        dialog->SetOptions(state.options);
+
+    if (!state.title.empty())
+        dialog->SetTitle(state.title.c_str());
+
+    if (!state.name.empty())
+        dialog->SetFileName(state.name.c_str());
+
+    if (!state.extension.empty())
+        dialog->SetDefaultExtension(state.extension.c_str());
+
+    if (!state.folder.empty()) {
+        IShellItem* folder = nullptr;
+        if (SUCCEEDED(ItemFromPath(state.folder, &folder)) && folder) {
+            dialog->SetFolder(folder);
+            folder->Release();
+        }
+    }
+
+    hr = dialog->Show(owner);
+    if (SUCCEEDED(hr))
+        CollectResults(dialog, (state.options & FOS_ALLOWMULTISELECT) != 0, state.results);
+
+    dialog->Release();
+    return hr;
+}
+
+/// One implementation of IFileDialog; the open and save interfaces only differ after it.
+template <typename TInterface>
+class DialogProxy : public TInterface {
+  public:
+    DialogProxy(REFIID interfaceIid, bool save) : interfaceIid_(interfaceIid) {
+        state_.save = save;
+    }
+
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** object) override {
+        if (!object)
+            return E_POINTER;
+
+        if (IsEqualIID(riid, IID_IUnknown) || IsEqualIID(riid, IID_IModalWindow) ||
+            IsEqualIID(riid, IID_IFileDialog) || IsEqualIID(riid, interfaceIid_)) {
+            *object = static_cast<TInterface*>(this);
+            AddRef();
+            return S_OK;
+        }
+
+        *object = nullptr;
+        return E_NOINTERFACE;
+    }
+
+    ULONG STDMETHODCALLTYPE AddRef() override {
+        return InterlockedIncrement(&references_);
+    }
+
+    ULONG STDMETHODCALLTYPE Release() override {
+        ULONG left = InterlockedDecrement(&references_);
+        if (left == 0)
+            delete this;
+        return left;
+    }
+
+    HRESULT STDMETHODCALLTYPE Show(HWND owner) override {
+        PickerRequest request;
+        request.Save = state_.save;
+        request.Folder = !state_.save && (state_.options & FOS_PICKFOLDERS) != 0;
+        request.Multiple = (state_.options & FOS_ALLOWMULTISELECT) != 0;
+        request.Initial = state_.folder;
+        request.Name = state_.name;
+        request.Extension = state_.extension;
+
+        if (!state_.filters.empty()) {
+            UINT index = state_.filterIndex >= 1 && state_.filterIndex <= state_.filters.size()
+                             ? state_.filterIndex - 1
+                             : 0;
+            request.Filter = JoinPatterns(state_.filters[index]);
+        }
+
+        std::vector<std::wstring> paths;
+        PickResult result = RunPicker(request, paths);
+
+        if (result == PickResult::Picked) {
+            state_.results = paths;
+            return S_OK;
+        }
+
+        if (result == PickResult::Cancelled)
+            return HRESULT_FROM_WIN32(ERROR_CANCELLED);
+
+        return ShowNativeDialog(owner, state_);
+    }
+
+    HRESULT STDMETHODCALLTYPE SetFileTypes(UINT count, const COMDLG_FILTERSPEC* specs) override {
+        state_.filters.clear();
+        for (UINT i = 0; specs && i < count; i++)
+            state_.filters.push_back(SplitPatterns(specs[i].pszSpec));
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE SetFileTypeIndex(UINT index) override {
+        state_.filterIndex = index;
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE GetFileTypeIndex(UINT* index) override {
+        if (!index)
+            return E_POINTER;
+        *index = state_.filterIndex;
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE Advise(IFileDialogEvents*, DWORD*) override {
+        return E_NOTIMPL;
+    }
+
+    HRESULT STDMETHODCALLTYPE Unadvise(DWORD) override {
+        return E_NOTIMPL;
+    }
+
+    HRESULT STDMETHODCALLTYPE SetOptions(FILEOPENDIALOGOPTIONS options) override {
+        state_.options = options;
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE GetOptions(FILEOPENDIALOGOPTIONS* options) override {
+        if (!options)
+            return E_POINTER;
+        *options = state_.options;
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE SetDefaultFolder(IShellItem* folder) override {
+        state_.folder = ItemPath(folder);
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE SetFolder(IShellItem* folder) override {
+        state_.folder = ItemPath(folder);
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE GetFolder(IShellItem** folder) override {
+        if (!folder)
+            return E_POINTER;
+
+        *folder = nullptr;
+        if (state_.folder.empty())
+            return E_FAIL;
+
+        return ItemFromPath(state_.folder, folder);
+    }
+
+    HRESULT STDMETHODCALLTYPE GetCurrentSelection(IShellItem** item) override {
+        if (!item)
+            return E_POINTER;
+
+        *item = nullptr;
+        if (!state_.results.empty())
+            return ItemFromPath(state_.results.front(), item);
+
+        return state_.folder.empty() ? E_FAIL : ItemFromPath(state_.folder, item);
+    }
+
+    HRESULT STDMETHODCALLTYPE SetFileName(LPCWSTR name) override {
+        state_.name = name ? name : L"";
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE GetFileName(LPWSTR* name) override {
+        if (!name)
+            return E_POINTER;
+
+        *name = nullptr;
+        if (state_.name.empty())
+            return S_FALSE;
+
+        size_t bytes = (state_.name.size() + 1) * sizeof(wchar_t);
+        auto buffer = static_cast<LPWSTR>(CoTaskMemAlloc(bytes));
+        if (!buffer)
+            return E_OUTOFMEMORY;
+
+        memcpy(buffer, state_.name.c_str(), bytes);
+        *name = buffer;
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE SetTitle(LPCWSTR title) override {
+        state_.title = title ? title : L"";
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE SetOkButtonLabel(LPCWSTR) override {
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE SetFileNameLabel(LPCWSTR) override {
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE GetResult(IShellItem** item) override {
+        if (!item)
+            return E_POINTER;
+
+        *item = nullptr;
+        if (state_.results.empty())
+            return E_UNEXPECTED;
+
+        return ItemFromPath(state_.results.front(), item);
+    }
+
+    HRESULT STDMETHODCALLTYPE AddPlace(IShellItem*, FDAP) override {
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE SetDefaultExtension(LPCWSTR extension) override {
+        state_.extension = extension ? extension : L"";
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE Close(HRESULT) override {
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE SetClientGuid(REFGUID) override {
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE ClearClientData() override {
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE SetFilter(IShellItemFilter*) override {
+        return S_OK;
+    }
+
+  protected:
+    ModernDialogState state_;
+
+  private:
+    IID interfaceIid_;
+    LONG references_ = 1;
+};
+
+class OpenDialogProxy : public DialogProxy<IFileOpenDialog> {
+  public:
+    OpenDialogProxy() : DialogProxy(IID_IFileOpenDialog, false) {}
+
+    HRESULT STDMETHODCALLTYPE GetResults(IShellItemArray** results) override {
+        if (!results)
+            return E_POINTER;
+
+        *results = nullptr;
+        if (state_.results.empty())
+            return E_UNEXPECTED;
+
+        return ArrayFromPaths(state_.results, results);
+    }
+
+    HRESULT STDMETHODCALLTYPE GetSelectedItems(IShellItemArray** items) override {
+        return GetResults(items);
+    }
+};
+
+class SaveDialogProxy : public DialogProxy<IFileSaveDialog> {
+  public:
+    SaveDialogProxy() : DialogProxy(IID_IFileSaveDialog, true) {}
+
+    HRESULT STDMETHODCALLTYPE SetSaveAsItem(IShellItem*) override {
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE SetProperties(IPropertyStore*) override {
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE SetCollectedProperties(IPropertyDescriptionList*, BOOL) override {
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE GetProperties(IPropertyStore** properties) override {
+        if (properties)
+            *properties = nullptr;
+        return E_NOTIMPL;
+    }
+
+    HRESULT STDMETHODCALLTYPE ApplyProperties(IShellItem*, IPropertyStore*, HWND,
+                                              IFileOperationProgressSink*) override {
+        return S_OK;
+    }
+};
+
+static HRESULT WINAPI CoCreateInstance_Hook(REFCLSID clsid, LPUNKNOWN outer, DWORD context, REFIID riid,
+                                            LPVOID* object) {
+    if (!g_replaceModern || outer || !object || !CoCreateInstance_Original)
+        return CoCreateInstance_Original(clsid, outer, context, riid, object);
+
+    const bool open = g_replaceOpen && IsEqualCLSID(clsid, CLSID_FileOpenDialog);
+    const bool save = g_replaceSave && IsEqualCLSID(clsid, CLSID_FileSaveDialog);
+
+    if (!open && !save)
+        return CoCreateInstance_Original(clsid, outer, context, riid, object);
+
+    IUnknown* dialog = open ? static_cast<IUnknown*>(new (std::nothrow) OpenDialogProxy())
+                            : static_cast<IUnknown*>(new (std::nothrow) SaveDialogProxy());
+
+    if (!dialog)
+        return CoCreateInstance_Original(clsid, outer, context, riid, object);
+
+    HRESULT hr = dialog->QueryInterface(riid, object);
+    dialog->Release();
+
+    if (FAILED(hr) && CoCreateInstance_Original)
+        return CoCreateInstance_Original(clsid, outer, context, riid, object);
+
+    return hr;
+}
+
 BOOL Wh_ModInit() {
     ReadSettings();
 
@@ -723,6 +1213,12 @@ BOOL Wh_ModInit() {
         reinterpret_cast<void*>(SHBrowseForFolderW_Hook), reinterpret_cast<void**>(&SHBrowseForFolderW_Original));
     InstallHook(shell, "SHBrowseForFolderA",
         reinterpret_cast<void*>(SHBrowseForFolderA_Hook), reinterpret_cast<void**>(&SHBrowseForFolderA_Original));
+
+    // The Common Item Dialog is handed out by COM, so the only place to take it is the
+    // activation itself; every other class falls straight through to the original.
+    HMODULE combase = LoadLibraryW(L"combase.dll");
+    InstallHook(combase, "CoCreateInstance", reinterpret_cast<void*>(CoCreateInstance_Hook),
+        reinterpret_cast<void**>(&CoCreateInstance_Original));
 
     return TRUE;
 }
