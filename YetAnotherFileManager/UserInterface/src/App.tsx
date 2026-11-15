@@ -2933,9 +2933,9 @@ export default function App() {
                                     {appInfo.debug && <DebugTag>debug</DebugTag>}
                                     {update?.available && (
                                         <UpdatePill
-                                            onClick={() => {
+                                            onClick={(event) => {
                                                 setSettingsFocus("updates");
-                                                openView("settings");
+                                                openView("settings", wantsNewTab(event));
                                             }}
                                             title={t("version_version_is_available", {version: update.latest})}
                                             type="button"

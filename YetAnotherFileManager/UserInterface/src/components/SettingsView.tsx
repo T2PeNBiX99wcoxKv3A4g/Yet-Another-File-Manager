@@ -1735,7 +1735,7 @@ export function SettingsView({
                                 </Note>
                             </RowText>
                             <RowEnd>
-                                {updateState?.available ? (
+                                {updateState?.available && (
                                     <>
                                         <ActionButton
                                             onClick={() => void openReleasePage()}
@@ -1753,23 +1753,22 @@ export function SettingsView({
                                             </ActionButton>
                                         )}
                                     </>
-                                ) : (
-                                    <>
-                                        <ActionButton
-                                            disabled={updateBusy}
-                                            onClick={() => void checkNow()}
-                                            type="button"
-                                        >
-                                            {updateBusy ? t("checking") : t("check_for_updates")}
-                                        </ActionButton>
-                                        <ActionButton
-                                            onClick={() => void openLogsFolder()}
-                                            type="button"
-                                        >
-                                            {t("open_log_folder")}
-                                        </ActionButton>
-                                    </>
                                 )}
+                                {/* Checking again stays available, so a release published while the
+                                    window is open can still be picked up. */}
+                                <ActionButton
+                                    disabled={updateBusy || updateDialog !== null}
+                                    onClick={() => void checkNow()}
+                                    type="button"
+                                >
+                                    {updateBusy ? t("checking") : t("check_for_updates")}
+                                </ActionButton>
+                                <ActionButton
+                                    onClick={() => void openLogsFolder()}
+                                    type="button"
+                                >
+                                    {t("open_log_folder")}
+                                </ActionButton>
                             </RowEnd>
                         </Row>
                         {updateError && (
