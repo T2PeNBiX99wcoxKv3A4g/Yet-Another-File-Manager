@@ -125,6 +125,7 @@ import {
 } from "./api/share";
 import {SharePairDialog} from "./components/SharePairDialog";
 import {fadeInStyle, pageInStyle, splitLineInStyle} from "./ui/motion";
+import {ToolbarButton, ToolbarSeparator} from "./ui/toolbar";
 import {
     comboOf,
     DefaultShortcuts,
@@ -390,6 +391,9 @@ export default function App() {
     } | null>(null);
     const [tasks, setTasks] = useState<TaskInfo[]>([]);
     const [activityOpen, setActivityOpen] = useState(false);
+    /** Where the gallery and the recycle bin put their own actions, and their line for the footer. */
+    const [pageActions, setPageActions] = useState<HTMLSpanElement | null>(null);
+    const [pageStatus, setPageStatus] = useState("");
     const tasksRef = useRef<TaskInfo[]>([]);
     /** The tabs closed in this session, newest last, for Ctrl+Shift+T. */
     const closedTabs = useRef<string[]>([]);
@@ -2494,6 +2498,9 @@ export default function App() {
                 </>
             )}
 
+            {/* A page that has actions of its own (gallery, recycle bin) mounts them here. */}
+            <span ref={setPageActions} style={{display: "contents"}}/>
+
             {archived && (
                 <ArchiveActions>
                     <ToolbarSeparator/>
@@ -2871,6 +2878,8 @@ export default function App() {
                             ) : kind === "gallery" ? (
                                 <GalleryView
                                 platform={appInfo?.platform}
+                                toolbarSlot={pageActions}
+                                onStatusChange={setPageStatus}
                                     confirmDelete={settings?.confirmDelete ?? false}
                                     find={pageFind}
                                     onSearchMatches={setViewFindTotal}
@@ -2889,6 +2898,8 @@ export default function App() {
                             ) : (
                                 <RecycleView
                                     find={pageFind}
+                                    toolbarSlot={pageActions}
+                                    onStatusChange={setPageStatus}
                                     onOpenLocation={navigate}
                                     onShowDetails={() => setDetailsVisible(true)}
                                     platform={appInfo?.platform}
@@ -2913,7 +2924,9 @@ export default function App() {
                         </FileArea>
 
                         <StatusBar>
-                            <span>{kind === "files" && active.listing ? statusLine(t, active.listing) : ""}</span>
+                            <span>
+                                {kind === "files" && active.listing ? statusLine(t, active.listing) : pageStatus}
+                            </span>
                             {appInfo ? (
                                 <StatusRight>
                                     <span>v{appInfo.version} · {appInfo.platform}</span>
@@ -3140,40 +3153,8 @@ const Toolbar = styled.header`
     -webkit-backdrop-filter: blur(10px);
 `;
 
-const IconButton = styled.button`
-    display: grid;
-    place-items: center;
-    width: 34px;
-    height: 34px;
-    flex-shrink: 0;
-    border: 1px solid transparent;
-    border-radius: var(--radius-md);
-    background: transparent;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: color 130ms ease, border-color 130ms ease, background 130ms ease, transform 130ms ease;
-
-    &:hover:not(:disabled) {
-        color: var(--text-primary);
-        border-color: var(--border-color-hover);
-        background: rgba(var(--accent-rgb), 0.10);
-        transform: translateY(-1px);
-    }
-
-    &:active:not(:disabled) {
-        transform: translateY(0);
-    }
-
-    &:disabled {
-        opacity: 0.32;
-        cursor: default;
-    }
-
-    &:focus-visible {
-        outline: 2px solid var(--border-color-focus);
-        outline-offset: 1px;
-    }
-`;
+/** The toolbar's own buttons come from the shared definition the pages also use. */
+const IconButton = ToolbarButton;
 
 /* Archive-only actions sit past a divider, so they never look like ordinary browsing buttons. */
 const ArchiveActions = styled.div`
@@ -3198,13 +3179,6 @@ const ArchiveEncrypted = styled.span`
     font-weight: 600;
     letter-spacing: 0.03em;
     white-space: nowrap;
-`;
-
-const ToolbarSeparator = styled.span`
-    width: 1px;
-    height: 20px;
-    margin: 0 3px;
-    background: var(--border-color);
 `;
 
 const PaneToolbar = styled.div<{ $active?: boolean }>`

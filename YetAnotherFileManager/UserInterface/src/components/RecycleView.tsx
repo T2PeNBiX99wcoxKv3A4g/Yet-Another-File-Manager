@@ -1,4 +1,5 @@
 import {type MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {createPortal} from "react-dom";
 import styled from "styled-components";
 import {
     deleteRecycleEntries,
@@ -17,7 +18,21 @@ import {matchesName} from "../find";
 import {type PageFind, useTextSearch} from "../ui/textSearch";
 import {formatBytes, formatDate, plural} from "../utils/format";
 import {readStoredJson, writeStoredJson} from "../storage";
-import {CheckIcon, CopyIcon, FileIcon, FolderIcon, GearIcon, MenuIcon, RefreshIcon, TrashIcon} from "./Icons";
+import {
+    CheckIcon,
+    CopyIcon,
+    EraserIcon,
+    EyeIcon,
+    FileIcon,
+    FolderIcon,
+    GearIcon,
+    LockIcon,
+    MenuIcon,
+    RefreshIcon,
+    TrashIcon,
+    TrashXIcon,
+} from "./Icons";
+import {ToolbarButton, ToolbarSeparator} from "../ui/toolbar";
 import RestoreSvg from "./icons/restore.svg?react";
 import {ConfirmDialog} from "./ConfirmDialog";
 import {ContextMenu, type ContextMenuItem} from "./ContextMenu";
@@ -41,6 +56,10 @@ interface RecycleViewProps {
     onPreviewChange?: (info: PreviewInfo | null, note?: string) => void;
     /** The host platform; the elevated all-profiles view only exists on Windows. */
     platform?: string;
+    /** The window's toolbar, where this page mounts its own actions. */
+    toolbarSlot?: HTMLElement | null;
+    /** The window's footer, where this page reports what it holds. */
+    onStatusChange?: (text: string) => void;
 }
 
 /**
@@ -56,6 +75,8 @@ export function RecycleView({
                                 onShowDetails,
                                 onPreviewChange,
                                 platform,
+                                toolbarSlot,
+                                onStatusChange,
                             }: RecycleViewProps) {
     const t = useTranslation();
     const selectionMenu = useSelectionMenu("recycle");
@@ -450,31 +471,32 @@ export function RecycleView({
         onPreviewChange?.(previewInfo, previewNote);
     }, [previewInfo, previewNote, onPreviewChange]);
 
+    const status = loading
+        ? t("reading")
+        : plural(t, rows.length, "k_1_item", "count_items")
+        + (selected.size > 0 ? ` · ${t("count_selected", {count: selected.size})}` : "");
+
+    useEffect(() => {
+        onStatusChange?.(status);
+    }, [status, onStatusChange]);
+
     return (
         <Page ref={root} onContextMenu={(event) => openMenu(event)}>
-            <Header>
-                <Heading>
-                    <TrashIcon size={16}/>
-                    <span>{t("recycle_bin")}</span>
-                    <Count>
-                        {loading ? "…" : plural(t, rows.length, "k_1_item", "count_items")}
-                        {selected.size > 0 && ` · ${t("count_selected", {count: selected.size})}`}
-                    </Count>
-                </Heading>
-
-                <Actions>
-                    <OrphanButton
+            {toolbarSlot && createPortal(
+                <>
+                    <ToolbarSeparator/>
+                    <ToggleButton
                         $on={showOrphans}
                         onClick={() => setShowOrphans((current) => !current)}
                         title={t("show_metadata_records_whose_content_is_already_gone")}
                         type="button"
                     >
-                        {t("orphans")}
-                    </OrphanButton>
+                        <EyeIcon size={16}/>
+                    </ToggleButton>
 
                     {showOrphans && isWindows && (
                         <>
-                            <ActionButton
+                            <ToolbarButton
                                 disabled={busy || adminLoaded}
                                 onClick={() => void loadAdmin()}
                                 title={adminLoaded
@@ -482,55 +504,64 @@ export function RecycleView({
                                     : t("ask_for_administrator_rights_and_list_every_profile_s_leftovers")}
                                 type="button"
                             >
-                                {busy ? t("working") : adminLoaded ? t("admin_view_loaded") : t("show_all_admin")}
-                            </ActionButton>
+                                <LockIcon size={16}/>
+                            </ToolbarButton>
                             {adminLoaded && adminEntries.length > 0 && (
-                                <ActionButton disabled={busy} onClick={() => setConfirm("purge")} type="button">
-                                    {t("delete_every_orphan")}
-                                </ActionButton>
+                                <DangerButton
+                                    disabled={busy}
+                                    onClick={() => setConfirm("purge")}
+                                    title={t("delete_every_orphan")}
+                                    type="button"
+                                >
+                                    <EraserIcon size={16}/>
+                                </DangerButton>
                             )}
                         </>
                     )}
 
-                    <ActionButton
+                    <ToolbarButton
                         disabled={busy || removable.length === 0}
                         onClick={() => void restoreSelected()}
+                        title={t("restore")}
                         type="button"
                     >
-                        {t("restore")}
-                    </ActionButton>
+                        <RestoreSvg height={16} width={16}/>
+                    </ToolbarButton>
 
-                    <ActionButton
-                        $danger
+                    <DangerButton
                         disabled={busy || deletable.length === 0}
                         onClick={() => setConfirm("delete")}
+                        title={t("delete")}
                         type="button"
                     >
-                        {t("delete")}
-                    </ActionButton>
+                        <TrashIcon size={16}/>
+                    </DangerButton>
 
-                    <ActionButton
+                    <DangerButton
                         disabled={busy || rows.length === 0}
                         onClick={() => setConfirm("empty")}
+                        title={t("empty")}
                         type="button"
                     >
-                        {t("empty")}
-                    </ActionButton>
+                        <TrashXIcon size={16}/>
+                    </DangerButton>
 
-                    <IconButton onClick={() => void reload()} title={t("refresh")} type="button">
-                        <RefreshIcon size={14}/>
-                    </IconButton>
+                    <ToolbarButton onClick={() => void reload()} title={t("refresh")} type="button">
+                        <RefreshIcon size={16}/>
+                    </ToolbarButton>
+
                     {selectionMenu.available && (
-                        <IconButton
+                        <ToolbarButton
                             onClick={(event) => selectionMenu.open(event.clientX, event.clientY)}
                             title={t("selection_menu")}
                             type="button"
                         >
-                            <MenuIcon size={14}/>
-                        </IconButton>
+                            <MenuIcon size={16}/>
+                        </ToolbarButton>
                     )}
-                </Actions>
-            </Header>
+                </>,
+                toolbarSlot,
+            )}
 
             {adminNotice && <Notice>{adminNotice}</Notice>}
             {error && <Message>{error}</Message>}
@@ -727,84 +758,21 @@ const Page = styled.div`
     min-height: 0;
 `;
 
-const Header = styled.header`
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 16px 22px 10px;
-    border-bottom: 1px solid var(--border-color);
+/** Keeps a toggle's state visible in a row of plain buttons. */
+const ToggleButton = styled(ToolbarButton)<{ $on: boolean }>`
+    color: ${({$on}) => $on ? "var(--text-primary)" : "var(--text-secondary)"};
+    background: ${({$on}) => $on ? "rgba(var(--accent-secondary-rgb), 0.16)" : "transparent"};
+    border-color: ${({$on}) => $on ? "var(--border-color-hover)" : "transparent"};
 `;
 
-const Heading = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-primary);
-
-    svg {
-        color: var(--text-muted);
-    }
-`;
-
-const Count = styled.span`
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: 400;
-    color: var(--text-muted);
-`;
-
-const Actions = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 6px;
-`;
-
-const ActionButton = styled.button<{ $danger?: boolean }>`
-    padding: 5px 10px;
-    border: 1px solid ${({$danger}) => $danger ? "rgba(248, 113, 113, 0.35)" : "var(--border-color)"};
-    border-radius: var(--radius-sm);
-    background: var(--bg-input);
-    color: ${({$danger}) => $danger ? "#fca5a5" : "var(--text-secondary)"};
-    font: inherit;
-    font-size: 11px;
-    cursor: pointer;
+/** A destructive action, tinted the way the old text buttons were. */
+const DangerButton = styled(ToolbarButton)`
+    color: #fca5a5;
 
     &:hover:not(:disabled) {
-        border-color: ${({$danger}) => $danger ? "rgba(248, 113, 113, 0.6)" : "var(--border-color-hover)"};
-        background: var(--bg-card-hover);
-        color: ${({$danger}) => $danger ? "#fecaca" : "var(--text-primary)"};
-    }
-
-    &:disabled {
-        opacity: 0.4;
-        cursor: default;
-    }
-`;
-
-const OrphanButton = styled(ActionButton)<{ $on: boolean }>`
-    border-color: ${({$on}) => $on ? "var(--border-color-hover)" : "var(--border-color)"};
-    background: ${({$on}) => $on ? "rgba(var(--accent-secondary-rgb), 0.16)" : "var(--bg-input)"};
-    color: ${({$on}) => $on ? "var(--text-primary)" : "var(--text-secondary)"};
-`;
-
-const IconButton = styled.button`
-    display: grid;
-    place-items: center;
-    width: 26px;
-    height: 26px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    background: var(--bg-input);
-    color: var(--text-secondary);
-    cursor: pointer;
-
-    &:hover {
-        border-color: var(--border-color-hover);
-        background: var(--bg-card-hover);
-        color: var(--text-primary);
+        color: #fecaca;
+        border-color: rgba(248, 113, 113, 0.5);
+        background: rgba(248, 113, 113, 0.12);
     }
 `;
 

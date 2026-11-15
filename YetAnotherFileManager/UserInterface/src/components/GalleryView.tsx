@@ -1,5 +1,7 @@
 import {startTransition, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {createPortal} from "react-dom";
 import styled from "styled-components";
+import {ToolbarButton, ToolbarSeparator} from "../ui/toolbar";
 import {
     type DirectoryListing,
     type FileEntry,
@@ -50,6 +52,10 @@ interface GalleryViewProps {
     onSearchMatches?: (count: number) => void;
     /** Bumped by the find bar's select-all button. */
     selectMatchesToken?: number;
+    /** The window's toolbar, where this page mounts its own actions. */
+    toolbarSlot?: HTMLElement | null;
+    /** The window's footer, where this page reports what it is showing. */
+    onStatusChange?: (text: string) => void;
     /** The picker opens a picture as the chosen file instead of handing it to the system. */
     onPick?: (path: string) => void;
     /** Reports the checked pictures, so the picker's footer can follow the selection. */
@@ -90,6 +96,8 @@ export function GalleryView({
                                 onExtractArchive,
                                 onPreviewChange,
                                 platform,
+                                toolbarSlot,
+                                onStatusChange,
                             }: GalleryViewProps) {
     const t = useTranslation();
     const selectionMenu = useSelectionMenu("gallery");
@@ -355,32 +363,35 @@ export function GalleryView({
         onPreviewChange?.(previewInfo, previewNote);
     }, [previewInfo, previewNote, onPreviewChange]);
 
+    const status = loading ? t("scanning") : t("shown_of_total_pictures", {
+        shown: entries.length,
+        total
+    });
+
+    useEffect(() => {
+        onStatusChange?.(status);
+    }, [status, onStatusChange]);
+
     return (
         <Page>
-            <Header>
-                <Heading>
-                    <span>{t("gallery")}</span>
-                    <Count>{loading ? t("scanning") : t("shown_of_total_pictures", {
-                        shown: entries.length,
-                        total
-                    })}</Count>
-                </Heading>
-
-                <HeaderActions>
-                    <IconButton onClick={refresh} title={t("scan_the_folders_again")} type="button">
-                        <Spin $spinning={busy}><RefreshIcon size={14}/></Spin>
-                    </IconButton>
+            {toolbarSlot && createPortal(
+                <>
+                    <ToolbarSeparator/>
+                    <ToolbarButton onClick={refresh} title={t("scan_the_folders_again")} type="button">
+                        <Spin $spinning={busy}><RefreshIcon size={16}/></Spin>
+                    </ToolbarButton>
                     {selectionMenu.available && (
-                        <IconButton
+                        <ToolbarButton
                             onClick={(event) => selectionMenu.open(event.clientX, event.clientY)}
                             title={t("selection_menu")}
                             type="button"
                         >
-                            <MenuIcon size={14}/>
-                        </IconButton>
+                            <MenuIcon size={16}/>
+                        </ToolbarButton>
                     )}
-                </HeaderActions>
-            </Header>
+                </>,
+                toolbarSlot,
+            )}
 
             {error && <Message>{error}</Message>}
             {!error && !loading && total === 0 && <Message>{t("no_pictures_found")}</Message>}
@@ -475,55 +486,6 @@ const GridPane = styled.div`
     flex-direction: column;
     min-width: 0;
     min-height: 0;
-`;
-
-const Header = styled.header`
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 14px 22px 9px;
-    border-bottom: 1px solid var(--border-color);
-`;
-
-const HeaderActions = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 6px;
-`;
-
-const Heading = styled.div`
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-primary);
-`;
-
-const Count = styled.span`
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: 400;
-    color: var(--text-muted);
-`;
-
-const IconButton = styled.button`
-    display: grid;
-    place-items: center;
-    width: 26px;
-    height: 26px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    background: var(--bg-input);
-    color: var(--text-secondary);
-    cursor: pointer;
-
-    &:hover {
-        border-color: var(--border-color-hover);
-        background: var(--bg-card-hover);
-        color: var(--text-primary);
-    }
 `;
 
 const Spin = styled.span<{ $spinning: boolean }>`
