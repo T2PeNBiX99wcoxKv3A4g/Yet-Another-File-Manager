@@ -72,6 +72,17 @@ Windows 10/11 內建 WebView2；建置沒有程式碼簽章，第一次執行時
 WebKitGTK 4.1 與 libnotify，目前測試於 Fedora + KDE Plasma（Wayland）。剪貼簿在 Wayland 使用
 wl-clipboard，在 X11 使用 xclip。
 
+使用平鋪式視窗管理員時，要讓 Web 分享的授權視窗浮動：它是一個小對話框，應該顯示在程式上方，
+而不是被排進格子。以 GlazeWM 為例：
+
+```yaml
+window_rules:
+  - commands: ['ignore']
+    match:
+      - window_process: { equals: 'YetAnotherFileManager' }
+        window_title: { regex: '^(Share access|共有アクセスの要求|分享访问请求|分享存取要求)$' }
+```
+
 指令碼可以用同一個選擇器取代系統對話框：
 
 ```bash

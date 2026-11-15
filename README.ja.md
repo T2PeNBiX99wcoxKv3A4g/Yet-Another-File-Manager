@@ -75,6 +75,17 @@ Windows 10/11 には WebView2 が入っています。コード署名はして�
 出ることがあります。Linux は WebKitGTK 4.1 と libnotify が必要で、Fedora + KDE Plasma（Wayland）で
 動作確認しています。クリップボードは Wayland では wl-clipboard、X11 では xclip を使います。
 
+タイル型ウィンドウマネージャーでは、Web 共有の承認ウィンドウを浮かせてください。アプリの上に
+出す小さなダイアログで、タイルに収めるものではありません。GlazeWM の例:
+
+```yaml
+window_rules:
+  - commands: ['ignore']
+    match:
+      - window_process: { equals: 'YetAnotherFileManager' }
+        window_title: { regex: '^(Share access|共有アクセスの要求|分享访问请求|分享存取要求)$' }
+```
+
 スクリプトからはシェルのダイアログの代わりに同じピッカーを使えます。
 
 ```bash

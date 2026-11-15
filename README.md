@@ -77,6 +77,17 @@ Windows 10 and 11 already have WebView2; the build is not code-signed, so SmartS
 Linux needs WebKitGTK 4.1 and libnotify, and is tested on Fedora with KDE Plasma on Wayland. The
 clipboard uses wl-clipboard on Wayland or xclip on X11.
 
+A tiling window manager has to leave the web share approval window alone: it is a small dialog that
+belongs on top of the app instead of in a tile. For GlazeWM:
+
+```yaml
+window_rules:
+  - commands: ['ignore']
+    match:
+      - window_process: { equals: 'YetAnotherFileManager' }
+        window_title: { regex: '^(Share access|共有アクセスの要求|分享访问请求|分享存取要求)$' }
+```
+
 Scripts can use the same picker instead of a shell dialog:
 
 ```bash

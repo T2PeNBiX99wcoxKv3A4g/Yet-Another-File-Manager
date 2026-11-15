@@ -71,6 +71,17 @@ Windows 10/11 自带 WebView2；构建没有代码签名，首次运行时 Smart
 WebKitGTK 4.1 和 libnotify，目前在 Fedora + KDE Plasma（Wayland）上测试。剪贴板在 Wayland 使用
 wl-clipboard，在 X11 使用 xclip。
 
+使用平铺式窗口管理器时，要让 Web 分享的授权窗口浮动：它是一个小对话框，应该显示在程序上方，
+而不是被排进格子。以 GlazeWM 为例：
+
+```yaml
+window_rules:
+  - commands: ['ignore']
+    match:
+      - window_process: { equals: 'YetAnotherFileManager' }
+        window_title: { regex: '^(Share access|共有アクセスの要求|分享访问请求|分享存取要求)$' }
+```
+
 脚本可以用同一个选择器代替系统对话框：
 
 ```bash
