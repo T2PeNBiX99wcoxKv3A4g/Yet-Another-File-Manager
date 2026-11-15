@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.10.3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.10.2..v0.10.3) - 2026-11-15
+
+### 🐛 Bug Fixes
+
+- *(share)* Show the access prompt on Windows - ([a33b5ab](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/a33b5ab8a66f9d1690b5991c4021560bbb411466))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([d112748](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d112748f6ac5e83b0ee0884c9c28c96cd00ece3a))
+
+
 ## [0.10.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.10.1..v0.10.2) - 2026-11-15
 
 ### 🐛 Bug Fixes
