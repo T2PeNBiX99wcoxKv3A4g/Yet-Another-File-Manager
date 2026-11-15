@@ -56,6 +56,19 @@ are passed to the picker, and multi-selection is preserved for Open. The app is
 started as a normal process and the hook waits for it to close, which is what a
 modal dialog does anyway.
 
+The COM dialog is answered by a stand-in object instead of the shell's. Three
+details decide whether a program accepts it:
+
+- `IFileDialog::Advise` must succeed. Qt treats a failure as "no dialog" and
+  never calls `Show`, and `comdlg32` falls back to its grey legacy dialog when
+  the Explorer-style one cannot be prepared. The mod accepts the handler and
+  raises `OnFileOk` before `Show` returns.
+- `IFileOpenDialog::GetResults` must work on a Save As dialog too. It is how Qt
+  and Chromium read the result, and the real save dialog answers it as well.
+- `GetResult` must return an item for a file that does not exist yet. The shell
+  refuses (`FILE_NOT_FOUND`), so the mod builds the item itself and answers
+  `GetDisplayName` for it.
+
 Each group has its own switch in the mod's settings:
 
 - **Replace Open file pickers**

@@ -75,7 +75,11 @@ if (mode.StartsWith("dialog-", StringComparison.Ordinal))
         return 1;
     }
 
-    if (dialog.GetResult(out var itemPointer) != 0 || itemPointer == IntPtr.Zero)
+    dialog.GetFileTypeIndex(out var typeIndex);
+    var result = dialog.GetResult(out var itemPointer);
+    Console.WriteLine($"show=ok type-index={typeIndex} GetResult=0x{result:X8}");
+
+    if (result != 0 || itemPointer == IntPtr.Zero)
     {
         Console.WriteLine("result=failed (no item)");
         return 1;
@@ -89,6 +93,23 @@ if (mode.StartsWith("dialog-", StringComparison.Ordinal))
 
     if (pathPointer != IntPtr.Zero)
         Marshal.FreeCoTaskMem(pathPointer);
+
+    // Qt and Chromium read the result through IFileOpenDialog::GetResults, even for Save As.
+    if (dialog is IFileOpenDialog openDialog)
+    {
+        var array = openDialog.GetResults(out var arrayPointer);
+        if (array != 0 || arrayPointer == IntPtr.Zero)
+        {
+            Console.WriteLine($"GetResults=0x{array:X8}");
+        }
+        else
+        {
+            var items = (IShellItemArray)Marshal.GetObjectForIUnknown(arrayPointer);
+            Marshal.Release(arrayPointer);
+            items.GetCount(out var count);
+            Console.WriteLine($"GetResults=ok count={count}");
+        }
+    }
 
     Console.WriteLine(path is null ? "result=failed (no path)" : $"result=picked file=\"{path}\"");
     return path is null ? 1 : 0;
@@ -219,6 +240,49 @@ internal interface IShellItem
     [PreserveSig] int GetDisplayName(int form, out IntPtr name);
     [PreserveSig] int GetAttributes(uint mask, out uint attributes);
     [PreserveSig] int Compare(IntPtr other, uint hint, out int order);
+}
+
+[ComImport, Guid("d57c7288-d4ad-4768-be02-9d969532d960"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+internal interface IFileOpenDialog
+{
+    [PreserveSig] int Show(IntPtr owner);
+    [PreserveSig] int SetFileTypes(uint count, IntPtr filterSpec);
+    [PreserveSig] int SetFileTypeIndex(uint index);
+    [PreserveSig] int GetFileTypeIndex(out uint index);
+    [PreserveSig] int Advise(IntPtr events, out uint cookie);
+    [PreserveSig] int Unadvise(uint cookie);
+    [PreserveSig] int SetOptions(uint options);
+    [PreserveSig] int GetOptions(out uint options);
+    [PreserveSig] int SetDefaultFolder(IntPtr item);
+    [PreserveSig] int SetFolder(IntPtr item);
+    [PreserveSig] int GetFolder(out IntPtr item);
+    [PreserveSig] int GetCurrentSelection(out IntPtr item);
+    [PreserveSig] int SetFileName([MarshalAs(UnmanagedType.LPWStr)] string name);
+    [PreserveSig] int GetFileName([MarshalAs(UnmanagedType.LPWStr)] out string name);
+    [PreserveSig] int SetTitle([MarshalAs(UnmanagedType.LPWStr)] string title);
+    [PreserveSig] int SetOkButtonLabel([MarshalAs(UnmanagedType.LPWStr)] string label);
+    [PreserveSig] int SetFileNameLabel([MarshalAs(UnmanagedType.LPWStr)] string label);
+    [PreserveSig] int GetResult(out IntPtr item);
+    [PreserveSig] int AddPlace(IntPtr item, int fdap);
+    [PreserveSig] int SetDefaultExtension([MarshalAs(UnmanagedType.LPWStr)] string extension);
+    [PreserveSig] int Close(int result);
+    [PreserveSig] int SetClientGuid(ref Guid guid);
+    [PreserveSig] int ClearClientData();
+    [PreserveSig] int SetFilter(IntPtr filter);
+    [PreserveSig] int GetResults(out IntPtr items);
+    [PreserveSig] int GetSelectedItems(out IntPtr items);
+}
+
+[ComImport, Guid("b63ea76d-1f85-456f-a19c-48159efa858b"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+internal interface IShellItemArray
+{
+    [PreserveSig] int BindToHandler(IntPtr context, ref Guid handler, ref Guid iid, out IntPtr result);
+    [PreserveSig] int GetPropertyStore(int flags, ref Guid iid, out IntPtr store);
+    [PreserveSig] int GetPropertyDescriptionList(IntPtr key, ref Guid iid, out IntPtr list);
+    [PreserveSig] int GetAttributes(int flags, uint mask, out uint attributes);
+    [PreserveSig] int GetCount(out uint count);
+    [PreserveSig] int GetItemAt(uint index, out IntPtr item);
+    [PreserveSig] int EnumItems(out IntPtr items);
 }
 
 internal static partial class Native
