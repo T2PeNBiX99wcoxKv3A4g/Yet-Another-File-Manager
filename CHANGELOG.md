@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.14.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.14.0..v0.14.1) - 2026-11-15
+
+### 🐛 Bug Fixes
+
+- *(ui)* Blend the approved-device rows with the card - ([47ea0bb](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/47ea0bbf943b97ee0c4078ddca2de6ad62f43570))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([10ef0a1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/10ef0a105a374887c70b48a05057872a799d9cf7))
+
+
 ## [0.14.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.13.5..v0.14.0) - 2026-11-15
 
 ### ⛰️  Features
