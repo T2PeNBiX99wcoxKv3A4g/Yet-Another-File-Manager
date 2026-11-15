@@ -63,7 +63,6 @@ import {SelectMenu} from "./SelectMenu";
 import {type PageFind, useTextSearch} from "../ui/textSearch";
 import {createTag, deleteTag, listTags, renameTag, setTagColor, type TagCatalogEntry} from "../api/tags";
 import {
-    AppIcon,
     CameraIcon,
     CheckIcon,
     ChevronRightIcon,
@@ -75,6 +74,7 @@ import {
     FolderIcon,
     FontIcon,
     GearIcon,
+    IconThemeIcon,
     KeyboardIcon,
     ListIcon,
     LockIcon,
@@ -278,7 +278,7 @@ const SectionGlyphs: Partial<Record<LocalizationKey, ReactNode>> = {
     memory: <DatabaseIcon size={13}/>,
     overview: <OverviewIcon size={13}/>,
     gallery: <CameraIcon size={13}/>,
-    icons: <AppIcon size={13}/>,
+    icons: <IconThemeIcon size={13}/>,
     icons_by_extension: <FileIcon size={13}/>,
     folder_icons: <FolderIcon size={13}/>,
     folder_index: <PackageIcon size={13}/>,
