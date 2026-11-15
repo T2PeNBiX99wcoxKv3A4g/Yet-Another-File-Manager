@@ -69,6 +69,7 @@ internal partial class ShareAccessPrompt
         var window = new PhotinoWindow(WindowManager.Instance.MainWindow)
             .SetTitle(Localization.Get("share_access_request_title"))
             .SetUseOsDefaultSize(false)
+            .SetUseOsDefaultLocation(false)
             .SetSize(460, 260)
             .SetResizable(false)
             .SetChromeless(true)
