@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.13.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.13.1..v0.13.2) - 2026-11-15
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([916ed37](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/916ed37814a75dfc966055557f2b9110bdaa49e3))
+
+### Build
+
+- Pick up PhotinoNETUtils 0.29.2 - ([c3806b5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c3806b5a131e4ada5247d1464525c56fd34ce189))
+
+
 ## [0.13.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.13.0..v0.13.1) - 2026-11-15
 
 ### 🐛 Bug Fixes
