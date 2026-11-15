@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.11.3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.11.2..v0.11.3) - 2026-11-15
+
+### 🐛 Bug Fixes
+
+- *(ui)* Draw the icons section its own glyph - ([b562e07](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b562e0707e62f8c304f278479279e7b4cdfb98c2))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([1e10ae1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1e10ae162641ee0fc3cee57b99cbd72299f085f1))
+
+
 ## [0.11.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.11.1..v0.11.2) - 2026-11-15
 
 ### 🐛 Bug Fixes
