@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.19.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.19.0..v0.19.1) - 2026-11-16
+
+### 🎨 Styling
+
+- *(tooltip)* Draw the tooltip from the theme, not from a fixed dark box - ([1d7c855](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1d7c855b8386119c9f903ef6d9a9045a2ebdcebf))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([32bd2e9](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/32bd2e9920b781712858a68690f31d7ac5fd3060))
+
+
 ## [0.19.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.18.0..v0.19.0) - 2026-11-16
 
 ### ⛰️  Features
