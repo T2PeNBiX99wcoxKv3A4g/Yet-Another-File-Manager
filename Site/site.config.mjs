@@ -10,6 +10,13 @@ export const site = {
     icon: "./icon.svg",
     repository: "https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager",
     languages: ["en", "ja", "zh-CN", "zh-TW"],
+    screenshots: {
+        gallery: [
+            {src: "https://raw.githubusercontent.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/master/docs/main-window.png", alt: "The file list, previews and tabs"},
+            {src: "https://raw.githubusercontent.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/master/docs/overview.png", alt: "The overview with its panels"},
+            {src: "https://raw.githubusercontent.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/master/docs/settings.png", alt: "The settings"},
+        ],
+    },
     docs: [
         {
             "slug": "Getting-Started",
