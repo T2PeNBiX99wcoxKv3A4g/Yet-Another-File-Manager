@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.19.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.19.1..v0.19.2) - 2026-11-16
+
+### 🚜 Refactor
+
+- *(site)* Build the site from the shared package - ([cddebb4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/cddebb4e87c0cad5d676f52e755b8e3a872824a0))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([4384b8f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/4384b8f5b3871e85cb3334f25918a6c2d2625cfe))
+
+
 ## [0.19.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.19.0..v0.19.1) - 2026-11-16
 
 ### 🎨 Styling
