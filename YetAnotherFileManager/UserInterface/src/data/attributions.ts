@@ -25657,7 +25657,7 @@ DEALINGS IN THE SOFTWARE.`,
     },
     {
         name: "zip",
-        version: "9.5.0",
+        version: "9.5.1",
         license: "MIT",
         text: `Licensed under MIT.
 
