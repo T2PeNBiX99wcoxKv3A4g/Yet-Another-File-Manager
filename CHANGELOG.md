@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.21.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.20.1..v0.21.0) - 2026-11-16
+
+### ⛰️  Features
+
+- *(site)* One install panel, split by system - ([a604ba7](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/a604ba75fa91ebdb3637742d83201a35bdead274))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([cb01821](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/cb01821580c20fdc5b637bb773adc11dfbaec0bd))
+
+
 ## [0.20.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.20.0..v0.20.1) - 2026-11-16
 
 ### 📚 Documentation
