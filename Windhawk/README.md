@@ -5,7 +5,7 @@ Two mods live here.
 | File | Kind | What it does |
 | --- | --- | --- |
 | `yafm-win-e.wh.cpp` | tool mod | Win+E starts this app instead of File Explorer. |
-| `yafm-picker.wh.cpp` | injected mod | Open, Save As and folder dialogs are replaced with the app's picker. |
+| `yafm-picker.wh.cpp` | injected mod | Open, Save As and folder dialogs are replaced with the app's picker, and File Explorer opens are redirected to it. |
 
 One mod cannot be both kinds, so they stay separate and can be enabled on their
 own.
@@ -52,6 +52,9 @@ app's own Open / Save As / Select folder.
   Telegram and most Electron and Qt 6 applications use
 - `ShellExecuteExW` / `ShellExecuteW` - a folder a program asks the shell to open,
   which would otherwise start File Explorer
+- `SHOpenFolderAndSelectItems` - "show in folder" in a browser or an editor
+- `CreateProcessW` - a program that starts `explorer.exe` itself and hands it a
+  path
 
 The dialog's initial folder, file name, extension filter and default extension
 are passed to the picker, and multi-selection is preserved for Open. The app is
@@ -78,6 +81,7 @@ Each group has its own switch in the mod's settings:
 - **Replace folder pickers**
 - **Replace modern file dialogs**
 - **Open folders with the app**
+- **Open Explorer launches with the app**
 
 Turning one off leaves that dialog untouched while the others are still
 replaced.
@@ -85,20 +89,34 @@ replaced.
 ### Explorer opens
 
 A program that opens a folder does not show a dialog: it hands the path to the
-shell, which starts File Explorer. Both `ShellExecute` entry points are hooked
-and answer with the app instead, but only when the call is one the shell would
-really have given to Explorer:
+shell, which starts File Explorer. There are three routes to that, and all of
+them are taken:
+
+| Route | Who uses it |
+| --- | --- |
+| `ShellExecuteExW` / `ShellExecuteW` | most programs, including the `explore` verb |
+| `SHOpenFolderAndSelectItems` | Chrome, VS Code and other "show in folder" buttons |
+| `CreateProcessW` starting `explorer.exe` | Rider, Wallpaper Engine, installers |
+
+Only calls the shell would really have given to Explorer are taken over:
 
 - Only `X:\...` and `\\server\share\...` paths. A URL, a `shell:` location or a
   bare program name goes to the shell untouched.
-- Only the `open` verb, with no parameters, and not when the caller asks for the
+- Only the `open` and `explore` verbs, and not when the caller asks for the
   shell's own handling (`SEE_MASK_INVOKEIDLIST`, a class name or a class key).
-- A file is taken over only when its association points at `explorer.exe`
-  itself. A document with its own program, an executable, a shortcut and a
-  `.url` all keep opening the way they did.
+- Arguments are read only when they belong to Explorer: `explorer.exe
+  /select,<path>`, `/root,<path>`, `/n,<path>` or a bare path. A program started
+  with arguments of its own is left alone.
+- A file is taken over only when it is selected (`/select`) or its association
+  points at `explorer.exe` itself. A document with its own program, an
+  executable, a shortcut and a `.url` all keep opening the way they did.
+
+Explorer started with no path at all - the taskbar button, the Start menu, the
+shell at logon - is not touched; that is what the Win+E mod is for.
 
 The app is started and the call returns at once, the way the shell returns once
-Explorer has the path.
+Explorer has the path. The mod never hooks the app's own process, so its
+**show in Explorer** still opens Explorer rather than asking itself.
 
 ### Conflicts
 
@@ -127,10 +145,18 @@ pwsh -File Windhawk\verify-picker.ps1 folder
 pwsh -File Windhawk\verify-picker.ps1 dialog-open
 pwsh -File Windhawk\verify-picker.ps1 dialog-save
 pwsh -File Windhawk\verify-picker.ps1 dialog-folder
+pwsh -File Windhawk\verify-picker.ps1 explorer
+pwsh -File Windhawk\verify-picker.ps1 explorer-select
+pwsh -File Windhawk\verify-picker.ps1 explorer-shell
+pwsh -File Windhawk\verify-picker.ps1 explorer-api
 ```
 
 The `dialog-*` modes go through `IFileOpenDialog` / `IFileSaveDialog`, the way
-Discord, Telegram and other modern programs ask for a file.
+Discord, Telegram and other modern programs ask for a file. The `explorer-*`
+modes cover the other route: `explorer` starts `explorer.exe` with a folder,
+`explorer-select` adds `/select,<path>`, `explorer-shell` calls `ShellExecuteW`
+with the `explore` verb, and `explorer-api` calls `SHOpenFolderAndSelectItems`;
+they pass `%TEMP%` unless a path is given.
 
 It prints `PASS` when a `--pick-file` / `--pick-save` / `--pick-folder` process
 appears, closes the picker so the probe returns as if Cancel had been pressed,

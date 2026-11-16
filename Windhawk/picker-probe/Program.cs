@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -16,25 +17,68 @@ if (mode is "-h" or "--help" or "/?" or "help")
 {
     Console.WriteLine("""
                       usage: PickerProbe <open|save|folder|dialog-open|dialog-save|dialog-folder> [initial-folder]
+                             PickerProbe <explorer|explorer-select|explorer-shell|explorer-api> [path]
 
-                        open           calls GetOpenFileNameW (the classic Open dialog)
-                        save           calls GetSaveFileNameW (the classic Save As dialog)
-                        folder         calls SHBrowseForFolderW (the classic folder dialog)
-                        dialog-open    calls IFileOpenDialog, the Common Item Dialog
-                        dialog-save    calls IFileSaveDialog, the Common Item Dialog
-                        dialog-folder  calls IFileOpenDialog with FOS_PICKFOLDERS
+                        open            calls GetOpenFileNameW (the classic Open dialog)
+                        save            calls GetSaveFileNameW (the classic Save As dialog)
+                        folder          calls SHBrowseForFolderW (the classic folder dialog)
+                        dialog-open     calls IFileOpenDialog, the Common Item Dialog
+                        dialog-save     calls IFileSaveDialog, the Common Item Dialog
+                        dialog-folder   calls IFileOpenDialog with FOS_PICKFOLDERS
 
-                      The program blocks on the dialog like any other program. It prints
-                      "result=picked file=..." or "result=cancelled" and exits 0 only when
-                      a path came back.
+                        explorer        starts explorer.exe with a folder, the way a
+                                        "show in Explorer" button does it
+                        explorer-select starts explorer.exe /select,<path>
+                        explorer-shell  calls ShellExecuteW with the "explore" verb
+                        explorer-api    calls SHOpenFolderAndSelectItems
+
+                      The dialog modes block like any other program. They print
+                      "result=picked file=..." or "result=cancelled" and exit 0 only when
+                      a path came back. The explorer modes return at once and print what
+                      they asked the system for.
                       """);
     return 0;
 }
 
-if (mode is not ("open" or "save" or "folder" or "dialog-open" or "dialog-save" or "dialog-folder"))
+if (mode is not ("open" or "save" or "folder" or "dialog-open" or "dialog-save" or "dialog-folder"
+    or "explorer" or "explorer-select" or "explorer-shell" or "explorer-api"))
 {
-    Console.Error.WriteLine($"unknown mode '{args[0]}'; use open, save, folder, dialog-open, dialog-save or dialog-folder");
+    Console.Error.WriteLine($"unknown mode '{args[0]}'");
     return 2;
+}
+
+if (mode.StartsWith("explorer", StringComparison.Ordinal))
+{
+    var target = Path.GetFullPath(args.Length > 1 ? args[1] : Path.GetTempPath());
+    Console.WriteLine($"probe mode={mode} target=\"{target}\"");
+
+    if (!File.Exists(target) && !Directory.Exists(target))
+    {
+        Console.Error.WriteLine($"no such file or folder: {target}");
+        return 2;
+    }
+
+    if (mode == "explorer-shell")
+    {
+        var shown = Native.ShellExecuteW(IntPtr.Zero, "explore", target, null, null, 1);
+        Console.WriteLine($"result=shell inst={shown.ToInt64()}");
+        return 0;
+    }
+
+    if (mode == "explorer-api")
+    {
+        var folder = Directory.Exists(target) ? target : Path.GetDirectoryName(target)!;
+        var selected = Native.SelectInFolder(folder, target);
+        Console.WriteLine($"result=api hr=0x{selected:X8}");
+        return 0;
+    }
+
+    // explorer.exe /select,<path> is how a "reveal in Explorer" button asks; a bare path is how a
+    // wallpaper tool opens its folder.
+    var arguments = mode == "explorer-select" ? $"/select,\"{target}\"" : $"\"{target}\"";
+    using var started = Process.Start(new ProcessStartInfo("explorer.exe", arguments) { UseShellExecute = false });
+    Console.WriteLine($"result=started pid={started?.Id}");
+    return 0;
 }
 
 var initial = args.Length > 1 ? args[1] : Path.GetTempPath();
@@ -304,4 +348,38 @@ internal static partial class Native
 
     [DllImport("ole32.dll")]
     internal static extern void CoTaskMemFree(IntPtr pointer);
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    internal static extern IntPtr ShellExecuteW(IntPtr owner, string? verb, string file, string? parameters,
+        string? directory, int show);
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    internal static extern int SHParseDisplayName(string name, IntPtr bind, out IntPtr pidl, uint attributesIn,
+        out uint attributesOut);
+
+    [DllImport("shell32.dll")]
+    internal static extern int SHOpenFolderAndSelectItems(IntPtr folder, uint count, IntPtr[] items, uint flags);
+
+    /// Shows a file in its folder the way a browser's download list does it.
+    internal static int SelectInFolder(string folder, string item)
+    {
+        if (SHParseDisplayName(folder, IntPtr.Zero, out var folderPidl, 0, out _) != 0)
+            return -1;
+
+        if (SHParseDisplayName(item, IntPtr.Zero, out var itemPidl, 0, out _) != 0)
+        {
+            CoTaskMemFree(folderPidl);
+            return -1;
+        }
+
+        try
+        {
+            return SHOpenFolderAndSelectItems(folderPidl, 1, [itemPidl], 0);
+        }
+        finally
+        {
+            CoTaskMemFree(itemPidl);
+            CoTaskMemFree(folderPidl);
+        }
+    }
 }

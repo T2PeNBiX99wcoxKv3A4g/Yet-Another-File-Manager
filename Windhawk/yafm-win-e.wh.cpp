@@ -2,7 +2,7 @@
 // @id              yafm-win-e
 // @name            Win+E opens Yet Another File Manager
 // @description     Swallows Win+E and starts Yet Another File Manager instead of File Explorer
-// @version         1.0.2
+// @version         1.0.3
 // @author          T2PeNBiX99wcoxKv3A4g
 // @github          https://github.com/T2PeNBiX99wcoxKv3A4g
 // @include         windhawk.exe
@@ -57,7 +57,7 @@ When none of those exists, Win+E is passed through and Explorer opens as usual.
   $description: >-
     Command line arguments passed to the app, for example a folder to open.
     Leave empty to let the app restore its own tabs.
-- ReplaceWinE: 1
+- ReplaceWinE: true
   $name: Replace Win+E
   $description: >-
     Turn this off to leave Win+E with File Explorer without disabling the rest

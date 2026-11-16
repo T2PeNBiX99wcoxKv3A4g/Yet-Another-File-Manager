@@ -2,7 +2,7 @@
 // @id              yafm-picker
 // @name            Yet Another File Manager pickers
 // @description     Replaces the Windows Open, Save As and folder dialogs with the app's picker
-// @version         1.3.0
+// @version         1.4.0
 // @author          T2PeNBiX99wcoxKv3A4g
 // @github          https://github.com/T2PeNBiX99wcoxKv3A4g
 // @include         *
@@ -26,18 +26,24 @@ keeps its own dialog.
 - **Select folder**.
 - **Folders a program asks the shell to open**, which would otherwise start File
   Explorer.
+- **Programs that start Explorer themselves** with a path, such as a *show in
+  Explorer* button, a wallpaper tool opening its folder, or an installer
+  revealing where it installed.
 
 The picker opens where the program asked, with its file name, filter and
 default extension already filled in, and multi-select still works.
 
-Only local paths are taken over. A URL, a `shell:` location, a `runas` or
-other verb, a call with arguments, or a file that has a program of its own all
-go to the shell exactly as before.
+Only local paths are taken over, and only `open` and `explore` verbs. A URL, a
+`shell:` location, a `runas` or other verb, or a file that has a program of its
+own all go to the shell exactly as before. Arguments are only read when they
+belong to Explorer (`/select,<path>`, `/root,<path>`, a bare path); a program
+asked to start with arguments of its own is left alone.
 
 ## Settings
 
-Five switches, one per dialog type plus the Explorer opens. Turn one off and
-only that part stays native.
+Six switches: one per dialog type, one for the folders a program hands to the
+shell, and one for the programs that start Explorer themselves. Turn one off
+and only that part stays native.
 
 ## Conflicts
 
@@ -50,6 +56,10 @@ folder pickers stay native while it is on. Turn it off to use this one.
 - Dialogs opened by an administrator program are not replaced.
 - If the app cannot be found, the original dialog is used.
 - The WinRT pickers a few Store apps use are not covered.
+- Explorer started with no path at all — the taskbar button, the Start menu —
+  stays Explorer; only a launch that carries a path is taken over.
+- The app itself is left unhooked, so its own *show in Explorer* still opens
+  Explorer instead of asking itself.
 */
 // ==/WindhawkModReadme==
 
@@ -83,11 +93,19 @@ folder pickers stay native while it is on. Turn it off to use this one.
     Take over the folders a program asks the shell to open, which would otherwise
     start File Explorer. URLs, shell: locations and files with a program of their
     own are left to the shell.
+- ReplaceExplorerLaunches: true
+  $name: Open Explorer launches with the app
+  $description: >-
+    Take over the programs that start explorer.exe themselves and pass it a
+    path: a "reveal in Explorer" button, a wallpaper tool opening a folder, an
+    installer showing where it installed. Turn this off to leave those to File
+    Explorer.
 */
 // ==/WindhawkModSettings==
 
 #include <windows.h>
 #include <commdlg.h>
+#include <shellapi.h>
 #include <shlobj.h>
 #include <shobjidl.h>
 #include <shlwapi.h>
@@ -122,6 +140,7 @@ static bool g_replaceFolder = true;
 static bool g_replaceModern = true;
 
 static bool g_replaceExplorer = true;
+static bool g_replaceExplorerLaunches = true;
 
 using GetOpenFileNameW_t = BOOL(WINAPI*)(LPOPENFILENAMEW);
 using GetOpenFileNameA_t = BOOL(WINAPI*)(LPOPENFILENAMEA);
@@ -143,6 +162,7 @@ static void ReadSettings() {
     g_replaceFolder = Wh_GetIntSetting(L"ReplaceFolderPickers") != 0;
     g_replaceModern = Wh_GetIntSetting(L"ReplaceModernFilePickers") != 0;
     g_replaceExplorer = Wh_GetIntSetting(L"ReplaceExplorerOpens") != 0;
+    g_replaceExplorerLaunches = Wh_GetIntSetting(L"ReplaceExplorerLaunches") != 0;
 }
 
 static std::wstring GetStringSetting(PCWSTR name) {
@@ -809,23 +829,114 @@ static bool OpenInApp(const std::wstring& path, HANDLE* process) {
     return true;
 }
 
+/// Whether a program name in a call is Explorer itself, wherever it lives.
+static bool IsExplorerProgram(const std::wstring& program) {
+    if (program.empty())
+        return false;
+
+    const wchar_t* name = PathFindFileNameW(program.c_str());
+    return name && _wcsicmp(name, L"explorer.exe") == 0;
+}
+
+/// A path as it appears inside a command line: quotes and the spaces around them removed.
+static std::wstring TrimQuotes(const std::wstring& value) {
+    const size_t start = value.find_first_not_of(L" \t\"");
+    if (start == std::wstring::npos)
+        return {};
+
+    const size_t end = value.find_last_not_of(L" \t\"");
+    return value.substr(start, end - start + 1);
+}
+
+/// Splits a command line or a parameter list into its arguments, without the program name.
+static std::vector<std::wstring> ArgumentsIn(const std::wstring& command) {
+    std::vector<std::wstring> arguments;
+    if (command.empty())
+        return arguments;
+
+    // CommandLineToArgvW gives its first argument the special treatment of a program name, so a
+    // stand-in is put in front: a parameter list is not a command line and would otherwise be
+    // split at the quotes inside it.
+    const std::wstring line = L"yafm " + command;
+
+    int count = 0;
+    LPWSTR* parsed = CommandLineToArgvW(line.c_str(), &count);
+    if (!parsed)
+        return arguments;
+
+    for (int index = 1; index < count; ++index) {
+        std::wstring argument = parsed[index];
+        // A whole command line starts with the program; a parameter list does not.
+        if (index == 1 && IsExplorerProgram(argument))
+            continue;
+        arguments.push_back(std::move(argument));
+    }
+
+    LocalFree(parsed);
+    return arguments;
+}
+
+/**
+ * The path Explorer was asked to show, if it carries one. Explorer joins a switch to its path with
+ * a comma (`/select,"C:\path"`, `/root,C:\path`, `/n,/e,C:\path`), and a bare path opens that
+ * folder. Switches without a path and shell GUIDs (`/factory,{...}`) belong to Explorer alone.
+ *
+ * `select` also answers whether the caller asked for the item to be selected, because a selected
+ * file is shown even when opening it would start another program.
+ */
+static std::wstring ExplorerTarget(const std::vector<std::wstring>& arguments, bool& select) {
+    for (const std::wstring& raw : arguments) {
+        const std::wstring argument = TrimQuotes(raw);
+        if (argument.empty())
+            continue;
+
+        if (argument[0] != L'/') {
+            if (IsLocalPath(argument))
+                return argument;
+            continue;
+        }
+
+        const size_t comma = argument.find(L',');
+        if (comma == std::wstring::npos)
+            continue;
+
+        const std::wstring path = TrimQuotes(argument.substr(comma + 1));
+        if (!IsLocalPath(path))
+            continue;
+
+        select = _wcsnicmp(argument.c_str(), L"/select", 7) == 0;
+        return path;
+    }
+
+    return {};
+}
+
 /// The decision both entry points share. `mask` is the ShellExecuteEx mask; the plain
 /// ShellExecute call carries no mask of its own and passes zero.
 static bool TryOpenWithApp(LPCWSTR verb, LPCWSTR file, LPCWSTR parameters, ULONG mask, HANDLE* process) {
     if (!g_replaceExplorer || !file)
         return false;
 
-    if (verb && *verb && _wcsicmp(verb, L"open") != 0)
-        return false;
-
-    if (parameters && *parameters)
+    // "explore" is what many programs pass when they want a folder window, not a document.
+    if (verb && *verb && _wcsicmp(verb, L"open") != 0 && _wcsicmp(verb, L"explore") != 0)
         return false;
 
     // These ask for the shell's own handling: an item ID list, a class name or a class key.
     if (mask & (SEE_MASK_INVOKEIDLIST | SEE_MASK_CLASSNAME | SEE_MASK_CLASSKEY))
         return false;
 
-    const std::wstring target = file;
+    std::wstring target = file;
+    bool select = false;
+
+    // explorer.exe with a path in its arguments: a "reveal in Explorer" button passes
+    // "/select,<path>", a wallpaper tool the folder itself. Arguments belong to the program that
+    // was asked to start, so a different program with arguments of its own is not ours.
+    if (parameters && *parameters) {
+        if (!IsExplorerProgram(file))
+            return false;
+        target = ExplorerTarget(ArgumentsIn(parameters), select);
+    }
+
     if (!IsLocalPath(target))
         return false;
 
@@ -833,7 +944,7 @@ static bool TryOpenWithApp(LPCWSTR verb, LPCWSTR file, LPCWSTR parameters, ULONG
     if (attributes == INVALID_FILE_ATTRIBUTES)
         return false;
 
-    if (!(attributes & FILE_ATTRIBUTE_DIRECTORY) && !OpensWithExplorer(target))
+    if (!select && !(attributes & FILE_ATTRIBUTE_DIRECTORY) && !OpensWithExplorer(target))
         return false;
 
     if (!OpenInApp(target, process))
@@ -868,6 +979,89 @@ static HINSTANCE WINAPI ShellExecuteW_Hook(HWND owner, LPCWSTR verb, LPCWSTR fil
         return reinterpret_cast<HINSTANCE>(42);
 
     return ShellExecuteW_Original(owner, verb, file, parameters, directory, show);
+}
+
+// ---------------------------------------------------------------------------
+// Programs that start Explorer themselves
+//
+// A "reveal in Explorer" button, a wallpaper tool opening a folder and an installer showing where
+// it installed do not ask the shell at all: they run explorer.exe and hand it a path. Taking those
+// means hooking the process creation every program uses, so the hook recognises Explorer first and
+// leaves every other program to the original.
+//
+// The app itself is never hooked (Wh_ModInit leaves it alone), so its own "show in Explorer" keeps
+// opening Explorer: nothing loops, and it needs no special argument to say so.
+// ---------------------------------------------------------------------------
+
+using CreateProcessW_t = BOOL(WINAPI*)(LPCWSTR, LPWSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL,
+    DWORD, LPVOID, LPCWSTR, LPSTARTUPINFOW, LPPROCESS_INFORMATION);
+
+using SHOpenFolderAndSelectItems_t = HRESULT(WINAPI*)(PCIDLIST_ABSOLUTE, UINT, PCUITEMID_CHILD_ARRAY, DWORD);
+
+static CreateProcessW_t CreateProcessW_Original;
+static SHOpenFolderAndSelectItems_t SHOpenFolderAndSelectItems_Original;
+
+/// The program a CreateProcess call asks for: the explicit name, or the first word of the line.
+static std::wstring ProgramIn(LPCWSTR application, LPCWSTR commandLine) {
+    if (application && *application)
+        return application;
+
+    return commandLine && *commandLine ? ExecutableIn(commandLine) : std::wstring();
+}
+
+static BOOL WINAPI CreateProcessW_Hook(LPCWSTR application, LPWSTR commandLine, LPSECURITY_ATTRIBUTES processAttributes,
+                                       LPSECURITY_ATTRIBUTES threadAttributes, BOOL inheritHandles, DWORD flags,
+                                       LPVOID environment, LPCWSTR directory, LPSTARTUPINFOW startup,
+                                       LPPROCESS_INFORMATION info) {
+    if (!g_replaceExplorerLaunches || !g_replaceExplorer || !info)
+        return CreateProcessW_Original(application, commandLine, processAttributes, threadAttributes, inheritHandles,
+            flags, environment, directory, startup, info);
+
+    if (!IsExplorerProgram(ProgramIn(application, commandLine)))
+        return CreateProcessW_Original(application, commandLine, processAttributes, threadAttributes, inheritHandles,
+            flags, environment, directory, startup, info);
+
+    bool select = false;
+    const std::wstring target = ExplorerTarget(ArgumentsIn(commandLine ? commandLine : L""), select);
+    const DWORD attributes = target.empty() ? INVALID_FILE_ATTRIBUTES : GetFileAttributesW(target.c_str());
+    if (attributes == INVALID_FILE_ATTRIBUTES)
+        return CreateProcessW_Original(application, commandLine, processAttributes, threadAttributes, inheritHandles,
+            flags, environment, directory, startup, info);
+
+    if (!select && !(attributes & FILE_ATTRIBUTE_DIRECTORY) && !OpensWithExplorer(target))
+        return CreateProcessW_Original(application, commandLine, processAttributes, threadAttributes, inheritHandles,
+            flags, environment, directory, startup, info);
+
+    const std::wstring executable = ResolveExecutable();
+    if (executable.empty())
+        return CreateProcessW_Original(application, commandLine, processAttributes, threadAttributes, inheritHandles,
+            flags, environment, directory, startup, info);
+
+    // The same call, with the app in Explorer's place: the caller keeps its own flags, environment,
+    // working directory and a real process handle.
+    std::wstring command = L"\"" + executable + L"\"";
+    AppendQuoted(command, target);
+
+    std::vector<wchar_t> mutableCommand(command.begin(), command.end());
+    mutableCommand.push_back(L'\0');
+
+    Wh_Log(L"explorer process: %s", target.c_str());
+
+    return CreateProcessW_Original(executable.c_str(), mutableCommand.data(), processAttributes, threadAttributes,
+        inheritHandles, flags, environment, directory, startup, info);
+}
+
+/// Chrome, VS Code and everything else that "shows a file in its folder" go through this instead of
+/// starting Explorer, so it is taken the same way: the item's folder is what the app opens.
+static HRESULT WINAPI SHOpenFolderAndSelectItems_Hook(PCIDLIST_ABSOLUTE folder, UINT count,
+                                                      PCUITEMID_CHILD_ARRAY items, DWORD flags) {
+    wchar_t path[MAX_PATH];
+
+    if (!g_replaceExplorer || !folder || !SHGetPathFromIDListW(folder, path) || !OpenInApp(path, nullptr))
+        return SHOpenFolderAndSelectItems_Original(folder, count, items, flags);
+
+    Wh_Log(L"explorer select: %s", path);
+    return S_OK;
 }
 
 // ---------------------------------------------------------------------------
@@ -1754,6 +1948,15 @@ BOOL Wh_ModInit() {
         reinterpret_cast<void**>(&ShellExecuteExW_Original));
     InstallHook(shell, "ShellExecuteW", reinterpret_cast<void*>(ShellExecuteW_Hook),
         reinterpret_cast<void**>(&ShellExecuteW_Original));
+
+    // "Show in folder" in a browser or an editor never reaches the shell's execute entry points.
+    InstallHook(shell, "SHOpenFolderAndSelectItems", reinterpret_cast<void*>(SHOpenFolderAndSelectItems_Hook),
+        reinterpret_cast<void**>(&SHOpenFolderAndSelectItems_Original));
+
+    // explorer.exe started with a path, which is how the programs that do not use the shell at all
+    // ask for a window. The hook checks the program name before it looks at anything else.
+    InstallHook(GetModuleHandleW(L"kernel32.dll"), "CreateProcessW",
+        reinterpret_cast<void*>(CreateProcessW_Hook), reinterpret_cast<void**>(&CreateProcessW_Original));
 
     // The Common Item Dialog is handed out by COM, so the only place to take it is the
     // activation itself; every other class falls straight through to the original.

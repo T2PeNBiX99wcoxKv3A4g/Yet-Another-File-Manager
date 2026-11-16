@@ -1,7 +1,7 @@
-# Checks that the picker mod replaces a classic Windows dialog.
+# Checks that the picker mod takes over what it should.
 #
-# Run one mode; the script starts the probe, waits for the app's picker to take
-# the dialog's place, then closes it so the probe returns and reports what the
+# Run one mode; the script starts the probe, waits for the app to take the
+# dialog's place, then closes it so the probe returns and reports what the
 # caller saw:
 #
 #   pwsh -File Windhawk\verify-picker.ps1 open
@@ -14,9 +14,19 @@
 # The dialog-* modes use IFileOpenDialog / IFileSaveDialog, which Discord,
 # Telegram and other modern programs open.
 #
-# "open" and "save" accept an initial folder as the second argument.
+# The explorer-* modes check the other route: a program that starts File
+# Explorer itself, or asks the shell for "show in folder":
+#
+#   pwsh -File Windhawk\verify-picker.ps1 explorer
+#   pwsh -File Windhawk\verify-picker.ps1 explorer-select
+#   pwsh -File Windhawk\verify-picker.ps1 explorer-shell
+#   pwsh -File Windhawk\verify-picker.ps1 explorer-api
+#
+# "open" and "save" accept an initial folder as the second argument; the
+# explorer modes accept the file or folder to show.
 param(
-    [ValidateSet("open", "save", "folder", "dialog-open", "dialog-save", "dialog-folder")]
+    [ValidateSet("open", "save", "folder", "dialog-open", "dialog-save", "dialog-folder",
+        "explorer", "explorer-select", "explorer-shell", "explorer-api")]
     [string]$Mode = "open",
     [string]$Initial = $env:TEMP
 )
@@ -40,6 +50,40 @@ $flag = switch ($Mode) {
 
 $result = Join-Path $env:TEMP "picker-probe-$Mode.txt"
 $probe = Start-Process $exe -ArgumentList @($Mode, $Initial) -PassThru -RedirectStandardOutput $result
+
+if ($Mode.StartsWith("explorer")) {
+    # The probe returns at once. What it asked for is either an Explorer window or the app: look
+    # for the app's own command line, which the mod wrote in Explorer's place.
+    $app = $null
+    $deadline = (Get-Date).AddSeconds(10)
+    while ((Get-Date) -lt $deadline) {
+        $app = Get-CimInstance Win32_Process -Filter "Name='YetAnotherFileManager.exe'" |
+            Where-Object { $_.CommandLine -like "*$Initial*" } |
+            Select-Object -First 1
+
+        if ($app) { break }
+        Start-Sleep -Milliseconds 100
+    }
+
+    if ($app) {
+        Write-Host "PASS: the $Mode call started the app instead of File Explorer (process $($app.ProcessId))."
+    } elseif ($probe.HasExited) {
+        Write-Host "FAIL: nothing opened the app; File Explorer was started."
+        Write-Host "      Check that 'Open Explorer launches with the app' and 'Open folders with"
+        Write-Host "      the app' are both on, and that the app can be found."
+    } else {
+        Write-Host "FAIL: the probe is still running, which no explorer mode does."
+    }
+
+    Start-Sleep -Milliseconds 800
+    if (-not $probe.HasExited) {
+        Stop-Process -Id $probe.Id -Force -ErrorAction SilentlyContinue
+    }
+
+    Write-Host "Probe result:"
+    Get-Content $result | Select-Object -Last 2 | ForEach-Object { "  $_" }
+    return
+}
 
 # The mod starts the app before the classic dialog would appear, so a few
 # seconds are enough; the probe blocks either way.
