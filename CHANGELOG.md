@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.15.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.14.2..v0.15.0) - 2026-11-16
+
+### ⛰️  Features
+
+- *(picker)* Take over the folders a program hands to the shell - ([260c7a2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/260c7a2531aeaa31129fba36e159b6140e15a54a))
+- *(ui)* Select a section, or the preview strip, on its own - ([9aa9712](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/9aa97126c8cc0929e4b55ba9aa7a77edc342084e))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([62f71da](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/62f71da59f251976398b1e97f2cabc18ed835ed0))
+
+
 ## [0.14.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.14.1..v0.14.2) - 2026-11-16
 
 ### 🐛 Bug Fixes
