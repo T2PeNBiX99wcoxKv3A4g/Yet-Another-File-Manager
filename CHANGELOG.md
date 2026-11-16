@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.19.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.18.0..v0.19.0) - 2026-11-16
+
+### ⛰️  Features
+
+- *(thumbnails)* Draw the formats Windows has no provider for - ([01388ed](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/01388edfdbfee7ff82a9fd07227c3d1f0d7d1e14))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([6d39625](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/6d39625f8fa2459c6ab55c178c0764c3559315ed))
+
+
 ## [0.18.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.17.5..v0.18.0) - 2026-11-16
 
 ### ⛰️  Features
