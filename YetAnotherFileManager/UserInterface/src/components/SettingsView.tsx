@@ -96,6 +96,7 @@ import {
     VideoIcon,
 } from "./Icons";
 import {IconPicker} from "./IconPicker";
+import {AttributionDialog} from "./AttributionDialog";
 import {DefaultTagColor} from "./TagPicker";
 import {DefaultAccentColor, DefaultSecondaryColor, normalizeColor, normalizeThemeMode} from "../theme";
 import {
@@ -321,6 +322,7 @@ export function SettingsView({
     const [defaultManagerBusy, setDefaultManagerBusy] = useState(false);
     const [defaultManagerError, setDefaultManagerError] = useState<string | null>(null);
     const [capturing, setCapturing] = useState<{ action: ShortcutAction; index: number } | null>(null);
+    const [attributionOpen, setAttributionOpen] = useState(false);
     const [capturingGlobal, setCapturingGlobal] = useState(false);
     const [tags, setTags] = useState<TagCatalogEntry[]>([]);
     const [editingTag, setEditingTag] = useState<{ name: string; value: string } | null>(null);
@@ -3186,6 +3188,11 @@ export function SettingsView({
                         {t("hidden_items_follow_this_app_s_switch_protected_operating_system_files_still_follow_windows")}
                     </Footnote>
                 </Section>
+
+                <AttributionLink onClick={() => setAttributionOpen(true)} type="button">
+                    <LinkIcon size={13}/>
+                    {t("open_source_attribution")}
+                </AttributionLink>
             </Main>
 
             <Toc aria-label={t("settings_sections")} onWheel={stepFromToc}>
@@ -3205,6 +3212,8 @@ export function SettingsView({
                 </TocList>
                 <TocNote>{t("changes_are_saved_as_you_make_them")}</TocNote>
             </Toc>
+
+            {attributionOpen && <AttributionDialog onClose={() => setAttributionOpen(false)}/>}
 
             {updateDialog && createPortal(
                 <UpdateOverlay>
@@ -3940,6 +3949,27 @@ const PreviousColor = styled.button<{ $color: string }>`
     &:hover {
         border-color: var(--border-color-hover);
         color: var(--text-primary);
+    }
+`;
+
+/** A quiet link at the very bottom of the page, opening the open-source notices. */
+const AttributionLink = styled.button`
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    align-self: flex-start;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+
+    &:hover {
+        color: var(--text-secondary);
     }
 `;
 

@@ -479,6 +479,7 @@ declare module "@photino-net-utils/bridge"
         "open_one_of_these_addresses_on_any_device_on_the_same_network": true;
         "open_original_location": true;
         "open_release_page": true;
+        "open_source_attribution": true;
         "open_terminal": true;
         "open_the_file_tray_while_dragging": true;
         "open_this_path": true;
@@ -787,6 +788,7 @@ declare module "@photino-net-utils/bridge"
         "the_target_folder_is_no_longer_there": true;
         "the_tray_appears_when_a_drag_starts_and_closes_again_if_it_is_still_empty_off_leaves_it_to_the_title_bar_button": true;
         "the_update_failed": true;
+        "this_app_ships_count_open_source_projects_pick_one_to_read_its_whole_licence": true;
         "this_archive_is_encrypted_and_asks_for_a_password_when_opened": true;
         "this_archive_is_encrypted_enter_its_password": true;
         "this_device": true;
