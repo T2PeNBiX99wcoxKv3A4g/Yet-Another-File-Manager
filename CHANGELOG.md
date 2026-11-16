@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.17.3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.17.2..v0.17.3) - 2026-11-16
+
+### 🐛 Bug Fixes
+
+- *(windhawk)* Take the folder opens that ask for the shell's item menu - ([8355477](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/835547745b2c6466cbaa0b2067f4f6c8f564ddc9))
+- *(windhawk)* Take over the programs that start Explorer themselves - ([73f8e6c](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/73f8e6cc561483953e71dd7bd0fcff74462dac26))
+
+### ⚙️ Miscellaneous Tasks
+
+- *(notices)* Follow the zip crate to 9.5.1 - ([c13ae3c](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c13ae3cb865330133f46b80ba33c0c013ebad26a))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([ddac9ef](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/ddac9ef18629b31da07d39a53c1e3b1d02a4eeb4))
+
+
 ## [0.17.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.17.1..v0.17.2) - 2026-11-16
 
 ### 🐛 Bug Fixes
