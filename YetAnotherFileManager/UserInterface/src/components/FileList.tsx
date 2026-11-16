@@ -548,6 +548,13 @@ export function FileList({
         const node = body.current;
         if (!node || view.mode !== "list") return;
 
+        // The grid draws its own scroll element, so the one the window last measured is gone when
+        // the list comes back. Starting the window over at the top keeps the rendered rows and the
+        // scrollbar together; otherwise the old spacer stays and the list looks empty until the
+        // first scroll event.
+        node.scrollTop = 0;
+        setListWindow({top: 0, height: node.clientHeight});
+
         const measure = () => setListWindow((current) =>
             current.height === node.clientHeight ? current : {...current, height: node.clientHeight});
 
