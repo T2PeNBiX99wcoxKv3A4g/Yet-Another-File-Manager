@@ -12,7 +12,7 @@ import {
     useState,
 } from "react";
 import styled from "styled-components";
-import {comboOf, DefaultShortcuts, isTyping, type ShortcutMap, wantsNewTab} from "../shortcuts";
+import {comboMatches, comboOf, DefaultShortcuts, isTyping, type ShortcutMap, wantsNewTab} from "../shortcuts";
 import type {DirectoryListing, FileEntry, Place, ResolvedView} from "../api/files";
 import {useIcon, useIconFile, useThumbnail} from "../api/icons";
 import {
@@ -27,6 +27,7 @@ import {
     pasteInto,
     renamePath,
     showProperties,
+    transferPaths,
 } from "../api/operations";
 import {type FindView, NoFind, rangesOf} from "../find";
 import {canPreview, PreviewKindLabels, previewKindOf} from "../preview";
@@ -1095,7 +1096,7 @@ export function FileList({
         });
     }, []);
 
-    // File-manager shortcuts. Ctrl+D copies as KDE's file manager does; Ctrl+C also copies.
+    // File-manager shortcuts. Every action may answer to several combinations, and none at all.
     useEffect(() => {
         if (!enableShortcuts || menu) return;
 
@@ -1147,40 +1148,54 @@ export function FileList({
                 return;
             }
 
-            if (combo === "ctrl+d" || combo === shortcuts.copy) {
+            if (comboMatches(shortcuts, "copy", combo)) {
                 run(() => {
                     if (paths.length > 0) void copy(paths);
                 });
-                return;
             }
 
-            if (combo === shortcuts.cut) {
+            // A duplicate is a copy into the same folder: the copy engine gives the new entry the
+            // next free name, so the original stays where it was and a "name (2)" appears beside it.
+            if (comboMatches(shortcuts, "duplicate", combo)) {
+                run(() => {
+                    if (paths.length === 0 || !currentDirectory)
+                        return;
+
+                    void transferPaths(paths, currentDirectory, false).then((result) => {
+                        if (!result.ok)
+                            return;
+
+                        if (result.created.length > 0)
+                            setSelected(new Set(result.created));
+
+                        refresh();
+                    });
+                });
+            }
+
+            if (comboMatches(shortcuts, "cut", combo)) {
                 run(() => {
                     if (paths.length > 0) void copy(paths, true);
                 });
-                return;
             }
 
-            if (combo === shortcuts.paste) {
+            if (comboMatches(shortcuts, "paste", combo)) {
                 run(() => void paste(currentDirectory));
-                return;
             }
 
-            if (combo === shortcuts.delete) {
+            if (comboMatches(shortcuts, "delete", combo)) {
                 run(() => {
                     if (paths.length > 0) void remove(paths);
                 });
-                return;
             }
 
-            if (combo === shortcuts.deletePermanently) {
+            if (comboMatches(shortcuts, "deletePermanently", combo)) {
                 run(() => {
                     if (paths.length > 0) void remove(paths, true);
                 });
-                return;
             }
 
-            if (combo === shortcuts.selectAll) {
+            if (comboMatches(shortcuts, "selectAll", combo)) {
                 run(() => {
                     // Over the preview strip, the shortcut takes the files the strip shows, which
                     // are the ones on screen there; the rest of the folder belongs to the list.
@@ -1191,45 +1206,38 @@ export function FileList({
                     setSelected(new Set(paths));
                     anchor.current = paths[0] ?? null;
                 });
-                return;
             }
 
-            if (combo === shortcuts.invertSelection) {
+            if (comboMatches(shortcuts, "invertSelection", combo)) {
                 run(() => {
                     setSelected(new Set(allPaths.filter((path) => !selected.has(path))));
                     anchor.current = allPaths[0] ?? null;
                 });
-                return;
             }
 
-            if (combo === shortcuts.rename && selectedEntry) {
+            if (comboMatches(shortcuts, "rename", combo) && selectedEntry) {
                 run(() => void rename(selectedEntry));
-                return;
             }
 
-            if (combo === shortcuts.open && selectedEntry) {
+            if (comboMatches(shortcuts, "open", combo) && selectedEntry) {
                 run(() => {
                     if (selectedEntry.isDirectory) onOpen(selectedEntry.fullPath);
                     else onOpenFile?.(selectedEntry.fullPath);
                 });
-                return;
             }
 
-            if (combo === shortcuts.newFolder || combo === "f10") {
+            if (comboMatches(shortcuts, "newFolder", combo)) {
                 run(() => void createEntry(null));
-                return;
             }
 
-            if (combo === shortcuts.terminal) {
+            if (comboMatches(shortcuts, "terminal", combo)) {
                 run(() => void openTerminal(currentDirectory));
-                return;
             }
 
-            if (combo === shortcuts.properties) {
+            if (comboMatches(shortcuts, "properties", combo)) {
                 run(() => void showProperties(paths.length > 0
                     ? paths
                     : currentDirectory ? [currentDirectory] : []));
-                return;
             }
         };
 

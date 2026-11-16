@@ -1,4 +1,4 @@
-import {type MouseEvent, type ReactNode, useEffect, useRef, useState, type WheelEvent} from "react";
+import {type MouseEvent, type ReactNode, useEffect, useMemo, useRef, useState, type WheelEvent} from "react";
 import {createPortal} from "react-dom";
 import {
     type LocalizationKey,
@@ -98,7 +98,15 @@ import {
 import {IconPicker} from "./IconPicker";
 import {DefaultTagColor} from "./TagPicker";
 import {DefaultAccentColor, DefaultSecondaryColor, normalizeColor, normalizeThemeMode} from "../theme";
-import {comboOf, DefaultShortcuts, prettyShortcut, type ShortcutMap} from "../shortcuts";
+import {
+    comboOf,
+    DefaultShortcuts,
+    prettyShortcut,
+    resolveShortcuts,
+    type ShortcutAction,
+    shortcutValue,
+    storedShortcuts,
+} from "../shortcuts";
 import {BuiltinIcon} from "../icons/fileTypes";
 import {ThemePresets} from "../themePresets";
 import {GlobalTag} from "./GlobalTag";
@@ -139,60 +147,37 @@ interface SettingsViewProps {
 }
 
 /** The actions the interface can bind; the ids are what settings.toml stores. */
-const ShortcutRows: { id: keyof ShortcutMap; label: LocalizationKey; note: LocalizationKey }[] = [
-    {
-        id: "goBack",
-        label: "back",
-        note: "the_previous_folder_in_this_tab_the_mouse_back_button_and_the_browser_back_key_always_work"
-    },
-    {
-        id: "goForward",
-        label: "forward",
-        note: "the_next_folder_in_this_tab_the_mouse_forward_button_and_the_browser_forward_key_always_work"
-    },
+const ShortcutRows: { id: ShortcutAction; label: LocalizationKey; note: LocalizationKey }[] = [
+    {id: "goBack", label: "back", note: "goes_to_the_previous_folder_in_this_tab"},
+    {id: "goForward", label: "forward", note: "goes_to_the_next_folder_in_this_tab"},
     {id: "goUp", label: "up_one_level", note: "opens_the_folder_that_contains_the_current_one"},
-    {id: "home", label: "home_folder", note: "jumps_to_the_user_s_home_folder_like_alt_home_in_dolphin"},
+    {id: "home", label: "home_folder", note: "jumps_to_the_user_s_home_folder"},
     {id: "find", label: "search", note: "opens_the_floating_search_box_typing_a_letter_in_a_folder_opens_it_too"},
-    {id: "location", label: "edit_location", note: "turns_the_breadcrumbs_into_an_editable_path_ctrl_l_in_dolphin"},
+    {id: "location", label: "edit_location", note: "turns_the_breadcrumbs_into_an_editable_path"},
     {id: "closeTab", label: "close_tab", note: "closes_the_tab_that_is_open"},
     {id: "newTab", label: "new_tab", note: "opens_the_overview_in_a_new_tab"},
     {id: "reopenTab", label: "reopen_closed_tab", note: "brings_back_the_tab_you_closed_last_folder_and_all"},
     {id: "nextTab", label: "next_tab", note: "cycles_to_the_next_tab"},
     {id: "previousTab", label: "previous_tab", note: "cycles_to_the_previous_tab"},
-    {id: "copy", label: "copy", note: "ctrl_d_copies_too_following_kde_s_file_manager"},
+    {id: "copy", label: "copy", note: "copies_the_selection_so_it_can_be_pasted_elsewhere"},
+    {id: "duplicate", label: "duplicate", note: "makes_a_copy_of_the_selection_in_this_folder_with_a_new_name"},
     {id: "cut", label: "cut", note: "moves_the_selection_on_the_next_paste"},
     {id: "paste", label: "paste", note: "copies_or_moves_the_clipboard_s_files_into_the_current_folder"},
     {id: "undo", label: "undo", note: "undoes_the_last_file_operation_in_this_session"},
     {id: "redo", label: "redo", note: "repeats_the_operation_that_was_just_undone"},
-    {id: "delete", label: "move_to_the_recycle_bin", note: "delete_is_del_by_default_not_ctrl_d"},
-    {
-        id: "deletePermanently",
-        label: "delete_permanently",
-        note: "bypasses_the_recycle_bin_dolphin_uses_shift_delete"
-    },
+    {id: "delete", label: "move_to_the_recycle_bin", note: "moves_the_selection_to_the_recycle_bin"},
+    {id: "deletePermanently", label: "delete_permanently", note: "deletes_the_selection_without_the_recycle_bin"},
     {id: "rename", label: "rename", note: "renames_the_single_selected_entry"},
     {id: "selectAll", label: "select_all", note: "selects_every_entry_in_the_current_folder"},
-    {
-        id: "invertSelection",
-        label: "invert_selection",
-        note: "selects_everything_that_is_not_selected_dolphin_uses_ctrl_shift_a"
-    },
+    {id: "invertSelection", label: "invert_selection", note: "selects_everything_that_is_not_selected"},
     {id: "open", label: "open", note: "opens_the_selected_folder_or_file"},
-    {id: "newFolder", label: "new_folder", note: "creates_a_folder_in_the_current_directory_f10_also_works"},
+    {id: "newFolder", label: "new_folder", note: "creates_a_folder_in_the_current_directory"},
     {id: "properties", label: "properties", note: "opens_the_shell_properties_sheet"},
     {id: "iconsView", label: "icons_view", note: "switches_the_folder_to_the_grid_view"},
     {id: "detailsView", label: "details_view", note: "switches_the_folder_to_the_list_view"},
-    {
-        id: "terminal",
-        label: "open_terminal",
-        note: "opens_windows_terminal_in_the_current_folder_dolphin_uses_f4_for_its_terminal_panel"
-    },
-    {
-        id: "hidden",
-        label: "show_hidden_files",
-        note: "toggles_ordinary_hidden_files_for_this_session_alt_also_works_system_files_still_follow_explorer"
-    },
-    {id: "splitView", label: "split_view", note: "shows_the_next_file_tab_beside_the_current_one_f3_in_dolphin"},
+    {id: "terminal", label: "open_terminal", note: "opens_a_terminal_in_the_current_folder"},
+    {id: "hidden", label: "show_hidden_files", note: "toggles_ordinary_hidden_files_for_this_session"},
+    {id: "splitView", label: "split_view", note: "shows_the_next_file_tab_beside_the_current_one"},
     {id: "openInNewTab", label: "open_in_a_new_tab", note: "hold_this_while_clicking_a_folder"},
 ];
 
@@ -335,7 +320,7 @@ export function SettingsView({
     const [archiveError, setArchiveError] = useState<string | null>(null);
     const [defaultManagerBusy, setDefaultManagerBusy] = useState(false);
     const [defaultManagerError, setDefaultManagerError] = useState<string | null>(null);
-    const [capturing, setCapturing] = useState<string | null>(null);
+    const [capturing, setCapturing] = useState<{ action: ShortcutAction; index: number } | null>(null);
     const [capturingGlobal, setCapturingGlobal] = useState(false);
     const [tags, setTags] = useState<TagCatalogEntry[]>([]);
     const [editingTag, setEditingTag] = useState<{ name: string; value: string } | null>(null);
@@ -1026,9 +1011,54 @@ export function SettingsView({
         await update({extensionIcons: icons});
     };
 
-    const keys = {...DefaultShortcuts, ...settings?.shortcuts};
+    const keys = resolveShortcuts(settings?.shortcuts);
 
-    // While a shortcut is being recorded, the next key press becomes the new combination.
+    /** Which actions answer to each combination; more than one is a conflict, not a block. */
+    const shortcutOwners = useMemo(() => {
+        const owners = new Map<string, ShortcutAction[]>();
+
+        for (const {id} of ShortcutRows) {
+            for (const combo of keys[id]) {
+                const list = owners.get(combo) ?? [];
+                list.push(id);
+                owners.set(combo, list);
+            }
+        }
+
+        return owners;
+    }, [settings]);
+
+    /** The other actions one of this action's combinations would also run. */
+    const conflictsOf = (action: ShortcutAction) => {
+        const others = new Set<string>();
+
+        for (const combo of keys[action]) {
+            for (const owner of shortcutOwners.get(combo) ?? []) {
+                if (owner === action)
+                    continue;
+
+                const row = ShortcutRows.find((candidate) => candidate.id === owner);
+                if (row)
+                    others.add(t(row.label));
+            }
+        }
+
+        return [...others];
+    };
+
+    /** Stores one action's combinations; an empty list turns the action off. */
+    const changeShortcuts = (action: ShortcutAction, combos: string[]) => {
+        void update({shortcuts: {...settings?.shortcuts, [action]: shortcutValue(combos)}});
+    };
+
+    const removeShortcut = (action: ShortcutAction, index: number) => {
+        const combos = [...keys[action]];
+        combos.splice(index, 1);
+        changeShortcuts(action, combos);
+    };
+
+    // While a shortcut is being recorded, the next key press becomes the new combination. A chip
+    // replaces its own combination; the add button appends one the action does not have yet.
     useEffect(() => {
         if (!capturing) return;
 
@@ -1044,8 +1074,12 @@ export function SettingsView({
             const combo = comboOf(event);
             if (!combo) return;
 
+            const combos = [...keys[capturing.action]];
+            if (capturing.index >= 0) combos[capturing.index] = combo;
+            else if (!combos.includes(combo)) combos.push(combo);
+
             setCapturing(null);
-            void update({shortcuts: {...keys, [capturing]: combo}});
+            changeShortcuts(capturing.action, combos);
         };
 
         window.addEventListener("keydown", record, true);
@@ -2636,27 +2670,70 @@ export function SettingsView({
 
                 <Section ref={anchor("shortcuts")}>
                     <Head
-                        note="the_keys_this_window_listens_for_click_a_combination_to_record_a_new_one"
+                        note="every_action_can_hold_several_combinations_click_one_to_record_it_again_add_one_with_the_plus_and_drop_one_with_the_cross"
                         title="shortcuts"
                     />
                     <Rows>
-                        {ShortcutRows.map(({id, label, note}) => (
-                            <Row key={id}>
-                                <RowText>
-                                    <Label>{t(label)}</Label>
-                                    <Note>{t(note)}</Note>
-                                </RowText>
-                                <RowEnd>
-                                    <KeyButton
-                                        $listening={capturing === id}
-                                        onClick={() => setCapturing(id)}
-                                        type="button"
-                                    >
-                                        {capturing === id ? t("press_a_key") : prettyShortcut(keys[id])}
-                                    </KeyButton>
-                                </RowEnd>
-                            </Row>
-                        ))}
+                        {ShortcutRows.map(({id, label, note}) => {
+                            const combos = keys[id];
+                            const listening = capturing?.action === id;
+                            const conflicts = conflictsOf(id);
+
+                            return (
+                                <Row key={id}>
+                                    <RowText>
+                                        <Label>{t(label)}</Label>
+                                        <Note>{t(note)}</Note>
+                                        {conflicts.length > 0 && (
+                                            <ConflictNote>
+                                                {t("also_in_use_by_actions_pressing_it_runs_each_of_them", {
+                                                    actions: conflicts.join(", "),
+                                                })}
+                                            </ConflictNote>
+                                        )}
+                                    </RowText>
+                                    <RowEnd>
+                                        <KeyList>
+                                            {combos.map((combo, index) => (
+                                                <KeyChip
+                                                    $conflict={(shortcutOwners.get(combo)?.length ?? 0) > 1}
+                                                    $listening={listening && capturing.index === index}
+                                                    key={combo + "-" + index}
+                                                >
+                                                    <KeyChipText
+                                                        onClick={() => setCapturing({action: id, index})}
+                                                        title={t("click_to_record_this_shortcut_again")}
+                                                        type="button"
+                                                    >
+                                                        {listening && capturing.index === index
+                                                            ? t("press_a_key")
+                                                            : prettyShortcut(combo)}
+                                                    </KeyChipText>
+                                                    <KeyChipRemove
+                                                        onClick={() => removeShortcut(id, index)}
+                                                        title={t("remove")}
+                                                        type="button"
+                                                    >
+                                                        <CrossIcon size={9}/>
+                                                    </KeyChipRemove>
+                                                </KeyChip>
+                                            ))}
+                                            {combos.length === 0 && <KeyNone>{t("none")}</KeyNone>}
+                                            <KeyAdd
+                                                $listening={listening && capturing.index < 0}
+                                                onClick={() => setCapturing({action: id, index: -1})}
+                                                title={t("add")}
+                                                type="button"
+                                            >
+                                                {listening && capturing.index < 0
+                                                    ? t("press_a_key")
+                                                    : <PlusIcon size={11}/>}
+                                            </KeyAdd>
+                                        </KeyList>
+                                    </RowEnd>
+                                </Row>
+                            );
+                        })}
                         <Row>
                             <RowText>
                                 <Label>{t("reset")}</Label>
@@ -2664,7 +2741,7 @@ export function SettingsView({
                             </RowText>
                             <RowEnd>
                                 <ActionButton
-                                    onClick={() => void update({shortcuts: {...DefaultShortcuts}})}
+                                    onClick={() => void update({shortcuts: storedShortcuts(DefaultShortcuts)})}
                                     type="button"
                                 >
                                     <RefreshIcon size={13}/>{t("reset")}
@@ -4973,6 +5050,90 @@ const KeyButton = styled.button<{ $listening: boolean }>`
         border-color: var(--border-color-hover);
         color: var(--text-primary);
     }
+`;
+
+/** The combinations one action answers to, each with a way to drop it. */
+const KeyList = styled.span`
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 5px;
+`;
+
+const KeyChip = styled.span<{ $conflict: boolean; $listening: boolean }>`
+    display: inline-flex;
+    align-items: center;
+    overflow: hidden;
+    border: 1px solid ${({$conflict, $listening}) => $listening
+            ? "var(--border-color-focus)"
+            : $conflict ? "rgba(251, 191, 36, 0.55)" : "var(--border-color)"};
+    border-radius: var(--radius-sm);
+    background: ${({$listening}) => $listening ? "rgba(var(--accent-rgb), 0.16)" : "var(--bg-input)"};
+`;
+
+const KeyChipText = styled.button`
+    min-width: 88px;
+    padding: 4px 9px;
+    border: 0;
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    cursor: pointer;
+
+    &:hover {
+        color: var(--text-primary);
+    }
+`;
+
+const KeyChipRemove = styled.button`
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 24px;
+    border: 0;
+    border-left: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+
+    &:hover {
+        color: #fca5a5;
+        background: rgba(248, 113, 113, 0.12);
+    }
+`;
+
+const KeyNone = styled.span`
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+`;
+
+const KeyAdd = styled.button<{ $listening: boolean }>`
+    display: grid;
+    place-items: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 6px;
+    border: 1px dashed ${({$listening}) => $listening ? "var(--border-color-focus)" : "var(--border-color)"};
+    border-radius: var(--radius-sm);
+    background: ${({$listening}) => $listening ? "rgba(var(--accent-rgb), 0.16)" : "transparent"};
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 10px;
+    cursor: pointer;
+
+    &:hover {
+        color: var(--text-primary);
+        border-color: var(--border-color-hover);
+    }
+`;
+
+/** A conflict is a note, not a block: both actions really run. */
+const ConflictNote = styled.span`
+    font-size: 10px;
+    color: #fbbf24;
 `;
 
 const ActionButton = styled.button`

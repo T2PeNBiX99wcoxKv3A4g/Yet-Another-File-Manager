@@ -127,11 +127,15 @@ import {SharePairDialog} from "./components/SharePairDialog";
 import {fadeInStyle, pageInStyle, splitLineInStyle} from "./ui/motion";
 import {ToolbarButton, ToolbarSeparator} from "./ui/toolbar";
 import {
+    comboMatches,
     comboOf,
     DefaultShortcuts,
+    firstShortcut,
     isTyping,
-    prettyShortcut,
+    prettyShortcuts,
+    resolveShortcuts,
     setClickModifier,
+    type ShortcutAction,
     type ShortcutMap,
     wantsNewTab,
 } from "./shortcuts";
@@ -1720,9 +1724,9 @@ export default function App() {
             setSettings(settings);
             setRecentLimit(settings.recentLimit);
 
-            const keys = {...DefaultShortcuts, ...settings.shortcuts};
+            const keys = resolveShortcuts(settings.shortcuts);
             setShortcuts(keys);
-            setClickModifier(keys.openInNewTab);
+            setClickModifier(firstShortcut(keys, "openInNewTab"));
             setSettingsVersion((current) => current + 1);
 
             if (!restored.current) {
@@ -1956,65 +1960,99 @@ export default function App() {
 
             const combo = comboOf(event);
 
-            if (combo === shortcuts.closeTab) {
+            if (comboMatches(shortcuts, "closeTab", combo)) {
                 event.preventDefault();
                 closeTab(focusedTabIdOf(stateRef.current));
-            } else if (combo === shortcuts.newTab) {
+            }
+
+            if (comboMatches(shortcuts, "newTab", combo)) {
                 event.preventDefault();
                 openFiles();
-            } else if (combo === shortcuts.reopenTab) {
+            }
+
+            if (comboMatches(shortcuts, "reopenTab", combo)) {
                 event.preventDefault();
                 reopenTab();
-            } else if (combo === shortcuts.goBack) {
+            }
+
+            if (comboMatches(shortcuts, "goBack", combo)) {
                 event.preventDefault();
                 goBack();
-            } else if (combo === shortcuts.goForward) {
+            }
+
+            if (comboMatches(shortcuts, "goForward", combo)) {
                 event.preventDefault();
                 goForward();
-            } else if (combo === shortcuts.goUp) {
+            }
+
+            if (comboMatches(shortcuts, "goUp", combo)) {
                 event.preventDefault();
                 goUp();
-            } else if (combo === shortcuts.find) {
+            }
+
+            if (comboMatches(shortcuts, "find", combo)) {
                 event.preventDefault();
                 if (kind === "files") openFind();
                 else openViewFind();
-            } else if (combo === shortcuts.location) {
+            }
+
+            if (comboMatches(shortcuts, "location", combo)) {
                 event.preventDefault();
                 setLocationFocus((token) => token + 1);
-            } else if (combo === shortcuts.home) {
+            }
+
+            if (comboMatches(shortcuts, "home", combo)) {
                 event.preventDefault();
 
                 const home = places.find((place) => place.kind === "home")?.path;
                 if (home)
                     navigate(home);
-            } else if (combo === shortcuts.iconsView) {
+            }
+
+            if (comboMatches(shortcuts, "iconsView", combo)) {
                 event.preventDefault();
                 if (kind === "files") changeView({mode: "grid"});
-            } else if (combo === shortcuts.detailsView) {
+            }
+
+            if (comboMatches(shortcuts, "detailsView", combo)) {
                 event.preventDefault();
                 if (kind === "files") changeView({mode: "list"});
-            } else if (combo === shortcuts.nextTab) {
+            }
+
+            if (comboMatches(shortcuts, "nextTab", combo)) {
                 event.preventDefault();
                 cycleTab(1);
-            } else if (combo === shortcuts.previousTab) {
+            }
+
+            if (comboMatches(shortcuts, "previousTab", combo)) {
                 event.preventDefault();
                 cycleTab(-1);
-            } else if (combo === shortcuts.hidden || combo === "alt+.") {
+            }
+
+            if (comboMatches(shortcuts, "hidden", combo)) {
                 event.preventDefault();
                 void toggleHiddenFiles().then(() => {
                     setVisibilityVersion((version) => version + 1);
                     refreshAll();
                 });
-            } else if (combo === shortcuts.undo) {
+            }
+
+            if (comboMatches(shortcuts, "undo", combo)) {
                 event.preventDefault();
                 void runHistory(true);
-            } else if (combo === shortcuts.redo) {
+            }
+
+            if (comboMatches(shortcuts, "redo", combo)) {
                 event.preventDefault();
                 void runHistory(false);
-            } else if (combo === shortcuts.splitView) {
+            }
+
+            if (comboMatches(shortcuts, "splitView", combo)) {
                 event.preventDefault();
                 toggleSplit();
-            } else if (kind === "files" && event.key.length === 1 && event.key !== " "
+            } else if (!(Object.keys(shortcuts) as ShortcutAction[]).some((action) =>
+                    action !== "openInNewTab" && comboMatches(shortcuts, action, combo))
+                && kind === "files" && event.key.length === 1 && event.key !== " "
                 && !event.ctrlKey && !event.altKey && !event.metaKey) {
                 // Typing anywhere in a folder starts a search with that letter; the first hit jumps.
                 event.preventDefault();
@@ -2408,7 +2446,7 @@ export default function App() {
     const mainToolbar = (
         <Toolbar>
             <IconButton
-                data-shortcut={prettyShortcut(shortcuts.goBack)}
+                data-shortcut={prettyShortcuts(shortcuts.goBack)}
                 disabled={!canBack}
                 onClick={(event) => {
                     if (active.index > 0 && wantsNewTab(event)) {
@@ -2424,7 +2462,7 @@ export default function App() {
             </IconButton>
 
             <IconButton
-                data-shortcut={prettyShortcut(shortcuts.goForward)}
+                data-shortcut={prettyShortcuts(shortcuts.goForward)}
                 disabled={!canForward}
                 onClick={(event) => {
                     if (active.index < active.history.length - 1 && wantsNewTab(event)) {
@@ -2440,7 +2478,7 @@ export default function App() {
             </IconButton>
 
             <IconButton
-                data-shortcut={prettyShortcut(shortcuts.goUp)}
+                data-shortcut={prettyShortcuts(shortcuts.goUp)}
                 disabled={kind !== "files" || !activeParent}
                 onClick={(event) => {
                     if (!activeParent) return;
@@ -2477,7 +2515,7 @@ export default function App() {
             )}
 
             <IconButton
-                data-shortcut={prettyShortcut(shortcuts.find)}
+                data-shortcut={prettyShortcuts(shortcuts.find)}
                 onClick={() => kind === "files" ? openFind() : openViewFind()}
                 title={t("search")}
                 type="button"
@@ -2654,7 +2692,7 @@ export default function App() {
                                                 onPointerDown={() => setActivePane("primary")}
                                             >
                                                 <IconButton
-                                                    data-shortcut={prettyShortcut(shortcuts.goBack)}
+                                                    data-shortcut={prettyShortcuts(shortcuts.goBack)}
                                                     disabled={!canBack}
                                                     onClick={(event) => {
                                                         const index = active.index - 1;
@@ -2668,7 +2706,7 @@ export default function App() {
                                                     <ArrowLeftIcon/>
                                                 </IconButton>
                                                 <IconButton
-                                                    data-shortcut={prettyShortcut(shortcuts.goForward)}
+                                                    data-shortcut={prettyShortcuts(shortcuts.goForward)}
                                                     disabled={!canForward}
                                                     onClick={(event) => {
                                                         const index = active.index + 1;
@@ -2682,7 +2720,7 @@ export default function App() {
                                                     <ArrowRightIcon/>
                                                 </IconButton>
                                                 <IconButton
-                                                    data-shortcut={prettyShortcut(shortcuts.goUp)}
+                                                    data-shortcut={prettyShortcuts(shortcuts.goUp)}
                                                     disabled={!activeParent}
                                                     onClick={(event) => {
                                                         if (!activeParent) return;
@@ -2714,7 +2752,7 @@ export default function App() {
                                                     <PlusIcon/>
                                                 </IconButton>
                                                 <IconButton
-                                                    data-shortcut={prettyShortcut(shortcuts.find)}
+                                                    data-shortcut={prettyShortcuts(shortcuts.find)}
                                                     onClick={openFind}
                                                     title={t("search")}
                                                     type="button"
@@ -2748,7 +2786,7 @@ export default function App() {
                                                 onPointerDown={() => setActivePane("secondary")}
                                             >
                                                 <IconButton
-                                                    data-shortcut={prettyShortcut(shortcuts.goBack)}
+                                                    data-shortcut={prettyShortcuts(shortcuts.goBack)}
                                                     disabled={secondary.index <= 0}
                                                     onClick={(event) => {
                                                         const index = secondary.index - 1;
@@ -2762,7 +2800,7 @@ export default function App() {
                                                     <ArrowLeftIcon/>
                                                 </IconButton>
                                                 <IconButton
-                                                    data-shortcut={prettyShortcut(shortcuts.goForward)}
+                                                    data-shortcut={prettyShortcuts(shortcuts.goForward)}
                                                     disabled={secondary.index >= secondary.history.length - 1}
                                                     onClick={(event) => {
                                                         const index = secondary.index + 1;
@@ -2776,7 +2814,7 @@ export default function App() {
                                                     <ArrowRightIcon/>
                                                 </IconButton>
                                                 <IconButton
-                                                    data-shortcut={prettyShortcut(shortcuts.goUp)}
+                                                    data-shortcut={prettyShortcuts(shortcuts.goUp)}
                                                     disabled={!secondaryParent}
                                                     onClick={(event) => {
                                                         if (!secondaryParent) return;
@@ -2808,7 +2846,7 @@ export default function App() {
                                                     <PlusIcon/>
                                                 </IconButton>
                                                 <IconButton
-                                                    data-shortcut={prettyShortcut(shortcuts.find)}
+                                                    data-shortcut={prettyShortcuts(shortcuts.find)}
                                                     onClick={openFind}
                                                     title={t("search")}
                                                     type="button"

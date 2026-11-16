@@ -21,7 +21,7 @@ import {
 } from "../api/operations";
 import {requestFolder} from "../folder-picker";
 import {showMessage} from "../api/dialogs";
-import {prettyShortcut, type ShortcutMap} from "../shortcuts";
+import {prettyShortcuts, type ShortcutMap} from "../shortcuts";
 import {CreateFileTypes} from "../create-types";
 import {baseName, isArchiveLocation, isArchivePath, normalizePath} from "../utils/format";
 import {setLinkSource, useLinkSource} from "../ui/linkSource";
@@ -404,7 +404,7 @@ export function FileMenu({
         if (onCreateFolder) {
             quick.push({
                 label: t("new_folder"), icon: <PlusIcon size={16}/>,
-                shortcut: prettyShortcut(shortcuts.newFolder),
+                shortcut: prettyShortcuts(shortcuts.newFolder),
                 onSelect: onCreateFolder,
             });
         }
@@ -508,14 +508,14 @@ export function FileMenu({
         if (onPaste) {
             quick.push({
                 label: t("paste"), icon: <PasteIcon size={16}/>, disabled: !canPaste,
-                shortcut: prettyShortcut(shortcuts.paste),
+                shortcut: prettyShortcuts(shortcuts.paste),
                 onSelect: () => onPaste(directory),
             });
         }
         if (!archiveView)
             quick.push({
                 label: t("properties"), icon: <GearIcon size={16}/>,
-                shortcut: prettyShortcut(shortcuts.properties),
+                shortcut: prettyShortcuts(shortcuts.properties),
                 onSelect: () => void showProperties([directory]),
             });
     } else {
@@ -750,11 +750,11 @@ export function FileMenu({
         if (onCopy) {
             quick.push(
                 {
-                    label: t("cut"), icon: <CutIcon size={16}/>, shortcut: prettyShortcut(shortcuts.cut),
+                    label: t("cut"), icon: <CutIcon size={16}/>, shortcut: prettyShortcuts(shortcuts.cut),
                     onSelect: () => onCopy(menu.paths, true),
                 },
                 {
-                    label: t("copy"), icon: <CopyIcon size={16}/>, shortcut: prettyShortcut(shortcuts.copy),
+                    label: t("copy"), icon: <CopyIcon size={16}/>, shortcut: prettyShortcuts(shortcuts.copy),
                     onSelect: () => onCopy(menu.paths, false),
                 },
             );
@@ -762,7 +762,7 @@ export function FileMenu({
 
         if (single && target && onRename) {
             quick.push({
-                label: t("rename"), icon: <PencilIcon size={16}/>, shortcut: prettyShortcut(shortcuts.rename),
+                label: t("rename"), icon: <PencilIcon size={16}/>, shortcut: prettyShortcuts(shortcuts.rename),
                 onSelect: () => onRename(target.path),
             });
         }
@@ -770,7 +770,7 @@ export function FileMenu({
         if (onDelete) {
             quick.push({
                 label: t("delete"), icon: <TrashIcon size={16}/>, danger: true,
-                shortcut: prettyShortcut(shortcuts.delete),
+                shortcut: prettyShortcuts(shortcuts.delete),
                 onSelect: () => onDelete(menu.paths),
             });
         }
@@ -778,7 +778,7 @@ export function FileMenu({
         if (!archiveView)
             quick.push({
                 label: t("properties"), icon: <GearIcon size={16}/>,
-                shortcut: prettyShortcut(shortcuts.properties),
+                shortcut: prettyShortcuts(shortcuts.properties),
                 onSelect: () => void showProperties(menu.paths),
             });
     }

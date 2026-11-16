@@ -3,7 +3,7 @@ import styled from "styled-components";
 import {useWindowControls, useWindowDrag, useTranslation} from "@photino-net-utils/bridge";
 import type {TabInfo} from "../tabs";
 import type {DirectoryView, ResolvedView} from "../api/files";
-import {prettyShortcut, type ShortcutMap} from "../shortcuts";
+import {prettyShortcuts, type ShortcutMap} from "../shortcuts";
 import {isPathDrag, readDraggedPaths} from "./FileTray";
 import {PlaceIcon} from "./PlaceIcon";
 import {StatusCenter} from "./StatusCenter";
@@ -226,7 +226,7 @@ export function TitleBar({
                                 </>
                             )}
                             <TabClose
-                                data-shortcut={prettyShortcut(shortcuts.closeTab)}
+                                data-shortcut={prettyShortcuts(shortcuts.closeTab)}
                                 onClick={(event) => {
                                     event.stopPropagation();
                                     onClose(tab.id);
@@ -246,7 +246,7 @@ export function TitleBar({
                 )}
 
                 <NewTab
-                    data-shortcut={prettyShortcut(shortcuts.newTab)}
+                    data-shortcut={prettyShortcuts(shortcuts.newTab)}
                     onClick={onNewTab}
                     title={t("new_tab")}
                     type="button"
@@ -260,7 +260,7 @@ export function TitleBar({
             <Controls>
                 <UtilityButton
                     $active={split}
-                    data-shortcut={prettyShortcut(shortcuts.splitView)}
+                    data-shortcut={prettyShortcuts(shortcuts.splitView)}
                     disabled={!canSplit}
                     onClick={onToggleSplit}
                     title={split ? t("close_split_view") : t("split_view")}

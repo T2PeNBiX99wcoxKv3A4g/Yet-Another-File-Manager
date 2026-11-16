@@ -36,6 +36,7 @@ declare module "@photino-net-utils/bridge"
         "aes_256": true;
         "all": true;
         "all_files": true;
+        "also_in_use_by_actions_pressing_it_runs_each_of_them": true;
         "always_applies_to_every_folder": true;
         "amber": true;
         "another_pairing_is_already_in_progress": true;
@@ -97,7 +98,6 @@ declare module "@photino-net-utils/bridge"
         "browser_preview": true;
         "built_in_source": true;
         "buttons_selections_focus_rings_and_active_navigation": true;
-        "bypasses_the_recycle_bin_dolphin_uses_shift_delete": true;
         "b_zip2": true;
         "cancel": true;
         "cancel_selected_link": true;
@@ -127,6 +127,7 @@ declare module "@photino-net-utils/bridge"
         "clear": true;
         "clear_finished": true;
         "clear_the_frequent_list": true;
+        "click_to_record_this_shortcut_again": true;
         "click_to_type_a_path": true;
         "clipboard": true;
         "close": true;
@@ -150,6 +151,7 @@ declare module "@photino-net-utils/bridge"
         "confirmation_delay": true;
         "confirm_before_deleting": true;
         "copies_or_moves_the_clipboard_s_files_into_the_current_folder": true;
+        "copies_the_selection_so_it_can_be_pasted_elsewhere": true;
         "copy": true;
         "copy_as_path": true;
         "copy_count_items": true;
@@ -182,12 +184,11 @@ declare module "@photino-net-utils/bridge"
         "count_selected": true;
         "count_visits_path": true;
         "created": true;
-        "creates_a_folder_in_the_current_directory_f10_also_works": true;
+        "creates_a_folder_in_the_current_directory": true;
         "create_link": true;
         "creating_links_is_a_windows_feature": true;
         "css_file": true;
         "csv_file": true;
-        "ctrl_d_copies_too_following_kde_s_file_manager": true;
         "current_version": true;
         "custom": true;
         "custom_port": true;
@@ -209,11 +210,11 @@ declare module "@photino-net-utils/bridge"
         "deleted_done_of_1_item": true;
         "deleted_done_of_total_items": true;
         "deletes_permanently": true;
+        "deletes_the_selection_without_the_recycle_bin": true;
         "delete_anyway": true;
         "delete_anyway_seconds_s": true;
         "delete_count_items": true;
         "delete_every_orphan": true;
-        "delete_is_del_by_default_not_ctrl_d": true;
         "delete_permanently": true;
         "deleting_moving_renaming_or_writing_to_a_protected_folder_anything_inside_a_recursive_entry_or_a_folder_that_contains_one_always_waits_for_an_explicit_confirmation": true;
         "deselect": true;
@@ -240,6 +241,7 @@ declare module "@photino-net-utils/bridge"
         "drift": true;
         "drives": true;
         "dunes": true;
+        "duplicate": true;
         "edit": true;
         "edit_location": true;
         "edit_tags": true;
@@ -250,6 +252,7 @@ declare module "@photino-net-utils/bridge"
         "encrypted": true;
         "encrypted_archive": true;
         "encryption": true;
+        "every_action_can_hold_several_combinations_click_one_to_record_it_again_add_one_with_the_plus_and_drop_one_with_the_cross": true;
         "every_tag_in_the_catalogue_add_rename_recolour_or_remove_them_here": true;
         "every_tag_the_catalogue_has_seen_ready_to_rename_or_remove": true;
         "every_timestamp_in_the_interface_uses_this_format_follow_the_system_force_24_hour_or_12_hour_time_or_define_your_own_pattern": true;
@@ -298,6 +301,8 @@ declare module "@photino-net-utils/bridge"
         "give_a_folder_its_own_icon": true;
         "global": true;
         "global_hotkey": true;
+        "goes_to_the_next_folder_in_this_tab": true;
+        "goes_to_the_previous_folder_in_this_tab": true;
         "gradients_highlights_and_the_second_end_of_the_accent_ramp": true;
         "greek_cp1253": true;
         "green": true;
@@ -343,7 +348,7 @@ declare module "@photino-net-utils/bridge"
         "japanese_cp932": true;
         "java_script_file": true;
         "json_file": true;
-        "jumps_to_the_user_s_home_folder_like_alt_home_in_dolphin": true;
+        "jumps_to_the_user_s_home_folder": true;
         "keeps_the_tabs_and_the_folder_each_one_shows_so_they_come_back_after_a_restart_a_folder_passed_on_the_command_line_takes_over_instead": true;
         "keep_a_index_in_every_folder": true;
         "korean_cp949": true;
@@ -373,6 +378,7 @@ declare module "@photino-net-utils/bridge"
         "location": true;
         "logs": true;
         "lzma": true;
+        "makes_a_copy_of_the_selection_in_this_folder_with_a_new_name": true;
         "managed_heap": true;
         "markdown_file": true;
         "match_case": true;
@@ -390,6 +396,7 @@ declare module "@photino-net-utils/bridge"
         "move": true;
         "moves_the_entries": true;
         "moves_the_selection_on_the_next_paste": true;
+        "moves_the_selection_to_the_recycle_bin": true;
         "moves_to_the_recycle_bin": true;
         "move_anyway": true;
         "move_anyway_seconds_s": true;
@@ -457,12 +464,12 @@ declare module "@photino-net-utils/bridge"
         "only_paired_devices_can_open_this_folder_in_the_app": true;
         "only_these_folders_are_scanned_three_levels_deep": true;
         "open": true;
+        "opens_a_terminal_in_the_current_folder": true;
         "opens_the_floating_search_box_typing_a_letter_in_a_folder_opens_it_too": true;
         "opens_the_folder_that_contains_the_current_one": true;
         "opens_the_overview_in_a_new_tab": true;
         "opens_the_selected_folder_or_file": true;
         "opens_the_shell_properties_sheet": true;
-        "opens_windows_terminal_in_the_current_folder_dolphin_uses_f4_for_its_terminal_panel": true;
         "open_archives_with_this_app": true;
         "open_folder": true;
         "open_in_a_new_tab": true;
@@ -630,7 +637,7 @@ declare module "@photino-net-utils/bridge"
         "select": true;
         "selection_checkboxes": true;
         "selection_menu": true;
-        "selects_everything_that_is_not_selected_dolphin_uses_ctrl_shift_a": true;
+        "selects_everything_that_is_not_selected": true;
         "selects_every_entry_in_the_current_folder": true;
         "select_all": true;
         "select_all_matches": true;
@@ -676,7 +683,7 @@ declare module "@photino-net-utils/bridge"
         "shown": true;
         "shown_in_every_folder_changing_them_changes_all_folders_at_once": true;
         "shown_of_total_pictures": true;
-        "shows_the_next_file_tab_beside_the_current_one_f3_in_dolphin": true;
+        "shows_the_next_file_tab_beside_the_current_one": true;
         "shows_the_pictures_videos_and_documents_the_shell_can_preview_as_grid_tiles_below_the_list_the_tiles_follow_the_grid_size_and_the_panel_only_appears_in_list_mode": true;
         "show_all_admin": true;
         "show_a_checkbox_before_every_name_the_way_explorer_does_checked_entries_can_be_copied_cut_or_deleted_together": true;
@@ -761,7 +768,6 @@ declare module "@photino-net-utils/bridge"
         "the_home_tab_s_history_and_how_much_of_it_it_shows": true;
         "the_icon_in_the_list_rows": true;
         "the_installer_downloads_installs_itself_and_closes_the_app": true;
-        "the_keys_this_window_listens_for_click_a_combination_to_record_a_new_one": true;
         "the_language_the_interface_uses_english_is_the_default_the_system_option_follows_the_operating_system": true;
         "the_mode_every_folder_starts_with_a_folder_can_still_remember_its_own_list_or_grid_mode_from_the_title_bar": true;
         "the_next_folder_in_this_tab_the_mouse_forward_button_and_the_browser_forward_key_always_work": true;
@@ -795,6 +801,7 @@ declare module "@photino-net-utils/bridge"
         "tide": true;
         "time_format": true;
         "titles": true;
+        "toggles_ordinary_hidden_files_for_this_session": true;
         "toggles_ordinary_hidden_files_for_this_session_alt_also_works_system_files_still_follow_explorer": true;
         "tokens_yyyy_year_mm_month_dd_day_hh_24_hour_mm_minute_ss_second_hh_12_hour_and_a_am_pm_other_characters_are_copied": true;
         "to_clipboard": true;
@@ -802,7 +809,7 @@ declare module "@photino-net-utils/bridge"
         "tray": true;
         "trim_now": true;
         "turkish_cp1254": true;
-        "turns_the_breadcrumbs_into_an_editable_path_ctrl_l_in_dolphin": true;
+        "turns_the_breadcrumbs_into_an_editable_path": true;
         "type": true;
         "type_count_items": true;
         "type_script_file": true;
