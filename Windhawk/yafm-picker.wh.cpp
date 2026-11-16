@@ -2,7 +2,7 @@
 // @id              yafm-picker
 // @name            Yet Another File Manager pickers
 // @description     Replaces the Windows Open, Save As and folder dialogs with the app's picker
-// @version         1.4.2
+// @version         1.4.3
 // @author          T2PeNBiX99wcoxKv3A4g
 // @github          https://github.com/T2PeNBiX99wcoxKv3A4g
 // @include         *
@@ -256,8 +256,13 @@ static std::wstring ResolveExecutable() {
     return {};
 }
 
+/// Adds an argument, quoted, after whatever the command line already holds. The separating space
+/// belongs between arguments: a command line that starts with one is read as having an empty
+/// program name, and every argument after it shifts by one.
 static void AppendQuoted(std::wstring& command, const std::wstring& value) {
-    command += L" \"";
+    if (!command.empty())
+        command += L' ';
+    command += L'"';
     for (wchar_t ch : value) {
         if (ch == L'"')
             command += L'\\';
