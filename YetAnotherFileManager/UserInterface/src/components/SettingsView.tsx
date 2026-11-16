@@ -418,42 +418,117 @@ export function SettingsView({
         sectionRefs.current[id] = node;
     };
 
-    const jumpTo = (id: string) => {
-        sectionRefs.current[id]?.scrollIntoView({behavior: "smooth", block: "start"});
-        setActiveSection(id);
+    const toc = useRef<HTMLElement | null>(null);
+
+    /** The section the column is easing towards, and where that is, so notches extend one motion. */
+    const aim = useRef<{ top: number; index: number } | null>(null);
+    const glide = useRef(0);
+
+    /**
+     * Eases the column towards `aim`, which the wheel is free to move while the motion runs: a run
+     * of notches then reads as one long glide instead of a stop at every section.
+     */
+    const startGlide = () => {
+        if (glide.current !== 0) return;
+
+        const tick = () => {
+            const scroller = page.current;
+            if (!scroller || !aim.current) {
+                glide.current = 0;
+                return;
+            }
+
+            const goal = Math.min(aim.current.top, scroller.scrollHeight - scroller.clientHeight);
+            const distance = goal - scroller.scrollTop;
+
+            if (Math.abs(distance) < 0.5) {
+                scroller.scrollTop = goal;
+                aim.current = null;
+                glide.current = 0;
+                return;
+            }
+
+            // Ease towards the aim, capped so a long jump still reads as motion rather than a blur.
+            const step = Math.min(Math.abs(distance) * 0.2, 140);
+            scroller.scrollTop += Math.sign(distance) * step;
+            glide.current = requestAnimationFrame(tick);
+        };
+
+        glide.current = requestAnimationFrame(tick);
     };
 
-    /** When the wheel last stepped a section, so one spin does not skip three of them. */
+    const jumpTo = (id: string) => {
+        const scroller = page.current;
+        const section = sectionRefs.current[id];
+        if (!scroller || !section) return;
+
+        aim.current = {
+            index: SettingSections.findIndex((entry) => entry.id === id),
+            top: scroller.scrollTop + section.getBoundingClientRect().top - scroller.getBoundingClientRect().top,
+        };
+
+        setActiveSection(id);
+        startGlide();
+    };
+
+    // The rail is shorter than the sections it lists, so it follows the one in view instead of the
+    // pointer having to reach it.
+    useEffect(() => {
+        const rail = toc.current;
+        const item = rail?.querySelector<HTMLElement>(`[data-section="${activeSection}"]`);
+        if (!rail || !item) return;
+
+        const bounds = rail.getBoundingClientRect();
+        const entry = item.getBoundingClientRect();
+        if (entry.top < bounds.top) rail.scrollTop += entry.top - bounds.top - 6;
+        else if (entry.bottom > bounds.bottom) rail.scrollTop += entry.bottom - bounds.bottom + 6;
+    }, [activeSection]);
+
+    // Turning the wheel over the column itself ends a glide: that is the user scrolling, not a step.
+    useEffect(() => {
+        const scroller = page.current;
+        if (!scroller) return;
+
+        const stop = () => {
+            aim.current = null;
+        };
+
+        scroller.addEventListener("wheel", stop, {passive: true});
+        scroller.addEventListener("pointerdown", stop, {passive: true});
+
+        return () => {
+            scroller.removeEventListener("wheel", stop);
+            scroller.removeEventListener("pointerdown", stop);
+            cancelAnimationFrame(glide.current);
+        };
+    }, []);
+
+    /** When the wheel last stepped a section, so one trackpad gesture does not run down the list. */
     const stepLock = useRef(0);
 
     /**
-     * A wheel notch over the section list moves the settings column one section at a time, the way
-     * a page-turner would: the list is short, so scrolling it sideways would do nothing, and
-     * dragging the whole column along felt wrong. A rail that is long enough to scroll keeps its
-     * own wheel until it reaches an end.
+     * A wheel notch over the section list moves the settings column one section at a time. The rail
+     * itself never scrolls, so no notch is swallowed by it, and each one only extends the section
+     * the column is heading for — the glide carries on to whatever the last notch asked for.
+     *
+     * A mouse sends one large event per notch, a trackpad a stream of small ones, so only the
+     * stream is held back: one flick is one section.
      */
     const stepFromToc = (event: WheelEvent<HTMLElement>) => {
-        const rail = event.currentTarget;
         const direction = Math.sign(event.deltaY);
         if (direction === 0) return;
 
-        if (rail.scrollHeight > rail.clientHeight + 1) {
-            const atStart = rail.scrollTop <= 0 && direction < 0;
-            const atEnd = rail.scrollTop + rail.clientHeight >= rail.scrollHeight - 1 && direction > 0;
-            if (!atStart && !atEnd) return;
-        }
+        const notch = event.deltaMode !== 0 || Math.abs(event.deltaY) >= 50;
+        const now = performance.now();
+        if (!notch && now < stepLock.current) return;
+        stepLock.current = now + 220;
 
-        // A trackpad sends a stream of events for one gesture, and the smooth scroll needs a
-        // moment; without this, one flick would run through half the page.
-        const now = Date.now();
-        if (now < stepLock.current) return;
+        // A glide in flight already knows where it lands, so the next notch continues from there
+        // rather than from the section still passing the top of the column.
+        const from = aim.current?.index ?? SettingSections.findIndex((section) => section.id === activeSection);
+        const next = Math.min(Math.max((from < 0 ? 0 : from) + direction, 0), SettingSections.length - 1);
+        if (next === (from < 0 ? 0 : from)) return;
 
-        const index = SettingSections.findIndex((section) => section.id === activeSection);
-        const from = index < 0 ? 0 : index;
-        const next = Math.min(Math.max(from + direction, 0), SettingSections.length - 1);
-        if (next === from) return;
-
-        stepLock.current = now + 400;
         jumpTo(SettingSections[next].id);
     };
 
@@ -3195,12 +3270,13 @@ export function SettingsView({
                 </AttributionLink>
             </Main>
 
-            <Toc aria-label={t("settings_sections")} onWheel={stepFromToc}>
+            <Toc aria-label={t("settings_sections")} onWheel={stepFromToc} ref={toc}>
                 <TocLabel>{t("sections")}</TocLabel>
                 <TocList>
                     {SettingSections.map(({id, label}) => (
                         <TocItem
                             $active={activeSection === id}
+                            data-section={id}
                             key={id}
                             onClick={() => jumpTo(id)}
                             type="button"
@@ -3981,9 +4057,9 @@ const Toc = styled.nav`
     width: 172px;
     min-height: 0;
     max-height: 100%;
-    overflow-y: auto;
+    overflow: hidden;
     padding: 6px 0 12px;
-    scrollbar-width: thin;
+    scrollbar-width: none;
 `;
 
 const TocLabel = styled.span`
