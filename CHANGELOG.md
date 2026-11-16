@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.20.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.20.0..v0.20.1) - 2026-11-16
+
+### 📚 Documentation
+
+- Correct what Windows 10 needs before the first launch - ([f4b2164](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/f4b2164800e23e486985570741c6848c9fa4a8df))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([317dae4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/317dae4320ec2fd6803f3615f726c887eb79d2f2))
+
+
 ## [0.20.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.19.2..v0.20.0) - 2026-11-16
 
 ### ⛰️  Features
