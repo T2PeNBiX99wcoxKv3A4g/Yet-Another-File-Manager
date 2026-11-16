@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.17.4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.17.3..v0.17.4) - 2026-11-16
+
+### 🐛 Bug Fixes
+
+- *(ui)* Draw an SVG tile from the file, not from the shell - ([2771a1e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/2771a1e5276d87fdd63e5fc82cf799f8d1eb9d9a))
+- *(windhawk)* Stop the extra folder a ShellExecute open started - ([1614ca1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1614ca15b75bbc50b4cfe8092016e3c694729313))
+
+### 📚 Documentation
+
+- *(windhawk)* Explain why a Steam-installed program is left alone - ([e4d3284](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/e4d3284be9f0e24c08d78ac8e20f5533f9f8966e))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([297059b](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/297059b5d7b597c245dee22dd4871293436f9439))
+
+
 ## [0.17.3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.17.2..v0.17.3) - 2026-11-16
 
 ### 🐛 Bug Fixes
