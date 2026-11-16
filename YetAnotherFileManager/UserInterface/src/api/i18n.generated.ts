@@ -637,6 +637,7 @@ declare module "@photino-net-utils/bridge"
         "save_the_current_colours_as_a_preset": true;
         "scanning": true;
         "scan_folders": true;
+        "scan_the_code_to_open_this_share_on_a_phone": true;
         "scan_the_folders_again": true;
         "scheduled_task": true;
         "scroll_tabs_left": true;

@@ -865,5 +865,6 @@
   "permanently_delete_n_items": "{0} 件を完全に削除",
   "compress_named_item": "{0} を圧縮",
   "extract_named_item": "{0} を展開",
-  "cancelled": "キャンセルしました。"
+  "cancelled": "キャンセルしました。",
+  "scan_the_code_to_open_this_share_on_a_phone": "スマートフォンでコードを読み取ると、この共有を開けます。"
 }

@@ -36,6 +36,8 @@ export interface ShareList {
     webRunning: boolean;
     webPort: number;
     urls: string[];
+    /** The address a phone on the network can reach, which the QR code names; null when there is none. */
+    preferredUrl: string | null;
     deviceId: string;
     deviceName: string;
     fingerprint: string;
@@ -46,6 +48,7 @@ const EmptyList: ShareList = {
     webRunning: false,
     webPort: 0,
     urls: [],
+    preferredUrl: null,
     deviceId: "",
     deviceName: "",
     fingerprint: "",

@@ -66,7 +66,7 @@ internal partial class ShareService
 
     private static ShareListPayload ListPayload() =>
         new(ShareStore.Instance.All, WebShareServer.Instance.Running, WebShareServer.Instance.Port,
-            WebShareServer.Instance.Urls(), ShareIdentity.Instance.Id,
+            WebShareServer.Instance.Urls(), WebShareServer.Instance.ReachableUrl(), ShareIdentity.Instance.Id,
             ShareIdentity.Instance.DeviceName, ShareIdentity.Instance.Fingerprint);
 
     [NativeMessage("share.add")]

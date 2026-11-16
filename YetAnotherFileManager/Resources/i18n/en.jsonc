@@ -865,5 +865,6 @@
   "permanently_delete_n_items": "Permanently delete {0} items",
   "compress_named_item": "Compress {0}",
   "extract_named_item": "Extract {0}",
-  "cancelled": "Cancelled."
+  "cancelled": "Cancelled.",
+  "scan_the_code_to_open_this_share_on_a_phone": "Scan the code to open this share on a phone."
 }

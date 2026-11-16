@@ -1,5 +1,6 @@
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import styled from "styled-components";
+import {renderSVG} from "uqr";
 import {addShare, getShares, removeShare, setShareMode, type ShareList,} from "../api/share";
 import {openUrl} from "../api/system";
 import {elevatedPanel} from "../ui/panel";
@@ -142,11 +143,18 @@ export function SharePanel({currentFolder}: { currentFolder: string }) {
                                     <GlobeIcon size={12}/>
                                     {t("browser_access")}
                                 </WebHead>
-                                {list.urls.map((url) => (
-                                    <UrlButton key={url} onClick={() => void openUrl(url)} type="button">
-                                        {url}
-                                    </UrlButton>
-                                ))}
+                                <WebBody>
+                                    <WebLinks>
+                                        {list.urls.map((url) => (
+                                            <UrlButton key={url} onClick={() => void openUrl(url)} type="button">
+                                                {url}
+                                            </UrlButton>
+                                        ))}
+                                    </WebLinks>
+                                    {/* The code names the best address on its own, so the list of
+                                        addresses and the code never disagree. */}
+                                    {list.preferredUrl && <QrCode value={list.preferredUrl}/>}
+                                </WebBody>
                                 <Small>{t("open_one_of_these_addresses_on_any_device_on_the_same_network")}</Small>
                             </Web>
                         )}
@@ -272,6 +280,59 @@ const Device = styled.div`
         color: var(--text-primary);
         font-size: 12px;
         font-weight: 600;
+    }
+`;
+
+/**
+ * The code a phone scans to open the share. It is drawn black on white, because a scanner reads a
+ * dark panel poorly, and as SVG, so it stays sharp at any size.
+ */
+function QrCode({value}: { value: string }) {
+    const t = useTranslation();
+    const svg = useMemo(
+        () => renderSVG(value, {ecc: "M", border: 2, pixelSize: 4, blackColor: "#000000", whiteColor: "#ffffff"}),
+        [value]);
+
+    return (
+        <QrBox
+            dangerouslySetInnerHTML={{__html: svg}}
+            role="img"
+            title={t("scan_the_code_to_open_this_share_on_a_phone")}
+        />
+    );
+}
+
+/**
+ * The addresses on the left and the one code on the right: the code keeps its place whatever the
+ * list holds, because it names the address a phone should use, not one of the rows.
+ */
+const WebBody = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 10px;
+`;
+
+const WebLinks = styled.div`
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+`;
+
+const QrBox = styled.div`
+    flex-shrink: 0;
+    width: 84px;
+    height: 84px;
+    padding: 6px;
+    border-radius: var(--radius-sm);
+    background: #ffffff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+
+    svg {
+        display: block;
+        width: 100%;
+        height: 100%;
     }
 `;
 

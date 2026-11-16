@@ -865,5 +865,6 @@
   "permanently_delete_n_items": "永久删除 {0} 个项目",
   "compress_named_item": "压缩 {0}",
   "extract_named_item": "解压 {0}",
-  "cancelled": "已取消。"
+  "cancelled": "已取消。",
+  "scan_the_code_to_open_this_share_on_a_phone": "用手机扫描二维码即可打开这个分享。"
 }

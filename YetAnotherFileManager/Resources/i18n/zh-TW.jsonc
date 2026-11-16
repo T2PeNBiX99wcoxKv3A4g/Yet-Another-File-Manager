@@ -865,5 +865,6 @@
   "permanently_delete_n_items": "永久刪除 {0} 個項目",
   "compress_named_item": "壓縮 {0}",
   "extract_named_item": "解壓縮 {0}",
-  "cancelled": "已取消。"
+  "cancelled": "已取消。",
+  "scan_the_code_to_open_this_share_on_a_phone": "用手機掃描條碼即可開啟這個分享。"
 }

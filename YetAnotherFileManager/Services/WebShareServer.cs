@@ -492,13 +492,95 @@ internal partial class WebShareServer
             AppJsonContext.Default.ShareWebErrorPayload);
     }
 
+    /// <summary>
+    ///     The addresses a device on the same network can reach, the one a phone is most likely to
+    ///     use first. An adapter without a default gateway, or with a name that says it is a virtual
+    ///     switch, is still listed but comes last: a Hyper-V, WSL or VPN address is usually reachable
+    ///     only from this machine. Link-local addresses (169.254.x) are left out - they mean no DHCP
+    ///     server answered, so no other device can count on them.
+    /// </summary>
     private static IEnumerable<string> LanAddresses() =>
-        NetworkInterface.GetAllNetworkInterfaces()
-            .Where(nic => nic.OperationalStatus == OperationalStatus.Up &&
-                          nic.NetworkInterfaceType != NetworkInterfaceType.Loopback)
-            .SelectMany(nic => nic.GetIPProperties().UnicastAddresses)
-            .Select(address => address.Address)
-            .Where(address => address.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(address))
-            .Select(address => address.ToString())
+        Candidates()
+            .OrderByDescending(candidate => candidate.Rank)
+            .ThenBy(candidate => candidate.Address, StringComparer.Ordinal)
+            .Select(candidate => candidate.Address)
             .Distinct();
+
+    /// <summary>
+    ///     The address to put in the QR code: the best one an adapter that is not a virtual switch
+    ///     offered, or null when this machine has no network another device could join.
+    /// </summary>
+    public string? ReachableUrl()
+    {
+        if (!Running)
+            return null;
+
+        var address = Candidates()
+            .Where(candidate => !candidate.Virtual)
+            .OrderByDescending(candidate => candidate.Rank)
+            .Select(candidate => candidate.Address)
+            .FirstOrDefault();
+
+        return address is null ? null : $"http://{address}:{Port}/";
+    }
+
+    private readonly record struct Candidate(string Address, int Rank, bool Virtual);
+
+    private static IEnumerable<Candidate> Candidates()
+    {
+        foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
+        {
+            if (nic.OperationalStatus != OperationalStatus.Up ||
+                nic.NetworkInterfaceType is NetworkInterfaceType.Loopback or NetworkInterfaceType.Tunnel)
+                continue;
+
+            var properties = nic.GetIPProperties();
+            var gateway = properties.GatewayAddresses.Any(entry =>
+                entry.Address.AddressFamily == AddressFamily.InterNetwork &&
+                !entry.Address.Equals(IPAddress.Any));
+            var virtualAdapter = IsVirtual(nic);
+
+            foreach (var unicast in properties.UnicastAddresses)
+            {
+                var address = unicast.Address;
+                if (address.AddressFamily != AddressFamily.InterNetwork || IPAddress.IsLoopback(address))
+                    continue;
+
+                // 169.254/16: the adapter asked for an address and nothing answered.
+                if (address.GetAddressBytes() is [169, 254, _, _])
+                    continue;
+
+                var rank = 0;
+                if (gateway)
+                    rank += 30;
+                rank += nic.NetworkInterfaceType switch
+                {
+                    NetworkInterfaceType.Wireless80211 => 20,
+                    NetworkInterfaceType.Ethernet or NetworkInterfaceType.GigabitEthernet => 15,
+                    _ => 0
+                };
+                if (virtualAdapter)
+                    rank -= 40;
+
+                yield return new Candidate(address.ToString(), rank, virtualAdapter);
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Whether an adapter is a virtual switch rather than hardware a phone could also join:
+    ///     Hyper-V, WSL, Docker, the VM players, VPN tunnels and the like say so in their name.
+    /// </summary>
+    private static bool IsVirtual(NetworkInterface nic)
+    {
+        var text = $"{nic.Name} {nic.Description}";
+        string[] markers =
+        [
+            "virtual", "hyper-v", "vethernet", "wsl", "docker", "vmware", "virtualbox", "vbox",
+            "tap-", "tap adapter", "tailscale", "zerotier", "wireguard", "openvpn", "vpn",
+            "hamachi", "radmin", "bluetooth"
+        ];
+
+        return markers.Any(marker => text.Contains(marker, StringComparison.OrdinalIgnoreCase));
+    }
 }

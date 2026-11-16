@@ -440,6 +440,8 @@ internal sealed record ShareListPayload(
     bool WebRunning,
     int WebPort,
     IReadOnlyList<string> Urls,
+    // The address the QR code names: the one a phone on the network can reach, or null.
+    string? PreferredUrl,
     string DeviceId,
     string DeviceName,
     string Fingerprint);
