@@ -119,6 +119,26 @@ The app is started and the call returns at once, the way the shell returns once
 Explorer has the path. The mod never hooks the app's own process, so its
 **show in Explorer** still opens Explorer rather than asking itself.
 
+### Programs installed by Steam
+
+Windhawk never injects into a program under `...\steamapps\common\` — that
+path is part of its **well-known games** exclusion, which keeps mods away from
+anti-cheat games. Wallpaper Engine is installed there, so it never gets this
+mod at all: its Explorer opens cannot appear in the log, because no hook of
+ours runs inside it.
+
+Add the program to Windhawk's **Process inclusion list** (Settings → Advanced),
+which overrides the game exclusion for those paths only:
+
+```
+D:\Steam Games\steamapps\common\wallpaper_engine\*.exe
+```
+
+Restart Windhawk so the engine picks the setting up, then restart the program.
+From then on it logs its `explorer open:` lines like anything else, and the
+mod's checks apply: a path the app can open is taken over, the rest is left to
+the shell.
+
 ### When something still opens Explorer
 
 Every call that could have been a folder open but was left to the shell is

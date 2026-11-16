@@ -2,7 +2,7 @@
 // @id              yafm-picker
 // @name            Yet Another File Manager pickers
 // @description     Replaces the Windows Open, Save As and folder dialogs with the app's picker
-// @version         1.4.1
+// @version         1.4.2
 // @author          T2PeNBiX99wcoxKv3A4g
 // @github          https://github.com/T2PeNBiX99wcoxKv3A4g
 // @include         *
@@ -60,6 +60,9 @@ folder pickers stay native while it is on. Turn it off to use this one.
   stays Explorer; only a launch that carries a path is taken over.
 - The app itself is left unhooked, so its own *show in Explorer* still opens
   Explorer instead of asking itself.
+- A program installed by Steam lives under `steamapps\common`, which Windhawk
+  excludes as a well-known game: no mod runs inside it. Add it to Windhawk's
+  Process inclusion list (see the notes above the settings) to change that.
 */
 // ==/WindhawkModReadme==
 
