@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.18.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.17.5..v0.18.0) - 2026-11-16
+
+### ⛰️  Features
+
+- *(share)* Show a QR code for the web share - ([c6910f7](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c6910f7e15378a0f4ace5076c174d5d17bb3dc93))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([d63b84e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d63b84e40b4c46130d8c15eb903521f32ffdf5fe))
+
+
 ## [0.17.5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.17.4..v0.17.5) - 2026-11-16
 
 ### 🐛 Bug Fixes
