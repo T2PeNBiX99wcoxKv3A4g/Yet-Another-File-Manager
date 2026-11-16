@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.17.5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.17.4..v0.17.5) - 2026-11-16
+
+### 🐛 Bug Fixes
+
+- *(status)* Translate the labels the status center lists - ([41e8436](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/41e8436eb983a56d8b48265484f1e36b284df2ca))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([c0c7c6e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c0c7c6e6c2102cabbda3544e5acedfc2e41a2538))
+
+
 ## [0.17.4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.17.3..v0.17.4) - 2026-11-16
 
 ### 🐛 Bug Fixes
