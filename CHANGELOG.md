@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.17.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.17.0..v0.17.1) - 2026-11-16
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([7e43dc5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7e43dc5f4d4a2472644adba98161a93e8ae80972))
+
+### Build
+
+- *(ui)* Take the build scripts from the shared bridge - ([1d54ef5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1d54ef59022e197056e1f347cc615194c03ad6cc))
+
+
 ## [0.17.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.16.0..v0.17.0) - 2026-11-16
 
 ### ⛰️  Features
