@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.14.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.14.1..v0.14.2) - 2026-11-16
+
+### 🐛 Bug Fixes
+
+- *(ui)* Stop the list from coming back empty after the grid - ([102d451](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/102d451bdf463742e04cad087f3e9f9c4b8348b0))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([fd2b9dc](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/fd2b9dc84693f31bfedf4620fb69aa4c1b1c645f))
+
+
 ## [0.14.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.14.0..v0.14.1) - 2026-11-15
 
 ### 🐛 Bug Fixes
