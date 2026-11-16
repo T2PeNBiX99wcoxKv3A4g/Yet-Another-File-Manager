@@ -214,7 +214,11 @@ const Panel = styled.div`
     padding: 6px 9px;
     border: 1px solid var(--border-color-hover);
     border-radius: var(--radius-sm);
-    background: rgba(7, 11, 18, 0.96);
+    // The window's own surface colour, so a light or a custom palette keeps its tooltip light, and
+    // translucent enough to see the window behind it; the blur keeps the text there unreadable.
+    background: rgba(var(--bg-rgb), var(--tooltip-alpha));
+    backdrop-filter: var(--tooltip-blur);
+    -webkit-backdrop-filter: var(--tooltip-blur);
     box-shadow: var(--shadow-float);
     pointer-events: none;
     ${fadeInStyle}

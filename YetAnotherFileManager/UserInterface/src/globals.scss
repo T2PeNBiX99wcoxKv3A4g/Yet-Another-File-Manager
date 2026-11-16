@@ -63,6 +63,11 @@ html {
   // translucent only where backdrop-filter really renders (WebKitGTK especially).
   --panel-alpha: 0.96;
   --panel-blur: none;
+
+  // A tooltip sits on the window rather than replacing it, so it is more translucent than a panel
+  // and, where the engine can blur, it softens what is behind instead of covering it.
+  --tooltip-alpha: 0.92;
+  --tooltip-blur: none;
 }
 
 // The light palette. applyTheme() rewrites the surfaces and the accent-derived tokens once the
@@ -101,6 +106,8 @@ html[data-theme="light"] {
 html.backdrop-blur {
   --panel-alpha: 0.84;
   --panel-blur: blur(14px) saturate(130%);
+  --tooltip-alpha: 0.72;
+  --tooltip-blur: blur(18px) saturate(140%);
 }
 
 html:lang(zh-TW) {
