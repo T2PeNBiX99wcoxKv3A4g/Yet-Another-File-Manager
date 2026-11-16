@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.17.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.17.1..v0.17.2) - 2026-11-16
+
+### 🐛 Bug Fixes
+
+- *(settings)* Let the section rail keep up with the wheel - ([361d3ec](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/361d3ec95a1878068aa4c9d715fded7582e0c856))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([06af914](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/06af9142b24c037c3db7320976d84a7e2fc00af7))
+
+
 ## [0.17.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.17.0..v0.17.1) - 2026-11-16
 
 ### Action
