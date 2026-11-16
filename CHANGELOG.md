@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.20.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.19.2..v0.20.0) - 2026-11-16
+
+### ⛰️  Features
+
+- *(site)* Show the screenshots the project already has, and fit a phone - ([692be17](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/692be17f9508750bc50126140237c65c06a0e645))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([75b814a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/75b814a813e3049d65a5cadfdf8a19d00c40a30b))
+
+
 ## [0.19.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.19.1..v0.19.2) - 2026-11-16
 
 ### 🚜 Refactor
