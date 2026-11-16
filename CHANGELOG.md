@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.16.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.15.0..v0.16.0) - 2026-11-16
+
+### ⛰️  Features
+
+- *(shortcuts)* Several combinations per action, duplicates, and honest descriptions - ([69fa147](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/69fa147f339d566c2d46a2c2d5f3975414378dcc))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([275e5a2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/275e5a28abfd4912a33aadb54e1f9579cf799c38))
+
+
 ## [0.15.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.14.2..v0.15.0) - 2026-11-16
 
 ### ⛰️  Features
