@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.17.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.16.0..v0.17.0) - 2026-11-16
+
+### ⛰️  Features
+
+- *(settings)* Show what the app is built on - ([6950052](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/69500526b8b3f3715c3a1ef852a4e313768bd330))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([c2dbe9b](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c2dbe9b8a57f5b314874733aaf96f92fdbf8a2f5))
+
+
 ## [0.16.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.15.0..v0.16.0) - 2026-11-16
 
 ### ⛰️  Features
