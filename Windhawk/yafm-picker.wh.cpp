@@ -2,7 +2,7 @@
 // @id              yafm-picker
 // @name            Yet Another File Manager pickers
 // @description     Replaces the Windows Open, Save As and folder dialogs with the app's picker
-// @version         1.2.0
+// @version         1.3.0
 // @author          T2PeNBiX99wcoxKv3A4g
 // @github          https://github.com/T2PeNBiX99wcoxKv3A4g
 // @include         *
@@ -24,14 +24,20 @@ keeps its own dialog.
 - **Open** and **Save As**, including the newer COM dialogs that Discord,
   Telegram, VS Code and most Electron and Qt programs open.
 - **Select folder**.
+- **Folders a program asks the shell to open**, which would otherwise start File
+  Explorer.
 
 The picker opens where the program asked, with its file name, filter and
 default extension already filled in, and multi-select still works.
 
+Only local paths are taken over. A URL, a `shell:` location, a `runas` or
+other verb, a call with arguments, or a file that has a program of its own all
+go to the shell exactly as before.
+
 ## Settings
 
-Four switches, one per dialog type. Turn one off and only that dialog stays
-native.
+Five switches, one per dialog type plus the Explorer opens. Turn one off and
+only that part stays native.
 
 ## Conflicts
 
@@ -71,6 +77,12 @@ folder pickers stay native while it is on. Turn it off to use this one.
   $description: >-
     Replace IFileOpenDialog and IFileSaveDialog, the dialogs Discord, Telegram
     and most Electron and Qt 6 applications open.
+- ReplaceExplorerOpens: true
+  $name: Open folders with the app
+  $description: >-
+    Take over the folders a program asks the shell to open, which would otherwise
+    start File Explorer. URLs, shell: locations and files with a program of their
+    own are left to the shell.
 */
 // ==/WindhawkModSettings==
 
@@ -109,6 +121,8 @@ static bool g_replaceSave = true;
 static bool g_replaceFolder = true;
 static bool g_replaceModern = true;
 
+static bool g_replaceExplorer = true;
+
 using GetOpenFileNameW_t = BOOL(WINAPI*)(LPOPENFILENAMEW);
 using GetOpenFileNameA_t = BOOL(WINAPI*)(LPOPENFILENAMEA);
 using GetSaveFileNameW_t = BOOL(WINAPI*)(LPOPENFILENAMEW);
@@ -128,6 +142,7 @@ static void ReadSettings() {
     g_replaceSave = Wh_GetIntSetting(L"ReplaceSaveFilePickers") != 0;
     g_replaceFolder = Wh_GetIntSetting(L"ReplaceFolderPickers") != 0;
     g_replaceModern = Wh_GetIntSetting(L"ReplaceModernFilePickers") != 0;
+    g_replaceExplorer = Wh_GetIntSetting(L"ReplaceExplorerOpens") != 0;
 }
 
 static std::wstring GetStringSetting(PCWSTR name) {
@@ -718,6 +733,141 @@ static void InstallHook(HMODULE module, PCSTR name, void* hook, void** original)
 
     if (!Wh_SetFunctionHook(reinterpret_cast<void*>(target), hook, original))
         Wh_Log(L"Could not hook %S", name);
+}
+
+// ---------------------------------------------------------------------------
+// Explorer opens
+//
+// Some programs never show a dialog: they hand a folder to the shell and let Explorer
+// open it. Those calls end up here, and the app takes the shell's place when the shell
+// would really have started Explorer for a local path. A URL, a shell: location, a verb
+// with parameters, or a file that has a program of its own all pass through untouched.
+// ---------------------------------------------------------------------------
+
+using ShellExecuteExW_t = BOOL(WINAPI*)(SHELLEXECUTEINFOW*);
+using ShellExecuteW_t = HINSTANCE(WINAPI*)(HWND, LPCWSTR, LPCWSTR, LPCWSTR, LPCWSTR, INT);
+
+static ShellExecuteExW_t ShellExecuteExW_Original;
+static ShellExecuteW_t ShellExecuteW_Original;
+
+/// A drive path or a UNC share. Anything else is a URL, a shell: location or a bare program
+/// name, and only the shell knows what to do with those.
+static bool IsLocalPath(const std::wstring& path) {
+    if (path.size() < 3)
+        return false;
+
+    const bool drive = iswalpha(path[0]) && path[1] == L':' && (path[2] == L'\\' || path[2] == L'/');
+    const bool share = path[0] == L'\\' && path[1] == L'\\';
+
+    return drive || share;
+}
+
+/// Whether the shell would hand this file to Explorer. Only then is it ours: a document with
+/// a program of its own must keep opening in that program.
+static bool OpensWithExplorer(const std::wstring& path) {
+    wchar_t executable[MAX_PATH];
+    DWORD size = ARRAYSIZE(executable);
+
+    if (FAILED(AssocQueryStringW(ASSOCF_NONE, ASSOCSTR_EXECUTABLE, path.c_str(), L"open", executable, &size)))
+        return false;
+
+    const wchar_t* name = PathFindFileNameW(executable);
+    return name && _wcsicmp(name, L"explorer.exe") == 0;
+}
+
+/// Starts the app on a path. A dialog hook waits for the picker because a dialog is modal; an
+/// open is not, so this one returns as soon as the app is running.
+static bool OpenInApp(const std::wstring& path, HANDLE* process) {
+    const std::wstring executable = ResolveExecutable();
+    if (executable.empty())
+        return false;
+
+    std::wstring command;
+    AppendQuoted(command, executable);
+    AppendQuoted(command, path);
+
+    std::vector<wchar_t> mutableCommand(command.begin(), command.end());
+    mutableCommand.push_back(L'\0');
+
+    STARTUPINFOW startup = {};
+    startup.cb = sizeof(startup);
+
+    PROCESS_INFORMATION created = {};
+    if (!CreateProcessW(executable.c_str(), mutableCommand.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr,
+            &startup, &created)) {
+        Wh_Log(L"explorer open: could not start %s (error %u)", executable.c_str(), GetLastError());
+        return false;
+    }
+
+    CloseHandle(created.hThread);
+
+    if (process)
+        *process = created.hProcess;
+    else
+        CloseHandle(created.hProcess);
+
+    return true;
+}
+
+/// The decision both entry points share. `mask` is the ShellExecuteEx mask; the plain
+/// ShellExecute call carries no mask of its own and passes zero.
+static bool TryOpenWithApp(LPCWSTR verb, LPCWSTR file, LPCWSTR parameters, ULONG mask, HANDLE* process) {
+    if (!g_replaceExplorer || !file)
+        return false;
+
+    if (verb && *verb && _wcsicmp(verb, L"open") != 0)
+        return false;
+
+    if (parameters && *parameters)
+        return false;
+
+    // These ask for the shell's own handling: an item ID list, a class name or a class key.
+    if (mask & (SEE_MASK_INVOKEIDLIST | SEE_MASK_CLASSNAME | SEE_MASK_CLASSKEY))
+        return false;
+
+    const std::wstring target = file;
+    if (!IsLocalPath(target))
+        return false;
+
+    const DWORD attributes = GetFileAttributesW(target.c_str());
+    if (attributes == INVALID_FILE_ATTRIBUTES)
+        return false;
+
+    if (!(attributes & FILE_ATTRIBUTE_DIRECTORY) && !OpensWithExplorer(target))
+        return false;
+
+    if (!OpenInApp(target, process))
+        return false;
+
+    Wh_Log(L"explorer open: %s", target.c_str());
+    return true;
+}
+
+static BOOL WINAPI ShellExecuteExW_Hook(SHELLEXECUTEINFOW* info) {
+    HANDLE process = nullptr;
+
+    if (!info || !TryOpenWithApp(info->lpVerb, info->lpFile, info->lpParameters, info->fMask, &process))
+        return ShellExecuteExW_Original(info);
+
+    info->hInstApp = reinterpret_cast<HINSTANCE>(42);
+
+    if ((info->fMask & SEE_MASK_NOCLOSEPROCESS) != 0) {
+        info->hProcess = process;
+    } else {
+        if (process)
+            CloseHandle(process);
+        info->hProcess = nullptr;
+    }
+
+    return TRUE;
+}
+
+static HINSTANCE WINAPI ShellExecuteW_Hook(HWND owner, LPCWSTR verb, LPCWSTR file, LPCWSTR parameters,
+                                           LPCWSTR directory, INT show) {
+    if (TryOpenWithApp(verb, file, parameters, 0, nullptr))
+        return reinterpret_cast<HINSTANCE>(42);
+
+    return ShellExecuteW_Original(owner, verb, file, parameters, directory, show);
 }
 
 // ---------------------------------------------------------------------------
@@ -1596,6 +1746,14 @@ BOOL Wh_ModInit() {
         reinterpret_cast<void*>(SHBrowseForFolderW_Hook), reinterpret_cast<void**>(&SHBrowseForFolderW_Original));
     InstallHook(shell, "SHBrowseForFolderA",
         reinterpret_cast<void*>(SHBrowseForFolderA_Hook), reinterpret_cast<void**>(&SHBrowseForFolderA_Original));
+
+    // A program that opens a folder does not call a dialog at all: it hands the path to the
+    // shell. Both entry points are taken, and TryOpenWithApp decides what is a folder or a file
+    // the shell would have given to Explorer.
+    InstallHook(shell, "ShellExecuteExW", reinterpret_cast<void*>(ShellExecuteExW_Hook),
+        reinterpret_cast<void**>(&ShellExecuteExW_Original));
+    InstallHook(shell, "ShellExecuteW", reinterpret_cast<void*>(ShellExecuteW_Hook),
+        reinterpret_cast<void**>(&ShellExecuteW_Original));
 
     // The Common Item Dialog is handed out by COM, so the only place to take it is the
     // activation itself; every other class falls straight through to the original.

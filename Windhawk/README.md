@@ -50,6 +50,8 @@ app's own Open / Save As / Select folder.
 - `SHBrowseForFolderW/A` - Select folder
 - `IFileOpenDialog` / `IFileSaveDialog` - the Common Item Dialog, which Discord,
   Telegram and most Electron and Qt 6 applications use
+- `ShellExecuteExW` / `ShellExecuteW` - a folder a program asks the shell to open,
+  which would otherwise start File Explorer
 
 The dialog's initial folder, file name, extension filter and default extension
 are passed to the picker, and multi-selection is preserved for Open. The app is
@@ -75,9 +77,28 @@ Each group has its own switch in the mod's settings:
 - **Replace Save As pickers**
 - **Replace folder pickers**
 - **Replace modern file dialogs**
+- **Open folders with the app**
 
 Turning one off leaves that dialog untouched while the others are still
 replaced.
+
+### Explorer opens
+
+A program that opens a folder does not show a dialog: it hands the path to the
+shell, which starts File Explorer. Both `ShellExecute` entry points are hooked
+and answer with the app instead, but only when the call is one the shell would
+really have given to Explorer:
+
+- Only `X:\...` and `\\server\share\...` paths. A URL, a `shell:` location or a
+  bare program name goes to the shell untouched.
+- Only the `open` verb, with no parameters, and not when the caller asks for the
+  shell's own handling (`SEE_MASK_INVOKEIDLIST`, a class name or a class key).
+- A file is taken over only when its association points at `explorer.exe`
+  itself. A document with its own program, an executable, a shortcut and a
+  `.url` all keep opening the way they did.
+
+The app is started and the call returns at once, the way the shell returns once
+Explorer has the path.
 
 ### Conflicts
 
