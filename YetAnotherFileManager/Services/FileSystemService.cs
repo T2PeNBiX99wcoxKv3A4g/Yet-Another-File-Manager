@@ -423,7 +423,8 @@ internal partial class FileSystemService : INativeMessageHandler
                         new ArchiveExtractPayload(false, null, true, blocked.Token, blocked.Hits,
                             blocked.DelaySeconds));
 
-                var taskId = TaskCenter.Instance.Start("extract", $"Extract {Path.GetFileName(archive)}");
+                var taskId = TaskCenter.Instance.Start("extract",
+                    string.Format(Localization.Get("extract_named_item"), Path.GetFileName(archive)));
                 var extracted = await ExtractAsync(archive, request.Target, request.CodePage ?? 0,
                     request.Password, taskId);
 

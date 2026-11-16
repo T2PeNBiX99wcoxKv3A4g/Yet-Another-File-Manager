@@ -27,6 +27,12 @@ internal static class FileTransfer
         AttributesToSkip = FileAttributes.ReparsePoint
     };
 
+    /// <summary>The status center's label for a copy or move of one or many items.</summary>
+    private static string TransferLabel(bool move, int count) =>
+        count == 1
+            ? Localization.Get(move ? "move_1_item" : "copy_1_item")
+            : string.Format(Localization.Get(move ? "move_n_items" : "copy_n_items"), count);
+
     /// <summary>
     ///     Copies or moves every source into <paramref name="target" />. Each source keeps its name;
     ///     a name that is already taken becomes "name (2)", exactly like Explorer.
@@ -71,8 +77,7 @@ internal static class FileTransfer
         if (OperatingSystem.IsWindows() && !ElevatedOperation.IsHelper && !Access.CanWriteTo(target))
             return await RunThroughHelperAsync(list, target, move);
 
-        var taskId = TaskCenter.Instance.Start(move ? "move" : "copy",
-            $"{(move ? "Move" : "Copy")} {list.Count} item{(list.Count == 1 ? "" : "s")}");
+        var taskId = TaskCenter.Instance.Start(move ? "move" : "copy", TransferLabel(move, list.Count));
 
         var created = new List<string>();
         var reserved = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -170,8 +175,9 @@ internal static class FileTransfer
         }
         catch (OperationCanceledException)
         {
-            TaskCenter.Instance.Fail(taskId, "Cancelled.");
-            return (false, "Cancelled.", created);
+            var cancelled = Localization.Get("cancelled");
+            TaskCenter.Instance.Fail(taskId, cancelled);
+            return (false, cancelled, created);
         }
         catch (Exception ex)
         {
@@ -188,8 +194,7 @@ internal static class FileTransfer
     private static async Task<(bool Ok, string? Error, List<string> Created)> RunThroughHelperAsync(
         List<string> sources, string target, bool move)
     {
-        var taskId = TaskCenter.Instance.Start(move ? "move" : "copy",
-            $"{(move ? "Move" : "Copy")} {sources.Count} item{(sources.Count == 1 ? "" : "s")}");
+        var taskId = TaskCenter.Instance.Start(move ? "move" : "copy", TransferLabel(move, sources.Count));
 
         var result = await ElevatedOperation.CopyAsync([.. sources], target, move, progress =>
         {

@@ -854,5 +854,16 @@
   "also_in_use_by_actions_pressing_it_runs_each_of_them": "也被这些功能使用：{actions}；按下时会一起执行。",
   "click_to_record_this_shortcut_again": "点击可重新录制这个快捷键。",
   "open_source_attribution": "开源声明",
-  "this_app_ships_count_open_source_projects_pick_one_to_read_its_whole_licence": "这个应用包含 {count} 个开源项目。选一个即可阅读完整许可证。"
+  "this_app_ships_count_open_source_projects_pick_one_to_read_its_whole_licence": "这个应用包含 {count} 个开源项目。选一个即可阅读完整许可证。",
+  "copy_1_item": "复制 1 个项目",
+  "copy_n_items": "复制 {0} 个项目",
+  "move_1_item": "移动 1 个项目",
+  "move_n_items": "移动 {0} 个项目",
+  "delete_1_item": "删除 1 个项目",
+  "delete_n_items": "删除 {0} 个项目",
+  "permanently_delete_1_item": "永久删除 1 个项目",
+  "permanently_delete_n_items": "永久删除 {0} 个项目",
+  "compress_named_item": "压缩 {0}",
+  "extract_named_item": "解压 {0}",
+  "cancelled": "已取消。"
 }

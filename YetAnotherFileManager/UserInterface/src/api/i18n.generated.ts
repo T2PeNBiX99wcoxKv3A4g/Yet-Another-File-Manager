@@ -100,6 +100,7 @@ declare module "@photino-net-utils/bridge"
         "buttons_selections_focus_rings_and_active_navigation": true;
         "b_zip2": true;
         "cancel": true;
+        "cancelled": true;
         "cancel_selected_link": true;
         "case_sensitive_folder": true;
         "case_sensitive_folders_are_a_windows_feature": true;
@@ -145,6 +146,7 @@ declare module "@photino-net-utils/bridge"
         "compress": true;
         "compressing": true;
         "compression_level": true;
+        "compress_named_item": true;
         "compress_to": true;
         "compress_to_zip": true;
         "configuration": true;
@@ -153,8 +155,10 @@ declare module "@photino-net-utils/bridge"
         "copies_or_moves_the_clipboard_s_files_into_the_current_folder": true;
         "copies_the_selection_so_it_can_be_pasted_elsewhere": true;
         "copy": true;
+        "copy_1_item": true;
         "copy_as_path": true;
         "copy_count_items": true;
+        "copy_n_items": true;
         "copy_original_path": true;
         "could_not_add_the_tag": true;
         "could_not_apply_archive_changes": true;
@@ -211,10 +215,12 @@ declare module "@photino-net-utils/bridge"
         "deleted_done_of_total_items": true;
         "deletes_permanently": true;
         "deletes_the_selection_without_the_recycle_bin": true;
+        "delete_1_item": true;
         "delete_anyway": true;
         "delete_anyway_seconds_s": true;
         "delete_count_items": true;
         "delete_every_orphan": true;
+        "delete_n_items": true;
         "delete_permanently": true;
         "deleting_moving_renaming_or_writing_to_a_protected_folder_anything_inside_a_recursive_entry_or_a_folder_that_contains_one_always_waits_for_an_explicit_confirmation": true;
         "deselect": true;
@@ -262,6 +268,7 @@ declare module "@photino-net-utils/bridge"
         "extension_and_the_icon_to_draw_for_it": true;
         "extract_archive": true;
         "extract_here": true;
+        "extract_named_item": true;
         "extract_to": true;
         "extract_to_a_folder_named_after_the_archive": true;
         "falls_back_to_font_until_another_family_is_chosen": true;
@@ -398,11 +405,13 @@ declare module "@photino-net-utils/bridge"
         "moves_the_selection_on_the_next_paste": true;
         "moves_the_selection_to_the_recycle_bin": true;
         "moves_to_the_recycle_bin": true;
+        "move_1_item": true;
         "move_anyway": true;
         "move_anyway_seconds_s": true;
         "move_count_items": true;
         "move_down": true;
         "move_here": true;
+        "move_n_items": true;
         "move_target_to_the_recycle_bin": true;
         "move_to_the_recycle_bin": true;
         "move_up": true;
@@ -518,11 +527,13 @@ declare module "@photino-net-utils/bridge"
         "path": true;
         "pattern": true;
         "pdf": true;
+        "permanently_delete_1_item": true;
         "permanently_delete_1_item_this_cannot_be_undone": true;
         "permanently_delete_1_selected_item_this_cannot_be_undone": true;
         "permanently_delete_count_items_this_cannot_be_undone": true;
         "permanently_delete_count_selected_items_this_cannot_be_undone": true;
         "permanently_delete_every_leftover_record_including_the_ones_owned_by_other_profiles_this_cannot_be_undone": true;
+        "permanently_delete_n_items": true;
         "permanently_delete_target_this_cannot_be_undone": true;
         "picker_window_size": true;
         "picture": true;

@@ -982,7 +982,8 @@ internal static partial class FileOperations
     private static PathOperationPayload CompressCore(IReadOnlyList<string> paths, string output,
         ArchiveType archiveType, CompressionType compression, int level)
     {
-        var taskId = TaskCenter.Instance.Start("compress", $"Compress {Path.GetFileName(output)}");
+        var taskId = TaskCenter.Instance.Start("compress",
+            string.Format(Localization.Get("compress_named_item"), Path.GetFileName(output)));
         var total = (int)Math.Min(paths.Sum(path => Directory.Exists(path)
             ? Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories).LongCount()
             : 1), int.MaxValue);

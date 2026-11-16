@@ -57,9 +57,7 @@ internal static partial class FileOperations
             return (new(false, ParentsOf(items),
                 "Moving to the recycle bin needs Windows or Linux."), 0);
 
-        var id = TaskCenter.Instance.Start("delete",
-            $"{(permanent ? "Permanently delete" : "Delete")} {items.Count} item{(items.Count == 1 ? "" : "s")}",
-            items.Count);
+        var id = TaskCenter.Instance.Start("delete", DeleteLabel(permanent, items.Count), items.Count);
 
         try
         {
@@ -152,6 +150,12 @@ internal static partial class FileOperations
     }
 
     private static bool Exists(string path) => File.Exists(path) || Directory.Exists(path);
+
+    /// <summary>The status center's label for deleting one or many items.</summary>
+    private static string DeleteLabel(bool permanent, int count) =>
+        count == 1
+            ? Localization.Get(permanent ? "permanently_delete_1_item" : "delete_1_item")
+            : string.Format(Localization.Get(permanent ? "permanently_delete_n_items" : "delete_n_items"), count);
 
     private static (FileHistory.Step Step, int Deleted) Finish(string id, List<string> items, string? error,
         int deleted)
