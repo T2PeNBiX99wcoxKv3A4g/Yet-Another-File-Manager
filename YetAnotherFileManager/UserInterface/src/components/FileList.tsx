@@ -243,6 +243,8 @@ export function FileList({
     const [listWindow, setListWindow] = useState({top: 0, height: 640});
     const stripDrag = useRef<{ y: number; height: number } | null>(null);
     const anchor = useRef<string | null>(null);
+    /** Whether the pointer is over the preview strip, where Ctrl+A means that strip alone. */
+    const stripHover = useRef(false);
     const [tagTarget, setTagTarget] = useState<{ entry: FileEntry; x: number; y: number } | null>(null);
     const [stripHeight, setStripHeight] = useState(imageStripHeight);
     const [selected, setSelected] = useState<Set<string>>(() => new Set());
@@ -672,6 +674,10 @@ export function FileList({
     );
     const previewTotal = previews.length;
     const shownPreviews = useMemo(() => previews.slice(0, PreviewLimit), [previews]);
+    const stripPaths = useMemo(() => shownPreviews.map((row) => row.entry.fullPath), [shownPreviews]);
+    const stripSelected = stripPaths.filter((path) => selected.has(path)).length;
+    const stripAll = stripPaths.length > 0 && stripSelected === stripPaths.length;
+    const stripSome = stripSelected > 0 && !stripAll;
     const previewGroups = useMemo(
         () => showImages ? groupRows(shownPreviews, PreviewKindRules) : [],
         [shownPreviews, showImages]
@@ -687,6 +693,26 @@ export function FileList({
         if (allSelected) clearSelection();
         else setSelected(new Set(allPaths));
     };
+    /** Adds or removes the given rows; the per-group and the strip checkboxes share it. */
+    const togglePaths = useCallback((paths: string[], select: boolean) => {
+        if (singleSelect || paths.length === 0)
+            return;
+
+        setSelected((current) => {
+            const next = new Set(current);
+
+            for (const path of paths) {
+                if (select) next.add(path);
+                else next.delete(path);
+            }
+
+            return next;
+        });
+
+        if (select)
+            anchor.current = paths[0] ?? null;
+    }, [singleSelect]);
+
     const currentDirectory = listing?.path ?? "";
 
     /** Applies Explorer's plain, Ctrl and Shift selection rules to one click. */
@@ -1156,8 +1182,14 @@ export function FileList({
 
             if (combo === shortcuts.selectAll) {
                 run(() => {
-                    setSelected(new Set(allPaths));
-                    anchor.current = allPaths[0] ?? null;
+                    // Over the preview strip, the shortcut takes the files the strip shows, which
+                    // are the ones on screen there; the rest of the folder belongs to the list.
+                    const paths = stripHover.current && showImages && shownPreviews.length > 0
+                        ? shownPreviews.map((row) => row.entry.fullPath)
+                        : allPaths;
+
+                    setSelected(new Set(paths));
+                    anchor.current = paths[0] ?? null;
                 });
                 return;
             }
@@ -1407,6 +1439,7 @@ export function FileList({
                                 onRenameCommit={commitRename}
                                 onSelect={selectRow}
                                 onToggle={toggleRow}
+                                onTogglePaths={singleSelect ? undefined : togglePaths}
                                 openOnSingleClick={openOnSingleClick}
                                 renaming={renaming}
                                 searching={searching}
@@ -1601,8 +1634,32 @@ export function FileList({
                             onPointerUp={endStripDrag}
                             title={t("drag_to_resize_double_click_to_reset")}
                         />
-                        <Strip style={{height: stripHeight}}>
+                        <Strip
+                            onPointerEnter={() => {
+                                stripHover.current = true;
+                            }}
+                            onPointerLeave={() => {
+                                stripHover.current = false;
+                            }}
+                            style={{height: stripHeight}}
+                        >
                             <StripHead>
+                                {showCheckboxes && !singleSelect && stripPaths.length > 0 && (
+                                    <SelectAll
+                                        $checked={stripAll}
+                                        $partial={stripSome}
+                                        aria-label={stripAll ? t("select_none") : t("select_all")}
+                                        disabled={singleSelect}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            togglePaths(stripPaths, !stripAll);
+                                        }}
+                                        title={stripAll ? t("select_none") : t("select_all")}
+                                        type="button"
+                                    >
+                                        {stripAll ? <CheckIcon size={10}/> : stripSome ? <Dash/> : null}
+                                    </SelectAll>
+                                )}
                                 {t("preview")}
                                 <StripCount>
                                     {previewTotal > PreviewLimit
@@ -1627,6 +1684,7 @@ export function FileList({
                                     onOpenFile={onOpenFile}
                                     onSelect={selectRow}
                                     onToggle={toggleRow}
+                                    onTogglePaths={singleSelect ? undefined : togglePaths}
                                     openOnSingleClick={openOnSingleClick}
                                     searching={searching}
                                     selected={selected}
@@ -2172,6 +2230,7 @@ function GridContent({
                          renaming,
                          onSelect,
                          onToggle,
+                         onTogglePaths,
                          onContextMenu,
                          onOpen,
                          onOpenFile,
@@ -2192,6 +2251,8 @@ function GridContent({
     renaming?: { path: string; value: string } | null;
     onSelect: (event: ReactMouseEvent, path: string) => void;
     onToggle: (path: string) => void;
+    /** Selects or clears a whole section; absent when only one row may be selected. */
+    onTogglePaths?: (paths: string[], select: boolean) => void;
     onContextMenu: (event: ReactMouseEvent, path: string) => void;
     onOpen: (path: string, newTab?: boolean) => void;
     onOpenFile?: (path: string, newTab?: boolean) => void;
@@ -2203,9 +2264,30 @@ function GridContent({
 
     return (
         <>
-            {groups.map((group) => (
+            {groups.map((group) => {
+                const groupPaths = group.rows.map((row) => row.entry.fullPath);
+                const groupChosen = groupPaths.filter((path) => selected.has(path)).length;
+                const groupAll = groupPaths.length > 0 && groupChosen === groupPaths.length;
+                const groupSome = groupChosen > 0 && !groupAll;
+
+                return (
                 <GridSection key={group.id}>
                     <GridHeader>
+                        {showCheckboxes && onTogglePaths && groupPaths.length > 0 && (
+                            <SelectAll
+                                $checked={groupAll}
+                                $partial={groupSome}
+                                aria-label={groupAll ? t("select_none") : t("select_all")}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    onTogglePaths(groupPaths, !groupAll);
+                                }}
+                                title={groupAll ? t("select_none") : t("select_all")}
+                                type="button"
+                            >
+                                {groupAll ? <CheckIcon size={10}/> : groupSome ? <Dash/> : null}
+                            </SelectAll>
+                        )}
                         {t(group.label as LocalizationKey)}
                         <GridCount>{group.rows.length}</GridCount>
                         <GridRule/>
@@ -2237,7 +2319,8 @@ function GridContent({
                         ))}
                     </Tiles>
                 </GridSection>
-            ))}
+                );
+            })}
         </>
     );
 }
