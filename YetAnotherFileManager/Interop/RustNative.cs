@@ -36,6 +36,7 @@ internal static unsafe class RustNative
     private static readonly SevenCreateDelegate SevenCreateNative;
     private static readonly MeasureDelegate MeasureNative;
     private static readonly DeleteDelegate DeleteNative;
+    private static readonly ThumbnailDelegate ThumbnailNative;
 
     /// <summary>The delete callback has no per-call state, so one delete runs at a time.</summary>
     private static Action<long, long>? _report;
@@ -56,6 +57,7 @@ internal static unsafe class RustNative
         SevenCreateNative = Resolve<SevenCreateDelegate>(handle, "yafm_7z_create");
         MeasureNative = Resolve<MeasureDelegate>(handle, "yafm_measure");
         DeleteNative = Resolve<DeleteDelegate>(handle, "yafm_delete");
+        ThumbnailNative = Resolve<ThumbnailDelegate>(handle, "yafm_thumbnail");
 
         Log.Information("The Rust filesystem helper is ready");
     }
@@ -95,6 +97,38 @@ internal static unsafe class RustNative
         try
         {
             return Parse(result, length);
+        }
+        finally
+        {
+            FreeBufferNative(result, length);
+        }
+    }
+
+    /// <summary>
+    ///     A thumbnail the native decoders can draw - a PSD's embedded preview, a TGA, DDS, HDR or
+    ///     EXR - or null when the file is one of the other formats or could not be decoded.
+    /// </summary>
+    public static byte[]? Thumbnail(string path, int size)
+    {
+        byte* result = null;
+        nuint length = 0;
+
+        fixed (char* pointer = path)
+        {
+            var status = ThumbnailNative((ushort*)pointer, (nuint)path.Length, (uint)size, out result, out length);
+
+            if (status != 0 || result is null || length == 0)
+            {
+                if (result is not null)
+                    FreeBufferNative(result, length);
+
+                return null;
+            }
+        }
+
+        try
+        {
+            return new ReadOnlySpan<byte>(result, (int)length).ToArray();
         }
         finally
         {
@@ -296,4 +330,8 @@ internal static unsafe class RustNative
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate int DeleteDelegate(ushort* paths, nuint pathsLength, uint threads, ulong total,
         IntPtr progress);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int ThumbnailDelegate(ushort* path, nuint pathLength, uint size, out byte* result,
+        out nuint length);
 }

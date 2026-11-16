@@ -17,7 +17,8 @@ internal partial class Gallery
     private static readonly HashSet<string> Extensions =
     [
         with(StringComparer.OrdinalIgnoreCase),
-        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".avif", ".tif", ".tiff"
+        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".avif", ".tif", ".tiff",
+        ".svg", ".ico", ".psd", ".psb", ".tga", ".dds", ".hdr", ".exr"
     ];
 
     private static readonly string ExtensionList = string.Join(';', Extensions);

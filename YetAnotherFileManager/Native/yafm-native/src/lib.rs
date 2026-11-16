@@ -7,6 +7,7 @@
 mod archive;
 mod gallery;
 mod seven;
+mod thumb;
 mod tree;
 
 /// Splits the `\0` separated paths a caller passes as one UTF-16 string.

@@ -205,6 +205,15 @@ internal partial class ThumbnailServer
 
             byte[]? bytes;
 
+            // Asked first: the shell answers these with the file's icon, which is what a tile shows
+            // when nothing better is available.
+            if (NativeThumbnailExtensions.Contains(Path.GetExtension(source)) &&
+                await Task.Run(() => RustNative.Thumbnail(source, size)) is { } native)
+            {
+                Remember(key, native);
+                return native;
+            }
+
             if (OperatingSystem.IsWindows())
                 bytes = await WindowsThumbnailAsync(source, size);
             else if (OperatingSystem.IsLinux())
@@ -236,8 +245,16 @@ internal partial class ThumbnailServer
         });
 
     /// <summary>Formats whose transparency the app's own image decoder keeps.</summary>
+    /// <summary>
+    ///     Formats the native decoders draw, because Windows has no thumbnail provider for them: a
+    ///     PSD carries its own flattened preview, and TGA, DDS, HDR and EXR are a texture tool's or a
+    ///     renderer's own formats.
+    /// </summary>
+    private static readonly HashSet<string> NativeThumbnailExtensions =
+        [with(StringComparer.OrdinalIgnoreCase), ".psd", ".psb", ".tga", ".dds", ".hdr", ".exr"];
+
     private static readonly HashSet<string> AlphaExtensions =
-        [with(StringComparer.OrdinalIgnoreCase), ".png", ".gif", ".bmp", ".ico"];
+        [with(StringComparer.OrdinalIgnoreCase), ".png", ".gif", ".bmp", ".ico", ".apng", ".jpe", ".jfif"];
 
     [SupportedOSPlatform("linux")]
     private static Task<byte[]?> LinuxThumbnailAsync(string path, int size) =>
@@ -456,6 +473,7 @@ internal partial class ThumbnailServer
         ".gif" => "image/gif",
         ".webp" => "image/webp",
         ".bmp" => "image/bmp",
+        ".apng" => "image/apng",
         ".svg" => "image/svg+xml",
         _ => null
     };

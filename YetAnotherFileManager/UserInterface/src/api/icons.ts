@@ -212,9 +212,10 @@ function loadThumbnailBase(): Promise<string> {
  * A loopback URL for the shell thumbnail. The web view fetches it with its own connection pool and
  * cache, which is far cheaper than pushing base64 strings through the native message bridge.
  *
- * Vector files skip the shell: its thumbnail provider paints an SVG onto an opaque canvas, so a
- * transparent drawing comes back on black. The web view draws the file itself, transparency and
- * all, and it stays sharp at any tile size.
+ * Vector and AVIF pictures skip the shell: its thumbnail provider paints them onto an opaque
+ * canvas, so a transparent drawing comes back on black. The web view draws those files itself,
+ * transparency and all, and a vector stays sharp at any tile size. Everything else - including the
+ * PSD, TGA, DDS, HDR and EXR formats the app decodes itself - comes from the thumbnail server.
  */
 export function useThumbnail(path: string | null, size = 128, version = 0): string | null {
     const [base, setBase] = useState<string | null>(thumbnailBase);
@@ -234,8 +235,13 @@ export function useThumbnail(path: string | null, size = 128, version = 0): stri
 
     if (!path || !base) return null;
 
-    if (path.toLowerCase().endsWith(".svg"))
-        return `${base}/media?path=${encodeURIComponent(path)}&v=${version}&ext=.svg`;
+    // Vector and AVIF files are drawn by the web view itself: the shell's thumbnail provider paints
+    // them onto an opaque canvas, so what should be transparent comes out black.
+    const lower = path.toLowerCase();
+    if (lower.endsWith(".svg") || lower.endsWith(".avif")) {
+        const extension = lower.slice(lower.lastIndexOf("."));
+        return `${base}/media?path=${encodeURIComponent(path)}&v=${version}&ext=${encodeURIComponent(extension)}`;
+    }
 
     return `${base}/thumb?path=${encodeURIComponent(path)}&size=${size}&v=${version}-${ThumbnailRevision}`;
 }
