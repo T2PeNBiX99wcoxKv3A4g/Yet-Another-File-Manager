@@ -94,16 +94,17 @@ them are taken:
 
 | Route | Who uses it |
 | --- | --- |
-| `ShellExecuteExW` / `ShellExecuteW` | most programs, including the `explore` verb |
+| `ShellExecuteExW/A`, `ShellExecuteW/A` | most programs, including the `explore` verb |
 | `SHOpenFolderAndSelectItems` | Chrome, VS Code and other "show in folder" buttons |
-| `CreateProcessW` starting `explorer.exe` | Rider, Wallpaper Engine, installers |
+| `CreateProcessW/A` starting `explorer.exe` | Rider, Wallpaper Engine, installers |
 
 Only calls the shell would really have given to Explorer are taken over:
 
-- Only `X:\...` and `\\server\share\...` paths. A URL, a `shell:` location or a
-  bare program name goes to the shell untouched.
-- Only the `open` and `explore` verbs, and not when the caller asks for the
-  shell's own handling (`SEE_MASK_INVOKEIDLIST`, a class name or a class key).
+- Only `X:\...`, `\\server\share\...` and `file:` URLs that name one. A URL, a
+  `shell:` location or a bare program name goes to the shell untouched.
+- Only the `open` and `explore` verbs, and not when the caller asks for a class
+  name or a class key. `SEE_MASK_INVOKEIDLIST` is not a reason to stay out: it
+  is how most folder opens are made, and the path is still a path.
 - Arguments are read only when they belong to Explorer: `explorer.exe
   /select,<path>`, `/root,<path>`, `/n,<path>` or a bare path. A program started
   with arguments of its own is left alone.
@@ -117,6 +118,19 @@ shell at logon - is not touched; that is what the Win+E mod is for.
 The app is started and the call returns at once, the way the shell returns once
 Explorer has the path. The mod never hooks the app's own process, so its
 **show in Explorer** still opens Explorer rather than asking itself.
+
+### When something still opens Explorer
+
+Every call that could have been a folder open but was left to the shell is
+written to the mod's log, with what was asked for and why it stayed:
+
+```
+explorer: left to the shell (a file with a program of its own) file="C:\..."
+```
+
+Open Windhawk → the mod → **Log** while repeating the action in the program that
+still opens Explorer; that line names the route. Windhawk's own log lists the
+same text under **Mod log** for the process that made the call.
 
 ### Conflicts
 

@@ -2,7 +2,7 @@
 // @id              yafm-picker
 // @name            Yet Another File Manager pickers
 // @description     Replaces the Windows Open, Save As and folder dialogs with the app's picker
-// @version         1.4.0
+// @version         1.4.1
 // @author          T2PeNBiX99wcoxKv3A4g
 // @github          https://github.com/T2PeNBiX99wcoxKv3A4g
 // @include         *
@@ -193,16 +193,17 @@ static bool FileExists(const std::wstring& path) {
 
 /// The executable inside a registry command line: a quoted path, or the first token.
 static std::wstring ExecutableIn(const std::wstring& command) {
-    if (command.empty())
+    const size_t start = command.find_first_not_of(L" \t");
+    if (start == std::wstring::npos)
         return {};
 
-    if (command[0] != L'"') {
-        size_t end = command.find(L' ');
-        return command.substr(0, end);
+    if (command[start] != L'"') {
+        const size_t end = command.find(L' ', start);
+        return command.substr(start, end == std::wstring::npos ? end : end - start);
     }
 
-    size_t end = command.find(L'"', 1);
-    return end == std::wstring::npos ? std::wstring() : command.substr(1, end - 1);
+    const size_t end = command.find(L'"', start + 1);
+    return end == std::wstring::npos ? std::wstring() : command.substr(start + 1, end - start - 1);
 }
 
 /// The app registers yafm:// with this command when the user enables links.
@@ -766,9 +767,13 @@ static void InstallHook(HMODULE module, PCSTR name, void* hook, void** original)
 
 using ShellExecuteExW_t = BOOL(WINAPI*)(SHELLEXECUTEINFOW*);
 using ShellExecuteW_t = HINSTANCE(WINAPI*)(HWND, LPCWSTR, LPCWSTR, LPCWSTR, LPCWSTR, INT);
+using ShellExecuteExA_t = BOOL(WINAPI*)(SHELLEXECUTEINFOA*);
+using ShellExecuteA_t = HINSTANCE(WINAPI*)(HWND, LPCSTR, LPCSTR, LPCSTR, LPCSTR, INT);
 
 static ShellExecuteExW_t ShellExecuteExW_Original;
 static ShellExecuteW_t ShellExecuteW_Original;
+static ShellExecuteExA_t ShellExecuteExA_Original;
+static ShellExecuteA_t ShellExecuteA_Original;
 
 /// A drive path or a UNC share. Anything else is a URL, a shell: location or a bare program
 /// name, and only the shell knows what to do with those.
@@ -848,6 +853,30 @@ static std::wstring TrimQuotes(const std::wstring& value) {
     return value.substr(start, end - start + 1);
 }
 
+/// Text from an ANSI call, so the two forms make the same decision in the hooks below.
+static std::wstring FromAnsi(LPCSTR value) {
+    if (!value || !*value)
+        return {};
+
+    const int length = MultiByteToWideChar(CP_ACP, 0, value, -1, nullptr, 0);
+    if (length <= 1)
+        return {};
+
+    std::wstring result(static_cast<size_t>(length) - 1, L'\0');
+    MultiByteToWideChar(CP_ACP, 0, value, -1, result.data(), length);
+    return result;
+}
+
+/// A file: URL as the path it names, because Explorer accepts both and a program may pass either.
+static std::wstring LocalPathOf(const std::wstring& value) {
+    if (_wcsnicmp(value.c_str(), L"file:", 5) != 0)
+        return value;
+
+    wchar_t path[2048];
+    DWORD size = ARRAYSIZE(path);
+    return SUCCEEDED(PathCreateFromUrlW(value.c_str(), path, &size, 0)) ? std::wstring(path) : value;
+}
+
 /// Splits a command line or a parameter list into its arguments, without the program name.
 static std::vector<std::wstring> ArgumentsIn(const std::wstring& command) {
     std::vector<std::wstring> arguments;
@@ -891,8 +920,9 @@ static std::wstring ExplorerTarget(const std::vector<std::wstring>& arguments, b
             continue;
 
         if (argument[0] != L'/') {
-            if (IsLocalPath(argument))
-                return argument;
+            const std::wstring path = LocalPathOf(argument);
+            if (IsLocalPath(path))
+                return path;
             continue;
         }
 
@@ -900,7 +930,7 @@ static std::wstring ExplorerTarget(const std::vector<std::wstring>& arguments, b
         if (comma == std::wstring::npos)
             continue;
 
-        const std::wstring path = TrimQuotes(argument.substr(comma + 1));
+        const std::wstring path = LocalPathOf(TrimQuotes(argument.substr(comma + 1)));
         if (!IsLocalPath(path))
             continue;
 
@@ -911,6 +941,20 @@ static std::wstring ExplorerTarget(const std::vector<std::wstring>& arguments, b
     return {};
 }
 
+/// A call the shell keeps is worth a line in the log when it could have been a folder open, so a
+/// program that still starts Explorer can be identified from what it actually asked for.
+static bool Declined(const wchar_t* reason, LPCWSTR file, LPCWSTR parameters) {
+    const DWORD attributes = file && *file ? GetFileAttributesW(file) : INVALID_FILE_ATTRIBUTES;
+    const bool folder = attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY);
+
+    if (IsExplorerProgram(file ? file : L"") || folder || (parameters && wcsstr(parameters, L"/select"))) {
+        Wh_Log(L"explorer: left to the shell (%s) file=\"%s\" args=\"%s\"", reason, file ? file : L"",
+            parameters ? parameters : L"");
+    }
+
+    return false;
+}
+
 /// The decision both entry points share. `mask` is the ShellExecuteEx mask; the plain
 /// ShellExecute call carries no mask of its own and passes zero.
 static bool TryOpenWithApp(LPCWSTR verb, LPCWSTR file, LPCWSTR parameters, ULONG mask, HANDLE* process) {
@@ -919,11 +963,12 @@ static bool TryOpenWithApp(LPCWSTR verb, LPCWSTR file, LPCWSTR parameters, ULONG
 
     // "explore" is what many programs pass when they want a folder window, not a document.
     if (verb && *verb && _wcsicmp(verb, L"open") != 0 && _wcsicmp(verb, L"explore") != 0)
-        return false;
+        return Declined(L"verb", file, parameters);
 
-    // These ask for the shell's own handling: an item ID list, a class name or a class key.
-    if (mask & (SEE_MASK_INVOKEIDLIST | SEE_MASK_CLASSNAME | SEE_MASK_CLASSKEY))
-        return false;
+    // These ask for the shell's own handling: a class name or a class key. SEE_MASK_INVOKEIDLIST is
+    // not one of them: it still names a path, and it is what most folder opens are made with.
+    if (mask & (SEE_MASK_CLASSNAME | SEE_MASK_CLASSKEY))
+        return Declined(L"class", file, parameters);
 
     std::wstring target = file;
     bool select = false;
@@ -933,22 +978,24 @@ static bool TryOpenWithApp(LPCWSTR verb, LPCWSTR file, LPCWSTR parameters, ULONG
     // was asked to start, so a different program with arguments of its own is not ours.
     if (parameters && *parameters) {
         if (!IsExplorerProgram(file))
-            return false;
+            return Declined(L"another program and its arguments", file, parameters);
         target = ExplorerTarget(ArgumentsIn(parameters), select);
     }
 
+    target = LocalPathOf(target);
+
     if (!IsLocalPath(target))
-        return false;
+        return Declined(L"not a local path", file, parameters);
 
     const DWORD attributes = GetFileAttributesW(target.c_str());
     if (attributes == INVALID_FILE_ATTRIBUTES)
-        return false;
+        return Declined(L"no such file or folder", file, parameters);
 
     if (!select && !(attributes & FILE_ATTRIBUTE_DIRECTORY) && !OpensWithExplorer(target))
-        return false;
+        return Declined(L"a file with a program of its own", file, parameters);
 
     if (!OpenInApp(target, process))
-        return false;
+        return Declined(L"the app could not be started", file, parameters);
 
     Wh_Log(L"explorer open: %s", target.c_str());
     return true;
@@ -981,6 +1028,44 @@ static HINSTANCE WINAPI ShellExecuteW_Hook(HWND owner, LPCWSTR verb, LPCWSTR fil
     return ShellExecuteW_Original(owner, verb, file, parameters, directory, show);
 }
 
+/// The same two calls in their ANSI form, which older C++ programs still use.
+static BOOL WINAPI ShellExecuteExA_Hook(SHELLEXECUTEINFOA* info) {
+    if (!info)
+        return ShellExecuteExA_Original(info);
+
+    const std::wstring verb = FromAnsi(info->lpVerb);
+    const std::wstring file = FromAnsi(info->lpFile);
+    const std::wstring parameters = FromAnsi(info->lpParameters);
+
+    HANDLE process = nullptr;
+    if (!TryOpenWithApp(verb.c_str(), file.c_str(), parameters.c_str(), info->fMask, &process))
+        return ShellExecuteExA_Original(info);
+
+    info->hInstApp = reinterpret_cast<HINSTANCE>(42);
+
+    if ((info->fMask & SEE_MASK_NOCLOSEPROCESS) != 0) {
+        info->hProcess = process;
+    } else {
+        if (process)
+            CloseHandle(process);
+        info->hProcess = nullptr;
+    }
+
+    return TRUE;
+}
+
+static HINSTANCE WINAPI ShellExecuteA_Hook(HWND owner, LPCSTR verb, LPCSTR file, LPCSTR parameters,
+                                           LPCSTR directory, INT show) {
+    const std::wstring verbText = FromAnsi(verb);
+    const std::wstring fileText = FromAnsi(file);
+    const std::wstring parametersText = FromAnsi(parameters);
+
+    if (TryOpenWithApp(verbText.c_str(), fileText.c_str(), parametersText.c_str(), 0, nullptr))
+        return reinterpret_cast<HINSTANCE>(42);
+
+    return ShellExecuteA_Original(owner, verb, file, parameters, directory, show);
+}
+
 // ---------------------------------------------------------------------------
 // Programs that start Explorer themselves
 //
@@ -995,10 +1080,13 @@ static HINSTANCE WINAPI ShellExecuteW_Hook(HWND owner, LPCWSTR verb, LPCWSTR fil
 
 using CreateProcessW_t = BOOL(WINAPI*)(LPCWSTR, LPWSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL,
     DWORD, LPVOID, LPCWSTR, LPSTARTUPINFOW, LPPROCESS_INFORMATION);
+using CreateProcessA_t = BOOL(WINAPI*)(LPCSTR, LPSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL,
+    DWORD, LPVOID, LPCSTR, LPSTARTUPINFOA, LPPROCESS_INFORMATION);
 
 using SHOpenFolderAndSelectItems_t = HRESULT(WINAPI*)(PCIDLIST_ABSOLUTE, UINT, PCUITEMID_CHILD_ARRAY, DWORD);
 
 static CreateProcessW_t CreateProcessW_Original;
+static CreateProcessA_t CreateProcessA_Original;
 static SHOpenFolderAndSelectItems_t SHOpenFolderAndSelectItems_Original;
 
 /// The program a CreateProcess call asks for: the explicit name, or the first word of the line.
@@ -1009,46 +1097,100 @@ static std::wstring ProgramIn(LPCWSTR application, LPCWSTR commandLine) {
     return commandLine && *commandLine ? ExecutableIn(commandLine) : std::wstring();
 }
 
-static BOOL WINAPI CreateProcessW_Hook(LPCWSTR application, LPWSTR commandLine, LPSECURITY_ATTRIBUTES processAttributes,
-                                       LPSECURITY_ATTRIBUTES threadAttributes, BOOL inheritHandles, DWORD flags,
-                                       LPVOID environment, LPCWSTR directory, LPSTARTUPINFOW startup,
-                                       LPPROCESS_INFORMATION info) {
-    if (!g_replaceExplorerLaunches || !g_replaceExplorer || !info)
-        return CreateProcessW_Original(application, commandLine, processAttributes, threadAttributes, inheritHandles,
-            flags, environment, directory, startup, info);
-
+/// The path a launch of explorer.exe asks for, or nothing when the launch is not ours to take.
+static std::wstring ExplorerLaunchTarget(LPCWSTR application, LPCWSTR commandLine) {
     if (!IsExplorerProgram(ProgramIn(application, commandLine)))
-        return CreateProcessW_Original(application, commandLine, processAttributes, threadAttributes, inheritHandles,
-            flags, environment, directory, startup, info);
+        return {};
 
     bool select = false;
     const std::wstring target = ExplorerTarget(ArgumentsIn(commandLine ? commandLine : L""), select);
     const DWORD attributes = target.empty() ? INVALID_FILE_ATTRIBUTES : GetFileAttributesW(target.c_str());
+
     if (attributes == INVALID_FILE_ATTRIBUTES)
-        return CreateProcessW_Original(application, commandLine, processAttributes, threadAttributes, inheritHandles,
-            flags, environment, directory, startup, info);
+        return {};
 
     if (!select && !(attributes & FILE_ATTRIBUTE_DIRECTORY) && !OpensWithExplorer(target))
-        return CreateProcessW_Original(application, commandLine, processAttributes, threadAttributes, inheritHandles,
-            flags, environment, directory, startup, info);
+        return {};
 
-    const std::wstring executable = ResolveExecutable();
-    if (executable.empty())
-        return CreateProcessW_Original(application, commandLine, processAttributes, threadAttributes, inheritHandles,
-            flags, environment, directory, startup, info);
+    return target;
+}
 
-    // The same call, with the app in Explorer's place: the caller keeps its own flags, environment,
-    // working directory and a real process handle.
-    std::wstring command = L"\"" + executable + L"\"";
-    AppendQuoted(command, target);
+/// Text for an ANSI call, or nothing when it does not fit the code page and would lose characters.
+static std::string ToAnsi(const std::wstring& value) {
+    if (value.empty())
+        return {};
 
-    std::vector<wchar_t> mutableCommand(command.begin(), command.end());
-    mutableCommand.push_back(L'\0');
+    const int length = WideCharToMultiByte(CP_ACP, 0, value.c_str(), static_cast<int>(value.size()), nullptr, 0,
+        nullptr, nullptr);
+    if (length <= 0)
+        return {};
 
-    Wh_Log(L"explorer process: %s", target.c_str());
+    std::string result(static_cast<size_t>(length), '\0');
+    WideCharToMultiByte(CP_ACP, 0, value.c_str(), static_cast<int>(value.size()), result.data(), length, nullptr,
+        nullptr);
 
-    return CreateProcessW_Original(executable.c_str(), mutableCommand.data(), processAttributes, threadAttributes,
-        inheritHandles, flags, environment, directory, startup, info);
+    return FromAnsi(result.c_str()) == value ? result : std::string();
+}
+
+static BOOL WINAPI CreateProcessW_Hook(LPCWSTR application, LPWSTR commandLine, LPSECURITY_ATTRIBUTES processAttributes,
+                                       LPSECURITY_ATTRIBUTES threadAttributes, BOOL inheritHandles, DWORD flags,
+                                       LPVOID environment, LPCWSTR directory, LPSTARTUPINFOW startup,
+                                       LPPROCESS_INFORMATION info) {
+    if (g_replaceExplorerLaunches && g_replaceExplorer && info) {
+        const std::wstring target = ExplorerLaunchTarget(application, commandLine);
+        const std::wstring executable = target.empty() ? std::wstring() : ResolveExecutable();
+
+        if (!executable.empty()) {
+            // The same call, with the app in Explorer's place: the caller keeps its own flags,
+            // environment, working directory and a real process handle.
+            std::wstring command = L"\"" + executable + L"\"";
+            AppendQuoted(command, target);
+
+            std::vector<wchar_t> mutableCommand(command.begin(), command.end());
+            mutableCommand.push_back(L'\0');
+
+            Wh_Log(L"explorer process: %s", target.c_str());
+
+            return CreateProcessW_Original(executable.c_str(), mutableCommand.data(), processAttributes,
+                threadAttributes, inheritHandles, flags, environment, directory, startup, info);
+        }
+    }
+
+    return CreateProcessW_Original(application, commandLine, processAttributes, threadAttributes, inheritHandles,
+        flags, environment, directory, startup, info);
+}
+
+/// The ANSI form of the same call, which older programs still use.
+static BOOL WINAPI CreateProcessA_Hook(LPCSTR application, LPSTR commandLine, LPSECURITY_ATTRIBUTES processAttributes,
+                                       LPSECURITY_ATTRIBUTES threadAttributes, BOOL inheritHandles, DWORD flags,
+                                       LPVOID environment, LPCSTR directory, LPSTARTUPINFOA startup,
+                                       LPPROCESS_INFORMATION info) {
+    if (g_replaceExplorerLaunches && g_replaceExplorer && info) {
+        const std::wstring commandText = FromAnsi(commandLine);
+        const std::wstring target = ExplorerLaunchTarget(FromAnsi(application).c_str(), commandText.c_str());
+        const std::wstring executable = target.empty() ? std::wstring() : ResolveExecutable();
+
+        if (!executable.empty()) {
+            std::wstring command = L"\"" + executable + L"\"";
+            AppendQuoted(command, target);
+
+            const std::string narrowExecutable = ToAnsi(executable);
+            const std::string narrowCommand = ToAnsi(command);
+
+            if (!narrowExecutable.empty() && !narrowCommand.empty()) {
+                std::vector<char> mutableCommand(narrowCommand.begin(), narrowCommand.end());
+                mutableCommand.push_back('\0');
+
+                Wh_Log(L"explorer process (ANSI): %s", target.c_str());
+
+                return CreateProcessA_Original(narrowExecutable.c_str(), mutableCommand.data(), processAttributes,
+                    threadAttributes, inheritHandles, flags, environment, directory, startup, info);
+            }
+        }
+    }
+
+    return CreateProcessA_Original(application, commandLine, processAttributes, threadAttributes, inheritHandles,
+        flags, environment, directory, startup, info);
 }
 
 /// Chrome, VS Code and everything else that "shows a file in its folder" go through this instead of
@@ -1948,6 +2090,10 @@ BOOL Wh_ModInit() {
         reinterpret_cast<void**>(&ShellExecuteExW_Original));
     InstallHook(shell, "ShellExecuteW", reinterpret_cast<void*>(ShellExecuteW_Hook),
         reinterpret_cast<void**>(&ShellExecuteW_Original));
+    InstallHook(shell, "ShellExecuteExA", reinterpret_cast<void*>(ShellExecuteExA_Hook),
+        reinterpret_cast<void**>(&ShellExecuteExA_Original));
+    InstallHook(shell, "ShellExecuteA", reinterpret_cast<void*>(ShellExecuteA_Hook),
+        reinterpret_cast<void**>(&ShellExecuteA_Original));
 
     // "Show in folder" in a browser or an editor never reaches the shell's execute entry points.
     InstallHook(shell, "SHOpenFolderAndSelectItems", reinterpret_cast<void*>(SHOpenFolderAndSelectItems_Hook),
@@ -1957,6 +2103,8 @@ BOOL Wh_ModInit() {
     // ask for a window. The hook checks the program name before it looks at anything else.
     InstallHook(GetModuleHandleW(L"kernel32.dll"), "CreateProcessW",
         reinterpret_cast<void*>(CreateProcessW_Hook), reinterpret_cast<void**>(&CreateProcessW_Original));
+    InstallHook(GetModuleHandleW(L"kernel32.dll"), "CreateProcessA",
+        reinterpret_cast<void*>(CreateProcessA_Hook), reinterpret_cast<void**>(&CreateProcessA_Original));
 
     // The Common Item Dialog is handed out by COM, so the only place to take it is the
     // activation itself; every other class falls straight through to the original.
