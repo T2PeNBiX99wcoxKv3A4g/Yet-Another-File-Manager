@@ -8,6 +8,7 @@ export const site = {
     description: "Yet Another File Manager is a tabbed file manager with previews, a gallery and tags.",
     url: "https://t2penbix99wcoxkv3a4g.github.io/Yet-Another-File-Manager/",
     icon: "./icon.svg",
+    webView2Url: "https://developer.microsoft.com/microsoft-edge/webview2/",
     repository: "https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager",
     languages: ["en", "ja", "zh-CN", "zh-TW"],
     screenshots: {

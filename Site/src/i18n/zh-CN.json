@@ -51,7 +51,7 @@
       }
     ],
     "installTitle": "安装",
-    "installBefore": "构建版本是自包含的：.NET 运行时已一并打包，因此无需另外安装。Windows 还需要 WebView2 运行时（Windows 10 和 11 已内置）；Linux 需要 WebKitGTK 4.1 和 libnotify（请见 ",
+    "installBefore": "构建版本是自包含的：.NET 运行时已一并打包，因此无需另外安装。Linux 需要 WebKitGTK 4.1 和 libnotify（请见",
     "readme": "README",
     "installAfter": "）。Windows 版本未经代码签名，因此首次运行时系统可能会警告。",
     "platforms": [
@@ -71,7 +71,8 @@
         "name": "Arch Linux",
         "note": "x86_64 (.pkg.tar.zst)"
       }
-    ]
+    ],
+    "webView2Note": "Windows 11 已内置 WebView2 运行时；Windows 10 没有，请先从 {link} 安装后再启动。"
   },
   "docs": {
     "setup": "开始使用",

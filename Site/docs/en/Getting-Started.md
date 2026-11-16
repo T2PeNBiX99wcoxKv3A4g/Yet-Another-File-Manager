@@ -16,8 +16,8 @@ Pick the package for your system from the [releases page](https://github.com/T2P
 | Arch Linux | `yafm-<version>-1-x86_64.pkg.tar.zst` |
 
 The builds are self-contained: the .NET runtime is bundled, so nothing else has to be installed.
-Windows needs the WebView2 runtime (Windows 10 and 11 already have it). Linux needs WebKitGTK 4.1
-and libnotify, which the packages pull in.
+Windows 11 includes the WebView2 runtime; Windows 10 needs it installed first, from
+[Microsoft's page](https://developer.microsoft.com/microsoft-edge/webview2/). Linux needs WebKitGTK 4.1 and libnotify, which the packages pull in.
 
 The Windows build is not code-signed, so SmartScreen may warn the first time; choose **More info** →
 **Run anyway**.

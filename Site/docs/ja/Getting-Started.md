@@ -15,9 +15,8 @@ Yet Another File Manager は Windows と Linux 向けのデスクトップファ
 | Debian / Ubuntu | `yafm_<version>_amd64.deb` |
 | Arch Linux | `yafm-<version>-1-x86_64.pkg.tar.zst` |
 
-ビルドは自己完結型で、.NET ランタイムを同梱しているため追加のインストールは不要です。Windows では
-WebView2 ランタイムも必要です（Windows 10 と 11 には入っています）。Linux では WebKitGTK 4.1 と
-libnotify が必要で、パッケージが自動的に導入します。
+ビルドは自己完結型で、.NET ランタイムを同梱しているため追加のインストールは不要です。Windows 11 には WebView2 ランタイムが含まれています。Windows 10 では別途インストールが必要です
+（[Microsoft のページ](https://developer.microsoft.com/microsoft-edge/webview2/)）。Linux では WebKitGTK 4.1 と libnotify が必要で、パッケージが自動的に導入します。
 
 Windows 版はコード署名されていないため、初回に SmartScreen の警告が出ることがあります。
 **詳細情報** → **実行** を選んでください。

@@ -14,8 +14,8 @@ Yet Another File Manager 是 Windows 與 Linux 上的桌面檔案管理員。它
 | Debian / Ubuntu | `yafm_<version>_amd64.deb` |
 | Arch Linux | `yafm-<version>-1-x86_64.pkg.tar.zst` |
 
-建置版本是自包含的：.NET 執行階段已一併打包，因此不需另外安裝。Windows 需要 WebView2 執行階段
-（Windows 10 與 11 已內建）。Linux 需要 WebKitGTK 4.1 與 libnotify，套件會自動帶入。
+建置版本是自包含的：.NET 執行階段已一併打包，因此不需另外安裝。Windows 11 已內建 WebView2 執行階段；Windows 10 需要先安裝，請從
+[Microsoft 的頁面](https://developer.microsoft.com/microsoft-edge/webview2/) 取得。Linux 需要 WebKitGTK 4.1 與 libnotify，套件會自動帶入。
 
 Windows 版本未經程式碼簽署，因此第一次執行時 SmartScreen 可能會警告；請選擇 **更多資訊** →
 **仍要執行**。
