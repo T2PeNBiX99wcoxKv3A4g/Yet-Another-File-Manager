@@ -1,0 +1,13 @@
+{
+  "extras": [
+    {
+      "name": "7-Zip",
+      "version": "25.01",
+      "license": "LGPL-2.1-or-later with unRAR restriction",
+      "file": "../Native/licenses/7-Zip.txt"
+    }
+  ],
+  "licences": {
+    "SevenZipExtractor": "https://raw.githubusercontent.com/adoconnection/SevenZipExtractor/master/LICENSE"
+  }
+}
