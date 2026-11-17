@@ -682,16 +682,28 @@ export function FileList({
     );
     const previewTotal = previews.length;
     const shownPreviews = useMemo(() => previews.slice(0, PreviewLimit), [previews]);
-    const stripPaths = useMemo(() => shownPreviews.map((row) => row.entry.fullPath), [shownPreviews]);
-    const stripSelected = stripPaths.filter((path) => selected.has(path)).length;
-    const stripAll = stripPaths.length > 0 && stripSelected === stripPaths.length;
-    const stripSome = stripSelected > 0 && !stripAll;
     const previewGroups = useMemo(
         () => showImages ? groupRows(shownPreviews, PreviewKindRules) : [],
         [shownPreviews, showImages]
     );
+    const stripPaths = useMemo(
+        () => previewGroups.flatMap((group) => group.rows.map((row) => row.entry.fullPath)),
+        [previewGroups]
+    );
+    const stripSelected = stripPaths.filter((path) => selected.has(path)).length;
+    const stripAll = stripPaths.length > 0 && stripSelected === stripPaths.length;
+    const stripSome = stripSelected > 0 && !stripAll;
 
     const allPaths = useMemo(() => rows.map((row) => row.entry.fullPath), [rows]);
+
+    /**
+     * The paths in the order the view draws them. A grid sorts its files into sections, so the tab
+     * order of the folder is not the order of the tiles; the list draws the rows as they are sorted.
+     */
+    const visualPaths = useMemo(
+        () => gridMode ? groups.flatMap((group) => group.rows.map((row) => row.entry.fullPath)) : allPaths,
+        [allPaths, gridMode, groups]
+    );
     const allSelected = rows.length > 0 && selected.size >= rows.length;
     const someSelected = selected.size > 0 && !allSelected;
     const toggleAll = () => {
@@ -1120,8 +1132,8 @@ export function FileList({
     /** Whether the arrow keys belong to the preview strip, which only the list view draws. */
     const stripActive = useCallback(() => stripFocused.current && stripPane.current !== null, []);
 
-    /** The paths the arrow keys step through: the strip's pictures, or the rows of the view. */
-    const panePaths = useCallback(() => stripActive() ? stripPaths : allPaths, [allPaths, stripActive, stripPaths]);
+    /** The paths the arrow keys step through: the strip's pictures, or the tiles of the view. */
+    const panePaths = useCallback(() => stripActive() ? stripPaths : visualPaths, [stripActive, stripPaths, visualPaths]);
 
     /**
      * Steps the selection one tile in the pressed direction. The tiles are measured where they are
