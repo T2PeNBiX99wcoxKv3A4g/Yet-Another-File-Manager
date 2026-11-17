@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.22.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.22.0..v0.22.1) - 2026-11-17
+
+### 🐛 Bug Fixes
+
+- *(list)* Move the selection by where the tiles are drawn - ([1b5446d](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1b5446d76289e7d0a7768282cc89ec0b88a32dea))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([11ad9ff](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/11ad9fff924f674ec8db0169f3d28efd0d69f9b3))
+
+
 ## [0.22.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.21.0..v0.22.0) - 2026-11-17
 
 ### ⛰️  Features
