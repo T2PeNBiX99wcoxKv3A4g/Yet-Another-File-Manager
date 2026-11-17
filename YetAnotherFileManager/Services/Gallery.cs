@@ -18,7 +18,7 @@ internal partial class Gallery
     [
         with(StringComparer.OrdinalIgnoreCase),
         ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".avif", ".tif", ".tiff",
-        ".svg", ".ico", ".psd", ".psb", ".tga", ".dds", ".hdr", ".exr"
+        ".svg", ".ico", ".psd", ".psb", ".tga", ".dds", ".hdr", ".exr", ".pcx", ".dib", ".jxl"
     ];
 
     private static readonly string ExtensionList = string.Join(';', Extensions);

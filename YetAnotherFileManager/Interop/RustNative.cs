@@ -105,8 +105,8 @@ internal static unsafe class RustNative
     }
 
     /// <summary>
-    ///     A thumbnail the native decoders can draw - a PSD's embedded preview, a TGA, DDS, HDR or
-    ///     EXR - or null when the file is one of the other formats or could not be decoded.
+    ///     A thumbnail the native decoders can draw - a PSD's embedded preview, a TGA, DDS, HDR, EXR,
+    ///     PCX, DIB or JPEG XL - or null when the file is another format or could not be decoded.
     /// </summary>
     public static byte[]? Thumbnail(string path, int size)
     {

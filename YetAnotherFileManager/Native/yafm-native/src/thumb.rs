@@ -67,6 +67,9 @@ fn render(path: &str, size: u32) -> Option<Vec<u8>> {
         "dds" => decode(&bytes, ImageFormat::Dds),
         "hdr" => decode(&bytes, ImageFormat::Hdr).map(tone_mapped),
         "exr" => decode(&bytes, ImageFormat::OpenExr).map(tone_mapped),
+        "dib" => dib_image(&bytes).and_then(|bmp| decode(&bmp, ImageFormat::Bmp)),
+        "pcx" => pcx_image(&bytes),
+        "jxl" => jxl_image(&bytes),
         _ => None,
     }?;
 
@@ -92,6 +95,229 @@ fn decode(bytes: &[u8], format: ImageFormat) -> Option<DynamicImage> {
     // The whole buffer is decoded in one go: the reader cannot seek the HDR and EXR streams, so a
     // decoded image is the only thing that works for every format here.
     image::load_from_memory_with_format(bytes, format).ok()
+}
+
+/// A DIB is a BMP without its fourteen-byte file header, so the header is rebuilt and the image
+/// crate does the rest. An eight-bit DIB may be run-length packed, which the BMP reader does not
+/// take, so those are unpacked first and handed over as plain rows.
+fn dib_image(bytes: &[u8]) -> Option<Vec<u8>> {
+    let header_size = read_le_u32(bytes, 0)? as usize;
+    let bit_count = u16::from_le_bytes([*bytes.get(14)?, *bytes.get(15)?]);
+    let compression = read_le_u32(bytes, 16).unwrap_or(0);
+
+    // The palette sits between the info header and the pixels; 24- and 32-bit images have none.
+    let palette = match bit_count {
+        0..=8 => {
+            let used = read_le_u32(bytes, 32).unwrap_or(0) as usize;
+            if used > 0 { used } else { 1usize << bit_count }
+        }
+        _ => 0,
+    };
+
+    let offset = 14usize.checked_add(header_size)?.checked_add(palette.checked_mul(4)?)?;
+
+    // RLE8: pairs of count and palette index, with escapes for line ends and deltas. The rows keep
+    // the order the file stores them in, which is the order the rebuilt header describes.
+    if compression == 1 && bit_count == 8 {
+        let width = i32::from_le_bytes([*bytes.get(4)?, *bytes.get(5)?, *bytes.get(6)?, *bytes.get(7)?]) as usize;
+        let height = i32::from_le_bytes([*bytes.get(8)?, *bytes.get(9)?, *bytes.get(10)?, *bytes.get(11)?]);
+        if height <= 0 || width == 0 {
+            return None;
+        }
+
+        let height = height as usize;
+        let stride = width.checked_add(3)? & !3;
+
+        let mut rows = vec![0u8; stride.checked_mul(height)?];
+        let mut x = 0usize;
+        let mut y = 0usize;
+
+        // The pixels follow the info header and its palette; a DIB has no file header in front.
+        let dib_end = header_size.checked_add(palette.checked_mul(4)?)?;
+        let mut at = dib_end;
+
+        while at + 1 < bytes.len() && y < height {
+            let count = bytes[at] as usize;
+            let value = bytes[at + 1];
+            at += 2;
+
+            if count > 0 {
+                for _ in 0..count {
+                    if x < width {
+                        rows[y * stride + x] = value;
+                    }
+                    x += 1;
+                }
+                continue;
+            }
+
+            match value {
+                0 => {
+                    x = 0;
+                    y += 1;
+                }
+                1 => break,
+                2 => {
+                    if at + 1 >= bytes.len() {
+                        break;
+                    }
+                    x += bytes[at] as usize;
+                    y += bytes[at + 1] as usize;
+                    at += 2;
+                }
+                _ => {
+                    let literal = value as usize;
+                    for index in 0..literal {
+                        if x < width {
+                            rows[y * stride + x] = *bytes.get(at + index)?;
+                        }
+                        x += 1;
+                    }
+                    at += literal + (literal & 1);
+                }
+            }
+        }
+
+        // Rebuild the DIB as plain rows: the same header, the same palette, uncompressed pixels.
+        let mut plain = Vec::with_capacity(dib_end.checked_add(rows.len())?);
+        plain.extend_from_slice(bytes.get(..dib_end)?);
+        if let Some(field) = plain.get_mut(16..20) {
+            field.copy_from_slice(&0u32.to_le_bytes());
+        }
+        plain.extend_from_slice(&rows);
+
+        let total = 14usize.checked_add(plain.len())?;
+        let mut bmp = Vec::with_capacity(total);
+        bmp.extend_from_slice(b"BM");
+        bmp.extend_from_slice(&(total as u32).to_le_bytes());
+        bmp.extend_from_slice(&[0, 0, 0, 0]);
+        bmp.extend_from_slice(&((14 + dib_end) as u32).to_le_bytes());
+        bmp.extend_from_slice(&plain);
+
+        return Some(bmp);
+    }
+
+    let total = 14usize.checked_add(bytes.len())?;
+
+    let mut bmp = Vec::with_capacity(total);
+    bmp.extend_from_slice(b"BM");
+    bmp.extend_from_slice(&(total as u32).to_le_bytes());
+    bmp.extend_from_slice(&[0, 0, 0, 0]);
+    bmp.extend_from_slice(&(offset as u32).to_le_bytes());
+    bmp.extend_from_slice(bytes);
+
+    Some(bmp)
+}
+
+/// JPEG XL, through the format's own decoder: it renders a frame into the pixel buffer the image
+/// crate hands back, alpha included.
+fn jxl_image(bytes: &[u8]) -> Option<DynamicImage> {
+    let decoder = jxl_oxide::integration::JxlDecoder::new(Cursor::new(bytes)).ok()?;
+    DynamicImage::from_decoder(decoder).ok()
+}
+
+/// Decodes a PCX: run-length rows, one plane per channel, and the palette the header or the tail
+/// carries. Only the three layouts files actually use are read - 1-bit, 8-bit and 8-bit RGB.
+fn pcx_image(bytes: &[u8]) -> Option<DynamicImage> {
+    if bytes.len() < 128 || bytes[0] != 0x0A {
+        return None;
+    }
+
+    let encoding = bytes[2];
+    let bits = bytes[3] as usize;
+    let planes = bytes[65] as usize;
+    let bytes_per_line = u16::from_le_bytes([bytes[66], bytes[67]]) as usize;
+    let (x_min, y_min) = (
+        u16::from_le_bytes([bytes[4], bytes[5]]) as usize,
+        u16::from_le_bytes([bytes[6], bytes[7]]) as usize,
+    );
+    let x_max = u16::from_le_bytes([bytes[8], bytes[9]]) as usize;
+    let y_max = u16::from_le_bytes([bytes[10], bytes[11]]) as usize;
+
+    let width = x_max.checked_sub(x_min)?.checked_add(1)?;
+    let height = y_max.checked_sub(y_min)?.checked_add(1)?;
+
+    if !matches!(bits, 1 | 8) || planes == 0 || planes > 4 || width == 0 || height == 0 {
+        return None;
+    }
+
+    if u64::try_from(width).ok()?.checked_mul(u64::try_from(height).ok()?)? > MAX_PIXELS {
+        return None;
+    }
+
+    // The rows are stored packed, each as long as the header says, and run-length compressed when
+    // the file says so.
+    let row_bytes = bytes_per_line.checked_mul(planes)?;
+    let mut packed = Vec::with_capacity(row_bytes.checked_mul(height)?);
+    let mut offset = 128usize;
+    let expected = row_bytes.checked_mul(height)?;
+
+    while packed.len() < expected {
+        let value = *bytes.get(offset)?;
+        offset += 1;
+
+        if encoding == 1 && value >= 0xC0 {
+            let count = (value & 0x3F) as usize;
+            let repeated = *bytes.get(offset)?;
+            offset += 1;
+
+            for _ in 0..count {
+                packed.push(repeated);
+            }
+        } else {
+            packed.push(value);
+        }
+    }
+
+    // The palette of an 8-bit single-plane file sits in the last 769 bytes when the version is 5.
+    let palette_at = bytes.len().checked_sub(769);
+    let palette = palette_at.filter(|at| bytes.get(*at) == Some(&0x0C)).map(|at| &bytes[at + 1..at + 769]);
+
+    let mut rgba = image::RgbaImage::new(width as u32, height as u32);
+
+    for y in 0..height {
+        for x in 0..width {
+            let pixel = match (bits, planes) {
+                (8, 3) => {
+                    let row = &packed[y * row_bytes..(y + 1) * row_bytes];
+                    image::Rgba([row[x], row[bytes_per_line + x], row[2 * bytes_per_line + x], 255])
+                }
+                (8, 4) => {
+                    let row = &packed[y * row_bytes..(y + 1) * row_bytes];
+                    image::Rgba([
+                        row[x],
+                        row[bytes_per_line + x],
+                        row[2 * bytes_per_line + x],
+                        row[3 * bytes_per_line + x],
+                    ])
+                }
+                (8, 1) => {
+                    let entry = packed[y * row_bytes + x] as usize;
+                    match palette {
+                        Some(table) => {
+                            let at = entry * 3;
+                            image::Rgba([table[at], table[at + 1], table[at + 2], 255])
+                        }
+                        None => image::Rgba([entry as u8, entry as u8, entry as u8, 255]),
+                    }
+                }
+                (1, _) => {
+                    let row = &packed[y * row_bytes..(y + 1) * row_bytes];
+                    let bit = (row[x / 8] >> (7 - x % 8)) & 1;
+                    let value = match bit {
+                        1 => 255,
+                        _ => 0,
+                    };
+                    image::Rgba([value, value, value, 255])
+                }
+                _ => return None,
+            };
+
+            rgba.put_pixel(x as u32, y as u32, pixel);
+        }
+    }
+
+    Some(DynamicImage::ImageRgba8(rgba))
 }
 
 /// HDR and EXR hold values far above white; a Reinhard curve brings them into a picture a tile can
@@ -354,6 +580,12 @@ fn psd_thumbnail(bytes: &[u8]) -> Option<&[u8]> {
     None
 }
 
+/// A little-endian field, as the Windows picture formats store their headers.
+fn read_le_u32(bytes: &[u8], offset: usize) -> Option<u32> {
+    let slice = bytes.get(offset..offset.checked_add(4)?)?;
+    Some(u32::from_le_bytes([slice[0], slice[1], slice[2], slice[3]]))
+}
+
 fn read_u32(bytes: &[u8], offset: usize) -> Option<u32> {
     let slice = bytes.get(offset..offset.checked_add(4)?)?;
     Some(u32::from_be_bytes([slice[0], slice[1], slice[2], slice[3]]))
@@ -369,6 +601,39 @@ fn read_u64(bytes: &[u8], offset: usize) -> Option<u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// An eight-bit DIB whose rows are run-length packed, as Windows writes one: the pixels have to
+    /// come back through the BMP the decoder rebuilds, not as the file's icon.
+    #[test]
+    fn decodes_a_run_length_dib() {
+        let width = 4u32;
+        let height = 2u32;
+        let mut dib = Vec::new();
+
+        dib.extend_from_slice(&40u32.to_le_bytes());
+        dib.extend_from_slice(&width.to_le_bytes());
+        dib.extend_from_slice(&height.to_le_bytes());
+        dib.extend_from_slice(&1u16.to_le_bytes());
+        dib.extend_from_slice(&8u16.to_le_bytes());
+        dib.extend_from_slice(&1u32.to_le_bytes());
+        dib.extend_from_slice(&0u32.to_le_bytes());
+        dib.extend_from_slice(&[0; 8]);
+        dib.extend_from_slice(&2u32.to_le_bytes());
+        dib.extend_from_slice(&0u32.to_le_bytes());
+
+        // Two entries: black, then red.
+        dib.extend_from_slice(&[0, 0, 0, 0, 255, 0, 0, 0]);
+
+        // The bottom row is four red pixels; the top row is a literal run of black and red.
+        dib.extend_from_slice(&[4, 1, 0, 0]);
+        dib.extend_from_slice(&[0, 2, 0, 1, 0, 0]);
+
+        let bmp = dib_image(&dib).expect("the DIB becomes a BMP");
+        let image = decode(&bmp, ImageFormat::Bmp).expect("the BMP decodes");
+
+        assert_eq!((image.width(), image.height()), (width, height));
+        assert_eq!(image.to_rgba8().get_pixel(0, 0).0, [0, 0, 0, 255]);
+    }
 
     #[test]
     fn unpacks_literal_and_repeated_runs() {

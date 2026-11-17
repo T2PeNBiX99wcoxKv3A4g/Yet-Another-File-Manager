@@ -244,15 +244,16 @@ internal partial class ThumbnailServer
             return ShellThumbnail.Bytes(path, size);
         });
 
-    /// <summary>Formats whose transparency the app's own image decoder keeps.</summary>
     /// <summary>
-    ///     Formats the native decoders draw, because Windows has no thumbnail provider for them: a
-    ///     PSD carries its own flattened preview, and TGA, DDS, HDR and EXR are a texture tool's or a
-    ///     renderer's own formats.
+    ///     Formats the native decoders draw, because Windows has no thumbnail provider for them: a PSD
+    ///     carries its own flattened preview, TGA, DDS, HDR and EXR are a texture tool's or a
+    ///     renderer's own formats, and PCX, DIB and JPEG XL are old or new pictures nothing else here
+    ///     reads.
     /// </summary>
     private static readonly HashSet<string> NativeThumbnailExtensions =
-        [with(StringComparer.OrdinalIgnoreCase), ".psd", ".psb", ".tga", ".dds", ".hdr", ".exr"];
+        [with(StringComparer.OrdinalIgnoreCase), ".psd", ".psb", ".tga", ".dds", ".hdr", ".exr", ".pcx", ".dib", ".jxl"];
 
+    /// <summary>Formats whose transparency the app's own image decoder keeps.</summary>
     private static readonly HashSet<string> AlphaExtensions =
         [with(StringComparer.OrdinalIgnoreCase), ".png", ".gif", ".bmp", ".ico", ".apng", ".jpe", ".jfif"];
 

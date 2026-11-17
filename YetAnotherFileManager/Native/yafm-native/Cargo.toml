@@ -20,8 +20,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 png = "0.18"
 # The decoders for the picture formats Windows has no thumbnail provider for: a PSD's embedded
-# preview, TGA and DDS textures, and HDR/EXR renders.
+# preview, TGA and DDS textures, HDR/EXR renders, and the BMP a DIB is rebuilt into.
 image = { version = "0.25", default-features = false, features = [
+    "bmp",
     "dds",
     "exr",
     "hdr",
@@ -41,6 +42,8 @@ zip = { version = "9", default-features = false, features = [
     "ppmd",
     "xz",
 ] }
+# JPEG XL: the format's own decoder, which hands its frames over as an image::DynamicImage.
+jxl-oxide = { version = "0.12.6", features = ["image"] }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = [

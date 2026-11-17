@@ -35,9 +35,18 @@ interface PreviewPaneProps {
 
 const VideoExtensions = new Set(["mp4", "webm", "mkv", "mov", "m4v", "avi", "wmv", "ogv"]);
 const AudioExtensions = new Set(["mp3", "m4a", "wav", "flac", "ogg", "oga", "aac"]);
-const ImageExtensions = new Set([
-    "png", "jpg", "jpeg", "gif", "webp", "bmp", "avif", "tif", "tiff", "ico", "svg",
+/**
+ * The pictures the details pane knows about. Only the first group can be handed to the browser as a
+ * file; the rest are drawn by the thumbnail server, because neither the browser nor a plain <img>
+ * can read them.
+ */
+const BrowserImageExtensions = new Set([
+    "png", "jpg", "jpeg", "jfif", "jpe", "gif", "webp", "bmp", "avif", "ico", "svg", "apng",
 ]);
+const ServerImageExtensions = new Set([
+    "tif", "tiff", "psd", "psb", "tga", "dds", "hdr", "exr", "pcx", "dib", "jxl",
+]);
+const ImageExtensions = new Set([...BrowserImageExtensions, ...ServerImageExtensions]);
 const TextExtensions = new Set([
     "txt", "text", "log", "md", "markdown", "json", "jsonc", "xml", "yaml", "yml", "toml", "ini",
     "cfg", "conf", "csv", "tsv", "html", "htm", "css", "scss", "less", "js", "jsx", "mjs", "cjs",
@@ -87,7 +96,10 @@ export function PreviewPane({
     const pdf = !!info && !info.isDirectory && extension === "pdf";
 
     const poster = useThumbnail(video ? previewPath : null, 512, info?.modified ?? 0);
-    const imagePreview = useMediaUrl(image ? previewPath : null, info?.modified ?? 0, extension);
+    const browserImage = image && BrowserImageExtensions.has(extension);
+    // The pane is wide enough to want the largest thumbnail the servers hold, not the tile size.
+    const serverPreview = useThumbnail(image && !browserImage ? previewPath : null, 1024, info?.modified ?? 0);
+    const imagePreview = useMediaUrl(browserImage ? previewPath : null, info?.modified ?? 0, extension);
     const media = useMediaUrl(video || audio ? previewPath : null, info?.modified ?? 0, extension);
     const pdfPreview = usePdfPreview(pdf ? previewPath : null, info?.modified ?? 0);
     const icon = useIcon(!video && !audio && !image && !text && !pdf ? previewPath : null, info?.isDirectory ?? false);
@@ -279,8 +291,15 @@ export function PreviewPane({
                         )
                         : audio && media
                             ? <audio controls src={media}/>
-                            : image && imagePreview
-                                ? <img alt="" decoding="async" loading="lazy" src={imagePreview}/>
+                            : image && (imagePreview ?? serverPreview)
+                                ? (
+                                    <img
+                                        alt=""
+                                        decoding="async"
+                                        loading="lazy"
+                                        src={(imagePreview ?? serverPreview)!}
+                                    />
+                                )
                                 : pdf && pdfPreview && !pdfFailed
                                     ? (
                                         <img

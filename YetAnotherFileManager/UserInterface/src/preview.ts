@@ -19,7 +19,7 @@ const KindExtensions: Record<PreviewKind, Set<string>> = {
         ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".avif", ".heic", ".heif",
         ".tif", ".tiff", ".svg", ".ico",
         // Drawn by the app's own decoder: Windows has no provider for these.
-        ".tga", ".dds", ".hdr", ".exr", ".jpe", ".jfif", ".apng",
+        ".tga", ".dds", ".hdr", ".exr", ".pcx", ".dib", ".jxl", ".jpe", ".jfif", ".apng",
     ]),
     video: new Set([
         ".mp4", ".m4v", ".mov", ".wmv", ".avi", ".mkv", ".webm", ".mpg", ".mpeg",
