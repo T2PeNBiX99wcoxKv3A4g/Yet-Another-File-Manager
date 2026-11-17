@@ -246,6 +246,13 @@ export function FileList({
     const anchor = useRef<string | null>(null);
     /** Whether the pointer is over the preview strip, where Ctrl+A means that strip alone. */
     const stripHover = useRef(false);
+
+    /** Which pane the arrow keys walk: the preview strip after a click in it, else the list. */
+    const stripFocused = useRef(false);
+
+    /** The scrolling boxes the keys measure: the main grid, and the strip's own grid of pictures. */
+    const gridPane = useRef<HTMLDivElement>(null);
+    const stripPane = useRef<HTMLDivElement>(null);
     const [tagTarget, setTagTarget] = useState<{ entry: FileEntry; x: number; y: number } | null>(null);
     const [stripHeight, setStripHeight] = useState(imageStripHeight);
     const [selected, setSelected] = useState<Set<string>>(() => new Set());
@@ -757,6 +764,18 @@ export function FileList({
         });
     }, [allPaths, singleSelect]);
 
+    /** A click in the list takes the arrow keys back from the preview strip. */
+    const selectFromList = useCallback((event: ReactMouseEvent, path: string) => {
+        stripFocused.current = false;
+        selectRow(event, path);
+    }, [selectRow]);
+
+    /** A click in the preview strip hands it the arrow keys, so they walk its pictures. */
+    const selectFromStrip = useCallback((event: ReactMouseEvent, path: string) => {
+        stripFocused.current = true;
+        selectRow(event, path);
+    }, [selectRow]);
+
     /** The checkbox toggles one path without disturbing the rest of the selection. */
     const toggleRow = useCallback((path: string) => {
         if (singleSelect) {
@@ -777,6 +796,8 @@ export function FileList({
 
     const clearSelection = useCallback(() => {
         anchor.current = null;
+        // Clicking the empty space of either pane hands the arrow keys back to the list.
+        stripFocused.current = false;
         setSelected(new Set());
     }, []);
 
@@ -1096,6 +1117,57 @@ export function FileList({
         });
     }, []);
 
+    /** Whether the arrow keys belong to the preview strip, which only the list view draws. */
+    const stripActive = useCallback(() => stripFocused.current && stripPane.current !== null, []);
+
+    /** The paths the arrow keys step through: the strip's pictures, or the rows of the view. */
+    const panePaths = useCallback(() => stripActive() ? stripPaths : allPaths, [allPaths, stripActive, stripPaths]);
+
+    /**
+     * Steps the selection one tile in the pressed direction. The tiles are measured where they are
+     * drawn, so a grid moves by column and row; a row the list has not drawn yet has no tile to
+     * measure, so the sorted order picks up where the screen ends.
+     */
+    const stepSelection = useCallback((direction: NavDirection) => {
+        const strip = stripActive();
+        const pane = strip ? stripPane.current : view.mode === "grid" ? gridPane.current : body.current;
+
+        if (!pane)
+            return;
+
+        // A single column has nothing beside its rows.
+        if (!strip && view.mode === "list" && (direction === "left" || direction === "right"))
+            return;
+
+        const order = panePaths();
+        if (order.length === 0)
+            return;
+
+        const currentPath = anchor.current && order.includes(anchor.current)
+            ? anchor.current
+            : selected.size === 1 ? [...selected][0] : null;
+
+        const tiles = [...pane.querySelectorAll<HTMLElement>("[data-path]")];
+        const from = currentPath ? tiles.find((tile) => tile.dataset.path === currentPath) : undefined;
+        const index = currentPath ? order.indexOf(currentPath) : -1;
+        const next = from
+            ? stepTo(tiles, from.getBoundingClientRect(), direction)?.dataset.path
+                ?? (direction === "down" || direction === "right"
+                    ? order[index + 1]
+                    : index > 0 ? order[index - 1] : undefined)
+            : tiles[0]?.dataset.path ?? order[0];
+
+        if (!next)
+            return;
+
+        setSelected(new Set([next]));
+        anchor.current = next;
+
+        window.requestAnimationFrame(() => {
+            pane.querySelector<HTMLElement>(`[data-path="${CSS.escape(next)}"]`)?.scrollIntoView({block: "nearest"});
+        });
+    }, [panePaths, selected, stripActive, view.mode]);
+
     // File-manager shortcuts. Every action may answer to several combinations, and none at all.
     useEffect(() => {
         if (!enableShortcuts || menu) return;
@@ -1116,25 +1188,22 @@ export function FileList({
                 action();
             };
 
-            // Explorer's arrow-key navigation: move the selection through the visible order and
-            // keep the new row in view. Home/End jump to the ends.
-            if (combo === "arrowup" || combo === "arrowdown" || combo === "home" || combo === "end") {
-                if (allPaths.length === 0)
+            // Arrow keys walk the tiles where they are drawn, so a grid steps by column and row and
+            // the preview strip is walked the same way. Home/End jump to the ends of that pane.
+            if (combo === "arrowup" || combo === "arrowdown" || combo === "arrowleft" || combo === "arrowright") {
+                event.preventDefault();
+                stepSelection(combo.slice("arrow".length) as NavDirection);
+                return;
+            }
+
+            if (combo === "home" || combo === "end") {
+                const order = panePaths();
+                if (order.length === 0)
                     return;
 
                 event.preventDefault();
 
-                const currentPath = anchor.current && allPaths.includes(anchor.current)
-                    ? anchor.current
-                    : selected.size === 1 ? [...selected][0] : null;
-                const currentIndex = currentPath ? allPaths.indexOf(currentPath) : -1;
-                const nextIndex = combo === "home"
-                    ? 0
-                    : combo === "end"
-                        ? allPaths.length - 1
-                        : Math.max(0, Math.min(allPaths.length - 1,
-                            currentIndex + (combo === "arrowdown" ? 1 : -1)));
-                const next = allPaths[nextIndex];
+                const next = combo === "home" ? order[0] : order[order.length - 1];
 
                 setSelected(new Set([next]));
                 anchor.current = next;
@@ -1243,8 +1312,8 @@ export function FileList({
 
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [allPaths, copy, createEntry, currentDirectory, enableShortcuts, menu, onOpen, onOpenFile, paste,
-        remove, rename, rows, selected, shortcuts]);
+    }, [allPaths, copy, createEntry, currentDirectory, enableShortcuts, menu, onOpen, onOpenFile, panePaths,
+        paste, remove, rename, rows, selected, shortcuts, stepSelection]);
 
     const confirmDialog = pendingConfirm && (
         <ConfirmDialog
@@ -1396,6 +1465,7 @@ export function FileList({
             <SplitPane onPointerDown={onActivate}>
                 <Wrapper>
                     <GridBody
+                        ref={gridPane}
                         onClick={(event) => {
                             if (!(event.target instanceof Element) || !event.target.closest("[data-path]"))
                                 clearSelection();
@@ -1445,7 +1515,7 @@ export function FileList({
                                 onRenameCancel={cancelRename}
                                 onRenameChange={changeRename}
                                 onRenameCommit={commitRename}
-                                onSelect={selectRow}
+                                onSelect={selectFromList}
                                 onToggle={toggleRow}
                                 onTogglePaths={singleSelect ? undefined : togglePaths}
                                 openOnSingleClick={openOnSingleClick}
@@ -1603,7 +1673,7 @@ export function FileList({
                                             onRenameCancel={cancelRename}
                                             onRenameChange={changeRename}
                                             onRenameCommit={commitRename}
-                                            onSelect={selectRow}
+                                            onSelect={selectFromList}
                                             onTagEdit={editTags}
                                             onToggle={toggleRow}
                                             openOnSingleClick={openOnSingleClick}
@@ -1676,6 +1746,7 @@ export function FileList({
                                 </StripCount>
                             </StripHead>
                             <GridBody
+                                ref={stripPane}
                                 onClick={(event) => {
                                     if (!(event.target instanceof Element) || !event.target.closest("[data-path]"))
                                         clearSelection();
@@ -1690,7 +1761,7 @@ export function FileList({
                                     onContextMenu={openMenu}
                                     onOpen={onOpen}
                                     onOpenFile={onOpenFile}
-                                    onSelect={selectRow}
+                                    onSelect={selectFromStrip}
                                     onToggle={toggleRow}
                                     onTogglePaths={singleSelect ? undefined : togglePaths}
                                     openOnSingleClick={openOnSingleClick}
@@ -1760,6 +1831,44 @@ function markOf(view: ResolvedView, column: string): string {
     if (view.sort !== column) return "";
 
     return view.sortDescending ? " ↓" : " ↑";
+}
+
+/** The direction an arrow key steps in. */
+type NavDirection = "up" | "down" | "left" | "right";
+
+/**
+ * The tile one step away from a tile in the pressed direction, measured where the tiles sit on the
+ * screen: a grid then moves by column and row instead of by the folder's sorted order, and the
+ * preview strip is walked the same way. A tile only counts when the key points at it, so a step
+ * sideways never leaves the row it started in.
+ */
+function stepTo(tiles: HTMLElement[], from: DOMRect, direction: NavDirection): HTMLElement | null {
+    const vertical = direction === "up" || direction === "down";
+    const sign = direction === "down" || direction === "right" ? 1 : -1;
+    const middle = (box: DOMRect) => vertical
+        ? {ahead: box.top + box.height / 2, apart: box.left + box.width / 2}
+        : {ahead: box.left + box.width / 2, apart: box.top + box.height / 2};
+    const start = middle(from);
+
+    let best: HTMLElement | null = null;
+    let bestScore = Infinity;
+
+    for (const tile of tiles) {
+        const {ahead, apart} = middle(tile.getBoundingClientRect());
+        const forward = (ahead - start.ahead) * sign;
+
+        if (forward <= 1) continue;
+
+        // The nearest line first, then the nearest tile on it, so a step down keeps the column.
+        const score = forward + Math.abs(apart - start.apart) * 4;
+
+        if (score < bestScore) {
+            bestScore = score;
+            best = tile;
+        }
+    }
+
+    return best;
 }
 
 /** One collator for every listing: `localeCompare` with options allocates per comparison. */
