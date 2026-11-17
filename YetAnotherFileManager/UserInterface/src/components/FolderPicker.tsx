@@ -372,6 +372,15 @@ export function FolderPicker({
     // The strip belongs to the list; a grid already shows the pictures themselves.
     const stripVisible = (showImages ?? viewDefaults.showImages) && pickerView.mode === "list";
 
+    // A file dialog that offers every file is the "open something" kind - Rider's Open, and others -
+    // where a folder is an answer as well; a dialog filtered to certain files asks for a file.
+    const picksFolders = !isFileMode || allFiles;
+    const oneSelected = selected.size === 1 ? [...selected][0] : null;
+    const folderSelected = oneSelected !== null
+        && (listing?.entries.find((entry) => entry.fullPath === oneSelected)?.isDirectory ?? false);
+    // Nothing selected and nothing typed leaves the folder the picker stands in as the answer.
+    const folderIsTheAnswer = !save && picksFolders && (folderSelected
+        || selected.size === 0 && fileName.trim().length === 0);
     const typed = fileName.trim();
     const typedPath = typed.length > 0
         ? isAbsolutePath(typed) ? typed : joinPath(currentFolder, typed)
@@ -417,7 +426,8 @@ export function FolderPicker({
             return;
         }
 
-        if (!isFileMode && currentFolder)
+        // Nothing selected and nothing typed: the folder the picker is standing in is the answer.
+        if (picksFolders && currentFolder)
             onSelect([currentFolder]);
     };
 
@@ -425,11 +435,17 @@ export function FolderPicker({
     const handleSelection = useCallback((paths: string[]) => {
         setSelected(new Set(paths));
 
-        if (paths.length === 1)
+        // A save dialog keeps the name the user is writing; clicking a folder there is a step into
+        // it, not a new name. A path from the folder that was just left is one too, and the report
+        // of a selection can trail behind a step into it.
+        const folder = paths.length === 1 && (parentPath(paths[0]) !== currentFolder
+            || listing?.entries.find((entry) => entry.fullPath === paths[0])?.isDirectory === true);
+
+        if (paths.length === 1 && !(save && folder))
             setFileName(baseName(paths[0]));
         else if (!save)
             setFileName(paths.length === 0 && !isFileMode ? baseName(currentFolder) : "");
-    }, [currentFolder, isFileMode, save]);
+    }, [currentFolder, isFileMode, listing, save]);
 
     const openEntry = (target: string) => {
         const entry = listing?.entries.find((item) => item.fullPath === target);
@@ -533,12 +549,12 @@ export function FolderPicker({
                     $primary
                     disabled={loading || error !== null || (save
                         ? typed.length === 0
-                        : isFileMode && selected.size === 0 && typed.length === 0)}
+                        : selected.size === 0 && typed.length === 0 && !picksFolders)}
                     onClick={choose}
                     type="button"
                 >
                     <CheckIcon size={12}/>
-                    {save ? t("save_as") : isFileMode ? t("select_this_file") : t("select_this_folder")}
+                    {save ? t("save_as") : folderIsTheAnswer ? t("select_this_folder") : t("select_this_file")}
                 </Button>
             </Actions>
 
