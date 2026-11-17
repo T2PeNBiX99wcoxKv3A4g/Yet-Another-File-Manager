@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.23.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.22.3..v0.23.0) - 2026-11-17
+
+### ⛰️  Features
+
+- *(picker)* Let a folder be the answer when the dialog offers every file - ([014ac47](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/014ac47ab08ef4ba4b25bfdffd7dc8bf0e948098))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([69571ec](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/69571ec04dd7b8cc0b5ad675292b91a76ec6ac7c))
+
+
 ## [0.22.3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.22.2..v0.22.3) - 2026-11-17
 
 ### 🐛 Bug Fixes
