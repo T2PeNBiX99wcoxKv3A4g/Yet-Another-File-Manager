@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.22.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.21.0..v0.22.0) - 2026-11-17
+
+### ⛰️  Features
+
+- *(preview)* Decode PCX, DIB and JPEG XL, and show every picture in the details pane - ([af24e91](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/af24e913dad8a172052ee008c2b03bd195188a16))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([ee94185](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/ee941857169eb6f14d8f42e7c005754150332ea5))
+
+
 ## [0.21.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.20.1..v0.21.0) - 2026-11-16
 
 ### ⛰️  Features
