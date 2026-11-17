@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.22.3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.22.2..v0.22.3) - 2026-11-17
+
+### 🐛 Bug Fixes
+
+- *(list)* Let the sideways keys run on into the next section, and round the view's ends - ([3d8a17b](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/3d8a17b9997cc22e0f0cd2ec2302fee3ba64c5f0))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([295ad8d](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/295ad8d170585f731e8a75328282102d1deb744b))
+
+
 ## [0.22.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.22.1..v0.22.2) - 2026-11-17
 
 ### 🐛 Bug Fixes
