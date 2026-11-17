@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.22.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.22.1..v0.22.2) - 2026-11-17
+
+### 🐛 Bug Fixes
+
+- *(list)* Read the tiles in the order the view draws them - ([3b4e504](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/3b4e5047afbe867ff694d894204dfdcf24e58b83))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([b7cd5d7](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b7cd5d7ef3f50d76d2c595ddce6f1593aad5d6cc))
+
+
 ## [0.22.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.22.0..v0.22.1) - 2026-11-17
 
 ### 🐛 Bug Fixes
