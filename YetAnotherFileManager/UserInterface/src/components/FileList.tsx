@@ -1136,9 +1136,11 @@ export function FileList({
     const panePaths = useCallback(() => stripActive() ? stripPaths : visualPaths, [stripActive, stripPaths, visualPaths]);
 
     /**
-     * Steps the selection one tile in the pressed direction. The tiles are measured where they are
-     * drawn, so a grid moves by column and row; a row the list has not drawn yet has no tile to
-     * measure, so the sorted order picks up where the screen ends.
+     * Steps the selection one tile in the pressed direction. Sideways the tiles read as one long line
+     * in drawing order, so the end of a row - the last video, say - moves on into the next row and
+     * the next section, and the line's two ends meet. Up and down are measured on the screen, so a
+     * grid keeps its column; a row the list has not drawn yet has no tile to measure, so the order
+     * picks up where the screen ends.
      */
     const stepSelection = useCallback((direction: NavDirection) => {
         const strip = stripActive();
@@ -1162,12 +1164,20 @@ export function FileList({
         const tiles = [...pane.querySelectorAll<HTMLElement>("[data-path]")];
         const from = currentPath ? tiles.find((tile) => tile.dataset.path === currentPath) : undefined;
         const index = currentPath ? order.indexOf(currentPath) : -1;
-        const next = from
-            ? stepTo(tiles, from.getBoundingClientRect(), direction)?.dataset.path
-                ?? (direction === "down" || direction === "right"
-                    ? order[index + 1]
-                    : index > 0 ? order[index - 1] : undefined)
-            : tiles[0]?.dataset.path ?? order[0];
+        const beside = direction === "left" ? -1 : 1;
+
+        let next: string | undefined;
+
+        if (!from)
+            next = tiles[0]?.dataset.path ?? order[0];
+        else if (direction === "left" || direction === "right") {
+            const at = index < 0 ? (beside > 0 ? -1 : 0) : index;
+            next = order[(at + beside + order.length) % order.length];
+        } else
+            next = stepTo(tiles, from.getBoundingClientRect(), direction)?.dataset.path
+                ?? (index >= 0
+                    ? order[index + (direction === "down" ? 1 : -1)]
+                    : order[0]);
 
         if (!next)
             return;
