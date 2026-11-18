@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.29.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.28.0..v0.29.0) - 2026-11-18
+
+### ⛰️  Features
+
+- *(share)* Let a phone sort the list it can now read - ([b87cf40](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b87cf40daee0d4bf288e2dec6493eb84cd59f13b))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([591d73e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/591d73ea750541e4c4fe327328fabec84ce30a6f))
+
+
 ## [0.28.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.27.1..v0.28.0) - 2026-11-18
 
 ### ⛰️  Features
