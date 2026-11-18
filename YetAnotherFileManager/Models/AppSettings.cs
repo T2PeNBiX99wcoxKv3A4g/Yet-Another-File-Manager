@@ -123,6 +123,8 @@ public sealed record AppSettings(
     string? SharePortMode = null,
     [property: Setting(Comment = "Port used when sharePortMode is custom.")]
     int? SharePort = null,
+    [property: Setting(Comment = "Serve the web shares over HTTPS with a certificate made for this computer.")]
+    bool? ShareHttps = null,
     [property: Setting(Comment = "'none', 'shortcut' or 'task': how the app joins the session.")]
     string? StartupMode = null,
     [property: Setting(Comment = "Start in the tray instead of showing the window.")]

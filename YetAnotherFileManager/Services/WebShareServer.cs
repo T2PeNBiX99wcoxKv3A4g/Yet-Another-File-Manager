@@ -42,16 +42,21 @@ internal partial class WebShareServer
 
     public int Port { get; private set; }
 
+    /// <summary>Whether the addresses are HTTPS; the server is restarted when the setting changes.</summary>
+    public bool Secure { get; private set; }
+
     /// <summary>The addresses a phone or another computer on the same network can open.</summary>
     public IReadOnlyList<string> Urls()
     {
         if (!Running)
             return [];
 
+        var scheme = Secure ? "https" : "http";
+
         return
         [
-            $"http://localhost:{Port}/",
-            .. LanAddresses().Select(address => $"http://{address}:{Port}/")
+            $"{scheme}://localhost:{Port}/",
+            .. LanAddresses().Select(address => $"{scheme}://{address}:{Port}/")
         ];
     }
 
@@ -79,7 +84,8 @@ internal partial class WebShareServer
             requested = null;
         }
 
-        if (_app is not null && _requestedPort == requested)
+        // A change of scheme cannot be applied to a running listener, so it restarts as well.
+        if (_app is not null && _requestedPort == requested && Secure == (settings.ShareHttps ?? false))
             return;
 
         await StopAsync();
@@ -128,10 +134,17 @@ internal partial class WebShareServer
         });
 
         builder.Logging.ClearProviders();
+        var settings = SettingsService.Instance.Current;
+        var certificate = (settings.ShareHttps ?? false) ? ShareCertificate.Instance.Current : null;
+
         builder.WebHost.ConfigureKestrel(options =>
         {
             options.AddServerHeader = false;
-            options.ListenAnyIP(port);
+
+            if (certificate is null)
+                options.ListenAnyIP(port);
+            else
+                options.ListenAnyIP(port, listen => listen.UseHttps(certificate));
         });
 
         var app = builder.Build();
@@ -149,7 +162,8 @@ internal partial class WebShareServer
 
         _app = app;
         Port = BoundPort(app, port);
-        Log.Information("Share web server listening on port {Port}", Port);
+        Secure = certificate is not null;
+        Log.Information("Share web server listening on {Scheme} port {Port}", Secure ? "HTTPS" : "HTTP", Port);
     }
 
     private static int BoundPort(WebApplication app, int fallback)
@@ -521,7 +535,7 @@ internal partial class WebShareServer
             .Select(candidate => candidate.Address)
             .FirstOrDefault();
 
-        return address is null ? null : $"http://{address}:{Port}/";
+        return address is null ? null : $"{(Secure ? "https" : "http")}://{address}:{Port}/";
     }
 
     private readonly record struct Candidate(string Address, int Rank, bool Virtual);

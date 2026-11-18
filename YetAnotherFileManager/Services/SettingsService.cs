@@ -96,6 +96,12 @@ internal sealed class SettingsService : SettingsServiceBase<SettingsService, App
         StartupMode = Current.StartupMode
     };
 
-    protected override void OnSaved(AppSettings settings) =>
+    protected override void OnSaved(AppSettings settings)
+    {
         GlobalHotkey.Apply(settings.GlobalHotkey, () => WindowManager.Instance.ShowMainWindow());
+
+        // The share server follows the port and the HTTPS switch, so a save reapplies them; it does
+        // nothing when neither changed.
+        _ = WebShareServer.Instance.ApplyAsync();
+    }
 }

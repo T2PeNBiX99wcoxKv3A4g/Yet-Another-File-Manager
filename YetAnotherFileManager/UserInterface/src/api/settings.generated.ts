@@ -116,6 +116,8 @@ export interface AppSettingsGenerated {
     sharePortMode: string | null;
     /** Port used when sharePortMode is custom. */
     sharePort: number | null;
+    /** Serve the web shares over HTTPS with a certificate made for this computer. */
+    shareHttps: boolean | null;
     /** 'none', 'shortcut' or 'task': how the app joins the session. */
     startupMode: string | null;
     /** Start in the tray instead of showing the window. */

@@ -1666,6 +1666,26 @@ export function SettingsView({
                         </Row>
                         <Row>
                             <RowText>
+                                <Label>{t("share_access_https")}</Label>
+                                <Note>{t("share_access_https_note")}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <State $on={settings?.shareHttps ?? false}>
+                                    {settings?.shareHttps ? t("active") : t("off")}
+                                </State>
+                                <Toggle
+                                    $on={settings?.shareHttps ?? false}
+                                    disabled={!settings}
+                                    onClick={() => void update({shareHttps: !(settings?.shareHttps ?? false)})}
+                                    title={settings?.shareHttps ? t("share_access_https_off") : t("share_access_https_on")}
+                                    type="button"
+                                >
+                                    <Knob/>
+                                </Toggle>
+                            </RowEnd>
+                        </Row>
+                        <Row>
+                            <RowText>
                                 <LabelRow>
                                     <Label>{t("devices")}</Label>
                                 </LabelRow>

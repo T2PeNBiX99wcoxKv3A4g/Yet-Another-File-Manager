@@ -126,6 +126,8 @@ export interface AppSettings {
     sharePortMode: string;
     /** Port used when sharePortMode is "custom"; null means a free port. */
     sharePort: number | null;
+    /** Serve the web shares over HTTPS with a self-signed certificate. */
+    shareHttps: boolean;
     /** "none", "shortcut" or "task": how the app joins the user's login session. */
     startupMode: string | null;
     /** Start in the tray instead of showing the window at launch. */
@@ -214,6 +216,7 @@ const fallback: AppSettings = {
     themePresets: [],
     fonts: {},
     sharePortMode: "random",
+    shareHttps: false,
     sharePort: null,
     startupMode: null,
     startHidden: false,
@@ -288,6 +291,7 @@ export async function getSettings(): Promise<AppSettings> {
         themePresets: raw?.themePresets ?? [],
         fonts: raw?.fonts ?? {},
         sharePortMode: raw?.sharePortMode ?? "random",
+    shareHttps: raw?.shareHttps ?? false,
         sharePort: raw?.sharePort ?? null,
         startupMode: raw?.startupMode ?? null,
         startHidden: raw?.startHidden ?? false,
@@ -424,6 +428,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         themePresets: saved?.themePresets ?? settings.themePresets,
         fonts: saved?.fonts ?? settings.fonts,
         sharePortMode: saved?.sharePortMode ?? settings.sharePortMode,
+    shareHttps: saved?.shareHttps ?? settings.shareHttps,
         sharePort: saved?.sharePort ?? settings.sharePort,
         startupMode: saved?.startupMode ?? settings.startupMode,
         startHidden: saved?.startHidden ?? settings.startHidden,

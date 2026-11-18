@@ -465,6 +465,13 @@
       ],
       "description": "Port used when sharePortMode is custom."
     },
+    "shareHttps": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Serve the web shares over HTTPS with a certificate made for this computer."
+    },
     "startupMode": {
       "type": [
         "string",
