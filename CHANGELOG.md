@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.25.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.24.0..v0.25.0) - 2026-11-18
+
+### ⛰️  Features
+
+- *(share)* Stretch the share password, lock out guesses, and name the device that asks - ([688d9bb](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/688d9bb5baff1038dd143c21093bfe428686c0f9))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([642a23e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/642a23e6e0ed51de5ee19f0e5aab7d5669723ce9))
+
+
 ## [0.24.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.23.0..v0.24.0) - 2026-11-18
 
 ### ⛰️  Features
