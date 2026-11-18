@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.24.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.23.0..v0.24.0) - 2026-11-18
+
+### ⛰️  Features
+
+- *(settings)* Shortcuts record whole combinations, and the hotkey joins them - ([ddcd462](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/ddcd462d12e8bcad482ef6a724f26d5787f89519))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([24a7e76](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/24a7e7697eea5f71663f5c5c8e7ccc466b3cff33))
+
+
 ## [0.23.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.22.3..v0.23.0) - 2026-11-17
 
 ### ⛰️  Features
