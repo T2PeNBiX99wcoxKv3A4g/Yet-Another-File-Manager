@@ -44,4 +44,5 @@ internal sealed record ShareWebAccessPayload(
     string? Salt,
     string? Nonce,
     int ApprovalMinutes,
-    int DenialSeconds);
+    int DenialSeconds,
+    int Iterations);

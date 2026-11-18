@@ -65,6 +65,8 @@ declare module "@photino-net-utils/bridge"
         "automatic_rename_suffix": true;
         "autoplay_video_previews": true;
         "auto_extract_to_the_current_folder": true;
+        "a_browser_was_allowed_to_use_a_web_share": true;
+        "a_browser_was_refused_a_web_share": true;
         "a_custom_glyph_for_one_file_extension": true;
         "a_device_address_is_required": true;
         "a_device_is_required": true;
@@ -665,12 +667,14 @@ declare module "@photino-net-utils/bridge"
         "share_access": true;
         "share_access_allow": true;
         "share_access_allowed": true;
+        "share_access_allowed_for_minutes": true;
         "share_access_allow_forever": true;
         "share_access_allow_for_minutes": true;
         "share_access_approval_minutes": true;
         "share_access_block_forever": true;
         "share_access_denial_seconds": true;
         "share_access_denied": true;
+        "share_access_denied_for_seconds": true;
         "share_access_deny": true;
         "share_access_devices_note": true;
         "share_access_device_hint": true;

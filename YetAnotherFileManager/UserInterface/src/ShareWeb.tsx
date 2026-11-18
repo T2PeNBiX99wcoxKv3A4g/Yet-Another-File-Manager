@@ -31,6 +31,8 @@ interface ShareWebAccess {
     hasPassword: boolean;
     salt: string | null;
     nonce: string | null;
+    /** PBKDF2 rounds; 0 is a password stored before the stretching. */
+    iterations: number;
     approvalMinutes: number;
     denialSeconds: number;
 }
@@ -224,10 +226,13 @@ export function ShareWeb() {
         setPasswordBusy(true);
         setPasswordWrong(false);
 
+        // Deriving the key is deliberately slow; let the button paint its busy label first.
+        await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+
         try {
             const body = new URLSearchParams({
                 nonce: access.nonce,
-                proof: shareProof(password, access.salt, access.nonce)
+                proof: shareProof(password, access.salt, access.nonce, access.iterations ?? 0)
             });
             const response = await fetch("/api/access/password", {
                 method: "POST",
@@ -355,7 +360,7 @@ export function ShareWeb() {
                 <Gate>
                     <GateCard>
                         <Logo><img alt="" src="/app-icon"/></Logo>
-                        <GateTitle>{t.accessTitle}</GateTitle>
+                        <GateTitle><LockGlyph size={15}/>{t.accessTitle}</GateTitle>
 
                         {!access && (
                             <>
@@ -393,7 +398,7 @@ export function ShareWeb() {
                                     value={password}
                                 />
                                 <GateButton disabled={passwordBusy || password.length === 0} type="submit">
-                                    {t.unlock}
+                                    {passwordBusy ? t.checkingAccess : t.unlock}
                                 </GateButton>
                                 {passwordWrong && <GateError>{t.wrongPassword}</GateError>}
                             </GateForm>
@@ -418,6 +423,8 @@ export function ShareWeb() {
                     </Brand>
 
                     <HeaderActions>
+                        <LanguageBox title={t.language}>
+                            <GlobeGlyph size={14}/>
                         <LanguageSelect
                             aria-label={t.language}
                             onChange={(event) => {
@@ -432,6 +439,7 @@ export function ShareWeb() {
                                 <option key={item.id} value={item.id}>{item.label}</option>
                             ))}
                         </LanguageSelect>
+                        </LanguageBox>
                     </HeaderActions>
                 </HeaderTop>
 
@@ -443,6 +451,7 @@ export function ShareWeb() {
                             onClick={() => openShare(share.id)}
                             type="button"
                         >
+                            <FolderGlyph size={13}/>
                             {share.name}
                         </Tab>
                     ))}
@@ -480,6 +489,7 @@ export function ShareWeb() {
 
                                 <Actions>
                                     <ToggleLabel title={t.showHidden}>
+                                        <EyeGlyph size={13}/>
                                         <input
                                             checked={showHidden}
                                             onChange={(event) => toggleHidden(event.currentTarget.checked)}
@@ -488,6 +498,7 @@ export function ShareWeb() {
                                         {t.showHidden}
                                     </ToggleLabel>
                                     <ToggleLabel title={t.showSystem}>
+                                        <GearGlyph size={13}/>
                                         <input
                                             checked={showSystem}
                                             onChange={(event) => toggleSystem(event.currentTarget.checked)}
@@ -579,7 +590,7 @@ export function ShareWeb() {
                                                                         href={fileUrl(active ?? "", entry.path)}
                                                                         title={`${t.download} ${entry.name}`}
                                                                     >
-                                                                        <FileGlyph size={16}/>
+                                                                        <EntryGlyph name={entry.name} size={16}/>
                                                                         <NameText>{entry.name}</NameText>
                                                                     </Download>
                                                                 )}
@@ -644,6 +655,134 @@ function FolderGlyph({size}: { size: number }) {
              viewBox="0 0 24 24" width={size}>
             <path
                 d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2.5h7.5A2.5 2.5 0 0 1 21 10v7a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17z"/>
+        </svg>
+    );
+}
+
+/** By extension, so a picture, a film, a song, an archive and a text file read apart at a glance. */
+const GlyphByExtension: Record<string, "image" | "video" | "audio" | "archive" | "text"> = {
+    png: "image", jpg: "image", jpeg: "image", gif: "image", webp: "image", avif: "image", bmp: "image",
+    svg: "image", tif: "image", tiff: "image", ico: "image", heic: "image",
+    mp4: "video", mkv: "video", webm: "video", mov: "video", avi: "video", wmv: "video",
+    mp3: "audio", flac: "audio", wav: "audio", ogg: "audio", m4a: "audio", aac: "audio", opus: "audio",
+    zip: "archive", "7z": "archive", rar: "archive", tar: "archive", gz: "archive", xz: "archive",
+    zst: "archive", bz2: "archive", iso: "archive",
+    txt: "text", md: "text", json: "text", xml: "text", yml: "text", yaml: "text", toml: "text",
+    ini: "text", cfg: "text", csv: "text", log: "text", html: "text", css: "text", js: "text",
+    ts: "text", tsx: "text", cs: "text", py: "text", rs: "text", go: "text", java: "text", kt: "text",
+};
+
+function EntryGlyph({name, size}: { name: string; size: number }) {
+    const extension = name.includes(".") ? name.split(".").pop()!.toLowerCase() : "";
+    const kind = GlyphByExtension[extension];
+
+    if (kind === "image")
+        return <ImageGlyph size={size}/>;
+
+    if (kind === "video")
+        return <VideoGlyph size={size}/>;
+
+    if (kind === "audio")
+        return <AudioGlyph size={size}/>;
+
+    if (kind === "archive")
+        return <ArchiveGlyph size={size}/>;
+
+    if (kind === "text")
+        return <TextGlyph size={size}/>;
+
+    return <FileGlyph size={size}/>;
+}
+
+function LockGlyph({size}: { size: number }) {
+    return (
+        <svg fill="none" height={size} stroke="currentColor" strokeLinecap="round" strokeWidth="1.6"
+             viewBox="0 0 24 24" width={size}>
+            <rect height="9" rx="2" width="14" x="5" y="11"/>
+            <path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+        </svg>
+    );
+}
+
+function GlobeGlyph({size}: { size: number }) {
+    return (
+        <svg fill="none" height={size} stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"
+             width={size}>
+            <circle cx="12" cy="12" r="8.5"/>
+            <path d="M3.5 12h17M12 3.5c2.5 2.6 2.5 14.4 0 17M12 3.5c-2.5 2.6-2.5 14.4 0 17"/>
+        </svg>
+    );
+}
+
+function EyeGlyph({size}: { size: number }) {
+    return (
+        <svg fill="none" height={size} stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"
+             width={size}>
+            <path d="M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12Z"/>
+            <circle cx="12" cy="12" r="2.6"/>
+        </svg>
+    );
+}
+
+function GearGlyph({size}: { size: number }) {
+    return (
+        <svg fill="none" height={size} stroke="currentColor" strokeLinejoin="round" strokeWidth="1.5"
+             viewBox="0 0 24 24" width={size}>
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15a2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4.6a2 2 0 1 1 4 0 1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 11a2 2 0 1 1 0 4Z"/>
+        </svg>
+    );
+}
+
+function ImageGlyph({size}: { size: number }) {
+    return (
+        <svg fill="none" height={size} stroke="currentColor" strokeLinejoin="round" strokeWidth="1.5"
+             viewBox="0 0 24 24" width={size}>
+            <rect height="15" rx="2.5" width="18" x="3" y="4.5"/>
+            <circle cx="8.5" cy="9.5" r="1.5"/>
+            <path d="m4 17 4.5-4.5L12 16l3-3 5 4.5"/>
+        </svg>
+    );
+}
+
+function VideoGlyph({size}: { size: number }) {
+    return (
+        <svg fill="none" height={size} stroke="currentColor" strokeLinejoin="round" strokeWidth="1.5"
+             viewBox="0 0 24 24" width={size}>
+            <rect height="14" rx="2.5" width="18" x="3" y="5"/>
+            <path d="m10 9.5 5 2.5-5 2.5z"/>
+        </svg>
+    );
+}
+
+function AudioGlyph({size}: { size: number }) {
+    return (
+        <svg fill="none" height={size} stroke="currentColor" strokeLinecap="round" strokeWidth="1.5"
+             viewBox="0 0 24 24" width={size}>
+            <path d="M9 18V6l10-2v12"/>
+            <circle cx="6.5" cy="18" r="2.5"/>
+            <circle cx="16.5" cy="16" r="2.5"/>
+        </svg>
+    );
+}
+
+function ArchiveGlyph({size}: { size: number }) {
+    return (
+        <svg fill="none" height={size} stroke="currentColor" strokeLinejoin="round" strokeWidth="1.5"
+             viewBox="0 0 24 24" width={size}>
+            <rect height="15" rx="2.5" width="16" x="4" y="4.5"/>
+            <path d="M10 4.5v3M14 7.5v3M10 10.5v3M14 13.5v3"/>
+            <path d="M9 19.5h6"/>
+        </svg>
+    );
+}
+
+function TextGlyph({size}: { size: number }) {
+    return (
+        <svg fill="none" height={size} stroke="currentColor" strokeLinecap="round" strokeWidth="1.5"
+             viewBox="0 0 24 24" width={size}>
+            <path d="M6 4.5h12v15H6z"/>
+            <path d="M9 9h6M9 12.5h6M9 16h4"/>
         </svg>
     );
 }
@@ -807,6 +946,30 @@ const HeaderActions = styled.div`
     display: flex;
     align-items: center;
     gap: 8px;
+`;
+
+const LanguageBox = styled.label`
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding-left: 9px;
+    border: 1px solid var(--border-color);
+    border-radius: 9px;
+    background: rgba(var(--bg-rgb), 0.5);
+    color: var(--text-muted);
+
+    &:hover,
+    &:focus-within {
+        border-color: var(--border-color-hover);
+        color: var(--text-primary);
+    }
+
+    select {
+        border: 0;
+        background: transparent;
+        color: inherit;
+    }
 `;
 
 const LanguageSelect = styled.select`

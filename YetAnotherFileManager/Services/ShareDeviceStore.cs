@@ -163,6 +163,29 @@ internal partial class ShareDeviceStore
         }
     }
 
+    /// <summary>Drops devices whose window has closed; a permanent one has no expiry and stays.</summary>
+    public async Task<bool> PruneAsync()
+    {
+        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        bool removed;
+
+        await _writeGate.WaitAsync();
+        try
+        {
+            lock (_gate)
+                removed = _devices.RemoveAll(device => device.ExpiresAt != 0 && device.ExpiresAt <= now) > 0;
+
+            if (removed)
+                await SaveAsync();
+        }
+        finally
+        {
+            _writeGate.Release();
+        }
+
+        return removed;
+    }
+
     private async Task SaveAsync()
     {
         ShareDevice[] snapshot;

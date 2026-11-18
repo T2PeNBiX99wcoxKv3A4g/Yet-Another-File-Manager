@@ -3438,9 +3438,9 @@ function ShareDeviceList({approvalMinutes, denialSeconds}: {
                                 void apply(device.id, state as "allowed" | "denied", permanence === "forever");
                             }}
                             options={[
-                                {value: "allowed:timed", label: `${t("share_access_allowed")} (${approvalMinutes}m)`},
+                                {value: "allowed:timed", label: t("share_access_allowed_for_minutes", {minutes: approvalMinutes})},
                                 {value: "allowed:forever", label: t("share_access_allow_forever")},
-                                {value: "denied:timed", label: `${t("share_access_denied")} (${denialSeconds}s)`},
+                                {value: "denied:timed", label: t("share_access_denied_for_seconds", {seconds: denialSeconds})},
                                 {value: "denied:forever", label: t("share_access_block_forever")},
                             ]}
                             value={device.state === "allowed"

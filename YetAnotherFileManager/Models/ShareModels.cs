@@ -85,10 +85,13 @@ public sealed class ShareDevice
     public long ExpiresAt { get; set; }
 }
 
-/// <summary>The salt and the salted SHA-256 verifier for the optional web-share password.</summary>
+/// <summary>The salt and the stretched verifier for the optional web-share password.</summary>
 public sealed class SharePasswordSecret
 {
     public string Salt { get; set; } = string.Empty;
 
     public string Hash { get; set; } = string.Empty;
+
+    /// <summary>PBKDF2 iterations; 0 is a verifier from before the stretching, kept working.</summary>
+    public int Iterations { get; set; }
 }

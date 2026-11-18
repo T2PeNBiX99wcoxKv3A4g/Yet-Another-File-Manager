@@ -3,6 +3,7 @@ using System.Net;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Http;
 using PhotinoNetUtils.Extensions;
+using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Notifications;
 using PhotinoNetUtils.Utils;
 using YetAnotherFileManager.Messaging;
@@ -25,6 +26,12 @@ internal partial class ShareAccess
 
     private static readonly ConcurrentDictionary<string, Challenge> Challenges = new(StringComparer.Ordinal);
 
+    /// <summary>Wrong passwords allowed before the browser and its address are shut out.</summary>
+    private const int PasswordAttempts = 5;
+    private static readonly TimeSpan PasswordLockout = TimeSpan.FromMinutes(5);
+    private static readonly ConcurrentDictionary<string, int> Failures = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, long> LockedUntil = new(StringComparer.Ordinal);
+
     /// <summary>Devices whose approval window is already open, so a poll does not ask again.</summary>
     private static readonly ConcurrentDictionary<string, byte> Asking = new(StringComparer.Ordinal);
 
@@ -46,6 +53,9 @@ internal partial class ShareAccess
         var denial = DenialSeconds(settings);
         var now = Now;
 
+        if (await ShareDeviceStore.Instance.PruneAsync())
+            DeviceChanged();
+
         var device = await ShareDeviceStore.Instance.TouchAsync(id, name, address);
 
         if (!Enabled(settings))
@@ -55,14 +65,22 @@ internal partial class ShareAccess
             return Allowed(name, device.ExpiresAt, false, approval, denial);
 
         if (device.State == "denied" && Fresh(device, now))
-            return new("denied", name, device.ExpiresAt, RetryAfter(device, now), false, null, null,
-                approval, denial);
+            return new("denied", name, device.ExpiresAt, RetryAfter(device, now),
+                HasPassword, null, null, approval, denial, 0);
+
+        // Too many wrong passwords shut the browser and its address out for a while, whatever the
+        // device's own window says.
+        var locked = LockoutSeconds(id, address);
+        if (locked > 0)
+            return new("denied", name, null, locked, HasPassword, null, null, approval,
+                denial, 0);
 
         if (SharePassword.IsConfigured(SharePasswordStore.Instance.Current))
         {
+            var secret = SharePasswordStore.Instance.Current;
             var challenge = ChallengeFor(id);
-            return new("password", name, null, null, true,
-                SharePasswordStore.Instance.Current.Salt, challenge.Nonce, approval, denial);
+            return new("password", name, null, null, true, secret.Salt, challenge.Nonce, approval, denial,
+                secret.Iterations);
         }
 
         // No password, so the desktop decides. The poll that first sees the device opens the
@@ -70,7 +88,7 @@ internal partial class ShareAccess
         if (Asking.TryAdd(id, 0))
             ShareAccessPrompt.Instance.Ask(id, name, address, approval);
 
-        return new("pending", name, null, null, false, null, null, approval, denial);
+        return new("pending", name, null, null, false, null, null, approval, denial, 0);
     }
 
     /// <summary>
@@ -85,19 +103,28 @@ internal partial class ShareAccess
         var name = DeviceName(context.Request.Headers.UserAgent);
         var address = Address(context);
 
+        var locked = LockoutSeconds(id, address);
+        if (locked > 0)
+            return new("denied", name, null, locked, HasPassword, null, null,
+                ApprovalMinutes(settings), DenialSeconds(settings), 0);
+
         if (SharePassword.Verify(SharePasswordStore.Instance.Current, nonce, proof))
         {
+            ClearFailures(id, address);
             await AllowAsync(id, name, address, false);
             Challenges.TryRemove(id, out _);
-            NotificationService.Notify("share.access.allowed", "Web share access allowed",
-                $"{name} signed in with the share password.");
+            // Keyed by its own text, so no identifier can ever reach the toast: the title says what
+            // happened and the line under it names the browser and where it came from.
+            NotificationService.Notify(
+                Localization.Get("a_browser_was_allowed_to_use_a_web_share"), $"{name} · {address}");
         }
         else
         {
+            RecordFailure(id, address);
             await DenyAsync(id, name, address, false);
             Challenges.TryRemove(id, out _);
-            NotificationService.Notify("share.access.denied", "Web share access refused",
-                $"{name} entered a wrong share password.");
+            NotificationService.Notify(
+                Localization.Get("a_browser_was_refused_a_web_share"), $"{name} · {address}");
         }
 
         return await EvaluateAsync(context);
@@ -149,11 +176,12 @@ internal partial class ShareAccess
             return false;
         }
 
-        var (salt, hash) = SharePassword.Create(password);
+        var (salt, hash, iterations) = SharePassword.Create(password);
         await SharePasswordStore.Instance.SetAsync(new SharePasswordSecret
         {
             Salt = salt,
-            Hash = hash
+            Hash = hash,
+            Iterations = iterations
         });
         Challenges.Clear();
         return true;
@@ -181,28 +209,95 @@ internal partial class ShareAccess
         return id;
     }
 
-    /// <summary>A readable "Chrome on Windows" label from the browser's user agent.</summary>
+    /// <summary>
+    ///     A readable label for the browser that asked: the phone, tablet or desktop its user agent
+    ///     names - an Android model rather than just "Android" - and the browser with its version.
+    /// </summary>
     public static string DeviceName(string? userAgent)
     {
         if (string.IsNullOrWhiteSpace(userAgent))
             return "Browser";
 
         var browser = userAgent.Contains("Edg/", StringComparison.Ordinal) ? "Edge"
+            : userAgent.Contains("OPR/", StringComparison.Ordinal) ? "Opera"
             : userAgent.Contains("Firefox/", StringComparison.Ordinal) ? "Firefox"
             : userAgent.Contains("Chrome/", StringComparison.Ordinal) ? "Chrome"
             : userAgent.Contains("Safari/", StringComparison.Ordinal) ? "Safari"
             : "Browser";
 
-        var system = userAgent.Contains("Android", StringComparison.Ordinal) ? "Android"
-            : userAgent.Contains("iPhone", StringComparison.Ordinal)
-              || userAgent.Contains("iPad", StringComparison.Ordinal) ? "iOS"
-            : userAgent.Contains("Windows", StringComparison.Ordinal) ? "Windows"
-            : userAgent.Contains("Macintosh", StringComparison.Ordinal)
-              || userAgent.Contains("Mac OS", StringComparison.Ordinal) ? "macOS"
-            : userAgent.Contains("Linux", StringComparison.Ordinal) ? "Linux"
-            : "another device";
+        var version = MajorVersion(userAgent, browser switch
+        {
+            "Edge" => "Edg/",
+            "Opera" => "OPR/",
+            "Firefox" => "Firefox/",
+            "Chrome" => "Chrome/",
+            "Safari" => "Version/",
+            _ => ""
+        });
 
-        return $"{browser} on {system}";
+        var model = DeviceModel(userAgent);
+        var label = model.Length > 0 ? $"{model} · {browser}" : browser;
+
+        return version.Length > 0 ? $"{label} {version}" : label;
+    }
+
+    /// <summary>The major version after a token such as "Chrome/", or an empty string.</summary>
+    private static string MajorVersion(string userAgent, string token)
+    {
+        if (token.Length == 0)
+            return "";
+
+        var at = userAgent.IndexOf(token, StringComparison.Ordinal);
+        if (at < 0)
+            return "";
+
+        var rest = userAgent[(at + token.Length)..];
+        var end = rest.IndexOfAny(['.', ' ', ';', ')']);
+
+        return end < 0 ? rest : rest[..end];
+    }
+
+    /// <summary>The phone, tablet or desktop the user agent names, or an empty string.</summary>
+    private static string DeviceModel(string userAgent)
+    {
+        // An Android user agent names the model between the system version and "Build/", which is
+        // the only place a phone tells us what it is.
+        if (userAgent.Contains("Android", StringComparison.Ordinal))
+        {
+            var parts = userAgent.Split(';', StringSplitOptions.TrimEntries);
+            var index = Array.FindIndex(parts, part => part.StartsWith("Android ", StringComparison.Ordinal));
+
+            if (index >= 0 && index + 1 < parts.Length)
+            {
+                var model = parts[index + 1];
+                var cut = model.IndexOf(" Build", StringComparison.Ordinal);
+                if (cut > 0)
+                    model = model[..cut];
+
+                model = model.Trim();
+                if (model.Length > 0 && model is not ("wv" or "K" or "Mobile"))
+                    return model;
+            }
+
+            return "Android";
+        }
+
+        if (userAgent.Contains("iPhone", StringComparison.Ordinal))
+            return "iPhone";
+
+        if (userAgent.Contains("iPad", StringComparison.Ordinal))
+            return "iPad";
+
+        if (userAgent.Contains("Windows", StringComparison.Ordinal))
+            return "Windows";
+
+        if (userAgent.Contains("CrOS", StringComparison.Ordinal))
+            return "ChromeOS";
+
+        if (userAgent.Contains("Macintosh", StringComparison.Ordinal))
+            return "macOS";
+
+        return userAgent.Contains("Linux", StringComparison.Ordinal) ? "Linux" : "";
     }
 
     private static string Address(HttpContext context) =>
@@ -219,7 +314,43 @@ internal partial class ShareAccess
 
     private static ShareWebAccessPayload Allowed(string name, long expiresAt, bool hasPassword, int approval,
         int denial) =>
-        new("allowed", name, expiresAt, null, hasPassword, null, null, approval, denial);
+        new("allowed", name, expiresAt, null, hasPassword, null, null, approval, denial, 0);
+
+    /// <summary>The keys one wrong password counts against: this browser and the address it came from.</summary>
+    private static string[] AttemptKeys(string id, string address) =>
+        address.Length > 0 ? [$"device:{id}", $"address:{address}"] : [$"device:{id}"];
+
+    /// <summary>How long the browser still has to wait after too many wrong passwords.</summary>
+    private static int LockoutSeconds(string id, string address)
+    {
+        var now = Now;
+        var longest = 0L;
+
+        foreach (var key in AttemptKeys(id, address))
+            if (LockedUntil.TryGetValue(key, out var until) && until > now)
+                longest = Math.Max(longest, until - now);
+
+        return (int)Math.Ceiling(longest / 1000d);
+    }
+
+    /// <summary>Counts one wrong password, and shuts the browser and its address out once too many came.</summary>
+    private static void RecordFailure(string id, string address)
+    {
+        var until = Now + (long)PasswordLockout.TotalMilliseconds;
+
+        foreach (var key in AttemptKeys(id, address))
+            if (Failures.AddOrUpdate(key, 1, (_, current) => current + 1) >= PasswordAttempts)
+                LockedUntil[key] = until;
+    }
+
+    private static void ClearFailures(string id, string address)
+    {
+        foreach (var key in AttemptKeys(id, address))
+        {
+            Failures.TryRemove(key, out _);
+            LockedUntil.TryRemove(key, out _);
+        }
+    }
 
     private static Challenge ChallengeFor(string id)
     {
@@ -234,7 +365,7 @@ internal partial class ShareAccess
     }
 
     /// <summary>Tells an open settings page that the device list changed.</summary>
-    private static void DeviceChanged() =>
+    public static void DeviceChanged() =>
         Try.Run(() => WindowManager.Instance.Notify("share.devices.changed", new OkPayload()))
             .OnFailure(ex => Serilog.Log.Debug(ex, "Could not push the device list change"));
 
