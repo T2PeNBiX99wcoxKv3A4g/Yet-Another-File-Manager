@@ -2,7 +2,7 @@
 // @id              yafm-picker
 // @name            Yet Another File Manager pickers
 // @description     Replaces the Windows Open, Save As and folder dialogs with the app's picker
-// @version         1.4.3
+// @version         1.4.4
 // @author          T2PeNBiX99wcoxKv3A4g
 // @github          https://github.com/T2PeNBiX99wcoxKv3A4g
 // @include         *
@@ -262,12 +262,31 @@ static std::wstring ResolveExecutable() {
 static void AppendQuoted(std::wstring& command, const std::wstring& value) {
     if (!command.empty())
         command += L' ';
+
     command += L'"';
+
+    size_t backslashes = 0;
+
     for (wchar_t ch : value) {
-        if (ch == L'"')
+        if (ch == L'\\') {
+            backslashes++;
+            command += ch;
+            continue;
+        }
+
+        // A run of backslashes in front of a quote is doubled, and the quote itself is escaped.
+        if (ch == L'"') {
+            command.append(backslashes, L'\\');
             command += L'\\';
+        }
+
+        backslashes = 0;
         command += ch;
     }
+
+    // The same applies to the backslashes that sit right before the closing quote, which is what a
+    // folder like "H:\\" ends with.
+    command.append(backslashes, L'\\');
     command += L'"';
 }
 
