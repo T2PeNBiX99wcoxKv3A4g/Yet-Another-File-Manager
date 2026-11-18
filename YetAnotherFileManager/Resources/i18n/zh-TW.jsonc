@@ -51,6 +51,7 @@
   "share_access_allowed": "已允許",
   "share_access_denied": "已拒絕",
   "share_access_expires": "到期時間",
+  "share_access_expires_in": "{time} 後到期",
   "share_access_request_title": "分享存取要求",
   "share_access_wants_to_open": "{0}（{1}）要求開啟 Web 分享。",
   "share_access_device_hint": "只允許你認識的裝置。",

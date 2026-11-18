@@ -51,6 +51,7 @@
   "share_access_allowed": "許可済み",
   "share_access_denied": "拒否済み",
   "share_access_expires": "有効期限",
+  "share_access_expires_in": "{time} 後に期限切れ",
   "share_access_request_title": "共有アクセスの要求",
   "share_access_wants_to_open": "{0}（{1}）が Web 共有を開こうとしています。",
   "share_access_device_hint": "知っているデバイスだけを許可してください。",

@@ -236,9 +236,11 @@ internal partial class ShareAccess
         });
 
         var model = DeviceModel(userAgent);
-        var label = model.Length > 0 ? $"{model} · {browser}" : browser;
+        var system = OsVersion(userAgent);
+        var browserLabel = version.Length > 0 ? $"{browser} {version}" : browser;
+        var label = string.Join(" · ", new[] { model, system, browserLabel });
 
-        return version.Length > 0 ? $"{label} {version}" : label;
+        return label;
     }
 
     /// <summary>The major version after a token such as "Chrome/", or an empty string.</summary>
@@ -255,6 +257,54 @@ internal partial class ShareAccess
         var end = rest.IndexOfAny(['.', ' ', ';', ')']);
 
         return end < 0 ? rest : rest[..end];
+    }
+
+    /// <summary>The system's own version, where the user agent spells it out, or an empty string.</summary>
+    private static string OsVersion(string userAgent)
+    {
+        if (userAgent.Contains("Android", StringComparison.Ordinal))
+            return Prefix("Android", Segment(userAgent, "Android "));
+
+        if (userAgent.Contains("iPhone", StringComparison.Ordinal) ||
+            userAgent.Contains("iPad", StringComparison.Ordinal))
+            return Prefix("iOS", Segment(userAgent, "OS "));
+
+        if (userAgent.Contains("CrOS", StringComparison.Ordinal))
+            return "ChromeOS";
+
+        if (userAgent.Contains("Macintosh", StringComparison.Ordinal))
+            return Prefix("macOS", Segment(userAgent, "Mac OS X ").Replace('_', '.'));
+
+        if (userAgent.Contains("Windows NT ", StringComparison.Ordinal))
+            return Segment(userAgent, "Windows NT ") switch
+            {
+                "10.0" => "Windows 10/11",
+                "6.3" => "Windows 8.1",
+                "6.2" => "Windows 8",
+                "6.1" => "Windows 7",
+                _ => "Windows"
+            };
+
+        return userAgent.Contains("Linux", StringComparison.Ordinal) ? "Linux" : "";
+    }
+
+    /// <summary>A name and its version, or just the name when the user agent left the version out.</summary>
+    private static string Prefix(string name, string version) =>
+        version.Length > 0 ? $"{name} {version}" : name;
+
+    /// <summary>The text after a token, up to the next separator: "Android 14;" gives "14".</summary>
+    private static string Segment(string userAgent, string token)
+    {
+        var at = userAgent.IndexOf(token, StringComparison.Ordinal);
+
+        if (at < 0)
+            return "";
+
+        var rest = userAgent[(at + token.Length)..];
+        var end = rest.IndexOfAny([';', ')', ' ', ',']);
+        var value = end < 0 ? rest : rest[..end];
+
+        return value.Trim();
     }
 
     /// <summary>The phone, tablet or desktop the user agent names, or an empty string.</summary>

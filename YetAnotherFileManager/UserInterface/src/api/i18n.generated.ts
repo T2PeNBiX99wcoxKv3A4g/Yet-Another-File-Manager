@@ -685,6 +685,7 @@ declare module "@photino-net-utils/bridge"
         "share_access_device_hint": true;
         "share_access_expired": true;
         "share_access_expires": true;
+        "share_access_expires_in": true;
         "share_access_forever": true;
         "share_access_https": true;
         "share_access_https_note": true;

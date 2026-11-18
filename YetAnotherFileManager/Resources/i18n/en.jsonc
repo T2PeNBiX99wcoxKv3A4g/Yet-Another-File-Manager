@@ -51,6 +51,7 @@
   "share_access_allowed": "Allowed",
   "share_access_denied": "Denied",
   "share_access_expires": "Expires",
+  "share_access_expires_in": "Expires in {time}",
   "share_access_request_title": "Share access",
   "share_access_wants_to_open": "{0} ({1}) wants to open a web share.",
   "share_access_device_hint": "Only allow a device you recognise.",

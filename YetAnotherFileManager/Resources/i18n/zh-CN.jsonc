@@ -51,6 +51,7 @@
   "share_access_allowed": "已允许",
   "share_access_denied": "已拒绝",
   "share_access_expires": "到期时间",
+  "share_access_expires_in": "{time} 后到期",
   "share_access_request_title": "分享访问请求",
   "share_access_wants_to_open": "{0}（{1}）请求打开 Web 分享。",
   "share_access_device_hint": "只允许你认识的设备。",

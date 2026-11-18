@@ -3478,6 +3478,12 @@ function ShareDeviceList({approvalMinutes, denialSeconds}: {
     const t = useTranslation();
     const [devices, setDevices] = useState<ShareDevice[]>([]);
     const [busy, setBusy] = useState(false);
+    const [now, setNow] = useState(() => Date.now());
+
+    useEffect(() => {
+        const timer = window.setInterval(() => setNow(Date.now()), 1000);
+        return () => window.clearInterval(timer);
+    }, []);
 
     useEffect(() => {
         const load = () => void listShareDevices().then(setDevices, () => setDevices([]));
@@ -3491,6 +3497,25 @@ function ShareDeviceList({approvalMinutes, denialSeconds}: {
                 load();
         });
     }, []);
+
+    // The window closes while the page is open, so the entry goes as soon as it does.
+    useEffect(() => {
+        const expired = devices.some((device) => device.expiresAt > 0 && device.expiresAt <= now);
+
+        if (expired)
+            void listShareDevices().then(setDevices, () => undefined);
+    }, [now, devices]);
+
+    /** What is left of a window, as minutes and seconds; an hour gets one more field. */
+    const remaining = (expiresAt: number) => {
+        const left = Math.max(0, Math.ceil((expiresAt - now) / 1000));
+        const hours = Math.floor(left / 3600);
+        const minutes = Math.floor((left % 3600) / 60);
+        const seconds = left % 60;
+        const pad = (value: number) => String(value).padStart(2, "0");
+
+        return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`;
+    };
 
     const apply = async (id: string, state: "allowed" | "denied", permanent: boolean) => {
         setBusy(true);
@@ -3537,10 +3562,8 @@ function ShareDeviceList({approvalMinutes, denialSeconds}: {
     // entry, and its answer is given where the code is shown.
     const decided = devices.filter((device) => device.state === "allowed" || device.state === "denied");
 
-    const expiryLabel = (device: ShareDevice) =>
-        device.expiresAt === 0
-            ? t("share_access_forever")
-            : new Date(device.expiresAt).toLocaleString();
+    const expiryTitle = (device: ShareDevice) =>
+        device.expiresAt === 0 ? undefined : new Date(device.expiresAt).toLocaleString();
 
     return (
         <DeviceList>
@@ -3567,9 +3590,12 @@ function ShareDeviceList({approvalMinutes, denialSeconds}: {
                             {device.address ? " · " : ""}
                             {t("share_access_last_seen")}: {new Date(device.lastSeen).toLocaleString()}
                         </DeviceMeta>
-                        <DeviceMeta>
+                        <DeviceMeta title={expiryTitle(device)}>
                             {stateLabel(device)}
-                            <> · {t("share_access_expires")}: {expiryLabel(device)}</>
+                            {" · "}
+                            {device.expiresAt === 0
+                                ? t("share_access_forever")
+                                : t("share_access_expires_in", {time: remaining(device.expiresAt)})}
                         </DeviceMeta>
                     </DeviceInfo>
                     <DeviceActions>
