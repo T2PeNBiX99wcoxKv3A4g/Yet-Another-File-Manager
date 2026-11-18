@@ -596,7 +596,7 @@ export function ShareWeb() {
                                                                 )}
                                                         </td>
                                                         <td data-label={t.size}>{entry.isDirectory ? "—" : formatBytes(entry.size)}</td>
-                                                        <td data-label={t.modified}>{formatDate(entry.modified)}</td>
+                                                        <td data-label={t.modified}>{formatDate(entry.modified, language)}</td>
                                                     </tr>
                                                 ))}
                                                 </tbody>
@@ -639,11 +639,14 @@ function message(cause: unknown): string {
     return cause instanceof Error ? cause.message : String(cause);
 }
 
-function formatDate(value: number): string {
+/** The date in the page's own language, so an English page does not show a Chinese date. */
+function formatDate(value: number, language: ShareLanguage): string {
     if (!value)
         return "—";
 
-    return new Intl.DateTimeFormat(undefined, {
+    const locale = language === "zh-CN" ? "zh-CN" : language === "zh-TW" ? "zh-TW" : language;
+
+    return new Intl.DateTimeFormat(locale, {
         dateStyle: "medium",
         timeStyle: "short",
     }).format(new Date(value));
@@ -940,6 +943,7 @@ const HeaderTop = styled.div`
     align-items: center;
     justify-content: space-between;
     gap: 18px;
+    flex-wrap: wrap;
 `;
 
 const HeaderActions = styled.div`
@@ -966,9 +970,18 @@ const LanguageBox = styled.label`
     }
 
     select {
+        height: auto;
+        padding: 0 9px 0 0;
         border: 0;
+        border-radius: 0;
         background: transparent;
         color: inherit;
+        font-size: 12px;
+        cursor: pointer;
+
+        &:focus {
+            outline: none;
+        }
     }
 `;
 
@@ -1044,6 +1057,9 @@ const Tabs = styled.div`
 `;
 
 const Tab = styled.button<{ $active: boolean }>`
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
     flex-shrink: 0;
     padding: 8px 16px;
     border: 1px solid ${({$active}) => $active ? "var(--border-color-focus)" : "var(--border-color)"};
@@ -1058,6 +1074,11 @@ const Tab = styled.button<{ $active: boolean }>`
     &:hover {
         border-color: var(--border-color-hover);
         color: var(--text-primary);
+    }
+
+    svg {
+        flex-shrink: 0;
+        opacity: 0.8;
     }
 `;
 
@@ -1254,11 +1275,59 @@ const Table = styled.table`
     }
 
     @media (max-width: 680px) {
-        th:nth-child(2),
-        th:nth-child(3),
+        thead {
+            display: none;
+        }
+
+        table,
+        tbody {
+            display: block;
+            width: 100%;
+        }
+
+        /* A row becomes a line: the name on its own, then what the table header used to say. */
+        tr {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 3px 16px;
+            width: auto;
+            padding: 10px 14px;
+            border-top: 1px solid rgba(var(--border-rgb, 148, 163, 184), 0.10);
+        }
+
+        tr:first-child {
+            border-top: 0;
+        }
+
+        tr:hover td {
+            background: transparent;
+        }
+
+        td {
+            display: block;
+            padding: 0;
+            border: 0;
+        }
+
+        td:first-child {
+            flex: 1 1 100%;
+            min-width: 0;
+        }
+
         td:nth-child(2),
         td:nth-child(3) {
-            display: none;
+            display: inline-block;
+            flex: 0 0 auto;
+            width: auto;
+            white-space: nowrap;
+        }
+
+        td:nth-child(2)::before,
+        td:nth-child(3)::before {
+            content: attr(data-label) " ";
+            color: var(--text-muted);
+            font-family: var(--font-sans, inherit);
         }
     }
 `;
