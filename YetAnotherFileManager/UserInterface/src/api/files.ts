@@ -350,9 +350,9 @@ async function confirmRecycle<T extends GuardedChange>(
 }
 
 /** Permanently removes every listed entry, including leftover metadata when it is shown. */
-export async function emptyRecycleBin(includeOrphans = false): Promise<void> {
+export async function emptyRecycleBin(includeOrphans = false): Promise<GuardedChange> {
     const result = await Native.request<GuardedChange>("fs.recycle.empty", {includeOrphans});
-    await confirmRecycle("fs.recycle.empty", {includeOrphans}, result);
+    return await confirmRecycle("fs.recycle.empty", {includeOrphans}, result);
 }
 
 /** Permanently removes one entry. */

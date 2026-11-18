@@ -213,8 +213,11 @@ internal partial class FileSystemService : INativeMessageHandler
                 if (GuardDelete(request?.Confirm, DeleteGuard.KeyForEmpty(includeOrphans), originalPaths) is { } blocked)
                     return context.Reply("fs.recycle.empty.result", blocked);
 
-                await RecycleBin.EmptyAsync(includeOrphans);
-                return context.Reply("fs.recycle.empty.result", new DeletePayload(true));
+                var failed = await RecycleBin.EmptyAsync(includeOrphans);
+
+                return context.Reply("fs.recycle.empty.result", new DeletePayload(failed == 0,
+                    Error: failed == 0 ? null : Localization.Get("some_items_could_not_be_deleted"),
+                    Failed: failed));
             }
 
             case "fs.recycle.delete":

@@ -261,15 +261,13 @@ internal static class RecycleBin
     public static Task<bool> SendAsync(string path, CancellationToken cancellationToken = default) =>
         Task.Run(() => Send(path), cancellationToken);
 
-    /// <summary>Permanently removes every entry this account may delete.</summary>
-    public static void Empty(bool includeOrphans = false) =>
-        Try.Run(() =>
-        {
-            foreach (var entry in List(includeOrphans).Where(entry => entry.Removable))
-                Delete(entry.Id);
-        }).OnFailure(ex => Log.Warning(ex, "Could not empty the recycle bin"));
+    /// <summary>Permanently removes every entry this account may delete; answers how many could not go.</summary>
+    public static int Empty(bool includeOrphans = false) =>
+        Try.Run(() => List(includeOrphans).Where(entry => entry.Removable).Count(entry => !Delete(entry.Id)))
+            .OnFailure(ex => Log.Warning(ex, "Could not empty the recycle bin"))
+            .GetOrElse(_ => 0);
 
-    public static Task EmptyAsync(bool includeOrphans = false, CancellationToken cancellationToken = default) =>
+    public static Task<int> EmptyAsync(bool includeOrphans = false, CancellationToken cancellationToken = default) =>
         Task.Run(() => Empty(includeOrphans), cancellationToken);
 
     /// <summary>Deletes one entry's content and its metadata, permanently.</summary>
@@ -616,15 +614,98 @@ internal static class RecycleBin
     [SupportedOSPlatform("windows")]
     private static void DeleteWindows(string infoPath)
     {
-        var content = ContentPath(infoPath);
-
-        if (Directory.Exists(content))
-            Directory.Delete(content, true);
-        else if (File.Exists(content))
-            File.Delete(content);
-
+        Remove(ContentPath(infoPath));
         File.Delete(infoPath);
     }
+
+    /// <summary>
+    ///     Deletes a file or a folder for good. Explorer clears the read-only mark first and gives a
+    ///     file another process holds a moment, which is why a plain recursive delete leaves folders
+    ///     behind that "cannot be emptied"; a path past the old length limit is addressed with the
+    ///     extended prefix, and a link is removed without walking into what it points at.
+    /// </summary>
+    private static void Remove(string path)
+    {
+        var target = Extended(path);
+        var directory = Try.Run(() => File.GetAttributes(target).HasFlag(FileAttributes.Directory))
+            .GetOrElse(_ => false);
+
+        if (!directory)
+        {
+            RemoveOne(target);
+            return;
+        }
+
+        if (IsLink(target))
+        {
+            RemoveOne(target);
+            return;
+        }
+
+        var folders = new List<string> { target };
+
+        for (var index = 0; index < folders.Count; index++)
+            foreach (var entry in new DirectoryInfo(folders[index]).EnumerateFileSystemInfos())
+            {
+                if (entry is DirectoryInfo && !entry.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                    folders.Add(entry.FullName);
+                else
+                    RemoveOne(entry.FullName);
+            }
+
+        // Contents first: a folder only goes once it is empty.
+        for (var index = folders.Count - 1; index >= 0; index--)
+            RemoveOne(folders[index]);
+    }
+
+    private static bool IsLink(string path) =>
+        Try.Run(() => File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint)).GetOrElse(_ => false);
+
+    /// <summary>One file or empty folder, with the read-only mark cleared and a short retry for a held file.</summary>
+    private static void RemoveOne(string path)
+    {
+        var target = Extended(path);
+        var directory = Try.Run(() => File.GetAttributes(target).HasFlag(FileAttributes.Directory))
+            .GetOrElse(_ => false);
+
+        if (OperatingSystem.IsWindows())
+            Try.Run(() =>
+            {
+                var attributes = File.GetAttributes(target);
+
+                if (attributes.HasFlag(FileAttributes.ReadOnly))
+                    File.SetAttributes(target, attributes & ~FileAttributes.ReadOnly);
+            });
+
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                if (directory)
+                    Directory.Delete(target);
+                else
+                    File.Delete(target);
+
+                return;
+            }
+            catch (IOException) when (attempt < 4)
+            {
+                // A scanner or an indexer often holds a file for a moment only.
+                Thread.Sleep(100 * (attempt + 1));
+            }
+        }
+    }
+
+    /// <summary>
+    ///     The extended-length form of a path, which is what Windows needs to delete a name past the
+    ///     old limit; shorter paths and paths that already carry it are left alone.
+    /// </summary>
+    private static string Extended(string path) =>
+        OperatingSystem.IsWindows()
+        && path.Length >= 240
+        && !path.StartsWith(@"\\?\", StringComparison.Ordinal)
+            ? @"\\?\" + path
+            : path;
 
     /// <summary>The <c>$R…</c> file that belongs to an <c>$I…</c> record: same name, one letter apart.</summary>
     [SupportedOSPlatform("windows")]
@@ -766,13 +847,7 @@ internal static class RecycleBin
 
     private static void DeleteUnix(string infoPath)
     {
-        var stored = StoredPath(new(infoPath), TrashFilesRoot(infoPath));
-
-        if (Directory.Exists(stored))
-            Directory.Delete(stored, true);
-        else if (File.Exists(stored))
-            File.Delete(stored);
-
+        Remove(StoredPath(new(infoPath), TrashFilesRoot(infoPath)));
         File.Delete(infoPath);
     }
 

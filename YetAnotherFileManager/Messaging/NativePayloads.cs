@@ -201,7 +201,8 @@ internal sealed record DeletePayload(
     bool Required = false,
     string? Token = null,
     IReadOnlyList<ProtectedHit>? Protected = null,
-    int DelaySeconds = 0);
+    int DelaySeconds = 0,
+    int Failed = 0);
 
 /// <summary>One path a protected-folder pattern intercepted, and the pattern responsible.</summary>
 internal sealed record ProtectedHit(string Path, string Pattern);

@@ -279,7 +279,13 @@ export function RecycleView({
         setBusy(true);
 
         try {
-            await emptyRecycleBin(showOrphans);
+            const result = await emptyRecycleBin(showOrphans);
+
+            // What stayed behind is what the user came here to get rid of, so it is said out loud.
+            if (!result.ok && result.failed)
+                await showMessage(plural(t, result.failed, "k_1_item_could_not_be_deleted",
+                    "count_items_could_not_be_deleted", {count: result.failed}));
+
             setSelected(new Set());
             await reload();
         } finally {

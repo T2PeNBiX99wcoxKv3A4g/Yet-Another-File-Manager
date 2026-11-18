@@ -18,6 +18,8 @@ export interface ProtectedPrompt {
 
 /** The extra fields shared by every reply that can hit a protected path. */
 export interface GuardedChange {
+    /** How many entries a recycle-bin empty could not remove. */
+    failed?: number;
     ok: boolean;
     required?: boolean;
     token?: string | null;
