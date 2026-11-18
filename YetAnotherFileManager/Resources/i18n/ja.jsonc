@@ -32,7 +32,6 @@
   "share_access_block_forever": "永久にブロック",
   "share_access_no_devices": "まだアクセスを求めたブラウザはありません。",
   "share_access_devices_note": "アクセスを求めたすべてのブラウザがここに表示されます。決定を永久にするか、デバイスを削除できます。",
-  "share_access_not_decided": "未決定",
   "share_access_forever": "永久",
   "share_access_expired": "期限切れ",
   "share_access_last_seen": "最終確認",

@@ -679,7 +679,6 @@ declare module "@photino-net-utils/bridge"
         "share_access_forever": true;
         "share_access_last_seen": true;
         "share_access_note": true;
-        "share_access_not_decided": true;
         "share_access_no_devices": true;
         "share_access_password_is_set": true;
         "share_access_password_note": true;

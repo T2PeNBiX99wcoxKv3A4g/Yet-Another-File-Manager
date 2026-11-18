@@ -105,6 +105,7 @@ import {
     prettyShortcut,
     resolveShortcuts,
     type ShortcutAction,
+    shortcutList,
     shortcutValue,
     storedShortcuts,
 } from "../shortcuts";
@@ -180,6 +181,19 @@ const ShortcutRows: { id: ShortcutAction; label: LocalizationKey; note: Localiza
     {id: "hidden", label: "show_hidden_files", note: "toggles_ordinary_hidden_files_for_this_session"},
     {id: "splitView", label: "split_view", note: "shows_the_next_file_tab_beside_the_current_one"},
     {id: "openInNewTab", label: "open_in_a_new_tab", note: "hold_this_while_clicking_a_folder"},
+];
+
+/** The global hotkey is a shortcut like the rest: it brings the window forward from anywhere. */
+const GlobalHotkeyAction = "globalHotkey";
+type ShortcutRowId = ShortcutAction | typeof GlobalHotkeyAction;
+
+const AllShortcutRows: { id: ShortcutRowId; label: LocalizationKey; note: LocalizationKey }[] = [
+    ...ShortcutRows,
+    {
+        id: GlobalHotkeyAction,
+        label: "global_hotkey",
+        note: "brings_the_window_forward_from_anywhere_while_the_app_is_running_empty_means_no_global_shortcut",
+    },
 ];
 
 /** The language a fresh install uses until the picker changes it. */
@@ -321,9 +335,10 @@ export function SettingsView({
     const [archiveError, setArchiveError] = useState<string | null>(null);
     const [defaultManagerBusy, setDefaultManagerBusy] = useState(false);
     const [defaultManagerError, setDefaultManagerError] = useState<string | null>(null);
-    const [capturing, setCapturing] = useState<{ action: ShortcutAction; index: number } | null>(null);
+    const [capturing, setCapturing] = useState<{ action: ShortcutRowId; index: number } | null>(null);
+    /** The modifiers held while a shortcut is being recorded, so the chip can show them. */
+    const [heldKeys, setHeldKeys] = useState("");
     const [attributionOpen, setAttributionOpen] = useState(false);
-    const [capturingGlobal, setCapturingGlobal] = useState(false);
     const [tags, setTags] = useState<TagCatalogEntry[]>([]);
     const [editingTag, setEditingTag] = useState<{ name: string; value: string } | null>(null);
     const [tagBusy, setTagBusy] = useState(false);
@@ -1090,12 +1105,16 @@ export function SettingsView({
 
     const keys = resolveShortcuts(settings?.shortcuts);
 
-    /** Which actions answer to each combination; more than one is a conflict, not a block. */
-    const shortcutOwners = useMemo(() => {
-        const owners = new Map<string, ShortcutAction[]>();
+    /** The combinations one row holds; the global hotkey is stored beside the rest. */
+    const combosOf = (action: ShortcutRowId): string[] =>
+        action === GlobalHotkeyAction ? shortcutList(settings?.globalHotkey) : keys[action];
 
-        for (const {id} of ShortcutRows) {
-            for (const combo of keys[id]) {
+    /** Which rows answer to each combination; more than one is a conflict, not a block. */
+    const shortcutOwners = useMemo(() => {
+        const owners = new Map<string, ShortcutRowId[]>();
+
+        for (const {id} of AllShortcutRows) {
+            for (const combo of id === GlobalHotkeyAction ? shortcutList(settings?.globalHotkey) : keys[id]) {
                 const list = owners.get(combo) ?? [];
                 list.push(id);
                 owners.set(combo, list);
@@ -1103,18 +1122,18 @@ export function SettingsView({
         }
 
         return owners;
-    }, [settings]);
+    }, [keys, settings?.globalHotkey]);
 
-    /** The other actions one of this action's combinations would also run. */
-    const conflictsOf = (action: ShortcutAction) => {
+    /** The other actions one of this row's combinations would also run. */
+    const conflictsOf = (action: ShortcutRowId) => {
         const others = new Set<string>();
 
-        for (const combo of keys[action]) {
+        for (const combo of combosOf(action)) {
             for (const owner of shortcutOwners.get(combo) ?? []) {
                 if (owner === action)
                     continue;
 
-                const row = ShortcutRows.find((candidate) => candidate.id === owner);
+                const row = AllShortcutRows.find((candidate) => candidate.id === owner);
                 if (row)
                     others.add(t(row.label));
             }
@@ -1123,21 +1142,40 @@ export function SettingsView({
         return [...others];
     };
 
-    /** Stores one action's combinations; an empty list turns the action off. */
-    const changeShortcuts = (action: ShortcutAction, combos: string[]) => {
+    /** Stores one row's combinations; an empty list turns it off. */
+    const changeShortcuts = (action: ShortcutRowId, combos: string[]) => {
+        if (action === GlobalHotkeyAction) {
+            void update({globalHotkey: combos.length > 0 ? shortcutValue(combos) : null});
+            return;
+        }
+
         void update({shortcuts: {...settings?.shortcuts, [action]: shortcutValue(combos)}});
     };
 
-    const removeShortcut = (action: ShortcutAction, index: number) => {
-        const combos = [...keys[action]];
+    const removeShortcut = (action: ShortcutRowId, index: number) => {
+        const combos = [...combosOf(action)];
         combos.splice(index, 1);
         changeShortcuts(action, combos);
     };
 
-    // While a shortcut is being recorded, the next key press becomes the new combination. A chip
-    // replaces its own combination; the add button appends one the action does not have yet.
+    // While a shortcut is being recorded, the modifiers are held first: a modifier on its own is
+    // only a combination for the click modifier, and everywhere else the combination ends on the key
+    // pressed after it, so Ctrl+Shift+N is recorded as one instead of stopping at Ctrl. A chip
+    // replaces its own combination; the add button appends one the row does not have yet.
     useEffect(() => {
         if (!capturing) return;
+
+        const isModifier = (key: string) => ["control", "alt", "shift", "meta"].includes(key.toLowerCase());
+
+        const commit = (combo: string) => {
+            const combos = [...combosOf(capturing.action)];
+            if (capturing.index >= 0) combos[capturing.index] = combo;
+            else if (!combos.includes(combo)) combos.push(combo);
+
+            setCapturing(null);
+            setHeldKeys("");
+            changeShortcuts(capturing.action, combos);
+        };
 
         const record = (event: KeyboardEvent) => {
             event.preventDefault();
@@ -1145,47 +1183,35 @@ export function SettingsView({
 
             if (event.key === "Escape") {
                 setCapturing(null);
+                setHeldKeys("");
+                return;
+            }
+
+            if (isModifier(event.key)) {
+                if (capturing.action === "openInNewTab")
+                    commit(comboOf(event));
+                else
+                    setHeldKeys(comboOf(event));
+
                 return;
             }
 
             const combo = comboOf(event);
-            if (!combo) return;
+            if (combo) commit(combo);
+        };
 
-            const combos = [...keys[capturing.action]];
-            if (capturing.index >= 0) combos[capturing.index] = combo;
-            else if (!combos.includes(combo)) combos.push(combo);
-
-            setCapturing(null);
-            changeShortcuts(capturing.action, combos);
+        const release = (event: KeyboardEvent) => {
+            if (isModifier(event.key))
+                setHeldKeys("");
         };
 
         window.addEventListener("keydown", record, true);
-        return () => window.removeEventListener("keydown", record, true);
+        window.addEventListener("keyup", release, true);
+        return () => {
+            window.removeEventListener("keydown", record, true);
+            window.removeEventListener("keyup", release, true);
+        };
     }, [capturing, settings]);
-
-    // The global hotkey uses the same recorder, but stores a single combination.
-    useEffect(() => {
-        if (!capturingGlobal) return;
-
-        const record = (event: KeyboardEvent) => {
-            event.preventDefault();
-            event.stopPropagation();
-
-            if (event.key === "Escape") {
-                setCapturingGlobal(false);
-                return;
-            }
-
-            const combo = comboOf(event);
-            if (!combo) return;
-
-            setCapturingGlobal(false);
-            void update({globalHotkey: combo});
-        };
-
-        window.addEventListener("keydown", record, true);
-        return () => window.removeEventListener("keydown", record, true);
-    }, [capturingGlobal, settings]);
 
     /** Recent items are a display preference, stored like every other setting. */
     const setRecentLimit = async (limit: number) => {
@@ -1432,31 +1458,6 @@ export function SettingsView({
                                     value={settings?.linkPathMode ?? "relative"}
                                     width={160}
                                 />
-                            </RowEnd>
-                        </Row>
-                        <Row>
-                            <RowText>
-                                <Label>{t("global_hotkey")}</Label>
-                                <Note>{t("brings_the_window_forward_from_anywhere_while_the_app_is_running_empty_means_no_global_shortcut")}</Note>
-                            </RowText>
-                            <RowEnd>
-                                <KeyButton
-                                    $listening={capturingGlobal}
-                                    disabled={!settings}
-                                    onClick={() => setCapturingGlobal(true)}
-                                    type="button"
-                                >
-                                    {capturingGlobal
-                                        ? t("press_a_key")
-                                        : settings?.globalHotkey
-                                            ? prettyShortcut(settings.globalHotkey)
-                                            : t("none")}
-                                </KeyButton>
-                                {settings?.globalHotkey && (
-                                    <SmallButton onClick={() => void update({globalHotkey: null})} type="button">
-                                        <CrossIcon size={13}/>{t("clear")}
-                                    </SmallButton>
-                                )}
                             </RowEnd>
                         </Row>
                         <Row>
@@ -2751,8 +2752,8 @@ export function SettingsView({
                         title="shortcuts"
                     />
                     <Rows>
-                        {ShortcutRows.map(({id, label, note}) => {
-                            const combos = keys[id];
+                        {AllShortcutRows.map(({id, label, note}) => {
+                            const combos = combosOf(id);
                             const listening = capturing?.action === id;
                             const conflicts = conflictsOf(id);
 
@@ -2783,7 +2784,7 @@ export function SettingsView({
                                                         type="button"
                                                     >
                                                         {listening && capturing.index === index
-                                                            ? t("press_a_key")
+                                                            ? heldKeys.length > 0 ? `${prettyShortcut(heldKeys)} + …` : t("press_a_key")
                                                             : prettyShortcut(combo)}
                                                     </KeyChipText>
                                                     <KeyChipRemove
@@ -2803,7 +2804,7 @@ export function SettingsView({
                                                 type="button"
                                             >
                                                 {listening && capturing.index < 0
-                                                    ? t("press_a_key")
+                                                    ? heldKeys.length > 0 ? `${prettyShortcut(heldKeys)} + …` : t("press_a_key")
                                                     : <PlusIcon size={11}/>}
                                             </KeyAdd>
                                         </KeyList>
@@ -2818,7 +2819,7 @@ export function SettingsView({
                             </RowText>
                             <RowEnd>
                                 <ActionButton
-                                    onClick={() => void update({shortcuts: storedShortcuts(DefaultShortcuts)})}
+                                    onClick={() => void update({shortcuts: storedShortcuts(DefaultShortcuts), globalHotkey: null})}
                                     type="button"
                                 >
                                     <RefreshIcon size={13}/>{t("reset")}
@@ -3398,13 +3399,14 @@ function ShareDeviceList({approvalMinutes, denialSeconds}: {
                 ? `${t("share_access_allowed")} · ${t("share_access_expired")}`
                 : t("share_access_allowed");
 
-        if (device.state === "denied")
-            return device.expiresAt > 0 && device.expiresAt < Date.now()
-                ? `${t("share_access_denied")} · ${t("share_access_expired")}`
-                : t("share_access_denied");
-
-        return t("share_access_not_decided");
+        return device.expiresAt > 0 && device.expiresAt < Date.now()
+            ? `${t("share_access_denied")} · ${t("share_access_expired")}`
+            : t("share_access_denied");
     };
+
+    // Nothing is listed before the browser page has asked: an undecided device is a request, not an
+    // entry, and its answer is given where the code is shown.
+    const decided = devices.filter((device) => device.state === "allowed" || device.state === "denied");
 
     const expiryLabel = (device: ShareDevice) =>
         device.expiresAt === 0
@@ -3413,11 +3415,11 @@ function ShareDeviceList({approvalMinutes, denialSeconds}: {
 
     return (
         <DeviceList>
-            {devices.length === 0 && <DeviceEmpty>{t("share_access_no_devices")}</DeviceEmpty>}
-            {devices.map((device) => (
+            {decided.length === 0 && <DeviceEmpty>{t("share_access_no_devices")}</DeviceEmpty>}
+            {decided.map((device) => (
                 <DeviceRow key={device.id}>
                     <DeviceInfo>
-                        <DeviceName>{device.name || t("share_access_not_decided")}</DeviceName>
+                        <DeviceName>{device.name || device.address || device.id}</DeviceName>
                         <DeviceMeta>
                             {device.address}
                             {device.address ? " · " : ""}
@@ -3425,33 +3427,36 @@ function ShareDeviceList({approvalMinutes, denialSeconds}: {
                         </DeviceMeta>
                         <DeviceMeta>
                             {stateLabel(device)}
-                            {device.state !== "" && <> · {t("share_access_expires")}: {expiryLabel(device)}</>}
+                            <> · {t("share_access_expires")}: {expiryLabel(device)}</>
                         </DeviceMeta>
                     </DeviceInfo>
-                    <SelectMenu
-                        disabled={busy}
-                        onChange={(value) => {
-                            const [action, permanence] = value.split(":");
-                            if (action === "remove")
-                                void remove(device.id);
-                            else if (action !== "none")
-                                void apply(device.id, action as "allowed" | "denied", permanence === "forever");
-                        }}
-                        options={[
-                            {value: "none:", label: t("share_access_not_decided")},
-                            {value: "allowed:timed", label: `${t("share_access_allowed")} (${approvalMinutes}m)`},
-                            {value: "allowed:forever", label: t("share_access_allow_forever")},
-                            {value: "denied:timed", label: `${t("share_access_denied")} (${denialSeconds}s)`},
-                            {value: "denied:forever", label: t("share_access_block_forever")},
-                            {value: "remove:", label: t("remove")},
-                        ]}
-                        value={device.state === "allowed"
-                            ? device.expiresAt === 0 ? "allowed:forever" : "allowed:timed"
-                            : device.state === "denied"
-                                ? device.expiresAt === 0 ? "denied:forever" : "denied:timed"
-                                : "none:"}
-                        width={190}
-                    />
+                    <DeviceActions>
+                        <SelectMenu
+                            disabled={busy}
+                            onChange={(value) => {
+                                const [state, permanence] = value.split(":");
+                                void apply(device.id, state as "allowed" | "denied", permanence === "forever");
+                            }}
+                            options={[
+                                {value: "allowed:timed", label: `${t("share_access_allowed")} (${approvalMinutes}m)`},
+                                {value: "allowed:forever", label: t("share_access_allow_forever")},
+                                {value: "denied:timed", label: `${t("share_access_denied")} (${denialSeconds}s)`},
+                                {value: "denied:forever", label: t("share_access_block_forever")},
+                            ]}
+                            value={device.state === "allowed"
+                                ? device.expiresAt === 0 ? "allowed:forever" : "allowed:timed"
+                                : device.expiresAt === 0 ? "denied:forever" : "denied:timed"}
+                            width={190}
+                        />
+                        <DeviceRemove
+                            disabled={busy}
+                            onClick={() => void remove(device.id)}
+                            title={t("remove")}
+                            type="button"
+                        >
+                            <TrashIcon size={13}/>
+                        </DeviceRemove>
+                    </DeviceActions>
                 </DeviceRow>
             ))}
         </DeviceList>
@@ -4421,6 +4426,36 @@ const DeviceRow = styled.div`
     background: rgba(var(--bg-rgb), 0.35);
 `;
 
+const DeviceActions = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+`;
+
+/** Removing a device is its own button, so the menu only ever changes what the device may do. */
+const DeviceRemove = styled.button`
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid rgba(248, 113, 113, 0.35);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: #fca5a5;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+        background: rgba(248, 113, 113, 0.14);
+        color: #fecaca;
+    }
+
+    &:disabled {
+        opacity: 0.45;
+        cursor: default;
+    }
+`;
+
 const DeviceInfo = styled.div`
     display: flex;
     flex-direction: column;
@@ -5138,23 +5173,6 @@ const ColumnCheck = styled.label`
 
     input {
         accent-color: var(--accent-primary);
-    }
-`;
-
-const KeyButton = styled.button<{ $listening: boolean }>`
-    min-width: 92px;
-    padding: 4px 10px;
-    border: 1px solid ${({$listening}) => $listening ? "var(--border-color-focus)" : "var(--border-color)"};
-    border-radius: var(--radius-sm);
-    background: ${({$listening}) => $listening ? "rgba(var(--accent-rgb), 0.16)" : "var(--bg-input)"};
-    color: ${({$listening}) => $listening ? "var(--text-primary)" : "var(--text-secondary)"};
-    font-family: var(--font-mono);
-    font-size: 11px;
-    cursor: pointer;
-
-    &:hover {
-        border-color: var(--border-color-hover);
-        color: var(--text-primary);
     }
 `;
 
