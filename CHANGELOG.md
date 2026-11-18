@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.29.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.29.0..v0.29.1) - 2026-11-18
+
+### 🐛 Bug Fixes
+
+- *(recycle)* Delete what Explorer deletes, and say what stayed behind - ([02c8e29](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/02c8e293620b9c7fb7234cc0226a79b2dd8cb759))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([a7d2543](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/a7d254351a59940ade847370e64a089df6b22508))
+
+
 ## [0.29.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.28.0..v0.29.0) - 2026-11-18
 
 ### ⛰️  Features
