@@ -238,9 +238,12 @@ internal partial class ShareAccess
         var model = DeviceModel(userAgent);
         var system = OsVersion(userAgent);
         var browserLabel = version.Length > 0 ? $"{browser} {version}" : browser;
-        var label = string.Join(" · ", new[] { model, system, browserLabel });
 
-        return label;
+        // "Windows" and "Windows 10/11" are the same machine said twice; the version wins.
+        var name = system.StartsWith(model, StringComparison.OrdinalIgnoreCase) ? "" : model;
+        var label = string.Join(" · ", new[] { name, system, browserLabel }.Where(part => part.Length > 0));
+
+        return label.Length > 0 ? label : browser;
     }
 
     /// <summary>The major version after a token such as "Chrome/", or an empty string.</summary>

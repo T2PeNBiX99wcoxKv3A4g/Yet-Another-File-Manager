@@ -543,6 +543,20 @@ export function ShareWeb() {
                             </Toolbar>
 
                             <ListCard>
+                                <SortBar>
+                                    {(["name", "size", "modified"] as const).map((column) => (
+                                        <SortChip
+                                            $active={sort.column === column}
+                                            key={column}
+                                            onClick={() => toggleSort(column)}
+                                            type="button"
+                                        >
+                                            {column === "name" ? t.name : column === "size" ? t.size : t.modified}
+                                            <SortMark>{sort.column === column ? sort.descending ? "▼" : "▲" : ""}</SortMark>
+                                        </SortChip>
+                                    ))}
+                                </SortBar>
+
                                 {busy && !listing
                                     ? <Empty>{t.reading}</Empty>
                                     : entries.length > 0
@@ -1330,6 +1344,32 @@ const Table = styled.table`
             font-family: var(--font-sans, inherit);
         }
     }
+`;
+
+const SortBar = styled.div`
+    display: none;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(var(--border-rgb, 148, 163, 184), 0.10);
+
+    @media (max-width: 680px) {
+        display: flex;
+        flex-wrap: wrap;
+    }
+`;
+
+const SortChip = styled.button<{ $active: boolean }>`
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border: 1px solid ${({$active}) => $active ? "var(--border-color-focus)" : "var(--border-color)"};
+    border-radius: 999px;
+    background: ${({$active}) => $active ? "rgba(var(--accent-rgb), 0.16)" : "transparent"};
+    color: ${({$active}) => $active ? "var(--text-primary)" : "var(--text-secondary)"};
+    font: inherit;
+    font-size: 11.5px;
+    cursor: pointer;
 `;
 
 const SortButton = styled.button`
