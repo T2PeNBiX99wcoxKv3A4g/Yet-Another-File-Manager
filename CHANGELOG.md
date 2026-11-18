@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.28.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.27.1..v0.28.0) - 2026-11-18
+
+### ⛰️  Features
+
+- *(share)* Count a device's window down, and name the system it runs - ([75612cd](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/75612cd9694382326a241fd40ccf6a16343c2eb0))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([f0ad2ba](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/f0ad2ba25a2dab99d24a0d4a35e0f0d7d297027b))
+
+
 ## [0.27.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.27.0..v0.27.1) - 2026-11-18
 
 ### 🐛 Bug Fixes
