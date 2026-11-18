@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.27.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.27.0..v0.27.1) - 2026-11-18
+
+### 🐛 Bug Fixes
+
+- *(share)* Say the English words, line the icons up, and show a phone the whole row - ([b92d5ba](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b92d5ba82610d5e85bf1668f9d138ef2184679bb))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([6d5d52c](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/6d5d52c2734eae2e715f7e105aa1c17d7a0bf3f6))
+
+
 ## [0.27.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.26.1..v0.27.0) - 2026-11-18
 
 ### ⛰️  Features
