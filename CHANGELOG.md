@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.27.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.26.1..v0.27.0) - 2026-11-18
+
+### ⛰️  Features
+
+- *(share)* Import a certificate from your own authority, and clear the device list - ([ec13fb0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/ec13fb0dd2bea5086b5fbc4a9c223b92551c65e6))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([3540b55](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/3540b552230e395421deef35517618c567d7b82b))
+
+
 ## [0.26.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.26.0..v0.26.1) - 2026-11-18
 
 ### 🚜 Refactor
