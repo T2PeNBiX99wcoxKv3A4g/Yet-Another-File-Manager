@@ -27,21 +27,33 @@ internal partial class ShareCertificate
     /// <summary>The certificate, made and stored on first use.</summary>
     public X509Certificate2 Current => _current ??= Loaded() ?? Made();
 
-    private static X509Certificate2? Loaded() =>
-        Try.Run(() => !File.Exists(FilePath)
+    private static X509Certificate2? Loaded()
+    {
+        var stored = Try.Run(() => !File.Exists(FilePath)
                 ? null
                 : X509CertificateLoader.LoadPkcs12(File.ReadAllBytes(FilePath), null,
                     X509KeyStorageFlags.Exportable))
             .OnFailure(ex => Serilog.Log.Warning(ex, "Could not read {File}", FilePath))
             .GetOrNull();
 
+        if (stored is null)
+            return null;
+
+        // A certificate made with an RSA key is replaced by the ECDSA one; a phone that learned to
+        // trust the old one asks once more.
+        if (stored.GetECDsaPublicKey() is not null)
+            return stored;
+
+        stored.Dispose();
+        return null;
+    }
+
     private static X509Certificate2 Made()
     {
-        using var key = RSA.Create(2048);
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var name = Environment.MachineName;
 
-        var request = new CertificateRequest($"CN={name}", key, HashAlgorithmName.SHA256,
-            RSASignaturePadding.Pkcs1);
+        var request = new CertificateRequest($"CN={name}", key, HashAlgorithmName.SHA256);
 
         request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, false));
         request.CertificateExtensions.Add(new X509KeyUsageExtension(
@@ -75,7 +87,7 @@ internal partial class ShareCertificate
             })
             .OnFailure(ex => Serilog.Log.Warning(ex, "Could not write {File}", FilePath));
 
-        Serilog.Log.Information("Made a self-signed share certificate for {Name}", name);
+        Serilog.Log.Information("Made a self-signed ECDSA share certificate for {Name}", name);
         return X509CertificateLoader.LoadPkcs12(bytes, null, X509KeyStorageFlags.Exportable);
     }
 

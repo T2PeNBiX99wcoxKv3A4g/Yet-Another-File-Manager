@@ -134,7 +134,7 @@ internal partial class ShareService
     }
 
     [NativeMessage("share.devices.list")]
-    private async Task<NativeResponse> DevicesAsync(NativeContext context)
+    private async Task<NativeResponse?> DevicesAsync(NativeContext context)
     {
         if (await ShareDeviceStore.Instance.PruneAsync())
             ShareAccess.DeviceChanged();
