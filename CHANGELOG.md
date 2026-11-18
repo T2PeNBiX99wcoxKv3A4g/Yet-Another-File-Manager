@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.26.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.26.0..v0.26.1) - 2026-11-18
+
+### 🚜 Refactor
+
+- *(share)* Make the share certificate with ECDSA P-256 - ([8489abf](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/8489abffb159d33db72adfe44fdd712009cf163e))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([0676821](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/067682100f85354cefe5c4eea3c6ae8caa0eb586))
+
+
 ## [0.26.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.25.0..v0.26.0) - 2026-11-18
 
 ### ⛰️  Features
