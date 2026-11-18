@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.26.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.25.0..v0.26.0) - 2026-11-18
+
+### ⛰️  Features
+
+- *(share)* Serve the web shares over HTTPS when asked - ([b84e2a8](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b84e2a8da6874935f56c345a38d2f32b4446bba1))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([cff784a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/cff784a803a2a0d84fc938fa8f96a4ccd83f6204))
+
+
 ## [0.25.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.24.0..v0.25.0) - 2026-11-18
 
 ### ⛰️  Features
