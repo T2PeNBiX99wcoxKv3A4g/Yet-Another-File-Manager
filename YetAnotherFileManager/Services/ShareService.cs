@@ -142,6 +142,50 @@ internal partial class ShareService
         return context.Reply("share.devices.list.result", new ShareDevicesPayload(ShareDeviceStore.Instance.All));
     }
 
+    [NativeMessage("share.devices.clear")]
+    private async Task<NativeResponse?> ClearDevicesAsync(NativeContext context)
+    {
+        if (await ShareDeviceStore.Instance.ClearAsync())
+            ShareAccess.DeviceChanged();
+
+        return context.Reply("share.devices.clear.result", new ShareDevicesPayload(ShareDeviceStore.Instance.All));
+    }
+
+    [NativeMessage("share.certificate")]
+    private NativeResponse Certificate(NativeContext context) =>
+        context.Reply("share.certificate.result", ShareCertificate.Instance.Status());
+
+    [NativeMessage("share.certificate.import")]
+    private async Task<NativeResponse?> ImportCertificateAsync(NativeContext context)
+    {
+        var request = context.Payload<ShareCertificateImportRequest>();
+        var path = request?.Path?.Trim() ?? "";
+
+        if (path.Length == 0 || !File.Exists(path))
+            return context.Fail("share.certificate.import.result", Localization.Get("that_file_does_not_exist"));
+
+        try
+        {
+            var status = ShareCertificate.Instance.Import(path, request?.Password);
+            await WebShareServer.Instance.ApplyAsync();
+            return context.Reply("share.certificate.import.result", status);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Could not import the certificate {Path}", path);
+            return context.Fail("share.certificate.import.result",
+                Localization.Get("that_certificate_could_not_be_opened"));
+        }
+    }
+
+    [NativeMessage("share.certificate.reset")]
+    private async Task<NativeResponse?> ResetCertificateAsync(NativeContext context)
+    {
+        ShareCertificate.Instance.Reset();
+        await WebShareServer.Instance.ApplyAsync();
+        return context.Reply("share.certificate.reset.result", ShareCertificate.Instance.Status());
+    }
+
     [NativeMessage("share.devices.set")]
     private async Task<NativeResponse?> SetDeviceAsync(NativeContext context)
     {

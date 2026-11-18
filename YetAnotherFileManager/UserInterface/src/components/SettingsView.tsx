@@ -129,11 +129,16 @@ import {FontRoles, listFonts} from "../fonts";
 import {FontPicker} from "./FontPicker";
 import {setSharePort} from "../api/share";
 import {
+    clearShareDevices,
+    getShareCertificate,
     getSharePasswordStatus,
+    importShareCertificate,
     listShareDevices,
     removeShareDevice,
+    resetShareCertificate,
     setShareDevice,
     setSharePassword,
+    type ShareCertificateStatus,
     type ShareDevice,
 } from "../api/share";
 
@@ -366,6 +371,10 @@ export function SettingsView({
     const [portDraft, setPortDraft] = useState<string | null>(null);
     const [sharePasswordDraft, setSharePasswordDraft] = useState("");
     const [hasSharePassword, setHasSharePassword] = useState(false);
+    const [certificate, setCertificate] = useState<ShareCertificateStatus | null>(null);
+    const [certificatePath, setCertificatePath] = useState<string | null>(null);
+    const [certificatePassword, setCertificatePassword] = useState("");
+    const [certificateError, setCertificateError] = useState<string | null>(null);
     const [startup, setStartup] = useState<StartupStatus | null>(null);
     const [startupError, setStartupError] = useState<string | null>(null);
     const [startupBusy, setStartupBusy] = useState(false);
@@ -1103,6 +1112,10 @@ export function SettingsView({
         await update({extensionIcons: icons});
     };
 
+    useEffect(() => {
+        void getShareCertificate().then(setCertificate, () => undefined);
+    }, []);
+
     const keys = resolveShortcuts(settings?.shortcuts);
 
     /** The combinations one row holds; the global hotkey is stored beside the rest. */
@@ -1265,6 +1278,41 @@ export function SettingsView({
 
     const clearSharePassword = async () => {
         setHasSharePassword(await setSharePassword(null));
+    };
+
+    const pickCertificate = async () => {
+        const path = await requestFile([".pfx", ".p12"]);
+
+        if (!path)
+            return;
+
+        setCertificatePath(path);
+        setCertificatePassword("");
+        setCertificateError(null);
+    };
+
+    const confirmCertificate = async () => {
+        if (!certificatePath)
+            return;
+
+        try {
+            setCertificate(await importShareCertificate(certificatePath,
+                certificatePassword.length > 0 ? certificatePassword : null));
+            setCertificatePath(null);
+            setCertificatePassword("");
+            setCertificateError(null);
+        } catch (cause) {
+            setCertificateError(cause instanceof Error ? cause.message : String(cause));
+        }
+    };
+
+    const makeNewCertificate = async () => {
+        try {
+            setCertificate(await resetShareCertificate());
+            setCertificateError(null);
+        } catch (cause) {
+            setCertificateError(cause instanceof Error ? cause.message : String(cause));
+        }
     };
 
     const changeStartup = async (mode: string) => {
@@ -1684,6 +1732,55 @@ export function SettingsView({
                                 </Toggle>
                             </RowEnd>
                         </Row>
+                        <Row>
+                            <RowText>
+                                <Label>{t("share_access_certificate")}</Label>
+                                <Note>
+                                    {certificate
+                                        ? `${certificate.subject} · ${t("share_access_expires")}: ${new Date(certificate.expiresAt).toLocaleString()}`
+                                        : t("share_access_certificate_self_signed")}
+                                </Note>
+                                {certificate && (
+                                    <Note>
+                                        {certificate.selfSigned
+                                            ? t("share_access_certificate_self_signed")
+                                            : t("share_access_certificate_imported")}
+                                    </Note>
+                                )}
+                                {certificateError && <TagError>{certificateError}</TagError>}
+                            </RowText>
+                            <RowEnd>
+                                <SmallButton onClick={() => void pickCertificate()} type="button">
+                                    {t("share_access_import_certificate")}
+                                </SmallButton>
+                                <SmallButton onClick={() => void makeNewCertificate()} type="button">
+                                    {t("share_access_reset_certificate")}
+                                </SmallButton>
+                            </RowEnd>
+                        </Row>
+                        {certificatePath && (
+                            <Row>
+                                <RowText>
+                                    <Label>{t("password")}</Label>
+                                    <Note>{certificatePath}</Note>
+                                </RowText>
+                                <RowEnd>
+                                    <PasswordInput
+                                        autoComplete="off"
+                                        onChange={(event) => setCertificatePassword(event.target.value)}
+                                        placeholder={t("password")}
+                                        type="password"
+                                        value={certificatePassword}
+                                    />
+                                    <SmallButton onClick={() => void confirmCertificate()} type="button">
+                                        {t("ok")}
+                                    </SmallButton>
+                                    <SmallButton onClick={() => setCertificatePath(null)} type="button">
+                                        {t("cancel")}
+                                    </SmallButton>
+                                </RowEnd>
+                            </Row>
+                        )}
                         <Row>
                             <RowText>
                                 <LabelRow>
@@ -3404,6 +3501,18 @@ function ShareDeviceList({approvalMinutes, denialSeconds}: {
         }
     };
 
+    const clearAll = async () => {
+        if (!window.confirm(t("share_access_clear_devices_confirm")))
+            return;
+
+        setBusy(true);
+        try {
+            setDevices(await clearShareDevices());
+        } finally {
+            setBusy(false);
+        }
+    };
+
     const remove = async (id: string) => {
         setBusy(true);
         try {
@@ -3435,6 +3544,19 @@ function ShareDeviceList({approvalMinutes, denialSeconds}: {
 
     return (
         <DeviceList>
+            {decided.length > 0 && (
+                <DeviceHead>
+                    <DeviceMeta>{t("devices")} · {decided.length}</DeviceMeta>
+                    <DeviceRemove
+                        disabled={busy}
+                        onClick={() => void clearAll()}
+                        title={t("share_access_clear_devices")}
+                        type="button"
+                    >
+                        <TrashIcon size={13}/>
+                    </DeviceRemove>
+                </DeviceHead>
+            )}
             {decided.length === 0 && <DeviceEmpty>{t("share_access_no_devices")}</DeviceEmpty>}
             {decided.map((device) => (
                 <DeviceRow key={device.id}>
@@ -4433,6 +4555,13 @@ const DeviceEmpty = styled.div`
     padding: 8px 2px;
     color: var(--text-muted);
     font-size: 11px;
+`;
+
+const DeviceHead = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 2px;
 `;
 
 const DeviceRow = styled.div`

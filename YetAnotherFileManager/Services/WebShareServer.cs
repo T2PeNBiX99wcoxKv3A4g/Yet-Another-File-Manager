@@ -45,6 +45,9 @@ internal partial class WebShareServer
     /// <summary>Whether the addresses are HTTPS; the server is restarted when the setting changes.</summary>
     public bool Secure { get; private set; }
 
+    /// <summary>The certificate that is being served, so a new one replaces the running listener.</summary>
+    private string? _serving;
+
     /// <summary>The addresses a phone or another computer on the same network can open.</summary>
     public IReadOnlyList<string> Urls()
     {
@@ -84,8 +87,12 @@ internal partial class WebShareServer
             requested = null;
         }
 
-        // A change of scheme cannot be applied to a running listener, so it restarts as well.
-        if (_app is not null && _requestedPort == requested && Secure == (settings.ShareHttps ?? false))
+        // A change of scheme or of certificate cannot be applied to a running listener, so either
+        // one restarts it.
+        var wanted = settings.ShareHttps ?? false ? ShareCertificate.Instance.Status().Subject : null;
+
+        if (_app is not null && _requestedPort == requested && Secure == (settings.ShareHttps ?? false) &&
+            _serving == wanted)
             return;
 
         await StopAsync();
@@ -163,6 +170,7 @@ internal partial class WebShareServer
         _app = app;
         Port = BoundPort(app, port);
         Secure = certificate is not null;
+        _serving = certificate?.Subject;
         Log.Information("Share web server listening on {Scheme} port {Port}", Secure ? "HTTPS" : "HTTP", Port);
     }
 

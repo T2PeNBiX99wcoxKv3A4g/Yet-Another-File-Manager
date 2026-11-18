@@ -6,6 +6,7 @@ using PhotinoNetUtils.Services;
 using PhotinoNetUtils.Updates;
 using YetAnotherFileManager.Models;
 using YetAnotherFileManager.Security;
+using YetAnotherFileManager.Services;
 
 namespace YetAnotherFileManager.Messaging;
 
@@ -64,6 +65,8 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(SharePasswordSecret))]
 [JsonSerializable(typeof(ShareDevice[]))]
 [JsonSerializable(typeof(ShareDevicesPayload))]
+[JsonSerializable(typeof(ShareCertificateStatus))]
+[JsonSerializable(typeof(ShareCertificateImportRequest))]
 [JsonSerializable(typeof(ShareDeviceSetRequest))]
 [JsonSerializable(typeof(ShareDeviceRemoveRequest))]
 [JsonSerializable(typeof(ShareAccessPasswordRequest))]

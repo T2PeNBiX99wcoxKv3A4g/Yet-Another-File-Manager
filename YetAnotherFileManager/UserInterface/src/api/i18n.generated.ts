@@ -672,6 +672,11 @@ declare module "@photino-net-utils/bridge"
         "share_access_allow_for_minutes": true;
         "share_access_approval_minutes": true;
         "share_access_block_forever": true;
+        "share_access_certificate": true;
+        "share_access_certificate_imported": true;
+        "share_access_certificate_self_signed": true;
+        "share_access_clear_devices": true;
+        "share_access_clear_devices_confirm": true;
         "share_access_denial_seconds": true;
         "share_access_denied": true;
         "share_access_denied_for_seconds": true;
@@ -685,6 +690,7 @@ declare module "@photino-net-utils/bridge"
         "share_access_https_note": true;
         "share_access_https_off": true;
         "share_access_https_on": true;
+        "share_access_import_certificate": true;
         "share_access_last_seen": true;
         "share_access_note": true;
         "share_access_no_devices": true;
@@ -692,6 +698,7 @@ declare module "@photino-net-utils/bridge"
         "share_access_password_note": true;
         "share_access_request_title": true;
         "share_access_require_approval": true;
+        "share_access_reset_certificate": true;
         "share_access_wants_to_open": true;
         "share_folders": true;
         "share_of_this_process_that_the_net_heap_holds_thumbnails_and_folder_size_walks_live_here_the_runtime_grows_it_on_demand_and_gives_it_back_after_a_collection": true;
@@ -754,6 +761,8 @@ declare module "@photino-net-utils/bridge"
         "thai_cp874": true;
         "that_archive_format_is_not_supported": true;
         "that_archive_name_is_not_valid": true;
+        "that_certificate_could_not_be_opened": true;
+        "that_file_does_not_exist": true;
         "that_folder_does_not_exist": true;
         "that_format_cannot_be_encrypted_or_split": true;
         "that_name_is_not_valid": true;

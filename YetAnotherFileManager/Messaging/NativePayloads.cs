@@ -514,6 +514,9 @@ internal sealed record ShareDeviceSetRequest(string? Id, string? State, bool? Pe
 /// <summary>Payload for <c>share.devices.remove</c>.</summary>
 internal sealed record ShareDeviceRemoveRequest(string? Id);
 
+/// <summary>Body for <c>share.certificate.import</c>: the PFX the user picked and its password.</summary>
+internal sealed record ShareCertificateImportRequest(string? Path, string? Password);
+
 /// <summary>Payload for <c>share.access.password</c>; null or empty clears the password.</summary>
 internal sealed record ShareAccessPasswordRequest(string? Password);
 

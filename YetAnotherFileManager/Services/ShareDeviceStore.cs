@@ -163,6 +163,30 @@ internal partial class ShareDeviceStore
         }
     }
 
+    /// <summary>Forgets every device, so each one has to ask again.</summary>
+    public async Task<bool> ClearAsync()
+    {
+        await _writeGate.WaitAsync();
+        try
+        {
+            bool cleared;
+            lock (_gate)
+            {
+                cleared = _devices.Count > 0;
+                _devices.Clear();
+            }
+
+            if (cleared)
+                await SaveAsync();
+
+            return cleared;
+        }
+        finally
+        {
+            _writeGate.Release();
+        }
+    }
+
     /// <summary>Drops devices whose window has closed; a permanent one has no expiry and stays.</summary>
     public async Task<bool> PruneAsync()
     {

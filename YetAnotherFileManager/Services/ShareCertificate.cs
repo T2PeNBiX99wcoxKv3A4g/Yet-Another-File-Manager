@@ -7,15 +7,16 @@ using PhotinoNetUtils.Utils;
 namespace YetAnotherFileManager.Services;
 
 /// <summary>
-///     The certificate the share server presents when HTTPS is switched on: one made for this
-///     computer, kept so every start shows the same thing and the browser's exception is asked once.
+///     The certificate the share server presents when HTTPS is switched on. One is made for this
+///     computer unless the user imports their own from their own certificate authority, and it is
+///     kept so every start shows the same thing and the browser's exception is asked once.
 /// </summary>
 /// <remarks>
-///     Nothing can vouch for a machine that has no name on the internet, so the certificate is
-///     self-signed and browsers warn about it. The names it carries are the ones a phone on the
-///     same network might type: the computer's own name, "&lt;name&gt;.lan", localhost and every
-///     address the machine holds - which also means a new address needs the file removed to be
-///     covered again.
+///     A certificate made here is self-signed and browsers warn about it. The names it carries are the
+///     ones a phone on the same network might type: the computer's own name, "&lt;name&gt;.lan",
+///     localhost and every address the machine holds - which also means a new address needs the file
+///     removed to be covered again. A certificate imported from a real authority needs none of that
+///     warning, provided the name it was issued for is the one the phone opens.
 /// </remarks>
 [Singleton]
 internal partial class ShareCertificate
@@ -26,6 +27,51 @@ internal partial class ShareCertificate
 
     /// <summary>The certificate, made and stored on first use.</summary>
     public X509Certificate2 Current => _current ??= Loaded() ?? Made();
+
+    /// <summary>What the switch would serve with, for the settings page.</summary>
+    public ShareCertificateStatus Status()
+    {
+        var certificate = Current;
+
+        return new(certificate.Subject,
+            new DateTimeOffset(certificate.NotAfter.ToUniversalTime()).ToUnixTimeMilliseconds(),
+            certificate.Issuer == certificate.Subject);
+    }
+
+    /// <summary>
+    ///     Replaces the served certificate with one the user picked, kept without a password so the
+    ///     settings file never has to hold one.
+    /// </summary>
+    public ShareCertificateStatus Import(string path, string? password)
+    {
+        using var picked = X509CertificateLoader.LoadPkcs12FromFile(path, password,
+            X509KeyStorageFlags.Exportable);
+
+        if (!picked.HasPrivateKey)
+            throw new CryptographicException("The certificate holds no private key.");
+
+        File.WriteAllBytes(FilePath, picked.Export(X509ContentType.Pfx));
+        Forget();
+
+        Serilog.Log.Information("Imported the share certificate {Subject}", picked.Subject);
+        return Status();
+    }
+
+    /// <summary>Drops the stored certificate, so the next use makes a fresh one for this computer.</summary>
+    public ShareCertificateStatus Reset()
+    {
+        Forget();
+        Try.Run(() => File.Delete(FilePath))
+            .OnFailure(ex => Serilog.Log.Warning(ex, "Could not delete {File}", FilePath));
+
+        return Status();
+    }
+
+    private void Forget()
+    {
+        _current?.Dispose();
+        _current = null;
+    }
 
     private static X509Certificate2? Loaded()
     {
@@ -100,3 +146,6 @@ internal partial class ShareCertificate
             or System.Net.Sockets.AddressFamily.InterNetworkV6 && !address.IsIPv6LinkLocal);
     }
 }
+
+/// <summary>What the settings page shows about the certificate in use.</summary>
+internal sealed record ShareCertificateStatus(string Subject, long ExpiresAt, bool SelfSigned);

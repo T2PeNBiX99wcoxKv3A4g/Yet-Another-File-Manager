@@ -212,6 +212,34 @@ export interface ShareDevice {
     expiresAt: number;
 }
 
+/** The certificate the web shares are served with, and where it came from. */
+export interface ShareCertificateStatus {
+    subject: string;
+    expiresAt: number;
+    selfSigned: boolean;
+}
+
+export async function getShareCertificate(): Promise<ShareCertificateStatus | null> {
+    if (!Native.available) return null;
+    return await Native.request<ShareCertificateStatus>("share.certificate");
+}
+
+export async function importShareCertificate(path: string,
+                                             password: string | null): Promise<ShareCertificateStatus> {
+    return await Native.request<ShareCertificateStatus>("share.certificate.import", {path, password});
+}
+
+export async function resetShareCertificate(): Promise<ShareCertificateStatus> {
+    return await Native.request<ShareCertificateStatus>("share.certificate.reset");
+}
+
+/** Forgets every browser, so each one has to ask again. */
+export async function clearShareDevices(): Promise<ShareDevice[]> {
+    if (!Native.available) return [];
+    const data = await Native.request<{ devices: ShareDevice[] }>("share.devices.clear");
+    return data.devices ?? [];
+}
+
 export async function listShareDevices(): Promise<ShareDevice[]> {
     if (!Native.available) return [];
     const data = await Native.request<{ devices: ShareDevice[] }>("share.devices.list");
