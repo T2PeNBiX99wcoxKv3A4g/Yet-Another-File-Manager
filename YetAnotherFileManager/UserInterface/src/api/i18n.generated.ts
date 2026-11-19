@@ -117,6 +117,7 @@ declare module "@photino-net-utils/bridge"
         "check_for_updates": true;
         "check_now": true;
         "check_that_the_other_device_shows_the_same_code_before_accepting": true;
+        "choose": true;
         "choose_another_app": true;
         "choose_an_image": true;
         "choose_a_file": true;

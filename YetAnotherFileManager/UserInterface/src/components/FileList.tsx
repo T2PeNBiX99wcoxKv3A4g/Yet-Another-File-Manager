@@ -140,6 +140,10 @@ interface FileListProps {
     allowBackgroundMenu?: boolean;
     /** The picker only chooses entries; no context menu and no drop operations. */
     readOnly?: boolean;
+    /** A picker's own way out: the menu's first entry chooses what it points at. */
+    onSelectEntry?: (paths: string[]) => void;
+    /** A picker opens a file with the system's application, leaving the dialog open. */
+    onOpenExternally?: (path: string) => void;
     /** Reports the checked paths, so a host that draws its own footer can follow the selection. */
     onSelectionChange?: (paths: string[]) => void;
     /** Reports how many entries are selected, for a toolbar menu button. */
@@ -197,6 +201,8 @@ export function FileList({
                              onSetTags,
                              onOpen,
                              onOpenFile,
+                             onSelectEntry,
+                             onOpenExternally,
                              showCheckboxes = true,
                              openOnSingleClick = false,
                              shortcuts = DefaultShortcuts,
@@ -1829,7 +1835,9 @@ export function FileList({
                         onCreateFolder={(caseSensitive) => void createEntry(null, caseSensitive)}
                         onDelete={remove}
                         onOpen={onOpen}
+                        onOpenExternally={onOpenExternally}
                         onOpenFile={onOpenFile}
+                        onSelectEntry={onSelectEntry}
                         onPaste={paste}
                         onRefresh={refresh}
                         onRename={(path) => {

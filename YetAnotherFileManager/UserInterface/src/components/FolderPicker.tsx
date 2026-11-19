@@ -11,6 +11,7 @@ import {
     listDrives,
     listPlaces,
     listRecent,
+    openFile,
     type Place,
     type RecentEntry,
     type ResolvedView,
@@ -447,6 +448,28 @@ export function FolderPicker({
             setFileName(paths.length === 0 && !isFileMode ? baseName(currentFolder) : "");
     }, [currentFolder, isFileMode, listing, save]);
 
+    /** The menu's first entry: choose what it points at and end the dialog. */
+    const selectEntry = (paths: string[]) => {
+        if (paths.length === 0)
+            return;
+
+        // A save dialog keeps the name it was given; choosing a file there only fills it in.
+        if (save) {
+            setFileName(baseName(paths[0]));
+            return;
+        }
+
+        onSelect(paths);
+    };
+
+    /// The menu's "open": a folder is entered, a file goes to the system, and the picker stays.
+    const openExternally = (target: string) => {
+        if (listing?.entries.find((item) => item.fullPath === target)?.isDirectory)
+            navigate(target);
+        else
+            void openFile(target);
+    };
+
     const openEntry = (target: string) => {
         const entry = listing?.entries.find((item) => item.fullPath === target);
 
@@ -735,7 +758,9 @@ export function FolderPicker({
                                 listing={pickerListing}
                                 onImageStripHeight={setStripHeight}
                                 onOpen={openEntry}
+                                onOpenExternally={openExternally}
                                 onOpenFile={openEntry}
+                                onSelectEntry={selectEntry}
                                 onRefresh={() => setReload((value) => value + 1)}
                                 onSelectionChange={handleSelection}
                                 selectionMenuId="picker"

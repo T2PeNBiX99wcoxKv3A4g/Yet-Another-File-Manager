@@ -32,6 +32,7 @@ import {
     ArchiveIcon,
     ArrowRightIcon,
     CaseSensitiveIcon,
+    CheckIcon,
     CopyIcon,
     CrossIcon,
     CutIcon,
@@ -80,6 +81,10 @@ interface FileMenuProps {
     onClose: () => void;
     onOpen?: (path: string, newTab?: boolean) => void;
     onOpenFile?: (path: string) => void;
+    /** A picker chooses through the menu; the entry ends the dialog with those paths. */
+    onSelectEntry?: (paths: string[]) => void;
+    /** A picker opens a file with the system's application instead of choosing it. */
+    onOpenExternally?: (path: string) => void;
     onRename?: (path: string) => void;
     onDelete?: (paths: string[]) => void;
     onCopy?: (paths: string[], cut: boolean) => void;
@@ -119,6 +124,8 @@ export function FileMenu({
                              onClose,
                              onOpen,
                              onOpenFile,
+                             onSelectEntry,
+                             onOpenExternally,
                              onRename,
                              onDelete,
                              onCopy,
@@ -519,11 +526,26 @@ export function FileMenu({
                 onSelect: () => void showProperties([directory]),
             });
     } else {
+        // A picker puts its own answer first: the entry is chosen, and opening it is a separate
+        // look at the file rather than the way out of the dialog.
+        if (onSelectEntry) {
+            items.push({
+                label: t("choose"), icon: <CheckIcon size={14}/>, onSelect: () => {
+                    if (!target) {
+                        onSelectEntry([...menu.paths]);
+                        return;
+                    }
+
+                    onSelectEntry(menu.paths.length > 1 ? [...menu.paths] : [target.path]);
+                },
+            });
+        }
+
         if (onOpen) {
             items.push({
                 label: t("open"), icon: <ArrowRightIcon size={14}/>, onSelect: () => {
                     if (target?.isDirectory) onOpen(target.path);
-                    else if (target) onOpenFile?.(target.path);
+                    else if (target) (onOpenExternally ?? onOpenFile)?.(target.path);
                 },
             });
         }
