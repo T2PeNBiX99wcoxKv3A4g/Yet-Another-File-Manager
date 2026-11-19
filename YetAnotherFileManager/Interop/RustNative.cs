@@ -261,17 +261,14 @@ internal static unsafe class RustNative
         for (var index = 0; index < count; index++)
         {
             var pathLength = (int)ReadUInt32(span, ref offset);
-            var nameLength = (int)ReadUInt32(span, ref offset);
             var modified = ReadInt64(span, ref offset);
             var size = ReadUInt64(span, ref offset);
 
             var path = Encoding.UTF8.GetString(span.Slice(offset, pathLength));
             offset += pathLength;
 
-            var name = Encoding.UTF8.GetString(span.Slice(offset, nameLength));
-            offset += nameLength;
-
-            entries.Add(new(path, name, modified, (long)size));
+            // The name is the last segment of the path the walk already carried.
+            entries.Add(new(path, Path.GetFileName(path), modified, (long)size));
         }
 
         return entries;

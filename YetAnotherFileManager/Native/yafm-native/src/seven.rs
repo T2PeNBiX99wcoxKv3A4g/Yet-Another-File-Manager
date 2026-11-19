@@ -133,10 +133,10 @@ fn collect(path: &Path, found: &mut Vec<PathBuf>) -> bool {
 
     if let Ok(entries) = fs::read_dir(path) {
         for entry in entries.flatten() {
-            let child = entry.path();
-
-            if child.is_dir() {
-                children.push(child);
+            // The directory entry already carries the file type, so asking `is_dir` would only add a
+            // stat per child.
+            if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+                children.push(entry.path());
             } else {
                 holds_file = true;
             }

@@ -18,8 +18,15 @@ use crate::split_paths;
 
 /// One file or empty folder that goes into the archive.
 enum Item {
-    File { path: PathBuf, name: String, size: u64 },
-    Directory { name: String },
+    File {
+        path: PathBuf,
+        name: String,
+        size: u64,
+        modified: Option<SystemTime>,
+    },
+    Directory {
+        name: String,
+    },
 }
 
 /// A compressed entry, ready to be written. Holding a chunk at a time keeps memory bounded.
@@ -220,9 +227,7 @@ fn write_zip(
 /// The timestamp the ZIP entry carries, in the DOS form the format stores.
 fn stamp(item: &Item) -> DateTime {
     let modified = match item {
-        Item::File { path, .. } => std::fs::metadata(path)
-            .ok()
-            .and_then(|metadata| metadata.modified().ok()),
+        Item::File { modified, .. } => *modified,
         Item::Directory { .. } => None,
     };
 
@@ -234,6 +239,13 @@ fn compress(sources: &[&str], output: &str, threads: usize) -> Result<(), Compre
     let items = collect(sources)?;
     if items.is_empty() {
         return Err(CompressError::Other);
+    }
+
+    // The central directory stores a 16-bit count, so a tree with more entries than that cannot be
+    // written at all. Checking before anything is deflated keeps a hopeless job from writing the
+    // whole archive and then reporting the same failure.
+    if items.len() > u16::MAX as usize {
+        return Err(CompressError::TooLarge);
     }
 
     let pool = rayon::ThreadPoolBuilder::new()
@@ -333,8 +345,13 @@ fn collect(sources: &[&str]) -> Result<Vec<Item>, String> {
                 .and_then(|name| name.to_str())
                 .ok_or_else(|| format!("bad file name: {source}"))?
                 .to_string();
-            let size = std::fs::metadata(path).map_err(|error| error.to_string())?.len();
-            items.push(Item::File { path: path.to_path_buf(), name, size });
+            let metadata = std::fs::metadata(path).map_err(|error| error.to_string())?;
+            items.push(Item::File {
+                path: path.to_path_buf(),
+                name,
+                size: metadata.len(),
+                modified: metadata.modified().ok(),
+            });
             continue;
         }
 
@@ -348,16 +365,31 @@ fn collect(sources: &[&str]) -> Result<Vec<Item>, String> {
         // Every folder gets an entry of its own, which is what keeps an empty one from vanishing.
         for entry in walkdir::WalkDir::new(path).follow_links(false) {
             let entry = entry.map_err(|error| error.to_string())?;
+
+            // Built without the extra allocation a join-and-replace would cost per entry.
             let relative = entry.path().strip_prefix(parent).unwrap_or(entry.path());
-            let name = relative.to_string_lossy().replace('\\', "/");
+            let mut name = String::with_capacity(relative.as_os_str().len());
+            for (index, part) in relative.iter().enumerate() {
+                if index > 0 {
+                    name.push('/');
+                }
+                name.push_str(&part.to_string_lossy());
+            }
 
             if entry.file_type().is_dir() {
-                items.push(Item::Directory { name: format!("{name}/") });
+                name.push('/');
+                items.push(Item::Directory { name });
                 continue;
             }
 
-            let size = entry.metadata().map(|metadata| metadata.len()).unwrap_or(0);
-            items.push(Item::File { path: entry.path().to_path_buf(), name, size });
+            // One metadata read supplies both the size and the timestamp the entry is stamped with.
+            let metadata = entry.metadata().ok();
+            items.push(Item::File {
+                path: entry.path().to_path_buf(),
+                name,
+                size: metadata.as_ref().map(|metadata| metadata.len()).unwrap_or(0),
+                modified: metadata.as_ref().and_then(|metadata| metadata.modified().ok()),
+            });
         }
     }
 
@@ -374,25 +406,40 @@ fn prepare(item: &Item) -> Result<Prepared, String> {
             uncompressed: 0,
             modified: None,
         }),
-        Item::File { path, name, .. } => {
-            let mut data = Vec::new();
-            File::open(path)
-                .and_then(|mut file| file.read_to_end(&mut data))
-                .map_err(|error| format!("{}: {error}", path.display()))?;
+        Item::File {
+            path,
+            name,
+            modified,
+            ..
+        } => {
+            // The file is deflated in one pass: it is read straight into the encoder while its CRC
+            // is computed, so only the compressed bytes are held instead of both buffers.
+            let mut file = File::open(path).map_err(|error| format!("{}: {error}", path.display()))?;
+            let mut encoder = DeflateEncoder::new(Vec::with_capacity(64 * 1024), Compression::default());
+            let mut hasher = crc32fast::Hasher::new();
+            let mut buffer = vec![0_u8; 64 * 1024];
+            let mut uncompressed = 0_u64;
 
-            let crc = crc32fast::hash(&data);
-            let mut encoder = DeflateEncoder::new(Vec::new(), Compression::default());
-            encoder.write_all(&data).map_err(|error| error.to_string())?;
-            let compressed = encoder.finish().map_err(|error| error.to_string())?;
-            let modified = std::fs::metadata(path).ok().and_then(|metadata| metadata.modified().ok());
+            loop {
+                let read = file.read(&mut buffer).map_err(|error| error.to_string())?;
+                if read == 0 {
+                    break;
+                }
+
+                hasher.update(&buffer[..read]);
+                encoder
+                    .write_all(&buffer[..read])
+                    .map_err(|error| error.to_string())?;
+                uncompressed += read as u64;
+            }
 
             Ok(Prepared {
                 name: name.clone(),
                 method: 8,
-                crc,
-                compressed,
-                uncompressed: data.len() as u64,
-                modified,
+                crc: hasher.finalize(),
+                compressed: encoder.finish().map_err(|error| error.to_string())?,
+                uncompressed,
+                modified: *modified,
             })
         }
     }

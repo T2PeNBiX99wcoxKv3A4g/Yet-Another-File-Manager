@@ -33,11 +33,13 @@ pub unsafe extern "C" fn yafm_measure(
     }
 
     let threads = threads.clamp(1, 64) as usize;
-    let mut files = 0u64;
 
-    for source in &sources {
-        files += count_files(source, threads);
-    }
+    // The sources are independent trees, so counting them one after another left every core but
+    // one idle.
+    let files = sources
+        .par_iter()
+        .map(|source| count_files(source, threads))
+        .sum();
 
     *out_files = files;
     0
@@ -158,6 +160,12 @@ fn remove_tree(path: &Path, report: &Report) -> bool {
             remove_tree(child, report);
         });
 
+        if std::fs::remove_dir(path).is_ok() {
+            return true;
+        }
+
+        // A read-only attribute is the usual reason a directory refuses to go, and clearing it costs
+        // a stat and a write, so only a failed attempt pays for it.
         clear_readonly(path);
         return std::fs::remove_dir(path).is_ok();
     }

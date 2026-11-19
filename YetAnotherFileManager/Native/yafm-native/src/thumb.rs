@@ -5,7 +5,8 @@
 //! store a flattened preview for exactly this purpose, and Photoshop, Krita and most exporters do,
 //! so the embedded JPEG is what the tile shows.
 
-use std::io::Cursor;
+use std::fs::File;
+use std::io::{Cursor, Read, Seek, SeekFrom};
 use std::path::Path;
 
 use image::{DynamicImage, ImageFormat, ImageReader};
@@ -16,6 +17,9 @@ const MAX_PIXELS: u64 = 120_000_000;
 
 /// A file larger than this is not worth reading into memory for a thumbnail.
 const MAX_FILE_BYTES: u64 = 512 * 1024 * 1024;
+
+/// The image resources of a PSD are a few megabytes; a header that claims more is broken.
+const MAX_RESOURCES: usize = 64 * 1024 * 1024;
 
 /// Renders a PNG thumbnail of `path` that fits in `size` pixels.
 ///
@@ -54,24 +58,23 @@ pub unsafe extern "C" fn yafm_thumbnail(
 
 fn render(path: &str, size: u32) -> Option<Vec<u8>> {
     let extension = Path::new(path).extension()?.to_str()?.to_ascii_lowercase();
-    let metadata = std::fs::metadata(path).ok()?;
-    if metadata.len() > MAX_FILE_BYTES {
+
+    // A document is only read up to its resource block, so the whole-file cap does not apply to it.
+    let document = matches!(extension.as_str(), "psd" | "psb");
+
+    if !document && std::fs::metadata(path).ok()?.len() > MAX_FILE_BYTES {
         return None;
     }
 
-    let bytes = std::fs::read(path).ok()?;
-
     let image = match extension.as_str() {
-        "psd" | "psb" => psd_preview(&bytes),
-        "tga" => decode(&bytes, ImageFormat::Tga),
-        "dds" => decode(&bytes, ImageFormat::Dds),
-        "hdr" => decode(&bytes, ImageFormat::Hdr).map(tone_mapped),
-        "exr" => decode(&bytes, ImageFormat::OpenExr).map(tone_mapped),
-        "dib" => dib_image(&bytes).and_then(|bmp| decode(&bmp, ImageFormat::Bmp)),
-        "pcx" => pcx_image(&bytes),
-        "jxl" => jxl_image(&bytes),
-        _ => None,
-    }?;
+        // A document's preview sits in its resource section, a few megabytes in, so a 400 MB PSD is
+        // not read whole just to draw one tile.
+        "psd" | "psb" => psd_preview(path)?,
+        "dib" => dib_image(&read(path)?).and_then(|bmp| decode(&bmp, ImageFormat::Bmp))?,
+        "pcx" => pcx_image(&read(path)?)?,
+        "jxl" => jxl_image(&read(path)?)?,
+        other => decode_file(path, format_of(other)?)?,
+    };
 
     let thumbnail = image.thumbnail(size, size);
 
@@ -81,6 +84,42 @@ fn render(path: &str, size: u32) -> Option<Vec<u8>> {
         .ok()?;
 
     Some(png)
+}
+
+/// A file read as a whole, for the formats the reader cannot open from a path.
+fn read(path: &str) -> Option<Vec<u8>> {
+    std::fs::read(path).ok()
+}
+
+/// The image crate's name for a format the reader can open by itself.
+fn format_of(extension: &str) -> Option<ImageFormat> {
+    match extension {
+        "tga" => Some(ImageFormat::Tga),
+        "dds" => Some(ImageFormat::Dds),
+        "hdr" => Some(ImageFormat::Hdr),
+        "exr" => Some(ImageFormat::OpenExr),
+        _ => None,
+    }
+}
+
+/// Decodes a file, refusing a picture that is too large from its header alone: the whole file is
+/// read only once the dimensions say it can be decoded.
+fn decode_file(path: &str, format: ImageFormat) -> Option<DynamicImage> {
+    if let Ok((width, height)) =
+        ImageReader::with_format(std::io::BufReader::new(File::open(path).ok()?), format).into_dimensions()
+    {
+        if u64::from(width) * u64::from(height) > MAX_PIXELS {
+            return None;
+        }
+    }
+
+    let image = decode(&read(path)?, format)?;
+
+    Some(if matches!(format, ImageFormat::Hdr | ImageFormat::OpenExr) {
+        tone_mapped(image)
+    } else {
+        image
+    })
 }
 
 fn decode(bytes: &[u8], format: ImageFormat) -> Option<DynamicImage> {
@@ -338,10 +377,17 @@ fn tone_mapped(image: DynamicImage) -> DynamicImage {
 
 /// The picture a PSD shows in a tile: the flattened preview the writer embedded when there is
 /// one, and otherwise the merged image data every PSD carries at its end.
-fn psd_preview(bytes: &[u8]) -> Option<DynamicImage> {
-    psd_thumbnail(bytes)
-        .and_then(|jpeg| decode(jpeg, ImageFormat::Jpeg))
-        .or_else(|| psd_composite(bytes))
+fn psd_preview(path: &str) -> Option<DynamicImage> {
+    if let Some(jpeg) = psd_thumbnail(path).and_then(|jpeg| decode(&jpeg, ImageFormat::Jpeg)) {
+        return Some(jpeg);
+    }
+
+    // Only a document without a preview is read whole, which is what the merged image needs.
+    if std::fs::metadata(path).ok()?.len() > MAX_FILE_BYTES {
+        return None;
+    }
+
+    psd_composite(&read(path)?)
 }
 
 /// The merged image of a PSD: every channel is a plane of the picture, stored as is or packed.
@@ -537,47 +583,69 @@ fn unpack_rows(packed: &[u8], rows: &[usize], width: usize) -> Option<(Vec<u8>, 
 }
 
 /// The embedded preview of a PSD: image resource 1036 (Photoshop 5 and later) or 1033 (older).
-fn psd_thumbnail(bytes: &[u8]) -> Option<&[u8]> {
-    // "8BPS", version, six reserved bytes, channels, height, width, depth, colour mode.
-    if bytes.len() < 26 || &bytes[0..4] != b"8BPS" {
-        return None;
-    }
+///
+/// Only the image resources are read. They sit behind the colour mode data, a few megabytes in at
+/// most, so a 400 MB document is not loaded to draw one tile.
+fn psd_thumbnail(path: &str) -> Option<Vec<u8>> {
+    let resources = psd_resources(path)?;
 
-    let mut offset = 26_usize;
-
-    // The colour mode data comes first and is not needed.
-    let color_length = read_u32(bytes, offset)? as usize;
-    offset = offset.checked_add(4)?.checked_add(color_length)?;
-
-    let resource_length = read_u32(bytes, offset)? as usize;
-    offset = offset.checked_add(4)?;
-    let end = offset.checked_add(resource_length)?.min(bytes.len());
+    let mut offset = 0_usize;
+    let end = resources.len();
 
     while offset + 12 <= end {
-        if &bytes[offset..offset + 4] != b"8BIM" {
+        if &resources[offset..offset + 4] != b"8BIM" {
             return None;
         }
 
-        let id = u16::from_be_bytes([bytes[offset + 4], bytes[offset + 5]]);
+        let id = u16::from_be_bytes([resources[offset + 4], resources[offset + 5]]);
         offset += 6;
 
         // A Pascal string padded to an even length, including its own length byte.
-        let name_length = *bytes.get(offset)? as usize;
+        let name_length = *resources.get(offset)? as usize;
         let name_total = 1 + name_length;
         offset = offset.checked_add(name_total + (name_total % 2))?;
 
-        let size = read_u32(bytes, offset)? as usize;
+        let size = read_u32(&resources, offset)? as usize;
         offset = offset.checked_add(4)?;
 
-        let data = bytes.get(offset..offset.checked_add(size)?)?;
+        let data = resources.get(offset..offset.checked_add(size)?)?;
         if id == 1036 || id == 1033 {
-            return Some(data);
+            return Some(data.to_vec());
         }
 
         offset = offset.checked_add(size + (size % 2))?;
     }
 
     None
+}
+
+/// The image resources of a PSD, read from their own offset: the colour mode data in front of them
+/// is skipped, never loaded.
+fn psd_resources(path: &str) -> Option<Vec<u8>> {
+    let mut file = File::open(path).ok()?;
+
+    // "8BPS", version, six reserved bytes, channels, height, width, depth, colour mode.
+    let mut header = [0_u8; 26];
+    file.read_exact(&mut header).ok()?;
+
+    if &header[0..4] != b"8BPS" {
+        return None;
+    }
+
+    let mut field = [0_u8; 4];
+    file.read_exact(&mut field).ok()?;
+    file.seek(SeekFrom::Current(i64::from(u32::from_be_bytes(field)))).ok()?;
+
+    file.read_exact(&mut field).ok()?;
+    let length = u32::from_be_bytes(field) as usize;
+
+    if length == 0 || length > MAX_RESOURCES {
+        return None;
+    }
+
+    let mut resources = vec![0_u8; length];
+    file.read_exact(&mut resources).ok()?;
+    Some(resources)
 }
 
 /// A little-endian field, as the Windows picture formats store their headers.

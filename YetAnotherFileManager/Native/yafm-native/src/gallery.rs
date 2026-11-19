@@ -3,17 +3,32 @@
 
 use std::collections::HashSet;
 use std::path::Path;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::UNIX_EPOCH;
 
 use ignore::{WalkBuilder, WalkState};
 
-/// One picture as the managed side stores it.
+/// One picture as the managed side stores it. The name is the last segment of the path, so it is
+/// not carried twice.
 struct Entry {
     path: String,
-    name: String,
     modified: i64,
     size: u64,
+}
+
+/// One walker's pictures, handed to the shared list once when the worker finishes.
+struct Collector {
+    found: Vec<Entry>,
+    all: Arc<Mutex<Vec<Vec<Entry>>>>,
+    extensions: Arc<HashSet<String>>,
+}
+
+impl Drop for Collector {
+    fn drop(&mut self) {
+        if let Ok(mut all) = self.all.lock() {
+            all.push(std::mem::take(&mut self.found));
+        }
+    }
 }
 
 /// Scans `root` for files whose extension is in `extensions` (semicolon separated, dots optional).
@@ -22,8 +37,7 @@ struct Entry {
 /// The caller owns the buffer and must hand it back to [`crate::yafm_free`].
 ///
 /// The buffer is little-endian:
-/// `u32 count`, then per entry `u32 path_len`, `u32 name_len`, `i64 modified_ms`, `u64 size`,
-/// `path_len` UTF-8 bytes, `name_len` UTF-8 bytes.
+/// `u32 count`, then per entry `u32 path_len`, `i64 modified_ms`, `u64 size`, `path_len` UTF-8 bytes.
 #[no_mangle]
 pub unsafe extern "C" fn yafm_scan_images(
     root: *const u16,
@@ -59,16 +73,14 @@ pub unsafe extern "C" fn yafm_scan_images(
 
     let entries = scan_images(&root, depth, threads, &extensions);
 
-    let mut buffer = Vec::with_capacity(4 + entries.len() * 48);
+    let mut buffer = Vec::with_capacity(4 + entries.len() * 40);
     buffer.extend_from_slice(&(entries.len() as u32).to_le_bytes());
 
     for entry in &entries {
         buffer.extend_from_slice(&(entry.path.len() as u32).to_le_bytes());
-        buffer.extend_from_slice(&(entry.name.len() as u32).to_le_bytes());
         buffer.extend_from_slice(&entry.modified.to_le_bytes());
         buffer.extend_from_slice(&entry.size.to_le_bytes());
         buffer.extend_from_slice(entry.path.as_bytes());
-        buffer.extend_from_slice(entry.name.as_bytes());
     }
 
     let mut boxed = buffer.into_boxed_slice();
@@ -80,8 +92,6 @@ pub unsafe extern "C" fn yafm_scan_images(
 }
 
 fn scan_images(root: &str, depth: u32, threads: usize, extensions: &HashSet<String>) -> Vec<Entry> {
-    let entries = Mutex::new(Vec::new());
-
     let mut builder = WalkBuilder::new(root);
     builder
         // The managed walk includes files in directories up to `depth` levels below the root;
@@ -97,17 +107,26 @@ fn scan_images(root: &str, depth: u32, threads: usize, extensions: &HashSet<Stri
         .follow_links(false)
         .threads(threads);
 
+    let all = Arc::new(Mutex::new(Vec::new()));
+    let wanted = Arc::new(extensions.clone());
+
     builder.build_parallel().run(|| {
-        Box::new(|result| {
+        // Every worker keeps its own list. One shared lock per match put the parallel walkers back
+        // in line, which is what a photo library walks into.
+        let mut collector = Collector {
+            found: Vec::new(),
+            all: Arc::clone(&all),
+            extensions: Arc::clone(&wanted),
+        };
+
+        Box::new(move |result| {
             let Ok(entry) = result else {
                 return WalkState::Continue;
             };
 
             if entry.file_type().is_some_and(|kind| kind.is_file()) {
-                if let Some(found) = to_entry(&entry, extensions) {
-                    if let Ok(mut list) = entries.lock() {
-                        list.push(found);
-                    }
+                if let Some(found) = to_entry(&entry, &collector.extensions) {
+                    collector.found.push(found);
                 }
             }
 
@@ -115,7 +134,12 @@ fn scan_images(root: &str, depth: u32, threads: usize, extensions: &HashSet<Stri
         })
     });
 
-    entries.into_inner().unwrap_or_default()
+    let groups = Arc::into_inner(all)
+        .map(Mutex::into_inner)
+        .and_then(Result::ok)
+        .unwrap_or_default();
+
+    groups.into_iter().flatten().collect()
 }
 
 fn to_entry(entry: &ignore::DirEntry, extensions: &HashSet<String>) -> Option<Entry> {
@@ -135,7 +159,6 @@ fn to_entry(entry: &ignore::DirEntry, extensions: &HashSet<String>) -> Option<En
 
     Some(Entry {
         path: path.to_string_lossy().into_owned(),
-        name: entry.file_name().to_string_lossy().into_owned(),
         modified,
         size: metadata.len(),
     })
