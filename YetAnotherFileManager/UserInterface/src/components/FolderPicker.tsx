@@ -39,7 +39,8 @@ import {
     SearchIcon,
 } from "./Icons";
 import {GalleryView} from "./GalleryView";
-import {OverviewView} from "./OverviewView";import {PathBar} from "./PathBar";
+import {OverviewView} from "./OverviewView";
+import {PathBar} from "./PathBar";
 import {SelectMenu} from "./SelectMenu";
 import {Sidebar} from "./Sidebar";
 import {baseName, normalizePath, parentPath} from "../utils/format";
