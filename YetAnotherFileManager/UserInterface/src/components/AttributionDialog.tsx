@@ -1,8 +1,18 @@
 import {useEffect, useState} from "react";
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
-import {ATTRIBUTIONS} from "../data/attributions";
+import attributionsUrl from "../data/attributions.json?url";
 import {CrossIcon} from "./Icons";
+
+/** One entry of the generated notices file. */
+interface Attribution {
+    name: string;
+    version: string;
+    /** SPDX id, or a description when the package does not declare one. */
+    license: string;
+    /** The complete declaration shown when the entry is selected. */
+    text: string;
+}
 
 /**
  * The open-source notices, shown as a floating panel from the settings: the projects are listed on
@@ -186,8 +196,30 @@ const meta = (entry: {version: string; license: string}) =>
 /** Lists every project the app builds on; clicking one shows its complete licence. */
 export function AttributionDialog({onClose}: { onClose: () => void }) {
     const t = useTranslation();
+    const [attributions, setAttributions] = useState<Attribution[] | null>(null);
     const [selected, setSelected] = useState(0);
-    const entry = ATTRIBUTIONS[selected] ?? ATTRIBUTIONS[0];
+
+    // The notices are a 1.7 MB data file. Fetching them when the panel opens keeps them out of the
+    // module graph the app starts with, and a JSON file is parsed much faster than a module of the
+    // same size.
+    useEffect(() => {
+        let alive = true;
+
+        void fetch(attributionsUrl)
+            .then((response) => response.ok ? response.json() as Promise<Attribution[]> : [])
+            .then((entries) => {
+                if (alive) setAttributions(entries);
+            }, () => {
+                if (alive) setAttributions([]);
+            });
+
+        return () => {
+            alive = false;
+        };
+    }, []);
+
+    const list = attributions ?? [];
+    const entry = list[selected] ?? list[0];
 
     // Escape closes the panel, like the other overlays.
     useEffect(() => {
@@ -207,7 +239,7 @@ export function AttributionDialog({onClose}: { onClose: () => void }) {
                         <Title>{t("open_source_attribution")}</Title>
                         <Intro>
                             {t("this_app_ships_count_open_source_projects_pick_one_to_read_its_whole_licence",
-                                {count: ATTRIBUTIONS.length})}
+                                {count: list.length})}
                         </Intro>
                     </div>
                     <CloseButton onClick={onClose} title={t("close")} type="button">
@@ -217,7 +249,7 @@ export function AttributionDialog({onClose}: { onClose: () => void }) {
 
                 <Body>
                     <Sidebar>
-                        {ATTRIBUTIONS.map((item, position) => (
+                        {list.map((item, position) => (
                             <Item
                                 $active={position === selected}
                                 key={item.name + "@" + item.version}
@@ -230,13 +262,15 @@ export function AttributionDialog({onClose}: { onClose: () => void }) {
                         ))}
                     </Sidebar>
 
-                    <Article>
-                        <ArticleHead>
-                            <ArticleName>{entry.name}</ArticleName>
-                            <Meta>{meta(entry)}</Meta>
-                        </ArticleHead>
-                        <Licence>{entry.text}</Licence>
-                    </Article>
+                    {entry && (
+                        <Article>
+                            <ArticleHead>
+                                <ArticleName>{entry.name}</ArticleName>
+                                <Meta>{meta(entry)}</Meta>
+                            </ArticleHead>
+                            <Licence>{entry.text}</Licence>
+                        </Article>
+                    )}
                 </Body>
             </Panel>
         </Backdrop>
