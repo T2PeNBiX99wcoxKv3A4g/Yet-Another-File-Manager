@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.30.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.30.0..v0.30.1) - 2026-11-19
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([3382584](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/338258431cb5dd2ee81549d8c55fc279aa592f7f))
+
+### Build
+
+- *(native)* A script that finds the MSVC and Windows SDK it needs - ([f2f4226](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/f2f42260e5c131056ccfd21f436dd9b5efde2995))
+
+
 ## [0.30.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.29.1..v0.30.0) - 2026-11-19
 
 ### ⛰️  Features
