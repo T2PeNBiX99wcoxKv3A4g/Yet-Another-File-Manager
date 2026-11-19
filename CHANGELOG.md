@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.30.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.29.1..v0.30.0) - 2026-11-19
+
+### ⛰️  Features
+
+- *(drag)* Advertise dragged files as URIs too - ([0659626](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/06596269ad288f7e103b640f36f3f87d96c8eafc))
+
+### 🐛 Bug Fixes
+
+- *(picker)* Keep a folder that ends in a backslash inside its own argument - ([5edacd7](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/5edacd7f418fdb0ca721e650786cc3fc91d1b2d5))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([4db2742](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/4db2742894cfc62787362f2f8c5c8ac69a94db3c))
+
+
 ## [0.29.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.29.0..v0.29.1) - 2026-11-18
 
 ### 🐛 Bug Fixes
