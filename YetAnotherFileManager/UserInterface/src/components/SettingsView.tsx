@@ -97,10 +97,6 @@ import {
 } from "./Icons";
 import {IconPicker} from "./IconPicker";
 import {DefaultTagColor} from "./TagPicker";
-// The license texts of every dependency are about 1.7 MB; they are fetched when the dialog opens,
-// not with the settings page.
-const AttributionDialog = lazy(() =>
-    import("./AttributionDialog").then((module) => ({default: module.AttributionDialog})));
 import {DefaultAccentColor, DefaultSecondaryColor, normalizeColor, normalizeThemeMode} from "../theme";
 import {
     comboOf,
@@ -144,6 +140,11 @@ import {
     type ShareCertificateStatus,
     type ShareDevice,
 } from "../api/share";
+
+// The license texts of every dependency are about 1.7 MB; the dialog fetches them when it opens,
+// not with the settings page.
+const AttributionDialog = lazy(() =>
+    import("./AttributionDialog").then((module) => ({default: module.AttributionDialog})));
 
 interface SettingsViewProps {
     appInfo: AppInfo | null;
