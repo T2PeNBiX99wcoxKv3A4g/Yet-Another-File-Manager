@@ -168,8 +168,10 @@ internal partial class FolderMeasureService
                 total += Try.Run(() => file.Length).GetOrElse(_ => 0L);
             }
 
+            // Only an index that already exists is updated: a measurement must not seed a database
+            // into every folder of the tree it just walked.
             if (measured.Count > 0)
-                await DirectoryIndex.SetSizesAsync(path, measured);
+                await DirectoryIndex.SetNestedSizesAsync(path, measured);
 
             return ((long Size, long Count)?)(total, count);
         });

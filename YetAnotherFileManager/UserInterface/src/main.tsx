@@ -1,4 +1,4 @@
-import {StrictMode} from "react";
+import {lazy, StrictMode, Suspense} from "react";
 import {createRoot} from "react-dom/client";
 import "./globals.scss";
 // Self-hosted so the interface does not depend on whatever the OS happens to have installed.
@@ -10,7 +10,6 @@ import "@fontsource/inter/latin-700.css";
 import "@fontsource/jetbrains-mono/latin-400.css";
 import "@fontsource/jetbrains-mono/latin-500.css";
 import App from "./App";
-import {PickerWindow} from "./PickerWindow";
 import {LocalizationProvider, systemPrefersDark} from "@photino-net-utils/bridge";
 import {loadStoredState, flushStoredState} from "./storage";
 
@@ -34,6 +33,12 @@ const parameters = new URLSearchParams(window.location.search);
 const pickMode = parameters.get("picker");
 const pickFilter = parameters.get("filter") ?? "";
 
+// A picker is a separate window with its own pages; a normal launch must not carry it, nor the
+// overview and gallery it pulls in.
+const PickerWindow = pickMode === "folder" || pickMode === "file" || pickMode === "save"
+    ? lazy(() => import("./PickerWindow").then((module) => ({default: module.PickerWindow})))
+    : null;
+
 if (rootElement) {
     // The stored panel sizes are read as the components mount, so they are loaded first.
     loadStoredState();
@@ -41,17 +46,21 @@ if (rootElement) {
     createRoot(rootElement).render(
         <StrictMode>
             <LocalizationProvider>
-                {pickMode === "folder" || pickMode === "file" || pickMode === "save"
-                    ? <PickerWindow
-                        defaultExtension={parameters.get("ext") ?? ""}
-                        extensions={pickFilter ? pickFilter.split(";").filter(Boolean) : []}
-                        initial={parameters.get("initial") ?? ""}
-                        initialName={parameters.get("name") ?? ""}
-                        mode={pickMode === "folder" ? "folder" : "file"}
-                        multiple={parameters.get("multiple") === "1"}
-                        save={pickMode === "save"}
-                    />
-                    : <App/>}
+                {PickerWindow === null
+                    ? <App/>
+                    : (
+                        <Suspense fallback={null}>
+                            <PickerWindow
+                                defaultExtension={parameters.get("ext") ?? ""}
+                                extensions={pickFilter ? pickFilter.split(";").filter(Boolean) : []}
+                                initial={parameters.get("initial") ?? ""}
+                                initialName={parameters.get("name") ?? ""}
+                                mode={pickMode === "folder" ? "folder" : "file"}
+                                multiple={parameters.get("multiple") === "1"}
+                                save={pickMode === "save"}
+                            />
+                        </Suspense>
+                    )}
             </LocalizationProvider>
         </StrictMode>
     );

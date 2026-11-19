@@ -86,7 +86,10 @@ export function PreviewPane({
         const saved = readStoredNumber("yafm.preview.media.height", 210);
         return Math.min(560, Math.max(80, saved));
     });
-    const path = info?.path ?? null;
+
+    // A collapsed pane asks for nothing: holding an arrow key through a folder used to request a
+    // thumbnail, a media URL and a text preview for every entry it passed.
+    const path = open ? info?.path ?? null : null;
     const previewPath = useArchiveEntryPath(path);
     const extension = info ? extensionOf(info.name) : "";
     const video = !!info && !info.isDirectory && VideoExtensions.has(extension);

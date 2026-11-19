@@ -221,11 +221,23 @@ internal static partial class FileOperations
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        return items
-            .Where(path => !items.Any(other => other.Length < path.Length
-                                               && path.StartsWith(other + Path.DirectorySeparatorChar,
-                                                   StringComparison.OrdinalIgnoreCase)))
-            .ToList();
+        var selected = new HashSet<string>(items, StringComparer.OrdinalIgnoreCase);
+        var kept = new List<string>(items.Count);
+
+        foreach (var path in items)
+        {
+            // A selected folder leaves every one of its ancestors in the set, so walking up from a
+            // path answers "is this inside something else" without comparing every pair.
+            var parent = Path.GetDirectoryName(path);
+
+            while (parent is { Length: > 2 } && !selected.Contains(parent))
+                parent = Path.GetDirectoryName(parent);
+
+            if (parent is not { Length: > 2 })
+                kept.Add(path);
+        }
+
+        return kept;
     }
 
     private static string Normalize(string path) =>

@@ -1,4 +1,4 @@
-import {type MouseEvent, type ReactNode, useEffect, useMemo, useRef, useState, type WheelEvent} from "react";
+import {type MouseEvent, lazy, type ReactNode, Suspense, useEffect, useMemo, useRef, useState, type WheelEvent} from "react";
 import {createPortal} from "react-dom";
 import {
     type LocalizationKey,
@@ -96,8 +96,11 @@ import {
     VideoIcon,
 } from "./Icons";
 import {IconPicker} from "./IconPicker";
-import {AttributionDialog} from "./AttributionDialog";
 import {DefaultTagColor} from "./TagPicker";
+// The license texts of every dependency are about 1.7 MB; they are fetched when the dialog opens,
+// not with the settings page.
+const AttributionDialog = lazy(() =>
+    import("./AttributionDialog").then((module) => ({default: module.AttributionDialog})));
 import {DefaultAccentColor, DefaultSecondaryColor, normalizeColor, normalizeThemeMode} from "../theme";
 import {
     comboOf,
@@ -3407,7 +3410,11 @@ export function SettingsView({
                 <TocNote>{t("changes_are_saved_as_you_make_them")}</TocNote>
             </Toc>
 
-            {attributionOpen && <AttributionDialog onClose={() => setAttributionOpen(false)}/>}
+            {attributionOpen && (
+                <Suspense fallback={null}>
+                    <AttributionDialog onClose={() => setAttributionOpen(false)}/>
+                </Suspense>
+            )}
 
             {updateDialog && createPortal(
                 <UpdateOverlay>

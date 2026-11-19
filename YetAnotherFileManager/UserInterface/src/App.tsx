@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {Suspense, lazy, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState} from "react";
 import styled from "styled-components";
 import {
     DefaultView,
@@ -79,13 +79,9 @@ import {
     SearchIcon,
     TrashIcon,
 } from "./components/Icons";
-import {OverviewView} from "./components/OverviewView";
 import {PathBar} from "./components/PathBar";
 import {SelectMenu} from "./components/SelectMenu";
 import {requestFolder} from "./folder-picker";
-import {RecycleView} from "./components/RecycleView";
-import {SettingsView} from "./components/SettingsView";
-import {GalleryView} from "./components/GalleryView";
 import {Sidebar} from "./components/Sidebar";
 import {TitleBar} from "./components/TitleBar";
 import {TooltipLayer} from "./components/TooltipLayer";
@@ -140,6 +136,17 @@ import {
     wantsNewTab,
 } from "./shortcuts";
 import {parseLocation, viewKind, type ViewKind, viewLocation} from "./views";
+
+// A launch only needs the file list. The other pages — and the attribution texts the settings page
+// carries — are fetched the first time they are shown, which keeps them off the startup path.
+const OverviewView = lazy(() =>
+    import("./components/OverviewView").then((module) => ({default: module.OverviewView})));
+const SettingsView = lazy(() =>
+    import("./components/SettingsView").then((module) => ({default: module.SettingsView})));
+const GalleryView = lazy(() =>
+    import("./components/GalleryView").then((module) => ({default: module.GalleryView})));
+const RecycleView = lazy(() =>
+    import("./components/RecycleView").then((module) => ({default: module.RecycleView})));
 
 /**
  * Every tab is a list of locations; a location is either a folder path or a <c>yafm://</c> link to
@@ -559,16 +566,20 @@ export default function App() {
 
     const searching = find.open && find.query.length > 0;
 
+    // Typing filters every entry of the folder twice (here and in the list); the deferred value
+    // keeps the caret and the bar immediate while the matching follows a frame behind.
+    const deferredFind = useDeferredValue(find);
+
     /** The entries the current query matches, in list order; the find bar walks this. */
     const findHits = useMemo(
         () => searching && focusedTab.listing
             ? focusedTab.listing.entries
                 .filter((entry) => matchesName(
                     entry.isDirectory ? quickName(quickAccess, entry.fullPath, entry.name) : entry.name,
-                    find))
+                    deferredFind))
                 .map((entry) => entry.fullPath)
             : [],
-        [searching, find, focusedTab.listing, quickAccess],
+        [searching, deferredFind, focusedTab.listing, quickAccess],
     );
 
     // A new query starts again at the first hit; stepping through them leaves the query alone.
@@ -1080,6 +1091,12 @@ export default function App() {
             ? plural(t, detailsCount, "k_1_item_selected", "count_items_selected")
             : undefined
         : pagePreview.kind === kind ? pagePreview.note : undefined;
+
+    // The footer sums every size of the folder; the window renders ten times a second while a copy
+    // or a measurement runs, so the sum is only redone when the listing itself changes.
+    const statusText = useMemo(
+        () => kind === "files" && active.listing ? statusLine(t, active.listing) : pageStatus,
+        [kind, active.listing, t, pageStatus]);
 
     const splitRef = useRef<HTMLDivElement | null>(null);
 
@@ -2655,6 +2672,8 @@ export default function App() {
                         {kind !== "files" && mainToolbar}
 
                         <ViewShell key={kind}>
+                            {/* A page that is still on its way leaves the shell empty for a frame. */}
+                            <Suspense fallback={null}>
                             {kind !== "files" && viewFind.open && (
                                 <FindBar
                                     current={viewFindIndex}
@@ -2945,6 +2964,7 @@ export default function App() {
                                     onPreviewChange={reportRecyclePreview}
                                 />
                             )}
+                            </Suspense>
                         </ViewShell>
                             </FileColumn>
                             {(kind === "files" || kind === "gallery" || kind === "recycle") && (
@@ -2962,9 +2982,7 @@ export default function App() {
                         </FileArea>
 
                         <StatusBar>
-                            <span>
-                                {kind === "files" && active.listing ? statusLine(t, active.listing) : pageStatus}
-                            </span>
+                            <span>{statusText}</span>
                             {appInfo ? (
                                 <StatusRight>
                                     <span>v{appInfo.version} · {appInfo.platform}</span>

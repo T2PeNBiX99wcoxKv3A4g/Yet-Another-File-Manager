@@ -6,6 +6,7 @@ import {
     type ReactNode,
     type RefObject,
     useCallback,
+    useDeferredValue,
     useEffect,
     useMemo,
     useRef,
@@ -29,7 +30,7 @@ import {
     showProperties,
     transferPaths,
 } from "../api/operations";
-import {type FindView, NoFind, rangesOf} from "../find";
+import {type FindQuery, type FindView, NoFind, rangesOf} from "../find";
 import {canPreview, PreviewKindLabels, previewKindOf} from "../preview";
 import {quickPlace, useQuickAccess} from "../quick";
 import {baseName, formatBytes, formatDate, plural, samePath} from "../utils/format";
@@ -246,6 +247,9 @@ export function FileList({
     const pendingSelect = useRef<string[] | null>(null);
     const head = useRef<HTMLDivElement | null>(null);
     const body = useRef<HTMLDivElement | null>(null);
+    /** The scroll position waiting for the next frame, and the node it was read from. */
+    const scrollFrame = useRef(0);
+    const scrollNode = useRef<HTMLDivElement | null>(null);
     const [rowLimit, setRowLimit] = useState(RowPage);
     const [listWindow, setListWindow] = useState({top: 0, height: 640});
     const stripDrag = useRef<{ y: number; height: number } | null>(null);
@@ -511,6 +515,22 @@ export function FileList({
         return () => window.removeEventListener(ResetColumnWidthsEvent, reset);
     }, []);
 
+    // The window builds a fresh find object on every render; only its own values matter to the
+    // listing, so the expensive memo below must not depend on that identity.
+    const findQuery = useMemo<FindQuery>(
+        () => ({
+            query: find?.query ?? "",
+            matchCase: find?.matchCase ?? false,
+            regex: find?.regex ?? false,
+        }),
+        [find?.query, find?.matchCase, find?.regex]);
+
+    const findMode = find?.mode ?? "dim";
+
+    // The list follows the query one step behind: typing stays responsive in a folder with tens of
+    // thousands of entries, and the bar still shows every character at once.
+    const deferredQuery = useDeferredValue(findQuery);
+
     const rows = useMemo(() => {
         if (!listing) return [];
 
@@ -525,19 +545,19 @@ export function FileList({
                     entry,
                     place,
                     label,
-                    ranges: searching ? rangesOf(label, find) : null,
+                    ranges: searching ? rangesOf(label, deferredQuery) : null,
                     tags: listing.tags[entry.name] ?? [],
                     cut: cutPaths.has(entry.fullPath),
                 };
             })
-            .filter((row) => !searching || find.mode === "dim" || row.ranges !== null);
+            .filter((row) => !searching || findMode === "dim" || row.ranges !== null);
 
         return sortRows(matched, view, listing, t);
     }, [
         listing?.entries, listing?.tags,
         view.sort === "size" || view.sort === "items" ? listing?.folderSizes : null,
         view.sort === "size" || view.sort === "items" ? listing?.counts : null,
-        searching, find, quick, view.sort, view.sortDescending, t, cutPaths,
+        searching, deferredQuery, findMode, quick, view.sort, view.sortDescending, t, cutPaths,
     ]);
 
     rowsRef.current = rows;
@@ -604,6 +624,12 @@ export function FileList({
     }, [find.currentPath, view.mode, rows, rowHeight]);
 
     const visibleRows = useMemo(() => rows.slice(0, rowLimit), [rows, rowLimit]);
+
+    // A frame that is still scheduled when the list goes away would call into a stale setter.
+    useEffect(() => () => {
+        if (scrollFrame.current !== 0)
+            cancelAnimationFrame(scrollFrame.current);
+    }, []);
 
     // A paste selects the entries it created, so a mistake is one click from undo and the eye
     // finds the result right away.
@@ -1669,13 +1695,28 @@ export function FileList({
                     onDragStart={startListDrag}
                     onDrop={dropOnList}
                     onScroll={(event) => {
-                        if (head.current && head.current.scrollLeft !== event.currentTarget.scrollLeft)
-                            head.current.scrollLeft = event.currentTarget.scrollLeft;
-
                         const node = event.currentTarget;
-                        setListWindow((current) => current.top === node.scrollTop && current.height === node.clientHeight
-                            ? current
-                            : {top: node.scrollTop, height: node.clientHeight});
+
+                        if (head.current && head.current.scrollLeft !== node.scrollLeft)
+                            head.current.scrollLeft = node.scrollLeft;
+
+                        scrollNode.current = node;
+
+                        // A scroll fires many times per frame, and every update re-renders the
+                        // window; one measurement per frame is all the list needs.
+                        if (scrollFrame.current !== 0) return;
+
+                        scrollFrame.current = requestAnimationFrame(() => {
+                            scrollFrame.current = 0;
+
+                            const scrolled = scrollNode.current;
+                            if (!scrolled) return;
+
+                            setListWindow((window) => window.top === scrolled.scrollTop
+                                                        && window.height === scrolled.clientHeight
+                                ? window
+                                : {top: scrolled.scrollTop, height: scrolled.clientHeight});
+                        });
                     }}
                     ref={body}
                 >
@@ -1695,7 +1736,9 @@ export function FileList({
                                             iconSize={view.iconSize}
                                             innerRef={currentRow}
                                             key={path}
-                                            listing={listing!}
+                                            folderSizes={listing!.folderSizes}
+                                            counts={listing!.counts}
+                                            tagColors={listing!.tagColors}
                                             onContextMenu={openMenu}
                                             onOpen={openRow}
                                             onRenameCancel={cancelRename}
@@ -2032,18 +2075,19 @@ function typeLabel(entry: FileEntry, t: Translate): string {
 }
 
 /** What one list cell shows. */
-function cellValue(column: string, entry: FileEntry, listing: DirectoryListing, t: Translate): string {
+function cellValue(column: string, entry: FileEntry, folderSizes: Record<string, number>,
+                   counts: Record<string, number>, t: Translate): string {
     switch (column) {
         case "type":
             return typeLabel(entry, t);
         case "size":
-            return sizeOf(entry, listing.folderSizes);
+            return sizeOf(entry, folderSizes);
         case "modified":
             return formatDate(entry.modified);
         case "created":
             return formatDate(entry.created);
         case "items":
-            return entry.isDirectory ? listing.counts[entry.name]?.toString() ?? "—" : "—";
+            return entry.isDirectory ? counts[entry.name]?.toString() ?? "—" : "—";
         case "linkCount":
             return entry.linkCount > 1 ? String(entry.linkCount) : "—";
         case "linkStatus":
@@ -2070,6 +2114,34 @@ function Highlighted({name, ranges}: { name: string; ranges: [number, number][] 
     if (at < name.length) parts.push(name.slice(at));
 
     return <>{parts}</>;
+}
+
+/**
+ * One observer for every icon and tile. Each node used to create its own, so a scroll page mounted
+ * dozens of observers and dropped them again.
+ */
+const visibilityCallbacks = new WeakMap<Element, () => void>();
+let visibilityObserver: IntersectionObserver | null = null;
+
+function whenVisible(node: Element, onVisible: () => void, margin: string): () => void {
+    visibilityObserver ??= new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+
+            const callback = visibilityCallbacks.get(entry.target);
+            visibilityCallbacks.delete(entry.target);
+            visibilityObserver?.unobserve(entry.target);
+            callback?.();
+        }
+    }, {rootMargin: margin});
+
+    visibilityCallbacks.set(node, onVisible);
+    visibilityObserver.observe(node);
+
+    return () => {
+        visibilityCallbacks.delete(node);
+        visibilityObserver?.unobserve(node);
+    };
 }
 
 /** Folder sizes come from the folder's own index and appear once they have been measured. */
@@ -2103,15 +2175,7 @@ function EntryIcon({entry, size = 18}: { entry: FileEntry; size?: number }) {
             return;
         }
 
-        const observer = new IntersectionObserver((entries) => {
-            if (entries.some((item) => item.isIntersecting)) {
-                setOnScreen(true);
-                observer.disconnect();
-            }
-        }, {rootMargin: "250px"});
-
-        observer.observe(node);
-        return () => observer.disconnect();
+        return whenVisible(node, () => setOnScreen(true), "250px");
     }, [onScreen]);
 
     const shellIcon = useIcon(onScreen ? entry.fullPath : null, entry.isDirectory, size > 32);
@@ -2237,15 +2301,7 @@ const GridTile = memo(function GridTile({
             return;
         }
 
-        const observer = new IntersectionObserver((entries) => {
-            if (entries.some((entry) => entry.isIntersecting)) {
-                setOnScreen(true);
-                observer.disconnect();
-            }
-        }, {rootMargin: "300px"});
-
-        observer.observe(node);
-        return () => observer.disconnect();
+        return whenVisible(node, () => setOnScreen(true), "300px");
     }, [previewable, onScreen]);
 
     const preview = useThumbnail(previewable && onScreen ? row.entry.fullPath : null, 192, row.entry.modified);
@@ -2524,7 +2580,8 @@ function RenameInput({
  */
 const ListRow = memo(function ListRow({
                                           row, current, dim, selected, showCheckboxes, showTarget, openOnSingleClick,
-                                          iconSize, height, template, visible, listing, innerRef, renaming,
+                                          iconSize, height, template, visible, folderSizes, counts, tagColors,
+                                          innerRef, renaming,
                                           onSelect, onToggle, onContextMenu, onOpen, onTagEdit,
                                           onRenameChange, onRenameCommit, onRenameCancel,
                                       }: {
@@ -2539,7 +2596,11 @@ const ListRow = memo(function ListRow({
     height: number;
     template: string;
     visible: typeof ViewColumns;
-    listing: DirectoryListing;
+    /** The three parts of the listing a row reads; passing the whole listing broke the memo every
+     * time a measured size arrived. */
+    folderSizes: Record<string, number>;
+    counts: Record<string, number>;
+    tagColors: Record<string, string>;
     innerRef?: RefObject<HTMLDivElement | null>;
     renaming: { value: string } | null;
     onSelect: (event: ReactMouseEvent, path: string) => void;
@@ -2644,7 +2705,7 @@ const ListRow = memo(function ListRow({
                             >
                                 {row.tags.length > 0
                                     ? row.tags.map((tag) => {
-                                        const color = listing.tagColors?.[tag] ?? DefaultTagColor;
+                                        const color = tagColors?.[tag] ?? DefaultTagColor;
 
                                         return (
                                             <TagChip $color={color} $ink={inkFor(color)} key={tag}>
@@ -2657,7 +2718,7 @@ const ListRow = memo(function ListRow({
                         )
                         : column.id === "linkStatus" && row.entry.linkValid === false
                             ? <Broken>{t("broken")}</Broken>
-                            : cellValue(column.id, row.entry, listing, t)}
+                            : cellValue(column.id, row.entry, folderSizes, counts, t)}
                 </Cell>
             ))}
         </Row>

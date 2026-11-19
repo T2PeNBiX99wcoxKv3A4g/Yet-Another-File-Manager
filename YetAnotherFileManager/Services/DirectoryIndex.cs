@@ -268,6 +268,15 @@ internal static class DirectoryIndex
             () => FolderIndex.SetSizesAsync(directory, sizes),
             () => CentralIndex.Instance.SetSizesAsync(directory, sizes));
 
+    /// <summary>
+    ///     Stores the sizes of the folders inside a measured tree. A folder that has no index of its
+    ///     own is left out: the measurement would otherwise create one database per folder it walked.
+    /// </summary>
+    public static Task<bool> SetNestedSizesAsync(string directory, IReadOnlyDictionary<string, long> sizes) =>
+        HoldsOwnIndex(directory) && !File.Exists(FolderIndex.PathFor(directory))
+            ? Task.FromResult(false)
+            : SetSizesAsync(directory, sizes);
+
     /// <summary>Stores the item counts of several entries in one transaction.</summary>
     public static Task<bool> SetCountsAsync(string directory, IReadOnlyDictionary<string, long> counts) =>
         WriteAsync(directory,

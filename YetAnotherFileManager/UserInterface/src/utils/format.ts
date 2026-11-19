@@ -21,11 +21,21 @@ export function formatBytes(bytes: number): string {
     return `${value.toFixed(exponent === 0 ? 0 : 1)} ${units[exponent]}`;
 }
 
+let cachedLang: string | null = null;
+let cachedLocale: string | undefined;
+
 /** The language the interface is shown in, so dates match it rather than the machine's locale. */
 export function appLocale(): string | undefined {
     const lang = document.documentElement.lang.trim();
 
-    return lang.length > 0 ? lang : undefined;
+    // Every formatted cell asked the document for its language; it only changes when the user
+    // switches languages.
+    if (lang !== cachedLang) {
+        cachedLang = lang;
+        cachedLocale = lang.length > 0 ? lang : undefined;
+    }
+
+    return cachedLocale;
 }
 
 export type TimeFormatMode = "system" | "12" | "24" | "custom";
@@ -63,6 +73,21 @@ export function formatDateWith(unixMilliseconds: number, format: string | null |
     if (mode === "custom")
         return applyTimePattern(date, pattern?.trim() || DefaultTimePattern);
 
+    return dateFormatter(appLocale(), mode).format(date);
+}
+
+const dateFormatters = new Map<string, Intl.DateTimeFormat>();
+
+/**
+ * Building a formatter with its options costs more than formatting a date, and a listing asks for
+ * two of them per row on every repaint.
+ */
+function dateFormatter(locale: string | undefined, mode: TimeFormatMode): Intl.DateTimeFormat {
+    const key = `${locale ?? ""}|${mode}`;
+    const known = dateFormatters.get(key);
+
+    if (known) return known;
+
     const options: Intl.DateTimeFormatOptions = {
         year: "numeric",
         month: "2-digit",
@@ -74,7 +99,10 @@ export function formatDateWith(unixMilliseconds: number, format: string | null |
     if (mode === "24") options.hourCycle = "h23";
     if (mode === "12") options.hour12 = true;
 
-    return date.toLocaleString(appLocale(), options);
+    const created = new Intl.DateTimeFormat(locale, options);
+    dateFormatters.set(key, created);
+
+    return created;
 }
 
 /** Time only, for the history panel. */

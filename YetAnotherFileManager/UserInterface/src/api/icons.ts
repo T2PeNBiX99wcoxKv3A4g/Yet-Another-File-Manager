@@ -8,7 +8,23 @@ const iconCache = new Map<string, string | null>();
 const fileCache = new Map<string, string | null>();
 const listeners = new Set<() => void>();
 
+/** Icons are data URLs of a few kilobytes; a long session over a tree would keep them all. */
+const CacheLimit = 4096;
+
 let version = 0;
+
+/** Stores an answer and drops the oldest ones once the cache outgrows its budget. */
+function remember(cache: Map<string, string | null>, key: string, value: string | null) {
+    cache.set(key, value);
+
+    while (cache.size > CacheLimit) {
+        const oldest = cache.keys().next().value;
+
+        if (oldest === undefined) break;
+
+        cache.delete(oldest);
+    }
+}
 
 /** Icons depend on the settings, so a change has to invalidate every cached answer. */
 export function clearIconCache() {
@@ -29,7 +45,8 @@ export function refreshIconCache(folder: string) {
     const prefix = folder.toLowerCase();
     let dropped = false;
 
-    for (const key of [...iconCache.keys()]) {
+    // Deleting while walking a Map is safe, and the copy this used to make held every key again.
+    for (const key of iconCache.keys()) {
         if (!key.toLowerCase().includes(prefix)) continue;
 
         iconCache.delete(key);
@@ -104,7 +121,7 @@ export function useIcon(path: string | null, isDirectory: boolean, large = false
             .then((data) => {
                 // A missing icon is often a transient race (a folder that was just extracted), so
                 // only real answers are cached. The next mount asks the shell again.
-                if (data.dataUrl) iconCache.set(id, data.dataUrl);
+                if (data.dataUrl) remember(iconCache, id, data.dataUrl);
                 else iconCache.delete(id);
 
                 if (alive) setIcon(data.dataUrl);
@@ -174,10 +191,10 @@ export function useIconFile(path: string | null): string | null {
 
         void Native.request<{ dataUrl: string | null }>("fs.iconFile", {path})
             .then((result) => {
-                fileCache.set(path, result.dataUrl);
+                remember(fileCache, path, result.dataUrl);
                 if (alive) setData(result.dataUrl);
             }, () => {
-                fileCache.set(path, null);
+                remember(fileCache, path, null);
                 if (alive) setData(null);
             });
 

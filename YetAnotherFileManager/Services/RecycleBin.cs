@@ -323,9 +323,33 @@ internal static class RecycleBin
         if (CurrentSid is not { Length: > 0 } sid)
             return [];
 
-        return DriveInfo.GetDrives()
-            .Where(drive => Try.Run(() => drive.IsReady).GetOrNull())
-            .SelectMany(drive => ListWindowsDrive(drive.Name, sid, includeOrphans));
+        return Drives()
+            .Where(root => Try.Run(() => new DriveInfo(root).IsReady).GetOrNull())
+            .SelectMany(root => ListWindowsDrive(root, sid, includeOrphans));
+    }
+
+    private static readonly TimeSpan DrivesFor = TimeSpan.FromSeconds(15);
+    private static readonly Lock DriveGate = new();
+    private static string[] _drives = [];
+    private static long _drivesAt;
+
+    /// <summary>
+    ///     The volumes to look at. Asking Windows every time stalls a listing while a mapped drive is
+    ///     offline, and one recycle action asks more than once.
+    /// </summary>
+    private static string[] Drives()
+    {
+        var now = Environment.TickCount64;
+
+        lock (DriveGate)
+        {
+            if (_drives.Length > 0 && now < _drivesAt + (long)DrivesFor.TotalMilliseconds)
+                return _drives;
+
+            _drives = Try.Run(() => DriveInfo.GetDrives().Select(drive => drive.Name).ToArray()).GetOrElse(_ => []);
+            _drivesAt = now;
+            return _drives;
+        }
     }
 
     /// <summary>
@@ -399,7 +423,8 @@ internal static class RecycleBin
             infoPath,
             Path.GetFileName(original.TrimEnd('\\', '/')),
             original,
-            state == ContentState.File ? new FileInfo(content).Length : isOrphan ? size : 0,
+            // The size is the one the record already carries; the file does not have to be stat'ed.
+            state == ContentState.Directory ? 0 : size,
             new DateTimeOffset(DateTime.FromFileTimeUtc(deleted)).ToUnixTimeMilliseconds(),
             isDirectory,
             isOrphan,

@@ -102,7 +102,9 @@ internal static class FileTransfer
                 var (files, bytes) = move
                     ? (1L, 0L)
                     : isDirectory
-                        ? Measure(source, cancellationToken)
+                        // The measurement walks the tree; doing that on the caller's thread held the
+                        // message handler until the first byte was copied.
+                        ? await Task.Run(() => Measure(source, cancellationToken), cancellationToken)
                         : (1L, Try.Run(() => new FileInfo(source).Length).GetOrElse(_ => 0L));
 
                 jobs.Add(new(source, destination, isDirectory, files, bytes));
@@ -243,8 +245,9 @@ internal static class FileTransfer
                 continue;
 
             var destination = Path.Combine(job.Destination, Path.GetRelativePath(job.Source, file));
-            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
 
+            // Every directory of the tree was created above, so a create per file would only add a
+            // syscall to the copy.
             await CopyFileAsync(file, destination, bytes, cancellationToken);
             fileDone();
         }

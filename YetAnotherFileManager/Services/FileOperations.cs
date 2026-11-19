@@ -911,7 +911,16 @@ internal static partial class FileOperations
             var root = entry.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var baseName = Path.GetFileName(root);
 
-            foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+            // The same rules every other tree walk uses: an unreadable folder is skipped, and a
+            // junction cannot send the walk in a circle or count its target twice.
+            var options = new EnumerationOptions
+            {
+                IgnoreInaccessible = true,
+                RecurseSubdirectories = true,
+                AttributesToSkip = FileAttributes.ReparsePoint
+            };
+
+            foreach (var file in Directory.EnumerateFiles(root, "*", options))
             {
                 var relative = Path.GetRelativePath(root, file).Replace('\\', '/');
                 files[$"{baseName}/{relative}"] = file;
@@ -984,9 +993,9 @@ internal static partial class FileOperations
     {
         var taskId = TaskCenter.Instance.Start("compress",
             string.Format(Localization.Get("compress_named_item"), Path.GetFileName(output)));
-        var total = (int)Math.Min(paths.Sum(path => Directory.Exists(path)
-            ? Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories).LongCount()
-            : 1), int.MaxValue);
+        // The native walk counts the tree across every core; the LINQ pass over the same tree was
+        // serial and had to be repeated by the writer.
+        var total = (int)Math.Min(RustNative.CountFiles([.. paths]), int.MaxValue);
         TaskCenter.Instance.UpdateTotal(taskId, total, 0);
 
         try
