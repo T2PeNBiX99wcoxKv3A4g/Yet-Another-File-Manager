@@ -113,17 +113,23 @@ internal static partial class Program
         // The bridge serializes with the app's source-generated context; nothing is reflected.
         NativeBridge.Initialize(AppJsonContext.Default);
 
+        // Only one instance may run; later launches hand their paths to it and exit. This happens
+        // before anything expensive: a second launch used to read the settings, bind the share ports
+        // and start a web server only to forward its arguments and quit.
+        using var singleInstance = picker is null ? new SingleInstance(Constants.Name) : null;
+
+        if (singleInstance is { IsFirstInstance: false })
+        {
+            // Blocking here is fine: this process only forwards its args and exits.
+            singleInstance.ForwardAsync(args).GetAwaiter().GetResult();
+            return;
+        }
+
         // Settings are read once before any service asks for them; the message loop needs the real
         // values as soon as the window is up. Main must stay synchronous on its STA thread, so this
         // single startup read waits here instead of racing the services.
         SettingsService.Instance.LoadAsync().GetAwaiter().GetResult();
         FileVisibility.SetHidden(SettingsService.Instance.Current.ShowHidden);
-
-        // Local sharing: reads the stored folders and peers and starts discovery, the encrypted
-        // listener and (when a web share exists) the browser file server. A picker is a separate
-        // short-lived process and must not take the share ports from the main window.
-        if (picker is null)
-            ShareService.Instance.InitializeAsync().GetAwaiter().GetResult();
 
         // Registrations are written only when the user changes them in the settings; starting a copy
         // never touches the registry, so a development build cannot take the installed one's
@@ -163,15 +169,6 @@ internal static partial class Program
 
             var startupPaths = ResolvePaths(args);
             var autostart = args.Contains(Constants.AutostartArgument) || LaunchedAtLogin();
-
-            // Only one instance may run; later launches hand their paths to it and exit.
-            using var singleInstance = new SingleInstance(Constants.Name);
-            if (!singleInstance.IsFirstInstance)
-            {
-                // Blocking here is fine: this process only forwards its args and exits.
-                singleInstance.ForwardAsync(args).GetAwaiter().GetResult();
-                return;
-            }
 
             // Touching each singleton constructs it, which is what registers its message handlers.
             _ = AppInfoService.Instance;
@@ -229,10 +226,17 @@ internal static partial class Program
             manager.MainWindowCreated += [SuppressMessage("ReSharper", "AccessToDisposedClosure")]() =>
             {
                 // The message loop is about to start, so windows can now be created safely.
-                singleInstance.StartServer(paths => DispatchPaths(manager, paths));
+                singleInstance?.StartServer(paths => DispatchPaths(manager, paths));
             };
 
             manager.CreateMainWindow();
+
+            // Local sharing reads the stored folders and peers, then binds discovery, the encrypted
+            // listener and (when a web share exists) a browser file server. None of it is needed to
+            // paint the window, so it starts here instead of holding the first frame back.
+            _ = Task.Run(async () =>
+                (await Try.Run(() => ShareService.Instance.InitializeAsync()))
+                .OnFailure(ex => Log.Warning(ex, "Local sharing could not start")));
 
             // The window is already visible at startup; these only decide what it shows. Paths that
             // arrive now are queued until the interface reports that it is listening.

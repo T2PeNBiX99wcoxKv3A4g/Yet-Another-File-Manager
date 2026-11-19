@@ -35,6 +35,14 @@ internal partial class StartupService
 
     private StartupService()
     {
+        // This runs before the window exists and the work below spawns schtasks, which is slow when
+        // the machine is still busy logging on. Nothing on screen needs the answer, so it waits.
+        _ = Task.Run(() => Try.Run(Reconcile));
+    }
+
+    /// <summary>Removes the logon entry the other mode owns, once the stored mode is confirmed.</summary>
+    private void Reconcile()
+    {
         var mode = SettingsService.Instance.Current.Startup;
 
         // Only shortcut mode may write the Startup folder entry. In task mode the task owns logon,

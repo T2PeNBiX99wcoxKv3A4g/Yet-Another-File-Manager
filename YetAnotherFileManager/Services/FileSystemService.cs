@@ -33,6 +33,14 @@ internal partial class FileSystemService : INativeMessageHandler
     private static readonly char[] InvalidLabelChars = ['\\', '/', ':', '*', '?', '"', '<', '>', '|'];
 
     /// <summary>
+    ///     Whether a folder defines its own icon, keyed by the folder and the write stamp of its
+    ///     <c>desktop.ini</c>. A folder icon is asked for again after every refresh, and the answer only
+    ///     changes when that file does.
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, (bool Custom, long Stamp)> CustomFolderIcons =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     ///     Types whose icon lives in the file itself or in the handler it is registered with. Asking
     ///     by extension would give every one of them the same generic shortcut/executable glyph.
     /// </summary>
@@ -800,23 +808,32 @@ internal partial class FileSystemService : INativeMessageHandler
     {
         var desktopIni = Path.Combine(directory, "desktop.ini");
 
-        try
-        {
-            if (!File.Exists(desktopIni))
-                return false;
+        // One stat answers both "does it exist" and "did it change" (a missing file reports zero).
+        var stamp = Try.Run(() => File.GetLastWriteTimeUtc(desktopIni).Ticks).GetOrElse(_ => 0L);
 
-            await foreach (var line in File.ReadLinesAsync(desktopIni))
-                if (line.StartsWith("IconResource", StringComparison.OrdinalIgnoreCase)
-                    || line.StartsWith("IconFile", StringComparison.OrdinalIgnoreCase))
-                    return true;
+        if (CustomFolderIcons.TryGetValue(directory, out var known) && known.Stamp == stamp)
+            return known.Custom;
 
-            return false;
-        }
-        catch (Exception ex)
-        {
-            Serilog.Log.Debug(ex, "Could not read {Path}", desktopIni);
-            return false;
-        }
+        var custom = false;
+
+        if (stamp != 0)
+            try
+            {
+                await foreach (var line in File.ReadLinesAsync(desktopIni))
+                    if (line.StartsWith("IconResource", StringComparison.OrdinalIgnoreCase)
+                        || line.StartsWith("IconFile", StringComparison.OrdinalIgnoreCase))
+                    {
+                        custom = true;
+                        break;
+                    }
+            }
+            catch (Exception ex)
+            {
+                Serilog.Log.Debug(ex, "Could not read {Path}", desktopIni);
+            }
+
+        CustomFolderIcons[directory] = (custom, stamp);
+        return custom;
     }
 
     /// <summary>Pins the given folders to Quick access, in order, and answers with the resulting list.</summary>

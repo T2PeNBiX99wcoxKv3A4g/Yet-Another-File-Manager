@@ -16,7 +16,12 @@ namespace YetAnotherFileManager.Services;
 internal static partial class AppMemory
 {
     /// <summary>The heap level worth collecting; below it the churn is not worth the pause.</summary>
-    private const long Bloated = 64 * 1024 * 1024;
+    private const long Bloated = 256 * 1024 * 1024;
+
+    /// <summary>How many checks in a row must see a bloated heap before it is given back.</summary>
+    private const int BloatedSamples = 3;
+
+    private static int _bloated;
 
     public static MemoryPayload Report()
     {
@@ -51,11 +56,21 @@ internal static partial class AppMemory
     public static void TrimIfBloated()
     {
         if (GC.GetTotalMemory(false) < Bloated)
+        {
+            _bloated = 0;
+            return;
+        }
+
+        // One listing can hold a large folder above the budget for a moment; only a heap that stays
+        // there is worth collecting, or the timer would pause the app every quarter minute.
+        if (++_bloated < BloatedSamples)
             return;
 
-        // The garbage sits on the large object heap, which only a collecting sweep gives back.
-        GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true, true);
+        _bloated = 0;
+
+        // A background collection keeps the pause off the interface. Compacting the large object
+        // heap is left to the explicit trim, which the user asks for.
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Optimized, false, false);
         ReleasePages();
     }
 

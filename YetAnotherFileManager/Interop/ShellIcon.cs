@@ -42,11 +42,54 @@ internal static unsafe partial class ShellIcon
 
     private static readonly Guid ImageListId = new("46EB5926-582E-4017-9FDF-E8998DAA0950");
 
+    private const int CacheLimit = 4096;
+
+    private static readonly TimeSpan CacheFor = TimeSpan.FromMinutes(10);
+    private static readonly Dictionary<string, (string? Value, long Expires)> Cache =
+        new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Queue<string> Order = new();
+    private static readonly Lock Gate = new();
+
+    /// <summary>
+    ///     The shell answers the same path with the same icon; asking it again costs a COM call, an
+    ///     icon extraction and a PNG encode. The cache expires so a changed association is picked up
+    ///     without restarting the app.
+    /// </summary>
+    private static string? Cached(string key, Func<string?> read)
+    {
+        var now = Environment.TickCount64;
+
+        lock (Gate)
+            if (Cache.TryGetValue(key, out var known) && known.Expires > now)
+                return known.Value;
+
+        var value = Try.Run(read).GetOrNull();
+
+        lock (Gate)
+        {
+            // Only a newly added key goes into the order queue; re-adding one would let the queue
+            // evict entries that are still wanted.
+            if (Cache.TryAdd(key, (value, now + (long)CacheFor.TotalMilliseconds)))
+                Order.Enqueue(key);
+
+            while (Order.Count > CacheLimit && Order.TryDequeue(out var oldest))
+                Cache.Remove(oldest);
+        }
+
+        return value;
+    }
+
     public static string? DataUrl(string path, bool directory, bool useFileAttributes)
     {
         if (string.IsNullOrWhiteSpace(path))
             return null;
 
+        return Cached($"l|{(directory ? 'd' : 'f')}|{(useFileAttributes ? '1' : '0')}|{path}",
+            () => ReadDataUrl(path, directory, useFileAttributes));
+    }
+
+    private static string? ReadDataUrl(string path, bool directory, bool useFileAttributes)
+    {
         var attributes = directory ? FileAttributeDirectory : FileAttributeNormal;
         var flags = ShgfiIcon | ShgfiLargeIcon | (useFileAttributes ? ShgfiUseFileAttributes : 0);
 
@@ -57,7 +100,7 @@ internal static unsafe partial class ShellIcon
 
         try
         {
-            return Try.Run(() => ToDataUrl(info.Icon)).GetOrNull();
+            return ToDataUrl(info.Icon);
         }
         finally
         {
@@ -74,6 +117,12 @@ internal static unsafe partial class ShellIcon
         if (string.IsNullOrWhiteSpace(path))
             return null;
 
+        return Cached($"j|{(directory ? 'd' : 'f')}|{(useFileAttributes ? '1' : '0')}|{path}",
+            () => ReadJumboDataUrl(path, directory, useFileAttributes));
+    }
+
+    private static string? ReadJumboDataUrl(string path, bool directory, bool useFileAttributes)
+    {
         try
         {
             var attributes = directory ? FileAttributeDirectory : FileAttributeNormal;
@@ -81,10 +130,10 @@ internal static unsafe partial class ShellIcon
             var info = new ShellFileInfo();
 
             if (ShellGetFileInfo(path, attributes, ref info, (uint)Marshal.SizeOf<ShellFileInfo>(), flags) == IntPtr.Zero)
-                return DataUrl(path, directory, useFileAttributes);
+                return ReadDataUrl(path, directory, useFileAttributes);
 
             if (SHGetImageList(ShilJumbo, in ImageListId, out var list) != 0 || list == IntPtr.Zero)
-                return DataUrl(path, directory, useFileAttributes);
+                return ReadDataUrl(path, directory, useFileAttributes);
 
             try
             {
@@ -94,7 +143,7 @@ internal static unsafe partial class ShellIcon
                 var icon = IntPtr.Zero;
 
                 if (getIcon(list, info.IconIndex, IldTransparent, &icon) != 0 || icon == IntPtr.Zero)
-                    return DataUrl(path, directory, useFileAttributes);
+                    return ReadDataUrl(path, directory, useFileAttributes);
 
                 try
                 {
@@ -113,7 +162,7 @@ internal static unsafe partial class ShellIcon
         catch (Exception ex)
         {
             Log.Debug(ex, "Could not read a jumbo icon for {Path}", path);
-            return DataUrl(path, directory, useFileAttributes);
+            return ReadDataUrl(path, directory, useFileAttributes);
         }
     }
 
