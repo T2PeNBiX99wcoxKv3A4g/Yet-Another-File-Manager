@@ -802,7 +802,9 @@ internal partial class FileSystemService : INativeMessageHandler
     {
         var desktopIni = Path.Combine(directory, "desktop.ini");
 
-        // One stat answers both "does it exist" and "did it change" (a missing file reports zero).
+        // One stat answers both "does it exist" and "did it change". A missing file reports the
+        // file-time epoch rather than zero, which is what marks it as absent.
+        var missing = DateTime.FromFileTimeUtc(0).Ticks;
         var stamp = Try.Run(() => File.GetLastWriteTimeUtc(desktopIni).Ticks).GetOrElse(_ => 0L);
 
         if (CustomFolderIcons.TryGetValue(directory, out var known) && known.Stamp == stamp)
@@ -810,7 +812,7 @@ internal partial class FileSystemService : INativeMessageHandler
 
         var custom = false;
 
-        if (stamp != 0)
+        if (stamp > missing)
             try
             {
                 await foreach (var line in File.ReadLinesAsync(desktopIni))
