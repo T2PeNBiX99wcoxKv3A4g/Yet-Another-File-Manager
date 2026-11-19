@@ -22,11 +22,20 @@ internal partial class ThumbnailServer
 {
     private const int MaxHeaders = 65_536;
     private const int CacheLimit = 500;
+    private const long CacheBytes = 96L * 1024 * 1024;
     private static readonly SemaphoreSlim PdfGate = new(2, 2);
+
+    /// <summary>Full-resolution decodes are memory hungry, so only two of them run at a time.</summary>
+    private static readonly SemaphoreSlim ImageGate = new(2, 2);
     private readonly ConcurrentDictionary<string, byte[]> _cache = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>A temporary copy of an entry read out of an archive, keyed by its virtual path.</summary>
+    private readonly ConcurrentDictionary<string, string> _extracted = new(StringComparer.OrdinalIgnoreCase);
+
     private readonly SemaphoreSlim _gate = new(Math.Clamp(Environment.ProcessorCount, 4, 8));
     private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
     private readonly ConcurrentQueue<string> _order = new();
+    private long _cachedBytes;
 
     private readonly string _token = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
 
@@ -111,25 +120,44 @@ internal partial class ThumbnailServer
     /// <summary>Reads the request headers; the body of a GET is never needed.</summary>
     private static async Task<string?> ReadRequestAsync(NetworkStream stream)
     {
-        var buffer = new byte[MaxHeaders];
-        var length = 0;
+        // A header block is a few hundred bytes. The buffer starts small and only grows for a
+        // request that carries something unusual, so a wall of tiles no longer allocates 64 KB each.
+        var buffer = ArrayPool<byte>.Shared.Rent(4 * 1024);
 
-        while (length < buffer.Length)
+        try
         {
-            var read = await stream.ReadAsync(buffer.AsMemory(length, buffer.Length - length));
-            if (read == 0)
-                return null;
+            var length = 0;
 
-            var searchFrom = Math.Max(0, length - 3);
-            length += read;
+            while (true)
+            {
+                if (length == buffer.Length)
+                {
+                    if (buffer.Length >= MaxHeaders)
+                        return null;
 
-            for (var index = searchFrom; index + 3 < length; index++)
-                if (buffer[index] == (byte)'\r' && buffer[index + 1] == (byte)'\n'
-                                                && buffer[index + 2] == (byte)'\r' && buffer[index + 3] == (byte)'\n')
-                    return Encoding.ASCII.GetString(buffer, 0, index);
+                    var larger = ArrayPool<byte>.Shared.Rent(Math.Min(buffer.Length * 2, MaxHeaders));
+                    buffer.AsSpan(0, length).CopyTo(larger);
+                    ArrayPool<byte>.Shared.Return(buffer);
+                    buffer = larger;
+                }
+
+                var read = await stream.ReadAsync(buffer.AsMemory(length));
+                if (read == 0)
+                    return null;
+
+                var searchFrom = Math.Max(0, length - 3);
+                length += read;
+
+                for (var index = searchFrom; index + 3 < length; index++)
+                    if (buffer[index] == (byte)'\r' && buffer[index + 1] == (byte)'\n'
+                                                    && buffer[index + 2] == (byte)'\r' && buffer[index + 3] == (byte)'\n')
+                        return Encoding.ASCII.GetString(buffer, 0, index);
+            }
         }
-
-        return null;
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
     }
 
     /// <summary>Validates the token and reads the file path, size and cache version from the query.</summary>
@@ -187,21 +215,22 @@ internal partial class ThumbnailServer
         if (_cache.TryGetValue(key, out var cached))
             return cached;
 
-        // A file inside an archive has no copy on disk yet; extract it once so the shell or the
-        // decoder can read it. The cache stays keyed by the virtual path, so the temporary copy
-        // never becomes a second entry.
-        var source = path;
-        if (!File.Exists(source) && Archives.TrySplit(path, out _, out var inner) && inner.Length > 0)
-            source = await Task.Run(() => Try.Run(() => Archives.ExtractEntry(path)).GetOrElse(_ => path));
-
-        if (!File.Exists(source) || !OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
-            return null;
-
         await _gate.WaitAsync();
         try
         {
             if (_cache.TryGetValue(key, out cached))
                 return cached;
+
+            // A file inside an archive has no copy on disk yet; extract it once so the shell or the
+            // decoder can read it. The cache stays keyed by the virtual path, so the temporary copy
+            // never becomes a second entry. This happens under the gate: a wall of tiles used to
+            // unpack the same archive once per tile, all at the same time.
+            var source = path;
+            if (!File.Exists(source) && Archives.TrySplit(path, out _, out var inner) && inner.Length > 0)
+                source = await ExtractOnceAsync(path);
+
+            if (!File.Exists(source) || !OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
+                return null;
 
             byte[]? bytes;
 
@@ -232,14 +261,41 @@ internal partial class ThumbnailServer
         }
     }
 
+    /// <summary>The entry unpacked once per archive, so a grid of its pictures reads it only once.</summary>
+    private async Task<string> ExtractOnceAsync(string path)
+    {
+        if (_extracted.TryGetValue(path, out var known) && File.Exists(known))
+            return known;
+
+        var source = await Task.Run(() => Try.Run(() => Archives.ExtractEntry(path)).GetOrElse(_ => path));
+
+        // A closed archive deletes its temporary copies, so a stale entry is re-extracted next time.
+        if (source != path)
+            _extracted[path] = source;
+
+        return source;
+    }
+
     [SupportedOSPlatform("windows")]
     private static Task<byte[]?> WindowsThumbnailAsync(string path, int size) =>
-        Task.Run(() =>
+        Task.Run(async () =>
         {
             // The shell thumbnail flattens some transparent pictures onto black; formats that can
             // carry alpha are drawn here, and the shell is only the fallback for them.
             if (AlphaExtensions.Contains(Path.GetExtension(path)))
-                return ImageThumbnail.Png(path, size) ?? ShellThumbnail.Bytes(path, size);
+            {
+                // GDI+ decodes at full resolution before scaling, so only two of these run at once
+                // even while the gate lets more shell lookups through.
+                await ImageGate.WaitAsync();
+                try
+                {
+                    return ImageThumbnail.Png(path, size) ?? ShellThumbnail.Bytes(path, size);
+                }
+                finally
+                {
+                    ImageGate.Release();
+                }
+            }
 
             return ShellThumbnail.Bytes(path, size);
         });
@@ -481,11 +537,21 @@ internal partial class ThumbnailServer
 
     private void Remember(string key, byte[] bytes)
     {
-        _cache[key] = bytes;
+        // A replaced entry must not be queued again: a duplicate key would later evict an entry that
+        // is still wanted, and the cache would shrink below its own limit.
+        if (!_cache.TryAdd(key, bytes))
+        {
+            _cache[key] = bytes;
+            return;
+        }
+
+        Interlocked.Add(ref _cachedBytes, bytes.Length);
         _order.Enqueue(key);
 
-        while (_order.Count > CacheLimit && _order.TryDequeue(out var oldest))
-            _cache.TryRemove(oldest, out _);
+        while ((_order.Count > CacheLimit || Interlocked.Read(ref _cachedBytes) > CacheBytes)
+               && _order.TryDequeue(out var oldest))
+            if (_cache.TryRemove(oldest, out var removed))
+                Interlocked.Add(ref _cachedBytes, -removed.Length);
     }
 
     private static async Task RespondAsync(NetworkStream stream, int status, string contentType, byte[] body)

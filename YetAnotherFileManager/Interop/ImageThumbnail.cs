@@ -41,7 +41,7 @@ internal static class ImageThumbnail
                 graphics.DrawImage(image, new Rectangle(0, 0, width, height));
             }
 
-            using var stream = new MemoryStream();
+            using var stream = new MemoryStream(64 * 1024);
             bitmap.Save(stream, ImageFormat.Png);
             return stream.ToArray();
         }
