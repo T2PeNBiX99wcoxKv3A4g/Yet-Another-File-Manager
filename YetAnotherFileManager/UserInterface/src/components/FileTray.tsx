@@ -108,10 +108,22 @@ function uriToPath(uri: string): string | null {
     }
 }
 
+/** A path as the URI a drag advertises: "C:\a b.txt" becomes "file:///C:/a%20b.txt". */
+function fileUri(path: string): string {
+    const parts = path.replace(/\\/g, "/").split("/");
+
+    return "file:///" + parts
+        .map((part, index) => index === 0 && /^[a-zA-Z]:$/.test(part) ? part : encodeURIComponent(part))
+        .join("/");
+}
+
 /** Puts the paths on a drag so the tray, the list and any future target can read them. */
 export function writeDraggedPaths(event: { dataTransfer: DataTransfer }, paths: string[], move = true) {
     event.dataTransfer.setData(DragType, JSON.stringify({paths, move}));
     event.dataTransfer.setData("text/plain", paths.join("\r\n"));
+    // Desktop applications read a drag as a list of URIs; a browser only turns them into files when
+    // the platform hands it real ones, but the list is what everything else expects to find.
+    event.dataTransfer.setData("text/uri-list", paths.map(fileUri).join("\r\n"));
     // The target decides whether it copies or moves; a single effect here would make the tray's
     // copy drop incompatible with a row dragged for a move and the browser would refuse it.
     event.dataTransfer.effectAllowed = "copyMove";
