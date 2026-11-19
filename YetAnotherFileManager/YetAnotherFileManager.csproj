@@ -161,7 +161,9 @@
         <CargoCommand Condition="'$(CargoCommand)' == ''">cargo</CargoCommand>
     </PropertyGroup>
 
-    <Target Name="BuildRustNative" BeforeTargets="Build" Condition="Exists('$(RustManifest)')">
+    <!-- A machine without a linker cannot run cargo; scripts/build-native.ps1 builds the DLL with the
+         MSVC and SDK it finds, and SkipNativeBuild then keeps this target out of the way. -->
+    <Target Name="BuildRustNative" BeforeTargets="Build" Condition="Exists('$(RustManifest)') and '$(SkipNativeBuild)' != 'true'">
         <Exec Command="&quot;$(CargoCommand)&quot; build --release --manifest-path &quot;$(RustManifest)&quot;" />
     </Target>
 
