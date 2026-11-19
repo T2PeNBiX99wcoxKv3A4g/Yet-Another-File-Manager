@@ -730,7 +730,7 @@ export default function App() {
             const listing = path && isShareLocation(path)
                 ? await listSharedDirectory(path)
                 : await listDirectory(path, true, includeLinks, archiveEncodingRef.current,
-                    path ? archivePasswordFor(path) : undefined);
+                    path ? archivePasswordFor(path) : undefined, id);
             if (!current()) return;
 
             patch(id, (tab) => ({
@@ -842,7 +842,7 @@ export default function App() {
             const listing = isShareLocation(target)
                 ? await listSharedDirectory(target)
                 : await listDirectory(target, true, includeLinks, archiveEncodingRef.current,
-                    archivePasswordFor(target));
+                    archivePasswordFor(target), id);
             if (!current()) return;
 
             patch(id, () => ({listing, view: listing.view ?? null, loading: false}));

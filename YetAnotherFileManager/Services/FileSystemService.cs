@@ -338,18 +338,12 @@ internal partial class FileSystemService : INativeMessageHandler
                 return context.Reply("app.archive.unregister.result", ArchiveAssociations.Status());
 
             case "fs.list":
-                return context.Reply("fs.list.result",
-                    await ListAsync(context.Payload<FsListRequest>()?.Path,
-                        context.Payload<FsListRequest>()?.Sizes ?? true,
-                        context.Payload<FsListRequest>()?.IncludeLinks ?? false,
-                        context.Payload<FsListRequest>()?.CodePage ?? 0,
-                        context.Payload<FsListRequest>()?.Password));
+                return await ListWithCancellationAsync(context);
 
             case "fs.list.cached":
                 return context.Reply("fs.list.cached.result",
                     await CachedListAsync(context.Payload<FsListRequest>()?.Path,
                         context.Payload<FsListRequest>()?.IncludeLinks ?? false));
-
             case "fs.view.set":
                 return context.Reply("fs.view.set.result",
                     new OkPayload(await SaveViewAsync(context.Payload<ViewRequest>())));
@@ -1145,15 +1139,83 @@ internal partial class FileSystemService : INativeMessageHandler
     private static string TempReportPath() =>
         Path.Combine(Path.GetTempPath(), $"yafm-orphans-{Guid.NewGuid():N}.json");
 
+    /// <summary>The listing still running for each tab, so the next one can stop it.</summary>
+    private static readonly ConcurrentDictionary<string, CancellationTokenSource> ListingCancellations =
+        new(StringComparer.Ordinal);
+
+    /// <summary>
+    ///     Lists a folder for one tab. A tab has one folder on screen, so asking for another one
+    ///     cancels the walk the user left behind instead of letting both run to completion.
+    /// </summary>
+    private static async Task<NativeResponse?> ListWithCancellationAsync(NativeContext context)
+    {
+        var request = context.Payload<FsListRequest>();
+        var id = request?.Id;
+
+        CancellationTokenSource? cancellation = null;
+
+        if (id is { Length: > 0 })
+        {
+            cancellation = new();
+
+            if (ListingCancellations.TryRemove(id, out var previous))
+                Try.Run(previous.Cancel);
+        }
+
+        if (id is { Length: > 0 })
+            ListingCancellations[id] = cancellation!;
+
+        try
+        {
+            return context.Reply("fs.list.result", await ListAsync(request?.Path, request?.Sizes ?? true,
+                request?.IncludeLinks ?? false, request?.CodePage ?? 0, request?.Password,
+                cancellation?.Token ?? CancellationToken.None));
+        }
+        finally
+        {
+            if (id is { Length: > 0 } && cancellation is not null
+                                         && ListingCancellations.TryGetValue(id, out var current)
+                                         && ReferenceEquals(current, cancellation))
+                ListingCancellations.TryRemove(id, out _);
+        }
+    }
+
+    /// <summary>Everything the folder holds, stopping as soon as a newer listing supersedes this one.</summary>
+    private static List<FileSystemInfo> Enumerate(DirectoryInfo directory, CancellationToken cancellationToken)
+    {
+        var infos = new List<FileSystemInfo>();
+
+        foreach (var info in directory.EnumerateFileSystemInfos())
+        {
+            if (DirectoryIndex.IsIndexFile(info.Name))
+                continue;
+
+            infos.Add(info);
+
+            // Checking after every entry would cost more than the walk itself; a page is enough.
+            if (infos.Count % 512 == 0)
+                cancellationToken.ThrowIfCancellationRequested();
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        return infos;
+    }
+
+    /// <summary>Folders first, then names, the way Explorer orders a listing.</summary>
+    private static int SortEntries(FileEntry left, FileEntry right) =>
+        left.IsDirectory == right.IsDirectory
+            ? StringComparer.OrdinalIgnoreCase.Compare(left.Name, right.Name)
+            : left.IsDirectory ? -1 : 1;
+
     private static async Task<FsListPayload> ListAsync(string? path, bool measure = true, bool includeLinks = false,
-        int codePage = 0, string? password = null)
+        int codePage = 0, string? password = null, CancellationToken cancellationToken = default)
     {
         if (Archives.TryListWorkspace(path ?? "", out var workspaceListing))
             return workspaceListing;
 
         // An archive is opened as a virtual folder; its inner path is everything after the archive file.
         if (Archives.TrySplit(path ?? "", out var archivePath, out var inner))
-            return await Task.Run(() => Archives.List(archivePath, inner, codePage, password));
+            return await Task.Run(() => Archives.List(archivePath, inner, codePage, password), cancellationToken);
 
         var target = ResolvePath(path);
         var directory = new DirectoryInfo(target);
@@ -1177,9 +1239,7 @@ internal partial class FileSystemService : INativeMessageHandler
 
         // Everything is enumerated, hidden and system entries included, so the cache is complete;
         // the response only carries what the user's settings ask to see.
-        var infos = await Task.Run(() => directory.EnumerateFileSystemInfos()
-            .Where(info => !DirectoryIndex.IsIndexFile(info.Name))
-            .ToList());
+        var infos = await Task.Run(() => Enumerate(directory, cancellationToken), cancellationToken);
 
         var stored = await metadata;
         var icons = stored.Icons;
@@ -1205,8 +1265,9 @@ internal partial class FileSystemService : INativeMessageHandler
             // Attribute reads are independent; doing them in parallel keeps a directory with tens
             // of thousands of entries from spending its time in one managed loop.
             var built = new FileEntry?[infos.Count];
+            var options = new ParallelOptions { CancellationToken = cancellationToken };
 
-            Parallel.For(0, infos.Count, index =>
+            Parallel.For(0, infos.Count, options, index =>
             {
                 var info = infos[index];
                 var entry = ToEntry(info, icons.GetValueOrDefault(info.Name), links.GetValueOrDefault(info.FullName));
@@ -1222,16 +1283,24 @@ internal partial class FileSystemService : INativeMessageHandler
                 built[index] = entry;
             });
 
-            return built
-                .OfType<FileEntry>()
-                .OrderByDescending(entry => entry.IsDirectory)
-                .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-        });
+            // One pass into the final list and one in-place sort: the LINQ chain used to copy the
+            // array, filter it through an iterator and sort twice.
+            var list = new List<FileEntry>(built.Length);
+
+            foreach (var entry in built)
+                if (entry is not null)
+                    list.Add(entry);
+
+            list.Sort(SortEntries);
+            return list;
+        }, cancellationToken);
 
         // Shortcuts carry their target inside the file; the shared reader parses it.
         if (OperatingSystem.IsWindows())
             all = ResolveShortcuts(all);
+
+        // A folder the user already left is not worth storing or measuring.
+        cancellationToken.ThrowIfCancellationRequested();
 
         // Storing is best effort and must not hold the listing back or repeat itself: the write is
         // coalesced and skipped while the folder still holds what the index already has.

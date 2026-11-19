@@ -179,13 +179,15 @@ export interface FileVisibility {
 
 /** Lists one directory. Omit the path to start at the user's home directory. */
 export async function listDirectory(path?: string, sizes = true, includeLinks = false,
-                                    codePage = 0, password?: string): Promise<DirectoryListing> {
+                                    codePage = 0, password?: string, id?: string): Promise<DirectoryListing> {
     return await Native.request<DirectoryListing>("fs.list", {
         path: path ?? null,
         sizes,
         includeLinks,
         codePage,
-        password
+        password,
+        // The tab that asked: the host stops the walk of a folder the tab has left.
+        id: id ?? null
     });
 }
 

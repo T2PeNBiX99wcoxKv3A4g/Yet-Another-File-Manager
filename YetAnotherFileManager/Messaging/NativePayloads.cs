@@ -20,7 +20,9 @@ internal sealed record FsListRequest(
     bool? Sizes = true,
     bool? IncludeLinks = false,
     int? CodePage = null,
-    string? Password = null);
+    string? Password = null,
+    // The tab that asked, so a listing the user left behind can be stopped.
+    string? Id = null);
 
 /// <summary>
 ///     Body for <c>fs.list</c>: the directory that was listed, its parent (null at the root), its

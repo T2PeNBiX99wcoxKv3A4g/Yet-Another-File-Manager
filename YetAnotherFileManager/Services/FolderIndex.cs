@@ -252,15 +252,17 @@ internal static class FolderIndex
         if (saved is null)
             return null;
 
-        return await ReadOnConnectionAsync(connection,
+        // Rows are read synchronously: Microsoft.Data.Sqlite runs its async API on the calling thread,
+        // so awaiting every row only allocates one task per row.
+        return ReadOnConnection(connection,
             "SELECT name, path, is_directory, size, modified, is_hidden, is_system, icon_source, " +
             "created, link_target, link_valid, link_count FROM listing " +
             "ORDER BY is_directory DESC, name COLLATE NOCASE",
-            async reader =>
+            reader =>
             {
                 var entries = new List<FileEntry>();
 
-                while (await reader.ReadAsync())
+                while (reader.Read())
                     entries.Add(new(
                         reader.GetString(0),
                         reader.GetString(1),
@@ -296,7 +298,7 @@ internal static class FolderIndex
                 {
                     clear.Transaction = (SqliteTransaction)transaction;
                     clear.CommandText = "DELETE FROM listing";
-                    await clear.ExecuteNonQueryAsync();
+                    clear.ExecuteNonQuery();
                 }
 
                 await using (var insert = connection.CreateCommand())
@@ -336,7 +338,9 @@ internal static class FolderIndex
                         target.Value = entry.LinkTarget is null ? DBNull.Value : entry.LinkTarget;
                         valid.Value = entry.LinkValid is null ? DBNull.Value : entry.LinkValid.Value ? 1 : 0;
                         links.Value = entry.LinkCount;
-                        await insert.ExecuteNonQueryAsync();
+                        // Synchronous on purpose: the async overload allocates a task per row and
+                        // then runs it on this very thread.
+                        insert.ExecuteNonQuery();
                     }
                 }
 
@@ -346,7 +350,7 @@ internal static class FolderIndex
                     mark.CommandText = "INSERT INTO meta (key, value) VALUES ('listing', $now) " +
                                        "ON CONFLICT(key) DO UPDATE SET value = excluded.value";
                     mark.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-                    await mark.ExecuteNonQueryAsync();
+                    mark.ExecuteNonQuery();
                 }
 
                 await transaction.CommitAsync();
@@ -853,6 +857,17 @@ internal static class FolderIndex
 
         await using var reader = await command.ExecuteReaderAsync();
         return await read(reader);
+    }
+
+    private static T ReadOnConnection<T>(SqliteConnection connection, string sql,
+        Func<SqliteDataReader, T> read, Action<SqliteCommand>? bind = null) where T : class?
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        bind?.Invoke(command);
+
+        using var reader = command.ExecuteReader();
+        return read(reader);
     }
 
     private static async Task<bool> WriteAsync(string directory, string sql, Action<SqliteCommand> bind)
