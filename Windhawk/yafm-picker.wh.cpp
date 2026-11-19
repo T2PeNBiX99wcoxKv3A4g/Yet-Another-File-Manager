@@ -2,7 +2,7 @@
 // @id              yafm-picker
 // @name            Yet Another File Manager pickers
 // @description     Replaces the Windows Open, Save As and folder dialogs with the app's picker
-// @version         1.4.4
+// @version         1.4.5
 // @author          T2PeNBiX99wcoxKv3A4g
 // @github          https://github.com/T2PeNBiX99wcoxKv3A4g
 // @include         *
@@ -1245,7 +1245,8 @@ static HRESULT WINAPI SHOpenFolderAndSelectItems_Hook(PCIDLIST_ABSOLUTE folder, 
 //
 // comdlg32 asks for the same class when it runs an Explorer-style
 // GetOpenFileName, and Qt gives up on the whole dialog when Advise fails, so
-// the event handler is accepted and OnFileOk is raised before Show returns.
+// the event handler is accepted: the folder change is reported when the picker
+// starts, and OnFileOk before Show returns.
 // ---------------------------------------------------------------------------
 
 struct ModernFileType {
@@ -1643,11 +1644,9 @@ static HRESULT ShowNativeDialog(HWND owner, ModernDialogState& state) {
     return hr;
 }
 
-/// Tells the caller's event handler that the choice is final, the way the real dialog does
-/// before Show returns. A handler can still say no, and then the choice is dropped.
-static bool RaiseFileOk(ModernDialogState& state, IFileDialog* dialog) {
-    // A handler is allowed to call Unadvise from inside the callback, so the list is copied
-    // and every entry is kept alive for the duration of the call.
+/// A copy of the registered handlers with a reference each, so one of them may Unadvise from
+/// inside a callback.
+static std::vector<IFileDialogEvents*> Listeners(ModernDialogState& state) {
     std::vector<IFileDialogEvents*> listeners;
     for (auto& listener : state.listeners) {
         if (!listener.second)
@@ -1657,14 +1656,42 @@ static bool RaiseFileOk(ModernDialogState& state, IFileDialog* dialog) {
         listeners.push_back(listener.second);
     }
 
+    return listeners;
+}
+
+static void ReleaseListeners(std::vector<IFileDialogEvents*>& listeners) {
+    for (auto* listener : listeners)
+        listener->Release();
+
+    listeners.clear();
+}
+
+/// The real dialog tells the caller which folder it opened in before it waits for the user, and
+/// Firefox starts its clickjacking guard there: a confirmation that arrives less than half a
+/// second after that is refused, keeping the dialog open. Starting the picker is what makes the
+/// dialog appear, so it stands in for that report, and the guard then measures the wait a person
+/// takes in the picker anyway.
+static void RaiseFolderChange(ModernDialogState& state, IFileDialog* dialog) {
+    auto listeners = Listeners(state);
+
+    for (auto* listener : listeners)
+        listener->OnFolderChange(dialog);
+
+    ReleaseListeners(listeners);
+}
+
+/// Tells the caller's event handler that the choice is final, the way the real dialog does
+/// before Show returns. A handler can still say no, and then the choice is dropped.
+static bool RaiseFileOk(ModernDialogState& state, IFileDialog* dialog) {
+    auto listeners = Listeners(state);
+
     bool allowed = true;
     for (auto* listener : listeners) {
         if (listener->OnFileOk(dialog) == S_FALSE)
             allowed = false;
     }
 
-    for (auto* listener : listeners)
-        listener->Release();
+    ReleaseListeners(listeners);
 
     if (!allowed)
         Wh_Log(L"modern: the caller refused the choice in OnFileOk");
@@ -1690,10 +1717,29 @@ static HRESULT ComposeShow(ModernDialogState& state, HWND owner, IFileDialog* se
         request.Filter = state.fileTypes[index].extensions;
     }
 
-    std::vector<std::wstring> paths;
-    const PickResult result = RunPicker(request, paths);
+    if (ResolveExecutable().empty()) {
+        Wh_Log(L"picker: no executable could be resolved");
+        return ShowNativeDialog(owner, state);
+    }
 
-    if (result == PickResult::Picked) {
+    // A caller that refuses a choice keeps its own dialog open, so the picker is started again
+    // rather than turning that refusal into a cancel nobody asked for.
+    for (int attempt = 0; attempt < 3; attempt++) {
+        RaiseFolderChange(state, self);
+
+        std::vector<std::wstring> paths;
+        const PickResult result = RunPicker(request, paths);
+
+        if (result == PickResult::Cancelled) {
+            Wh_Log(L"modern %s: cancelled", state.save ? L"save" : L"open");
+            return HRESULT_FROM_WIN32(ERROR_CANCELLED);
+        }
+
+        if (result != PickResult::Picked) {
+            Wh_Log(L"modern: no copy of the app was found, showing the original dialog");
+            return ShowNativeDialog(owner, state);
+        }
+
         state.results = paths;
 
         if (state.save) {
@@ -1704,21 +1750,16 @@ static HRESULT ComposeShow(ModernDialogState& state, HWND owner, IFileDialog* se
 
         Wh_Log(L"modern %s: picked %s", state.save ? L"save" : L"open", paths.front().c_str());
 
-        if (!RaiseFileOk(state, self)) {
-            state.results.clear();
-            return HRESULT_FROM_WIN32(ERROR_CANCELLED);
-        }
+        if (RaiseFileOk(state, self))
+            return S_OK;
 
-        return S_OK;
+        state.results.clear();
+        request.Initial = request.Folder ? paths.front() : FolderOf(paths.front());
+        request.Name = state.name;
     }
 
-    if (result == PickResult::Cancelled) {
-        Wh_Log(L"modern %s: cancelled", state.save ? L"save" : L"open");
-        return HRESULT_FROM_WIN32(ERROR_CANCELLED);
-    }
-
-    Wh_Log(L"modern: no copy of the app was found, showing the original dialog");
-    return ShowNativeDialog(owner, state);
+    Wh_Log(L"modern: the caller refused every choice");
+    return HRESULT_FROM_WIN32(ERROR_CANCELLED);
 }
 
 class PickerDialog;
