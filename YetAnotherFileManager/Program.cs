@@ -176,6 +176,10 @@ internal static partial class Program
             _ = ThumbnailServer.Instance;
             _ = StartupService.Instance;
 
+            // Constructed here so its handlers answer immediately; the work itself starts once the
+            // window exists.
+            _ = ShareService.Instance;
+
             // The panel sizes the interface stored travel in the address: the page can read that
             // before it renders, while the message bridge is not answering yet.
             var storedState = UiStateService.Instance.Encoded;
