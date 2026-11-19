@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.31.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.30.1..v0.31.0) - 2026-11-19
+
+### ⛰️  Features
+
+- *(picker)* Choose from the menu, and let "open" keep the dialog open - ([dc5e31b](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/dc5e31b78b97fc0ad4a81f42ee7dbdd379ea36da))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([7fd95c8](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7fd95c8f4ca890e38cd89811e0b90de3ad34bd90))
+
+
 ## [0.30.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.30.0..v0.30.1) - 2026-11-19
 
 ### Action
