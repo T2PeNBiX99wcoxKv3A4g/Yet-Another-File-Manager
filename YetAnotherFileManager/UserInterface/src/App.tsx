@@ -1693,9 +1693,17 @@ export default function App() {
         setTabs(opened);
         setActiveId(opened[index].id);
 
-        // Every files tab reads its folder; a built-in page is ready as it is.
-        for (const tab of opened)
-            if (kindOf(tab) === "files") void load(tab.id, folderOf(tab), true);
+        // The folder on screen is read first; the other restored tabs follow once it is painted. Ten
+        // tabs used to start ten folder walks at once, while the window was still painting.
+        const active = opened[index];
+        const first = kindOf(active) === "files" ? load(active.id, folderOf(active), true) : Promise.resolve();
+
+        void first.then(() =>
+        {
+            for (const tab of opened)
+                if (tab !== active && kindOf(tab) === "files")
+                    void load(tab.id, folderOf(tab), true);
+        });
 
         return true;
     }, [load]);
