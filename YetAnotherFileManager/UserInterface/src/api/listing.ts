@@ -1,4 +1,4 @@
-import type {FileEntry} from "./files";
+import type {FileEntry, GalleryEntry} from "./files";
 import {dataBase} from "./icons";
 
 /**
@@ -83,6 +83,9 @@ export function decodeListing(buffer: ArrayBuffer, total: number, signature: num
     const iconCount = view.getUint32(20, true);
     const extraCount = view.getUint32(24, true);
 
+    // A list that spans folders carries complete paths, and the window takes the file name from them.
+    const absolute = (view.getUint16(6, true) & 1) !== 0;
+
     let at = HeaderSize;
 
     // A view over the same bytes: nothing is copied, and the columns stay 8-byte aligned because
@@ -130,13 +133,21 @@ export function decodeListing(buffer: ArrayBuffer, total: number, signature: num
 
     for (let index = 0; index < count; index++) {
         const entryFlags = flags[index];
-        const name = decode(nameOffset[index], nameLength[index]);
+        const stored = decode(nameOffset[index], nameLength[index]);
         const link = linkIndex[index] === None ? undefined : links.get(index);
+
+        // In an absolute block the stored name is the whole path, and the label is its last segment.
+        const fullPath = absolute
+            ? stored
+            : path.endsWith(separator) ? path + stored : path + separator + stored;
+
+        const name = absolute
+            ? stored.slice(Math.max(stored.lastIndexOf("/"), stored.lastIndexOf("\\")) + 1)
+            : stored;
 
         entries[index] = {
             name,
-            // The block carries the folder once instead of a path per entry.
-            fullPath: path.endsWith(separator) ? path + name : path + separator + name,
+            fullPath,
             isDirectory: (entryFlags & DirectoryFlag) !== 0,
             size: size[index],
             modified: modified[index],
@@ -152,4 +163,37 @@ export function decodeListing(buffer: ArrayBuffer, total: number, signature: num
     }
 
     return {path, signature, total, entries};
+}
+
+/**
+ * One page of the gallery: a scan across folders, so its block carries complete paths and is
+ * decoded the same way as a folder listing.
+ */
+export async function fetchGalleryPage(offset: number, count: number, refresh = false,
+                                       signal?: AbortSignal): Promise<{ entries: GalleryEntry[]; total: number }> {
+    const base = await dataBase();
+
+    if (!base)
+        throw new Error("The data server is not running.");
+
+    const query = new URLSearchParams({offset: String(offset), count: String(count)});
+    if (refresh) query.set("refresh", "1");
+
+    const response = await fetch(`${base}/gallery?${query}`, {cache: "no-cache", signal});
+
+    if (!response.ok)
+        throw new Error(`The gallery failed (${response.status}).`);
+
+    const total = Number(response.headers.get("x-yafm-total") ?? 0);
+    const page = decodeListing(await response.arrayBuffer(), total, 0);
+
+    return {
+        entries: page.entries.map((entry) => ({
+            path: entry.fullPath,
+            name: entry.name,
+            modified: entry.modified,
+            size: entry.size
+        })),
+        total
+    };
 }

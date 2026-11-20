@@ -6,10 +6,10 @@ import {
     type DirectoryListing,
     type FileEntry,
     type GalleryEntry,
-    listGallery,
     openFile,
     type ResolvedView,
 } from "../api/files";
+import {fetchGalleryPage} from "../api/listing";
 import type {ShortcutMap} from "../shortcuts";
 import {appLocale, formatBytes, formatDate, plural} from "../utils/format";
 import {MenuIcon, RefreshIcon} from "./Icons";
@@ -124,7 +124,7 @@ export function GalleryView({
         setError(null);
 
         try {
-            const page = await listGallery(0, PageSize, refresh);
+            const page = await fetchGalleryPage(0, PageSize, refresh);
             if (token !== generation.current)
                 return;
 
@@ -163,7 +163,7 @@ export function GalleryView({
             let currentTotal = totalRef.current;
 
             for (let page = 0; page < PagesPerBurst && current.length < currentTotal; page++) {
-                const next = await listGallery(current.length, PageSize, false);
+                const next = await fetchGalleryPage(current.length, PageSize, false);
                 if (token !== generation.current)
                     return;
 
