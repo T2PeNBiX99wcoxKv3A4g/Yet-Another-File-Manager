@@ -97,6 +97,8 @@ interface FileListProps {
     refreshToken?: number;
     /** Reloads the folder after an operation changed it. */
     onRefresh?: () => void;
+    /** Asks for the next page when the end of what is loaded comes into view. */
+    onLoadMore?: () => void;
     /** Applies a successful rename to the owner's listing, so a stale row cannot be renamed again. */
     onRename?: (from: string, to: string) => void;
     /** Called after a copy or cut put files on the system clipboard. */
@@ -240,6 +242,7 @@ export function FileList({
                              pendingRename = null,
                              pendingRenameToken = 0,
                              selectMatchesToken = 0,
+                             onLoadMore,
                          }: FileListProps) {
     const t = useTranslation();
     const quick = useQuickAccess();
@@ -580,6 +583,12 @@ export function FileList({
     const windowEnd = Math.min(rows.length, windowStart + Math.ceil(listWindow.height / rowHeight) + 10);
     const windowRows = useMemo(() => rows.slice(windowStart, windowEnd), [rows, windowStart, windowEnd]);
 
+    // The end of what is loaded has come into view: ask the owner for the next page.
+    useEffect(() => {
+        if (onLoadMore && rows.length > 0 && windowEnd >= rows.length)
+            onLoadMore();
+    }, [onLoadMore, rows.length, windowEnd]);
+
     useEffect(() => {
         const node = body.current;
         if (!node || view.mode !== "list") return;
@@ -673,9 +682,14 @@ export function FileList({
     }, [find.currentPath, rows]);
 
     const growRows = useCallback((element: HTMLElement) => {
-        if (element.scrollTop + element.clientHeight >= element.scrollHeight - 600)
-            setRowLimit((limit) => Math.min(rows.length, limit + RowPage));
-    }, [rows.length]);
+        if (element.scrollTop + element.clientHeight < element.scrollHeight - 600)
+            return;
+
+        setRowLimit((limit) => Math.min(rows.length, limit + RowPage));
+
+        // The mounted tiles reached the end, so the next page is needed too.
+        onLoadMore?.();
+    }, [rows.length, onLoadMore]);
 
     // Grouping only feeds the grid; a list view would pay for the rule matching and never use it.
     const gridMode = view.mode === "grid";

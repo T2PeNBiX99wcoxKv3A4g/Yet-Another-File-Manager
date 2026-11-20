@@ -340,6 +340,9 @@ internal partial class FileSystemService : INativeMessageHandler
             case "fs.list":
                 return await ListWithCancellationAsync(context);
 
+            case "fs.list.meta":
+                return await ListMetaAsync(context);
+
             case "fs.list.cached":
                 return context.Reply("fs.list.cached.result",
                     await CachedListAsync(context.Payload<FsListRequest>()?.Path,
@@ -1144,6 +1147,30 @@ internal partial class FileSystemService : INativeMessageHandler
     /// <summary>The listing still running for each tab, so the next one can stop it.</summary>
     private static readonly ConcurrentDictionary<string, CancellationTokenSource> ListingCancellations =
         new(StringComparer.Ordinal);
+
+    /// <summary>
+    ///     Everything about a folder except its entries: the view, tags, cached sizes and how many
+    ///     entries there are. The entries come from the data plane as paged columnar blocks, and both
+    ///     share one walk through <see cref="ListingSource" /> when they are asked for together.
+    /// </summary>
+    private static async Task<NativeResponse?> ListMetaAsync(NativeContext context)
+    {
+        var request = context.Payload<FsListRequest>();
+        var payload = await ListingSource.Instance.PayloadAsync(request?.Path ?? "", CancellationToken.None);
+
+        return context.Reply("fs.list.meta.result", new FsListMetaPayload(
+            payload.Path,
+            payload.Parent,
+            payload.Entries.Count,
+            DirectoryIndex.SignatureOf(payload.Entries),
+            payload.View,
+            payload.Tags,
+            payload.TagColors,
+            payload.AllTags,
+            payload.Counts,
+            payload.FolderSizes,
+            payload.ArchiveEncrypted));
+    }
 
     /// <summary>
     ///     Lists a folder for one tab. A tab has one folder on screen, so asking for another one

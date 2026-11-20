@@ -252,6 +252,9 @@ export function GalleryView({
     const listing = useMemo<DirectoryListing>(() => ({
         path: "",
         parent: null,
+        // The gallery appends pages itself, so it owns the total.
+        total: entries.length,
+        signature: 0,
         entries: entries.map(asFileEntry),
         folderSizes: {},
         view: null,

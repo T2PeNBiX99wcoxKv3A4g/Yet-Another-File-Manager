@@ -25,6 +25,24 @@ internal sealed record FsListRequest(
     string? Id = null);
 
 /// <summary>
+///     Body for <c>fs.list.meta</c>: everything about a folder except its entries, which travel as
+///     paged columnar blocks from the data plane. <paramref name="Total" /> lets the window know how
+///     many pages there are.
+/// </summary>
+internal sealed record FsListMetaPayload(
+    string Path,
+    string? Parent,
+    int Total,
+    int Signature,
+    DirectoryView? View,
+    Dictionary<string, List<string>> Tags,
+    Dictionary<string, string> TagColors,
+    List<string> AllTags,
+    Dictionary<string, long> Counts,
+    Dictionary<string, long> FolderSizes,
+    bool? ArchiveEncrypted = null);
+
+/// <summary>
 ///     Body for <c>fs.list</c>: the directory that was listed, its parent (null at the root), its
 ///     entries (folders first), and any cached folder sizes from the directory's own index.
 /// </summary>

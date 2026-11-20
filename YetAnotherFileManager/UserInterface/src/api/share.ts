@@ -167,6 +167,9 @@ export async function listSharedDirectory(location: string): Promise<DirectoryLi
         parent: data.parent === null || data.parent === undefined
             ? null
             : shareLocation(parsed.deviceId, parsed.shareId, data.parent),
+        // A shared folder arrives complete, so it has no further pages.
+        total: data.entries?.length ?? 0,
+        signature: 0,
         entries: data.entries ?? [],
         folderSizes: {},
         view: null,

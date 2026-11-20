@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using PhotinoNetUtils.Hosting;
+using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
 
 namespace YetAnotherFileManager.Services;
@@ -12,9 +14,29 @@ internal sealed class ListingSource : IListingSource
 {
     public static readonly ListingSource Instance = new();
 
+    /// <summary>One walk per folder at a time, so the metadata and the first page share it.</summary>
+    private readonly ConcurrentDictionary<string, Task<FsListPayload>> _inflight =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Metadata for the window: the same walk the pages are cut from, without the entries.</summary>
+    public async Task<FsListPayload> PayloadAsync(string path, CancellationToken cancellationToken)
+    {
+        var task = _inflight.GetOrAdd(path, key => FileSystemService.List(key, false));
+
+        try
+        {
+            return await task.WaitAsync(cancellationToken);
+        }
+        finally
+        {
+            if (task.IsCompleted)
+                _inflight.TryRemove(new KeyValuePair<string, Task<FsListPayload>>(path, task));
+        }
+    }
+
     public async Task<ListingSnapshot> ReadAsync(string path, CancellationToken cancellationToken)
     {
-        var payload = await FileSystemService.List(path, false, cancellationToken);
+        var payload = await PayloadAsync(path, cancellationToken);
 
         return new(payload.Path, DirectoryIndex.SignatureOf(payload.Entries),
             [.. payload.Entries.Select(ToEntry)]);

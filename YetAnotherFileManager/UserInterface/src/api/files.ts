@@ -1,5 +1,7 @@
 import {Native} from "@photino-net-utils/bridge";
 import {askProtected, type GuardedChange} from "./safety";
+import {fetchListing} from "./listing";
+import {isArchiveLocation} from "../utils/format";
 
 export interface FileEntry {
     name: string;
@@ -68,12 +70,19 @@ export interface ResolvedView extends DirectoryView {
     columns: string[];
 }
 
-export interface DirectoryListing {
+export interface DirectoryListing extends DirectoryMeta {
+    /** The entries of the pages loaded so far, in the folder's order. */
+    entries: FileEntry[];
+}
+
+/** Everything about a folder except its entries, which arrive as paged binary blocks. */
+export interface DirectoryMeta {
     path: string;
     parent: string | null;
-    entries: FileEntry[];
-    /** Folder sizes measured earlier and cached in the folder's index, by entry name. */
-    folderSizes: Record<string, number>;
+    /** How many entries the folder has in total, across every page. */
+    total: number;
+    /** The folder's content signature, which the data plane also uses as its ETag. */
+    signature: number;
     /** This directory's own view settings, or null when it inherits the default. */
     view: DirectoryView | null;
     /** Custom tags recorded in this folder, by entry name. */
@@ -84,9 +93,14 @@ export interface DirectoryListing {
     allTags: string[];
     /** Child counts of folders, by entry name. */
     counts: Record<string, number>;
+    /** Folder sizes measured earlier and cached in the folder's index, by entry name. */
+    folderSizes: Record<string, number>;
     /** True when this is a folder inside an archive that needs a password. */
     archiveEncrypted?: boolean | null;
 }
+
+/** How many entries one page of a listing carries. */
+export const PageSize = 400;
 
 /** What Windows answered when a volume label was written. */
 export interface DriveRenameResult {
@@ -177,18 +191,52 @@ export interface FileVisibility {
     overridden: boolean;
 }
 
-/** Lists one directory. Omit the path to start at the user's home directory. */
-export async function listDirectory(path?: string, sizes = true, includeLinks = false,
-                                    codePage = 0, password?: string, id?: string): Promise<DirectoryListing> {
-    return await Native.request<DirectoryListing>("fs.list", {
+/** The folder's metadata: the view, tags, cached sizes and how many entries there are. */
+export async function listMeta(path?: string, sizes = true, includeLinks = false,
+                                codePage = 0, password?: string, id?: string): Promise<DirectoryMeta> {
+    return await Native.request<DirectoryMeta>("fs.list.meta", {
         path: path ?? null,
         sizes,
         includeLinks,
         codePage,
         password,
-        // The tab that asked: the host stops the walk of a folder the tab has left.
         id: id ?? null
     });
+}
+
+/**
+ * Lists one directory: its metadata from the host, then the first page of entries over the data
+ * plane. Further pages come from {@link listPage} as the window scrolls.
+ */
+export async function listDirectory(path?: string, sizes = true, includeLinks = false,
+                                    codePage = 0, password?: string, id?: string): Promise<DirectoryListing> {
+    // A folder inside an archive is still opened by the host: it is a virtual path the data plane
+    // does not walk, and it may need a password that must not travel in a URL.
+    if (path && isArchiveLocation(path))
+        return await Native.request<DirectoryListing>("fs.list", {
+            path,
+            sizes,
+            includeLinks,
+            codePage,
+            password,
+            id: id ?? null
+        });
+
+    const meta = await listMeta(path, sizes, includeLinks, codePage, password, id);
+    const page = await fetchListing(meta.path, {
+        count: PageSize,
+        sort: meta.view?.sort ?? "name",
+        descending: meta.view?.sortDescending ?? false
+    });
+
+    return {...meta, entries: page.entries};
+}
+
+/** One more page of a folder, appended to what a listing already has. */
+export async function listPage(path: string, from: number, sort: string, descending: boolean,
+                               signal?: AbortSignal): Promise<{ entries: FileEntry[]; total: number }> {
+    const page = await fetchListing(path, {from, count: PageSize, sort, descending, signal});
+    return {entries: page.entries, total: page.total};
 }
 
 /** Extracts an archive, or a folder inside one, into a folder on disk. */

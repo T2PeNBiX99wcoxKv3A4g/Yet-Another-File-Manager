@@ -11,6 +11,7 @@ import {
     listDirectory,
     listDirectoryCached,
     listDrives,
+    listPage,
     listPlaces,
     listRecent,
     openFile,
@@ -678,11 +679,18 @@ export default function App() {
 
         try {
             const cached = await listDirectoryCached(path, includeLinks);
-            if (!current() || !cached.listing) return;
+            const listing = cached.listing;
+
+            if (!current() || !listing) return;
 
             // The live listing may have arrived while the cache was being read; never paint over it.
             patch(id, (tab) => tab.loading
-                ? {listing: cached.listing, view: cached.listing!.view ?? null}
+                ? {
+                    // The saved rows are the whole folder, so they are their own total, and paging
+                    // stops until the live listing brings its own count.
+                    listing: {...listing, total: listing.entries.length, signature: 0},
+                    view: listing.view ?? null
+                }
                 : {});
         } catch {
             // The cache is best effort; the live listing is still on its way.
@@ -784,6 +792,8 @@ export default function App() {
                 listing: {
                     path: requested,
                     parent,
+                    total: 0,
+                    signature: 0,
                     entries: [],
                     folderSizes: {},
                     view: null,
@@ -803,6 +813,43 @@ export default function App() {
             }));
         }
     }, [beginLoad, includeLinks, patch, reportFocus, resetFind, showCached]);
+
+    /** The pages being fetched right now, so a scroll that fires every frame asks once. */
+    const loadingMore = useRef(new Set<string>());
+
+    /** Appends the next page of the folder a tab is showing. */
+    const loadMore = useCallback(async (id: string) => {
+        const tab = stateRef.current.tabs.find((item) => item.id === id);
+        const listing = tab?.listing;
+
+        if (!tab || kindOf(tab) !== "files" || !listing) return;
+
+        const from = listing.entries.length;
+        if (from <= 0 || from >= (listing.total ?? 0)) return;
+
+        const key = `${id}|${listing.path}|${from}`;
+        if (!loadingMore.current.add(key)) return;
+
+        try {
+            const page = await listPage(listing.path, from, listing.view?.sort ?? "name",
+                listing.view?.sortDescending ?? false);
+
+            patch(id, (current) => {
+                const live = current.listing;
+
+                // The folder, its sort or its pages may have changed while this one was in flight.
+                if (!live || !samePath(live.path, listing.path) || live.entries.length !== from
+                    || live.view?.sort !== listing.view?.sort)
+                    return {};
+
+                return {listing: {...live, entries: [...live.entries, ...page.entries], total: page.total}};
+            });
+        } catch {
+            // A page that fails leaves what is already on screen alone; the next scroll retries.
+        } finally {
+            loadingMore.current.delete(key);
+        }
+    }, [patch]);
 
     /** Goes to a location: a folder is listed, a yafm:// page is simply shown. */
     const openLocation = useCallback((id: string, target: string) => {
@@ -877,6 +924,8 @@ export default function App() {
                 listing: {
                     path: target,
                     parent: parentOf(target),
+                    total: 0,
+                    signature: 0,
                     entries: [],
                     folderSizes: {},
                     view: null,
@@ -1658,7 +1707,11 @@ export default function App() {
             sort: column,
             sortDescending: current.sort === column ? !current.sortDescending : false,
         });
-    }, [changeViewFor]);
+
+        // Only the loaded pages are on screen, so sorting them would leave the rest in the old
+        // order: the folder is read again from the first page with the new column.
+        void load(id, folderOf(tab), true);
+    }, [changeViewFor, load]);
 
     /** Moves a tab next to another one, which is what dragging a tab does. */
     const moveTab = useCallback((id: string, beforeId: string) => {
@@ -2329,6 +2382,7 @@ export default function App() {
                     const folder = tab.listing?.path;
                     if (folder) refreshFolderTabs(folder);
                 }}
+                onLoadMore={() => void loadMore(tab.id)}
                 onRename={renameInListings}
                 onSelectionCountChange={primary ? reportPrimarySelection : reportSecondarySelection}
                 onSetTags={(name, tags, colors) => setEntryTagsFor(tab.id, name, tags, colors)}
