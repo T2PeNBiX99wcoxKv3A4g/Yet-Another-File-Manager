@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.38.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.38.0..v0.38.1) - 2026-11-20
+
+### 🐛 Bug Fixes
+
+- *(picker)* Keep the saved format in step with the chosen type - ([726876e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/726876e933f879bb0d2e2c5f10d17f271ec8efdf))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([799eb06](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/799eb06af6ee1b3b1de6963f16d010cd320bdba7))
+
+
 ## [0.38.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.37.0..v0.38.0) - 2026-11-20
 
 ### ⛰️  Features
