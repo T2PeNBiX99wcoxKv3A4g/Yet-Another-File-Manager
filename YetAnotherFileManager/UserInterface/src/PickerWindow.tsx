@@ -5,8 +5,9 @@ import {type AppSettings, getSettings} from "./api/settings";
 import {DefaultViewDefaults, type DirectoryView, type ResolvedView} from "./api/files";
 import {type ProtectedPrompt, setProtectedAsker} from "./api/safety";
 import {applyTheme, normalizeThemeMode} from "./theme";
-import {FolderPicker} from "./components/FolderPicker";
+import {applyRelativeTime, applyTimeFormat} from "./utils/format";
 import type {PickerFileType} from "./components/FolderPicker";
+import {FolderPicker} from "./components/FolderPicker";
 import {ViewMenu} from "./components/ViewMenu";
 import {ProtectedDeleteDialog} from "./components/ProtectedDeleteDialog";
 import {MessageDialog} from "./components/MessageDialog";
@@ -32,6 +33,14 @@ function readTypes(value: string | undefined): PickerFileType[] {
     if (!value)
         return [];
 
+    /** Programs send "tiff" as often as ".tiff"; the picker only works with the dotted form. */
+    const clean = (extension: string): string => {
+        const trimmed = extension.trim().replace(/^\*+/, "");
+        if (trimmed.length === 0)
+            return "";
+        return trimmed.startsWith(".") ? trimmed : `.${trimmed}`;
+    };
+
     try {
         const parsed: unknown = JSON.parse(value);
         if (!Array.isArray(parsed))
@@ -42,11 +51,16 @@ function readTypes(value: string | undefined): PickerFileType[] {
                 return [];
 
             const record = item as { label?: unknown; extensions?: unknown };
+            const extensions = Array.isArray(record.extensions)
+                ? record.extensions
+                    .filter((extension): extension is string => typeof extension === "string")
+                    .map(clean)
+                    .filter((extension, index, all) => extension.length > 0 && all.indexOf(extension) === index)
+                : [];
+
             return [{
                 label: typeof record.label === "string" ? record.label : "",
-                extensions: Array.isArray(record.extensions)
-                    ? record.extensions.filter((extension): extension is string => typeof extension === "string" && extension.length > 0)
-                    : [],
+                extensions,
             }];
         });
     } catch {
@@ -96,6 +110,13 @@ export function PickerWindow({mode, save = false, multiple, extensions, types, t
     useEffect(() => {
         applyTheme(settings?.accentColor, settings?.secondaryColor, theme);
     }, [settings?.accentColor, settings?.secondaryColor, theme]);
+
+    // Times in the picker's list follow the same settings as the main window.
+    useEffect(() => {
+        applyTimeFormat(settings?.timeFormat, settings?.timeFormatPattern);
+        applyRelativeTime(settings?.relativeTime, settings?.relativeTimeWindowMinutes);
+    }, [settings?.timeFormat, settings?.timeFormatPattern, settings?.relativeTime,
+        settings?.relativeTimeWindowMinutes]);
 
     const viewDefaults = settings?.defaultView ?? DefaultViewDefaults;
     const view: ResolvedView = {

@@ -107,20 +107,26 @@ export function FolderPicker({
     const isFileMode = mode === "file";
     const supported = extensions ?? [];
     const offered = types ?? [];
+    // Programs spell their default extension in every way there is: "jpeg", "tif;*tiff", "".
+    const defaultExtensions = defaultExtension
+        .split(/[;,|]/)
+        .map((item) => item.trim().replace(/^\*+/, ""))
+        .filter((item) => item.length > 0)
+        .map((item) => (item.startsWith(".") ? item : `.${item}`).toLowerCase());
     // Which entry of the type list is showing: a number for one of the caller's types, or the two
     // entries the picker adds for itself when the caller named no types at all.
     const [typeChoice, setTypeChoice] = useState<number | "all" | "supported">(() => {
         if (offered.length === 0) return supported.length === 0 ? "all" : "supported";
 
-        const typeOf = (extension: string): number =>
-            extension.length === 0
+        const typeOf = (wanted: string[]): number =>
+            wanted.length === 0
                 ? -1
-                : offered.findIndex((type) => type.extensions.some((item) => item.toLowerCase() === extension));
+                : offered.findIndex((type) => type.extensions.some((item) => wanted.includes(item.toLowerCase())));
 
         // The file name the program proposes is the strongest hint: it already carries the
         // document's own format ("drawing.jpg").
         const dot = initialName.lastIndexOf(".");
-        const byName = dot > 0 ? typeOf(initialName.slice(dot).toLowerCase()) : -1;
+        const byName = dot > 0 ? typeOf([initialName.slice(dot).toLowerCase()]) : -1;
         if (byName >= 0)
             return byName;
 
@@ -128,8 +134,8 @@ export function FolderPicker({
         if (typeIndex >= 2 && typeIndex <= offered.length)
             return typeIndex - 1;
 
-        // Programs that only set their default extension ("png") still tell us the format.
-        const byDefault = typeOf(defaultExtension.startsWith(".") ? defaultExtension.toLowerCase() : `.${defaultExtension.toLowerCase()}`);
+        // Programs that only set their default extension ("jpeg") still tell us the format.
+        const byDefault = typeOf(defaultExtensions);
         if (byDefault >= 0)
             return byDefault;
 
@@ -490,7 +496,7 @@ export function FolderPicker({
             // The type on screen names the extension; the program's default is only a fallback for
             // a type that has no extension of its own. A program that keeps its default extension
             // from the document's old format would otherwise save the wrong format.
-            const fallback = typeExtensions[0] ?? defaultExtension;
+            const fallback = typeExtensions[0] ?? defaultExtensions[0] ?? "";
             const suffix = fallback.length > 0 && !/\.[^.]*$/.test(name)
                 ? fallback.startsWith(".") ? fallback : `.${fallback}`
                 : "";

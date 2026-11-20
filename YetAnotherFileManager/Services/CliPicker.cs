@@ -110,7 +110,8 @@ internal static class CliPicker
             (await Try.Run(async () => await File.WriteAllTextAsync(output, text, new UTF8Encoding(false))))
                 .OnFailure(ex => Log.Warning(ex, "Could not write the picked paths to {Path}", output));
 
-        Log.Information("Picker returned {Count} path(s), type {Type}", paths.Count, type ?? 0);
+        Log.Information("Picker returned {Count} path(s), type {Type}: {Paths}",
+            paths.Count, type ?? 0, string.Join(" | ", paths));
 
         Write(text);
         Environment.ExitCode = 0;
