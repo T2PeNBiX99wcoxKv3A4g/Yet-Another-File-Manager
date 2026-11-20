@@ -1,5 +1,48 @@
 # Changelog
 
+## [0.32.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.31.0..v0.32.0) - 2026-11-20
+
+### ⛰️  Features
+
+- *(data)* One local server, thumbnails on it, and paged binary listings - ([bcc46b4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/bcc46b44039b595fb201eaf9fd8729d7d9f3d351))
+- *(grid)* Keep the tile grid to a bounded window - ([dbd68ee](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/dbd68ee0eb104e920dd773656851f1ff58c79126))
+- *(ui)* Let a search and a select-all see the whole folder - ([d80bccb](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d80bccb3cb4cf18c03f1415bbf6f7b657f6ab0bc))
+- *(ui)* Read folder listings from the paged binary data plane - ([699b535](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/699b535eddab268f3fca772dab2034b76096dbde))
+
+### 🐛 Bug Fixes
+
+- *(fs)* Treat the file-time epoch as a missing desktop.ini - ([fb9f182](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/fb9f182c833182b68c9af5f6e556a2151cc1e9a5))
+- *(windhawk)* Report the folder change so callers accept the picked file - ([3b07bc6](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/3b07bc678cc056e5040f4442b6895eb6c5c1b132))
+
+### 🚜 Refactor
+
+- *(data)* Move the listing block into the shared library - ([92af75d](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/92af75d59c6af5324ee043a40117bf3a81bcac73))
+
+### 📚 Documentation
+
+- *(fs)* Mark the JSON listing reply as the legacy path - ([d706b8d](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d706b8de463a8ba1e7902bc01876c9a0981aeff4))
+
+### ⚡ Performance
+
+- *(app)* Construct the share service so its handlers answer at once - ([56a8f2a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/56a8f2a066371790cd8fc11328fdd6fc6fcc83b7))
+- *(fs)* Stop listing a folder the tab has left - ([9ba43ce](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/9ba43ce58081029b1b3054296a522f227cccceb1))
+- *(native)* Read less and lock less on the bulk paths - ([4d143a0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/4d143a06089dc4831eacf8f9c6f4cb622a417651))
+- *(notices)* Take the licence list as JSON instead of a module - ([46a4b22](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/46a4b22007dd702e814dea8cb8fea92a89d49f51))
+- *(thumb)* Unpack an archive entry once and bound the thumbnail cache - ([1b80c06](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1b80c06aeb77b7fbc2e01dc9b03140788e1b433d))
+- *(ui)* Read the restored folder before the other tabs - ([fe548d5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/fe548d5205308965b55caaca73cd13f55ab22ff0))
+- *(ui)* Split the pages and stop repainting the whole list - ([5c9a5c5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/5c9a5c58e14ff568f49b539db5d751f9fa2aff93))
+- Start the window before local sharing and cache shell answers - ([dd3603a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/dd3603aa9174c3023ec53de193c2eff133a4dd8d))
+
+### 🎨 Styling
+
+- *(picker)* Keep the imports on their own lines - ([844ae73](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/844ae734d57e7e4214cdc667121d3b50c6887fa2))
+- *(settings)* Declare the lazy dialog below the imports - ([7a8c3bb](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7a8c3bb605162b7eee4bed98123f8d715c19e866))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([c6be724](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c6be7246f2ebf67ec031a89c3ffee896532a8408))
+
+
 ## [0.31.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.30.1..v0.31.0) - 2026-11-19
 
 ### ⛰️  Features
