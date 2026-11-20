@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.33.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.33.0..v0.33.1) - 2026-11-20
+
+### ⚙️ Miscellaneous Tasks
+
+- Update SharpCompress to version 0.50.10 - ([f8f71da](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/f8f71da9e0ae94c1b03cf20c16fbb02e86093ab2))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([78f2fb5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/78f2fb5c069b3e318b3718594323ce26a7de5ee3))
+
+
 ## [0.33.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.32.0..v0.33.0) - 2026-11-20
 
 ### ⛰️  Features
