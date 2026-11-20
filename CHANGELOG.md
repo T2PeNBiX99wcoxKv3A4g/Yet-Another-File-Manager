@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.40.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.39.0..v0.40.0) - 2026-11-20
+
+### ⛰️  Features
+
+- *(ui)* Show recent file times as seconds and minutes ago, and keep them counting - ([edb1141](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/edb11415b9609ba3d668d09978d0adb06d55c475))
+- *(windhawk)* Lift the picker over a full-screen game - ([d1c07d5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d1c07d55eb3bbe1badb334bcd3adfb4892ac0776))
+
+### 🐛 Bug Fixes
+
+- *(picker)* Read the program's format from every spelling of its extension - ([3b5a317](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/3b5a317bd7de9498d7d7cd22224252d8d8c2f068))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([7d65cb9](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7d65cb9a23fc33f3cd157487a201b5f5107cb9a9))
+
+
 ## [0.39.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.38.1..v0.39.0) - 2026-11-20
 
 ### ⛰️  Features
