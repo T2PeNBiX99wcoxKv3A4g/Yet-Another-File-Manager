@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.38.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.37.0..v0.38.0) - 2026-11-20
+
+### ⛰️  Features
+
+- *(picker)* Offer each file type on its own, and add its extension on save - ([1928af5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1928af5e1f84f31b416cfabe0697fb6301b9b7d7))
+- *(windhawk)* Hand the dialog's file types to the picker - ([acdb215](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/acdb215b1a7f2177f7ee8552518be0fee12e76cd))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([1af2c8d](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1af2c8df3057cd5f69d77b89a139130b8d6126e1))
+
+
 ## [0.37.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.36.0..v0.37.0) - 2026-11-20
 
 ### ⛰️  Features
