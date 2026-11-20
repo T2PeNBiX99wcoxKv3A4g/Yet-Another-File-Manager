@@ -30,6 +30,7 @@ declare module "@photino-net-utils/bridge"
         "adjust_banner_framing": true;
         "adjust_framing": true;
         "administrator_rights_are_required_to_change_this_folder": true;
+        "administrator_rights_required": true;
         "admin_view_loaded": true;
         "aes_128": true;
         "aes_192": true;
@@ -638,6 +639,7 @@ declare module "@photino-net-utils/bridge"
         "rules_are_full_path_globs_matches_within_one_path_segment_and_crosses_folders_matching_folders_use_the_central_database_instead_of_creating_yafm_index_db_files": true;
         "rules_are_full_path_globs_stays_inside_one_name_crosses_folders_and_matches_one_character_a_rule_without_a_folder_part_such_as_log_applies_to_that_name_at_any_depth_vars_vars_and_are_expanded_first": true;
         "rules_are_glob_like_covers_the_folder_and_everything_below_it_covers_the_folder_and_the_entries_directly_inside_it_and_a_plain_path_covers_only_the_folder_environment_variables_such_as_userprofile_are_expanded_first": true;
+        "run_as_administrator": true;
         "safety": true;
         "saturation": true;
         "save": true;
@@ -837,6 +839,7 @@ declare module "@photino-net-utils/bridge"
         "this_folder_only": true;
         "this_item": true;
         "this_item_is_cut_and_will_move_when_something_is_pasted": true;
+        "this_path_needs_administrator_rights_to_action_restart_the_app_as_administrator_and_try_again": true;
         "this_pc": true;
         "this_platform_cannot_create_a_per_user_startup_entry": true;
         "this_waits_seconds_s_before_the_button_works": true;

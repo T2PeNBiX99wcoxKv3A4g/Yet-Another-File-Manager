@@ -150,6 +150,16 @@ internal partial class WindowManager
         return null;
     }
 
+    /// <summary>The window's answer to the "run as administrator?" question.</summary>
+    [NativeMessage("fs.elevation.answer")]
+    private NativeResponse? AnswerElevation(NativeContext context)
+    {
+        var answer = context.Payload<ElevationAnswerPayload>();
+        ElevationPrompt.Answer(answer?.Token, answer?.Allow ?? false);
+
+        return null;
+    }
+
     [NativeMessage("pick.open")]
     private async Task<NativeResponse?> OpenPickAsync(NativeContext context) =>
         context.Reply("pick.open.result", await OpenPickerAsync(context.Payload<PickOpenRequest>()));

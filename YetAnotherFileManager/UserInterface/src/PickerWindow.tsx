@@ -11,6 +11,7 @@ import {FolderPicker} from "./components/FolderPicker";
 import {ViewMenu} from "./components/ViewMenu";
 import {ProtectedDeleteDialog} from "./components/ProtectedDeleteDialog";
 import {MessageDialog} from "./components/MessageDialog";
+import {ElevationDialog} from "./components/ElevationDialog";
 import {AppIcon, CrossIcon} from "./components/Icons";
 
 interface PickerWindowProps {
@@ -194,6 +195,7 @@ export function PickerWindow({mode, save = false, multiple, extensions, types, t
             )}
 
             <MessageDialog/>
+            <ElevationDialog/>
             <ResizeHandles/>
         </Host>
     );

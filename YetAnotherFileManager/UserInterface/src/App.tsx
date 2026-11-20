@@ -52,6 +52,7 @@ import {CompressDialog} from "./components/CompressDialog";
 import {Wallpaper} from "./components/Wallpaper";
 import {ProtectedDeleteDialog} from "./components/ProtectedDeleteDialog";
 import {MessageDialog} from "./components/MessageDialog";
+import {ElevationDialog} from "./components/ElevationDialog";
 import {PasswordDialog} from "./components/PasswordDialog";
 import {type ProtectedPrompt, setProtectedAsker} from "./api/safety";
 import {requestArchivePassword, showMessage} from "./api/dialogs";
@@ -3264,6 +3265,7 @@ export default function App() {
 
                 <MessageDialog/>
                 <PasswordDialog/>
+                <ElevationDialog/>
                 {sharePair && (
                     <SharePairDialog
                         code={sharePair.code}

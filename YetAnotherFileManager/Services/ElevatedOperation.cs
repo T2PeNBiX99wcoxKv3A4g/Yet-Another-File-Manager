@@ -70,6 +70,13 @@ internal static class ElevatedOperation
             return Failed("The executable path is unknown.");
 
         var id = Guid.NewGuid().ToString("N");
+
+        // The window explains what was blocked and asks before Windows raises its own consent
+        // prompt; a delete that silently turns into a UAC dialog is a surprise nobody wants.
+        var target = request.Paths.FirstOrDefault() ?? request.Target ?? request.Name ?? "";
+        if (!await ElevationPrompt.AskAsync(request.Kind, target))
+            return Denied();
+
         var requestPath = Path.Combine(Path.GetTempPath(), $"yafm-op-{id}.json");
         var resultPath = Path.Combine(Path.GetTempPath(), $"yafm-op-{id}.result.json");
         var progressPath = Path.Combine(Path.GetTempPath(), $"yafm-op-{id}.progress.json");
