@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.36.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.35.0..v0.36.0) - 2026-11-20
+
+### ⛰️  Features
+
+- *(settings)* Keep a backdrop's look per wallpaper, and let it be reset - ([de78045](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/de7804580b9f7edb348587a6473ea78cce820be4))
+- *(site)* Show the main window and popup like URLCheck - ([4b49f67](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/4b49f67e8057560528a9955e43c4f2d6200ea37f))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([672d678](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/672d678cda99d809d2397394f775d4b4224ead33))
+
+
 ## [0.35.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.34.0..v0.35.0) - 2026-11-20
 
 ### ⛰️  Features
