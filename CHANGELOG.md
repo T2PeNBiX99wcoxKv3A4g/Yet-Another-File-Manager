@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.42.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.42.1..v0.42.2) - 2026-11-20
+
+### 🐛 Bug Fixes
+
+- *(picker)* Start on the format the dialog asks for, not the last export's name - ([d2ef4b7](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d2ef4b782b9a4d425adbb4e9cd63e77c3bd8eb1f))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([ec1fc0a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/ec1fc0acc74cb693534624951d7b863389cc5366))
+
+
 ## [0.42.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.42.0..v0.42.1) - 2026-11-20
 
 ### 🐛 Bug Fixes
