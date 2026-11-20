@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.35.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.34.0..v0.35.0) - 2026-11-20
+
+### ⛰️  Features
+
+- *(archive)* Open tar.zst, including Arch and Fedora packages - ([bb0f8b8](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/bb0f8b8305cf1a21a9cafda5e5aba6d0f4ba55c4))
+
+### 🐛 Bug Fixes
+
+- *(site)* Pin the gfm autolink package npm cannot download - ([c2fb564](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c2fb564da72613348d44afbe4efa8079745958a5))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([b6ee2f7](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b6ee2f783f5cc31cc28e2167f349cc6946f938e0))
+
+
 ## [0.34.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.33.4..v0.34.0) - 2026-11-20
 
 ### ⛰️  Features
