@@ -28,6 +28,10 @@ internal sealed record FsListRequest(
 ///     Body for <c>fs.list</c>: the directory that was listed, its parent (null at the root), its
 ///     entries (folders first), and any cached folder sizes from the directory's own index.
 /// </summary>
+/// <remarks>
+///     This is the legacy path. The data plane serves listings as paged columnar blocks now, and this
+///     shape is kept only until the interface is switched over; it is not extended any further.
+/// </remarks>
 internal sealed record FsListPayload(
     string Path,
     string? Parent,
