@@ -282,6 +282,12 @@ internal static partial class Program
     /// </summary>
     private static void RunPicker(PickerOptions picker)
     {
+        // The dialog's own parameters, so a save that picks the wrong format can be traced back to
+        // what the program asked for.
+        Log.Information("Picker {Mode}: initial={Initial} name={Name} extension={Extension} filter={Filter} index={Index} types={Types}",
+            picker.SaveMode ? "save" : picker.FileMode ? "file" : "folder", picker.Initial, picker.InitialName,
+            picker.DefaultExtension, string.Join(';', picker.Extensions), picker.TypeIndex, picker.Types);
+
         using var server = AppServer.Start();
 
 #if !DEBUG

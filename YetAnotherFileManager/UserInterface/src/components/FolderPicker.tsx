@@ -111,6 +111,19 @@ export function FolderPicker({
     // entries the picker adds for itself when the caller named no types at all.
     const [typeChoice, setTypeChoice] = useState<number | "all" | "supported">(() => {
         if (offered.length === 0) return supported.length === 0 ? "all" : "supported";
+
+        // Programs often name the file after the document ("photo.jpg") without picking a type, so
+        // the extension says which entry the file is in. An explicit index still wins, because it
+        // is the one the program chose.
+        const named = initialName.toLowerCase();
+        const byExtension = named.lastIndexOf(".") > 0
+            ? offered.findIndex((type) => type.extensions.some((extension) =>
+                extension.length > 0 && named.endsWith(extension.toLowerCase())))
+            : -1;
+
+        if (byExtension >= 0 && typeIndex <= 1)
+            return byExtension;
+
         return typeIndex >= 1 && typeIndex <= offered.length ? typeIndex - 1 : 0;
     });
     const chosenType = typeof typeChoice === "number" ? offered[typeChoice] ?? null : null;
@@ -119,6 +132,29 @@ export function FolderPicker({
         ? chosenType?.extensions ?? []
         : typeChoice === "supported" ? supported : [];
     const chosenTypeNumber = typeof typeChoice === "number" ? typeChoice + 1 : 0;
+
+    /** Whether one of the offered types already claims this extension. */
+    const isKnownExtension = (extension: string): boolean =>
+        offered.some((type) => type.extensions.some((item) => item.toLowerCase() === extension));
+
+    /** Keeps the name box on the format being saved, the way the program's own dialog would. */
+    const renameForType = (name: string, next: PickerFileType | null): string => {
+        const extension = next?.extensions[0] ?? "";
+        const dot = name.lastIndexOf(".");
+
+        if (extension.length === 0 || dot <= 0)
+            return name;
+
+        return isKnownExtension(name.slice(dot).toLowerCase())
+            ? name.slice(0, dot) + extension
+            : name;
+    };
+
+    /** Switches the type and moves the name box to that format's extension. */
+    const chooseType = (value: number | "all" | "supported") => {
+        setTypeChoice(value);
+        setFileName((current) => renameForType(current, typeof value === "number" ? offered[value] ?? null : null));
+    };
     const [path, setPath] = useState(initial);
     const [listing, setListing] = useState<DirectoryListing | null>(null);
     const [loading, setLoading] = useState(true);
@@ -429,9 +465,10 @@ export function FolderPicker({
                 return;
             }
 
-            // The caller's own default extension wins; otherwise the type on screen names it, which
-            // is how a program that only lists "(*.clip)" gets ".clip" on the saved file.
-            const fallback = defaultExtension.length > 0 ? defaultExtension : typeExtensions[0] ?? "";
+            // The type on screen names the extension; the program's default is only a fallback for
+            // a type that has no extension of its own. A program that keeps its default extension
+            // from the document's old format would otherwise save the wrong format.
+            const fallback = typeExtensions[0] ?? defaultExtension;
             const suffix = fallback.length > 0 && !/\.[^.]*$/.test(name)
                 ? fallback.startsWith(".") ? fallback : `.${fallback}`
                 : "";
@@ -578,7 +615,7 @@ export function FolderPicker({
                     <>
                         <FieldLabel>{t("files_of_type")}</FieldLabel>
                         <SelectMenu
-                            onChange={(value) => setTypeChoice(
+                            onChange={(value) => chooseType(
                                 value === "all" || value === "supported" ? value : Number(value)
                             )}
                             options={offered.length > 0
