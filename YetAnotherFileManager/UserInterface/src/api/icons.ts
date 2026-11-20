@@ -209,7 +209,7 @@ export function useIconFile(path: string | null): string | null {
 let thumbnailBase: string | null = null;
 let thumbnailBaseTask: Promise<string> | null = null;
 
-function loadThumbnailBase(): Promise<string> {
+export function dataBase(): Promise<string> {
     if (thumbnailBase !== null) return Promise.resolve(thumbnailBase);
     if (!Native.available) return Promise.resolve("");
 
@@ -241,7 +241,7 @@ export function useThumbnail(path: string | null, size = 128, version = 0): stri
         if (!path || base !== null) return;
 
         let alive = true;
-        void loadThumbnailBase().then((value) => {
+        void dataBase().then((value) => {
             if (alive) setBase(value);
         });
 
@@ -277,7 +277,7 @@ export function useMediaUrl(path: string | null, version = 0, extension = ""): s
         if (!path || base !== null) return;
 
         let alive = true;
-        void loadThumbnailBase().then((value) => {
+        void dataBase().then((value) => {
             if (alive) setBase(value);
         });
 
@@ -300,7 +300,7 @@ export function usePdfPreview(path: string | null, version = 0): string | null {
         if (!path || base !== null) return;
 
         let alive = true;
-        void loadThumbnailBase().then((value) => {
+        void dataBase().then((value) => {
             if (alive) setBase(value);
         });
 

@@ -472,7 +472,16 @@ internal partial class ShareService
     }
 
     private static void Push(string type, object payload) =>
-        Try.Run(() => WindowManager.Instance.RunOnMainWindow(() => WindowManager.Instance.Notify(type, payload)))
+        Try.Run(() =>
+            {
+                // A push posted before the interface is listening goes into a window with no message
+                // loop behind it, which takes the process down. The interface asks for this state
+                // itself when it loads, so a dropped push costs nothing.
+                if (!WindowManager.Instance.IsWebViewReady)
+                    return;
+
+                WindowManager.Instance.RunOnMainWindow(() => WindowManager.Instance.Notify(type, payload));
+            })
             .OnFailure(ex => Constants.Logger.Debug(ex, "Failed to push {Type}", type));
 
     // ---- remote browsing and download ---------------------------------------------------------

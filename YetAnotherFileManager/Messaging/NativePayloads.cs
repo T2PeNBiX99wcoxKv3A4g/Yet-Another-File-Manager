@@ -25,6 +25,16 @@ internal sealed record FsListRequest(
     string? Id = null);
 
 /// <summary>
+///     One page of a listing as the data plane's <c>?format=json</c> debug view prints it, so the
+///     binary block can be compared with something readable while a client is written.
+/// </summary>
+internal sealed record ListingPagePayload(
+    string Path,
+    int Signature,
+    int Total,
+    IReadOnlyList<FileEntry> Entries);
+
+/// <summary>
 ///     Body for <c>fs.list</c>: the directory that was listed, its parent (null at the root), its
 ///     entries (folders first), and any cached folder sizes from the directory's own index.
 /// </summary>

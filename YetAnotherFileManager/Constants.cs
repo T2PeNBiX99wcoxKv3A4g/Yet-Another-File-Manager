@@ -102,6 +102,16 @@ public static class Constants
     public const string PdfPreviewArgument = "--pdf-preview";
 
     /// <summary>
+    ///     Prints one page of a folder's listing block as text, then exits. It writes the block with
+    ///     the same encoder the window receives and reads it back, so a broken layout shows up without
+    ///     opening the interface.
+    /// </summary>
+    public const string ListingDumpArgument = "--listing-dump";
+
+    /// <summary>Where a debug build loads the interface from; Vite serves it with hot reload.</summary>
+    public const string DevServerUrl = "http://127.0.0.1:3100";
+
+    /// <summary>
     ///     The shared "Core" logger. Resolved from the configured <see cref="Log.Logger" /> on every
     ///     access, so it must not be captured before <see cref="Logging.Initialize" /> has run.
     /// </summary>

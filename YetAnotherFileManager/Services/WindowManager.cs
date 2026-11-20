@@ -85,6 +85,9 @@ internal partial class WindowManager
     /// <summary>Raised once the window's native handle exists (the message loop is about to start).</summary>
     public event Action? MainWindowCreated;
 
+    /// <summary>True once the interface reported <c>app.ready</c>, the first moment a push can land.</summary>
+    public bool IsWebViewReady => _mainWindowReady;
+
     /// <summary>The native window, for a child window such as the share approval prompt.</summary>
     internal PhotinoWindow? MainWindow => _mainWindow;
 

@@ -146,7 +146,7 @@ internal partial class FileSystemService : INativeMessageHandler
 
             case "app.thumbnails":
                 return context.Reply("app.thumbnails.result",
-                    new ThumbnailServerPayload(ThumbnailServer.Instance.BaseUrl));
+                    new ThumbnailServerPayload(AppServer.DataUrl));
 
             case "fs.recent":
                 return context.Reply("fs.recent.result",
@@ -1209,7 +1209,15 @@ internal partial class FileSystemService : INativeMessageHandler
             ? StringComparer.OrdinalIgnoreCase.Compare(left.Name, right.Name)
             : left.IsDirectory ? -1 : 1;
 
-    private static async Task<FsListPayload> ListAsync(string? path, bool measure = true, bool includeLinks = false,
+    /// <summary>
+    ///     The listing a data-plane page is cut from. Measuring child folders and counting hard links
+    ///     belong to the window's own call; a page needs neither.
+    /// </summary>
+    internal static Task<FsListPayload> List(string? path, bool measure = true,
+        CancellationToken cancellationToken = default) =>
+        ListAsync(path, measure, false, 0, null, cancellationToken);
+
+    internal static async Task<FsListPayload> ListAsync(string? path, bool measure = true, bool includeLinks = false,
         int codePage = 0, string? password = null, CancellationToken cancellationToken = default)
     {
         if (Archives.TryListWorkspace(path ?? "", out var workspaceListing))

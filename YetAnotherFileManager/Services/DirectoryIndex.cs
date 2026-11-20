@@ -238,7 +238,7 @@ internal static class DirectoryIndex
     ///     A cheap fingerprint of a listing: enough to recognise the rows the index already holds,
     ///     without keeping any of them in memory.
     /// </summary>
-    private static int SignatureOf(IReadOnlyList<FileEntry> entries)
+    internal static int SignatureOf(IReadOnlyList<FileEntry> entries)
     {
         var hash = new HashCode();
 

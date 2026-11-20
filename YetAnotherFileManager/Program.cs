@@ -19,9 +19,6 @@ using YetAnotherFileManager.Interop;
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Services;
 using SingleInstance = PhotinoNetUtils.Services.SingleInstance;
-#if !DEBUG
-using PhotinoNetUtils.Hosting;
-#endif
 
 namespace YetAnotherFileManager;
 //NOTE: To hide the console window, go to the project properties and change the Output Type to Windows Application.
@@ -93,6 +90,16 @@ internal static partial class Program
         if (args.Contains(Constants.PdfPreviewArgument))
         {
             RunPdfPreview(args);
+            return;
+        }
+
+        // A one-off look at a listing block, for whoever is debugging the data plane. It writes with
+        // the real encoder and reads the bytes back, so it needs neither a window nor the web view.
+        // It also runs before logging starts, so the text reaches the terminal exactly once.
+        if (args.Contains(Constants.ListingDumpArgument))
+        {
+            SettingsService.Instance.LoadAsync().GetAwaiter().GetResult();
+            Environment.ExitCode = RunListingDump(args);
             return;
         }
 
@@ -173,7 +180,6 @@ internal static partial class Program
             // Touching each singleton constructs it, which is what registers its message handlers.
             _ = AppInfoService.Instance;
             _ = FileSystemService.Instance;
-            _ = ThumbnailServer.Instance;
             _ = StartupService.Instance;
 
             // Constructed here so its handlers answer immediately; the work itself starts once the
@@ -184,15 +190,18 @@ internal static partial class Program
             // before it renders, while the message bridge is not answering yet.
             var storedState = UiStateService.Instance.Encoded;
 
+            // One local server for both builds: it serves the built interface in a release build and,
+            // in a debug build, the data routes while the interface comes from Vite.
+            using var server = AppServer.Start();
+
 #if !DEBUG
             // Kestrel binds to an OS-assigned port, so several Photino apps can run side by side
             // without racing for the default 8000. The content root is a folder we own, which keeps
             // the web root out of the executable's directory.
-            using var staticServer = StaticServer.Start(Constants.DataDirectory);
-            var appUrl = $"{staticServer.BaseUrl}/index.html?v={AppInfoService.BuildToken}&state={storedState}";
+            var appUrl = $"{server.BaseUrl}/index.html?v={AppInfoService.BuildToken}&state={storedState}";
 #else
             // A Debug build always talks to the Vite dev server, which is where hot reload lives.
-            var appUrl = $"http://127.0.0.1:3100/index.html?state={storedState}";
+            var appUrl = $"{Constants.DevServerUrl}/index.html?state={storedState}";
 #endif
 
             Log.Information("Serving React app at {AppUrl}", appUrl);
@@ -272,15 +281,15 @@ internal static partial class Program
     /// </summary>
     private static void RunPicker(PickerOptions picker)
     {
+        using var server = AppServer.Start();
+
 #if !DEBUG
-        using var staticServer = StaticServer.Start(Constants.DataDirectory);
-        var appUrl = $"{staticServer.BaseUrl}/index.html?v={AppInfoService.BuildToken}";
+        var appUrl = $"{server.BaseUrl}/index.html?v={AppInfoService.BuildToken}";
 #else
-        const string appUrl = "http://127.0.0.1:3100";
+        var appUrl = Constants.DevServerUrl;
 #endif
         _ = AppInfoService.Instance;
         _ = FileSystemService.Instance;
-        _ = ThumbnailServer.Instance;
 
         var manager = WindowManager.Instance;
         manager.AppUrl = CliPicker.AppendTo(appUrl, picker);
@@ -587,6 +596,75 @@ internal static partial class Program
             Environment.ExitCode = 1;
         }
     }
+
+    /// <summary>
+    ///     Prints one page of a folder's listing block and exits. The bytes go through the encoder the
+    ///     window receives them from, so this is the quickest way to see whether a layout change broke
+    ///     the data plane — no window, no web view.
+    /// </summary>
+    private static int RunListingDump(string[] args)
+    {
+        var index = Array.IndexOf(args, Constants.ListingDumpArgument);
+        if (index < 0 || index + 1 >= args.Length)
+        {
+            Console.Error.WriteLine(
+                $"usage: {Constants.Name} {Constants.ListingDumpArgument} <folder> [--from n] [--count n] [--sort name|size|modified|created|type]");
+            return 2;
+        }
+
+        if (OperatingSystem.IsWindows())
+            AttachConsole(AttachParent);
+
+        // Archive detection asks the native helper; without it, a folder holding archives would fail.
+        Try.Run(RustNative.Initialize);
+
+        var path = args[index + 1];
+        var from = 0;
+        var count = 20;
+        var sort = "name";
+
+        for (var i = index + 2; i + 1 < args.Length; i += 2)
+            switch (args[i])
+            {
+                case "--from":
+                    _ = int.TryParse(args[i + 1], out from);
+                    break;
+
+                case "--count":
+                    _ = int.TryParse(args[i + 1], out count);
+                    break;
+
+                case "--sort":
+                    sort = args[i + 1];
+                    break;
+            }
+
+        try
+        {
+            var page = ListingCache.ReadAsync(path, sort, false, from, Math.Max(1, count), CancellationToken.None)
+                .GetAwaiter().GetResult();
+
+            var block = ListingFormat.Encode(page.Entries, page.Path);
+
+            Console.WriteLine($"block {block.Length} bytes · total {page.Total} · signature {page.Signature:x8}");
+            Console.WriteLine(ListingFormat.Dump(block));
+            Console.Out.Flush();
+
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 1;
+        }
+    }
+
+    /// <summary><c>ATTACH_PARENT_PROCESS</c>: a WinExe has no console of its own.</summary>
+    private const uint AttachParent = 0xFFFFFFFF;
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool AttachConsole(uint processId);
 
     private static async Task RunOrphansReportAsync(string[] args)
     {
