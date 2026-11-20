@@ -44,6 +44,6 @@ internal static class AppRoutes
     public static void Map(WebApplication app, string token)
     {
         ThumbnailRoutes.Map(app, token);
-        ListingRoutes.Map(app, token);
+        ListingRoute.Map(app, token, ListingSource.Instance);
     }
 }

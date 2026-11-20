@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Xml.Linq;
 using PhotinoNetUtils;
 using PhotinoNetUtils.Extensions;
+using PhotinoNetUtils.Hosting;
 using PhotinoNetUtils.Interop;
 using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Messaging;
@@ -598,19 +599,15 @@ internal static partial class Program
     }
 
     /// <summary>
-    ///     Prints one page of a folder's listing block and exits. The bytes go through the encoder the
-    ///     window receives them from, so this is the quickest way to see whether a layout change broke
+    ///     Prints one page of a folder's listing block and exits. The block is written by the library
+    ///     and read back the same way, so this is the quickest way to see whether a layout change broke
     ///     the data plane — no window, no web view.
     /// </summary>
     private static int RunListingDump(string[] args)
     {
         var index = Array.IndexOf(args, Constants.ListingDumpArgument);
-        if (index < 0 || index + 1 >= args.Length)
-        {
-            Console.Error.WriteLine(
-                $"usage: {Constants.Name} {Constants.ListingDumpArgument} <folder> [--from n] [--count n] [--sort name|size|modified|created|type]");
+        if (index < 0)
             return 2;
-        }
 
         if (OperatingSystem.IsWindows())
             AttachConsole(AttachParent);
@@ -618,45 +615,12 @@ internal static partial class Program
         // Archive detection asks the native helper; without it, a folder holding archives would fail.
         Try.Run(RustNative.Initialize);
 
-        var path = args[index + 1];
-        var from = 0;
-        var count = 20;
-        var sort = "name";
+        var exitCode = ListingDump
+            .RunAsync(ListingSource.Instance, args[(index + 1)..], Console.Out)
+            .GetAwaiter().GetResult();
 
-        for (var i = index + 2; i + 1 < args.Length; i += 2)
-            switch (args[i])
-            {
-                case "--from":
-                    _ = int.TryParse(args[i + 1], out from);
-                    break;
-
-                case "--count":
-                    _ = int.TryParse(args[i + 1], out count);
-                    break;
-
-                case "--sort":
-                    sort = args[i + 1];
-                    break;
-            }
-
-        try
-        {
-            var page = ListingCache.ReadAsync(path, sort, false, from, Math.Max(1, count), CancellationToken.None)
-                .GetAwaiter().GetResult();
-
-            var block = ListingFormat.Encode(page.Entries, page.Path);
-
-            Console.WriteLine($"block {block.Length} bytes · total {page.Total} · signature {page.Signature:x8}");
-            Console.WriteLine(ListingFormat.Dump(block));
-            Console.Out.Flush();
-
-            return 0;
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine(ex.Message);
-            return 1;
-        }
+        Console.Out.Flush();
+        return exitCode;
     }
 
     /// <summary><c>ATTACH_PARENT_PROCESS</c>: a WinExe has no console of its own.</summary>
