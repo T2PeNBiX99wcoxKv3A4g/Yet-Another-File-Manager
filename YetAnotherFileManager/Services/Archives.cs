@@ -9,6 +9,7 @@ using SharpCompress.Common;
 using SharpCompress.Compressors.BZip2;
 using SharpCompress.Compressors.Xz;
 using SharpCompress.Readers;
+using SharpCompress.Writers.Tar;
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
 using ZstdSharp;
@@ -1115,7 +1116,100 @@ internal static class Archives
             }
         }
 
+        // A plain .zst holds one file rather than a tar: pack the payload into a one-entry tar so the
+        // archive reader can list and extract it exactly like the file inside a .gz.
+        if (archivePath.EndsWith(".zst", StringComparison.OrdinalIgnoreCase))
+            return OpenSingleFileZstd(archivePath, options);
+
         return ArchiveFactory.OpenArchive(archivePath, options);
+    }
+
+    /// <summary>
+    ///     Opens a .zst that compresses one file: the payload is written into a temporary tar, which
+    ///     is then read like any other tar. A tar that simply lost its ".tar" part keeps its folders.
+    /// </summary>
+    private static IArchive OpenSingleFileZstd(string archivePath, ReaderOptions options)
+    {
+        var streamDirectory = Path.Combine(TempRoot, "streams");
+        Directory.CreateDirectory(streamDirectory);
+
+        var payloadPath = Path.Combine(streamDirectory, $"{Guid.NewGuid():N}.zst-payload");
+
+        try
+        {
+            long length;
+
+            using (var input = File.OpenRead(archivePath))
+            using (var zstd = new DecompressionStream(input))
+            using (var payload = File.Create(payloadPath))
+            {
+                zstd.CopyTo(payload);
+                length = payload.Length;
+            }
+
+            options.ExtensionHint = ".tar";
+
+            // A tar that lost its ".tar" part keeps its folders; the opened reader keeps the stream
+            // alive, so the payload is removed when the archive is closed instead of here.
+            if (IsTar(payloadPath))
+            {
+                var tar = new FileStream(payloadPath, FileMode.Open, FileAccess.Read, FileShare.Read,
+                    131072, FileOptions.DeleteOnClose | FileOptions.RandomAccess);
+
+                try
+                {
+                    return ArchiveFactory.OpenArchive(tar, options);
+                }
+                catch
+                {
+                    tar.Dispose();
+                    throw;
+                }
+            }
+
+            var tarPath = Path.Combine(streamDirectory, $"{Guid.NewGuid():N}.tar");
+            // "photo.png.zst" holds "photo.png"; the name without the suffix is what the reader shows.
+            var inner = Path.GetFileName(archivePath)[..^4];
+
+            using (var tar = File.Create(tarPath))
+            using (var writer = new TarWriter(tar, new TarWriterOptions(CompressionType.None, true)))
+            using (var payload = File.OpenRead(payloadPath))
+                writer.Write(inner, payload, File.GetLastWriteTime(archivePath), length);
+
+            var stream = new FileStream(tarPath, FileMode.Open, FileAccess.Read, FileShare.Read,
+                131072, FileOptions.DeleteOnClose | FileOptions.RandomAccess);
+
+            try
+            {
+                return ArchiveFactory.OpenArchive(stream, options);
+            }
+            catch
+            {
+                stream.Dispose();
+                throw;
+            }
+        }
+        finally
+        {
+            TryDeleteFile(payloadPath);
+        }
+    }
+
+    /// <summary>Whether a file starts with a tar header; the magic sits 257 bytes in.</summary>
+    private static bool IsTar(string path)
+    {
+        try
+        {
+            using var stream = File.OpenRead(path);
+            var header = new byte[512];
+
+            return stream.ReadAtLeast(header, header.Length, false) == header.Length
+                   && header.AsSpan(257, 5).SequenceEqual("ustar"u8);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static long Modified(DateTime? value) =>
