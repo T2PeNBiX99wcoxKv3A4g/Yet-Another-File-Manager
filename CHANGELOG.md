@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.37.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.36.0..v0.37.0) - 2026-11-20
+
+### ⛰️  Features
+
+- *(archive)* Browse a plain .zst as the file it holds - ([e4cb8c2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/e4cb8c27460f392e97f50cb24f7ae22ea1b39cea))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([0ce95d1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/0ce95d1006f5299b91b955e646518fd876494f5f))
+
+
 ## [0.36.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.35.0..v0.36.0) - 2026-11-20
 
 ### ⛰️  Features
