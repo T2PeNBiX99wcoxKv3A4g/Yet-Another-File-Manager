@@ -9,6 +9,7 @@
     }
   ],
   "licences": {
-    "SevenZipExtractor": "https://raw.githubusercontent.com/adoconnection/SevenZipExtractor/master/LICENSE"
+    "SevenZipExtractor": "https://raw.githubusercontent.com/adoconnection/SevenZipExtractor/master/LICENSE",
+    "ZstdSharp.Port": "https://raw.githubusercontent.com/oleg-st/ZstdSharp/master/LICENSE"
   }
 }

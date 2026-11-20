@@ -11,6 +11,7 @@ using SharpCompress.Compressors.Xz;
 using SharpCompress.Readers;
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
+using ZstdSharp;
 using CompressionMode = SharpCompress.Compressors.CompressionMode;
 using GZipStream = SharpCompress.Compressors.Deflate.GZipStream;
 
@@ -63,8 +64,6 @@ internal static class Archives
         ".squashfs",
         ".qcow2",
         ".vdi",
-        ".zst",
-        ".tzst",
         ".001"
     ];
 
@@ -1050,18 +1049,21 @@ internal static class Archives
             var name when name.EndsWith(".tar.gz") || name.EndsWith(".tgz") => "gz",
             var name when name.EndsWith(".tar.bz2") || name.EndsWith(".tbz") || name.EndsWith(".tbz2") => "bz2",
             var name when name.EndsWith(".tar.xz") || name.EndsWith(".txz") => "xz",
+            // Arch packages and most other tar.zst files: a tar inside a zstd stream, which 7z.dll
+            // does not read, so the managed decompressor expands it here.
+            var name when name.EndsWith(".tar.zst") || name.EndsWith(".tzst") => "zst",
             _ => ""
         };
 
         if (tarCompression.Length > 0)
         {
             // 7z.dll decompresses the outer gz/bz2/xz stream much faster than the managed streams,
-            // so the tar reader only has to walk the expanded file.
+            // so the tar reader only has to walk the expanded file. It has no zstd support at all.
             var streamDirectory = Path.Combine(TempRoot, "streams");
             Directory.CreateDirectory(streamDirectory);
             var expandedPath = Path.Combine(streamDirectory, $"{Guid.NewGuid():N}.tar");
 
-            if (TryExpandWithSevenZip(archivePath, expandedPath))
+            if (tarCompression != "zst" && TryExpandWithSevenZip(archivePath, expandedPath))
             {
                 var stream = new FileStream(expandedPath, FileMode.Open, FileAccess.Read, FileShare.Read,
                     131072, FileOptions.DeleteOnClose | FileOptions.RandomAccess);
@@ -1085,6 +1087,7 @@ internal static class Archives
                 "bz2" => BZip2Stream.Create(input,
                     CompressionMode.Decompress, true),
                 "xz" => new XZStream(input),
+                "zst" => new DecompressionStream(input),
                 _ => throw new InvalidOperationException("Unsupported tar compression.")
             };
 
