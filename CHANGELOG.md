@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.34.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.33.4..v0.34.0) - 2026-11-20
+
+### ⛰️  Features
+
+- *(site)* Read the changelog from GitHub first - ([428c358](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/428c3585761e4dc1620eed63495ca478fb1cb0cc))
+- *(site)* Add a changelog page - ([694120f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/694120fa9631f7200c21ab45692b5f78bbfa4778))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([e06ea6b](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/e06ea6b32adb1eef606034612ccf7991067eaf15))
+
+
 ## [0.33.4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.33.3..v0.33.4) - 2026-11-20
 
 ### ⚙️ Miscellaneous Tasks
