@@ -586,6 +586,7 @@ declare module "@photino-net-utils/bridge"
         "reads_the_current_folder_again": true;
         "reads_the_version_file_the_release_workflow_publishes": true;
         "recent": true;
+        "recently_closed_tabs": true;
         "recent_items": true;
         "recycle_bin": true;
         "redo": true;
