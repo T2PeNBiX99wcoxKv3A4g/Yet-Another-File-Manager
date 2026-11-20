@@ -89,6 +89,8 @@ public sealed record AppSettings(
     int? BackgroundSaturation = null,
     [property: Setting(Comment = "Backdrop brightness, in percent.")]
     int? BackgroundBrightness = null,
+    [property: Setting(Comment = "Blur, saturation and brightness remembered for each backdrop source.")]
+    Dictionary<string, BackgroundLook>? BackgroundLooks = null,
     [property: Setting(Comment = "Paths a change must stop at; a trailing ** covers the subtree.")]
     List<string>? ProtectedPaths = null,
     [property: Setting(Comment = "Seconds the protected-folder confirmation stays disabled.")]
@@ -146,7 +148,7 @@ public sealed record AppSettings(
         new(true, true, true, ["**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null,
             ["quick", "frequent", "recent", "home", "drives", "share", "favorites"], null, 1, null,
             null, null, null, null, null, ["quick", "frequent", "recent", "drives"], null, null, true, null, 0, null,
-            true, false, false, false, false, true, null, null, null, null, false, null, null, null, null, null, null, 5,
+            true, false, false, false, false, true, null, null, null, null, false, null, null, null, null, null, null, null, 5,
             "24", null, null, false, 1200, 800, "relative", null, 220, [], 0.3, null, null, null, null, null, null, null);
 
     // The accessors below are derived, so they are kept out of settings.toml entirely; only the

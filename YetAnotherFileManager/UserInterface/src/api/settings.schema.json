@@ -337,6 +337,14 @@
       ],
       "description": "Backdrop brightness, in percent."
     },
+    "backgroundLooks": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {},
+      "description": "Blur, saturation and brightness remembered for each backdrop source."
+    },
     "protectedPaths": {
       "type": [
         "array",

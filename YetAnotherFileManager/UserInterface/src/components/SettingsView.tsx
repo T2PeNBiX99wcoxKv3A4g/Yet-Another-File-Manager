@@ -23,6 +23,7 @@ import {clearIconCache, useIconFile, useMediaUrl} from "../api/icons";
 import {
     type AppSettings,
     type ArchiveStatus,
+    type BackgroundLook,
     type DefaultManagerStatus,
     getArchiveStatus,
     getDefaultManagerStatus,
@@ -223,6 +224,10 @@ const ThemeModes: { id: ThemeMode; label: LocalizationKey }[] = [
     {id: "light", label: "light"},
     {id: "dark", label: "dark"},
 ];
+
+/** One slider's worth of the backdrop look, as a settings patch. */
+type BackgroundLookPatch =
+    Partial<Pick<AppSettings, "backgroundBlur" | "backgroundSaturation" | "backgroundBrightness">>;
 
 /** The choices offered for every timestamp; "custom" reveals the pattern box. */
 const TimeModes: { id: string; label: LocalizationKey }[] = [
@@ -619,15 +624,85 @@ export function SettingsView({
         onSettingsChanged();
     };
 
+    /** The blur, saturation and brightness a background was last left at. */
+    const lookOf = (source: string | null): BackgroundLook | null =>
+        source ? settings?.backgroundLooks[source] ?? null : null;
+
+    /** The three values to switch to: the stored look, or the defaults for an untouched one. */
+    const lookValues = (source: string | null): BackgroundLookPatch => {
+        const look = lookOf(source);
+        return {
+            backgroundBlur: look?.blur ?? 0,
+            backgroundSaturation: look?.saturation ?? 100,
+            backgroundBrightness: look?.brightness ?? 100,
+        };
+    };
+
+    /** The current look, filed under the background it belongs to; a default look is not kept. */
+    const withLook = (base: AppSettings): Record<string, BackgroundLook> => {
+        const looks = {...base.backgroundLooks};
+        const source = base.backgroundSource;
+        if (!source) return looks;
+
+        if (base.backgroundBlur === 0 && base.backgroundSaturation === 100 && base.backgroundBrightness === 100) {
+            delete looks[source];
+            return looks;
+        }
+
+        looks[source] = {
+            blur: base.backgroundBlur,
+            saturation: base.backgroundSaturation,
+            brightness: base.backgroundBrightness,
+        };
+
+        return looks;
+    };
+
+    /** Switches wallpaper: the one being left keeps its look, the one being shown brings its own. */
+    const selectBackground = (source: string | null) => {
+        if (!settings) return;
+
+        void update({
+            backgroundSource: source,
+            backgroundLooks: withLook(settings),
+            ...lookValues(source),
+        });
+    };
+
+    /** Applies one slider and files the result with the background on screen. */
+    const changeLook = (patch: BackgroundLookPatch) => {
+        if (!settings) return;
+
+        void update({...patch, backgroundLooks: withLook({...settings, ...patch})});
+    };
+
+    /** Drops the stored look of the current background and goes back to the defaults. */
+    const resetLook = () => {
+        if (!settings) return;
+
+        const looks = {...settings.backgroundLooks};
+        if (settings.backgroundSource) delete looks[settings.backgroundSource];
+
+        void update({
+            backgroundBlur: 0,
+            backgroundSaturation: 100,
+            backgroundBrightness: 100,
+            backgroundLooks: looks,
+        });
+    };
+
     /** Adds a picture or video to the gallery and selects it right away. */
     const addBackground = async (extensions: string[]) => {
         const file = await requestFile(extensions);
-        if (!file) return;
+        if (!file || !settings) return;
 
-        const known = settings?.backgroundCustom ?? [];
+        const known = settings.backgroundCustom;
+        const source = `file:${file}`;
         await update({
             backgroundCustom: known.includes(file) ? known : [...known, file],
-            backgroundSource: `file:${file}`,
+            backgroundSource: source,
+            backgroundLooks: withLook(settings),
+            ...lookValues(source),
         });
     };
 
@@ -636,11 +711,14 @@ export function SettingsView({
         const url = backgroundUrl.trim();
         if (!settings || !isRemoteUrl(url)) return;
 
-        const known = settings.backgroundCustom ?? [];
+        const known = settings.backgroundCustom;
+        const source = `url:${url}`;
         setBackgroundUrl("");
         await update({
             backgroundCustom: known.includes(url) ? known : [...known, url],
-            backgroundSource: `url:${url}`,
+            backgroundSource: source,
+            backgroundLooks: withLook(settings),
+            ...lookValues(source),
         });
     };
 
@@ -649,11 +727,13 @@ export function SettingsView({
         if (!settings) return;
 
         const active = settings.backgroundSource;
+        const removed = active === `file:${path}` || active === `url:${path}` || active === path;
+
         void update({
             backgroundCustom: settings.backgroundCustom.filter((item) => item !== path),
-            backgroundSource: active === `file:${path}` || active === `url:${path}` || active === path
-                ? null
-                : active,
+            ...(removed
+                ? {backgroundSource: null, backgroundLooks: withLook(settings), ...lookValues(null)}
+                : {}),
         });
     };
 
@@ -2222,7 +2302,7 @@ export function SettingsView({
                             <VariantRow>
                                 <Variant
                                     $active={!settings?.backgroundSource}
-                                    onClick={() => void update({backgroundSource: null})}
+                                    onClick={() => selectBackground(null)}
                                     title={t("none")}
                                     type="button"
                                 >
@@ -2238,7 +2318,7 @@ export function SettingsView({
                                                 <Variant
                                                     $active={settings?.backgroundSource === variant.id}
                                                     key={variant.id}
-                                                    onClick={() => void update({backgroundSource: variant.id})}
+                                                    onClick={() => selectBackground(variant.id)}
                                                     title={`${t(concept.name)} · ${t(variant.preset)}`}
                                                     type="button"
                                                 >
@@ -2256,7 +2336,7 @@ export function SettingsView({
                                             <Variant
                                                 $active={settings?.backgroundSource === video.id}
                                                 key={video.id}
-                                                onClick={() => void update({backgroundSource: video.id})}
+                                                onClick={() => selectBackground(video.id)}
                                                 title={t(video.name)}
                                                 type="button"
                                             >
@@ -2277,9 +2357,9 @@ export function SettingsView({
                                                     || settings?.backgroundSource === path}
                                                 key={path}
                                                 onRemove={() => removeBackground(path)}
-                                                onSelect={() => void update({
-                                                    backgroundSource: isRemoteUrl(path) ? `url:${path}` : `file:${path}`
-                                                })}
+                                                onSelect={() => selectBackground(
+                                                    isRemoteUrl(path) ? `url:${path}` : `file:${path}`
+                                                )}
                                                 path={path}
                                             />
                                         ))}
@@ -2328,7 +2408,7 @@ export function SettingsView({
                                 <RangeInput
                                     max={40}
                                     min={0}
-                                    onChange={(event) => void update({backgroundBlur: Number(event.target.value)})}
+                                    onChange={(event) => changeLook({backgroundBlur: Number(event.target.value)})}
                                     type="range"
                                     value={settings?.backgroundBlur ?? 0}
                                 />
@@ -2341,7 +2421,7 @@ export function SettingsView({
                                 <RangeInput
                                     max={200}
                                     min={0}
-                                    onChange={(event) => void update({backgroundSaturation: Number(event.target.value)})}
+                                    onChange={(event) => changeLook({backgroundSaturation: Number(event.target.value)})}
                                     type="range"
                                     value={settings?.backgroundSaturation ?? 100}
                                 />
@@ -2354,11 +2434,29 @@ export function SettingsView({
                                 <RangeInput
                                     max={150}
                                     min={40}
-                                    onChange={(event) => void update({backgroundBrightness: Number(event.target.value)})}
+                                    onChange={(event) => changeLook({backgroundBrightness: Number(event.target.value)})}
                                     type="range"
                                     value={settings?.backgroundBrightness ?? 100}
                                 />
                                 <Value>{settings?.backgroundBrightness ?? 100}%</Value>
+                            </RowEnd>
+                        </Row>
+                        <Row>
+                            <RowText>
+                                <Label>{t("reset_the_look")}</Label>
+                                <Note>{t("returns_this_background_to_the_default_blur_saturation_and_brightness")}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <SmallButton
+                                    disabled={!settings || (settings.backgroundBlur === 0
+                                        && settings.backgroundSaturation === 100
+                                        && settings.backgroundBrightness === 100
+                                        && !lookOf(settings.backgroundSource))}
+                                    onClick={resetLook}
+                                    type="button"
+                                >
+                                    <RefreshIcon size={13}/>{t("reset")}
+                                </SmallButton>
                             </RowEnd>
                         </Row>
                     </Rows>

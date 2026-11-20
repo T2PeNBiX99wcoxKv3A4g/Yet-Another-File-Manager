@@ -92,6 +92,8 @@ export interface AppSettings {
     backgroundSaturation: number;
     /** Background brightness, 100 = unchanged. */
     backgroundBrightness: number;
+    /** Blur, saturation and brightness remembered for each background source. */
+    backgroundLooks: Record<string, BackgroundLook>;
     /** Folders a delete must stop at; a trailing "**" includes the subtree. */
     protectedPaths: string[];
     /** Seconds the protected-delete confirmation stays disabled; never below 1. */
@@ -158,6 +160,13 @@ export interface ThemePreset {
     secondary: string;
 }
 
+/** The blur, saturation and brightness one background was last left at. */
+export interface BackgroundLook {
+    blur: number;
+    saturation: number;
+    brightness: number;
+}
+
 const fallback: AppSettings = {
     systemIcons: false,
     customFolderIcons: false,
@@ -200,6 +209,7 @@ const fallback: AppSettings = {
     backgroundBlur: 0,
     backgroundSaturation: 100,
     backgroundBrightness: 100,
+    backgroundLooks: {},
     protectedPaths: [],
     deleteDelaySeconds: 5,
     timeFormat: "24",
@@ -275,6 +285,7 @@ export async function getSettings(): Promise<AppSettings> {
         backgroundBlur: raw?.backgroundBlur ?? 0,
         backgroundSaturation: raw?.backgroundSaturation ?? 100,
         backgroundBrightness: raw?.backgroundBrightness ?? 100,
+        backgroundLooks: (raw?.backgroundLooks ?? {}) as Record<string, BackgroundLook>,
         protectedPaths: raw?.protectedPaths ?? [],
         deleteDelaySeconds: raw?.deleteDelaySeconds ?? 5,
         timeFormat: raw?.timeFormat ?? "24",
@@ -412,6 +423,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         backgroundBlur: saved?.backgroundBlur ?? settings.backgroundBlur,
         backgroundSaturation: saved?.backgroundSaturation ?? settings.backgroundSaturation,
         backgroundBrightness: saved?.backgroundBrightness ?? settings.backgroundBrightness,
+        backgroundLooks: saved?.backgroundLooks ?? settings.backgroundLooks,
         protectedPaths: saved?.protectedPaths ?? settings.protectedPaths,
         deleteDelaySeconds: saved?.deleteDelaySeconds ?? settings.deleteDelaySeconds,
         timeFormat: saved?.timeFormat ?? settings.timeFormat,

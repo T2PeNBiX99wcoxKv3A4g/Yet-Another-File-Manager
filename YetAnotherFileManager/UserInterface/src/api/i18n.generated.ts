@@ -619,6 +619,7 @@ declare module "@photino-net-utils/bridge"
         "reset": true;
         "reset_colors": true;
         "reset_column_widths": true;
+        "reset_the_look": true;
         "reset_widths": true;
         "resize_column": true;
         "restorable": true;
@@ -629,6 +630,7 @@ declare module "@photino-net-utils/bridge"
         "restore_default_panels": true;
         "restore_to_its_original_folder": true;
         "returns_the_interface_to_the_default_blue_and_indigo_theme": true;
+        "returns_this_background_to_the_default_blur_saturation_and_brightness": true;
         "ridgeline": true;
         "rose": true;
         "rules_are_full_path_globs_matches_within_one_path_segment_and_crosses_folders_matching_folders_use_the_central_database_instead_of_creating_yafm_index_db_files": true;

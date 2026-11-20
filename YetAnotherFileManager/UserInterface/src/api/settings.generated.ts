@@ -82,6 +82,8 @@ export interface AppSettingsGenerated {
     backgroundSaturation: number | null;
     /** Backdrop brightness, in percent. */
     backgroundBrightness: number | null;
+    /** Blur, saturation and brightness remembered for each backdrop source. */
+    backgroundLooks: Record<string, unknown> | null;
     /** Paths a change must stop at; a trailing ** covers the subtree. */
     protectedPaths: string[] | null;
     /** Seconds the protected-folder confirmation stays disabled. */
