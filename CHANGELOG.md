@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.33.4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.33.3..v0.33.4) - 2026-11-20
+
+### ⚙️ Miscellaneous Tasks
+
+- *(libs)* Update the shared bridge to 0.39.1 - ([87bfa47](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/87bfa47c938a465650fde84565de890ad3694758))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([e7b8f00](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/e7b8f00037f90afeaf0b853ed02ea9d1be379b7d))
+
+
 ## [0.33.3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.33.2..v0.33.3) - 2026-11-20
 
 ### 🐛 Bug Fixes
