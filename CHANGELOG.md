@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.42.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.42.0..v0.42.1) - 2026-11-20
+
+### 🐛 Bug Fixes
+
+- *(titlebar)* Give the closed-tabs button its own glyph, apart from the operation history - ([ce299ba](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/ce299babac5f6c015625d1e009d51093631587df))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([05bf8d6](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/05bf8d6c0b3825c5d4467f958885c835365434be))
+
+
 ## [0.42.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.41.0..v0.42.0) - 2026-11-20
 
 ### ⛰️  Features
