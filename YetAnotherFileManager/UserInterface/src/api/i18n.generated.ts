@@ -465,6 +465,7 @@ declare module "@photino-net-utils/bridge"
         "no_matching_items": true;
         "no_operations_yet": true;
         "no_pictures_found": true;
+        "no_recently_closed_tabs": true;
         "no_sharing_devices_on_this_network_yet_pair_one_by_address_or_share_a_folder_from_the_title_bar": true;
         "no_tags_yet": true;
         "no_tags_yet_add_one_below_it_is_available_in_every_folder": true;

@@ -1,4 +1,4 @@
-import{r as e}from"./rolldown-runtime-XKyaHtl9.js";import{_ as t,d as n,g as r,u as i}from"./dist-sR-t6Emc.js";import{v as a}from"./Icons-NY0trHLk.js";var o=e(t(),1),s=`/assets/attributions-Do3S5OBo.json`,c=n(),l=r.div`
+import{r as e}from"./rolldown-runtime-XKyaHtl9.js";import{_ as t,d as n,g as r,u as i}from"./dist-sR-t6Emc.js";import{y as a}from"./Icons-BCGG7XUW.js";var o=e(t(),1),s=`/assets/attributions-Do3S5OBo.json`,c=n(),l=r.div`
     position: fixed;
     inset: 0;
     z-index: 80;

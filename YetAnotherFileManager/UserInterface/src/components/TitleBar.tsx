@@ -2,9 +2,7 @@ import {useCallback, useEffect, useRef, useState} from "react";
 import styled from "styled-components";
 import {useWindowControls, useWindowDrag, useTranslation} from "@photino-net-utils/bridge";
 import type {TabInfo} from "../tabs";
-import {viewTitles} from "../tabs";
-import {viewKind} from "../views";
-import {ContextMenu} from "./ContextMenu";
+import {ClosedTabsPanel} from "./ClosedTabsPanel";
 import type {DirectoryView, ResolvedView} from "../api/files";
 import {prettyShortcuts, type ShortcutMap} from "../shortcuts";
 import {isPathDrag, readDraggedPaths} from "./FileTray";
@@ -25,7 +23,6 @@ import {
     PackageIcon,
     PanelIcon,
     PlusIcon,
-    RefreshIcon,
     SplitIcon,
     TrashIcon,
 } from "./Icons";
@@ -107,7 +104,6 @@ export function TitleBar({
     const drag = useWindowDrag();
     const [overflow, setOverflow] = useState({left: false, right: false});
     const [dragging, setDragging] = useState<string | null>(null);
-    const [closedMenu, setClosedMenu] = useState<{ x: number; y: number } | null>(null);
     const [dropTab, setDropTab] = useState<string | null>(null);
     const tabHover = useRef<{ id: string; timer: number } | null>(null);
     const scroller = useRef<HTMLDivElement | null>(null);
@@ -153,18 +149,6 @@ export function TitleBar({
     return (
         <Bar>
             <Mark><AppIcon size={19}/></Mark>
-
-            <ClosedTabsButton
-                disabled={closedTabs.length === 0}
-                onClick={(event) => {
-                    const rect = event.currentTarget.getBoundingClientRect();
-                    setClosedMenu({x: rect.left, y: rect.bottom + 4});
-                }}
-                title={t("recently_closed_tabs")}
-                type="button"
-            >
-                <RefreshIcon size={14}/>
-            </ClosedTabsButton>
 
             <Tabs>
                 {overflow.left && (
@@ -309,6 +293,7 @@ export function TitleBar({
                     <PackageIcon size={14}/>
                     {trayCount > 0 && <CountBadge>{trayCount > 9 ? "9+" : trayCount}</CountBadge>}
                 </TrayButton>
+                <ClosedTabsPanel onRestore={onRestoreClosed} tabs={closedTabs}/>
                 <HistoryPanel/>
                 <SharePanel currentFolder={currentFolder}/>
                 <StatusCenter
@@ -341,25 +326,6 @@ export function TitleBar({
                     <CloseSmallSvg/>
                 </CloseButton>
             </Controls>
-
-            {closedMenu && (
-                <ContextMenu
-                    items={[...closedTabs].reverse().map((location, offset) => {
-                        const kind = viewKind(location);
-
-                        return {
-                            label: kind ? t(viewTitles[kind]) : location,
-                            onSelect: () => {
-                                setClosedMenu(null);
-                                onRestoreClosed(closedTabs.length - 1 - offset);
-                            },
-                        };
-                    })}
-                    onClose={() => setClosedMenu(null)}
-                    x={closedMenu.x}
-                    y={closedMenu.y}
-                />
-            )}
         </Bar>
     );
 }
@@ -586,31 +552,6 @@ const NewTab = styled.button`
         background: rgba(var(--accent-rgb), 0.10);
         border-color: var(--border-color);
         color: var(--text-primary);
-    }
-`;
-
-const ClosedTabsButton = styled.button`
-    display: grid;
-    place-items: center;
-    width: 26px;
-    height: 26px;
-    flex-shrink: 0;
-    margin-left: 6px;
-    margin-bottom: 2px;
-    border: 1px solid transparent;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--text-muted);
-    cursor: default;
-
-    &:hover:not(:disabled) {
-        background: rgba(var(--accent-rgb), 0.10);
-        border-color: var(--border-color);
-        color: var(--text-primary);
-    }
-
-    &:disabled {
-        opacity: 0.35;
     }
 `;
 
