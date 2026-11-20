@@ -645,7 +645,15 @@ export function FileList({
         currentRow.current?.scrollIntoView({block: "nearest"});
     }, [find.currentPath, view.mode, rows, rowHeight]);
 
-    const visibleRows = useMemo(() => rows.slice(0, rowLimit), [rows, rowLimit]);
+    // The grid mounts a bounded window of rows: past the cap the oldest page is released, so a long
+    // scroll through a big folder does not accumulate tiles.
+    const GridWindow = 1200;
+    const [gridDropped, setGridDropped] = useState(0);
+    const compensating = useRef(false);
+
+    const visibleRows = useMemo(
+        () => rows.slice(gridDropped, gridDropped + rowLimit),
+        [rows, gridDropped, rowLimit]);
 
     // A frame that is still scheduled when the list goes away would call into a stale setter.
     useEffect(() => () => {
@@ -683,6 +691,7 @@ export function FileList({
     // A new folder starts at the first page; scrolling appends more.
     useEffect(() => {
         setRowLimit(RowPage);
+        setGridDropped(0);
     }, [listing?.path]);
 
     // A search hit can land past the rendered page; make sure its row exists.
@@ -698,11 +707,43 @@ export function FileList({
         if (element.scrollTop + element.clientHeight < element.scrollHeight - 600)
             return;
 
-        setRowLimit((limit) => Math.min(rows.length, limit + RowPage));
+        if (rowLimit >= GridWindow) {
+            // Release the oldest page and keep what is on screen where it is: the rows above it are
+            // gone, so the scroll position moves by exactly the height that left.
+            const before = element.scrollHeight;
+            const at = element.scrollTop;
+
+            compensating.current = true;
+            setGridDropped((dropped) => Math.min(dropped + RowPage, rows.length));
+
+            requestAnimationFrame(() => {
+                element.scrollTop = Math.max(0, at - (before - element.scrollHeight));
+                compensating.current = false;
+            });
+        } else {
+            setRowLimit((limit) => Math.min(rows.length, limit + RowPage));
+        }
 
         // The mounted tiles reached the end, so the next page is needed too.
         onLoadMore?.();
-    }, [rows.length, onLoadMore]);
+    }, [rowLimit, rows.length, onLoadMore]);
+
+    // Scrolling back up returns the released pages a page at a time, so the window follows the eye.
+    const shrinkRows = useCallback((element: HTMLElement) => {
+        if (compensating.current || gridDropped === 0 || element.scrollTop > element.clientHeight)
+            return;
+
+        const before = element.scrollHeight;
+        const at = element.scrollTop;
+
+        compensating.current = true;
+        setGridDropped((dropped) => Math.max(0, dropped - RowPage));
+
+        requestAnimationFrame(() => {
+            element.scrollTop = at + (element.scrollHeight - before);
+            compensating.current = false;
+        });
+    }, [gridDropped]);
 
     // Grouping only feeds the grid; a list view would pay for the rule matching and never use it.
     const gridMode = view.mode === "grid";
@@ -1561,6 +1602,7 @@ export function FileList({
                         onScroll={(event) => {
                             onGridScroll?.(event.currentTarget);
                             growRows(event.currentTarget);
+                            shrinkRows(event.currentTarget);
                         }}
                     >
                         {showCheckboxes && rows.length > 0 && (
