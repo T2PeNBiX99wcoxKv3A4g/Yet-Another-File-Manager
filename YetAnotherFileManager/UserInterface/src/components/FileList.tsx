@@ -99,6 +99,10 @@ interface FileListProps {
     onRefresh?: () => void;
     /** Asks for the next page when the end of what is loaded comes into view. */
     onLoadMore?: () => void;
+    /** Selects every entry of the folder, fetching the pages that are not loaded yet. */
+    onEnsureComplete?: () => void;
+    /** Bumped after that backfill, so the select-all covers the rows that just arrived. */
+    selectAllToken?: number;
     /** Applies a successful rename to the owner's listing, so a stale row cannot be renamed again. */
     onRename?: (from: string, to: string) => void;
     /** Called after a copy or cut put files on the system clipboard. */
@@ -243,6 +247,8 @@ export function FileList({
                              pendingRenameToken = 0,
                              selectMatchesToken = 0,
                              onLoadMore,
+                             onEnsureComplete,
+                             selectAllToken = 0,
                          }: FileListProps) {
     const t = useTranslation();
     const quick = useQuickAccess();
@@ -567,6 +573,13 @@ export function FileList({
 
     // The find bar's "select all matches" button asks the list to take every row the search matched,
     // including the ones dimmed rather than hidden.
+    // The rest of the folder arrived for a select-all: take every row, not only the first page.
+    useEffect(() => {
+        if (selectAllToken === 0) return;
+
+        setSelected(new Set(rowsRef.current.map((row) => row.entry.fullPath)));
+    }, [selectAllToken]);
+
     useEffect(() => {
         if (selectMatchesToken === 0)
             return;
@@ -1341,6 +1354,9 @@ export function FileList({
                         : allPaths;
 
                     setSelected(new Set(paths));
+
+                    // Only the loaded pages are here: the owner fetches the rest and selects it.
+                    onEnsureComplete?.();
                     anchor.current = paths[0] ?? null;
                 });
             }

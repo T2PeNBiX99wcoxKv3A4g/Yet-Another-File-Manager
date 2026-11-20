@@ -8,6 +8,7 @@ import {
     type Drive,
     extractArchive,
     extractArchiveEntry,
+    type FileEntry,
     listDirectory,
     listDirectoryCached,
     listDrives,
@@ -826,6 +827,7 @@ export default function App() {
 
         const from = listing.entries.length;
         if (from <= 0 || from >= (listing.total ?? 0)) return;
+        if (loadingAll.current.has(id)) return;
 
         const key = `${id}|${listing.path}|${from}`;
         if (!loadingMore.current.add(key)) return;
@@ -850,6 +852,84 @@ export default function App() {
             loadingMore.current.delete(key);
         }
     }, [patch]);
+
+    /** The tabs whose whole folder is being fetched, so a search does not ask twice. */
+    const loadingAll = useRef(new Set<string>());
+
+    /**
+     * Fetches every remaining page of a folder. A search and a select-all are about the folder, not
+     * about the pages that happen to be scrolled into view, and only some of it is loaded.
+     */
+    const loadAll = useCallback(async (id: string) => {
+        const tab = stateRef.current.tabs.find((item) => item.id === id);
+        const listing = tab?.listing;
+
+        if (!tab || kindOf(tab) !== "files" || !listing) return;
+        if (listing.entries.length >= (listing.total ?? 0)) return;
+        if (!loadingAll.current.add(id)) return;
+
+        try {
+            const pages: FileEntry[][] = [];
+            let from = listing.entries.length;
+            let total = listing.total ?? 0;
+
+            while (from < total) {
+                const page = await listPage(listing.path, from, listing.view?.sort ?? "name",
+                    listing.view?.sortDescending ?? false);
+
+                if (page.entries.length === 0) break;
+
+                pages.push(page.entries);
+                from += page.entries.length;
+                total = page.total;
+            }
+
+            if (pages.length === 0) return;
+
+            patch(id, (current) => {
+                const live = current.listing;
+
+                // The folder or its pages changed while the rest was being fetched.
+                if (!live || !samePath(live.path, listing.path)
+                    || live.entries.length !== listing.entries.length)
+                    return {};
+
+                return {listing: {...live, entries: [...live.entries, ...pages.flat()], total}};
+            });
+        } catch {
+            // What is already loaded stays usable; the next search asks again.
+        } finally {
+            loadingAll.current.delete(id);
+        }
+    }, [patch]);
+
+    /** Bumped after a backfill, so a select-all covers the rows that just arrived. */
+    const [selectAllToken, setSelectAllToken] = useState(0);
+
+    /**
+     * A select-all on a folder that is not fully loaded fetches the rest and then selects it all:
+     * silently selecting 400 of 10 000 items would be worse than a short pause.
+     */
+    const ensureComplete = useCallback(async (id: string) => {
+        const before = stateRef.current.tabs.find((item) => item.id === id)?.listing?.entries.length ?? 0;
+        await loadAll(id);
+        const after = stateRef.current.tabs.find((item) => item.id === id)?.listing?.entries.length ?? 0;
+
+        if (after > before) setSelectAllToken((token) => token + 1);
+    }, [loadAll]);
+
+    // A search looks at the whole folder, so opening the bar (or typing in it) fetches the rest.
+    const findTabId = focusedTab.id;
+    const findTabKind = kindOf(focusedTab);
+    const findTabLoaded = focusedTab.listing?.entries.length ?? 0;
+    const findTabTotal = focusedTab.listing?.total ?? 0;
+
+    useEffect(() => {
+        if (!find.open || find.query.length === 0) return;
+        if (findTabKind !== "files" || findTabLoaded >= findTabTotal) return;
+
+        void loadAll(findTabId);
+    }, [find.open, find.query, findTabId, findTabKind, findTabLoaded, findTabTotal, loadAll]);
 
     /** Goes to a location: a folder is listed, a yafm:// page is simply shown. */
     const openLocation = useCallback((id: string, target: string) => {
@@ -2383,6 +2463,8 @@ export default function App() {
                     if (folder) refreshFolderTabs(folder);
                 }}
                 onLoadMore={() => void loadMore(tab.id)}
+                onEnsureComplete={() => void ensureComplete(tab.id)}
+                selectAllToken={tab.id === focusedTab.id ? selectAllToken : 0}
                 onRename={renameInListings}
                 onSelectionCountChange={primary ? reportPrimarySelection : reportSecondarySelection}
                 onSetTags={(name, tags, colors) => setEntryTagsFor(tab.id, name, tags, colors)}
