@@ -392,6 +392,13 @@ export default function App() {
         refresh: () => void;
     } | null>(null);
     const [extractMenu, setExtractMenu] = useState<{ x: number; y: number } | null>(null);
+    // Right-clicking Back or Forward lists the folders behind (or ahead of) the one on screen.
+    const [historyMenu, setHistoryMenu] = useState<{
+        x: number;
+        y: number;
+        tab: Tab;
+        direction: "back" | "forward";
+    } | null>(null);
     const [pathMenu, setPathMenu] = useState<{ x: number; y: number; path: string } | null>(null);
     const [pathCompress, setPathCompress] = useState<{ paths: string[]; name: string } | null>(null);
     const [selectionCounts, setSelectionCounts] = useState({primary: 0, secondary: 0});
@@ -412,6 +419,8 @@ export default function App() {
     const tasksRef = useRef<TaskInfo[]>([]);
     /** The tabs closed in this session, newest last, for Ctrl+Shift+T. */
     const closedTabs = useRef<string[]>([]);
+    // The same list as state, so the title bar's "recently closed" button can show it.
+    const [closedTabList, setClosedTabList] = useState<string[]>([]);
     const [clipboardItems, setClipboardItems] = useState<TrayItem[]>([]);
     const [clipboardMove, setClipboardMove] = useState(false);
 
@@ -1105,6 +1114,7 @@ export default function App() {
         if (closing && !closing.hidden) {
             closedTabs.current.push(locationOf(closing));
             if (closedTabs.current.length > ClosedTabLimit) closedTabs.current.shift();
+            setClosedTabList([...closedTabs.current]);
         }
 
         if (remaining.length === 0) {
@@ -1127,6 +1137,25 @@ export default function App() {
     const reopenTab = useCallback(() => {
         const location = closedTabs.current.pop();
         if (!location) return;
+
+        setClosedTabList([...closedTabs.current]);
+
+        const tab = {...createTab(location), fresh: false};
+
+        setTabs((current) => [...current, tab]);
+        setActiveId(tab.id);
+
+        if (kindOf(tab) === "files") void load(tab.id, folderOf(tab));
+    }, [load]);
+
+    /** Brings back one entry of the recently closed list, counting from the end of the stack. */
+    const reopenClosed = useCallback((index: number) => {
+        const stack = closedTabs.current;
+        const location = stack[index];
+        if (!location) return;
+
+        stack.splice(index, 1);
+        setClosedTabList([...stack]);
 
         const tab = {...createTab(location), fresh: false};
 
@@ -2620,6 +2649,11 @@ export default function App() {
                     }
                     goBack();
                 }}
+                onContextMenu={(event) => {
+                    if (active.index <= 0) return;
+                    event.preventDefault();
+                    setHistoryMenu({x: event.clientX, y: event.clientY, tab: active, direction: "back"});
+                }}
                 title={t("back")}
                 type="button"
             >
@@ -2635,6 +2669,11 @@ export default function App() {
                         return;
                     }
                     goForward();
+                }}
+                onContextMenu={(event) => {
+                    if (active.index >= active.history.length - 1) return;
+                    event.preventDefault();
+                    setHistoryMenu({x: event.clientX, y: event.clientY, tab: active, direction: "forward"});
                 }}
                 title={t("forward")}
                 type="button"
@@ -2746,8 +2785,10 @@ export default function App() {
                 <Wallpaper settings={settings} theme={theme}/>
                 <TitleBar
                     activeId={active.id}
+                    closedTabs={closedTabList}
                     onClose={closeTab}
                     onNewTab={() => openFiles()}
+                    onRestoreClosed={reopenClosed}
                     onReorder={moveTab}
                     onTransferToTab={transferTo}
                     onSelect={setActiveId}
@@ -2867,6 +2908,11 @@ export default function App() {
                                                         if (wantsNewTab(event)) openFiles(active.history[index]);
                                                         else void goTo(active.id, active.history[index], index);
                                                     }}
+                                                    onContextMenu={(event) => {
+                                                        if (active.index <= 0) return;
+                                                        event.preventDefault();
+                                                        setHistoryMenu({x: event.clientX, y: event.clientY, tab: active, direction: "back"});
+                                                    }}
                                                     title={t("back")}
                                                     type="button"
                                                 >
@@ -2880,6 +2926,11 @@ export default function App() {
                                                         if (index >= active.history.length) return;
                                                         if (wantsNewTab(event)) openFiles(active.history[index]);
                                                         else void goTo(active.id, active.history[index], index);
+                                                    }}
+                                                    onContextMenu={(event) => {
+                                                        if (active.index >= active.history.length - 1) return;
+                                                        event.preventDefault();
+                                                        setHistoryMenu({x: event.clientX, y: event.clientY, tab: active, direction: "forward"});
                                                     }}
                                                     title={t("forward")}
                                                     type="button"
@@ -2961,6 +3012,11 @@ export default function App() {
                                                         if (wantsNewTab(event)) openFiles(secondary.history[index]);
                                                         else void goTo(secondary.id, secondary.history[index], index);
                                                     }}
+                                                    onContextMenu={(event) => {
+                                                        if (secondary.index <= 0) return;
+                                                        event.preventDefault();
+                                                        setHistoryMenu({x: event.clientX, y: event.clientY, tab: secondary, direction: "back"});
+                                                    }}
                                                     title={t("back")}
                                                     type="button"
                                                 >
@@ -2974,6 +3030,11 @@ export default function App() {
                                                         if (index >= secondary.history.length) return;
                                                         if (wantsNewTab(event)) openFiles(secondary.history[index]);
                                                         else void goTo(secondary.id, secondary.history[index], index);
+                                                    }}
+                                                    onContextMenu={(event) => {
+                                                        if (secondary.index >= secondary.history.length - 1) return;
+                                                        event.preventDefault();
+                                                        setHistoryMenu({x: event.clientX, y: event.clientY, tab: secondary, direction: "forward"});
                                                     }}
                                                     title={t("forward")}
                                                     type="button"
@@ -3221,6 +3282,38 @@ export default function App() {
                             if (!result.ok && result.error) void showMessage(result.error);
                             return result.ok;
                         }}
+                    />
+                )}
+
+                {historyMenu && (
+                    <ContextMenu
+                        items={[
+                            {
+                                label: historyMenu.tab.history[historyMenu.tab.index] ?? "",
+                                disabled: true,
+                                onSelect: () => undefined,
+                            },
+                            ...historyMenu.tab.history
+                                .map((path, index) => ({path, index}))
+                                .filter(({index}) => historyMenu.direction === "back"
+                                    ? index < historyMenu.tab.index
+                                    : index > historyMenu.tab.index)
+                                .sort((left, right) => historyMenu.direction === "back"
+                                    ? right.index - left.index
+                                    : left.index - right.index)
+                                .slice(0, 24)
+                                .map(({path, index}) => ({
+                                    label: path,
+                                    onSelect: () => {
+                                        const tab = historyMenu.tab;
+                                        setHistoryMenu(null);
+                                        void goTo(tab.id, path, index);
+                                    },
+                                })),
+                        ]}
+                        onClose={() => setHistoryMenu(null)}
+                        x={historyMenu.x}
+                        y={historyMenu.y}
                     />
                 )}
 

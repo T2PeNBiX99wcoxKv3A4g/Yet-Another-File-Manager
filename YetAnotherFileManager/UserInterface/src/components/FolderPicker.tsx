@@ -21,6 +21,7 @@ import {DefaultShortcuts} from "../shortcuts";
 import {newFile, newFolder, inspectPaths} from "../api/operations";
 import {showMessage} from "../api/dialogs";
 import {ConfirmDialog} from "./ConfirmDialog";
+import {ContextMenu} from "./ContextMenu";
 import {EmptyFind, type FindState, matchesName} from "../find";
 import {elevatedPanel} from "../ui/panel";
 import {fadeInStyle, popInStyle} from "../ui/motion";
@@ -194,6 +195,12 @@ export function FolderPicker({
     const [recent, setRecent] = useState<RecentEntry[]>([]);
     const [back, setBack] = useState<string[]>([]);
     const [forward, setForward] = useState<string[]>([]);
+    // Right-clicking Back or Forward lists the folders behind (or ahead of) this one.
+    const [historyMenu, setHistoryMenu] = useState<{
+        x: number;
+        y: number;
+        direction: "back" | "forward";
+    } | null>(null);
     const [fileName, setFileName] = useState(initialName);
     const [overwrite, setOverwrite] = useState<string | null>(null);
     const [view, setView] = useState<"files" | "overview" | "gallery">("files");
@@ -367,6 +374,28 @@ export function FolderPicker({
 
         setForward((stack) => stack.slice(1));
         setBack((stack) => [...stack, path]);
+        setPath(target);
+    };
+
+    /** Jumps to one entry of the history list, keeping the entries in between on the other side. */
+    const goToHistory = (direction: "back" | "forward", index: number) => {
+        if (direction === "back") {
+            const target = back[index];
+            if (target === undefined)
+                return;
+
+            setBack(back.slice(0, index));
+            setForward([...back.slice(index + 1), path, ...forward]);
+            setPath(target);
+            return;
+        }
+
+        const target = forward[index];
+        if (target === undefined)
+            return;
+
+        setBack([...back, path, ...forward.slice(0, index)]);
+        setForward(forward.slice(index + 1));
         setPath(target);
     };
 
@@ -696,6 +725,28 @@ export function FolderPicker({
                 open={overwrite !== null}
                 title={t("overwrite")}
             />
+            {historyMenu && (
+                <ContextMenu
+                    items={historyMenu.direction === "back"
+                        ? [...back].reverse().map((entry, offset) => ({
+                            label: entry,
+                            onSelect: () => {
+                                setHistoryMenu(null);
+                                goToHistory("back", back.length - 1 - offset);
+                            },
+                        }))
+                        : forward.map((entry, index) => ({
+                            label: entry,
+                            onSelect: () => {
+                                setHistoryMenu(null);
+                                goToHistory("forward", index);
+                            },
+                        }))}
+                    onClose={() => setHistoryMenu(null)}
+                    x={historyMenu.x}
+                    y={historyMenu.y}
+                />
+            )}
         </Footer>
     );
 
@@ -775,6 +826,12 @@ export function FolderPicker({
                                 <IconButton
                                     disabled={back.length === 0}
                                     onClick={goBack}
+                                    onContextMenu={(event) => {
+                                        if (back.length === 0) return;
+                                        event.preventDefault();
+                                        const rect = event.currentTarget.getBoundingClientRect();
+                                        setHistoryMenu({x: rect.left, y: rect.bottom + 4, direction: "back"});
+                                    }}
                                     title={t("back")}
                                     type="button"
                                 >
@@ -783,6 +840,12 @@ export function FolderPicker({
                                 <IconButton
                                     disabled={forward.length === 0}
                                     onClick={goForward}
+                                    onContextMenu={(event) => {
+                                        if (forward.length === 0) return;
+                                        event.preventDefault();
+                                        const rect = event.currentTarget.getBoundingClientRect();
+                                        setHistoryMenu({x: rect.left, y: rect.bottom + 4, direction: "forward"});
+                                    }}
                                     title={t("forward")}
                                     type="button"
                                 >
