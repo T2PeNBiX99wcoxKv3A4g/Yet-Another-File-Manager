@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.33.3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.33.2..v0.33.3) - 2026-11-20
+
+### 🐛 Bug Fixes
+
+- *(update)* Take the shared library that checks the installer exists - ([17991b0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/17991b0732fcad83fdad5b6b4c0e444f5ba4db6e))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([8400294](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/8400294c2ee7871da43027c4bcf879bfd5e822c6))
+
+
 ## [0.33.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.33.1..v0.33.2) - 2026-11-20
 
 ### 🐛 Bug Fixes
