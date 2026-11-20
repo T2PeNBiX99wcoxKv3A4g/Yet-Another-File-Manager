@@ -33,6 +33,21 @@ internal static partial class Program
         if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
             throw new PlatformNotSupportedException("YetAnotherFileManager supports Windows and Linux.");
 
+        // Programs that host a browser of their own (launchers and games do this) hand their WebView2
+        // settings to every child they start. Inheriting them would point this window at a profile
+        // the parent has locked, and the page would never come up: the window would stay blank.
+        var inheritedWebViewVariables = Environment.GetEnvironmentVariables().Keys
+            .OfType<string>()
+            .Where(name => name.StartsWith("WEBVIEW2_", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        foreach (var name in inheritedWebViewVariables)
+            Environment.SetEnvironmentVariable(name, null);
+
+        // A debugging run can still ask for its own browser switches, such as a debugging port.
+        if (Environment.GetEnvironmentVariable("YAFM_WEBVIEW_ARGS") is { Length: > 0 } webViewArguments)
+            Environment.SetEnvironmentVariable("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", webViewArguments);
+
         // One-off elevated run: report (and optionally delete) the recycle-bin leftovers this
         // account cannot reach, then exit. It happens before the single-instance check because it is
         // a short-lived helper, not another instance of the app.
