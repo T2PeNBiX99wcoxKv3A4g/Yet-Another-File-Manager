@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.43.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.43.0..v0.43.1) - 2026-11-20
+
+### 🐛 Bug Fixes
+
+- *(webview)* Keep an inherited WebView2 profile from blanking the window - ([1bcb6a9](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1bcb6a9aa084a15d33b60ec2261d385093f5d7e8))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([c20e246](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c20e246ca37d0a3861abc8fe66536b5fad58a4f7))
+
+
 ## [0.43.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.42.2..v0.43.0) - 2026-11-20
 
 ### ⛰️  Features

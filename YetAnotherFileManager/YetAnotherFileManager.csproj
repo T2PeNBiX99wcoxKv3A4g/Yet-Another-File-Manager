@@ -20,7 +20,7 @@
              interface; the trimmed single-file build turns built-in COM off by default. -->
         <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
         <RootNamespace>YetAnotherFileManager</RootNamespace>
-        <Version>0.43.0</Version>
+        <Version>0.43.1</Version>
         <!-- Explorer/taskbar icon; also embedded (Resources\**) so the tray can load it at runtime. -->
         <ApplicationIcon>Resources\icon.ico</ApplicationIcon>
     </PropertyGroup>
