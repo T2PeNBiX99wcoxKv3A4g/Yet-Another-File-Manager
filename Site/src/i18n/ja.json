@@ -75,7 +75,8 @@
   },
   "docs": {
     "setup": "はじめに",
-    "reference": "リファレンス"
+    "reference": "リファレンス",
+    "history": "更新履歴"
   },
   "creditsBefore": "デザインの参考: ",
   "creditsLink": "Sigma File Manager",

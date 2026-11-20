@@ -75,7 +75,8 @@
   },
   "docs": {
     "setup": "Getting started",
-    "reference": "Reference"
+    "reference": "Reference",
+    "history": "History"
   },
   "creditsBefore": "Design reference: ",
   "creditsLink": "Sigma File Manager",

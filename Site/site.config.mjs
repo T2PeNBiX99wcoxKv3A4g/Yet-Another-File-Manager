@@ -46,6 +46,11 @@ export const site = {
         {
             "slug": "Settings-and-Shortcuts",
             "group": "reference"
+        },
+        {
+            "slug": "Changelog",
+            "group": "history",
+            "source": "../CHANGELOG.md"
         }
     ],
     theme: {
