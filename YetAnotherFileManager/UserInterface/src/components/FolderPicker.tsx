@@ -124,21 +124,22 @@ export function FolderPicker({
                 ? -1
                 : offered.findIndex((type) => type.extensions.some((item) => wanted.includes(item.toLowerCase())));
 
-        // The file name the program proposes is the strongest hint: it already carries the
-        // document's own format ("drawing.jpg").
+        // A program that picked an entry explicitly means it, even when the name says otherwise.
+        if (typeIndex >= 2 && typeIndex <= offered.length)
+            return typeIndex - 1;
+
+        // The default extension is the format this dialog is saving in. Programs like Clip Studio
+        // change it with the export format while the proposed file name still carries the name of
+        // the file exported last, so this has to win over the name.
+        const byDefault = typeOf(defaultExtensions);
+        if (byDefault >= 0)
+            return byDefault;
+
+        // With no other hint, the name the program proposes says which format the file is in.
         const dot = initialName.lastIndexOf(".");
         const byName = dot > 0 ? typeOf([initialName.slice(dot).toLowerCase()]) : -1;
         if (byName >= 0)
             return byName;
-
-        // A program that picked an entry explicitly means it, even when the name says nothing.
-        if (typeIndex >= 2 && typeIndex <= offered.length)
-            return typeIndex - 1;
-
-        // Programs that only set their default extension ("jpeg") still tell us the format.
-        const byDefault = typeOf(defaultExtensions);
-        if (byDefault >= 0)
-            return byDefault;
 
         return typeIndex >= 1 && typeIndex <= offered.length ? typeIndex - 1 : 0;
     });
@@ -201,7 +202,19 @@ export function FolderPicker({
         y: number;
         direction: "back" | "forward";
     } | null>(null);
-    const [fileName, setFileName] = useState(initialName);
+    // A name the program carried over from the last export keeps that format's extension; when the
+    // dialog opens on another format, the name follows it right away so saving needs no extra step.
+    const [fileName, setFileName] = useState(() => {
+        const extension = typeExtensions[0] ?? "";
+        const dot = initialName.lastIndexOf(".");
+
+        if (extension.length === 0 || dot <= 0)
+            return initialName;
+
+        return isKnownExtension(initialName.slice(dot).toLowerCase())
+            ? initialName.slice(0, dot) + extension
+            : initialName;
+    });
     const [overwrite, setOverwrite] = useState<string | null>(null);
     const [view, setView] = useState<"files" | "overview" | "gallery">("files");
     const [reload, setReload] = useState(0);
