@@ -1088,7 +1088,10 @@ import{r as e}from"./rolldown-runtime-XKyaHtl9.js";import{_ as t,d as n,f as r,g
     background: var(--bg-input);
     color: var(--text-primary);
     font: inherit;
-    font-size: 13px;
+    /* The border and the padding make the box six pixels taller than the line it edits. Pulling
+       them back out of the flow keeps the text on the very line the name was on, instead of the
+       grid sizing its row by the taller box and pushing the whole line down. */
+    margin-block: -3px;
     outline: none;
 `,Ga=i.span`
     display: inline-flex;
@@ -1227,13 +1230,13 @@ import{r as e}from"./rolldown-runtime-XKyaHtl9.js";import{_ as t,d as n,f as r,g
     flex-direction: column;
     gap: 1px;
     padding: 18px 8px 6px;
+    font-size: 11px;
     background: linear-gradient(to top, rgba(var(--bg-rgb), 0.92), rgba(var(--bg-rgb), 0));
     overflow: hidden;
 `,to=i.span`
     width: 100%;
     overflow: hidden;
     color: ${({$broken:e})=>e?`#f87171`:`var(--text-secondary)`};
-    font-size: 11px;
     text-align: left;
     text-decoration: ${({$broken:e})=>e?`line-through`:`none`};
     text-overflow: ellipsis;

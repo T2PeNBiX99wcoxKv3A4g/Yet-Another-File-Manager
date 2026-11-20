@@ -3240,7 +3240,10 @@ const RenameBox = styled.input`
     background: var(--bg-input);
     color: var(--text-primary);
     font: inherit;
-    font-size: 13px;
+    /* The border and the padding make the box six pixels taller than the line it edits. Pulling
+       them back out of the flow keeps the text on the very line the name was on, instead of the
+       grid sizing its row by the taller box and pushing the whole line down. */
+    margin-block: -3px;
     outline: none;
 `;
 
@@ -3399,7 +3402,8 @@ const TileIcon = styled.span`
     }
 `;
 
-/** The name sits over the tile, on a scrim, the way the gallery draws its captions. */
+/** The name sits over the tile, on a scrim, the way the gallery draws its captions. The name and
+    its editor share the tile's font, so the editor lands on the same line. */
 const TileCaption = styled.div`
     position: absolute;
     right: 0;
@@ -3409,6 +3413,7 @@ const TileCaption = styled.div`
     flex-direction: column;
     gap: 1px;
     padding: 18px 8px 6px;
+    font-size: 11px;
     background: linear-gradient(to top, rgba(var(--bg-rgb), 0.92), rgba(var(--bg-rgb), 0));
     overflow: hidden;
 `;
@@ -3417,7 +3422,6 @@ const TileName = styled.span<{ $broken?: boolean }>`
     width: 100%;
     overflow: hidden;
     color: ${({$broken}) => $broken ? "#f87171" : "var(--text-secondary)"};
-    font-size: 11px;
     text-align: left;
     text-decoration: ${({$broken}) => $broken ? "line-through" : "none"};
     text-overflow: ellipsis;
