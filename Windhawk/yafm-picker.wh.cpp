@@ -2,7 +2,7 @@
 // @id              yafm-picker
 // @name            Yet Another File Manager pickers
 // @description     Replaces the Windows Open, Save As and folder dialogs with the app's picker
-// @version         1.4.5
+// @version         1.5.0
 // @author          T2PeNBiX99wcoxKv3A4g
 // @github          https://github.com/T2PeNBiX99wcoxKv3A4g
 // @include         *
@@ -135,6 +135,11 @@ struct PickerRequest {
     std::wstring Filter;
     std::wstring Name;
     std::wstring Extension;
+    /// Every type the dialog offers, as JSON, so the picker lists them one by one instead of
+    /// merging them into one filter. Empty when the dialog named none.
+    std::wstring Types;
+    /// Which type the dialog had selected, counting from 1.
+    int TypeIndex = 0;
 };
 
 static bool g_replaceOpen = true;
@@ -390,7 +395,23 @@ static std::vector<std::wstring> ReadPaths(const std::wstring& path) {
     return paths;
 }
 
-static PickResult RunPicker(const PickerRequest& request, std::vector<std::wstring>& paths) {
+static int ReadTypeIndex(const std::wstring& path) {
+    std::wstring text = ReadUtf8File(path);
+    int value = 0;
+
+    for (wchar_t ch : text) {
+        if (ch < L'0' || ch > L'9')
+            break;
+        value = value * 10 + (ch - L'0');
+        if (value > 10000)
+            break;
+    }
+
+    return value;
+}
+
+static PickResult RunPicker(const PickerRequest& request, std::vector<std::wstring>& paths,
+                            int& typeIndex) {
     std::wstring executable = ResolveExecutable();
     if (executable.empty()) {
         Wh_Log(L"picker: no executable could be resolved");
@@ -399,6 +420,10 @@ static PickResult RunPicker(const PickerRequest& request, std::vector<std::wstri
 
     std::wstring output = TempOutputPath();
     DeleteFileW(output.c_str());
+
+    // The type the user ended on travels back beside the paths; an older picker never writes it.
+    std::wstring typeOutput = output + L".type";
+    DeleteFileW(typeOutput.c_str());
 
     std::wstring command;
     AppendQuoted(command, executable);
@@ -421,6 +446,16 @@ static PickResult RunPicker(const PickerRequest& request, std::vector<std::wstri
         command += L" --default-extension";
         AppendQuoted(command, request.Extension);
     }
+    if (!request.Types.empty()) {
+        command += L" --types";
+        AppendQuoted(command, request.Types);
+    }
+    if (request.TypeIndex > 0) {
+        command += L" --type-index";
+        command += std::to_wstring(request.TypeIndex);
+    }
+    command += L" --type-output";
+    AppendQuoted(command, typeOutput);
     command += L" --output";
     AppendQuoted(command, output);
 
@@ -448,11 +483,14 @@ static PickResult RunPicker(const PickerRequest& request, std::vector<std::wstri
 
     if (code != 0) {
         DeleteFileW(output.c_str());
+        DeleteFileW(typeOutput.c_str());
         return PickResult::Cancelled;
     }
 
     paths = ReadPaths(output);
+    typeIndex = ReadTypeIndex(typeOutput);
     DeleteFileW(output.c_str());
+    DeleteFileW(typeOutput.c_str());
     return paths.empty() ? PickResult::Cancelled : PickResult::Picked;
 }
 
@@ -469,6 +507,158 @@ static std::wstring InitialDirectory(LPOPENFILENAMEW ofn) {
     }
 
     return {};
+}
+
+/// One file type a dialog offers: the description the shell shows, the globs behind it, and the
+/// bare extensions the picker works with.
+struct ModernFileType {
+    std::wstring label;
+    std::wstring spec;
+    std::wstring extensions;
+};
+
+/// The extension list the picker takes, from one filter spec: `*.txt;*.png` becomes `.txt;.png`.
+/// A spec of `*.*` means "every file" and leaves the list empty, so the picker keeps only its
+/// All files entry and does not hide anything behind a "supported files" filter.
+static std::wstring ExtensionList(PCWSTR spec) {
+    std::wstring result;
+    if (!spec)
+        return result;
+
+    std::wstring text = spec;
+    size_t start = 0;
+
+    while (start <= text.size()) {
+        size_t end = text.find(L';', start);
+        if (end == std::wstring::npos)
+            end = text.size();
+
+        std::wstring pattern = text.substr(start, end - start);
+        start = end + 1;
+
+        while (!pattern.empty() && pattern.front() == L' ')
+            pattern.erase(0, 1);
+        while (!pattern.empty() && pattern.back() == L' ')
+            pattern.pop_back();
+
+        if (pattern == L"*" || pattern == L"*.*")
+            continue;
+
+        if (!pattern.empty() && pattern[0] == L'*')
+            pattern.erase(0, 1);
+
+        if (pattern.empty())
+            continue;
+
+        if (!result.empty())
+            result.push_back(L';');
+        result += pattern;
+    }
+
+    return result;
+}
+
+/// Escapes one string for the JSON the picker reads from its command line.
+static std::wstring JsonString(const std::wstring& value) {
+    std::wstring result = L"\"";
+
+    for (wchar_t ch : value) {
+        switch (ch) {
+        case L'"':
+            result += L"\\\"";
+            break;
+        case L'\\':
+            result += L"\\\\";
+            break;
+        case L'\n':
+            result += L"\\n";
+            break;
+        case L'\r':
+            result += L"\\r";
+            break;
+        case L'\t':
+            result += L"\\t";
+            break;
+        default:
+            if (ch >= 0x20)
+                result += ch;
+            break;
+        }
+    }
+
+    result += L"\"";
+    return result;
+}
+
+/// Turns the `.ext;.ext` form back into the JSON array the picker expects.
+static std::wstring JsonExtensions(const std::wstring& extensions) {
+    std::wstring result = L"[";
+    size_t start = 0;
+
+    while (start <= extensions.size()) {
+        size_t end = extensions.find(L';', start);
+        if (end == std::wstring::npos)
+            end = extensions.size();
+
+        std::wstring extension = extensions.substr(start, end - start);
+        if (!extension.empty()) {
+            if (result.size() > 1)
+                result += L',';
+            result += JsonString(extension);
+        }
+
+        if (end == extensions.size())
+            break;
+
+        start = end + 1;
+    }
+
+    result += L"]";
+    return result;
+}
+
+/// The whole type list as JSON, so the picker shows each type on its own instead of one merged
+/// filter. The shell dialog keeps its own order, which is what the caller's index refers to.
+static std::wstring TypesJson(const std::vector<ModernFileType>& types) {
+    if (types.empty())
+        return {};
+
+    std::wstring result = L"[";
+
+    for (size_t index = 0; index < types.size(); index++) {
+        if (index > 0)
+            result += L',';
+
+        result += L"{\"label\":";
+        result += JsonString(types[index].label);
+        result += L",\"extensions\":";
+        result += JsonExtensions(types[index].extensions);
+        result += L"}";
+    }
+
+    result += L"]";
+    return result;
+}
+
+/// Reads an OPENFILENAME filter block, which holds a description and its globs per type.
+static std::vector<ModernFileType> FilterTypes(LPCWSTR filter) {
+    std::vector<ModernFileType> types;
+    if (!filter)
+        return types;
+
+    const wchar_t* segment = filter;
+    while (*segment) {
+        std::wstring label = segment;
+        segment += wcslen(segment) + 1;
+        if (!*segment)
+            break;
+
+        std::wstring spec = segment;
+        segment += wcslen(segment) + 1;
+        types.push_back({label, spec, ExtensionList(spec.c_str())});
+    }
+
+    return types;
 }
 
 /// Joins the patterns of an OPENFILENAME filter block into the app's `.ext;.ext` form.
@@ -605,9 +795,15 @@ static BOOL ShowOpenSave(LPOPENFILENAMEW ofn, bool save) {
     request.Filter = FilterPatterns(ofn->lpstrFilter);
     request.Name = InitialName(ofn->lpstrFile);
     request.Extension = ofn->lpstrDefExt ? ofn->lpstrDefExt : L"";
+    request.Types = TypesJson(FilterTypes(ofn->lpstrFilter));
+    request.TypeIndex = static_cast<int>(ofn->nFilterIndex);
 
     std::vector<std::wstring> paths;
-    PickResult result = RunPicker(request, paths);
+    int typeIndex = 0;
+    PickResult result = RunPicker(request, paths, typeIndex);
+
+    if (typeIndex > 0)
+        ofn->nFilterIndex = static_cast<DWORD>(typeIndex);
 
     if (result == PickResult::NoApp) {
         Wh_Log(L"classic %s: no copy of the app was found, showing the original dialog",
@@ -715,7 +911,8 @@ static PIDLIST_ABSOLUTE ShowFolder(LPBROWSEINFOW browse) {
     request.Folder = true;
 
     std::vector<std::wstring> paths;
-    PickResult result = RunPicker(request, paths);
+    int typeIndex = 0;
+    PickResult result = RunPicker(request, paths, typeIndex);
 
     if (result == PickResult::NoApp)
         return SHBrowseForFolderW_Original ? SHBrowseForFolderW_Original(browse) : nullptr;
@@ -1249,11 +1446,6 @@ static HRESULT WINAPI SHOpenFolderAndSelectItems_Hook(PCIDLIST_ABSOLUTE folder, 
 // starts, and OnFileOk before Show returns.
 // ---------------------------------------------------------------------------
 
-struct ModernFileType {
-    std::wstring label;
-    std::wstring spec;
-    std::wstring extensions;
-};
 
 struct ModernDialogState {
     bool save = false;
@@ -1268,47 +1460,6 @@ struct ModernDialogState {
     std::vector<std::pair<DWORD, IFileDialogEvents*>> listeners;
     DWORD nextCookie = 0;
 };
-
-/// The extension list the picker takes, from one filter spec: `*.txt;*.png` becomes `.txt;.png`.
-/// A spec of `*.*` means "every file" and leaves the list empty, so the picker keeps only its
-/// All files entry and does not hide anything behind a "supported files" filter.
-static std::wstring ExtensionList(PCWSTR spec) {
-    std::wstring result;
-    if (!spec)
-        return result;
-
-    std::wstring text = spec;
-    size_t start = 0;
-
-    while (start <= text.size()) {
-        size_t end = text.find(L';', start);
-        if (end == std::wstring::npos)
-            end = text.size();
-
-        std::wstring pattern = text.substr(start, end - start);
-        start = end + 1;
-
-        while (!pattern.empty() && pattern.front() == L' ')
-            pattern.erase(0, 1);
-        while (!pattern.empty() && pattern.back() == L' ')
-            pattern.pop_back();
-
-        if (pattern == L"*" || pattern == L"*.*")
-            continue;
-
-        if (!pattern.empty() && pattern[0] == L'*')
-            pattern.erase(0, 1);
-
-        if (pattern.empty())
-            continue;
-
-        if (!result.empty())
-            result.push_back(L';');
-        result += pattern;
-    }
-
-    return result;
-}
 
 static std::wstring FileNameOf(const std::wstring& path) {
     const wchar_t* name = PathFindFileNameW(path.c_str());
@@ -1709,6 +1860,8 @@ static HRESULT ComposeShow(ModernDialogState& state, HWND owner, IFileDialog* se
     request.Initial = state.folder;
     request.Name = state.name;
     request.Extension = state.extension;
+    request.Types = TypesJson(state.fileTypes);
+    request.TypeIndex = static_cast<int>(state.filterIndex);
 
     if (!state.fileTypes.empty()) {
         const size_t index = state.filterIndex >= 1 && state.filterIndex <= state.fileTypes.size()
@@ -1728,7 +1881,8 @@ static HRESULT ComposeShow(ModernDialogState& state, HWND owner, IFileDialog* se
         RaiseFolderChange(state, self);
 
         std::vector<std::wstring> paths;
-        const PickResult result = RunPicker(request, paths);
+        int typeIndex = 0;
+        const PickResult result = RunPicker(request, paths, typeIndex);
 
         if (result == PickResult::Cancelled) {
             Wh_Log(L"modern %s: cancelled", state.save ? L"save" : L"open");
@@ -1741,6 +1895,10 @@ static HRESULT ComposeShow(ModernDialogState& state, HWND owner, IFileDialog* se
         }
 
         state.results = paths;
+
+        // Report the type the user ended on; the caller reads it from GetFileTypeIndex.
+        if (typeIndex > 0)
+            state.filterIndex = static_cast<UINT>(typeIndex);
 
         if (state.save) {
             // The caller asks where the file is going, not just which picker was opened.
