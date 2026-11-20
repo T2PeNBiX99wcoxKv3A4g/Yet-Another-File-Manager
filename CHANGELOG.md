@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.33.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.32.0..v0.33.0) - 2026-11-20
+
+### ⛰️  Features
+
+- *(gallery)* Serve the picture wall from the data plane - ([ac8b60f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/ac8b60f74cc945ab6ec3c6b134e153a62059c772))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([ecea8d6](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/ecea8d616d25fc434ac1bbee3c110b1f568d029d))
+
+
 ## [0.32.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.31.0..v0.32.0) - 2026-11-20
 
 ### ⛰️  Features
