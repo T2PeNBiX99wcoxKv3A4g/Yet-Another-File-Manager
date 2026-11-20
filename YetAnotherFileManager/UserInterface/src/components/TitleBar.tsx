@@ -19,13 +19,13 @@ import {isArchiveLocation, isZipArchiveLocation} from "../utils/format";
 import {
     AppIcon,
     ArchiveIcon,
-    ClockIcon,
     FolderIcon,
     GearIcon,
     HomeIcon,
     PackageIcon,
     PanelIcon,
     PlusIcon,
+    RefreshIcon,
     SplitIcon,
     TrashIcon,
 } from "./Icons";
@@ -163,7 +163,7 @@ export function TitleBar({
                 title={t("recently_closed_tabs")}
                 type="button"
             >
-                <ClockIcon size={14}/>
+                <RefreshIcon size={14}/>
             </ClosedTabsButton>
 
             <Tabs>
