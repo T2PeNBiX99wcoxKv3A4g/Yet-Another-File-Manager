@@ -53,6 +53,8 @@ if (rootElement) {
                             <PickerWindow
                                 defaultExtension={parameters.get("ext") ?? ""}
                                 extensions={pickFilter ? pickFilter.split(";").filter(Boolean) : []}
+                                types={parameters.get("types") ?? ""}
+                                typeIndex={Number(parameters.get("type") ?? 0) || 0}
                                 initial={parameters.get("initial") ?? ""}
                                 initialName={parameters.get("name") ?? ""}
                                 mode={pickMode === "folder" ? "folder" : "file"}

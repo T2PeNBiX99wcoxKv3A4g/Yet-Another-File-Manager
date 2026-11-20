@@ -53,6 +53,10 @@ interface FolderPickerProps {
     multiple?: boolean;
     /** Extensions (with the dot) to offer in file mode. */
     extensions?: string[];
+    /** The file types the calling dialog offers; each one is a separate entry in the type list. */
+    types?: PickerFileType[];
+    /** Which of {@link types} the caller had selected, counting from 1. */
+    typeIndex?: number;
     /** Render as the whole window (the CLI picker) instead of a modal. */
     inline?: boolean;
     /** The window title bar owns the view controls, so it passes the resolved view in. */
@@ -66,7 +70,14 @@ interface FolderPickerProps {
     theme: ResolvedTheme;
     places?: Place[];
     onCancel: () => void;
-    onSelect: (paths: string[]) => void;
+    /** The type the user ended on, counting from 1, for callers that ask which filter was used. */
+    onSelect: (paths: string[], type?: number) => void;
+}
+
+/** One entry of a save/open dialog's "files of type" list. */
+export interface PickerFileType {
+    label: string;
+    extensions: string[];
 }
 
 /**
@@ -78,6 +89,8 @@ export function FolderPicker({
                                  mode = "folder",
                                  multiple = false,
                                  extensions,
+                                 types,
+                                 typeIndex = 0,
                                  inline = false,
                                  places: suppliedPlaces,
                                  fileView,
@@ -93,6 +106,19 @@ export function FolderPicker({
     const selectionMenu = useSelectionMenu("picker");
     const isFileMode = mode === "file";
     const supported = extensions ?? [];
+    const offered = types ?? [];
+    // Which entry of the type list is showing: a number for one of the caller's types, or the two
+    // entries the picker adds for itself when the caller named no types at all.
+    const [typeChoice, setTypeChoice] = useState<number | "all" | "supported">(() => {
+        if (offered.length === 0) return supported.length === 0 ? "all" : "supported";
+        return typeIndex >= 1 && typeIndex <= offered.length ? typeIndex - 1 : 0;
+    });
+    const chosenType = typeof typeChoice === "number" ? offered[typeChoice] ?? null : null;
+    // The type on screen decides which files are listed and which extension a save gets.
+    const typeExtensions = typeof typeChoice === "number"
+        ? chosenType?.extensions ?? []
+        : typeChoice === "supported" ? supported : [];
+    const chosenTypeNumber = typeof typeChoice === "number" ? typeChoice + 1 : 0;
     const [path, setPath] = useState(initial);
     const [listing, setListing] = useState<DirectoryListing | null>(null);
     const [loading, setLoading] = useState(true);
@@ -106,7 +132,6 @@ export function FolderPicker({
     const [forward, setForward] = useState<string[]>([]);
     const [fileName, setFileName] = useState(initialName);
     const [overwrite, setOverwrite] = useState<string | null>(null);
-    const [allFiles, setAllFiles] = useState(supported.length === 0);
     const [view, setView] = useState<"files" | "overview" | "gallery">("files");
     const [reload, setReload] = useState(0);
     const [find, setFind] = useState<FindState>(EmptyFind);
@@ -336,8 +361,8 @@ export function FolderPicker({
 
     const visibleEntries = (listing?.entries ?? []).filter((entry) =>
         entry.isDirectory
-        || (isFileMode && (allFiles || supported.length === 0
-            || supported.some((extension) => entry.name.toLowerCase().endsWith(extension.toLowerCase())))));
+        || (isFileMode && (typeExtensions.length === 0
+            || typeExtensions.some((extension) => entry.name.toLowerCase().endsWith(extension.toLowerCase())))));
 
     const pickerListing: DirectoryListing | null = listing
         ? {...listing, entries: visibleEntries}
@@ -375,7 +400,7 @@ export function FolderPicker({
 
     // A file dialog that offers every file is the "open something" kind - Rider's Open, and others -
     // where a folder is an answer as well; a dialog filtered to certain files asks for a file.
-    const picksFolders = !isFileMode || allFiles;
+    const picksFolders = !isFileMode || typeExtensions.length === 0;
     const oneSelected = selected.size === 1 ? [...selected][0] : null;
     const folderSelected = oneSelected !== null
         && (listing?.entries.find((entry) => entry.fullPath === oneSelected)?.isDirectory ?? false);
@@ -404,26 +429,29 @@ export function FolderPicker({
                 return;
             }
 
-            const suffix = defaultExtension.length > 0 && !/\.[^.]*$/.test(name)
-                ? defaultExtension.startsWith(".") ? defaultExtension : `.${defaultExtension}`
+            // The caller's own default extension wins; otherwise the type on screen names it, which
+            // is how a program that only lists "(*.clip)" gets ".clip" on the saved file.
+            const fallback = defaultExtension.length > 0 ? defaultExtension : typeExtensions[0] ?? "";
+            const suffix = fallback.length > 0 && !/\.[^.]*$/.test(name)
+                ? fallback.startsWith(".") ? fallback : `.${fallback}`
                 : "";
             const target = isAbsolutePath(name) ? name + suffix : joinPath(currentFolder, name + suffix);
 
             void inspectPaths([target])
-                .then((entries) => entries[0]?.exists ? setOverwrite(target) : onSelect([target]),
-                    () => onSelect([target]));
+                .then((entries) => entries[0]?.exists ? setOverwrite(target) : onSelect([target], chosenTypeNumber),
+                    () => onSelect([target], chosenTypeNumber));
             return;
         }
 
         const picked = multiple ? [...selected] : [...selected].slice(0, 1);
 
         if (picked.length > 0) {
-            onSelect(picked);
+            onSelect(picked, chosenTypeNumber);
             return;
         }
 
         if (typedPath !== null && typed !== baseName(currentFolder)) {
-            onSelect([typedPath]);
+            onSelect([typedPath], chosenTypeNumber);
             return;
         }
 
@@ -459,7 +487,7 @@ export function FolderPicker({
             return;
         }
 
-        onSelect(paths);
+        onSelect(paths, chosenTypeNumber);
     };
 
     /// The menu's "open": a folder is entered, a file goes to the system, and the picker stays.
@@ -485,7 +513,7 @@ export function FolderPicker({
             return;
         }
 
-        if (isFileMode) onSelect([target]);
+        if (isFileMode) onSelect([target], chosenTypeNumber);
     };
 
     const typeName = (value: string) => setFileName(value);
@@ -506,7 +534,7 @@ export function FolderPicker({
 
         // The new entry has to be visible before FileList can focus its rename box.
         setFind((current) => ({...current, open: false, query: ""}));
-        if (extension !== null) setAllFiles(true);
+        if (extension !== null) setTypeChoice("all");
         setReload((value) => value + 1);
 
         // Let the refreshed listing paint first; otherwise the rename request can be consumed
@@ -550,17 +578,29 @@ export function FolderPicker({
                     <>
                         <FieldLabel>{t("files_of_type")}</FieldLabel>
                         <SelectMenu
-                            onChange={(value) => setAllFiles(value === "all")}
-                            options={[
-                                ...(supported.length > 0
-                                    ? [{
-                                        value: "supported",
-                                        label: `${t("supported_files")} (${supported.map((extension) => `*${extension}`).join(";")})`,
-                                    }]
-                                    : []),
-                                {value: "all", label: `${t("all_files")} (*.*)`},
-                            ]}
-                            value={allFiles ? "all" : "supported"}
+                            onChange={(value) => setTypeChoice(
+                                value === "all" || value === "supported" ? value : Number(value)
+                            )}
+                            options={offered.length > 0
+                                ? [
+                                    ...offered.map((type, index) => ({
+                                        value: String(index),
+                                        label: type.label.length > 0
+                                            ? type.label
+                                            : type.extensions.map((extension) => `*${extension}`).join(";"),
+                                    })),
+                                    {value: "all", label: `${t("all_files")} (*.*)`},
+                                ]
+                                : [
+                                    ...(supported.length > 0
+                                        ? [{
+                                            value: "supported",
+                                            label: `${t("supported_files")} (${supported.map((extension) => `*${extension}`).join(";")})`,
+                                        }]
+                                        : []),
+                                    {value: "all", label: `${t("all_files")} (*.*)`},
+                                ]}
+                            value={String(typeChoice)}
                         />
                     </>
                 )}
@@ -588,7 +628,7 @@ export function FolderPicker({
                 onConfirm={() => {
                     const path = overwrite;
                     setOverwrite(null);
-                    if (path) onSelect([path]);
+                    if (path) onSelect([path], chosenTypeNumber);
                 }}
                 open={overwrite !== null}
                 title={t("overwrite")}
@@ -643,7 +683,7 @@ export function FolderPicker({
                                 historyVersion={0}
                                 homePath={places.find((place) => place.kind === "home")?.path ?? ""}
                                 onOpen={(target) => navigate(target)}
-                                onPick={isFileMode ? (target) => onSelect([target]) : undefined}
+                                onPick={isFileMode ? (target) => onSelect([target], chosenTypeNumber) : undefined}
                                 selectCards
                                 onPlacesChanged={() => undefined}
                                 onRecentCleared={() => undefined}
@@ -659,7 +699,7 @@ export function FolderPicker({
                     ) : view === "gallery" ? (
                         <>
                             <GalleryView
-                                onPick={(path) => onSelect([path])}
+                                onPick={(path) => onSelect([path], chosenTypeNumber)}
                                 onSelectionChange={handleSelection}
                                 showCheckboxes={settings?.showCheckboxes ?? true}
                                 view={{...DefaultView, columns: []}}

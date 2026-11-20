@@ -18,7 +18,10 @@ internal sealed record PickerOptions(
     string Initial,
     string InitialName,
     string DefaultExtension,
-    string? Output);
+    string? Output,
+    string Types = "",
+    int TypeIndex = 0,
+    string? TypeOutput = null);
 
 /// <summary>Command line pick mode: parse the flags, build the window URL, and report the result.</summary>
 internal static class CliPicker
@@ -50,7 +53,10 @@ internal static class CliPicker
             initial ?? "",
             Value(args, Constants.PickNameArgument) ?? "",
             Value(args, Constants.PickExtensionArgument) ?? "",
-            Value(args, Constants.PickOutputArgument));
+            Value(args, Constants.PickOutputArgument),
+            Value(args, Constants.PickTypesArgument) ?? "",
+            int.TryParse(Value(args, Constants.PickTypeIndexArgument), out var typeIndex) ? typeIndex : 0,
+            Value(args, Constants.PickTypeOutputArgument));
     }
 
     /// <summary>Appends the pick parameters to the interface URL.</summary>
@@ -67,6 +73,12 @@ internal static class CliPicker
         if (options.Extensions.Count > 0)
             url.Append("&filter=").Append(Uri.EscapeDataString(string.Join(';', options.Extensions)));
 
+        if (options.Types.Length > 0)
+            url.Append("&types=").Append(Uri.EscapeDataString(options.Types));
+
+        if (options.TypeIndex > 0)
+            url.Append("&type=").Append(options.TypeIndex);
+
         if (options.InitialName.Length > 0)
             url.Append("&name=").Append(Uri.EscapeDataString(options.InitialName));
 
@@ -80,13 +92,17 @@ internal static class CliPicker
     }
 
     /// <summary>Writes the chosen paths to standard output and, when asked, to a file.</summary>
-    public static async Task CompleteAsync(PickerOptions options, IReadOnlyList<string> paths)
+    public static async Task CompleteAsync(PickerOptions options, IReadOnlyList<string> paths, int? type = null)
     {
         if (paths.Count == 0)
         {
             Cancel(options);
             return;
         }
+
+        if (options.TypeOutput is { Length: > 0 } typeOutput)
+            (await Try.Run(async () => await File.WriteAllTextAsync(typeOutput, $"{type ?? 0}\n", new UTF8Encoding(false))))
+                .OnFailure(ex => Log.Warning(ex, "Could not write the picked type to {Path}", typeOutput));
 
         var text = string.Join(Environment.NewLine, paths) + Environment.NewLine;
 
@@ -103,6 +119,9 @@ internal static class CliPicker
     {
         if (options.Output is { Length: > 0 } output)
             Try.Run(() => File.Delete(output));
+
+        if (options.TypeOutput is { Length: > 0 } typeOutput)
+            Try.Run(() => File.Delete(typeOutput));
 
         Environment.ExitCode = 1;
     }

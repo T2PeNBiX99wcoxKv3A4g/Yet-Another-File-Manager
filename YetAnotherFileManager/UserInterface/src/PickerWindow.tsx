@@ -6,6 +6,7 @@ import {DefaultViewDefaults, type DirectoryView, type ResolvedView} from "./api/
 import {type ProtectedPrompt, setProtectedAsker} from "./api/safety";
 import {applyTheme, normalizeThemeMode} from "./theme";
 import {FolderPicker} from "./components/FolderPicker";
+import type {PickerFileType} from "./components/FolderPicker";
 import {ViewMenu} from "./components/ViewMenu";
 import {ProtectedDeleteDialog} from "./components/ProtectedDeleteDialog";
 import {MessageDialog} from "./components/MessageDialog";
@@ -17,17 +18,48 @@ interface PickerWindowProps {
     save?: boolean;
     multiple: boolean;
     extensions: string[];
+    /** The calling dialog's file types, as the JSON the mod sent: [{label, extensions}]. */
+    types?: string;
+    /** Which of the types the caller had selected, counting from 1. */
+    typeIndex?: number;
     initial: string;
     initialName?: string;
     defaultExtension?: string;
+}
+
+/** Reads the type list from the URL; anything unreadable simply offers no types. */
+function readTypes(value: string | undefined): PickerFileType[] {
+    if (!value)
+        return [];
+
+    try {
+        const parsed: unknown = JSON.parse(value);
+        if (!Array.isArray(parsed))
+            return [];
+
+        return parsed.flatMap((item: unknown) => {
+            if (typeof item !== "object" || item === null)
+                return [];
+
+            const record = item as { label?: unknown; extensions?: unknown };
+            return [{
+                label: typeof record.label === "string" ? record.label : "",
+                extensions: Array.isArray(record.extensions)
+                    ? record.extensions.filter((extension): extension is string => typeof extension === "string" && extension.length > 0)
+                    : [],
+            }];
+        });
+    } catch {
+        return [];
+    }
 }
 
 /**
  * The <c>--pick-folder</c> / <c>--pick-file</c> window. It is the same picker the app shows in a
  * modal, drawn as the whole window so a script can use it like the shell dialogs.
  */
-export function PickerWindow({mode, save = false, multiple, extensions, initial, initialName = "",
-                             defaultExtension = ""}: PickerWindowProps) {
+export function PickerWindow({mode, save = false, multiple, extensions, types, typeIndex = 0, initial,
+                             initialName = "", defaultExtension = ""}: PickerWindowProps) {
     const t = useTranslation();
     const drag = useWindowDrag();
     const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -105,6 +137,8 @@ export function PickerWindow({mode, save = false, multiple, extensions, initial,
             <Content>
                 <FolderPicker
                     extensions={extensions}
+                    types={readTypes(types)}
+                    typeIndex={typeIndex}
                     initial={initial}
                     initialName={initialName}
                     defaultExtension={defaultExtension}
@@ -112,7 +146,7 @@ export function PickerWindow({mode, save = false, multiple, extensions, initial,
                     mode={mode}
                     multiple={multiple}
                     onCancel={() => Native.send({type: "pick.cancel"})}
-                    onSelect={(paths) => Native.send({type: "pick.submit", payload: {paths}})}
+                    onSelect={(paths, type) => Native.send({type: "pick.submit", payload: {paths, type}})}
                     save={save}
                     showImages={showImages ?? viewDefaults.showImages}
                     fileView={view}

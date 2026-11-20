@@ -130,7 +130,8 @@ internal partial class WindowManager
     {
         if (Picker is { } picker)
         {
-            await CliPicker.CompleteAsync(picker, context.Payload<PickResultRequest>()?.Paths ?? []);
+            var result = context.Payload<PickResultRequest>();
+            await CliPicker.CompleteAsync(picker, result?.Paths ?? [], result?.Type);
             Exit();
         }
 

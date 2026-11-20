@@ -89,6 +89,18 @@ public static class Constants
     /// <summary>The extension filter for <c>--pick-file</c>, e.g. <c>*.png;*.jpg</c>.</summary>
     public const string PickFilterArgument = "--filter";
 
+    /// <summary>
+    ///     Every file type the calling dialog offers, as JSON: <c>[{"label":"…","extensions":[".clip"]}]</c>.
+    ///     The picker shows them one by one in its type list instead of merging them into one filter.
+    /// </summary>
+    public const string PickTypesArgument = "--types";
+
+    /// <summary>Which of <see cref="PickTypesArgument" /> the caller had selected, counting from 1.</summary>
+    public const string PickTypeIndexArgument = "--type-index";
+
+    /// <summary>Where the picker writes the type the user ended on, so the caller can read it back.</summary>
+    public const string PickTypeOutputArgument = "--type-output";
+
     /// <summary>Where a pick mode starts browsing.</summary>
     public const string PickInitialArgument = "--initial";
 
