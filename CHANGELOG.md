@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.33.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.33.1..v0.33.2) - 2026-11-20
+
+### 🐛 Bug Fixes
+
+- *(list)* Keep the rename box on the line the name was on - ([e1f98c6](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/e1f98c672b1b06490f56e50774fbdc81f41e76cd))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([d239cc6](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d239cc65e2ca67f868aa2d2d146c54e3f33ec99d))
+
+
 ## [0.33.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.33.0..v0.33.1) - 2026-11-20
 
 ### ⚙️ Miscellaneous Tasks
