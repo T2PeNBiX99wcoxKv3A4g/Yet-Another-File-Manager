@@ -4,6 +4,7 @@ import {previewText, type TextPreview} from "../api/files";
 import {useArchiveEntryPath, useIcon, useMediaUrl, usePdfPreview, useThumbnail} from "../api/icons";
 import {readStoredNumber, writeStoredNumber} from "../storage";
 import {FileIcon, FolderIcon, PlayIcon} from "./Icons";
+import {Timestamp} from "./Timestamp";
 import {useTranslation} from "@photino-net-utils/bridge";
 
 export interface PreviewInfo {
@@ -14,7 +15,7 @@ export interface PreviewInfo {
     size: number;
     modified: number;
     created?: number;
-    fields: { label: string; value: string }[];
+    fields: { label: string; value: string; time?: number }[];
 }
 
 interface PreviewPaneProps {
@@ -360,7 +361,9 @@ export function PreviewPane({
                         {info.fields.map((field) => (
                             <Field key={field.label}>
                                 <FieldLabel>{field.label}</FieldLabel>
-                                <FieldValue title={field.value}>{field.value}</FieldValue>
+                                <FieldValue title={field.value}>
+                                    {field.time !== undefined ? <Timestamp value={field.time}/> : field.value}
+                                </FieldValue>
                             </Field>
                         ))}
                     </Fields>

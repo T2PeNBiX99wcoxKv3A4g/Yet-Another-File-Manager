@@ -188,9 +188,12 @@ internal partial class WindowManager
             .SetSize(new(width, height))
             .SetMinSize(minWidth, minHeight)
             .Center()
+            // A picker has to be reachable even when the program that asked for it is a game in
+            // full screen; a topmost window is what comes back into sight there.
+            .SetTopMost(Picker is not null)
             // Starting hidden keeps the window in the task switcher for a moment instead of
             // flashing on screen; the interface hides it for good once it has rendered.
-            .SetMinimized(!ShowMainWindowOnStartup)
+            .SetMinimized(Picker is null && !ShowMainWindowOnStartup)
             .SetContextMenuEnabled(false)
             .RegisterWebMessageReceivedHandler((sender, message) =>
                 _ = NativeBridge.HandleMessageAsync(sender as PhotinoWindow, message))
@@ -245,7 +248,7 @@ internal partial class WindowManager
                     direction => Notify(navigation, new NavigationPayload(direction)));
             }
 
-            if (!ShowMainWindowOnStartup)
+            if (Picker is null && !ShowMainWindowOnStartup)
             {
                 _hideWhenRendered = true;
                 Log.Information("Starting hidden; the window stays minimised until its interface has rendered");

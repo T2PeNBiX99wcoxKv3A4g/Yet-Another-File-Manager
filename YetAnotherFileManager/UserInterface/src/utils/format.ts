@@ -46,11 +46,57 @@ export const DefaultTimePattern = "yyyy/MM/dd HH:mm";
 
 let currentTimeFormat: TimeFormatMode = DefaultTimeFormat;
 let currentTimePattern = DefaultTimePattern;
+let relativeTimes = true;
+let relativeWindowMs = 60 * 60_000;
 
 /** Applies the saved time settings to every formatter; called whenever the settings change. */
 export function applyTimeFormat(format: string | null | undefined, pattern: string | null | undefined) {
     currentTimeFormat = normalizeTimeFormat(format);
     currentTimePattern = pattern?.trim() || DefaultTimePattern;
+}
+
+/** Applies the "x minutes ago" behaviour and how recent a time must be to use it. */
+export function applyRelativeTime(enabled: boolean | null | undefined, windowMinutes: number | null | undefined) {
+    relativeTimes = enabled ?? true;
+    relativeWindowMs = Math.max(0, windowMinutes ?? 60) * 60_000;
+}
+
+/** Whether timestamps are currently shown as "3 minutes ago". */
+export function usesRelativeTime(): boolean {
+    return relativeTimes;
+}
+
+/**
+ * A timestamp that is recent says how long ago it was, so a file written a second ago reads as
+ * such instead of as a wall clock the user has to compare. Older times keep the configured format.
+ */
+export function formatTimestamp(unixMilliseconds: number, now: number = Date.now()): string {
+    if (unixMilliseconds <= 0) return "—";
+
+    const age = now - unixMilliseconds;
+    if (!relativeTimes || age < 0 || age > relativeWindowMs)
+        return formatDate(unixMilliseconds);
+
+    const formatter = relativeFormatter(appLocale());
+
+    if (age < 60_000) return formatter.format(-Math.round(age / 1000), "second");
+    if (age < 3_600_000) return formatter.format(-Math.round(age / 60_000), "minute");
+
+    return formatter.format(-Math.round(age / 3_600_000), "hour");
+}
+
+const relativeFormatters = new Map<string, Intl.RelativeTimeFormat>();
+
+function relativeFormatter(locale: string | undefined): Intl.RelativeTimeFormat {
+    const key = locale ?? "";
+    const known = relativeFormatters.get(key);
+
+    if (known) return known;
+
+    const created = new Intl.RelativeTimeFormat(locale, {numeric: "always", style: "long"});
+    relativeFormatters.set(key, created);
+
+    return created;
 }
 
 export function normalizeTimeFormat(format: string | null | undefined): TimeFormatMode {

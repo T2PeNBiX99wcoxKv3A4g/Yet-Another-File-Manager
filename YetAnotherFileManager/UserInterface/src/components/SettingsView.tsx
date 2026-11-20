@@ -2019,6 +2019,44 @@ export function SettingsView({
                                 </code>
                             </TimePreview>
                         </Block>
+                        <Row>
+                            <RowText>
+                                <Label>{t("relative_times")}</Label>
+                                <Note>{t("shows_recent_timestamps_as_seconds_and_minutes_ago_and_keeps_them_counting")}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <State $on={settings?.relativeTime ?? true}>
+                                    {(settings?.relativeTime ?? true) ? t("active") : t("off")}
+                                </State>
+                                <Toggle
+                                    $on={settings?.relativeTime ?? true}
+                                    disabled={!settings}
+                                    onClick={() => void update({relativeTime: !(settings?.relativeTime ?? true)})}
+                                    title={t("show_recent_timestamps_as_seconds_and_minutes_ago")}
+                                    type="button"
+                                >
+                                    <Knob/>
+                                </Toggle>
+                            </RowEnd>
+                        </Row>
+                        <Row>
+                            <RowText>
+                                <Label>{t("switch_to_the_full_time_after")}</Label>
+                                <Note>{t("older_timestamps_use_the_format_above_instead_of_a_relative_one")}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <RangeInput
+                                    disabled={!(settings?.relativeTime ?? true)}
+                                    max={1440}
+                                    min={1}
+                                    onChange={(event) => void update({relativeTimeWindowMinutes: Number(event.target.value)})}
+                                    step={1}
+                                    type="range"
+                                    value={settings?.relativeTimeWindowMinutes ?? 60}
+                                />
+                                <Value>{settings?.relativeTimeWindowMinutes ?? 60} min</Value>
+                            </RowEnd>
+                        </Row>
                     </Rows>
                 </Section>
 

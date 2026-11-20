@@ -102,6 +102,10 @@ export interface AppSettings {
     timeFormat: string;
     /** Pattern used when timeFormat is "custom". */
     timeFormatPattern: string;
+    /** Show timestamps from the last few minutes as "3 minutes ago" and keep them current. */
+    relativeTime: boolean;
+    /** How recent a timestamp must be to be shown relative, in minutes. */
+    relativeTimeWindowMinutes: number;
     /** Preferred width of the standalone folder/file picker window. */
     pickerWindowWidth: number;
     /** Preferred height of the standalone folder/file picker window. */
@@ -214,6 +218,8 @@ const fallback: AppSettings = {
     deleteDelaySeconds: 5,
     timeFormat: "24",
     timeFormatPattern: "yyyy/MM/dd HH:mm",
+    relativeTime: true,
+    relativeTimeWindowMinutes: 60,
     pickerWindowWidth: 1200,
     pickerWindowHeight: 800,
     linkPathMode: "relative",
@@ -290,6 +296,8 @@ export async function getSettings(): Promise<AppSettings> {
         deleteDelaySeconds: raw?.deleteDelaySeconds ?? 5,
         timeFormat: raw?.timeFormat ?? "24",
         timeFormatPattern: raw?.timeFormatPattern ?? "yyyy/MM/dd HH:mm",
+        relativeTime: raw?.relativeTime ?? true,
+        relativeTimeWindowMinutes: raw?.relativeTimeWindowMinutes ?? 60,
         pickerWindowWidth: raw?.pickerWindowWidth ?? 1200,
         pickerWindowHeight: raw?.pickerWindowHeight ?? 800,
         linkPathMode: raw?.linkPathMode ?? "relative",
@@ -428,6 +436,8 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         deleteDelaySeconds: saved?.deleteDelaySeconds ?? settings.deleteDelaySeconds,
         timeFormat: saved?.timeFormat ?? settings.timeFormat,
         timeFormatPattern: saved?.timeFormatPattern ?? settings.timeFormatPattern,
+        relativeTime: saved?.relativeTime ?? settings.relativeTime,
+        relativeTimeWindowMinutes: saved?.relativeTimeWindowMinutes ?? settings.relativeTimeWindowMinutes,
         pickerWindowWidth: saved?.pickerWindowWidth ?? settings.pickerWindowWidth,
         pickerWindowHeight: saved?.pickerWindowHeight ?? settings.pickerWindowHeight,
         linkPathMode: saved?.linkPathMode ?? settings.linkPathMode,

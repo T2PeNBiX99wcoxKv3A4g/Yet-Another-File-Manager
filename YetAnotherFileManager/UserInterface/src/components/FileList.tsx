@@ -34,6 +34,7 @@ import {type FindQuery, type FindView, NoFind, rangesOf} from "../find";
 import {canPreview, PreviewKindLabels, previewKindOf} from "../preview";
 import {quickPlace, useQuickAccess} from "../quick";
 import {baseName, formatBytes, formatDate, plural, samePath} from "../utils/format";
+import {Timestamp} from "./Timestamp";
 import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "../storage";
 import {CheckIcon, CutIcon, FolderIcon, LinkIcon, LockIcon} from "./Icons";
 import {type ArchiveExtractMode, FileMenu} from "./FileMenu";
@@ -1530,8 +1531,8 @@ export function FileList({
                         value: `${listing.counts[previewEntry.name] ?? "—"}`,
                     }]
                     : []),
-                {label: t("modified"), value: formatDate(previewEntry.modified)},
-                {label: t("created"), value: formatDate(previewEntry.created)},
+                {label: t("modified"), value: formatDate(previewEntry.modified), time: previewEntry.modified},
+                {label: t("created"), value: formatDate(previewEntry.created), time: previewEntry.created},
                 {
                     label: t("link_status"),
                     value: previewEntry.linkTarget != null
@@ -2790,7 +2791,11 @@ const ListRow = memo(function ListRow({
                         )
                         : column.id === "linkStatus" && row.entry.linkValid === false
                             ? <Broken>{t("broken")}</Broken>
-                            : cellValue(column.id, row.entry, folderSizes, counts, t)}
+                            : column.id === "modified"
+                                ? <Timestamp value={row.entry.modified}/>
+                                : column.id === "created"
+                                    ? <Timestamp value={row.entry.created}/>
+                                    : cellValue(column.id, row.entry, folderSizes, counts, t)}
                 </Cell>
             ))}
         </Row>

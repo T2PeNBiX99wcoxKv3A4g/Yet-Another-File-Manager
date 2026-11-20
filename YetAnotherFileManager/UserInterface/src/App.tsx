@@ -99,6 +99,7 @@ import {
     useWindowCorners,
 } from "@photino-net-utils/bridge";
 import {
+    applyRelativeTime,
     applyTimeFormat,
     archiveFile,
     baseName,
@@ -472,7 +473,9 @@ export default function App() {
     // Dates are formatted by a tiny shared module, so it has to follow the settings before render.
     useEffect(() => {
         applyTimeFormat(settings?.timeFormat, settings?.timeFormatPattern);
-    }, [settings?.timeFormat, settings?.timeFormatPattern]);
+        applyRelativeTime(settings?.relativeTime, settings?.relativeTimeWindowMinutes);
+    }, [settings?.timeFormat, settings?.timeFormatPattern, settings?.relativeTime,
+        settings?.relativeTimeWindowMinutes]);
 
     // A wallpaper turns the opaque window surfaces transparent; the layer sits behind all of them.
     useEffect(() => {

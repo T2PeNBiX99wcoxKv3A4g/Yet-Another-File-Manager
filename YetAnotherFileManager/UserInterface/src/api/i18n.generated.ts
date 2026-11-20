@@ -474,6 +474,7 @@ declare module "@photino-net-utils/bridge"
         "off_by_default_turn_this_on_to_start_a_video_as_soon_as_its_details_panel_opens_the_play_button_still_works_when_it_is_off": true;
         "off_means_double_click_like_explorer_s_default_the_checkbox_still_only_selects_so_a_click_on_it_never_opens_the_entry": true;
         "ok": true;
+        "older_timestamps_use_the_format_above_instead_of_a_relative_one": true;
         "one_click_changes_the_accent_and_the_highlight_together": true;
         "only_paired_devices_can_open_this_folder_in_the_app": true;
         "only_these_folders_are_scanned_three_levels_deep": true;
@@ -596,6 +597,7 @@ declare module "@photino-net-utils/bridge"
         "reject": true;
         "relative": true;
         "relative_links_keep_working_when_the_link_and_its_target_move_together_absolute_links_always_store_the_full_target_path": true;
+        "relative_times": true;
         "reload_interface": true;
         "remove": true;
         "remove_banner": true;
@@ -716,6 +718,7 @@ declare module "@photino-net-utils/bridge"
         "shown": true;
         "shown_in_every_folder_changing_them_changes_all_folders_at_once": true;
         "shown_of_total_pictures": true;
+        "shows_recent_timestamps_as_seconds_and_minutes_ago_and_keeps_them_counting": true;
         "shows_the_next_file_tab_beside_the_current_one": true;
         "shows_the_pictures_videos_and_documents_the_shell_can_preview_as_grid_tiles_below_the_list_the_tiles_follow_the_grid_size_and_the_panel_only_appears_in_list_mode": true;
         "show_all_admin": true;
@@ -725,6 +728,7 @@ declare module "@photino-net-utils/bridge"
         "show_hidden_files": true;
         "show_in_explorer": true;
         "show_metadata_records_whose_content_is_already_gone": true;
+        "show_recent_timestamps_as_seconds_and_minutes_ago": true;
         "simplified_chinese_cp936": true;
         "size": true;
         "skyline": true;
@@ -753,6 +757,7 @@ declare module "@photino-net-utils/bridge"
         "supported_files": true;
         "switches_the_folder_to_the_grid_view": true;
         "switches_the_folder_to_the_list_view": true;
+        "switch_to_the_full_time_after": true;
         "symbolic_link": true;
         "symbolic_link_copy": true;
         "system": true;

@@ -136,4 +136,8 @@ export interface AppSettingsGenerated {
     shareApprovalMinutes: number | null;
     /** Seconds a refused browser stays blocked. */
     shareDenialSeconds: number | null;
+    /** Show recent timestamps as seconds and minutes ago. */
+    relativeTime: boolean | null;
+    /** How recent a timestamp must be to be shown relative, in minutes. */
+    relativeTimeWindowMinutes: number | null;
 }

@@ -17,6 +17,7 @@ import {setSelectionMenu, useSelectionMenu} from "../ui/selectionMenu";
 import {matchesName} from "../find";
 import {type PageFind, useTextSearch} from "../ui/textSearch";
 import {formatBytes, formatDate, plural} from "../utils/format";
+import {Timestamp} from "./Timestamp";
 import {readStoredJson, writeStoredJson} from "../storage";
 import {
     CheckIcon,
@@ -446,7 +447,7 @@ export function RecycleView({
             fields: [
                 {label: t("type"), value: t(typeOf(previewEntry) as LocalizationKey)},
                 {label: t("original_location"), value: previewEntry.originalPath},
-                {label: t("date_deleted"), value: formatDate(previewEntry.deleted)},
+                {label: t("date_deleted"), value: formatDate(previewEntry.deleted), time: previewEntry.deleted},
                 {
                     label: t("size"),
                     value: previewEntry.isDirectory ? "—" : formatBytes(previewEntry.size),
@@ -642,7 +643,7 @@ export function RecycleView({
                                         {entry.owner && <Tag $other>{t("other_profile")}</Tag>}
                                     </NameCell>
                                     <Origin>{entry.originalPath}</Origin>
-                                    <Deleted>{formatDate(entry.deleted)}</Deleted>
+                                    <Deleted><Timestamp value={entry.deleted}/></Deleted>
                                     <Size>{entry.isDirectory ? "—" : formatBytes(entry.size)}</Size>
                                     <Type>{t(typeOf(entry) as LocalizationKey)}</Type>
                                     <RowActions>
@@ -1013,3 +1014,4 @@ const Message = styled.p`
     color: var(--text-muted);
     text-align: center;
 `;
+

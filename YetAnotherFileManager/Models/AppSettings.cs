@@ -142,14 +142,19 @@ public sealed record AppSettings(
     [property: Setting(Comment = "Minutes an approved browser stays allowed.")]
     int? ShareApprovalMinutes = null,
     [property: Setting(Comment = "Seconds a refused browser stays blocked.")]
-    int? ShareDenialSeconds = null)
+    int? ShareDenialSeconds = null,
+    [property: Setting(Comment = "Show recent timestamps as seconds and minutes ago.")]
+    bool? RelativeTime = null,
+    [property: Setting(Comment = "How recent a timestamp must be to be shown relative, in minutes.")]
+    int? RelativeTimeWindowMinutes = null)
 {
     public static AppSettings Default =>
         new(true, true, true, ["**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null,
             ["quick", "frequent", "recent", "home", "drives", "share", "favorites"], null, 1, null,
             null, null, null, null, null, ["quick", "frequent", "recent", "drives"], null, null, true, null, 0, null,
             true, false, false, false, false, true, null, null, null, null, false, null, null, null, null, null, null, null, 5,
-            "24", null, null, false, 1200, 800, "relative", null, 220, [], 0.3, null, null, null, null, null, null, null);
+            "24", null, null, false, 1200, 800, "relative", null, 220, [], 0.3, null, null, null, null, null, null, null,
+            RelativeTime: true, RelativeTimeWindowMinutes: 60);
 
     // The accessors below are derived, so they are kept out of settings.toml entirely; only the
     // fields above are stored, and the JSON stays readable and stable.

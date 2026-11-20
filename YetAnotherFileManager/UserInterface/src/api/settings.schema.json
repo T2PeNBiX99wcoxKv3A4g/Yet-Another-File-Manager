@@ -536,6 +536,20 @@
         "null"
       ],
       "description": "Seconds a refused browser stays blocked."
+    },
+    "relativeTime": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Show recent timestamps as seconds and minutes ago."
+    },
+    "relativeTimeWindowMinutes": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "How recent a timestamp must be to be shown relative, in minutes."
     }
   },
   "additionalProperties": false
