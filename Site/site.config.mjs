@@ -12,9 +12,9 @@ export const site = {
     repository: "https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager",
     languages: ["en", "ja", "zh-CN", "zh-TW"],
     screenshots: {
+        main: "https://raw.githubusercontent.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/master/docs/main-window.png",
+        popup: "https://raw.githubusercontent.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/master/docs/overview.png",
         gallery: [
-            {src: "https://raw.githubusercontent.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/master/docs/main-window.png", alt: "The file list, previews and tabs"},
-            {src: "https://raw.githubusercontent.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/master/docs/overview.png", alt: "The overview with its panels"},
             {src: "https://raw.githubusercontent.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/master/docs/settings.png", alt: "The settings"},
         ],
     },

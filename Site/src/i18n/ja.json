@@ -9,8 +9,14 @@
     "tagline": "すべてを 1 つのウィンドウにまとめるファイルマネージャー。",
     "download": "ダウンロード",
     "documentation": "ドキュメント",
+    "mainWindow": "詳細パネルを開いたメインウィンドウ",
+    "mainWindowAlt": "Yet Another File Manager のメインウィンドウ",
     "whatTitle": "できること",
     "whatText": "Yet Another File Manager はフォルダーをリストまたはグリッドで表示し、画像・動画・ドキュメントをその横でプレビューします。タブ、分割表示、検索、ギャラリー、フォルダーごとのタグ、ごみ箱を同じウィンドウにまとめています。Windows と Linux で同じコードを使っています。",
+    "popupTitle": "概要",
+    "popupText": "パネルで作るホーム画面です。クイックアクセス、よく使うフォルダー、最近の項目、ドライブ、ピン留めしたフォルダーを 1〜3 列で並べられ、どのパネルもタブで開けます。",
+    "popupCaption": "パネルが並ぶ概要",
+    "popupAlt": "パネルが並ぶ概要",
     "featuresTitle": "機能",
     "features": [
       {
