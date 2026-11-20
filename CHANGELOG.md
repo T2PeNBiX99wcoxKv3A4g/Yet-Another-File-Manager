@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.43.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.42.2..v0.43.0) - 2026-11-20
+
+### ⛰️  Features
+
+- *(titlebar)* Put the closed tabs list beside the operation history, with tab glyphs - ([ef80c63](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/ef80c6306f8a62a85685abc890a4e6cc2f0f9aa8))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([015cdb5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/015cdb5f26ad8ed3ea383cab1dd6e07c1e52f920))
+
+
 ## [0.42.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.42.1..v0.42.2) - 2026-11-20
 
 ### 🐛 Bug Fixes
