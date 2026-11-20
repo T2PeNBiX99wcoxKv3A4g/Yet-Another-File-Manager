@@ -112,17 +112,26 @@ export function FolderPicker({
     const [typeChoice, setTypeChoice] = useState<number | "all" | "supported">(() => {
         if (offered.length === 0) return supported.length === 0 ? "all" : "supported";
 
-        // Programs often name the file after the document ("photo.jpg") without picking a type, so
-        // the extension says which entry the file is in. An explicit index still wins, because it
-        // is the one the program chose.
-        const named = initialName.toLowerCase();
-        const byExtension = named.lastIndexOf(".") > 0
-            ? offered.findIndex((type) => type.extensions.some((extension) =>
-                extension.length > 0 && named.endsWith(extension.toLowerCase())))
-            : -1;
+        const typeOf = (extension: string): number =>
+            extension.length === 0
+                ? -1
+                : offered.findIndex((type) => type.extensions.some((item) => item.toLowerCase() === extension));
 
-        if (byExtension >= 0 && typeIndex <= 1)
-            return byExtension;
+        // The file name the program proposes is the strongest hint: it already carries the
+        // document's own format ("drawing.jpg").
+        const dot = initialName.lastIndexOf(".");
+        const byName = dot > 0 ? typeOf(initialName.slice(dot).toLowerCase()) : -1;
+        if (byName >= 0)
+            return byName;
+
+        // A program that picked an entry explicitly means it, even when the name says nothing.
+        if (typeIndex >= 2 && typeIndex <= offered.length)
+            return typeIndex - 1;
+
+        // Programs that only set their default extension ("png") still tell us the format.
+        const byDefault = typeOf(defaultExtension.startsWith(".") ? defaultExtension.toLowerCase() : `.${defaultExtension.toLowerCase()}`);
+        if (byDefault >= 0)
+            return byDefault;
 
         return typeIndex >= 1 && typeIndex <= offered.length ? typeIndex - 1 : 0;
     });
@@ -136,6 +145,19 @@ export function FolderPicker({
     /** Whether one of the offered types already claims this extension. */
     const isKnownExtension = (extension: string): boolean =>
         offered.some((type) => type.extensions.some((item) => item.toLowerCase() === extension));
+
+    /** The type's name with its patterns, the way the system dialog spells it out. */
+    const labelForType = (type: PickerFileType): string => {
+        const patterns = type.extensions.map((extension) => `*${extension}`).join(";");
+
+        if (patterns.length === 0)
+            return type.label;
+
+        // Programs often send just "Clip Studio Format"; the patterns say which files it means.
+        return type.label.length === 0 || type.label.includes("(*")
+            ? type.label || patterns
+            : `${type.label} (${patterns})`;
+    };
 
     /** Keeps the name box on the format being saved, the way the program's own dialog would. */
     const renameForType = (name: string, next: PickerFileType | null): string => {
@@ -622,9 +644,7 @@ export function FolderPicker({
                                 ? [
                                     ...offered.map((type, index) => ({
                                         value: String(index),
-                                        label: type.label.length > 0
-                                            ? type.label
-                                            : type.extensions.map((extension) => `*${extension}`).join(";"),
+                                        label: labelForType(type),
                                     })),
                                     {value: "all", label: `${t("all_files")} (*.*)`},
                                 ]
