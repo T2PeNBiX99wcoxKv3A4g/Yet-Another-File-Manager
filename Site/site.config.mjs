@@ -50,7 +50,8 @@ export const site = {
         {
             "slug": "Changelog",
             "group": "history",
-            "source": "../CHANGELOG.md"
+            "source": "../CHANGELOG.md",
+            "remote": "master/CHANGELOG.md"
         }
     ],
     theme: {
