@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.42.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.41.0..v0.42.0) - 2026-11-20
+
+### ⛰️  Features
+
+- *(ui)* Jump through the back and forward history, and reopen any recently closed tab - ([b748834](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b748834c4d0bf3670947de4788c567edbb93fef0))
+
+### ⚙️ Miscellaneous Tasks
+
+- *(i18n)* The recently closed tabs label, and the rebuilt interface - ([a8814c1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/a8814c18e0ae367f20c3bcc8e261f2f5df7acdd8))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([8378912](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/8378912cef74ac4f9b0849e19be7b230483a8f8b))
+
+
 ## [0.41.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.40.0..v0.41.0) - 2026-11-20
 
 ### ⛰️  Features
