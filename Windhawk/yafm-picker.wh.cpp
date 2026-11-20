@@ -2,11 +2,11 @@
 // @id              yafm-picker
 // @name            Yet Another File Manager pickers
 // @description     Replaces the Windows Open, Save As and folder dialogs with the app's picker
-// @version         1.5.0
+// @version         1.5.1
 // @author          T2PeNBiX99wcoxKv3A4g
 // @github          https://github.com/T2PeNBiX99wcoxKv3A4g
 // @include         *
-// @compilerOptions -lole32 -lshell32 -lshlwapi -luuid
+// @compilerOptions -lole32 -lshell32 -lshlwapi -luuid -luser32
 // ==/WindhawkMod==
 
 // ==WindhawkModReadme==
@@ -474,8 +474,12 @@ static PickResult RunPicker(const PickerRequest& request, std::vector<std::wstri
         return PickResult::NoApp;
     }
 
-    WaitForSingleObject(process.hProcess, INFINITE);
+    // Windows only lets the foreground process hand the foreground on, and the process asking for
+    // the dialog is usually the game that opened it. Without this the picker can appear behind a
+    // full-screen game and never be reachable.
+    AllowSetForegroundWindow(process.dwProcessId);
 
+    WaitForSingleObject(process.hProcess, INFINITE);
     DWORD code = 1;
     GetExitCodeProcess(process.hProcess, &code);
     CloseHandle(process.hThread);
