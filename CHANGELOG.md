@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.41.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.40.0..v0.41.0) - 2026-11-20
+
+### ⛰️  Features
+
+- *(ui)* Ask before an operation restarts the app as administrator - ([3b1b291](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/3b1b29115b2b35f25307fb506bbb5d9fc76f4671))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([ce5911e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/ce5911e581ff56a33b4652bcddeb1e8752409951))
+
+
 ## [0.40.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.39.0..v0.40.0) - 2026-11-20
 
 ### ⛰️  Features
