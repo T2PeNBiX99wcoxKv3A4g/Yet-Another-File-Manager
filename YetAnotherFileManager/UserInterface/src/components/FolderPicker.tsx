@@ -22,6 +22,7 @@ import {newFile, newFolder, inspectPaths} from "../api/operations";
 import {showMessage} from "../api/dialogs";
 import {ConfirmDialog} from "./ConfirmDialog";
 import {ContextMenu} from "./ContextMenu";
+import {LocationGlyph, useLocationName} from "./LocationGlyph";
 import {EmptyFind, type FindState, matchesName} from "../find";
 import {elevatedPanel} from "../ui/panel";
 import {fadeInStyle, popInStyle} from "../ui/motion";
@@ -104,6 +105,7 @@ export function FolderPicker({
                                  onSelect,
                              }: FolderPickerProps) {
     const t = useTranslation();
+    const locationName = useLocationName();
     const selectionMenu = useSelectionMenu("picker");
     const isFileMode = mode === "file";
     const supported = extensions ?? [];
@@ -742,14 +744,18 @@ export function FolderPicker({
                 <ContextMenu
                     items={historyMenu.direction === "back"
                         ? [...back].reverse().map((entry, offset) => ({
-                            label: entry,
+                            label: locationName(entry),
+                            icon: <LocationGlyph location={entry}/>,
+                            tooltip: entry,
                             onSelect: () => {
                                 setHistoryMenu(null);
                                 goToHistory("back", back.length - 1 - offset);
                             },
                         }))
                         : forward.map((entry, index) => ({
-                            label: entry,
+                            label: locationName(entry),
+                            icon: <LocationGlyph location={entry}/>,
+                            tooltip: entry,
                             onSelect: () => {
                                 setHistoryMenu(null);
                                 goToHistory("forward", index);

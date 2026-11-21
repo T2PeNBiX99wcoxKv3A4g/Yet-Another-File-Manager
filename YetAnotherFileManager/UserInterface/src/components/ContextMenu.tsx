@@ -13,6 +13,8 @@ export interface ContextMenuItem {
     separatorBefore?: boolean;
     /** A built-in glyph or an extracted PNG; the quick row only shows the glyph. */
     icon?: ReactNode;
+    /** The tooltip; the label is used when this is omitted. */
+    tooltip?: string;
     /** A section label; a change starts a new section. */
     group?: string;
     /** Indentation for entries that came from a submenu. */
@@ -150,7 +152,7 @@ export function ContextMenu({x, y, items, quick = [], onClose}: ContextMenuProps
                         : undefined}
                     onPointerLeave={hasChildren ? () => scheduleClose(depth) : undefined}
                     role="menuitem"
-                    title={item.label}
+                    title={item.tooltip ?? item.label}
                     type="button"
                 >
                     <ItemIcon>{item.loading ? <Loading/> : item.icon}</ItemIcon>

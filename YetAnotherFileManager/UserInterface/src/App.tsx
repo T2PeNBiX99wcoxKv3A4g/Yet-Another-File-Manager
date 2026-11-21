@@ -45,6 +45,7 @@ import {
 import {clearTasks, listTasks, type TaskInfo} from "./api/tasks";
 import {FileList} from "./components/FileList";
 import {ContextMenu} from "./components/ContextMenu";
+import {folderName, LocationGlyph} from "./components/LocationGlyph";
 import {type PreviewInfo, PreviewPane} from "./components/PreviewPane";
 import {FileTray, isPathDrag, type TrayItem} from "./components/FileTray";
 import {FileMenu} from "./components/FileMenu";
@@ -2779,6 +2780,14 @@ export default function App() {
         ? {...viewFind, index: viewFindIndex}
         : null;
 
+    /** The name a history entry shows: the page's title, or the folder's Quick access name. */
+    const historyName = (location: string): string => {
+        const kind = viewKind(location);
+        return kind
+            ? t(viewTitles[kind])
+            : quickName(quickAccess, location, folderName(location) || t("files"));
+    };
+
     return (
         <QuickAccessProvider value={quickAccess}>
             <Root $rounded={corners}>
@@ -3289,7 +3298,9 @@ export default function App() {
                     <ContextMenu
                         items={[
                             {
-                                label: historyMenu.tab.history[historyMenu.tab.index] ?? "",
+                                label: historyName(historyMenu.tab.history[historyMenu.tab.index] ?? ""),
+                                icon: <LocationGlyph location={historyMenu.tab.history[historyMenu.tab.index] ?? ""}/>,
+                                tooltip: historyMenu.tab.history[historyMenu.tab.index] ?? "",
                                 disabled: true,
                                 onSelect: () => undefined,
                             },
@@ -3303,7 +3314,9 @@ export default function App() {
                                     : left.index - right.index)
                                 .slice(0, 24)
                                 .map(({path, index}) => ({
-                                    label: path,
+                                    label: historyName(path),
+                                    icon: <LocationGlyph location={path}/>,
+                                    tooltip: path,
                                     onSelect: () => {
                                         const tab = historyMenu.tab;
                                         setHistoryMenu(null);

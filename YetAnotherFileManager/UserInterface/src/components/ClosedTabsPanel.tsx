@@ -3,10 +3,9 @@ import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import {elevatedPanel} from "../ui/panel";
 import {panelInStyle} from "../ui/motion";
-import {viewTitles} from "../tabs";
 import {viewKind} from "../views";
-import {isArchiveLocation} from "../utils/format";
-import {ArchiveIcon, ClosedTabsIcon, CrossIcon, FolderIcon, GearIcon, HomeIcon, TrashIcon} from "./Icons";
+import {ClosedTabsIcon, CrossIcon} from "./Icons";
+import {LocationGlyph, useLocationName} from "./LocationGlyph";
 
 interface ClosedTabsPanelProps {
     /** The locations closed in this window, oldest first. */
@@ -21,6 +20,7 @@ interface ClosedTabsPanelProps {
  */
 export function ClosedTabsPanel({tabs, onRestore}: ClosedTabsPanelProps) {
     const t = useTranslation();
+    const locationName = useLocationName();
     const [open, setOpen] = useState(false);
     const root = useRef<HTMLDivElement | null>(null);
 
@@ -78,12 +78,12 @@ export function ClosedTabsPanel({tabs, onRestore}: ClosedTabsPanelProps) {
                                             title={location}
                                             type="button"
                                         >
-                                            <Glyph location={location}/>
+                                            <LocationGlyph location={location}/>
                                             <Text>
                                                 <Name>
-                                                    {kind ? t(viewTitles[kind]) : baseNameOf(location)}
+                                                    {locationName(location)}
                                                 </Name>
-                                                <Path>{kind ? t(viewTitles[kind]) : location}</Path>
+                                                <Path>{kind ? locationName(location) : location}</Path>
                                             </Text>
                                         </Row>
                                     );
@@ -94,28 +94,6 @@ export function ClosedTabsPanel({tabs, onRestore}: ClosedTabsPanelProps) {
             )}
         </Root>
     );
-}
-
-/** The glyph the tab itself showed: its page, an archive, or a folder. */
-function Glyph({location}: { location: string }) {
-    switch (viewKind(location)) {
-        case "home":
-            return <HomeIcon size={13}/>;
-        case "settings":
-            return <GearIcon size={13}/>;
-        case "recycle":
-            return <TrashIcon size={13}/>;
-        case "gallery":
-            return <FolderIcon size={13}/>;
-        default:
-            return isArchiveLocation(location) ? <ArchiveIcon size={13}/> : <FolderIcon size={13}/>;
-    }
-}
-
-function baseNameOf(path: string): string {
-    const trimmed = path.replace(/[\\/]+$/, "");
-    const cut = Math.max(trimmed.lastIndexOf("\\"), trimmed.lastIndexOf("/"));
-    return cut >= 0 ? trimmed.slice(cut + 1) : trimmed;
 }
 
 const Root = styled.div`
