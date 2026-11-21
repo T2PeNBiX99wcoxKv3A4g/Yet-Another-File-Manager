@@ -45,6 +45,14 @@ internal partial class StartupService
     {
         var mode = SettingsService.Instance.Current.Startup;
 
+        // The filesystem says which entry is live: a shortcut that still starts this copy counts,
+        // even when the stored mode names a task that no longer exists.
+        if (!IsActive(mode) && _shortcut.IsCurrent)
+        {
+            Adopt("shortcut");
+            mode = "shortcut";
+        }
+
         // Only shortcut mode may write the Startup folder entry. In task mode the task owns logon,
         // so a leftover shortcut is removed once the task is this build's entry: doing it while the
         // task is still the old, broken one would leave the user with no working autostart at all.
@@ -78,11 +86,27 @@ internal partial class StartupService
         var stored = SettingsService.Instance.Current.Startup;
         var active = IsActive(stored);
 
+        // A shortcut that starts this copy is the login entry, even when the stored mode still names
+        // a task that is gone: the user sees one in the Startup folder and expects it to count.
+        if (!active && _shortcut.IsCurrent)
+        {
+            Adopt("shortcut");
+            stored = "shortcut";
+            active = true;
+        }
+
         // A login entry that starts a copy in another folder is not this app starting, so it is
         // reported as none rather than leaving the setting looking enabled.
         var mode = active ? stored : "none";
         return context.Reply("app.startup.result", new StartupStatusPayload(IsSupported, mode, active, null));
     }
+
+    /// <summary>Stores the mode the filesystem already shows, so the page and the file agree.</summary>
+    private static void Adopt(string mode) =>
+        _ = Task.Run(() => SettingsService.Instance.UpdateSilentlyAsync(settings => settings with
+        {
+            StartupMode = mode
+        }));
 
     [NativeMessage("app.startup.set")]
     private async Task<NativeResponse?> SetAsync(NativeContext context)
@@ -109,7 +133,10 @@ internal partial class StartupService
     private string StatusMode()
     {
         var stored = SettingsService.Instance.Current.Startup;
-        return IsActive(stored) ? stored : "none";
+        if (IsActive(stored))
+            return stored;
+
+        return _shortcut.IsCurrent ? "shortcut" : "none";
     }
 
     /// <summary>Applies one mode and removes the other mechanism.</summary>
