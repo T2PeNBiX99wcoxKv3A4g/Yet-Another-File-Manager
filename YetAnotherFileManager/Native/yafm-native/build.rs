@@ -16,6 +16,7 @@ fn main() {
 
     let mut resource = winresource::WindowsResource::new();
     resource
+        .set_icon(concat!(env!("CARGO_MANIFEST_DIR"), "/../../Resources/icon.ico"))
         .set("FileDescription", "Yet Another File Manager native helper")
         .set("ProductName", "Yet Another File Manager")
         .set("CompanyName", "Yet Another File Manager")
