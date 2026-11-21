@@ -108,7 +108,8 @@ internal static class Archives
     internal static string SevenZipLibraryPath => SevenZipLibrary.Value;
 
     private static bool UseSevenZip(string archivePath) =>
-        OperatingSystem.IsWindows() && SevenZipExtensions.Contains(Path.GetExtension(archivePath));
+        SevenZipExtensions.Contains(Path.GetExtension(archivePath))
+        && (OperatingSystem.IsWindows() ? File.Exists(SevenZipLibrary.Value) : SevenZipCli.Available);
 
     /// <summary>Whether the path itself names an archive file.</summary>
     public static bool IsArchive(string path) =>
@@ -146,6 +147,9 @@ internal static class Archives
         {
             if (UseSevenZip(archivePath))
             {
+                if (!OperatingSystem.IsWindows())
+                    return SevenZipCli.List(archivePath).Any(entry => entry.Encrypted);
+
                 using var sevenZip = ArchiveVolumes.Open(archivePath, SevenZipLibrary.Value);
                 return sevenZip.File.Entries.Any(entry => entry.IsEncrypted);
             }
@@ -292,6 +296,22 @@ internal static class Archives
         {
             if (UseSevenZip(archivePath))
             {
+                if (!OperatingSystem.IsWindows())
+                {
+                    var listed = SevenZipCli.List(archivePath, password, codePage);
+                    var found = listed.Any(entry => !entry.IsDirectory
+                                                    && string.Equals(NormalizeKey(entry.Key), normalized,
+                                                        StringComparison.OrdinalIgnoreCase));
+
+                    if (!found)
+                    {
+                        Directory.Delete(root, true);
+                        return null;
+                    }
+
+                    return SevenZipExtractEntry(archivePath, normalized, root, password, codePage);
+                }
+
                 using var archive = ArchiveVolumes.Open(archivePath, SevenZipLibrary.Value);
                 var entry = archive.File.Entries.FirstOrDefault(candidate =>
                     !candidate.IsFolder
@@ -303,7 +323,7 @@ internal static class Archives
                     return null;
                 }
 
-                return SevenZipExtractEntry(archivePath, normalized, root, password);
+                return SevenZipExtractEntry(archivePath, normalized, root, password, codePage);
             }
 
             using var managed = Open(archivePath, ResolveCodePage(archivePath, codePage, password), password);
@@ -348,7 +368,9 @@ internal static class Archives
         var (physicalArchive, physicalInner) = ResolveNested(archivePath, inner, codePage, password);
 
         if (UseSevenZip(physicalArchive))
-            return SevenZipList(archivePath, inner, physicalArchive, physicalInner);
+            return OperatingSystem.IsWindows()
+                ? SevenZipList(archivePath, inner, physicalArchive, physicalInner)
+                : SevenZipCliList(archivePath, inner, physicalArchive, physicalInner, codePage, password);
 
         var prefix = physicalInner.Trim(Path.DirectorySeparatorChar).Replace('\\', '/');
         var folders = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
@@ -440,6 +462,12 @@ internal static class Archives
 
         if (UseSevenZip(archivePath))
         {
+            if (!OperatingSystem.IsWindows())
+            {
+                SevenZipCli.Extract(archivePath, root, password, codePage);
+                return;
+            }
+
             using var sevenZip = ArchiveVolumes.Open(archivePath, SevenZipLibrary.Value);
             sevenZip.File.Extract(root, true, password);
             return;
@@ -494,7 +522,7 @@ internal static class Archives
         int codePage, string? password)
     {
         if (UseSevenZip(archivePath))
-            return SevenZipExtractEntry(archivePath, inner, root, password);
+            return SevenZipExtractEntry(archivePath, inner, root, password, codePage);
 
         var resolved = ResolveCodePage(archivePath, codePage, password);
         using var archive = Open(archivePath, resolved, password);
@@ -575,11 +603,79 @@ internal static class Archives
             new(), [], new(), encrypted);
     }
 
-    /// <summary>Extracts one entry through 7z.dll.</summary>
-    private static string SevenZipExtractEntry(string archivePath, string inner, string root, string? password)
+    /// <summary>Lists through the console tool, for the platforms without the native library.</summary>
+    private static FsListPayload SevenZipCliList(string archivePath, string inner, string physicalArchive,
+        string physicalInner, int codePage, string? password)
     {
-        using var archive = ArchiveVolumes.Open(archivePath, SevenZipLibrary.Value);
+        var prefix = physicalInner.Trim(Path.DirectorySeparatorChar).Replace('\\', '/');
+        var folders = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        var files = new List<FileEntry>();
+        var encrypted = false;
+
+        foreach (var entry in SevenZipCli.List(physicalArchive, password, codePage))
+        {
+            encrypted |= entry.Encrypted;
+            var key = entry.Key.Replace('\\', '/').Trim('/');
+            if (key.Length == 0)
+                continue;
+
+            if (prefix.Length > 0)
+            {
+                if (!key.StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                key = key[(prefix.Length + 1)..];
+            }
+
+            var slash = key.IndexOf('/');
+            if (slash >= 0)
+            {
+                folders.TryAdd(key[..slash], Modified(entry.Modified));
+                continue;
+            }
+
+            if (entry.IsDirectory)
+            {
+                folders.TryAdd(key, Modified(entry.Modified));
+                continue;
+            }
+
+            files.Add(new(key, VirtualPath(archivePath, inner, key), false, entry.Size,
+                Modified(entry.Modified), false, false, null));
+        }
+
+        var entries = folders
+            .Select(folder => new FileEntry(folder.Key, VirtualPath(archivePath, inner, folder.Key), true,
+                0, folder.Value, false, false, null))
+            .Concat(files)
+            .OrderByDescending(entry => entry.IsDirectory)
+            .ThenBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var parentInner = Path.GetDirectoryName(inner) ?? "";
+        return new(
+            VirtualPath(archivePath, inner, ""),
+            inner.Length == 0
+                ? Path.GetDirectoryName(archivePath)
+                : VirtualPath(archivePath, parentInner, ""),
+            entries, new(), null, new(),
+            new(), [], new(), encrypted);
+    }
+
+    /// <summary>Extracts one entry through 7z.dll, or through the console tool off Windows.</summary>
+    private static string SevenZipExtractEntry(string archivePath, string inner, string root, string? password,
+        int codePage = 0)
+    {
         var normalized = inner.Replace('\\', '/').TrimStart('/');
+        var destination = SafeDestination(root, Path.GetFileName(normalized));
+
+        if (!OperatingSystem.IsWindows())
+        {
+            SevenZipCli.ExtractEntry(archivePath, normalized, destination, password, codePage);
+            return destination;
+        }
+
+        using var archive = ArchiveVolumes.Open(archivePath, SevenZipLibrary.Value);
 
         var entry = archive.File.Entries.FirstOrDefault(candidate =>
             string.Equals((candidate.FileName ?? "").Replace('\\', '/').TrimStart('/'), normalized,
@@ -587,8 +683,6 @@ internal static class Archives
 
         if (entry is null || entry.IsFolder)
             throw new FileNotFoundException(Localization.Get("the_file_is_no_longer_in_the_archive"), inner);
-
-        var destination = SafeDestination(root, Path.GetFileName(normalized));
 
         if (password is { Length: > 0 })
         {

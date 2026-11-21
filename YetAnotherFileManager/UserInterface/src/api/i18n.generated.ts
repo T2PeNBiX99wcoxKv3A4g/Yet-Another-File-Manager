@@ -794,6 +794,7 @@ declare module "@photino-net-utils/bridge"
         "there_is_nothing_to_copy_or_move": true;
         "there_is_nothing_to_delete": true;
         "these_paths_are_protected_by_the_safety_settings": true;
+        "the_7_zip_command_line_tool_was_not_found_install_p7zip_or_the_7zip_package": true;
         "the_accent_and_highlight_colours_the_whole_window_uses": true;
         "the_administrator_view_is_already_loaded": true;
         "the_app_s_settings_folder_which_usually_sits_on_the_system_drive": true;

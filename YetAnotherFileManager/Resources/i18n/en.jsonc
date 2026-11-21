@@ -448,6 +448,7 @@
   "k_1_item_is_in_use_by_programs_close_it_and_try_again": "1 item is in use by {0}; close it and try again.",
   "count_items_are_in_use_by_programs_close_them_and_try_again": "{0} items are in use by {1}; close them and try again.",
   "the_recycle_bin_is_empty": "The recycle bin is empty.",
+  "the_7_zip_command_line_tool_was_not_found_install_p7zip_or_the_7zip_package": "The 7-Zip command line tool was not found. Install the p7zip or 7zip package to open this archive.",
   "the_runtime_loaded_libraries_and_the_rust_helper_share_this_part_rust_runs_inside_the_process_so_it_has_no_separate_figure": "The runtime, loaded libraries and the Rust helper share this part. Rust runs inside the process, so it has no separate figure.",
   "this_pc": "This PC",
   "programs_are_using_target_close_them_and_try_again": "{programs} is using {target}, so it cannot be deleted. Close the program and try again.",

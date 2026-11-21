@@ -448,6 +448,7 @@
   "k_1_item_is_in_use_by_programs_close_it_and_try_again": "1 件の項目は {0} が使用しています。終了してから再試行してください。",
   "count_items_are_in_use_by_programs_close_them_and_try_again": "{0} 件の項目は {1} が使用しています。終了してから再試行してください。",
   "the_recycle_bin_is_empty": "ごみ箱は空です。",
+  "the_7_zip_command_line_tool_was_not_found_install_p7zip_or_the_7zip_package": "7-Zip のコマンドラインツールが見つかりません。p7zip または 7zip パッケージをインストールしてください。",
   "the_runtime_loaded_libraries_and_the_rust_helper_share_this_part_rust_runs_inside_the_process_so_it_has_no_separate_figure": "ランタイム、読み込まれたライブラリ、Rust ヘルパーがこの部分を共有します。Rust はプロセス内で動くため、別の数値はありません。",
   "this_pc": "この PC",
   "programs_are_using_target_close_them_and_try_again": "{target} は {programs} が使用しているため削除できません。プログラムを終了してから再試行してください。",
