@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.45.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.45.1..v0.45.2) - 2026-11-21
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([94fffcf](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/94fffcf12a10259a170fbd739f1b0274e054e1d6))
+
+
 ## [0.45.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.45.0..v0.45.1) - 2026-11-21
 
 ### Action
