@@ -21,6 +21,9 @@
         <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
         <RootNamespace>YetAnotherFileManager</RootNamespace>
         <Version>0.44.2</Version>
+        <!-- A reference's XML file is IntelliSense text the running app never reads. The Windows
+             SDK projection's is 13 MB, larger than anything else we ship, so it stays out. -->
+        <AllowedReferenceRelatedFileExtensions>.pdb</AllowedReferenceRelatedFileExtensions>
         <!-- Explorer/taskbar icon; also embedded (Resources\**) so the tray can load it at runtime. -->
         <ApplicationIcon>Resources\icon.ico</ApplicationIcon>
     </PropertyGroup>
