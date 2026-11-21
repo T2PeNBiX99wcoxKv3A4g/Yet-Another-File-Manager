@@ -39,6 +39,8 @@ and per-folder tags in the same window.
 %install
 install -Dpm 0755 YetAnotherFileManager %{buildroot}/opt/YetAnotherFileManager/YetAnotherFileManager
 install -Dpm 0755 libyafm_native.so %{buildroot}/opt/YetAnotherFileManager/libyafm_native.so
+install -Dpm 0755 7zz %{buildroot}/opt/YetAnotherFileManager/7zz
+install -Dpm 0644 7-Zip.txt %{buildroot}%{_licensedir}/%{name}/7-Zip.txt
 install -Dpm 0644 yafm.desktop %{buildroot}%{_datadir}/applications/yafm.desktop
 install -Dpm 0644 yafm.png %{buildroot}%{_datadir}/icons/hicolor/256x256/apps/yafm.png
 
@@ -59,6 +61,8 @@ touch --no-create %{_datadir}/icons/hicolor >/dev/null 2>&1 || :
 %files
 /opt/YetAnotherFileManager/YetAnotherFileManager
 /opt/YetAnotherFileManager/libyafm_native.so
+/opt/YetAnotherFileManager/7zz
+%{_licensedir}/%{name}/7-Zip.txt
 %{_bindir}/yafm
 %{_datadir}/applications/yafm.desktop
 %{_datadir}/icons/hicolor/256x256/apps/yafm.png

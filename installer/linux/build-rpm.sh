@@ -37,6 +37,12 @@ if [[ ! -f "$publish_dir/libyafm_native.so" ]]; then
     exit 1
 fi
 install -m 0755 "$publish_dir/libyafm_native.so" "$stage/yafm-$version/libyafm_native.so"
+if [[ ! -f "$publish_dir/7zz" ]]; then
+    echo "No 7zz in $publish_dir; RAR, ISO and the other 7-Zip formats would not open." >&2
+    exit 1
+fi
+install -m 0755 "$publish_dir/7zz" "$stage/yafm-$version/7zz"
+install -m 0644 "$publish_dir/licenses/7-Zip.txt" "$stage/yafm-$version/7-Zip.txt"
 install -m 0644 "$here/yafm.desktop" "$here/yafm.png" "$stage/yafm-$version/"
 tar -C "$stage" -czf "$stage/yafm-$version.tar.gz" "yafm-$version"
 

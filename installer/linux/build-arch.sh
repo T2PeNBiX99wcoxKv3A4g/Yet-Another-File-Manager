@@ -34,6 +34,12 @@ if [[ ! -f "$publish_dir/libyafm_native.so" ]]; then
     exit 1
 fi
 install -Dpm 0755 "$publish_dir/libyafm_native.so" "$stage/opt/YetAnotherFileManager/libyafm_native.so"
+if [[ ! -f "$publish_dir/7zz" ]]; then
+    echo "No 7zz in $publish_dir; RAR, ISO and the other 7-Zip formats would not open." >&2
+    exit 1
+fi
+install -Dpm 0755 "$publish_dir/7zz" "$stage/opt/YetAnotherFileManager/7zz"
+install -Dpm 0644 "$publish_dir/licenses/7-Zip.txt" "$stage/usr/share/licenses/yafm/7-Zip.txt"
 install -Dpm 0644 "$here/yafm.desktop" "$stage/usr/share/applications/yafm.desktop"
 install -Dpm 0644 "$here/yafm.png" "$stage/usr/share/icons/hicolor/256x256/apps/yafm.png"
 
