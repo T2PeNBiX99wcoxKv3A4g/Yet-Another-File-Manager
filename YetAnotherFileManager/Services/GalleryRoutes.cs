@@ -33,7 +33,7 @@ internal static class GalleryRoutes
         var block = ListingFormat.Encode(page, "", absoluteNames: true);
         var text = string.Equals(query["format"], "text", StringComparison.OrdinalIgnoreCase);
 
-        context.Response.Headers["X-Yafm-Total"] = total.ToString(CultureInfo.InvariantCulture);
+        context.Response.Headers[ListingFormat.TotalHeader] = total.ToString(CultureInfo.InvariantCulture);
         context.Response.Headers.CacheControl = "no-cache";
 
         return text

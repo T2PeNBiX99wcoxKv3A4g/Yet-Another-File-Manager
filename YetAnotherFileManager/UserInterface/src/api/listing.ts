@@ -9,8 +9,8 @@ import {dataBase} from "./icons";
  * full path is rebuilt from the folder path the block carries once.
  */
 
-/** "YLST" */
-const Magic = 0x54534c59;
+/** "PLST" */
+const Magic = 0x54534c50;
 const Version = 1;
 const HeaderSize = 32;
 
@@ -61,7 +61,7 @@ export async function fetchListing(path: string, options: ListingOptions = {}): 
     if (!response.ok)
         throw new Error(`The listing failed (${response.status}).`);
 
-    const total = Number(response.headers.get("x-yafm-total") ?? 0);
+    const total = Number(response.headers.get("x-listing-total") ?? 0);
     const signature = Number.parseInt((response.headers.get("etag") ?? "").replaceAll('"', ""), 16) || 0;
 
     return decodeListing(await response.arrayBuffer(), total, signature);
@@ -184,7 +184,7 @@ export async function fetchGalleryPage(offset: number, count: number, refresh = 
     if (!response.ok)
         throw new Error(`The gallery failed (${response.status}).`);
 
-    const total = Number(response.headers.get("x-yafm-total") ?? 0);
+    const total = Number(response.headers.get("x-listing-total") ?? 0);
     const page = decodeListing(await response.arrayBuffer(), total, 0);
 
     return {
