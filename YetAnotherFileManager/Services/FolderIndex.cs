@@ -170,28 +170,38 @@ internal static class FolderIndex
     /// <summary>Every piece a listing reads from this folder, over a single connection.</summary>
     public static Task<DirectoryIndex.MetadataSnapshot?> ReadMetadataAsync(string directory) =>
         ReadAsync(directory, async (connection, token) =>
-            (DirectoryIndex.MetadataSnapshot?)await ReadMetadataOnConnectionAsync(connection, token), null);
+        {
+            await using var transaction = connection.BeginTransaction();
+            var metadata = await ReadMetadataOnConnectionAsync(connection, token, transaction);
+            await transaction.CommitAsync(token);
+            return (DirectoryIndex.MetadataSnapshot?)metadata;
+        }, null);
 
     /// <summary>
-    ///     The saved listing and the rest of the index together. Both are read over one connection,
-    ///     so painting a folder from the cache costs one open instead of two.
+    ///     The saved listing and the rest of the index together. Both are read in one transaction,
+    ///     so the reader takes one snapshot and can wait on a writer only once.
     /// </summary>
     public static Task<(List<FileEntry>? Entries, DirectoryIndex.MetadataSnapshot Metadata)>
         ReadCachedAsync(string directory) =>
         ReadAsync(directory, async (connection, token) =>
         {
+            await using var transaction = connection.BeginTransaction();
+
             // A damaged table must not take the saved listing down with it.
-            var entries = await Try.Run(() => ReadListingOnConnectionAsync(connection, token)).GetOrNull();
-            var metadata = await Try.Run(() => ReadMetadataOnConnectionAsync(connection, token))
+            var entries = await Try.Run(() => ReadListingOnConnectionAsync(connection, token, transaction))
+                .GetOrNull();
+            var metadata = await Try.Run(() => ReadMetadataOnConnectionAsync(connection, token, transaction))
                 .GetOrElse(_ => Task.FromResult(DirectoryIndex.MetadataSnapshot.Empty));
 
+            await Try.Run(() => transaction.CommitAsync(token));
             return (entries, metadata);
         }, (null, DirectoryIndex.MetadataSnapshot.Empty));
 
     private static async Task<DirectoryIndex.MetadataSnapshot> ReadMetadataOnConnectionAsync(
-        SqliteConnection connection, CancellationToken token = default)
+        SqliteConnection connection, CancellationToken token = default,
+        SqliteTransaction? transaction = null)
     {
-        var hasIconData = await HasIconDataAsync(connection, token);
+        var hasIconData = await HasIconDataAsync(connection, token, transaction);
 
         var icons = await ReadOnConnectionAsync(connection,
             hasIconData ? "SELECT name, source, mime, data FROM icons" : "SELECT name, source FROM icons",
@@ -210,7 +220,7 @@ internal static class FolderIndex
                 }
 
                 return values;
-            }, token: token);
+            }, token: token, transaction: transaction);
 
         var sizes = await ReadOnConnectionAsync(connection, "SELECT name, bytes FROM sizes", async reader =>
         {
@@ -220,13 +230,13 @@ internal static class FolderIndex
                 values[reader.GetString(0)] = reader.GetInt64(1);
 
             return values;
-        }, token: token);
+        }, token: token, transaction: transaction);
 
         var view = await ReadOnConnectionAsync(connection, "SELECT value FROM settings WHERE key = 'view'",
             async reader => await reader.ReadAsync(token)
                 ? Try.Run(() => JsonSerializer.Deserialize(reader.GetString(0),
                     AppJsonContext.Default.DirectoryView)).GetOrNull()
-                : null, token: token);
+                : null, token: token, transaction: transaction);
 
         var tags = await ReadOnConnectionAsync(connection, "SELECT name, tags FROM tags", async reader =>
         {
@@ -242,14 +252,14 @@ internal static class FolderIndex
             }
 
             return values;
-        }, token: token);
+        }, token: token, transaction: transaction);
 
         var tagColors = await ReadOnConnectionAsync(connection,
             "SELECT value FROM settings WHERE key = 'tag_colors'",
             async reader => await reader.ReadAsync(token)
                 ? Try.Run(() => JsonSerializer.Deserialize(reader.GetString(0),
                     AppJsonContext.Default.DictionaryStringString)).GetOrNull()
-                : null, token: token);
+                : null, token: token, transaction: transaction);
 
         var counts = await ReadOnConnectionAsync(connection, "SELECT name, count FROM counts", async reader =>
         {
@@ -259,7 +269,7 @@ internal static class FolderIndex
                 values[reader.GetString(0)] = reader.GetInt64(1);
 
             return values;
-        }, token: token);
+        }, token: token, transaction: transaction);
 
         return new(icons, sizes, view, tags, tagColors ?? [], counts);
     }
@@ -280,15 +290,21 @@ internal static class FolderIndex
 
     /// <summary>The last listing saved for this directory, or null when it was never cached.</summary>
     public static Task<List<FileEntry>?> ListingAsync(string directory) =>
-        ReadAsync<List<FileEntry>?>(directory,
-            (connection, token) => ReadListingOnConnectionAsync(connection, token), null);
+        ReadAsync<List<FileEntry>?>(directory, async (connection, token) =>
+        {
+            await using var transaction = connection.BeginTransaction();
+            var entries = await ReadListingOnConnectionAsync(connection, token, transaction);
+            await transaction.CommitAsync(token);
+            return entries;
+        }, null);
 
     /// <summary>The saved rows, or null when this directory has never been listed through the index.</summary>
     private static async Task<List<FileEntry>?> ReadListingOnConnectionAsync(SqliteConnection connection,
-        CancellationToken token = default)
+        CancellationToken token = default, SqliteTransaction? transaction = null)
     {
         var saved = await ReadOnConnectionAsync(connection, "SELECT value FROM meta WHERE key = 'listing'",
-            async reader => await reader.ReadAsync(token) ? reader.GetString(0) : null, token: token);
+            async reader => await reader.ReadAsync(token) ? reader.GetString(0) : null, token: token,
+            transaction: transaction);
 
         if (saved is null)
             return null;
@@ -319,7 +335,7 @@ internal static class FolderIndex
                         (int)reader.GetInt64(11)));
 
                 return entries;
-            });
+            }, transaction: transaction);
     }
 
     /// <summary>Stores the complete listing, hidden and system entries included.</summary>
@@ -825,9 +841,11 @@ internal static class FolderIndex
     ///     Whether the icon table already has the byte columns. A read never migrates: it accepts
     ///     both layouts, so an upgraded app cannot turn opening a folder into a write.
     /// </summary>
-    private static async Task<bool> HasIconDataAsync(SqliteConnection connection, CancellationToken token)
+    private static async Task<bool> HasIconDataAsync(SqliteConnection connection, CancellationToken token,
+        SqliteTransaction? transaction = null)
     {
         await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = "PRAGMA table_info(icons)";
 
         await using var reader = await command.ExecuteReaderAsync(token);
@@ -840,9 +858,10 @@ internal static class FolderIndex
 
     private static async Task<T> ReadOnConnectionAsync<T>(SqliteConnection connection, string sql,
         Func<SqliteDataReader, Task<T>> read, Action<SqliteCommand>? bind = null,
-        CancellationToken token = default) where T : class?
+        CancellationToken token = default, SqliteTransaction? transaction = null) where T : class?
     {
         await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = sql;
         bind?.Invoke(command);
 
@@ -851,9 +870,11 @@ internal static class FolderIndex
     }
 
     private static T ReadOnConnection<T>(SqliteConnection connection, string sql,
-        Func<SqliteDataReader, T> read, Action<SqliteCommand>? bind = null) where T : class?
+        Func<SqliteDataReader, T> read, Action<SqliteCommand>? bind = null,
+        SqliteTransaction? transaction = null) where T : class?
     {
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = sql;
         bind?.Invoke(command);
 
