@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.44.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.43.1..v0.44.0) - 2026-11-21
+
+### ⛰️  Features
+
+- *(ui)* Show a glyph and a name in the back and forward history menus - ([3c0db7b](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/3c0db7b840deed177918a7f15eb1341b0d347ed6))
+
+### 🐛 Bug Fixes
+
+- *(startup)* Count the working shortcut when the stored task mode is gone - ([136b991](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/136b99181b42f96a20640a616eb113ed07e55990))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([a82324c](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/a82324c3a559ee38e9bd4f4a881f7c5f4ce6d701))
+
+
 ## [0.43.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.43.0..v0.43.1) - 2026-11-20
 
 ### 🐛 Bug Fixes
