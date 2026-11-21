@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.44.4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.44.3..v0.44.4) - 2026-11-21
+
+### 🐛 Bug Fixes
+
+- *(delete)* Keep a folder a running program holds out of the recycle bin - ([496e729](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/496e729e429d7da041f90e7e5617343234924aec))
+- Register the elevation question so its dialog reaches the window - ([b892e03](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b892e03823dbfcab0aa6fce6ad5d8c9232389892))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([3c087ae](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/3c087ae2851e3fd45176f131e3d9358d6701a1c0))
+
+
 ## [0.44.3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.44.2..v0.44.3) - 2026-11-21
 
 ### Action
