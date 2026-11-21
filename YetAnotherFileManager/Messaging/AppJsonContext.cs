@@ -160,6 +160,8 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(PickResultRequest))]
 [JsonSerializable(typeof(YetAnotherFileManager.Services.ElevationAskPayload))]
 [JsonSerializable(typeof(YetAnotherFileManager.Services.ElevationAnswerPayload))]
+[JsonSerializable(typeof(RunningProgram))]
+[JsonSerializable(typeof(List<RunningProgram>))]
 [JsonSerializable(typeof(PickOpenRequest))]
 [JsonSerializable(typeof(PickOpenPayload))]
 [JsonSerializable(typeof(Dictionary<string, long>))]

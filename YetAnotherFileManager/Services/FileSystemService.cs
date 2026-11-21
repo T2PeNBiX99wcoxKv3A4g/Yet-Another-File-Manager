@@ -411,7 +411,7 @@ internal partial class FileSystemService : INativeMessageHandler
                     return context.Reply("fs.operation.delete.result", blocked);
 
                 paths = await MapWorkspacePathsAsync(paths);
-                var deleted = await FileOperations.DeleteAsync(paths, permanent);
+                var deleted = await FileOperations.DeleteAsync(paths, permanent, request?.RunningConfirmed ?? false);
                 if (deleted.Ok) await ApplyArchiveChangesAsync(paths);
                 return context.Reply("fs.operation.delete.result", deleted);
             }

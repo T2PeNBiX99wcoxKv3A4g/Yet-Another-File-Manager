@@ -17,7 +17,8 @@ namespace YetAnotherFileManager.Services;
 internal static partial class FileOperations
 {
     /// <summary>Sends the paths to the recycle bin, or deletes them permanently when asked.</summary>
-    public static async Task<DeletePayload> DeleteAsync(IReadOnlyList<string> paths, bool permanent = false)
+    public static async Task<DeletePayload> DeleteAsync(IReadOnlyList<string> paths, bool permanent = false,
+        bool runningConfirmed = false)
     {
         var items = Selection(paths);
         if (items.Count == 0)
@@ -28,14 +29,29 @@ internal static partial class FileOperations
         if (!permanent && items.Any(path => !RecycleBin.CanRecycle(path)))
             return new(false, true, Localization.Get("the_recycle_bin_is_turned_off_for_this_volume"));
 
-        // Windows keeps a running program's image locked, so its folder can neither move to the bin
-        // nor unlink; an elevated copy does not change that. Saying it up front beats a failure that
-        // looks like a permissions problem, and it keeps a permanent delete from half-clearing the
-        // folder before the locked file stops it.
+        // Windows lets a running image be renamed, so the file itself does reach the recycle bin,
+        // while the folder around it cannot move and an unlink can only fail. A folder is refused at
+        // once; the file is offered as a question because deleting it breaks its shortcuts and
+        // updates. Both answers name the programs that hold the selection.
         var images = await Task.Run(RunningImages);
-        var locked = items.Select(LongPath).Count(target => images.Any(image => IsInside(image, target)));
-        if (locked > 0)
-            return new(false, false, InUseMessage(locked));
+        var locked = LockedBy(images, items);
+        var lockedFiles = locked.Where(entry => File.Exists(entry.Item)).ToList();
+        var lockedFolders = locked.Except(lockedFiles).ToList();
+
+        if (permanent && locked.Count > 0)
+        {
+            var holders = Holders(locked);
+            return new(false, false, InUseMessage(locked.Count, holders), Running: holders);
+        }
+
+        if (lockedFolders.Count > 0)
+        {
+            var holders = Holders(lockedFolders);
+            return new(false, false, InUseMessage(lockedFolders.Count, holders), Running: holders);
+        }
+
+        if (lockedFiles.Count > 0 && !runningConfirmed)
+            return new(false, false, null, NeedsRunningConfirm: true, Running: Holders(lockedFiles));
 
         var deletedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var (step, deleted) = await DeleteWithProgressAsync(items, permanent);
@@ -163,26 +179,51 @@ internal static partial class FileOperations
 
     private static bool Exists(string path) => File.Exists(path) || Directory.Exists(path);
 
-    /// <summary>
-    ///     The long form of every image a process is running, which is what a folder holding one of
-    ///     them cannot get past: Windows keeps an image locked while it runs, and an elevated copy
-    ///     does not lift that. Paths come back in 8.3 form when a process was started through one, so
-    ///     both sides of a comparison are expanded first.
-    /// </summary>
-    private static List<string> RunningImages()
+    /// <summary>Every entry that a running image is, or that holds one, with the programs inside it.</summary>
+    private static List<(string Item, List<RunningProgram> Holders)> LockedBy(
+        List<(RunningProgram Program, string Image)> images, List<string> items)
     {
-        var images = new List<string>();
+        var locked = new List<(string, List<RunningProgram>)>();
 
-        if (Environment.ProcessPath is { Length: > 0 } own)
-            images.Add(LongPath(own));
+        foreach (var item in items)
+        {
+            var target = LongPath(item);
+            var holders = images
+                .Where(image => IsInside(image.Image, target))
+                .Select(image => image.Program)
+                .DistinctBy(program => program.Id)
+                .ToList();
+
+            if (holders.Count > 0)
+                locked.Add((item, holders));
+        }
+
+        return locked;
+    }
+
+    /// <summary>The distinct programs behind a set of locked entries.</summary>
+    private static List<RunningProgram> Holders(IEnumerable<(string Item, List<RunningProgram> Holders)> locked) =>
+        locked.SelectMany(entry => entry.Holders).DistinctBy(program => program.Id).ToList();
+
+    /// <summary>
+    ///     Every image a process is running, in the long form that a selected path is compared
+    ///     against: Windows keeps an image locked while it runs, and an elevated copy does not lift
+    ///     that. Paths come back in 8.3 form when a process was started through one, so both sides are
+    ///     expanded first.
+    /// </summary>
+    private static List<(RunningProgram Program, string Image)> RunningImages()
+    {
+        var images = new List<(RunningProgram, string)>();
 
         foreach (var process in Process.GetProcesses())
         {
             var image = Try.Run(() => process.MainModule?.FileName).GetOrNull();
+            var name = Try.Run(() => process.ProcessName).GetOrNull();
+            var id = process.Id;
             process.Dispose();
 
-            if (image is not null)
-                images.Add(LongPath(image));
+            if (image is not null && name is not null)
+                images.Add((new RunningProgram(name, id, LongPath(image)), LongPath(image)));
         }
 
         return images;
@@ -215,10 +256,17 @@ internal static partial class FileOperations
                            + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>The status center's note for entries a running program keeps locked.</summary>
-    private static string InUseMessage(int count) =>
-        count == 1
-            ? Localization.Get("k_1_item_is_in_use_by_a_running_program")
-            : string.Format(Localization.Get("count_items_are_in_use_by_a_running_program"), count);
+    private static string InUseMessage(int count, IEnumerable<RunningProgram> holders)
+    {
+        var programs = string.Join(", ", holders
+            .DistinctBy(program => program.Id)
+            .Select(program => $"{program.Name} (PID {program.Id})"));
+
+        return count == 1
+            ? string.Format(Localization.Get("k_1_item_is_in_use_by_programs_close_it_and_try_again"), programs)
+            : string.Format(Localization.Get("count_items_are_in_use_by_programs_close_them_and_try_again"),
+                count, programs);
+    }
 
     /// <summary>The status center's label for deleting one or many items.</summary>
     private static string DeleteLabel(bool permanent, int count) =>

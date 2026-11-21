@@ -134,17 +134,21 @@ export async function pasteInto(directory: string, move = false): Promise<PasteR
 export interface DeleteResult extends GuardedChange {
     /** The volume's recycle bin is turned off, so the selection would be deleted for good. */
     needsPermanent?: boolean;
+    /** An entry holds a running program, so the window asks before its shortcuts stop working. */
+    needsRunningConfirm?: boolean;
+    /** The programs keeping the selection open, for the dialog that names them. */
+    running?: { name: string; id: number; path: string }[];
     error?: string | null;
 }
 
 /** Sends the paths to the recycle bin, or deletes them permanently when asked. */
-export async function deletePaths(paths: string[], permanent = false): Promise<DeleteResult> {
+export async function deletePaths(paths: string[], permanent = false, runningConfirmed = false): Promise<DeleteResult> {
     if (!Native.available || paths.length === 0)
         return {ok: false, error: null};
 
     // A protected path blocks the first request. The dialog waits the countdown, then the token
     // is sent back; the backend checks that the wait really happened.
-    let result = await Native.request<DeleteResult>("fs.operation.delete", {paths, permanent});
+    let result = await Native.request<DeleteResult>("fs.operation.delete", {paths, permanent, runningConfirmed});
     let cancelled = false;
 
     for (let attempt = 0; attempt < 2 && result.required; attempt++) {
@@ -164,7 +168,7 @@ export async function deletePaths(paths: string[], permanent = false): Promise<D
         }
 
         result = await Native.request<DeleteResult>("fs.operation.delete",
-            {paths, permanent, confirm: result.token});
+            {paths, permanent, runningConfirmed, confirm: result.token});
     }
 
     return cancelled ? {...result, ok: false, cancelled: true} : result;

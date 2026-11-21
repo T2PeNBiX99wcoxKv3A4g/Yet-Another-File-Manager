@@ -209,12 +209,17 @@ internal sealed record NavigationPayload(string Direction);
 /// <summary>Payload for the clipboard and file-operation messages: the paths they act on.</summary>
 internal sealed record PathsPayload(List<string> Paths);
 
+/// <summary>One running program that holds one of the paths a delete was asked to remove.</summary>
+internal sealed record RunningProgram(string Name, int Id, string Path);
+
 /// <summary>Payload for <c>fs.operation.delete</c>: the paths and whether they bypass the recycle bin.</summary>
-internal sealed record DeleteRequest(List<string> Paths, bool Permanent, string? Confirm = null);
+internal sealed record DeleteRequest(List<string> Paths, bool Permanent, string? Confirm = null, bool RunningConfirmed = false);
 
 /// <summary>
 ///     Answer for <c>fs.operation.delete</c>. <c>NeedsPermanent</c> says the volume's recycle bin is
 ///     turned off, so the selection would be deleted for good and the window has to ask first.
+///     <c>NeedsRunningConfirm</c> says one of the entries holds a running program, so the window has
+///     to warn that its shortcuts and updates stop working before the delete goes ahead.
 ///     <c>Required</c> means a protected path matched and <c>Token</c> must be sent once the delay
 ///     has passed; <c>Protected</c> lists the exact paths and patterns for the dialog.
 /// </summary>
@@ -226,7 +231,9 @@ internal sealed record DeletePayload(
     string? Token = null,
     IReadOnlyList<ProtectedHit>? Protected = null,
     int DelaySeconds = 0,
-    int Failed = 0);
+    int Failed = 0,
+    bool NeedsRunningConfirm = false,
+    IReadOnlyList<RunningProgram>? Running = null);
 
 /// <summary>One path a protected-folder pattern intercepted, and the pattern responsible.</summary>
 internal sealed record ProtectedHit(string Path, string Pattern);

@@ -40,6 +40,7 @@ import {CheckIcon, CutIcon, FolderIcon, LinkIcon, LockIcon} from "./Icons";
 import {type ArchiveExtractMode, FileMenu} from "./FileMenu";
 import {CompressDialog} from "./CompressDialog";
 import {ConfirmDialog} from "./ConfirmDialog";
+import {type RunningProgram, RunningProgramsDialog} from "./RunningProgramsDialog";
 import {type PreviewInfo, PreviewPane} from "./PreviewPane";
 import {PlaceIcon} from "./PlaceIcon";
 import {DefaultTagColor, inkFor, TagPicker} from "./TagPicker";
@@ -308,6 +309,11 @@ export function FileList({
     const [pendingConfirm, setPendingConfirm] = useState<{
         paths: string[];
         permanent: boolean;
+        /** The selection holds a running program, so the question is about its shortcuts. */
+        running?: boolean;
+        /** The delete cannot go ahead at all, so the dialog only informs. */
+        blocked?: boolean;
+        programs?: RunningProgram[];
         resolve: (ok: boolean) => void;
     } | null>(null);
     const [renaming, setRenaming] = useState<{ path: string; value: string } | null>(null);
@@ -1195,7 +1201,8 @@ export function FileList({
         if ((permanent || confirmDelete) && !await askDelete(paths, permanent))
             return;
 
-        let result = await deletePaths(paths, permanent);
+        let target = permanent;
+        let result = await deletePaths(paths, target);
 
         // The volume's recycle bin is turned off, so the selection would be deleted for good. Explorer
         // asks in that case too, whatever the "ask before deleting" setting says.
@@ -1203,14 +1210,30 @@ export function FileList({
             if (!await askDelete(paths, true))
                 return;
 
+            target = true;
             result = await deletePaths(paths, true);
+        }
+
+        // A running program reaches the recycle bin like any other file, but its shortcuts and
+        // updates stop working, so the window asks first. A folder that holds one cannot move at
+        // all, and the same dialog lists the programs for that case too.
+        if (!result.ok && result.needsRunningConfirm) {
+            if (!await askRunning(paths, target, result.running ?? [], false))
+                return;
+
+            result = await deletePaths(paths, target, true);
+        }
+
+        if (!result.ok && !result.needsRunningConfirm && (result.running?.length ?? 0) > 0) {
+            await askRunning(paths, target, result.running ?? [], true);
+            return;
         }
 
         if (!result.ok) {
             if (result.cancelled)
                 return;
 
-            void showMessage(result.error ?? (permanent
+            void showMessage(result.error ?? (target
                 ? t("could_not_delete_the_selection")
                 : t("could_not_move_the_selection_to_the_recycle_bin")));
             return;
@@ -1222,6 +1245,12 @@ export function FileList({
 
     const askDelete = useCallback((paths: string[], permanent: boolean) =>
         new Promise<boolean>((resolve) => setPendingConfirm({paths, permanent, resolve})), []);
+
+    const askRunning = useCallback((paths: string[], permanent: boolean,
+                                    programs: RunningProgram[], blocked: boolean) =>
+        new Promise<boolean>((resolve) => setPendingConfirm({
+            paths, permanent, running: true, blocked, programs, resolve,
+        })), []);
 
     const settleDelete = useCallback((ok: boolean) => {
         setPendingConfirm((pending) => {
@@ -1441,7 +1470,21 @@ export function FileList({
     }, [allPaths, copy, createEntry, currentDirectory, enableShortcuts, menu, onOpen, onOpenFile, panePaths,
         paste, remove, rename, rows, selected, shortcuts, stepSelection]);
 
-    const confirmDialog = pendingConfirm && (
+    const confirmDialog = pendingConfirm?.running ? (
+        <RunningProgramsDialog
+            confirmLabel={pendingConfirm.permanent ? t("delete") : t("move")}
+            message={pendingConfirm.blocked
+                ? t("programs_are_using_target_close_them_and_try_again",
+                    {programs: programNames(pendingConfirm.programs), target: pendingConfirm.paths.length === 1
+                            ? t("this_item") : t("count_items", {count: pendingConfirm.paths.length})})
+                : t("programs_are_using_target_continue",
+                    {programs: programNames(pendingConfirm.programs), target: pendingConfirm.paths.length === 1
+                            ? t("this_item") : t("count_items", {count: pendingConfirm.paths.length})})}
+            onCancel={() => settleDelete(false)}
+            onConfirm={pendingConfirm.blocked ? undefined : () => settleDelete(true)}
+            programs={pendingConfirm.programs ?? []}
+        />
+    ) : pendingConfirm ? (
         <ConfirmDialog
             confirmLabel={pendingConfirm.permanent ? t("delete") : t("move")}
             danger={pendingConfirm.permanent}
@@ -1455,7 +1498,7 @@ export function FileList({
             open
             title={pendingConfirm.permanent ? t("delete_permanently") : t("move_to_the_recycle_bin")}
         />
-    );
+    ) : null;
 
     const previewEntry = useMemo(() => {
         if (!listing || selected.size === 0)
@@ -2217,9 +2260,13 @@ function whenVisible(node: Element, onVisible: () => void, margin: string): () =
     };
 }
 
+/** The programs a delete is waiting on, named the way the dialog lists them. */
+function programNames(programs?: RunningProgram[]): string {
+    return [...new Set((programs ?? []).map((program) => program.name))].join(", ");
+}
+
 /** Folder sizes come from the folder's own index and appear once they have been measured. */
-function sizeOf(entry: FileEntry, folderSizes: Record<string, number>): string {
-    if (!entry.isDirectory)
+function sizeOf(entry: FileEntry, folderSizes: Record<string, number>): string {    if (!entry.isDirectory)
         return formatBytes(entry.size);
 
     const measured = folderSizes[entry.name];

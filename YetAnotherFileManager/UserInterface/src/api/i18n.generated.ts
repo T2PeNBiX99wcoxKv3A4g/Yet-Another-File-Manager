@@ -186,7 +186,7 @@ declare module "@photino-net-utils/bridge"
         "count_columns": true;
         "count_indexing_tasks": true;
         "count_items": true;
-        "count_items_are_in_use_by_a_running_program": true;
+        "count_items_are_in_use_by_programs_close_them_and_try_again": true;
         "count_items_could_not_be_deleted": true;
         "count_items_selected": true;
         "count_items_size": true;
@@ -369,7 +369,7 @@ declare module "@photino-net-utils/bridge"
         "k_1_column": true;
         "k_1_item": true;
         "k_1_item_could_not_be_deleted": true;
-        "k_1_item_is_in_use_by_a_running_program": true;
+        "k_1_item_is_in_use_by_programs_close_it_and_try_again": true;
         "k_1_item_selected": true;
         "k_1_item_size": true;
         "k_1_operation_running": true;
@@ -571,7 +571,10 @@ declare module "@photino-net-utils/bridge"
         "previous_colour_colour": true;
         "previous_match_shift_enter": true;
         "previous_tab": true;
+        "process_id_n": true;
         "process_memory": true;
+        "programs_are_using_target_close_them_and_try_again": true;
+        "programs_are_using_target_continue": true;
         "properties": true;
         "protected_by_pattern": true;
         "protected_folder": true;
@@ -822,6 +825,7 @@ declare module "@photino-net-utils/bridge"
         "the_path_is_not_inside_an_archive": true;
         "the_port_the_browser_file_server_listens_on_leave_it_empty_to_pick_a_free_port_between_6000_and_9000_automatically": true;
         "the_previous_folder_in_this_tab_the_mouse_back_button_and_the_browser_back_key_always_work": true;
+        "the_program_is_running": true;
         "the_recycle_bin_is_empty": true;
         "the_recycle_bin_is_turned_off_for_this_volume": true;
         "the_registered_path_points_to_path_register_again_to_use_this_build": true;
