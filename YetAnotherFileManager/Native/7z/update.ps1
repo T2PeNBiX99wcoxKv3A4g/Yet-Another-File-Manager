@@ -12,6 +12,9 @@
     installed on the machine, and no 7-Zip has to be present), and only 7z.dll plus the license
     are kept. The build copies these files over the ones the package brings.
 
+    Linux has no 7z.dll, so the console tool 7-Zip publishes for it is vendored beside it as
+    Native/7z/linux-x64/7zz; the app runs that binary for the same formats.
+
 .PARAMETER Version
     The 7-Zip release to vendor, for example 26.06. Defaults to the newest one the download
     page lists.
@@ -85,6 +88,29 @@ try {
             Copy-Item $license (Join-Path $licenses '7-Zip.txt') -Force
         }
     }
+
+    # Linux has no 7z.dll to load, so the app runs the console tool 7-Zip publishes for it.
+    Write-Host '  downloading linux-x64'
+    $linuxArchive = Join-Path $downloads '7z-linux-x64.tar.xz'
+    Invoke-WebRequest "https://github.com/ip7z/7zip/releases/download/$version/7z$digits-linux-x64.tar.xz" `
+        -OutFile $linuxArchive -UseBasicParsing
+
+    $linuxTarget = Join-Path $downloads 'linux'
+    New-Item -ItemType Directory $linuxTarget -Force | Out-Null
+    tar -xf $linuxArchive -C $linuxTarget
+
+    # The outer xz holds one tar, whose files sit at its root.
+    $inner = Get-ChildItem $linuxTarget -Filter '*.tar' | Select-Object -First 1
+    if ($inner) { tar -xf $inner.FullName -C $linuxTarget }
+
+    $tool = Join-Path $linuxTarget '7zz'
+    if (-not (Test-Path $tool)) {
+        throw 'The Linux package does not carry 7zz.'
+    }
+
+    $linuxOutput = Join-Path $root 'linux-x64'
+    New-Item -ItemType Directory $linuxOutput -Force | Out-Null
+    Copy-Item $tool (Join-Path $linuxOutput '7zz') -Force
 
     Set-Content (Join-Path $root 'version.txt') $version
 }

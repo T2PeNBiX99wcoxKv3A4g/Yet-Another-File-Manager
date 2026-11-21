@@ -191,9 +191,15 @@
         <Copy SourceFiles="Native\7z\x64\7z.dll" DestinationFolder="$(OutDir)x64" />
     </Target>
 
-    <!-- Publish carries the same native library, or the extra archive formats cannot be opened. -->
-    <Target Name="CopySevenZipOnPublish" AfterTargets="Publish" Condition="'$(OS)' == 'Windows_NT'">
+    <!-- Publish carries the same native library, or the extra archive formats cannot be opened. The
+         condition follows the target runtime, so publishing linux-x64 from Windows stays clean. -->
+    <Target Name="CopySevenZipOnPublish" AfterTargets="Publish" Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win'))">
         <Copy SourceFiles="Native\7z\x64\7z.dll" DestinationFolder="$(PublishDir)x64" />
+    </Target>
+
+    <!-- Linux has no 7z.dll to load, so it runs the console tool that 7-Zip publishes for it. -->
+    <Target Name="CopySevenZipToolOnPublish" AfterTargets="Publish" Condition="'$(RuntimeIdentifier)' == 'linux-x64'">
+        <Copy SourceFiles="Native\7z\linux-x64\7zz" DestinationFolder="$(PublishDir)" />
     </Target>
 
     <Target Name="CopyRustShellMenuOnPublish" AfterTargets="Publish" Condition="'$(OS)' == 'Windows_NT' and Exists('$(RustReleaseDir)/yafm-shellmenu.exe')">
