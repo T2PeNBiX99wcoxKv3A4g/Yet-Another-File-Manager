@@ -1,3 +1,5 @@
+using Serilog;
+
 namespace YetAnotherFileManager.Services;
 
 /// <summary>What the interface shows before an elevated copy of the app runs.</summary>
@@ -34,10 +36,23 @@ internal static class ElevationPrompt
         window.Notify("fs.elevation.ask", new ElevationAskPayload(token, action, path));
 
         // A window that never answers must not hang the operation forever; treating silence as
-        // "no" keeps the user in control of their own machine.
+        // "no" keeps the user in control of their own machine. The warning is what tells the log
+        // apart "the user said no" from "the question never reached the window".
+        var timedOut = false;
         using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
-        await using (timeout.Token.Register(() => pending.TrySetResult(false)))
-            return await pending.Task;
+        await using (timeout.Token.Register(() =>
+                     {
+                         timedOut = true;
+                         pending.TrySetResult(false);
+                     }))
+        {
+            var allowed = await pending.Task;
+
+            if (timedOut)
+                Log.Warning("The window never answered the elevation prompt for {Action}: {Path}", action, path);
+
+            return allowed;
+        }
     }
 
     /// <summary>Records the window's answer; a stale token from a closed dialog is ignored.</summary>
