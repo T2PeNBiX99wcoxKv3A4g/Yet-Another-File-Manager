@@ -95,7 +95,7 @@ $sdkVersion = $sdk.Name
 
 # ---- One build --------------------------------------------------------------------------------
 
-$env:PATH = "$msvcRoot\bin\Hostx64\x64;$env:PATH"
+$env:PATH = "$msvcRoot\bin\Hostx64\x64;$sdkRoot\bin\$sdkVersion\x64;$env:PATH"
 $env:LIB = "$msvcRoot\lib\x64;$sdkRoot\Lib\$sdkVersion\ucrt\x64;$sdkRoot\Lib\$sdkVersion\um\x64"
 $env:INCLUDE = "$msvcRoot\include;$sdkRoot\Include\$sdkVersion\ucrt;$sdkRoot\Include\$sdkVersion\um;$sdkRoot\Include\$sdkVersion\shared;$sdkRoot\Include\$sdkVersion\winrt"
 

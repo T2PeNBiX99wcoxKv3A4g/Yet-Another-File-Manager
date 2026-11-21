@@ -56,6 +56,10 @@ windows = { version = "0.62", features = [
     "Win32_UI_WindowsAndMessaging",
 ] }
 
+[build-dependencies]
+# Writes the version block and the manifest into the DLL, which heuristics read.
+winresource = "0.1"
+
 [profile.release]
 opt-level = 3
 lto = true
