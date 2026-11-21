@@ -40,6 +40,10 @@ internal static class FolderIndex
         RetryDelay = 50
     };
 
+    /// <summary>
+    ///     A background read gives up after roughly 150 ms instead of holding up a listing. The
+    ///     folder on screen may wait about 325 ms, because its cache is worth a short write commit.
+    /// </summary>
     private static readonly SqliteDatabaseOptions ReadOptions = new()
     {
         Pooling = false,
@@ -60,9 +64,6 @@ internal static class FolderIndex
 
     /// <summary>Directories whose index attributes were already checked in this process.</summary>
     private static readonly ConcurrentDictionary<string, bool> Checked = new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>Indexes already known to carry the current schema, so a read pays no extra open.</summary>
-    private static readonly ConcurrentDictionary<string, bool> SchemaReady = new(StringComparer.OrdinalIgnoreCase);
 
     private static readonly string[] Schema =
     [
@@ -143,17 +144,28 @@ internal static class FolderIndex
     /// <summary>Icons recorded for the entries of a directory, by entry name.</summary>
     public static Task<Dictionary<string, string>> IconsAsync(string directory) =>
         ReadAsync(directory, async (connection, token) =>
-            await ReadOnConnectionAsync(connection, "SELECT name, source, mime, data FROM icons", async reader =>
-            {
-                var icons = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        {
+            var hasData = await HasIconDataAsync(connection, token);
 
-                while (await reader.ReadAsync(token))
-                    if (IconSourceCodec.Read(reader, 1, 2, 3) is { } source)
-                        icons[reader.GetString(0)] = source;
+            return await ReadOnConnectionAsync(connection,
+                hasData ? "SELECT name, source, mime, data FROM icons" : "SELECT name, source FROM icons",
+                async reader =>
+                {
+                    var icons = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-                return icons;
-            }, token: token),
-            new Dictionary<string, string>());
+                    while (await reader.ReadAsync(token))
+                    {
+                        var source = hasData
+                            ? IconSourceCodec.Read(reader, 1, 2, 3)
+                            : reader.IsDBNull(1) ? null : reader.GetString(1);
+
+                        if (source is not null)
+                            icons[reader.GetString(0)] = source;
+                    }
+
+                    return icons;
+                }, token: token);
+        }, new Dictionary<string, string>());
 
     /// <summary>Every piece a listing reads from this folder, over a single connection.</summary>
     public static Task<DirectoryIndex.MetadataSnapshot?> ReadMetadataAsync(string directory) =>
@@ -179,16 +191,26 @@ internal static class FolderIndex
     private static async Task<DirectoryIndex.MetadataSnapshot> ReadMetadataOnConnectionAsync(
         SqliteConnection connection, CancellationToken token = default)
     {
-        var icons = await ReadOnConnectionAsync(connection, "SELECT name, source, mime, data FROM icons", async reader =>
-        {
-            var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var hasIconData = await HasIconDataAsync(connection, token);
 
-            while (await reader.ReadAsync(token))
-                if (IconSourceCodec.Read(reader, 1, 2, 3) is { } source)
-                    values[reader.GetString(0)] = source;
+        var icons = await ReadOnConnectionAsync(connection,
+            hasIconData ? "SELECT name, source, mime, data FROM icons" : "SELECT name, source FROM icons",
+            async reader =>
+            {
+                var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-            return values;
-        }, token: token);
+                while (await reader.ReadAsync(token))
+                {
+                    var source = hasIconData
+                        ? IconSourceCodec.Read(reader, 1, 2, 3)
+                        : reader.IsDBNull(1) ? null : reader.GetString(1);
+
+                    if (source is not null)
+                        values[reader.GetString(0)] = source;
+                }
+
+                return values;
+            }, token: token);
 
         var sizes = await ReadOnConnectionAsync(connection, "SELECT name, bytes FROM sizes", async reader =>
         {
@@ -655,7 +677,6 @@ internal static class FolderIndex
             }
 
             Unusable.TryRemove(directory, out _);
-            SchemaReady.TryRemove(directory, out _);
             return true;
         });
 
@@ -776,50 +797,45 @@ internal static class FolderIndex
 
     // ---- plumbing ----
 
-    /// <summary>
-    ///     A read can arrive before the first write after an upgrade, so the schema is brought up to
-    ///     date once here instead of making the first listing miss its cached icons.
-    /// </summary>
-    private static async Task EnsureSchemaAsync(string directory)
-    {
-        if (SchemaReady.ContainsKey(directory) || !File.Exists(PathFor(directory)) ||
-            Unusable.ContainsKey(directory))
-            return;
-
-        var versionResult = await Database(directory, false).ReadAsync(async (connection, token) =>
-        {
-            await using var command = connection.CreateCommand();
-            command.CommandText = "PRAGMA user_version";
-            return Convert.ToInt32(await command.ExecuteScalarAsync(token) ?? 0);
-        }).ConfigureAwait(false);
-
-        if (!versionResult.TryGet(out var version))
-            return;
-
-        if (version < SchemaVersion)
-            await WriteAsync(directory, (_, _, _) => Task.CompletedTask);
-
-        if (!Unusable.ContainsKey(directory))
-            SchemaReady[directory] = true;
-    }
-
     private static async Task<T> ReadAsync<T>(string directory,
         Func<SqliteConnection, CancellationToken, Task<T>> read, T fallback)
     {
-        await EnsureSchemaAsync(directory);
-
         if (Unusable.ContainsKey(directory))
             return fallback;
 
         var result = await Database(directory, false).ReadAsync(read);
         return result.OnFailure(ex =>
             {
-                if (ex is not FileNotFoundException)
+                // A missing table or column is an old schema; the next write migrates it. Marking
+                // the folder unusable here would stop that write from ever happening.
+                if (IsPermanentReadFailure(ex))
                     Unusable[directory] = true;
 
                 Log.Debug(ex, "Could not read the index of {Directory}", directory);
             })
             .GetOrElse(_ => fallback);
+    }
+
+    private static bool IsPermanentReadFailure(Exception exception) =>
+        exception is IOException ||
+        exception is SqliteException sqlite &&
+        (sqlite.SqliteErrorCode & 0xFF) is 10 or 11 or 26;
+
+    /// <summary>
+    ///     Whether the icon table already has the byte columns. A read never migrates: it accepts
+    ///     both layouts, so an upgraded app cannot turn opening a folder into a write.
+    /// </summary>
+    private static async Task<bool> HasIconDataAsync(SqliteConnection connection, CancellationToken token)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA table_info(icons)";
+
+        await using var reader = await command.ExecuteReaderAsync(token);
+        while (await reader.ReadAsync(token))
+            if (string.Equals(reader.GetString(1), "data", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+        return false;
     }
 
     private static async Task<T> ReadOnConnectionAsync<T>(SqliteConnection connection, string sql,
@@ -858,10 +874,7 @@ internal static class FolderIndex
         });
 
         if (result.IsSuccess)
-        {
             EnsureHidden(directory);
-            SchemaReady[directory] = true;
-        }
 
         return result.OnFailure(ex =>
         {
