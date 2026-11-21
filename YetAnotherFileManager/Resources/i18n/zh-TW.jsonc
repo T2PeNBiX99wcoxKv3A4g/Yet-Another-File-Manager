@@ -445,6 +445,8 @@
   "some_items_could_not_be_deleted": "有項目無法刪除。",
   "k_1_item_could_not_be_deleted": "有 1 個項目無法刪除，可能正在使用中或是唯讀。",
   "count_items_could_not_be_deleted": "有 {count} 個項目無法刪除，可能正在使用中或是唯讀。",
+  "k_1_item_is_in_use_by_a_running_program": "有 1 個項目正被執行中的程式使用，請關閉該程式後再試。",
+  "count_items_are_in_use_by_a_running_program": "有 {count} 個項目正被執行中的程式使用，請關閉該程式後再試。",
   "the_recycle_bin_is_empty": "資源回收筒是空的。",
   "the_runtime_loaded_libraries_and_the_rust_helper_share_this_part_rust_runs_inside_the_process_so_it_has_no_separate_figure": "執行階段、已載入的程式庫與 Rust 輔助程式共用這部分。Rust 在程式程序內執行，因此沒有獨立數字。",
   "this_pc": "本機",

@@ -445,6 +445,8 @@
   "some_items_could_not_be_deleted": "Some items could not be deleted.",
   "k_1_item_could_not_be_deleted": "1 item could not be deleted; it may be in use or read-only.",
   "count_items_could_not_be_deleted": "{count} items could not be deleted; they may be in use or read-only.",
+  "k_1_item_is_in_use_by_a_running_program": "1 item is in use by a running program; close it and try again.",
+  "count_items_are_in_use_by_a_running_program": "{count} items are in use by a running program; close it and try again.",
   "the_recycle_bin_is_empty": "The recycle bin is empty.",
   "the_runtime_loaded_libraries_and_the_rust_helper_share_this_part_rust_runs_inside_the_process_so_it_has_no_separate_figure": "The runtime, loaded libraries and the Rust helper share this part. Rust runs inside the process, so it has no separate figure.",
   "this_pc": "This PC",

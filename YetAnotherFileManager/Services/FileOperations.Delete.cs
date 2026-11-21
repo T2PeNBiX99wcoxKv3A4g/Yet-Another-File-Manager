@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Text;
 using PhotinoNetUtils;
 using PhotinoNetUtils.Localization;
 using Serilog;
@@ -24,6 +27,15 @@ internal static partial class FileOperations
         // Explorer asks about first, so the window gets the same chance.
         if (!permanent && items.Any(path => !RecycleBin.CanRecycle(path)))
             return new(false, true, Localization.Get("the_recycle_bin_is_turned_off_for_this_volume"));
+
+        // Windows keeps a running program's image locked, so its folder can neither move to the bin
+        // nor unlink; an elevated copy does not change that. Saying it up front beats a failure that
+        // looks like a permissions problem, and it keeps a permanent delete from half-clearing the
+        // folder before the locked file stops it.
+        var images = await Task.Run(RunningImages);
+        var locked = items.Select(LongPath).Count(target => images.Any(image => IsInside(image, target)));
+        if (locked > 0)
+            return new(false, false, InUseMessage(locked));
 
         var deletedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var (step, deleted) = await DeleteWithProgressAsync(items, permanent);
@@ -150,6 +162,63 @@ internal static partial class FileOperations
     }
 
     private static bool Exists(string path) => File.Exists(path) || Directory.Exists(path);
+
+    /// <summary>
+    ///     The long form of every image a process is running, which is what a folder holding one of
+    ///     them cannot get past: Windows keeps an image locked while it runs, and an elevated copy
+    ///     does not lift that. Paths come back in 8.3 form when a process was started through one, so
+    ///     both sides of a comparison are expanded first.
+    /// </summary>
+    private static List<string> RunningImages()
+    {
+        var images = new List<string>();
+
+        if (Environment.ProcessPath is { Length: > 0 } own)
+            images.Add(LongPath(own));
+
+        foreach (var process in Process.GetProcesses())
+        {
+            var image = Try.Run(() => process.MainModule?.FileName).GetOrNull();
+            process.Dispose();
+
+            if (image is not null)
+                images.Add(LongPath(image));
+        }
+
+        return images;
+    }
+
+    /// <summary>Expands the short (8.3) segments of a path; anything already long is returned as is.</summary>
+    private static string LongPath(string path)
+    {
+        if (!OperatingSystem.IsWindows() || path.Length == 0)
+            return path;
+
+        var buffer = new StringBuilder(path.Length + 1);
+        var written = GetLongPathNameW(path, buffer, (uint)buffer.Capacity);
+
+        if (written >= buffer.Capacity)
+        {
+            buffer = new StringBuilder((int)written + 1);
+            written = GetLongPathNameW(path, buffer, (uint)buffer.Capacity);
+        }
+
+        return written == 0 ? path : buffer.ToString();
+    }
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+    private static extern uint GetLongPathNameW(string shortPath, StringBuilder longPath, uint bufferLength);
+
+    private static bool IsInside(string file, string path) =>
+        file.Equals(path, StringComparison.OrdinalIgnoreCase)
+        || file.StartsWith(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                           + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The status center's note for entries a running program keeps locked.</summary>
+    private static string InUseMessage(int count) =>
+        count == 1
+            ? Localization.Get("k_1_item_is_in_use_by_a_running_program")
+            : string.Format(Localization.Get("count_items_are_in_use_by_a_running_program"), count);
 
     /// <summary>The status center's label for deleting one or many items.</summary>
     private static string DeleteLabel(bool permanent, int count) =>

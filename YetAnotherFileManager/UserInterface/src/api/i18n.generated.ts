@@ -186,6 +186,7 @@ declare module "@photino-net-utils/bridge"
         "count_columns": true;
         "count_indexing_tasks": true;
         "count_items": true;
+        "count_items_are_in_use_by_a_running_program": true;
         "count_items_could_not_be_deleted": true;
         "count_items_selected": true;
         "count_items_size": true;
@@ -368,6 +369,7 @@ declare module "@photino-net-utils/bridge"
         "k_1_column": true;
         "k_1_item": true;
         "k_1_item_could_not_be_deleted": true;
+        "k_1_item_is_in_use_by_a_running_program": true;
         "k_1_item_selected": true;
         "k_1_item_size": true;
         "k_1_operation_running": true;

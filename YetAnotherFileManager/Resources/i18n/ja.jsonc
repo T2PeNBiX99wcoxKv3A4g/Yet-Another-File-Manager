@@ -445,6 +445,8 @@
   "some_items_could_not_be_deleted": "削除できない項目があります。",
   "k_1_item_could_not_be_deleted": "1 件を削除できませんでした。使用中か読み取り専用の可能性があります。",
   "count_items_could_not_be_deleted": "{count} 件を削除できませんでした。使用中か読み取り専用の可能性があります。",
+  "k_1_item_is_in_use_by_a_running_program": "1 件の項目は実行中のプログラムが使用しています。プログラムを終了してから再試行してください。",
+  "count_items_are_in_use_by_a_running_program": "{count} 件の項目は実行中のプログラムが使用しています。プログラムを終了してから再試行してください。",
   "the_recycle_bin_is_empty": "ごみ箱は空です。",
   "the_runtime_loaded_libraries_and_the_rust_helper_share_this_part_rust_runs_inside_the_process_so_it_has_no_separate_figure": "ランタイム、読み込まれたライブラリ、Rust ヘルパーがこの部分を共有します。Rust はプロセス内で動くため、別の数値はありません。",
   "this_pc": "この PC",
