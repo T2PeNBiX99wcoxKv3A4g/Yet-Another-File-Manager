@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.44.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.44.0..v0.44.1) - 2026-11-21
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([14f777a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/14f777a459f55201ff9b142928fe5a8724153e90))
+
+### Build
+
+- *(native)* Give the helper a version block and a manifest - ([f4118b4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/f4118b47267afda2f6c09615dbf1d0965c296c7b))
+
+
 ## [0.44.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.43.1..v0.44.0) - 2026-11-21
 
 ### ⛰️  Features
