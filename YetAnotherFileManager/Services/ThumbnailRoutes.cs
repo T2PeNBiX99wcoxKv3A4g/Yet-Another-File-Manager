@@ -5,6 +5,7 @@ using System.Runtime.Versioning;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using PhotinoNetUtils.Extensions;
+using PhotinoNetUtils.Hosting;
 using PhotinoNetUtils.Utils;
 using YetAnotherFileManager.Interop;
 
@@ -56,7 +57,10 @@ internal static class ThumbnailRoutes
 
         var bytes = await ThumbnailAsync(path, size, query["v"].ToString(), context.RequestAborted);
 
-        return bytes is null ? Results.NotFound() : Results.Bytes(bytes, "image/png");
+        return bytes is null
+            ? Results.NotFound()
+            : BinaryContent.Bytes(bytes, "image/png", BinaryContent.ETag(bytes),
+                TimeSpan.FromDays(30));
     }
 
     private static async Task<byte[]?> ThumbnailAsync(string path, int size, string version,
@@ -120,8 +124,8 @@ internal static class ThumbnailRoutes
         if (path.Length == 0 || !File.Exists(path))
             return Results.NotFound();
 
-        return Results.File(path, MediaType(path, context.Request.Query["ext"].ToString()),
-            enableRangeProcessing: true);
+        return BinaryContent.File(path, MediaType(path, context.Request.Query["ext"].ToString()),
+            lastModified: File.GetLastWriteTimeUtc(path), maxAge: TimeSpan.FromHours(1));
     }
 
     /// <summary>Renders a PDF page in the isolated helper and caches the PNG it returns.</summary>
@@ -130,7 +134,10 @@ internal static class ThumbnailRoutes
         var path = context.Request.Query["path"].ToString();
         var bytes = await PdfBytesAsync(path, context.Request.Query["v"].ToString(), context.RequestAborted);
 
-        return bytes is null ? Results.NotFound() : Results.Bytes(bytes, "image/png");
+        return bytes is null
+            ? Results.NotFound()
+            : BinaryContent.Bytes(bytes, "image/png", BinaryContent.ETag(bytes),
+                TimeSpan.FromDays(1));
     }
 
     private static async Task<byte[]?> PdfBytesAsync(string path, string version, CancellationToken cancellationToken)
