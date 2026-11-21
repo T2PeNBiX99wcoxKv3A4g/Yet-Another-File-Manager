@@ -1,6 +1,7 @@
 import {Native} from "@photino-net-utils/bridge";
 import {askProtected, type GuardedChange} from "./safety";
 import {fetchListing} from "./listing";
+import {data as dataPlane} from "./data";
 import {isArchiveLocation} from "../utils/format";
 
 export interface FileEntry {
@@ -361,8 +362,24 @@ export async function listDrives(): Promise<Drive[]> {
 
 /** What is currently in the recycle bin, newest first. */
 export async function listRecycle(includeOrphans = false): Promise<RecycleEntry[]> {
-    const data = await Native.request<{ entries: RecycleEntry[] }>("fs.recycle", {includeOrphans});
-    return data.entries;
+    try {
+        const page = await dataPlane.readBlock(`/recycle?orphans=${includeOrphans ? 1 : 0}`);
+        return page.rows.map((row) => ({
+            id: String(row.id),
+            name: String(row.name),
+            originalPath: String(row.originalPath),
+            size: Number(row.size),
+            deleted: Number(row.deleted),
+            isDirectory: Number(row.isDirectory) !== 0,
+            isOrphan: Number(row.isOrphan) !== 0,
+            owner: typeof row.owner === "string" && row.owner.length > 0 ? row.owner : null,
+            removable: Number(row.removable) !== 0,
+            contentPath: String(row.contentPath),
+        }));
+    } catch {
+        const data = await Native.request<{ entries: RecycleEntry[] }>("fs.recycle", {includeOrphans});
+        return data.entries;
+    }
 }
 
 /** Puts one entry back where it came from. */

@@ -46,5 +46,6 @@ internal static class AppRoutes
         ThumbnailRoutes.Map(app, token);
         ListingRoute.Map(app, token, ListingSource.Instance);
         GalleryRoutes.Map(app, token);
+        DataRoutes.Map(app, token);
     }
 }

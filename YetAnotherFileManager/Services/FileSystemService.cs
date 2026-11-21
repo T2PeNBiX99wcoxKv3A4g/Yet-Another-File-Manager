@@ -148,6 +148,10 @@ internal partial class FileSystemService : INativeMessageHandler
                 return context.Reply("app.thumbnails.result",
                     new ThumbnailServerPayload(AppServer.DataUrl));
 
+            case "app.data":
+                return context.Reply("app.data.result",
+                    new ThumbnailServerPayload(AppServer.DataUrl));
+
             case "fs.recent":
                 return context.Reply("fs.recent.result",
                     new FsRecentPayload(
