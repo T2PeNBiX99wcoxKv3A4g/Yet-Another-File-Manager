@@ -630,6 +630,10 @@ internal partial class FileSystemService : INativeMessageHandler
                 await FileOperations.ShowPropertiesAsync(context.Payload<PathsPayload>()?.Paths ?? []);
                 return context.Reply("fs.operation.systemProperties.result", new OkPayload());
 
+            case "fs.operation.properties.edit":
+                return context.Reply("fs.operation.properties.edit.result",
+                    await FileOperations.ApplyPropertiesAsync(context.Payload<PropertiesEditRequest>()));
+
             case "fs.operation.openWith":
                 await FileOperations.OpenWithAsync(context.Payload<PathPayload>()?.Path ?? "");
                 return context.Reply("fs.operation.openWith.result", new OkPayload());

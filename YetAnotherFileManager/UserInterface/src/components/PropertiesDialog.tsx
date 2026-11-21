@@ -120,7 +120,7 @@ function Details({info}: { info: PathPropertiesInfo }) {
     return (
         <Fields>
             <Field label={t("type")} value={kind}/>
-            <Field label={t("location")} value={location}/>
+            <Field label={t("location")} value={location} wrap/>
             <Field label={info.directory ? t("items") : t("size")}
                    value={info.directory ? String(info.entries ?? 0) : formatBytes(info.size)}/>
             <Field label={t("created")} value={<Timestamp value={info.created}/>}/>
@@ -140,7 +140,7 @@ function Field({label, value, wrap = false}: { label: string; value: ReactNode; 
     return (
         <>
             <FieldLabel>{label}</FieldLabel>
-            <FieldValue $wrap={wrap}>{value}</FieldValue>
+            <FieldValue $wrap={wrap} title={typeof value === "string" ? value : undefined}>{value}</FieldValue>
         </>
     );
 }

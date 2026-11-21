@@ -1125,6 +1125,46 @@ internal static partial class FileOperations
         return new(false, items, OperatingSystem.IsWindows());
     }
 
+    /// <summary>Applies the flags the properties page lets the user change.</summary>
+    public static Task<PropertiesEditResult> ApplyPropertiesAsync(PropertiesEditRequest? request) =>
+        Task.Run(() =>
+        {
+            if (request is not { Path.Length: > 0 })
+                return new PropertiesEditResult(false, "No path was given.", null);
+
+            var path = request.Path;
+            if (!File.Exists(path) && !Directory.Exists(path))
+                return new PropertiesEditResult(false, Localization.Get("the_path_no_longer_exists"), null);
+
+            try
+            {
+                if (OperatingSystem.IsWindows())
+                {
+                    var attributes = File.GetAttributes(path);
+                    var updated = attributes;
+
+                    if (request.ReadOnly is { } readOnly)
+                        updated = readOnly ? updated | FileAttributes.ReadOnly : updated & ~FileAttributes.ReadOnly;
+                    if (request.Hidden is { } hidden)
+                        updated = hidden ? updated | FileAttributes.Hidden : updated & ~FileAttributes.Hidden;
+                    if (request.Archive is { } archive)
+                        updated = archive ? updated | FileAttributes.Archive : updated & ~FileAttributes.Archive;
+
+                    if (updated != attributes)
+                        File.SetAttributes(path, updated);
+                }
+                else if (request.UnixMode is { } mode)
+                    File.SetUnixFileMode(path, (UnixFileMode)mode);
+            }
+            catch (Exception exception)
+            {
+                Log.Warning(exception, "Could not change the properties of {Path}", path);
+                return new PropertiesEditResult(false, exception.Message, null);
+            }
+
+            return new PropertiesEditResult(true, null, PathProperties.Read(path));
+        });
+
     [SupportedOSPlatform("windows")]
     private static void ShowWindowsProperties(string path)
     {

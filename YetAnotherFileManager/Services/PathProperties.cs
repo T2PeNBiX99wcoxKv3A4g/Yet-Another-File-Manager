@@ -37,6 +37,7 @@ internal static class PathProperties
                 ToMilliseconds(info.LastAccessTimeUtc),
                 Attributes(path),
                 OperatingSystem.IsWindows() ? null : UnixMode(File.GetUnixFileMode(path)),
+                OperatingSystem.IsWindows() ? null : (int)File.GetUnixFileMode(path),
                 LinkTarget(info),
                 null);
         }
@@ -47,7 +48,7 @@ internal static class PathProperties
     }
 
     private static PathPropertiesInfo Failed(string path, string error) =>
-        new(path, Path.GetFileName(path), false, 0, null, 0, 0, 0, [], null, null, error);
+        new(path, Path.GetFileName(path), false, 0, null, 0, 0, 0, [], null, null, null, error);
 
     /// <summary>The attribute flags as tokens, translated by the dialog where it knows them.</summary>
     private static List<string> Attributes(string path) =>

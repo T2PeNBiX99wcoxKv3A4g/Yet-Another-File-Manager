@@ -224,8 +224,20 @@ internal sealed record PathPropertiesInfo(
     long Accessed,
     IReadOnlyList<string> Attributes,
     string? UnixMode,
+    int? UnixModeValue,
     string? LinkTarget,
     string? Error);
+
+/// <summary>What the properties page changes: the flags or the unix mode the user picked.</summary>
+internal sealed record PropertiesEditRequest(
+    string Path,
+    bool? ReadOnly = null,
+    bool? Hidden = null,
+    bool? Archive = null,
+    int? UnixMode = null);
+
+/// <summary>Answer for <c>fs.operation.properties.edit</c>, with the entry as it is afterwards.</summary>
+internal sealed record PropertiesEditResult(bool Ok, string? Error, PathPropertiesInfo? Info);
 
 /// <summary>
 ///     Body for <c>fs.operation.properties</c>: either the shell sheet was opened (<c>System</c>) or
