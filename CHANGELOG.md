@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.44.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.44.1..v0.44.2) - 2026-11-21
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([9051069](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/9051069dee8fb9e006ee08decd7c4f07784618b2))
+
+### Build
+
+- *(native)* Carry the app icon in the helper's resources - ([cb8a6c5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/cb8a6c5d8fba6d037b3b480d81c8c12c6d79a949))
+
+
 ## [0.44.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.44.0..v0.44.1) - 2026-11-21
 
 ### Action
