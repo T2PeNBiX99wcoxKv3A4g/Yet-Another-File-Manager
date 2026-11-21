@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Globalization;
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using PhotinoNetUtils.Data;
@@ -857,18 +856,20 @@ internal static class FolderIndex
             return fallback;
 
         var result = await Database(directory, false).ReadAsync(read);
-        return result.OnFailure(ex =>
-            {
-                // A missing table or column is an old schema; the next write migrates it. Marking
-                // the folder unusable here would stop that write from ever happening.
-                if (IsCorrupt(ex))
-                    Quarantine(directory, ex);
-                else if (IsPermanentReadFailure(ex))
-                    Unusable[directory] = true;
 
-                Log.Debug(ex, "Could not read the index of {Directory}", directory);
-            })
-            .GetOrElse(_ => fallback);
+        if (result.Exception is { } exception)
+        {
+            // A missing table or column is an old schema; the next write migrates it. Marking the
+            // folder unusable here would stop that write from ever happening.
+            if (IsCorrupt(exception))
+                await RecoverAsync(directory);
+            else if (IsPermanentReadFailure(exception))
+                Unusable[directory] = true;
+
+            Log.Debug(exception, "Could not read the index of {Directory}", directory);
+        }
+
+        return result.GetOrElse(_ => fallback);
     }
 
     private static bool IsCorrupt(Exception exception) =>
@@ -879,31 +880,106 @@ internal static class FolderIndex
         exception is SqliteException sqlite && (sqlite.SqliteErrorCode & 0xFF) is 10;
 
     /// <summary>
-    ///     Moves a corrupt index and its WAL side files aside instead of deleting them, so the next
-    ///     write can start a fresh database and the old one is still available for inspection.
+    ///     Tries to repair a corrupt index, then removes it when the main file cannot be read. The
+    ///     data is a cache plus tags; a corrupt file is not something a user can repair by hand, so
+    ///     the next write starts a fresh one instead.
     /// </summary>
-    private static void Quarantine(string directory, Exception exception)
+    private static async Task RecoverAsync(string directory)
     {
-        if (!IsCorrupt(exception))
-            return;
-
-        var stamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString(CultureInfo.InvariantCulture);
-
-        foreach (var suffix in new[] { "", "-wal", "-shm" })
+        var result = await Database(directory, true).ExclusiveAsync(async token =>
         {
-            var path = PathFor(directory) + suffix;
-            Try.Run(() =>
+            var path = PathFor(directory);
+            if (!File.Exists(path))
             {
-                if (File.Exists(path))
-                    File.Move(path, $"{path}.corrupt-{stamp}", true);
-            }).OnFailure(ex => Log.Warning(ex, "Could not quarantine {Path}", path));
-        }
+                DeleteSideFiles(directory);
+                return false;
+            }
 
-        Unusable.TryRemove(directory, out _);
+            // A stale -shm is the cheapest thing to lose: SQLite rebuilds it from -wal.
+            DeleteIndexFile(path + "-shm");
 
-        // A read-only volume cannot move the file; keep it out of the way for this session.
-        if (File.Exists(PathFor(directory)))
+            if (await IntegrityOkAsync(directory, token))
+            {
+                Log.Information("Recovered the index of {Directory} by rebuilding its WAL side files",
+                    directory);
+                Unusable.TryRemove(directory, out _);
+                return true;
+            }
+
+            // The main file may still be readable once a broken WAL is out of the way.
+            DeleteIndexFile(path + "-wal");
+
+            if (await IntegrityOkAsync(directory, token))
+            {
+                Log.Information("Recovered the index of {Directory} by discarding its WAL", directory);
+                Unusable.TryRemove(directory, out _);
+                return true;
+            }
+
+            DeleteIndexFile(path);
+            DeleteSideFiles(directory);
+            Unusable.TryRemove(directory, out _);
+            Log.Warning("The index of {Directory} was corrupt and has been reset", directory);
+            return false;
+        });
+
+        var recovered = result.GetOrElse(_ => false);
+
+        // A read-only volume cannot delete the broken file; keep it out of the way for this session.
+        if (!recovered && File.Exists(PathFor(directory)))
             Unusable[directory] = true;
+    }
+
+    private static async Task<bool> IntegrityOkAsync(string directory, CancellationToken token)
+    {
+        var opened = await Database(directory, true).OpenWriteAsync(token);
+        if (!opened.TryGet(out var connection))
+            return false;
+
+        try
+        {
+            await using (connection)
+            {
+                await using var check = connection.CreateCommand();
+                check.CommandText = "PRAGMA integrity_check";
+
+                if (await check.ExecuteScalarAsync(token) is not "ok")
+                    return false;
+
+                await using var checkpoint = connection.CreateCommand();
+                checkpoint.CommandText = "PRAGMA wal_checkpoint(TRUNCATE)";
+                await checkpoint.ExecuteNonQueryAsync(token);
+                return true;
+            }
+        }
+        catch (Exception exception)
+        {
+            Log.Debug(exception, "Could not check the integrity of {Directory}", directory);
+            return false;
+        }
+    }
+
+    private static void DeleteSideFiles(string directory)
+    {
+        DeleteIndexFile(PathFor(directory) + "-wal");
+        DeleteIndexFile(PathFor(directory) + "-shm");
+    }
+
+    private static void DeleteIndexFile(string path)
+    {
+        Try.Run(() =>
+        {
+            if (!File.Exists(path))
+                return;
+
+            var attributes = File.GetAttributes(path);
+            var writable = attributes & ~(FileAttributes.ReadOnly | FileAttributes.Hidden | FileAttributes.System);
+
+            if (writable != attributes)
+                File.SetAttributes(path, writable);
+
+            File.Delete(path);
+        }).OnFailure(ex => Log.Debug(ex, "Could not remove {Path}", path));
     }
 
     /// <summary>
@@ -964,17 +1040,22 @@ internal static class FolderIndex
         });
 
         if (result.IsSuccess)
-            EnsureHidden(directory);
-
-        return result.OnFailure(ex =>
         {
-            if (IsCorrupt(ex))
-                Quarantine(directory, ex);
+            EnsureHidden(directory);
+            return true;
+        }
+
+        if (result.Exception is { } exception)
+        {
+            if (IsCorrupt(exception))
+                await RecoverAsync(directory);
             else
                 Unusable[directory] = true;
 
-            Log.Warning(ex, "Could not write to the index of {Directory}", directory);
-        }).IsSuccess;
+            Log.Warning(exception, "Could not write to the index of {Directory}", directory);
+        }
+
+        return false;
     }
 
     private static async Task MigrateAsync(SqliteConnection connection, SqliteTransaction transaction,
