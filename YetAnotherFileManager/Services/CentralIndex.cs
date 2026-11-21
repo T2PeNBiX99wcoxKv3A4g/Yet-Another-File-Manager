@@ -45,6 +45,8 @@ internal partial class CentralIndex
             DirectoryKey TEXT NOT NULL,
             Name         TEXT NOT NULL,
             Source       TEXT NOT NULL,
+            Mime         TEXT,
+            Data         BLOB,
             CONSTRAINT PK_Icons PRIMARY KEY (DirectoryKey, Name)
         );
 
@@ -100,6 +102,7 @@ internal partial class CentralIndex
             }
 
             await AddListingColumnsAsync(connection);
+            await AddIconColumnsAsync(connection);
         })).OnFailure(ex => Log.Warning(ex, "Could not initialize the directory index"));
     }
 
@@ -134,6 +137,30 @@ internal partial class CentralIndex
         }
     }
 
+    /// <summary>Adds the byte columns an index written before icon bytes existed does not have.</summary>
+    private static async Task AddIconColumnsAsync(SqliteConnection connection)
+    {
+        var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "PRAGMA table_info(Icons)";
+            await using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+                existing.Add(reader.GetString(1));
+        }
+
+        foreach (var (name, type) in new[] { ("Mime", "TEXT"), ("Data", "BLOB") })
+        {
+            if (existing.Contains(name))
+                continue;
+
+            await using var alter = connection.CreateCommand();
+            alter.CommandText = $"ALTER TABLE Icons ADD COLUMN {name} {type}";
+            await alter.ExecuteNonQueryAsync();
+        }
+    }
+
     /// <summary>Icons recorded for the entries of a directory, by entry name.</summary>
     public async Task<Dictionary<string, string>> IconsAsync(string directory)
     {
@@ -143,13 +170,14 @@ internal partial class CentralIndex
         {
             await using var connection = await OpenAsync();
             await using var command = connection.CreateCommand();
-            command.CommandText = "SELECT Name, Source FROM Icons WHERE DirectoryKey = $key";
+            command.CommandText = "SELECT Name, Source, Mime, Data FROM Icons WHERE DirectoryKey = $key";
             command.Parameters.AddWithValue("$key", KeyFor(directory));
 
             await using var reader = await command.ExecuteReaderAsync();
             var icons = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             while (await reader.ReadAsync())
-                icons[reader.GetString(0)] = reader.GetString(1);
+                if (IconSourceCodec.Read(reader, 1, 2, 3) is { } source)
+                    icons[reader.GetString(0)] = source;
 
             return icons;
         });
@@ -218,12 +246,13 @@ internal partial class CentralIndex
             var icons = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             await using (var command = connection.CreateCommand())
             {
-                command.CommandText = "SELECT Name, Source FROM Icons WHERE DirectoryKey = $key";
+                command.CommandText = "SELECT Name, Source, Mime, Data FROM Icons WHERE DirectoryKey = $key";
                 command.Parameters.AddWithValue("$key", key);
 
                 await using var reader = await command.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
-                    icons[reader.GetString(0)] = reader.GetString(1);
+                    if (IconSourceCodec.Read(reader, 1, 2, 3) is { } source)
+                        icons[reader.GetString(0)] = source;
             }
 
             var sizes = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
@@ -378,15 +407,36 @@ internal partial class CentralIndex
         {
             await using var command = connection.CreateCommand();
             command.Transaction = transaction;
-            command.CommandText = source is null
-                ? "DELETE FROM Icons WHERE DirectoryKey = $key AND Name = $name"
-                : "INSERT INTO Icons (DirectoryKey, Name, Source) VALUES ($key, $name, $source) " +
-                  "ON CONFLICT(DirectoryKey, Name) DO UPDATE SET Source = excluded.Source";
 
-            command.Parameters.AddWithValue("$key", KeyFor(directory));
-            command.Parameters.AddWithValue("$name", name);
-            if (source is not null)
+            if (source is null)
+            {
+                command.CommandText = "DELETE FROM Icons WHERE DirectoryKey = $key AND Name = $name";
+                command.Parameters.AddWithValue("$key", KeyFor(directory));
+                command.Parameters.AddWithValue("$name", name);
+            }
+            else if (IconSourceCodec.Decode(source) is { } icon)
+            {
+                command.CommandText =
+                    "INSERT INTO Icons (DirectoryKey, Name, Source, Mime, Data) " +
+                    "VALUES ($key, $name, '', $mime, $data) " +
+                    "ON CONFLICT(DirectoryKey, Name) DO UPDATE SET Source = '', " +
+                    "Mime = excluded.Mime, Data = excluded.Data";
+                command.Parameters.AddWithValue("$key", KeyFor(directory));
+                command.Parameters.AddWithValue("$name", name);
+                command.Parameters.AddWithValue("$mime", icon.Mime);
+                command.Parameters.AddWithValue("$data", icon.Data);
+            }
+            else
+            {
+                command.CommandText =
+                    "INSERT INTO Icons (DirectoryKey, Name, Source, Mime, Data) " +
+                    "VALUES ($key, $name, $source, NULL, NULL) " +
+                    "ON CONFLICT(DirectoryKey, Name) DO UPDATE SET Source = excluded.Source, " +
+                    "Mime = NULL, Data = NULL";
+                command.Parameters.AddWithValue("$key", KeyFor(directory));
+                command.Parameters.AddWithValue("$name", name);
                 command.Parameters.AddWithValue("$source", source);
+            }
 
             await command.ExecuteNonQueryAsync();
             return true;
@@ -484,7 +534,9 @@ internal partial class CentralIndex
                 modified.Value = entry.Modified;
                 hidden.Value = entry.IsHidden ? 1 : 0;
                 system.Value = entry.IsSystem ? 1 : 0;
-                icon.Value = entry.IconSource is null ? DBNull.Value : entry.IconSource;
+                // The Icons table is the cache; repeating image data in every listing row would
+                // only make the database larger.
+                icon.Value = DBNull.Value;
                 created.Value = entry.Created;
                 target.Value = entry.LinkTarget is null ? DBNull.Value : entry.LinkTarget;
                 valid.Value = entry.LinkValid is null ? DBNull.Value : entry.LinkValid.Value ? 1 : 0;
@@ -553,15 +605,31 @@ internal partial class CentralIndex
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText =
-            "INSERT OR REPLACE INTO Icons (DirectoryKey, Name, Source) VALUES ($key, $name, $source)";
+            "INSERT OR REPLACE INTO Icons (DirectoryKey, Name, Source, Mime, Data) " +
+            "VALUES ($key, $name, $source, $mime, $data)";
         command.Parameters.AddWithValue("$key", KeyFor(directory));
         var name = command.Parameters.Add("$name", SqliteType.Text);
         var source = command.Parameters.Add("$source", SqliteType.Text);
+        var mime = command.Parameters.Add("$mime", SqliteType.Text);
+        var data = command.Parameters.Add("$data", SqliteType.Blob);
 
         foreach (var (entry, value) in icons)
         {
             name.Value = entry;
-            source.Value = value;
+
+            if (IconSourceCodec.Decode(value) is { } icon)
+            {
+                source.Value = "";
+                mime.Value = icon.Mime;
+                data.Value = icon.Data;
+            }
+            else
+            {
+                source.Value = value;
+                mime.Value = DBNull.Value;
+                data.Value = DBNull.Value;
+            }
+
             await command.ExecuteNonQueryAsync();
         }
     }
