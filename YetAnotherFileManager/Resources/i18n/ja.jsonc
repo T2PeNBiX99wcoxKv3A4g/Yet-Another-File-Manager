@@ -717,6 +717,7 @@
   "the_delete_button_in_the_protected_folder_dialog_stays_disabled_for_this_many_seconds_at_least_2": "保護フォルダーのダイアログで削除ボタンが無効なままになる秒数です。2 以上。",
   "rules_are_full_path_globs_stays_inside_one_name_crosses_folders_and_matches_one_character_a_rule_without_a_folder_part_such_as_log_applies_to_that_name_at_any_depth_vars_vars_and_are_expanded_first": "ルールはフルパスの glob です。* は同じ階層の名前内、** はフォルダーをまたぎ、? は 1 文字に一致します。*.log のようにフォルダー部分がないルールは、任意の深さの同名ファイルに適用されます。%VAR%、$VAR、~ は最初に展開されます。",
   "restore_defaults": "既定値に戻す",
+  "restore_section_to_its_defaults": "「{section}」を既定値に戻しますか？",
   "time_format": "時刻の形式",
   "format": "形式",
   "k_24_hour": "24 時間制",

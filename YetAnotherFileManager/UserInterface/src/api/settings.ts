@@ -247,8 +247,18 @@ const fallback: AppSettings = {
 export async function getSettings(): Promise<AppSettings> {
     if (!Native.available) return fallback;
 
-    const raw = await Native.request<Partial<AppSettings> | null>("settings.get");
+    return normalize(await Native.request<Partial<AppSettings> | null>("settings.get"));
+}
 
+/** The values a fresh install starts with, shaped the same way <see cref="getSettings"/> is. */
+export async function getSettingDefaults(): Promise<AppSettings> {
+    if (!Native.available) return fallback;
+
+    return normalize(await Native.request<Partial<AppSettings> | null>("settings.defaults"));
+}
+
+/** Fills a host answer with the built-in value for every key the host left out. */
+function normalize(raw: Partial<AppSettings> | null): AppSettings {
     return {
         systemIcons: raw?.systemIcons ?? true,
         customFolderIcons: raw?.customFolderIcons ?? true,

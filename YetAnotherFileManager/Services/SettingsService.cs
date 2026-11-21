@@ -1,5 +1,6 @@
 using System.Text.Json;
 using PhotinoNetUtils.Localization;
+using PhotinoNetUtils.Messaging;
 using PhotinoNetUtils.Services;
 using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
@@ -77,6 +78,17 @@ internal sealed class SettingsService : SettingsServiceBase<SettingsService, App
 
     /// <summary>The settings as the interface reads them, with the protection rules filled in.</summary>
     protected override AppSettings Payload() => Protection.Resolve(Current);
+
+    /// <summary>
+    ///     Answers <c>settings.defaults</c> with the values a fresh install starts from, so a section's
+    ///     reset button can merge only the keys that section owns instead of keeping its own copy of
+    ///     every default. The protection rules are resolved the same way <c>settings.get</c> does, or
+    ///     a reset would store an empty list and turn the safety rules off.
+    /// </summary>
+    protected override Task<NativeResponse?> HandleExtraAsync(NativeContext context) =>
+        Task.FromResult<NativeResponse?>(context.Request.Type == "settings.defaults"
+            ? context.Reply("settings.defaults.result", Protection.Resolve(AppSettings.Default))
+            : null);
 
     /// <summary>
     ///     Keeps the fields the interface must not own: the window records its own tabs, and the

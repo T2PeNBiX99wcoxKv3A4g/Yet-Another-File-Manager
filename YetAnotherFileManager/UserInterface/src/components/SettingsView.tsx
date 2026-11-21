@@ -28,6 +28,7 @@ import {
     getArchiveStatus,
     getDefaultManagerStatus,
     getDefaultProtectedPaths,
+    getSettingDefaults,
     getSettings,
     registerArchiveHandler,
     saveSettings,
@@ -61,6 +62,7 @@ import {
 } from "../api/system";
 import {requestFile, requestFolder} from "../folder-picker";
 import {SelectMenu} from "./SelectMenu";
+import {ConfirmDialog} from "./ConfirmDialog";
 import {type PageFind, useTextSearch} from "../ui/textSearch";
 import {createTag, deleteTag, listTags, renameTag, setTagColor, type TagCatalogEntry} from "../api/tags";
 import {
@@ -304,6 +306,32 @@ const SectionGlyphs: Partial<Record<LocalizationKey, ReactNode>> = {
     files: <EyeIcon size={13}/>,
 };
 
+/**
+ * The stored settings each section owns, so its reset button restores exactly what is on screen.
+ * Values changed through their own message (the folder handler, the archive and link
+ * registrations, the startup entry, the open tabs) are left out: a settings save cannot move them.
+ */
+const SectionSettings: Partial<Record<string, (keyof AppSettings)[]>> = {
+    application: ["language", "pickerWindowWidth", "pickerWindowHeight", "sharePortMode", "sharePort",
+        "linkPathMode", "restoreTabs"],
+    "share-access": ["shareAccessEnabled", "shareApprovalMinutes", "shareDenialSeconds", "shareHttps"],
+    startup: ["startHidden"],
+    fonts: ["fonts"],
+    time: ["timeFormat", "timeFormatPattern", "relativeTime", "relativeTimeWindowMinutes"],
+    colors: ["accentColor", "secondaryColor", "themeMode", "themePresets"],
+    background: ["backgroundSource", "backgroundCustom", "backgroundBlur", "backgroundSaturation",
+        "backgroundBrightness", "backgroundLooks"],
+    safety: ["protectedPaths", "deleteDelaySeconds"],
+    "files-view": ["defaultView", "showCheckboxes", "openOnSingleClick", "confirmDelete",
+        "previewVideoAudio", "previewVideoAutoplay", "trayAutoShow", "conflictNameStyle"],
+    shortcuts: ["shortcuts", "globalHotkey"],
+    overview: ["recentLimit"],
+    gallery: ["galleryRoots"],
+    icons: ["systemIcons", "customFolderIcons"],
+    "extension-icons": ["extensionIcons"],
+    "folder-index": ["writeDirectoryIndex", "directoryIndexBlacklist"],
+};
+
 type ColorRole = "accent" | "secondary";
 
 /** Colours the user applied before, most recent first; kept locally like the recycle bin sort. */
@@ -371,6 +399,9 @@ export function SettingsView({
     const [updateBusy, setUpdateBusy] = useState(false);
     const [updateError, setUpdateError] = useState<string | null>(null);
     const [updateDialog, setUpdateDialog] = useState<UpdateDialogState | null>(null);
+
+    /** The section whose reset button was pressed, waiting for the confirmation. */
+    const [resetAsk, setResetAsk] = useState<{ id: string; label: LocalizationKey } | null>(null);
 
     /** Guards the automatic install so a re-render cannot start the installer twice. */
     const installStarted = useRef(false);
@@ -622,6 +653,28 @@ export function SettingsView({
         setSettings(await saveSettings(next));
         // The window keeps its own copy of the settings; a toggle here has to reach it too.
         onSettingsChanged();
+    };
+
+    /**
+     * Puts the stored settings one section owns back to the values a fresh install starts from. The
+     * defaults arrive from the host, so this page never keeps a second copy of them; the startup
+     * entry resets through its own message because a settings save cannot move it.
+     */
+    const resetSection = async (id: string) => {
+        if (!settings) return;
+
+        if (id === "startup") {
+            await changeStartup("none");
+            await update({startHidden: false});
+            return;
+        }
+
+        const keys = SectionSettings[id];
+        if (!keys?.length) return;
+
+        const defaults = await getSettingDefaults();
+        const patch = Object.fromEntries(keys.map((key) => [key, defaults[key]])) as Partial<AppSettings>;
+        await update(patch);
     };
 
     /** The blur, saturation and brightness a background was last left at. */
@@ -1479,6 +1532,7 @@ export function SettingsView({
                     <Head
                         note="the_build_its_yafm_links_and_what_reopens_at_launch"
                         title="application"
+                        onReset={() => setResetAsk({id: "application", label: "application"})}
                     />
                     <Rows>
                         <Row>
@@ -1715,7 +1769,8 @@ export function SettingsView({
                 </Section>
 
                 <Section ref={anchor("share-access")}>
-                    <Head note="share_access_note" title="share_access"/>
+                    <Head note="share_access_note" title="share_access"
+                          onReset={() => setResetAsk({id: "share-access", label: "share_access"})}/>
                     <Rows>
                         <Row>
                             <RowText>
@@ -1884,6 +1939,7 @@ export function SettingsView({
                     <Head
                         note="how_the_app_joins_your_login_session_and_whether_it_opens_quietly_in_the_tray"
                         title="startup"
+                        onReset={() => setResetAsk({id: "startup", label: "startup"})}
                     />
                     <Rows>
                         <Row>
@@ -1931,6 +1987,7 @@ export function SettingsView({
                     <Head
                         note="choose_the_font_each_part_of_the_interface_uses_every_font_installed_on_this_system_is_listed_each_one_drawn_in_its_own_face"
                         title="fonts"
+                        onReset={() => setResetAsk({id: "fonts", label: "fonts"})}
                     />
                     <Rows>
                         {FontRoles.map((role) => (
@@ -1969,6 +2026,7 @@ export function SettingsView({
                     <Head
                         note="every_timestamp_in_the_interface_uses_this_format_follow_the_system_force_24_hour_or_12_hour_time_or_define_your_own_pattern"
                         title="time_format"
+                        onReset={() => setResetAsk({id: "time", label: "time_format"})}
                     />
                     <Rows>
                         <Block>
@@ -2138,6 +2196,7 @@ export function SettingsView({
                     <Head
                         note="the_accent_and_highlight_colours_the_whole_window_uses"
                         title="colors"
+                        onReset={() => setResetAsk({id: "colors", label: "colors"})}
                     />
                     <Rows>
                         <Block>
@@ -2330,6 +2389,7 @@ export function SettingsView({
                     <Head
                         note="a_picture_or_video_behind_the_whole_window_from_the_title_bar_to_the_bottom"
                         title="background"
+                        onReset={() => setResetAsk({id: "background", label: "background"})}
                     />
                     <Rows>
                         <Block>
@@ -2504,6 +2564,7 @@ export function SettingsView({
                     <Head
                         note="deleting_moving_renaming_or_writing_to_a_protected_folder_anything_inside_a_recursive_entry_or_a_folder_that_contains_one_always_waits_for_an_explicit_confirmation"
                         title="safety"
+                        onReset={() => setResetAsk({id: "safety", label: "safety"})}
                     />
                     <Rows>
                         <Block>
@@ -2735,6 +2796,7 @@ export function SettingsView({
                         note="the_defaults_every_folder_starts_with_a_folder_can_still_override_them"
                         title="files_view"
                         global
+                        onReset={() => setResetAsk({id: "files-view", label: "files_view"})}
                     />
                     <Rows>
                         <Row>
@@ -3007,6 +3069,7 @@ export function SettingsView({
                     <Head
                         note="every_action_can_hold_several_combinations_click_one_to_record_it_again_add_one_with_the_plus_and_drop_one_with_the_cross"
                         title="shortcuts"
+                        onReset={() => setResetAsk({id: "shortcuts", label: "shortcuts"})}
                     />
                     <Rows>
                         {AllShortcutRows.map(({id, label, note}) => {
@@ -3172,6 +3235,7 @@ export function SettingsView({
                     <Head
                         note="the_home_tab_s_history_and_how_much_of_it_it_shows"
                         title="overview"
+                        onReset={() => setResetAsk({id: "overview", label: "overview"})}
                     />
                     <Rows>
                         <Row>
@@ -3195,6 +3259,7 @@ export function SettingsView({
                     <Head
                         note="the_folders_the_gallery_scans_for_pictures_and_videos"
                         title="gallery"
+                        onReset={() => setResetAsk({id: "gallery", label: "gallery"})}
                     />
                     <Rows>
                         {(settings?.galleryRoots ?? []).map((path) => (
@@ -3237,6 +3302,7 @@ export function SettingsView({
                     <Head
                         note="where_the_shell_s_own_icons_and_the_built_in_glyphs_come_from"
                         title="icons"
+                        onReset={() => setResetAsk({id: "icons", label: "icons"})}
                     />
                     <Rows>
                         <Row>
@@ -3276,6 +3342,7 @@ export function SettingsView({
                     <Head
                         note="a_custom_glyph_for_one_file_extension"
                         title="icons_by_extension"
+                        onReset={() => setResetAsk({id: "extension-icons", label: "icons_by_extension"})}
                     />
                     <Rows>
                         {Object.entries(settings?.extensionIcons ?? {})
@@ -3377,6 +3444,7 @@ export function SettingsView({
                     <Head
                         note="the_hidden_cache_that_makes_a_folder_open_instantly_next_time"
                         title="folder_index"
+                        onReset={() => setResetAsk({id: "folder-index", label: "folder_index"})}
                     />
                     <Rows>
                         <Row>
@@ -3551,6 +3619,21 @@ export function SettingsView({
                 <Suspense fallback={null}>
                     <AttributionDialog onClose={() => setAttributionOpen(false)}/>
                 </Suspense>
+            )}
+
+            {resetAsk && (
+                <ConfirmDialog
+                    confirmLabel={t("restore_defaults")}
+                    message={t("restore_section_to_its_defaults", {section: t(resetAsk.label)})}
+                    onCancel={() => setResetAsk(null)}
+                    onConfirm={() => {
+                        const ask = resetAsk;
+                        setResetAsk(null);
+                        void resetSection(ask.id);
+                    }}
+                    open
+                    title={t("restore_defaults")}
+                />
             )}
 
             {updateDialog && createPortal(
@@ -4033,7 +4116,12 @@ function RecentSwatches({colors, current, onApply}: {
 }
 
 /** The title block above a card; every section explains itself in one line. */
-function Head({title, note, global = false}: { title: LocalizationKey; note: LocalizationKey; global?: boolean }) {
+function Head({title, note, global = false, onReset}: {
+    title: LocalizationKey;
+    note: LocalizationKey;
+    global?: boolean;
+    onReset?: () => void;
+}) {
     const t = useTranslation();
 
     return (
@@ -4043,6 +4131,11 @@ function Head({title, note, global = false}: { title: LocalizationKey; note: Loc
                 {t(title)}{global && <GlobalTag/>}
             </h2>
             <p>{t(note)}</p>
+            {onReset && (
+                <SectionReset onClick={onReset} title={t("restore_defaults")} type="button">
+                    <RefreshIcon size={11}/>{t("restore_defaults")}
+                </SectionReset>
+            )}
         </SectionHead>
     );
 }
@@ -4079,6 +4172,8 @@ const SectionHead = styled.header`
     display: flex;
     flex-direction: column;
     gap: 2px;
+    position: relative;
+    padding-right: 120px;
 
     h2 {
         display: flex;
@@ -4102,6 +4197,35 @@ const SectionHead = styled.header`
         padding-left: 32px;
         font-size: 10.5px;
         color: var(--text-muted);
+    }
+`;
+
+/** Restores the settings on screen; it sits in the section header, out of the way of the rows. */
+const SectionReset = styled.button`
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 10.5px;
+    cursor: pointer;
+
+    &:hover {
+        border-color: var(--border-color-hover);
+        background: var(--bg-card-hover);
+        color: var(--text-primary);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--border-color-focus);
+        outline-offset: 1px;
     }
 `;
 

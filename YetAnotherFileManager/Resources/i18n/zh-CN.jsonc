@@ -717,6 +717,7 @@
   "the_delete_button_in_the_protected_folder_dialog_stays_disabled_for_this_many_seconds_at_least_2": "受保护文件夹对话框的删除按钮会停用这么多秒，至少 2 秒。",
   "rules_are_full_path_globs_stays_inside_one_name_crosses_folders_and_matches_one_character_a_rule_without_a_folder_part_such_as_log_applies_to_that_name_at_any_depth_vars_vars_and_are_expanded_first": "规则是完整路径的 glob：* 只匹配同一层名称内的内容，** 可跨文件夹，? 匹配单个字符。没有文件夹部分的规则（例如 *.log）会应用到任意深度的同名文件。检查前会先展开 %VAR%、$VAR 和 ~。",
   "restore_defaults": "恢复默认值",
+  "restore_section_to_its_defaults": "将「{section}」还原为默认值？",
   "time_format": "时间格式",
   "format": "格式",
   "k_24_hour": "24 小时制",

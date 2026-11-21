@@ -638,6 +638,7 @@ declare module "@photino-net-utils/bridge"
         "restored_done_of_total_items": true;
         "restore_defaults": true;
         "restore_default_panels": true;
+        "restore_section_to_its_defaults": true;
         "restore_to_its_original_folder": true;
         "returns_the_interface_to_the_default_blue_and_indigo_theme": true;
         "returns_this_background_to_the_default_blur_saturation_and_brightness": true;
