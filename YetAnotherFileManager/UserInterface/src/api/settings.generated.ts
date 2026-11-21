@@ -140,4 +140,6 @@ export interface AppSettingsGenerated {
     relativeTime: boolean | null;
     /** How recent a timestamp must be to be shown relative, in minutes. */
     relativeTimeWindowMinutes: number | null;
+    /** Properties opens the Windows property sheet instead of the app's own page. */
+    systemPropertiesSheet: boolean | null;
 }

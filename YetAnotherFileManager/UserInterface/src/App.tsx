@@ -53,6 +53,8 @@ import {CompressDialog} from "./components/CompressDialog";
 import {Wallpaper} from "./components/Wallpaper";
 import {ProtectedDeleteDialog} from "./components/ProtectedDeleteDialog";
 import {MessageDialog} from "./components/MessageDialog";
+import {PropertiesDialog} from "./components/PropertiesDialog";
+import {usePropertiesRequest} from "./api/properties";
 import {ElevationDialog} from "./components/ElevationDialog";
 import {PasswordDialog} from "./components/PasswordDialog";
 import {type ProtectedPrompt, setProtectedAsker} from "./api/safety";
@@ -346,6 +348,7 @@ export default function App() {
     const [update, setUpdate] = useState<UpdateCheck | null>(null);
     const [settingsFocus, setSettingsFocus] = useState<string | null>(null);
     const corners = useWindowCorners();
+    const propertiesRequest = usePropertiesRequest();
     const [find, setFind] = useState<FindState>(EmptyFind);
     const [findIndex, setFindIndex] = useState(0);
     const [findFocus, setFindFocus] = useState(0);
@@ -3372,6 +3375,7 @@ export default function App() {
                 <MessageDialog/>
                 <PasswordDialog/>
                 <ElevationDialog/>
+                {propertiesRequest && <PropertiesDialog request={propertiesRequest}/>}
                 {sharePair && (
                     <SharePairDialog
                         code={sharePair.code}

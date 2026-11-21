@@ -907,5 +907,15 @@
   "compress_named_item": "Compress {0}",
   "extract_named_item": "Extract {0}",
   "cancelled": "Cancelled.",
-  "scan_the_code_to_open_this_share_on_a_phone": "Scan the code to open this share on a phone."
+  "scan_the_code_to_open_this_share_on_a_phone": "Scan the code to open this share on a phone.",
+  "accessed": "Accessed",
+  "permissions": "Permissions",
+  "link_target": "Link target",
+  "windows_properties": "Windows properties",
+  "read_only": "Read-only",
+  "compressed": "Compressed",
+  "temporary": "Temporary",
+  "properties_opens_the_windows_page_with_its_security_and_details_tabs_instead_of_the_page_built_into_the_app": "Properties opens the Windows page, with its security and details tabs, instead of the page built into the app.",
+  "show_in_file_manager": "Show in file manager",
+  "selection": "Selection"
 }

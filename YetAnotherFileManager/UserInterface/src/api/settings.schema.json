@@ -550,6 +550,13 @@
         "null"
       ],
       "description": "How recent a timestamp must be to be shown relative, in minutes."
+    },
+    "systemPropertiesSheet": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Properties opens the Windows property sheet instead of the app's own page."
     }
   },
   "additionalProperties": false

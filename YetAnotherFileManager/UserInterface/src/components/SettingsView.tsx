@@ -313,7 +313,7 @@ const SectionGlyphs: Partial<Record<LocalizationKey, ReactNode>> = {
  */
 const SectionSettings: Partial<Record<string, (keyof AppSettings)[]>> = {
     application: ["language", "pickerWindowWidth", "pickerWindowHeight", "sharePortMode", "sharePort",
-        "linkPathMode", "restoreTabs"],
+        "linkPathMode", "restoreTabs", "systemPropertiesSheet"],
     "share-access": ["shareAccessEnabled", "shareApprovalMinutes", "shareDenialSeconds", "shareHttps"],
     startup: ["startHidden"],
     fonts: ["fonts"],
@@ -1590,6 +1590,24 @@ export function SettingsView({
                                 />
                             </RowEnd>
                         </Row>
+                        {isWindows && (
+                            <Row>
+                                <RowText>
+                                    <Label>{t("windows_properties")}</Label>
+                                    <Note>{t("properties_opens_the_windows_page_with_its_security_and_details_tabs_instead_of_the_page_built_into_the_app")}</Note>
+                                </RowText>
+                                <RowEnd>
+                                    <Toggle
+                                        $on={settings?.systemPropertiesSheet ?? false}
+                                        disabled={!settings}
+                                        onClick={() => void update({systemPropertiesSheet: !settings?.systemPropertiesSheet})}
+                                        type="button"
+                                    >
+                                        <Knob/>
+                                    </Toggle>
+                                </RowEnd>
+                            </Row>
+                        )}
                         <Row>
                             <RowText>
                                 <Label>{t("web_server_port")}</Label>

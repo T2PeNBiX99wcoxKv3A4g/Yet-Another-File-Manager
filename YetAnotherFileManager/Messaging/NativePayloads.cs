@@ -212,6 +212,31 @@ internal sealed record PathsPayload(List<string> Paths);
 /// <summary>One running program that holds one of the paths a delete was asked to remove.</summary>
 internal sealed record RunningProgram(string Name, int Id, string Path);
 
+/// <summary>One path the extra properties dialog shows.</summary>
+internal sealed record PathPropertiesInfo(
+    string Path,
+    string Name,
+    bool Directory,
+    long Size,
+    long? Entries,
+    long Created,
+    long Modified,
+    long Accessed,
+    IReadOnlyList<string> Attributes,
+    string? UnixMode,
+    string? LinkTarget,
+    string? Error);
+
+/// <summary>
+///     Body for <c>fs.operation.properties</c>: either the shell sheet was opened (<c>System</c>) or
+///     the window shows these entries itself. <c>CanUseSystemSheet</c> is true only where the shell
+///     has a property sheet at all.
+/// </summary>
+internal sealed record PropertiesPayload(
+    bool System,
+    IReadOnlyList<PathPropertiesInfo>? Items = null,
+    bool CanUseSystemSheet = false);
+
 /// <summary>Payload for <c>fs.operation.delete</c>: the paths and whether they bypass the recycle bin.</summary>
 internal sealed record DeleteRequest(List<string> Paths, bool Permanent, string? Confirm = null, bool RunningConfirmed = false);
 

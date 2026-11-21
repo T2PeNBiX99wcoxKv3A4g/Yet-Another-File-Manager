@@ -1095,7 +1095,7 @@ internal static partial class FileOperations
         return Path.Combine(directory, $"{baseName} {Guid.NewGuid():N}{extension}");
     }
 
-    /// <summary>Opens the shell's properties sheet for the first selected entry.</summary>
+    /// <summary>Opens the shell's properties sheet for the selected entries.</summary>
     public static Task ShowPropertiesAsync(IReadOnlyList<string> paths) =>
         Task.Run(() =>
         {
@@ -1104,6 +1104,26 @@ internal static partial class FileOperations
 
             ShowWindowsProperties(paths[0]);
         });
+
+    /// <summary>
+    ///     The window's properties action. Windows can open its own sheet (either because the user
+    ///     asked for that, or because the dialog's button did); everything else answers with the
+    ///     details the app's own dialog draws.
+    /// </summary>
+    public static async Task<PropertiesPayload> PropertiesAsync(IReadOnlyList<string> paths)
+    {
+        if (paths.Count == 0)
+            return new(false, [], OperatingSystem.IsWindows());
+
+        if (OperatingSystem.IsWindows() && SettingsService.Instance.Current.UsesSystemPropertiesSheet)
+        {
+            await ShowPropertiesAsync(paths);
+            return new(true);
+        }
+
+        var items = await Task.Run(() => paths.Take(64).Select(PathProperties.Read).ToList());
+        return new(false, items, OperatingSystem.IsWindows());
+    }
 
     [SupportedOSPlatform("windows")]
     private static void ShowWindowsProperties(string path)

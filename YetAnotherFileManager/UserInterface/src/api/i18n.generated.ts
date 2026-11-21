@@ -9,6 +9,7 @@ declare module "@photino-net-utils/bridge"
         "absolute": true;
         "accent_color": true;
         "accept": true;
+        "accessed": true;
         "active": true;
         "activity": true;
         "add": true;
@@ -148,6 +149,7 @@ declare module "@photino-net-utils/bridge"
         "committed_of_available_the_runtime_can_use_resident_is_resident_the_webview_runs_in_its_own_process": true;
         "compacts_the_heap_and_returns_unused_pages_to_the_system_always_safe": true;
         "compress": true;
+        "compressed": true;
         "compressing": true;
         "compression_level": true;
         "compress_named_item": true;
@@ -384,6 +386,7 @@ declare module "@photino-net-utils/bridge"
         "links": true;
         "link_paths": true;
         "link_status": true;
+        "link_target": true;
         "link_target_after_the_name": true;
         "list": true;
         "list_icon_size": true;
@@ -545,6 +548,7 @@ declare module "@photino-net-utils/bridge"
         "permanently_delete_every_leftover_record_including_the_ones_owned_by_other_profiles_this_cannot_be_undone": true;
         "permanently_delete_n_items": true;
         "permanently_delete_target_this_cannot_be_undone": true;
+        "permissions": true;
         "picker_window_size": true;
         "picture": true;
         "pin_any_file_here": true;
@@ -576,6 +580,7 @@ declare module "@photino-net-utils/bridge"
         "programs_are_using_target_close_them_and_try_again": true;
         "programs_are_using_target_continue": true;
         "properties": true;
+        "properties_opens_the_windows_page_with_its_security_and_details_tabs_instead_of_the_page_built_into_the_app": true;
         "protected_by_pattern": true;
         "protected_folder": true;
         "protected_folders": true;
@@ -591,6 +596,7 @@ declare module "@photino-net-utils/bridge"
         "reading_the_current_usage": true;
         "reads_the_current_folder_again": true;
         "reads_the_version_file_the_release_workflow_publishes": true;
+        "read_only": true;
         "recent": true;
         "recently_closed_tabs": true;
         "recent_items": true;
@@ -667,6 +673,7 @@ declare module "@photino-net-utils/bridge"
         "sections": true;
         "seek": true;
         "select": true;
+        "selection": true;
         "selection_checkboxes": true;
         "selection_menu": true;
         "selects_everything_that_is_not_selected": true;
@@ -737,6 +744,7 @@ declare module "@photino-net-utils/bridge"
         "show_file_tray": true;
         "show_hidden_files": true;
         "show_in_explorer": true;
+        "show_in_file_manager": true;
         "show_metadata_records_whose_content_is_already_gone": true;
         "show_recent_timestamps_as_seconds_and_minutes_ago": true;
         "simplified_chinese_cp936": true;
@@ -778,6 +786,7 @@ declare module "@photino-net-utils/bridge"
         "tar_b_zip2": true;
         "tar_g_zip": true;
         "teal": true;
+        "temporary": true;
         "text_file": true;
         "text_preview": true;
         "thai_cp874": true;
@@ -902,6 +911,7 @@ declare module "@photino-net-utils/bridge"
         "what_the_process_holds_and_how_to_give_it_back": true;
         "when_this_is_off_opening_an_archive_uses_the_system_s_default_application_instead": true;
         "where_the_shell_s_own_icons_and_the_built_in_glyphs_come_from": true;
+        "windows_properties": true;
         "working": true;
         "writes_into_this_folder": true;
         "write_anyway": true;

@@ -106,6 +106,8 @@ export interface AppSettings {
     relativeTime: boolean;
     /** How recent a timestamp must be to be shown relative, in minutes. */
     relativeTimeWindowMinutes: number;
+    /** Windows only: Properties opens the shell sheet instead of the app's own page. */
+    systemPropertiesSheet: boolean;
     /** Preferred width of the standalone folder/file picker window. */
     pickerWindowWidth: number;
     /** Preferred height of the standalone folder/file picker window. */
@@ -220,6 +222,7 @@ const fallback: AppSettings = {
     timeFormatPattern: "yyyy/MM/dd HH:mm",
     relativeTime: true,
     relativeTimeWindowMinutes: 60,
+    systemPropertiesSheet: false,
     pickerWindowWidth: 1200,
     pickerWindowHeight: 800,
     linkPathMode: "relative",
@@ -308,6 +311,7 @@ function normalize(raw: Partial<AppSettings> | null): AppSettings {
         timeFormatPattern: raw?.timeFormatPattern ?? "yyyy/MM/dd HH:mm",
         relativeTime: raw?.relativeTime ?? true,
         relativeTimeWindowMinutes: raw?.relativeTimeWindowMinutes ?? 60,
+        systemPropertiesSheet: raw?.systemPropertiesSheet ?? false,
         pickerWindowWidth: raw?.pickerWindowWidth ?? 1200,
         pickerWindowHeight: raw?.pickerWindowHeight ?? 800,
         linkPathMode: raw?.linkPathMode ?? "relative",
@@ -448,6 +452,7 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
         timeFormatPattern: saved?.timeFormatPattern ?? settings.timeFormatPattern,
         relativeTime: saved?.relativeTime ?? settings.relativeTime,
         relativeTimeWindowMinutes: saved?.relativeTimeWindowMinutes ?? settings.relativeTimeWindowMinutes,
+        systemPropertiesSheet: saved?.systemPropertiesSheet ?? settings.systemPropertiesSheet,
         pickerWindowWidth: saved?.pickerWindowWidth ?? settings.pickerWindowWidth,
         pickerWindowHeight: saved?.pickerWindowHeight ?? settings.pickerWindowHeight,
         linkPathMode: saved?.linkPathMode ?? settings.linkPathMode,

@@ -34,6 +34,7 @@ import {type FindQuery, type FindView, NoFind, rangesOf} from "../find";
 import {canPreview, PreviewKindLabels, previewKindOf} from "../preview";
 import {quickPlace, useQuickAccess} from "../quick";
 import {baseName, formatBytes, formatDate, plural, samePath} from "../utils/format";
+import {typeLabel} from "../utils/fileType";
 import {Timestamp} from "./Timestamp";
 import {readStoredJson, readStoredNumber, writeStoredJson, writeStoredNumber} from "../storage";
 import {CheckIcon, CutIcon, FolderIcon, LinkIcon, LockIcon} from "./Icons";
@@ -1555,7 +1556,7 @@ export function FileList({
             modified: previewEntry.modified,
             created: previewEntry.created,
             fields: [
-                {label: t("type"), value: typeLabel(previewEntry, t)},
+                {label: t("type"), value: typeLabel(previewEntry.name, previewEntry.isDirectory, previewEntry.linkTarget, t)},
                 ...(previewEntry.isEncrypted
                     ? [{label: t("encryption"), value: t("password_required")}]
                     : []),
@@ -2068,7 +2069,7 @@ function sortRows(rows: RowModel[], view: ResolvedView, listing: DirectoryListin
     const value = (entry: FileEntry): string | number => {
         switch (view.sort) {
             case "type":
-                return typeLabel(entry, t);
+                return typeLabel(entry.name, entry.isDirectory, entry.linkTarget, t);
             case "size":
                 return entry.isDirectory ? listing.folderSizes[entry.name] ?? 0 : entry.size;
             case "modified":
@@ -2150,52 +2151,12 @@ function gridIconSize(gridSize: number): number {
     return Math.max(24, Math.min(gridSize - 56, 160));
 }
 
-/** Human labels for the file categories the extension map knows. */
-const TypeLabels: Record<string, LocalizationKey> = {
-    file: "file",
-    folder: "folder",
-    text: "text_file",
-    code: "source_file",
-    image: "image",
-    video: "video_2",
-    audio: "audio",
-    archive: "archive",
-    pdf: "pdf",
-    executable: "application",
-    font: "font",
-    database: "database",
-    config: "configuration",
-    spreadsheet: "spreadsheet",
-    presentation: "presentation",
-    document: "document",
-};
-
-/** What the Type column says: a shortcut and a symbolic link must not look the same. */
-function typeLabel(entry: FileEntry, t: Translate): string {
-    const lower = entry.name.toLowerCase();
-
-    if (lower.endsWith(".lnk"))
-        return t("shortcut");
-    if (lower.endsWith(".url") || lower.endsWith(".website"))
-        return t("internet_shortcut");
-    if (entry.linkTarget != null)
-        return entry.isDirectory ? t("folder_link") : t("symbolic_link");
-    if (entry.isDirectory)
-        return t("folder");
-
-    const dot = entry.name.lastIndexOf(".");
-    const extension = dot > 0 && dot < entry.name.length - 1 ? entry.name.slice(dot + 1).toUpperCase() : "";
-    const kind = t(TypeLabels[iconForName(entry.name)] ?? "file");
-
-    return extension.length > 0 ? `${extension} ${kind}` : t("file");
-}
-
 /** What one list cell shows. */
 function cellValue(column: string, entry: FileEntry, folderSizes: Record<string, number>,
                    counts: Record<string, number>, t: Translate): string {
     switch (column) {
         case "type":
-            return typeLabel(entry, t);
+            return typeLabel(entry.name, entry.isDirectory, entry.linkTarget, t);
         case "size":
             return sizeOf(entry, folderSizes);
         case "modified":
@@ -2523,9 +2484,9 @@ const GridTile = memo(function GridTile({
                 <TileMeta>
                     {row.entry.isDirectory
                         ? (itemCount === undefined
-                            ? typeLabel(row.entry, t)
-                            : t("type_count_items", {type: typeLabel(row.entry, t), count: itemCount}))
-                        : t("type_size", {type: typeLabel(row.entry, t), size: formatBytes(row.entry.size)})}
+                            ? typeLabel(row.entry.name, row.entry.isDirectory, row.entry.linkTarget, t)
+                            : t("type_count_items", {type: typeLabel(row.entry.name, row.entry.isDirectory, row.entry.linkTarget, t), count: itemCount}))
+                        : t("type_size", {type: typeLabel(row.entry.name, row.entry.isDirectory, row.entry.linkTarget, t), size: formatBytes(row.entry.size)})}
                 </TileMeta>
                 {showTarget && row.entry.linkTarget && (
                     <LinkBadge $block $broken={row.entry.linkValid === false} title={row.entry.linkTarget}>

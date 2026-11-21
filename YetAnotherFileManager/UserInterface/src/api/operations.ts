@@ -1,4 +1,5 @@
 import {Native} from "@photino-net-utils/bridge";
+import {openProperties, type PathPropertiesInfo} from "./properties";
 import {askProtected, type GuardedChange} from "./safety";
 
 /** The result of a rename or new-folder operation. */
@@ -193,12 +194,12 @@ export async function newFolder(directory: string, caseSensitive = false): Promi
     return await Native.request<PathOperation>("fs.operation.newFolder", {directory, caseSensitive});
 }
 
-/** Whether names in a folder are compared with case. */
-export async function isCaseSensitive(path: string): Promise<boolean> {
-    if (!Native.available) return false;
+/** Whether names in a folder are compared with case; null when the platform has no such flag. */
+export async function isCaseSensitive(path: string): Promise<boolean | null> {
+    if (!Native.available) return null;
 
     const data = await Native.request<{ ok: boolean; enabled: boolean }>("fs.caseSensitive.get", {path});
-    return data.enabled;
+    return data.ok ? data.enabled : null;
 }
 
 export interface CaseSensitiveResult {
@@ -240,11 +241,26 @@ export async function newFile(directory: string, extension?: string | null): Pro
     return await Native.request<PathOperation>("fs.operation.newFile", {directory, extension});
 }
 
-/** Opens the shell's properties sheet for the selected entries. */
+/** Opens the shell's property sheet for the selected entries, or the app's own page. */
 export async function showProperties(paths: string[]): Promise<void> {
     if (!Native.available || paths.length === 0) return;
 
-    await Native.request("fs.operation.properties", {paths});
+    const result = await Native.request<{
+        system?: boolean;
+        items?: PathPropertiesInfo[];
+        canUseSystemSheet?: boolean;
+    }>("fs.operation.properties", {paths});
+
+    if (result.system || !result.items?.length) return;
+
+    openProperties({items: result.items, canUseSystemSheet: Boolean(result.canUseSystemSheet)});
+}
+
+/** Opens the shell's property sheet even when the app's own page is the default. */
+export async function showSystemProperties(paths: string[]): Promise<void> {
+    if (!Native.available || paths.length === 0) return;
+
+    await Native.request("fs.operation.systemProperties", {paths});
 }
 
 /** Whether the Windows share sheet opened, and why it did not. */

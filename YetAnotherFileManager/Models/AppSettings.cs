@@ -146,7 +146,9 @@ public sealed record AppSettings(
     [property: Setting(Comment = "Show recent timestamps as seconds and minutes ago.")]
     bool? RelativeTime = null,
     [property: Setting(Comment = "How recent a timestamp must be to be shown relative, in minutes.")]
-    int? RelativeTimeWindowMinutes = null)
+    int? RelativeTimeWindowMinutes = null,
+    [property: Setting(Comment = "Properties opens the Windows property sheet instead of the app's own page.")]
+    bool? SystemPropertiesSheet = null)
 {
     public static AppSettings Default =>
         new(true, true, true, ["**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null,
@@ -263,4 +265,8 @@ public sealed record AppSettings(
 
     [JsonIgnore]
     public bool StartsHidden => StartHidden ?? false;
+
+    /// <summary>Windows only: the Properties action opens the shell sheet instead of the app page.</summary>
+    [JsonIgnore]
+    public bool UsesSystemPropertiesSheet => SystemPropertiesSheet ?? false;
 }

@@ -907,5 +907,15 @@
   "compress_named_item": "壓縮 {0}",
   "extract_named_item": "解壓縮 {0}",
   "cancelled": "已取消。",
-  "scan_the_code_to_open_this_share_on_a_phone": "用手機掃描條碼即可開啟這個分享。"
+  "scan_the_code_to_open_this_share_on_a_phone": "用手機掃描條碼即可開啟這個分享。",
+  "accessed": "存取時間",
+  "permissions": "權限",
+  "link_target": "連結目標",
+  "windows_properties": "Windows 屬性",
+  "read_only": "唯讀",
+  "compressed": "壓縮",
+  "temporary": "暫存",
+  "properties_opens_the_windows_page_with_its_security_and_details_tabs_instead_of_the_page_built_into_the_app": "「屬性」會直接開啟 Windows 的屬性頁（含安全性與詳細資料），而不是軟體內建的頁面。",
+  "show_in_file_manager": "在檔案管理員中顯示",
+  "selection": "選取的項目"
 }

@@ -523,7 +523,8 @@ internal partial class FileSystemService : INativeMessageHandler
 
             case "fs.caseSensitive.get":
                 return context.Reply("fs.caseSensitive.get.result",
-                    new CaseSensitivePayload(true, CaseFolders.Query(context.Payload<PathPayload>()?.Path ?? "")));
+                    new CaseSensitivePayload(CaseFolders.Supported,
+                        CaseFolders.Query(context.Payload<PathPayload>()?.Path ?? "")));
 
             case "fs.caseSensitive.set":
             {
@@ -622,8 +623,12 @@ internal partial class FileSystemService : INativeMessageHandler
                     new OkPayload(TagCatalog.Instance.SetColor(colorTag?.Name ?? "", colorTag?.Color ?? "")));
 
             case "fs.operation.properties":
+                return context.Reply("fs.operation.properties.result",
+                    await FileOperations.PropertiesAsync(context.Payload<PathsPayload>()?.Paths ?? []));
+
+            case "fs.operation.systemProperties":
                 await FileOperations.ShowPropertiesAsync(context.Payload<PathsPayload>()?.Paths ?? []);
-                return context.Reply("fs.operation.properties.result", new OkPayload());
+                return context.Reply("fs.operation.systemProperties.result", new OkPayload());
 
             case "fs.operation.openWith":
                 await FileOperations.OpenWithAsync(context.Payload<PathPayload>()?.Path ?? "");
