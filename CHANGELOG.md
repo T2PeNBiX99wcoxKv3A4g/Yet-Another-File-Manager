@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.45.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.44.4..v0.45.0) - 2026-11-21
+
+### ⛰️  Features
+
+- *(delete)* Name the programs that keep an entry open - ([fee5af5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/fee5af5b004f671135506e25e1c4da108fe2e1d8))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([81bdd33](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/81bdd330886176350b59ef90e162967669dd190e))
+
+
 ## [0.44.4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.44.3..v0.44.4) - 2026-11-21
 
 ### 🐛 Bug Fixes
