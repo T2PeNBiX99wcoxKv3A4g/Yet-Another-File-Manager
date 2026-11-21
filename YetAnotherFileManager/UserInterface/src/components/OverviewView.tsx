@@ -1636,6 +1636,7 @@ export function OverviewView({
             : result.error ?? "Windows refused the volume label.");
     };
 
+    const windows = platform === "windows";
     const columns = settings?.overviewColumns ?? 1;
 
     const save = async (patch: Partial<AppSettings>) => {
@@ -2182,7 +2183,7 @@ export function OverviewView({
             ) : (
                 <>{driveName(drive)}</>
             );
-            const rename = !editingName && editing && (
+            const rename = !editingName && editing && windows && (
                 <RenameButton
                     onClick={(event) => {
                         event.stopPropagation();

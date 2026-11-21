@@ -147,6 +147,9 @@ export function FileMenu({
     const t = useTranslation();
     const linkSource = useLinkSource();
     const archiveView = isArchiveLocation(directory);
+    // Junctions, the shell verb list and the "open with" chooser are Windows-only; the menus stay
+    // on the actions the host can actually run.
+    const windows = platform === "windows";
     const [shell, setShell] = useState<{ verbs: ShellVerb[]; safe: boolean; loading: boolean }>({
         verbs: [], safe: true, loading: false,
     });
@@ -174,9 +177,9 @@ export function FileMenu({
         }
 
         const shellToken = ++shellRequest.current;
-        setShell({verbs: [], safe: true, loading: shellPaths.length > 0 && !archiveView});
+        setShell({verbs: [], safe: true, loading: windows && shellPaths.length > 0 && !archiveView});
 
-        if (shellPaths.length > 0 && !archiveView) {
+        if (windows && shellPaths.length > 0 && !archiveView) {
             void listShellVerbs(shellPaths).then(
                 (result) => {
                     if (shellRequest.current === shellToken) setShell({...result, loading: false});
@@ -189,7 +192,7 @@ export function FileMenu({
 
         const openWithToken = ++openWithRequest.current;
 
-        if (!archiveView && single && target) {
+        if (!archiveView && single && target && windows) {
             setOpenWithApps({recommended: [], other: [], loading: true});
             void listOpenWith(target.path).then(
                 (result) => {
@@ -378,10 +381,12 @@ export function FileMenu({
             },
             ...(anyDirectory
                 ? [
-                    {
-                        label: t("directory_junction"), icon: <FolderIcon size={14}/>,
-                        onSelect: () => void makeSourceLink("junction"),
-                    },
+                    ...(windows
+                        ? [{
+                            label: t("directory_junction"), icon: <FolderIcon size={14}/>,
+                            onSelect: () => void makeSourceLink("junction"),
+                        }]
+                        : []),
                     {
                         label: t("smart_copy"), icon: <CopyIcon size={14}/>, separatorBefore: true,
                         onSelect: () => void makeSourceLink("smart-copy"),
@@ -424,7 +429,7 @@ export function FileMenu({
                     label: t("folder"), icon: <FolderIcon size={14}/>,
                     onSelect: () => onCreateFolder(false),
                 });
-                if (!archiveView)
+                if (!archiveView && windows)
                     newItems.push({
                         label: t("case_sensitive_folder"), icon: <CaseSensitiveIcon size={14}/>,
                         onSelect: () => onCreateFolder(true),
@@ -507,7 +512,7 @@ export function FileMenu({
                 onSelect: () => void openTerminal(directory),
             });
             items.push({
-                label: t("show_in_explorer"), icon: <FolderIcon size={14}/>, separatorBefore: true,
+                label: t(windows ? "show_in_explorer" : "show_in_file_manager"), icon: <FolderIcon size={14}/>, separatorBefore: true,
                 onSelect: () => void showInExplorer(directory),
             });
         }
@@ -597,7 +602,7 @@ export function FileMenu({
             });
         }
 
-        if (!archiveView && single && target) {
+        if (!archiveView && windows && single && target) {
             const children: ContextMenuItem[] = [];
 
             if (openWithApps.loading) {
@@ -688,10 +693,12 @@ export function FileMenu({
                                 label: t("symbolic_link"), icon: <FolderIcon size={14}/>, separatorBefore: true,
                                 onSelect: () => void makeLink("symbolic-folder"),
                             },
-                            {
-                                label: t("directory_junction"), icon: <FolderIcon size={14}/>,
-                                onSelect: () => void makeLink("junction"),
-                            },
+                            ...(windows
+                                ? [{
+                                    label: t("directory_junction"), icon: <FolderIcon size={14}/>,
+                                    onSelect: () => void makeLink("junction"),
+                                }]
+                                : []),
                             {
                                 label: t("smart_copy"), icon: <CopyIcon size={14}/>, separatorBefore: true,
                                 onSelect: () => void makeLink("smart-copy"),
@@ -765,7 +772,7 @@ export function FileMenu({
 
         if (!archiveView)
             items.push({
-                label: t("show_in_explorer"), icon: <FolderIcon size={14}/>, separatorBefore: true,
+                label: t(windows ? "show_in_explorer" : "show_in_file_manager"), icon: <FolderIcon size={14}/>, separatorBefore: true,
                 onSelect: () => void showInExplorer(favoriteTargets[0]),
             });
 
