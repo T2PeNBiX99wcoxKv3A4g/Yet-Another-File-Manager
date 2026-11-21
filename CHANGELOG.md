@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.44.3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.44.2..v0.44.3) - 2026-11-21
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([37de219](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/37de219498172729f1e85109c78c2b55ccd232c2))
+
+### Build
+
+- Leave the reference documentation out of the app - ([19dfe7b](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/19dfe7b75bb33feca1a0ec1bdbf7851f65d846c2))
+
+
 ## [0.44.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.44.1..v0.44.2) - 2026-11-21
 
 ### Action
