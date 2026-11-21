@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using PhotinoNetUtils.Data;
@@ -28,13 +29,14 @@ internal static class FolderIndex
     private static readonly ConcurrentDictionary<string, bool> Unusable = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    ///     A portable folder file keeps its writes in the main database, not in a WAL that a copied
-    ///     folder would leave behind. The library still gates writes per file and retries a busy lock.
+    ///     WAL lets a reader keep its snapshot while a write commits. The folder is checkpointed when
+    ///     it is left, so its <c>-wal</c> does not grow without bound and a copied folder is complete.
+    ///     The library still gates writes per file and retries a busy lock.
     /// </summary>
     private static readonly SqliteDatabaseOptions WriteOptions = new()
     {
         Pooling = false,
-        Wal = false,
+        Wal = true,
         BusyTimeout = 2000,
         RetryCount = 10,
         RetryDelay = 50
@@ -47,7 +49,7 @@ internal static class FolderIndex
     private static readonly SqliteDatabaseOptions ReadOptions = new()
     {
         Pooling = false,
-        Wal = false,
+        Wal = true,
         BusyTimeout = 100,
         RetryCount = 2,
         RetryDelay = 25
@@ -56,7 +58,7 @@ internal static class FolderIndex
     private static readonly SqliteDatabaseOptions FocusedReadOptions = new()
     {
         Pooling = false,
-        Wal = false,
+        Wal = true,
         BusyTimeout = 250,
         RetryCount = 3,
         RetryDelay = 25
@@ -666,6 +668,38 @@ internal static class FolderIndex
             await command.ExecuteNonQueryAsync(token);
         });
 
+    /// <summary>
+    ///     Folds the WAL back into the main file, so a folder copied or inspected afterwards is
+    ///     complete. Called when the folder leaves the screen; a database without a WAL is a no-op.
+    /// </summary>
+    public static async Task CheckpointAsync(string directory)
+    {
+        if (Unusable.ContainsKey(directory) || !File.Exists(PathFor(directory)))
+            return;
+
+        var result = await Database(directory, true).ExclusiveAsync(async token =>
+        {
+            // The import may have deleted the file while this waited for the gate.
+            if (!File.Exists(PathFor(directory)))
+                return false;
+
+            var opened = await Database(directory, true).OpenWriteAsync(token);
+            if (!opened.TryGet(out var connection))
+                return false;
+
+            await using (connection)
+            {
+                await using var command = connection.CreateCommand();
+                command.CommandText = "PRAGMA wal_checkpoint(TRUNCATE)";
+                await command.ExecuteNonQueryAsync(token);
+            }
+
+            return true;
+        });
+
+        result.OnFailure(ex => Log.Debug(ex, "Could not checkpoint the index of {Directory}", directory));
+    }
+
     /// <summary>Removes the per-folder database after its data was moved elsewhere.</summary>
     public static async Task DeleteFilesAsync(string directory)
     {
@@ -708,19 +742,22 @@ internal static class FolderIndex
         if (!OperatingSystem.IsWindows() || !Checked.TryAdd(directory, true))
             return;
 
-        var path = PathFor(directory);
-
-        Try.Run(() =>
+        foreach (var suffix in new[] { "", "-wal", "-shm" })
         {
-            if (!File.Exists(path))
-                return;
+            var path = PathFor(directory) + suffix;
 
-            var attributes = File.GetAttributes(path);
-            var wanted = attributes | FileAttributes.Hidden | FileAttributes.System;
+            Try.Run(() =>
+            {
+                if (!File.Exists(path))
+                    return;
 
-            if (wanted != attributes)
-                File.SetAttributes(path, wanted);
-        }).OnFailure(ex => Log.Debug(ex, "Could not hide {Path}", path));
+                var attributes = File.GetAttributes(path);
+                var wanted = attributes | FileAttributes.Hidden | FileAttributes.System;
+
+                if (wanted != attributes)
+                    File.SetAttributes(path, wanted);
+            }).OnFailure(ex => Log.Debug(ex, "Could not hide {Path}", path));
+        }
     }
 
     /// <summary>Offloads the attribute check; it only touches the disk the first time.</summary>
@@ -824,7 +861,9 @@ internal static class FolderIndex
             {
                 // A missing table or column is an old schema; the next write migrates it. Marking
                 // the folder unusable here would stop that write from ever happening.
-                if (IsPermanentReadFailure(ex))
+                if (IsCorrupt(ex))
+                    Quarantine(directory, ex);
+                else if (IsPermanentReadFailure(ex))
                     Unusable[directory] = true;
 
                 Log.Debug(ex, "Could not read the index of {Directory}", directory);
@@ -832,10 +871,40 @@ internal static class FolderIndex
             .GetOrElse(_ => fallback);
     }
 
+    private static bool IsCorrupt(Exception exception) =>
+        exception is SqliteException sqlite && (sqlite.SqliteErrorCode & 0xFF) is 11 or 26;
+
     private static bool IsPermanentReadFailure(Exception exception) =>
-        exception is IOException ||
-        exception is SqliteException sqlite &&
-        (sqlite.SqliteErrorCode & 0xFF) is 10 or 11 or 26;
+        exception is IOException || IsCorrupt(exception) ||
+        exception is SqliteException sqlite && (sqlite.SqliteErrorCode & 0xFF) is 10;
+
+    /// <summary>
+    ///     Moves a corrupt index and its WAL side files aside instead of deleting them, so the next
+    ///     write can start a fresh database and the old one is still available for inspection.
+    /// </summary>
+    private static void Quarantine(string directory, Exception exception)
+    {
+        if (!IsCorrupt(exception))
+            return;
+
+        var stamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString(CultureInfo.InvariantCulture);
+
+        foreach (var suffix in new[] { "", "-wal", "-shm" })
+        {
+            var path = PathFor(directory) + suffix;
+            Try.Run(() =>
+            {
+                if (File.Exists(path))
+                    File.Move(path, $"{path}.corrupt-{stamp}", true);
+            }).OnFailure(ex => Log.Warning(ex, "Could not quarantine {Path}", path));
+        }
+
+        Unusable.TryRemove(directory, out _);
+
+        // A read-only volume cannot move the file; keep it out of the way for this session.
+        if (File.Exists(PathFor(directory)))
+            Unusable[directory] = true;
+    }
 
     /// <summary>
     ///     Whether the icon table already has the byte columns. A read never migrates: it accepts
@@ -899,7 +968,11 @@ internal static class FolderIndex
 
         return result.OnFailure(ex =>
         {
-            Unusable[directory] = true;
+            if (IsCorrupt(ex))
+                Quarantine(directory, ex);
+            else
+                Unusable[directory] = true;
+
             Log.Warning(ex, "Could not write to the index of {Directory}", directory);
         }).IsSuccess;
     }

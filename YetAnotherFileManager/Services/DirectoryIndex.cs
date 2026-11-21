@@ -187,6 +187,10 @@ internal static class DirectoryIndex
         // competing with the folder now on screen. The waiting write removes itself from the queue.
         if (PendingListings.TryGetValue(previous, out var pending))
             pending.Release();
+
+        // Fold the WAL back while nothing is looking at that folder, so a copy or external tool
+        // sees one complete file instead of a main file with recent changes still in the -wal.
+        _ = FolderIndex.CheckpointAsync(previous);
     }
 
     /// <summary>
@@ -229,7 +233,14 @@ internal static class DirectoryIndex
             return;
 
         if (await SaveListingAsync(directory, entries))
+        {
             SavedListings[directory] = pending.Signature;
+
+            // The folder is no longer on screen, so this is a good moment to put its WAL back into
+            // the main file without making the user wait for it.
+            if (!IndexFocus.Is(directory))
+                await FolderIndex.CheckpointAsync(directory);
+        }
         else
             SavedListings.TryRemove(directory, out _);
     }
