@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.46.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.45.2..v0.46.0) - 2026-11-21
+
+### ⛰️  Features
+
+- *(settings)* Restore one section to its defaults - ([9ba0dd3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/9ba0dd3644d68900362fc33150e83b04ab7e705d))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([5f97f6f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/5f97f6ff25d337bd82ec526f6328b3b857c14617))
+
+
 ## [0.45.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.45.1..v0.45.2) - 2026-11-21
 
 ### Action
