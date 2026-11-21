@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.45.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.45.0..v0.45.1) - 2026-11-21
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([76ec85b](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/76ec85bfc117d388b6047c3c1cb41113177d4746))
+
+### Build
+
+- Ship only the 64-bit 7z library - ([318d669](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/318d6693e30281c6ec84cbd0f197bc2c9e5674a8))
+
+
 ## [0.45.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.44.4..v0.45.0) - 2026-11-21
 
 ### ⛰️  Features
