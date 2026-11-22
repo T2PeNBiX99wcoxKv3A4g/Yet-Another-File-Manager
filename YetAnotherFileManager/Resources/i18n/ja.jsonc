@@ -926,5 +926,10 @@
   "execute": "実行",
   "group": "グループ",
   "other": "その他",
-  "could_not_change_the_properties": "プロパティを変更できませんでした。"
+  "could_not_change_the_properties": "プロパティを変更できませんでした。",
+  "hashes": "ハッシュ",
+  "calculating": "計算中…",
+  "hash_matches": "ハッシュが一致しました。",
+  "hash_does_not_match": "ハッシュが一致しません。",
+  "paste_a_hash_to_compare": "ハッシュを貼り付けて、このファイルと比較します。"
 }

@@ -926,5 +926,10 @@
   "execute": "執行",
   "group": "群組",
   "other": "其他",
-  "could_not_change_the_properties": "無法變更屬性。"
+  "could_not_change_the_properties": "無法變更屬性。",
+  "hashes": "雜湊",
+  "calculating": "計算中…",
+  "hash_matches": "雜湊值吻合。",
+  "hash_does_not_match": "雜湊值不吻合。",
+  "paste_a_hash_to_compare": "貼上雜湊值，與這個檔案比對。"
 }

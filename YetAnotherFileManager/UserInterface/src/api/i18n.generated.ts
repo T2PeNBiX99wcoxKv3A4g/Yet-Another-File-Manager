@@ -104,6 +104,7 @@ declare module "@photino-net-utils/bridge"
         "built_in_source": true;
         "buttons_selections_focus_rings_and_active_navigation": true;
         "b_zip2": true;
+        "calculating": true;
         "cancel": true;
         "cancelled": true;
         "cancel_selected_link": true;
@@ -331,6 +332,9 @@ declare module "@photino-net-utils/bridge"
         "group": true;
         "hardlink_copy": true;
         "hard_link": true;
+        "hashes": true;
+        "hash_does_not_match": true;
+        "hash_matches": true;
         "hebrew_cp1255": true;
         "hidden": true;
         "hidden_items": true;
@@ -541,6 +545,7 @@ declare module "@photino-net-utils/bridge"
         "pasted_image": true;
         "pasted_text": true;
         "paste_a_direct_http_s_link_the_picture_or_video_is_loaded_from_the_network_each_time_the_window_starts": true;
+        "paste_a_hash_to_compare": true;
         "paste_image": true;
         "paste_into_folder": true;
         "paste_text": true;

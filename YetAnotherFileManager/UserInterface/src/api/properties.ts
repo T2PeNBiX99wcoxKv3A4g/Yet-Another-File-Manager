@@ -61,9 +61,7 @@ export async function readProperties(path: string): Promise<PathPropertiesInfo |
 
 /** The digests the properties page shows; computed in one pass by the host. */
 export interface PathHashes {
-    md5: string | null;
-    sha256: string | null;
-    sha512: string | null;
+    items?: { name: string; value: string }[] | null;
     error?: string | null;
 }
 

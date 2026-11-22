@@ -926,5 +926,10 @@
   "execute": "执行",
   "group": "组",
   "other": "其他",
-  "could_not_change_the_properties": "无法更改属性。"
+  "could_not_change_the_properties": "无法更改属性。",
+  "hashes": "哈希",
+  "calculating": "计算中…",
+  "hash_matches": "哈希值一致。",
+  "hash_does_not_match": "哈希值不一致。",
+  "paste_a_hash_to_compare": "粘贴哈希值，与这个文件比对。"
 }

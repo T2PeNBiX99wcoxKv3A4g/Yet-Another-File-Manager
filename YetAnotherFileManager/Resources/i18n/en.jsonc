@@ -926,5 +926,10 @@
   "execute": "Execute",
   "group": "Group",
   "other": "Other",
-  "could_not_change_the_properties": "The properties could not be changed."
+  "could_not_change_the_properties": "The properties could not be changed.",
+  "hashes": "Hashes",
+  "calculating": "Calculating…",
+  "hash_matches": "The hash matches.",
+  "hash_does_not_match": "The hash does not match.",
+  "paste_a_hash_to_compare": "Paste a hash to compare it with this file."
 }

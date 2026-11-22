@@ -645,7 +645,7 @@ internal partial class FileSystemService : INativeMessageHandler
                 return context.Reply("fs.operation.properties.hash.result",
                     File.Exists(file)
                         ? await PathHasher.HashAsync(file)
-                        : new PathHashPayload(null, null, null, Localization.Get("the_path_no_longer_exists")));
+                        : new PathHashPayload(null, Localization.Get("the_path_no_longer_exists")));
             }
 
             case "fs.operation.openWith":

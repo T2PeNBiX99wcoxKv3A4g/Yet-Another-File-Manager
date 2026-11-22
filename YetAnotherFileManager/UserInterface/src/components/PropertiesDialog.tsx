@@ -15,7 +15,7 @@ import {
 import {renamePath, showSystemProperties} from "../api/operations";
 import {formatBytes} from "../utils/format";
 import {typeLabel} from "../utils/fileType";
-import {FileIcon, FolderIcon} from "./Icons";
+import {FileIcon, FolderIcon, CopyIcon} from "./Icons";
 import {Timestamp} from "./Timestamp";
 import {fadeInStyle, popInStyle} from "../ui/motion";
 
@@ -142,7 +142,7 @@ export function PropertiesDialog({request}: { request: PropertiesRequest }) {
         setHashing(true);
 
         void readHashes(info.path)
-            .then((result) => setHashes(result), () => setHashes({md5: null, sha256: null, sha512: null}))
+            .then((result) => setHashes(result), () => setHashes({items: []}))
             .finally(() => setHashing(false));
     }, [tab, canHash, info.path]);
 
@@ -243,7 +243,9 @@ export function PropertiesDialog({request}: { request: PropertiesRequest }) {
                                            onReadOnly={setReadOnly} onHidden={setHidden} onArchive={setArchive}/>
                                 : tab === "details"
                                     ? <Details info={info}/>
-                                    : <Permissions mode={mode} onChange={setMode}/>}
+                                    : tab === "hashes"
+                                        ? <Hashes hashes={hashes} hashing={hashing}/>
+                                        : <Permissions mode={mode} onChange={setMode}/>}
 
                     {error && <ErrorText>{error}</ErrorText>}
                 </Body>
@@ -335,8 +337,59 @@ function Details({info}: { info: PathPropertiesInfo }) {
     );
 }
 
-function Permissions({mode, onChange}: { mode: number; onChange: (value: number) => void }) {
+function Hashes({hashes, hashing}: { hashes: PathHashes | null; hashing: boolean }) {
     const t = useTranslation();
+    const [needle, setNeedle] = useState("");
+
+    if (hashing || !hashes)
+        return <Busy>{t("calculating")}…</Busy>;
+
+    if (hashes.error)
+        return <ErrorText>{hashes.error}</ErrorText>;
+
+    const values = (hashes.items ?? []).filter((entry) => entry.value.length > 0);
+
+    const wanted = needle.trim().toLowerCase();
+    const match = wanted.length > 0
+        ? values.some((entry) => entry.value.toLowerCase() === wanted)
+        : null;
+
+    return (
+        <div>
+            <Fields>
+                {values.map((entry) => (
+                    <Field key={entry.name} label={entry.name} value={
+                        <HashRow>
+                            <HashText>{entry.value}</HashText>
+                            <CopyButton
+                                onClick={() => void navigator.clipboard.writeText(entry.value)}
+                                title={t("copy")}
+                                type="button"
+                            >
+                                <CopyIcon size={11}/>
+                            </CopyButton>
+                        </HashRow>
+                    } wrap/>
+                ))}
+            </Fields>
+
+            <Verify>
+                <VerifyLabel>{t("paste_a_hash_to_compare")}</VerifyLabel>
+                <Input
+                    onChange={(event) => setNeedle(event.target.value)}
+                    placeholder="…"
+                    spellCheck={false}
+                    value={needle}
+                />
+                {match !== null && (
+                    <Verdict $ok={match}>{match ? t("hash_matches") : t("hash_does_not_match")}</Verdict>
+                )}
+            </Verify>
+        </div>
+    );
+}
+
+function Permissions({mode, onChange}: { mode: number; onChange: (value: number) => void }) {    const t = useTranslation();
 
     const symbol = useMemo(() => {
         const letters = "rwx";
@@ -605,6 +658,81 @@ const CheckLabel = styled.label<{ $disabled?: boolean }>`
 
 const Mono = styled.span`
     font-family: var(--font-mono);
+`;
+
+const Busy = styled.p`
+    margin: 0;
+    padding: 14px 18px;
+    color: var(--text-muted);
+    font-size: 11.5px;
+`;
+
+const HashRow = styled.span`
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 0;
+`;
+
+const HashText = styled.span`
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    line-height: 1.45;
+`;
+
+const CopyButton = styled.button`
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-muted);
+    cursor: pointer;
+
+    &:hover {
+        border-color: var(--border-color-hover);
+        color: var(--text-primary);
+    }
+`;
+
+const Verify = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0 18px 14px;
+`;
+
+const VerifyLabel = styled.span`
+    color: var(--text-muted);
+    font-size: 11px;
+`;
+
+const Input = styled.input`
+    width: 100%;
+    padding: 5px 7px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+
+    &:focus {
+        border-color: var(--border-color-focus);
+        outline: none;
+    }
+`;
+
+const Verdict = styled.span<{ $ok: boolean }>`
+    color: ${({$ok}) => $ok ? "#4ade80" : "#fca5a5"};
+    font-size: 11px;
+    font-weight: 600;
 `;
 
 const List = styled.div`
