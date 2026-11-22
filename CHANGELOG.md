@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.51.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.50.1..v0.51.0) - 2026-11-22
+
+### ⛰️  Features
+
+- *(conflicts)* Show both sides with icons and let one choice cover them all - ([ac5c059](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/ac5c05971eb69aa894127ad28f3a4443f69e571f))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([b184e0f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b184e0fe25072ccefe566fa78d5aec6fd1c10a72))
+
+
 ## [0.50.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.50.0..v0.50.1) - 2026-11-22
 
 ### 🐛 Bug Fixes
