@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.52.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.51.5..v0.52.0) - 2026-11-22
+
+### ⛰️  Features
+
+- *(colors)* Replace the native inputs with a shared in-app picker - ([62cf0d2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/62cf0d28d6db74a5652939fc6ecec70928c4390f))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([f519638](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/f5196383dd4f7e6c5cc4a1257d5040109c1b68fb))
+
+
 ## [0.51.5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.51.4..v0.51.5) - 2026-11-22
 
 ### 🎨 Styling
