@@ -4163,16 +4163,17 @@ const SectionReset = styled.button`
     width: 24px;
     height: 24px;
     padding: 0;
-    border: 1px solid var(--border-color);
+    border: 0;
     border-radius: var(--radius-sm);
-    background: var(--bg-input);
+    background: transparent;
     color: var(--text-muted);
     cursor: pointer;
+    opacity: 0.7;
 
     &:hover {
-        border-color: var(--border-color-hover);
-        background: var(--bg-card-hover);
+        background: rgba(var(--accent-rgb), 0.12);
         color: var(--text-primary);
+        opacity: 1;
     }
 
     &:focus-visible {
