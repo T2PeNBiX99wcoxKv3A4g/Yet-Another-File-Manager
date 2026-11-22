@@ -144,6 +144,10 @@ export interface AppSettings {
     favorites: FavoriteEntry[];
     /** Suffix for a name that is already taken: "space_parentheses", "underscore" or "dot". */
     conflictNameStyle: string;
+    /** "none", "overwrite", "rename" or "skip": what the conflict dialog starts with. */
+    conflictDefaultAction: string;
+    /** Reuse the answer from the last conflict dialog. */
+    conflictRememberChoice: boolean;
     /** Ask before a new browser may use a web share. */
     shareAccessEnabled: boolean;
     /** Minutes an approved browser stays allowed. */
@@ -293,80 +297,13 @@ export async function saveSettings(settings: AppSettings): Promise<AppSettings> 
 
     const saved = await Native.request<Partial<AppSettings> | null>("settings.save", settings);
 
-    return {
-        systemIcons: saved?.systemIcons ?? settings.systemIcons,
-        customFolderIcons: saved?.customFolderIcons ?? settings.customFolderIcons,
-        writeDirectoryIndex: saved?.writeDirectoryIndex ?? settings.writeDirectoryIndex,
-        directoryIndexBlacklist: saved?.directoryIndexBlacklist ?? settings.directoryIndexBlacklist,
-        extensionIcons: saved?.extensionIcons ?? settings.extensionIcons,
-        quickAccess: saved?.quickAccess ?? settings.quickAccess,
-        recentLimit: saved?.recentLimit ?? settings.recentLimit,
-        galleryRoots: saved?.galleryRoots ?? settings.galleryRoots,
-        overviewPanels: saved?.overviewPanels ?? settings.overviewPanels,
-        overviewHidden: saved?.overviewHidden ?? settings.overviewHidden,
-        overviewColumns: saved?.overviewColumns ?? settings.overviewColumns,
-        shortcuts: saved?.shortcuts ?? settings.shortcuts,
-        placeIcons: saved?.placeIcons ?? settings.placeIcons,
-        placeNames: saved?.placeNames ?? settings.placeNames,
-        overviewTitles: saved?.overviewTitles ?? settings.overviewTitles,
-        overviewViews: saved?.overviewViews ?? settings.overviewViews,
-        overviewIcons: saved?.overviewIcons ?? settings.overviewIcons,
-        overviewPinned: saved?.overviewPinned ?? settings.overviewPinned,
-        linksEnabled: saved?.linksEnabled ?? settings.linksEnabled,
-        defaultFileManager: saved?.defaultFileManager ?? settings.defaultFileManager,
-        archiveHandler: saved?.archiveHandler ?? settings.archiveHandler,
-        panelPlaces: saved?.panelPlaces ?? settings.panelPlaces,
-        restoreTabs: saved?.restoreTabs ?? settings.restoreTabs,
-        openTabs: saved?.openTabs ?? settings.openTabs,
-        activeTab: saved?.activeTab ?? settings.activeTab,
-        defaultView: saved?.defaultView ?? settings.defaultView,
-        showHidden: saved?.showHidden ?? settings.showHidden,
-        showCheckboxes: saved?.showCheckboxes ?? settings.showCheckboxes,
-        openOnSingleClick: saved?.openOnSingleClick ?? settings.openOnSingleClick,
-        confirmDelete: saved?.confirmDelete ?? settings.confirmDelete,
-        previewVideoAudio: saved?.previewVideoAudio ?? settings.previewVideoAudio,
-        previewVideoAutoplay: saved?.previewVideoAutoplay ?? settings.previewVideoAutoplay,
-        trayAutoShow: saved?.trayAutoShow ?? settings.trayAutoShow,
-        accentColor: saved?.accentColor ?? settings.accentColor,
-        secondaryColor: saved?.secondaryColor ?? settings.secondaryColor,
-        themeMode: normalizeThemeMode(saved?.themeMode ?? settings.themeMode),
-        backgroundSource: saved?.backgroundSource ?? settings.backgroundSource,
-        backgroundCustom: saved?.backgroundCustom ?? settings.backgroundCustom,
-        backgroundBlur: saved?.backgroundBlur ?? settings.backgroundBlur,
-        backgroundSaturation: saved?.backgroundSaturation ?? settings.backgroundSaturation,
-        backgroundBrightness: saved?.backgroundBrightness ?? settings.backgroundBrightness,
-        backgroundLooks: saved?.backgroundLooks ?? settings.backgroundLooks,
-        protectedPaths: saved?.protectedPaths ?? settings.protectedPaths,
-        deleteDelaySeconds: saved?.deleteDelaySeconds ?? settings.deleteDelaySeconds,
-        timeFormat: saved?.timeFormat ?? settings.timeFormat,
-        timeFormatPattern: saved?.timeFormatPattern ?? settings.timeFormatPattern,
-        relativeTime: saved?.relativeTime ?? settings.relativeTime,
-        relativeTimeWindowMinutes: saved?.relativeTimeWindowMinutes ?? settings.relativeTimeWindowMinutes,
-        systemPropertiesSheet: saved?.systemPropertiesSheet ?? settings.systemPropertiesSheet,
-        pickerWindowWidth: saved?.pickerWindowWidth ?? settings.pickerWindowWidth,
-        pickerWindowHeight: saved?.pickerWindowHeight ?? settings.pickerWindowHeight,
-        linkPathMode: saved?.linkPathMode ?? settings.linkPathMode,
-        overviewBanner: saved?.overviewBanner ?? settings.overviewBanner,
-        overviewBannerHeight: saved?.overviewBannerHeight ?? settings.overviewBannerHeight,
-        overviewBanners: saved?.overviewBanners ?? settings.overviewBanners,
-        overviewBannerOffset: saved?.overviewBannerOffset ?? settings.overviewBannerOffset,
-        globalHotkey: saved?.globalHotkey ?? settings.globalHotkey,
-        language: saved?.language ?? settings.language,
-        themePresets: saved?.themePresets ?? settings.themePresets,
-        fonts: saved?.fonts ?? settings.fonts,
-        sharePortMode: saved?.sharePortMode ?? settings.sharePortMode,
-    shareHttps: saved?.shareHttps ?? settings.shareHttps,
-        sharePort: saved?.sharePort ?? settings.sharePort,
-        startupMode: saved?.startupMode ?? settings.startupMode,
-        startHidden: saved?.startHidden ?? settings.startHidden,
-        favorites: saved?.favorites ?? settings.favorites,
-        conflictNameStyle: saved?.conflictNameStyle ?? settings.conflictNameStyle,
-        shareAccessEnabled: saved?.shareAccessEnabled ?? settings.shareAccessEnabled,
-        shareApprovalMinutes: saved?.shareApprovalMinutes ?? settings.shareApprovalMinutes,
-        shareDenialSeconds: saved?.shareDenialSeconds ?? settings.shareDenialSeconds,
-    };
-}
+    // The host answers with the values it really kept; anything it left out stays as sent.
+    const kept = Object.fromEntries(
+        Object.entries(saved ?? {}).filter(([, value]) => value !== null && value !== undefined),
+    ) as Partial<AppSettings>;
 
+    return {...settings, ...kept};
+}
 /** Remembers the tabs that are open; the host puts them back on the next launch. */
 export async function saveOpenTabs(tabs: string[], active: number): Promise<void> {
     if (!Native.available) return;

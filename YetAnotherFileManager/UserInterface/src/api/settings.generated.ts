@@ -142,4 +142,8 @@ export interface AppSettingsGenerated {
     relativeTimeWindowMinutes: number | null;
     /** Properties opens the Windows property sheet instead of the app's own page. */
     systemPropertiesSheet: boolean | null;
+    /** Default answer when a name already exists: none, overwrite, rename or skip. */
+    conflictDefaultAction: string | null;
+    /** Reuse the last conflict answer the next time. */
+    conflictRememberChoice: boolean | null;
 }

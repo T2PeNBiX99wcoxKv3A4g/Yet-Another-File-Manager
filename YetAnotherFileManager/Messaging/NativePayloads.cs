@@ -315,7 +315,7 @@ internal sealed record ProtectedHit(string Path, string Pattern);
 
 /// <summary>Payload for <c>fs.archive.extract</c>: the archive (or a folder inside it) and where to write.</summary>
 internal sealed record ArchiveExtractRequest(string Path, string Target, int? CodePage = null,
-    string? Password = null, string? Confirm = null);
+    string? Password = null, string? Confirm = null, bool DeleteAfter = false);
 
 /// <summary>Body for <c>fs.archive.extract</c>.</summary>
 internal sealed record ArchiveExtractPayload(bool Ok, string? Error = null,

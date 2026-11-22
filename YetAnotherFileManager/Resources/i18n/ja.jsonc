@@ -964,5 +964,13 @@
   "save_color": "この色を保存",
   "remove_saved_color": "保存から削除",
   "hex_color": "16 進数の色",
-  "color": "色"
+  "color": "色",
+  "extract_here_and_delete": "現在のフォルダーに解凍して圧縮ファイルを削除",
+  "extract_to_a_folder_and_delete_archive": "アーカイブ名のフォルダーに解凍して削除",
+  "auto_extract_and_delete_archive": "自動解凍して圧縮ファイルを削除",
+  "default_conflict_handling": "名前の競合処理",
+  "no_action_selected": "選択しない",
+  "remember_the_last_conflict_choice": "前回の選択を記憶",
+  "what_the_conflict_dialog_starts_with_choose_nothing_to_force_a_decision": "競合ダイアログの初期選択。「選択しない」なら毎回自分で決めます。",
+  "the_next_conflict_dialog_starts_with_the_answer_you_used_last_time": "次回の競合ダイアログは前回の回答から始まります。"
 }

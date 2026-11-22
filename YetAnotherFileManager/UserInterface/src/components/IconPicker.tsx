@@ -118,7 +118,7 @@ export function IconPicker({value, onPick, onClose, allowDefault = true}: IconPi
 
 const IconMenu = styled.div`
     position: absolute;
-    z-index: 40;
+    z-index: 3600;
     top: calc(100% + 6px);
     left: 0;
     display: grid;

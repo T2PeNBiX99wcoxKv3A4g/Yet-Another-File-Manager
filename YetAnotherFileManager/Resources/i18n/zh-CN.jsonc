@@ -964,5 +964,13 @@
   "save_color": "保存这个颜色",
   "remove_saved_color": "从已保存移除",
   "hex_color": "十六进制颜色",
-  "color": "颜色"
+  "color": "颜色",
+  "extract_here_and_delete": "解压到当前并删除压缩文件",
+  "extract_to_a_folder_and_delete_archive": "解压到文件名文件夹并删除压缩文件",
+  "auto_extract_and_delete_archive": "自动解压并删除压缩文件",
+  "default_conflict_handling": "重名冲突处理",
+  "no_action_selected": "不选择",
+  "remember_the_last_conflict_choice": "记住上一次的选择",
+  "what_the_conflict_dialog_starts_with_choose_nothing_to_force_a_decision": "冲突窗口一开始的选择；选「不选择」就每次都要自己决定。",
+  "the_next_conflict_dialog_starts_with_the_answer_you_used_last_time": "下次冲突窗口会使用上一次的答案。"
 }

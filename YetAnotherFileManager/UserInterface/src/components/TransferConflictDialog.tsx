@@ -4,6 +4,7 @@ import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import type {TransferConflict, TransferDecision} from "../api/operations";
 import {useIcon} from "../api/icons";
+import {readStoredJson, writeStoredJson} from "../storage";
 import {formatBytes, formatDate} from "../utils/format";
 import {FileIcon, FolderIcon} from "./Icons";
 import {fadeInStyle, popInStyle} from "../ui/motion";
@@ -11,23 +12,35 @@ import {fadeInStyle, popInStyle} from "../ui/motion";
 type Action = "overwrite" | "rename" | "skip";
 
 interface Choice {
-    action: Action;
+    action: Action | null;
     name: string;
+}
+
+/** The last answer, kept by the interface rather than the settings, for the "remember" option. */
+const LastChoiceKey = "yafm.conflicts.last";
+
+function actionOf(value: string | null | undefined): Action | null {
+    return value === "overwrite" || value === "rename" || value === "skip" ? value : null;
 }
 
 /**
  * One dialog for every copy and move that lands on a name already in the target: paste, the tray
  * and a drop all come through here, so the same conflict always gets the same question.
  */
-export function TransferConflictDialog({conflicts, move, onResolve}: {
+export function TransferConflictDialog({conflicts, move, defaultAction, remember, onResolve}: {
     conflicts: TransferConflict[];
     move: boolean;
+    /** "none", "overwrite", "rename" or "skip"; "none" leaves every row without an answer. */
+    defaultAction: string;
+    /** Start with the answer used last time, when one was kept. */
+    remember: boolean;
     onResolve: (decisions: TransferDecision[] | null) => void;
 }) {
     const t = useTranslation();
+    const initial = (remember ? actionOf(readStoredJson<string>(LastChoiceKey)) : null) ?? actionOf(defaultAction);
     const [choices, setChoices] = useState<Record<string, Choice>>(() =>
         Object.fromEntries(conflicts.map((conflict) => [conflict.source, {
-            action: conflict.samePath ? "skip" : "rename",
+            action: conflict.samePath && initial === "overwrite" ? "skip" : initial,
             name: conflict.suggestedName,
         }])));
 
@@ -51,22 +64,34 @@ export function TransferConflictDialog({conflicts, move, onResolve}: {
 
     const ready = conflicts.every((conflict) => {
         const choice = choices[conflict.source];
-        return choice.action !== "rename" || choice.name.trim().length > 0;
+        return choice.action !== null && (choice.action !== "rename" || choice.name.trim().length > 0);
     });
 
     const accept = () => {
         if (!ready)
             return;
 
-        onResolve(conflicts.map((conflict) => {
+        const actions = new Set<Action>();
+
+        const decisions = conflicts.map((conflict) => {
             const choice = choices[conflict.source];
+            const action = choice.action!;
+            actions.add(action);
 
             return {
                 source: conflict.source,
-                action: choice.action,
-                name: choice.action === "rename" ? choice.name.trim() : null,
+                action,
+                name: action === "rename" ? choice.name.trim() : null,
             };
-        }));
+        });
+
+        // Only a choice shared by every row is a "last answer" worth reusing next time.
+        if (remember && actions.size === 1) {
+            const [action] = [...actions];
+            writeStoredJson(LastChoiceKey, action);
+        }
+
+        onResolve(decisions);
     };
 
     useEffect(() => {

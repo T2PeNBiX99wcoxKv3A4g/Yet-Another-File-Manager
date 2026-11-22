@@ -964,5 +964,13 @@
   "save_color": "儲存這個顏色",
   "remove_saved_color": "從已儲存移除",
   "hex_color": "十六進位色碼",
-  "color": "顏色"
+  "color": "顏色",
+  "extract_here_and_delete": "解壓縮到當前並刪除壓縮檔",
+  "extract_to_a_folder_and_delete_archive": "解壓縮到檔名資料夾並刪除壓縮檔",
+  "auto_extract_and_delete_archive": "自動解壓縮並刪除壓縮檔",
+  "default_conflict_handling": "重名衝突處理",
+  "no_action_selected": "不選擇",
+  "remember_the_last_conflict_choice": "記住上一次的選擇",
+  "what_the_conflict_dialog_starts_with_choose_nothing_to_force_a_decision": "衝突視窗一開始的選擇；選「不選擇」就每次都要自己決定。",
+  "the_next_conflict_dialog_starts_with_the_answer_you_used_last_time": "下次衝突視窗會使用上一次的答案。"
 }

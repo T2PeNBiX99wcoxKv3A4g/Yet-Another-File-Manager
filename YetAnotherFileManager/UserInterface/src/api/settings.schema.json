@@ -557,6 +557,20 @@
         "null"
       ],
       "description": "Properties opens the Windows property sheet instead of the app's own page."
+    },
+    "conflictDefaultAction": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Default answer when a name already exists: none, overwrite, rename or skip."
+    },
+    "conflictRememberChoice": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Reuse the last conflict answer the next time."
     }
   },
   "additionalProperties": false

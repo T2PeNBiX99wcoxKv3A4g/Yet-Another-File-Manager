@@ -148,7 +148,11 @@ public sealed record AppSettings(
     [property: Setting(Comment = "How recent a timestamp must be to be shown relative, in minutes.")]
     int? RelativeTimeWindowMinutes = null,
     [property: Setting(Comment = "Properties opens the Windows property sheet instead of the app's own page.")]
-    bool? SystemPropertiesSheet = null)
+    bool? SystemPropertiesSheet = null,
+    [property: Setting(Comment = "Default answer when a name already exists: none, overwrite, rename or skip.")]
+    string? ConflictDefaultAction = null,
+    [property: Setting(Comment = "Reuse the last conflict answer the next time.")]
+    bool? ConflictRememberChoice = null)
 {
     /// <summary>
     ///     The key bindings a fresh install starts with. The interface reads them from
@@ -204,7 +208,9 @@ public sealed record AppSettings(
             SharePort = 8080,
             ShareHttps = false,
             StartupMode = "none",
-            ThemeMode = "system"
+            ThemeMode = "system",
+            ConflictDefaultAction = "none",
+            ConflictRememberChoice = false
         };
 
     // The accessors below are derived, so they are kept out of settings.toml entirely; only the

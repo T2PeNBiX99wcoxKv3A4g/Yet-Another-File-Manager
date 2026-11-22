@@ -17,4 +17,11 @@ internal static class ArchiveFormats
         ".cramfs", ".rpm", ".deb", ".ar", ".apm", ".nsis", ".squashfs", ".qcow2", ".vdi",
         ".zst", ".tzst", ".001"
     ];
+
+    /// <summary>Installer packages Windows owns; the app may read one when asked, never registers for it.</summary>
+    public static readonly string[] InstallerExtensions = [".msi", ".msp", ".msm"];
+
+    /// <summary>The extensions the app offers itself for in the shell.</summary>
+    public static readonly string[] Associations =
+        [.. Extensions.Except(InstallerExtensions, StringComparer.OrdinalIgnoreCase)];
 }

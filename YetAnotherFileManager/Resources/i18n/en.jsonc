@@ -964,5 +964,13 @@
   "save_color": "Save this colour",
   "remove_saved_color": "Remove from saved",
   "hex_color": "Hex colour",
-  "color": "Colour"
+  "color": "Colour",
+  "extract_here_and_delete": "Extract here and delete the archive",
+  "extract_to_a_folder_and_delete_archive": "Extract to a folder named after the archive and delete it",
+  "auto_extract_and_delete_archive": "Auto extract and delete the archive",
+  "default_conflict_handling": "Name conflict handling",
+  "no_action_selected": "No action selected",
+  "remember_the_last_conflict_choice": "Remember the last choice",
+  "what_the_conflict_dialog_starts_with_choose_nothing_to_force_a_decision": "What the conflict dialog starts with; choose nothing to require a decision every time.",
+  "the_next_conflict_dialog_starts_with_the_answer_you_used_last_time": "The next conflict dialog starts with the answer you used last time."
 }

@@ -68,7 +68,8 @@ export interface FileMenuState {
 }
 
 /** What the extraction entry should do; "choose" asks for a target folder first. */
-export type ArchiveExtractMode = "here" | "named" | "auto" | "choose";
+export type ArchiveExtractMode = "here" | "named" | "auto" | "choose"
+    | "here-delete" | "named-delete" | "auto-delete";
 
 interface FileMenuProps {
     menu: FileMenuState | null;
@@ -592,6 +593,19 @@ export function FileMenu({
                     {
                         label: t("auto_extract_to_the_current_folder"), icon: <ArchiveIcon size={14}/>,
                         onSelect: () => onExtractArchive(target.path, "auto"),
+                    },
+                    {
+                        label: t("extract_here_and_delete"), icon: <ArchiveIcon size={14}/>,
+                        separatorBefore: true,
+                        onSelect: () => onExtractArchive(target.path, "here-delete"),
+                    },
+                    {
+                        label: t("extract_to_a_folder_and_delete_archive"), icon: <ArchiveIcon size={14}/>,
+                        onSelect: () => onExtractArchive(target.path, "named-delete"),
+                    },
+                    {
+                        label: t("auto_extract_and_delete_archive"), icon: <ArchiveIcon size={14}/>,
+                        onSelect: () => onExtractArchive(target.path, "auto-delete"),
                     },
                     {
                         label: t("extract_to"), icon: <FolderIcon size={14}/>, separatorBefore: true,

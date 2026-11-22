@@ -319,6 +319,7 @@ internal partial class FileSystemService : INativeMessageHandler
                 // Applied here instead of through the settings round-trip, so the toggle is one
                 // short step and always rewrites a registration that points at another copy.
                 DefaultFileManager.Apply(enabled);
+                WindowsIntegration.Refresh(SettingsService.Instance.Current);
                 WindowManager.Instance.Notify("settings.changed", new OkPayload());
                 return context.Reply("app.defaultManager.set.result", DefaultFileManager.Status());
             }
@@ -329,6 +330,7 @@ internal partial class FileSystemService : INativeMessageHandler
                     ArchiveHandler = true
                 });
                 ArchiveAssociations.Apply(true);
+                WindowsIntegration.Refresh(SettingsService.Instance.Current);
                 WindowManager.Instance.Notify("settings.changed", new OkPayload());
                 return context.Reply("app.archive.register.result", ArchiveAssociations.Status());
 
@@ -338,6 +340,7 @@ internal partial class FileSystemService : INativeMessageHandler
                     ArchiveHandler = false
                 });
                 ArchiveAssociations.Apply(false);
+                WindowsIntegration.Refresh(SettingsService.Instance.Current);
                 WindowManager.Instance.Notify("settings.changed", new OkPayload());
                 return context.Reply("app.archive.unregister.result", ArchiveAssociations.Status());
 
@@ -440,6 +443,15 @@ internal partial class FileSystemService : INativeMessageHandler
                     string.Format(Localization.Get("extract_named_item"), Path.GetFileName(archive)));
                 var extracted = await ExtractAsync(archive, request.Target, request.CodePage ?? 0,
                     request.Password, taskId);
+
+                if (extracted.Ok && request.DeleteAfter)
+                {
+                    var removed = await FileOperations.DeleteAsync([archive], false, false);
+
+                    if (!removed.Ok)
+                        Serilog.Log.Warning("Could not remove {Archive} after extracting it: {Error}", archive,
+                            removed.Error);
+                }
 
                 return context.Reply("fs.archive.extract.result", extracted);
             }
@@ -1076,6 +1088,7 @@ internal partial class FileSystemService : INativeMessageHandler
         {
             LinksEnabled = status.PathMatches
         });
+        WindowsIntegration.Refresh(SettingsService.Instance.Current);
 
         return status;
     }

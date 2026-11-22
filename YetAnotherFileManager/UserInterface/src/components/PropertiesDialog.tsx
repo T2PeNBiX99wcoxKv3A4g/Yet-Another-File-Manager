@@ -818,10 +818,10 @@ function EntryIcon({info}: { info: PathPropertiesInfo }) {
         return <BuiltinIcon name={source.slice(5)} size={30}/>;
 
     if (custom)
-        return <img alt="" height={34} src={custom} width={34}/>;
+        return <DialogIcon alt="" src={custom}/>;
 
     return shell
-        ? <img alt="" src={shell}/>
+        ? <DialogIcon alt="" src={shell}/>
         : info.directory ? <FolderIcon size={30}/> : <FileIcon size={30}/>;
 }
 
@@ -886,8 +886,13 @@ const Top = styled.div`
     padding: 16px 18px 12px;
 `;
 
-const IconBox = styled.button`
-    display: grid;
+const DialogIcon = styled.img`
+    width: 34px;
+    height: 34px;
+    object-fit: contain;
+`;
+
+const IconBox = styled.button`    display: grid;
     flex: 0 0 auto;
     place-items: center;
     width: 38px;

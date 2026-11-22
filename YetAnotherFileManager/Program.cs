@@ -258,6 +258,9 @@ internal static partial class Program
         SettingsService.Instance.LoadAsync().GetAwaiter().GetResult();
         FileVisibility.SetHidden(SettingsService.Instance.Current.ShowHidden);
 
+        // Older builds took the installer formats over; put them back before the window opens.
+        ArchiveAssociations.RepairInstallerFormats();
+
         // Registrations are written only when the user changes them in the settings; starting a copy
         // never touches the registry, so a development build cannot take the installed one's
         // folder handler, archive handler or link handler back by simply running.

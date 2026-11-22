@@ -70,6 +70,7 @@ declare module "@photino-net-utils/bridge"
         "automatic": true;
         "automatic_rename_suffix": true;
         "autoplay_video_previews": true;
+        "auto_extract_and_delete_archive": true;
         "auto_extract_to_the_current_folder": true;
         "auto_name": true;
         "a_browser_was_allowed_to_use_a_web_share": true;
@@ -230,6 +231,7 @@ declare module "@photino-net-utils/bridge"
         "default": true;
         "default_2": true;
         "default_apps": true;
+        "default_conflict_handling": true;
         "default_view": true;
         "deflate": true;
         "deflate64": true;
@@ -293,8 +295,10 @@ declare module "@photino-net-utils/bridge"
         "extension_and_the_icon_to_draw_for_it": true;
         "extract_archive": true;
         "extract_here": true;
+        "extract_here_and_delete": true;
         "extract_named_item": true;
         "extract_to": true;
+        "extract_to_a_folder_and_delete_archive": true;
         "extract_to_a_folder_named_after_the_archive": true;
         "falls_back_to_font_until_another_family_is_chosen": true;
         "fastest": true;
@@ -485,6 +489,7 @@ declare module "@photino-net-utils/bridge"
         "not_checked_yet": true;
         "not_paired": true;
         "no_access": true;
+        "no_action_selected": true;
         "no_banner": true;
         "no_drives_are_available": true;
         "no_entries_match_the_search": true;
@@ -645,6 +650,7 @@ declare module "@photino-net-utils/bridge"
         "relative_links_keep_working_when_the_link_and_its_target_move_together_absolute_links_always_store_the_full_target_path": true;
         "relative_times": true;
         "reload_interface": true;
+        "remember_the_last_conflict_choice": true;
         "remove": true;
         "remove_banner": true;
         "remove_everything_from_the_tray": true;
@@ -874,6 +880,7 @@ declare module "@photino-net-utils/bridge"
         "the_installer_downloads_installs_itself_and_closes_the_app": true;
         "the_language_the_interface_uses_english_is_the_default_the_system_option_follows_the_operating_system": true;
         "the_mode_every_folder_starts_with_a_folder_can_still_remember_its_own_list_or_grid_mode_from_the_title_bar": true;
+        "the_next_conflict_dialog_starts_with_the_answer_you_used_last_time": true;
         "the_next_folder_in_this_tab_the_mouse_forward_button_and_the_browser_forward_key_always_work": true;
         "the_path_does_not_name_a_file_inside_an_archive": true;
         "the_path_is_not_inside_an_archive": true;
@@ -953,6 +960,7 @@ declare module "@photino-net-utils/bridge"
         "web": true;
         "web_server_port": true;
         "western_cp1252": true;
+        "what_the_conflict_dialog_starts_with_choose_nothing_to_force_a_decision": true;
         "what_the_listings_include": true;
         "what_the_process_holds_and_how_to_give_it_back": true;
         "when_this_is_off_opening_an_archive_uses_the_system_s_default_application_instead": true;

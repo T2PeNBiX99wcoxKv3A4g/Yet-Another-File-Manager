@@ -47,7 +47,7 @@ import {ContextMenu} from "./components/ContextMenu";
 import {folderName, LocationGlyph} from "./components/LocationGlyph";
 import {type PreviewInfo, PreviewPane} from "./components/PreviewPane";
 import {FileTray, isPathDrag, type TrayItem} from "./components/FileTray";
-import {FileMenu} from "./components/FileMenu";
+import {type ArchiveExtractMode, FileMenu} from "./components/FileMenu";
 import {CompressDialog} from "./components/CompressDialog";
 import {Wallpaper} from "./components/Wallpaper";
 import {ProtectedDeleteDialog} from "./components/ProtectedDeleteDialog";
@@ -2580,10 +2580,10 @@ export default function App() {
     const archiveEncrypted = archived && active.listing?.archiveEncrypted === true;
 
     /** Extracts one archive into a target folder, asking for a password when it is needed. */
-    const extractInto = async (archivePath: string, target: string) => {
+    const extractInto = async (archivePath: string, target: string, deleteAfter = false) => {
         const archive = archiveFile(archivePath);
         let result = await extractArchive(archive, target, archiveEncodingRef.current,
-            archivePasswordFor(archive));
+            archivePasswordFor(archive), deleteAfter);
 
         if (!result.ok && isArchivePasswordError(result.error)) {
             const stored = getArchivePassword(archive);
@@ -2592,7 +2592,7 @@ export default function App() {
 
             if (typed) {
                 setArchivePassword(archive, typed);
-                result = await extractArchive(archive, target, archiveEncodingRef.current, typed);
+                result = await extractArchive(archive, target, archiveEncodingRef.current, typed, deleteAfter);
             }
         }
 
@@ -2611,19 +2611,22 @@ export default function App() {
      * the archive, into a folder named after it, automatically (no extra folder when the archive
      * already wraps everything in one top-level folder), or into a folder the user picks.
      */
-    const extractArchiveTo = async (path: string, mode: "here" | "named" | "auto" | "choose") => {
+    const extractArchiveTo = async (path: string, mode: ArchiveExtractMode) => {
         const archive = archiveFile(path);
         const parent = parentOf(archive);
         if (!parent) return;
 
-        if (mode === "choose") {
+        const deleteAfter = mode.endsWith("-delete");
+        const base = (deleteAfter ? mode.slice(0, -7) : mode) as "here" | "named" | "auto" | "choose";
+
+        if (base === "choose") {
             const target = await requestFolder(parent);
             if (target) await extractInto(archive, target);
             return;
         }
 
-        let named = mode === "named";
-        if (mode === "auto") {
+        let named = base === "named";
+        if (base === "auto") {
             const entries = samePath(archive, activeFolder)
                 ? active.listing?.entries ?? []
                 : (await listDirectory(archive, false, false, archiveEncodingRef.current,
@@ -2636,11 +2639,12 @@ export default function App() {
             ? `${parent.replace(/[\\/]+$/, "")}${separator}${archiveStem(archive)}`
             : parent;
 
-        await extractInto(archive, target);
+        await extractInto(archive, target, deleteAfter);
     };
 
     /** The toolbar's three automatic modes for the archive the active tab shows. */
-    const extractActiveArchive = async (mode: "here" | "named" | "auto") => {
+    const extractActiveArchive = async (mode: "here" | "named" | "auto"
+        | "here-delete" | "named-delete" | "auto-delete") => {
         if (!archived) return;
         await extractArchiveTo(activeFolder, mode);
     };
@@ -3367,6 +3371,19 @@ export default function App() {
                                 label: t("auto_extract_to_the_current_folder"),
                                 onSelect: () => void extractActiveArchive("auto"),
                             },
+                            {
+                                label: t("extract_here_and_delete"),
+                                separatorBefore: true,
+                                onSelect: () => void extractActiveArchive("here-delete"),
+                            },
+                            {
+                                label: t("extract_to_a_folder_and_delete_archive"),
+                                onSelect: () => void extractActiveArchive("named-delete"),
+                            },
+                            {
+                                label: t("auto_extract_and_delete_archive"),
+                                onSelect: () => void extractActiveArchive("auto-delete"),
+                            },
                         ]}
                         onClose={() => setExtractMenu(null)}
                         x={extractMenu.x}
@@ -3399,6 +3416,8 @@ export default function App() {
                     <TransferConflictDialog
                         conflicts={conflictPrompt.conflicts}
                         move={conflictPrompt.move}
+                        defaultAction={settings?.conflictDefaultAction ?? configDefaults().conflictDefaultAction}
+                        remember={settings?.conflictRememberChoice ?? configDefaults().conflictRememberChoice}
                         onResolve={(decisions) => {
                             conflictPrompt.resolve(decisions);
                             setConflictPrompt(null);

@@ -321,7 +321,8 @@ const SectionSettings: Partial<Record<string, (keyof AppSettings)[]>> = {
         "backgroundBrightness", "backgroundLooks"],
     safety: ["protectedPaths", "deleteDelaySeconds"],
     "files-view": ["defaultView", "showCheckboxes", "openOnSingleClick", "confirmDelete",
-        "previewVideoAudio", "previewVideoAutoplay", "trayAutoShow", "conflictNameStyle"],
+        "previewVideoAudio", "previewVideoAutoplay", "trayAutoShow", "conflictNameStyle",
+        "conflictDefaultAction", "conflictRememberChoice"],
     shortcuts: ["shortcuts", "globalHotkey"],
     overview: ["recentLimit"],
     gallery: ["galleryRoots"],
@@ -2876,6 +2877,53 @@ export function SettingsView({
                                     value={settings?.conflictNameStyle ?? configDefaults().conflictNameStyle}
                                     width={160}
                                 />
+                            </RowEnd>
+                        </Row>
+                        <Row>
+                            <RowText>
+                                <LabelRow>
+                                    <Label>{t("default_conflict_handling")}</Label>
+                                    <GlobalTag/>
+                                </LabelRow>
+                                <Note>
+                                    {t("what_the_conflict_dialog_starts_with_choose_nothing_to_force_a_decision")}
+                                </Note>
+                            </RowText>
+                            <RowEnd>
+                                <SelectMenu
+                                    disabled={!settings}
+                                    onChange={(value) => void update({conflictDefaultAction: value})}
+                                    options={[
+                                        {value: "none", label: t("no_action_selected")},
+                                        {value: "overwrite", label: t("overwrite")},
+                                        {value: "rename", label: t("rename")},
+                                        {value: "skip", label: t("skip")},
+                                    ]}
+                                    value={settings?.conflictDefaultAction ?? configDefaults().conflictDefaultAction}
+                                    width={160}
+                                />
+                            </RowEnd>
+                        </Row>
+                        <Row>
+                            <RowText>
+                                <LabelRow>
+                                    <Label>{t("remember_the_last_conflict_choice")}</Label>
+                                    <GlobalTag/>
+                                </LabelRow>
+                                <Note>{t("the_next_conflict_dialog_starts_with_the_answer_you_used_last_time")}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <Toggle
+                                    $on={settings?.conflictRememberChoice ?? configDefaults().conflictRememberChoice}
+                                    disabled={!settings}
+                                    onClick={() => void update({
+                                        conflictRememberChoice:
+                                            !(settings?.conflictRememberChoice ?? configDefaults().conflictRememberChoice)
+                                    })}
+                                    type="button"
+                                >
+                                    <Knob/>
+                                </Toggle>
                             </RowEnd>
                         </Row>
                         <Row>

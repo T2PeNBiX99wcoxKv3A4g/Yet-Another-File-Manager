@@ -249,12 +249,13 @@ export async function listPage(path: string, from: number, sort: string, descend
 
 /** Extracts an archive, or a folder inside one, into a folder on disk. */
 export async function extractArchive(path: string, target: string, codePage = 0,
-                                     password?: string): Promise<{ ok: boolean; error: string | null; cancelled?: boolean }> {
+                                     password?: string,
+                                     deleteAfter = false): Promise<{ ok: boolean; error: string | null; cancelled?: boolean }> {
     type Reply = GuardedChange & { ok: boolean; error: string | null };
 
     // Extracting writes into the target, so a protected folder asks first.
     let result = await Native.request<Reply>(
-        "fs.archive.extract", {path, target, codePage, password});
+        "fs.archive.extract", {path, target, codePage, password, deleteAfter});
 
     for (let attempt = 0; attempt < 2 && result.required; attempt++) {
         if (!result.token || !result.protected?.length)
@@ -270,7 +271,7 @@ export async function extractArchive(path: string, target: string, codePage = 0,
             return {ok: false, error: null, cancelled: true};
 
         result = await Native.request<Reply>(
-            "fs.archive.extract", {path, target, codePage, password, confirm: result.token});
+            "fs.archive.extract", {path, target, codePage, password, deleteAfter, confirm: result.token});
     }
 
     return {ok: result.ok, error: result.error};

@@ -16,7 +16,7 @@ internal static class ArchiveAssociations
 {
     private const string ProgId = "YAFM.Archive";
 
-    private static readonly string[] Extensions = ArchiveFormats.Extensions;
+    private static readonly string[] Associations = ArchiveFormats.Associations;
 
     public static void Apply(bool enabled) =>
         Try.Run(() =>
@@ -84,6 +84,9 @@ internal static class ArchiveAssociations
         if (Environment.ProcessPath is not { Length: > 0 } executable)
             return;
 
+        // Older builds advertised themselves for .msi/.msp/.msm, which took the installer over.
+        RepairInstallerFormats();
+
         if (enabled)
         {
             // A copy elsewhere may have left the ProgId and the file classes on its own path.
@@ -101,7 +104,7 @@ internal static class ArchiveAssociations
 
             // An extension handled now may have no backup; remove only this app's own value there
             // instead of guessing.
-            foreach (var extension in Extensions.Where(extension => backups.Archive.All(backup =>
+            foreach (var extension in Associations.Where(extension => backups.Archive.All(backup =>
                          !string.Equals(backup.Extension, extension, StringComparison.OrdinalIgnoreCase))))
                 RestoreExtension(extension, null);
 
@@ -115,7 +118,7 @@ internal static class ArchiveAssociations
 
         var changed = false;
 
-        foreach (var extension in Extensions)
+        foreach (var extension in Associations)
         {
             if (backups.Archive.Any(backup =>
                     string.Equals(backup.Extension, extension, StringComparison.OrdinalIgnoreCase)))
@@ -152,11 +155,11 @@ internal static class ArchiveAssociations
 
             using var types = application?.CreateSubKey("SupportedTypes");
             if (types is not null)
-                foreach (var extension in Extensions)
+                foreach (var extension in Associations)
                     types.SetValue(extension, "");
         }
 
-        foreach (var extension in Extensions)
+        foreach (var extension in Associations)
         {
             using var key = Registry.CurrentUser.CreateSubKey($@"Software\Classes\{extension}");
             if (key is null)
@@ -169,6 +172,42 @@ internal static class ArchiveAssociations
             using var openWith = key.CreateSubKey("OpenWithProgids");
             openWith?.SetValue(ProgId, "");
         }
+    }
+
+    /// <summary>
+    ///     Removes the app from the installer packages Windows owns. Older builds offered themselves
+    ///     for .msi/.msp/.msm, so double-clicking an installer opened the file manager instead of the
+    ///     Windows Installer; this puts those extensions back.
+    /// </summary>
+    public static void RepairInstallerFormats()
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+
+        var backups = AssociationBackupStore.Read();
+        var changed = false;
+
+        foreach (var extension in ArchiveFormats.InstallerExtensions)
+        {
+            var backup = backups.Archive.FirstOrDefault(item =>
+                string.Equals(item.Extension, extension, StringComparison.OrdinalIgnoreCase));
+
+            RestoreExtension(extension, backup?.Value);
+
+            if (backup is not null)
+                changed |= backups.Archive.Remove(backup);
+
+            // The "Open with" list is built from SupportedTypes, so the old entry has to leave too.
+            Try.Run(() =>
+            {
+                using var types = Registry.CurrentUser.OpenSubKey(
+                    @"Software\Classes\Applications\YetAnotherFileManager.exe\SupportedTypes", true);
+                types?.DeleteValue(extension, false);
+            });
+        }
+
+        if (changed)
+            AssociationBackupStore.Write(backups);
     }
 
     private const string DesktopName = "yafm-archive.desktop";
