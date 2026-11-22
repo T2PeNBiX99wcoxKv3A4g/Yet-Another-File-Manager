@@ -92,6 +92,9 @@ export function applyTheme(accent: string | null | undefined, secondary: string 
     root.setProperty("color-scheme", theme);
     root.setProperty("--accent-primary", primary);
     root.setProperty("--accent-rgb", `${r}, ${g}, ${b}`);
+    // Selected text sits on the accent itself, so its ink follows the accent's brightness.
+    root.setProperty("--selection-ink",
+        (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.62 ? "#0b0f19" : "#ffffff");
     root.setProperty("--accent-secondary", second);
     root.setProperty("--accent-secondary-rgb", `${sr}, ${sg}, ${sb}`);
     root.setProperty("--border-color", `rgba(${r}, ${g}, ${b}, ${light ? 0.20 : 0.13})`);
