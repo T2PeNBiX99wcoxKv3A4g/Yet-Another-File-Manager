@@ -283,15 +283,42 @@ export function parentPath(path: string): string {
 
 const archiveExtensions = [".zip", ".7z", ".rar", ".tar", ".gz", ".tgz", ".bz2", ".xz"];
 
+/**
+ * Files the user chose "open as archive" for. They may not carry an archive extension, so the
+ * path helpers below consult this map before falling back to the extension rules.
+ */
+const forcedArchives = new Map<string, string>();
+
+export function rememberArchive(path: string) {
+    const clean = path.replace(/[\\/]+$/, "");
+    forcedArchives.set(clean.toLowerCase(), clean);
+}
+
+function forcedArchiveOf(path: string): string | null {
+    const lower = path.toLowerCase();
+
+    for (const [key, original] of forcedArchives)
+        if (lower === key || lower.startsWith(`${key}\\`) || lower.startsWith(`${key}/`))
+            return original;
+
+    return null;
+}
+
+export function isForcedArchivePath(path: string): boolean {
+    return [...forcedArchives.keys()].includes(path.replace(/[\\/]+$/, "").toLowerCase());
+}
+
 /** Whether the path itself names an archive file, such as `C:\show.zip`. */
 export function isArchivePath(path: string): boolean {
+    if (isForcedArchivePath(path)) return true;
+
     const trimmed = path.replace(/[\\/]+$/, "").toLowerCase();
     return archiveExtensions.some((extension) => trimmed.endsWith(extension));
 }
 
 /** Whether any part of the path is an archive, such as `C:\show.zip\text`. */
 export function isArchiveLocation(path: string): boolean {
-    if (isArchivePath(path)) return true;
+    if (forcedArchiveOf(path)) return true;
 
     return path.toLowerCase().split(/[\\/]/).some((part) =>
         archiveExtensions.some((extension) => part.endsWith(extension)));
@@ -299,6 +326,9 @@ export function isArchiveLocation(path: string): boolean {
 
 /** The archive file a virtual path points into, such as `C:\show.zip`. */
 export function archiveFile(path: string): string {
+    const forced = forcedArchiveOf(path);
+    if (forced) return forced;
+
     const parts = path.split(/[\\/]/);
     const index = parts.findIndex((part) =>
         archiveExtensions.some((extension) => part.toLowerCase().endsWith(extension)));

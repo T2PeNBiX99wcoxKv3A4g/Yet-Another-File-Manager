@@ -235,6 +235,8 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(TransferConflictRequest))]
 [JsonSerializable(typeof(TransferConflictsPayload))]
 [JsonSerializable(typeof(TransferDecision))]
+[JsonSerializable(typeof(StartMenuRequest))]
+[JsonSerializable(typeof(StartMenuPayload))]
 [JsonSerializable(typeof(List<TransferDecision>))]
 [JsonSerializable(typeof(PasteRequest))]
 [JsonSerializable(typeof(TransferResultPayload))]

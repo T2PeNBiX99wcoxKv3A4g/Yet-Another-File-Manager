@@ -262,13 +262,34 @@ internal static class RecycleBin
         Task.Run(() => Send(path), cancellationToken);
 
     /// <summary>Permanently removes every entry this account may delete; answers how many could not go.</summary>
-    public static int Empty(bool includeOrphans = false) =>
-        Try.Run(() => List(includeOrphans).Where(entry => entry.Removable).Count(entry => !Delete(entry.Id)))
+    public static int Empty(bool includeOrphans = false) => Empty(includeOrphans, null);
+
+    public static int Empty(bool includeOrphans, Action<int, int>? progress) =>
+        Try.Run(() =>
+        {
+            var entries = List(includeOrphans).Where(entry => entry.Removable).ToList();
+            var failed = 0;
+            var done = 0;
+
+            foreach (var entry in entries)
+            {
+                if (!Delete(entry.Id))
+                    failed++;
+
+                progress?.Invoke(++done, entries.Count);
+            }
+
+            return failed;
+        })
             .OnFailure(ex => Log.Warning(ex, "Could not empty the recycle bin"))
             .GetOrElse(_ => 0);
 
     public static Task<int> EmptyAsync(bool includeOrphans = false, CancellationToken cancellationToken = default) =>
         Task.Run(() => Empty(includeOrphans), cancellationToken);
+
+    public static Task<int> EmptyAsync(bool includeOrphans, Action<int, int>? progress,
+        CancellationToken cancellationToken = default) =>
+        Task.Run(() => Empty(includeOrphans, progress), cancellationToken);
 
     /// <summary>Deletes one entry's content and its metadata, permanently.</summary>
     public static bool Delete(string id) =>
@@ -287,11 +308,35 @@ internal static class RecycleBin
 
     /// <summary>Restores several entries, one after the other; answers how many succeeded.</summary>
     public static Task<int> RestoreManyAsync(IReadOnlyList<string> ids, CancellationToken cancellationToken = default) =>
-        Task.Run(() => ids.Count(Restore), cancellationToken);
+        RestoreManyAsync(ids, null, cancellationToken);
+
+    public static Task<int> RestoreManyAsync(IReadOnlyList<string> ids, Action<int, int>? progress,
+        CancellationToken cancellationToken = default) =>
+        Task.Run(() => RunMany(ids, Restore, progress), cancellationToken);
 
     /// <summary>Permanently deletes several entries; answers how many succeeded.</summary>
     public static Task<int> DeleteManyAsync(IReadOnlyList<string> ids, CancellationToken cancellationToken = default) =>
-        Task.Run(() => ids.Count(Delete), cancellationToken);
+        DeleteManyAsync(ids, null, cancellationToken);
+
+    public static Task<int> DeleteManyAsync(IReadOnlyList<string> ids, Action<int, int>? progress,
+        CancellationToken cancellationToken = default) =>
+        Task.Run(() => RunMany(ids, Delete, progress), cancellationToken);
+
+    private static int RunMany(IReadOnlyList<string> ids, Func<string, bool> action, Action<int, int>? progress)
+    {
+        var done = 0;
+        var completed = 0;
+
+        foreach (var id in ids)
+        {
+            if (action(id))
+                completed++;
+
+            progress?.Invoke(++done, ids.Count);
+        }
+
+        return completed;
+    }
 
     /// <summary>Shows the shell properties of the stored content behind one record.</summary>
     public static Task ShowPropertiesAsync(string id) =>

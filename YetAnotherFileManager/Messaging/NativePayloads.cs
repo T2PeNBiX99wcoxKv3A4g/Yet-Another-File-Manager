@@ -504,6 +504,12 @@ internal sealed record TransferConflictsPayload(List<TransferConflict> Conflicts
 /// <summary>What the user chose for one conflicting source.</summary>
 internal sealed record TransferDecision(string Source, string Action, string? Name = null);
 
+/// <summary>One shortcut request for the Start menu.</summary>
+internal sealed record StartMenuRequest(string Path, string Scope, bool Pin);
+
+/// <summary>What came of it; <paramref name="Path" /> is the shortcut itself.</summary>
+internal sealed record StartMenuPayload(bool Ok, string? Path = null, bool Pinned = false, string? Error = null);
+
 /// <summary>Body for <c>fs.operation.transfer</c>: the top-level paths that were created.</summary>
 internal sealed record TransferResultPayload(bool Ok, string? Error, List<string> Created,
     bool Required = false, string? Token = null, IReadOnlyList<ProtectedHit>? Protected = null,

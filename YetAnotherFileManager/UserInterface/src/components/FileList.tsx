@@ -126,6 +126,8 @@ interface FileListProps {
     favoritePaths?: string[];
     /** Extracts an archive selected in the list to the chosen place. */
     onExtractArchive?: (path: string, mode: ArchiveExtractMode) => void;
+    onOpenAsArchive?: (path: string) => void;
+    onAddToStartMenu?: (path: string, scope: "user" | "machine", pin: boolean) => void;
     /** Called after a paste, so the tray can drop entries the move consumed. */
     onPaste?: () => void;
     /** Ask before moving items to the recycle bin. Shift+Del always asks. */
@@ -229,6 +231,8 @@ export function FileList({
                              onRemoveFavorite,
                              favoritePaths,
                              onExtractArchive,
+                             onOpenAsArchive,
+                             onAddToStartMenu,
                              onPaste,
                              confirmDelete = false,
                              previewVideoAudio = false,
@@ -1722,6 +1726,8 @@ export function FileList({
                             onRemoveFavorite={onRemoveFavorite}
                             favoritePaths={favoritePaths}
                             onExtractArchive={onExtractArchive}
+                            onOpenAsArchive={onOpenAsArchive}
+                            onAddToStartMenu={onAddToStartMenu}
                             onArchiveCreated={archiveCreated}
                             onClose={closeMenu}
                             onCompressTo={(paths, name) => setCompressDialog({paths, name})}
@@ -1987,6 +1993,8 @@ export function FileList({
                         onRemoveFavorite={onRemoveFavorite}
                         favoritePaths={favoritePaths}
                         onExtractArchive={onExtractArchive}
+                            onOpenAsArchive={onOpenAsArchive}
+                            onAddToStartMenu={onAddToStartMenu}
                         onArchiveCreated={archiveCreated}
                         onClose={closeMenu}
                         onCompressTo={(paths, name) => setCompressDialog({paths, name})}

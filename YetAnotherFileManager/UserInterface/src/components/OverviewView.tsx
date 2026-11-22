@@ -103,6 +103,8 @@ interface OverviewViewProps {
     favoritePaths?: string[];
     /** Extracts an archive selected in a folder panel. */
     onExtractArchive?: (path: string, mode: ArchiveExtractMode) => void;
+    onOpenAsArchive?: (path: string) => void;
+    onAddToStartMenu?: (path: string, scope: "user" | "machine", pin: boolean) => void;
     /** Bumped when the app reloaded settings, so the favorites (and layout) stay in step. */
     settingsVersion?: number;
     /** Which palette the artwork matches. */
@@ -1357,6 +1359,8 @@ export function OverviewView({
                                  onRemoveFavorite,
                                  favoritePaths,
                                  onExtractArchive,
+                             onOpenAsArchive,
+                             onAddToStartMenu,
                                  settingsVersion = 0,
                                  platform,
                              }: OverviewViewProps) {
@@ -3016,6 +3020,8 @@ export function OverviewView({
                     onRemoveFavorite={onRemoveFavorite}
                     favoritePaths={favoritePaths}
                     onExtractArchive={onExtractArchive}
+                            onOpenAsArchive={onOpenAsArchive}
+                            onAddToStartMenu={onAddToStartMenu}
                     onOpen={openMenuTarget}
                     onOpenFile={(path) => onPick ? onPick(path) : void openFile(path)}
                     shortcuts={defaultShortcuts()}

@@ -70,6 +70,8 @@ interface GalleryViewProps {
     favoritePaths?: string[];
     /** Extracts an archive selected in the gallery. */
     onExtractArchive?: (path: string, mode: ArchiveExtractMode) => void;
+    onOpenAsArchive?: (path: string) => void;
+    onAddToStartMenu?: (path: string, scope: "user" | "machine", pin: boolean) => void;
     /** Reports the selection to the window-level details pane. */
     onPreviewChange?: (info: PreviewInfo | null, note?: string) => void;
 }
@@ -94,6 +96,8 @@ export function GalleryView({
                                 onRemoveFavorite,
                                 favoritePaths,
                                 onExtractArchive,
+                             onOpenAsArchive,
+                             onAddToStartMenu,
                                 onPreviewChange,
                                 platform,
                                 toolbarSlot,
@@ -427,6 +431,8 @@ export function GalleryView({
                             onRemoveFavorite={onRemoveFavorite}
                             favoritePaths={favoritePaths}
                             onExtractArchive={onExtractArchive}
+                            onOpenAsArchive={onOpenAsArchive}
+                            onAddToStartMenu={onAddToStartMenu}
                             groupOf={groupOf}
                             onGridScroll={onScroll}
                             gridFooter={<Sentinel $space={hasMore ? MoreSpace : 1} ref={sentinel}/>}

@@ -27,6 +27,9 @@ declare module "@photino-net-utils/bridge"
         "add_the_rule": true;
         "add_to_favorites": true;
         "add_to_file_tray": true;
+        "add_to_global_start_menu": true;
+        "add_to_start_menu": true;
+        "add_to_user_start_menu": true;
         "add_url": true;
         "adjust_banner_framing": true;
         "adjust_framing": true;
@@ -180,6 +183,7 @@ declare module "@photino-net-utils/bridge"
         "copy_count_items": true;
         "copy_n_items": true;
         "copy_original_path": true;
+        "could_not_add_the_shortcut": true;
         "could_not_add_the_tag": true;
         "could_not_apply_archive_changes": true;
         "could_not_change_the_case_sensitivity": true;
@@ -247,6 +251,7 @@ declare module "@photino-net-utils/bridge"
         "delete_every_orphan": true;
         "delete_n_items": true;
         "delete_permanently": true;
+        "deleting_from_the_recycle_bin": true;
         "deleting_moving_renaming_or_writing_to_a_protected_folder_anything_inside_a_recursive_entry_or_a_folder_that_contains_one_always_waits_for_an_explicit_confirmation": true;
         "deselect": true;
         "design_files": true;
@@ -279,6 +284,7 @@ declare module "@photino-net-utils/bridge"
         "edit_tags": true;
         "ember": true;
         "empty": true;
+        "emptying_the_recycle_bin": true;
         "empty_the_bin": true;
         "empty_the_recycle_bin": true;
         "encrypted": true;
@@ -526,6 +532,7 @@ declare module "@photino-net-utils/bridge"
         "opens_the_selected_folder_or_file": true;
         "opens_the_shell_properties_sheet": true;
         "open_archives_with_this_app": true;
+        "open_as_archive": true;
         "open_folder": true;
         "open_in_a_new_tab": true;
         "open_in_new_tab": true;
@@ -590,7 +597,9 @@ declare module "@photino-net-utils/bridge"
         "pin_any_folder_here": true;
         "pin_a_directory_here": true;
         "pin_a_folder_here": true;
+        "pin_to_global_start_menu": true;
         "pin_to_the_sidebar": true;
+        "pin_to_user_start_menu": true;
         "platform": true;
         "play": true;
         "play_audio_in_video_previews": true;
@@ -621,6 +630,7 @@ declare module "@photino-net-utils/bridge"
         "protected_folders": true;
         "protected_operating_system_files": true;
         "protected_path": true;
+        "purging_orphaned_recycle_bin_records": true;
         "put_every_panel_back_the_way_the_app_ships_it": true;
         "python_environments_package_builds_and_cache_folders_always_use_the_central_index_so_sidecar_files_cannot_get_bundled_into_packages": true;
         "python_file": true;
@@ -634,6 +644,7 @@ declare module "@photino-net-utils/bridge"
         "reads_the_current_folder_again": true;
         "reads_the_version_file_the_release_workflow_publishes": true;
         "read_only": true;
+        "rebuilding_the_archive": true;
         "recent": true;
         "recently_closed_tabs": true;
         "recent_items": true;
@@ -686,6 +697,7 @@ declare module "@photino-net-utils/bridge"
         "restore_default_panels": true;
         "restore_section_to_its_defaults": true;
         "restore_to_its_original_folder": true;
+        "restoring_from_the_recycle_bin": true;
         "returns_the_interface_to_the_default_blue_and_indigo_theme": true;
         "returns_this_background_to_the_default_blur_saturation_and_brightness": true;
         "ridgeline": true;
@@ -704,6 +716,7 @@ declare module "@photino-net-utils/bridge"
         "save_color": true;
         "save_the_current_colours_as_a_preset": true;
         "scanning": true;
+        "scanning_the_recycle_bin": true;
         "scan_folders": true;
         "scan_the_code_to_open_this_share_on_a_phone": true;
         "scan_the_folders_again": true;
@@ -800,6 +813,7 @@ declare module "@photino-net-utils/bridge"
         "smart_mirror": true;
         "software_update": true;
         "some_items_could_not_be_deleted": true;
+        "some_items_could_not_be_restored": true;
         "source": true;
         "source_file": true;
         "source_is_newer": true;
@@ -856,6 +870,7 @@ declare module "@photino-net-utils/bridge"
         "the_accent_and_highlight_colours_the_whole_window_uses": true;
         "the_administrator_view_is_already_loaded": true;
         "the_app_s_settings_folder_which_usually_sits_on_the_system_drive": true;
+        "the_archive_could_not_be_rebuilt": true;
         "the_build_its_yafm_links_and_what_reopens_at_launch": true;
         "the_changelog_could_not_be_loaded": true;
         "the_defaults_every_folder_starts_with_a_folder_can_still_override_them": true;
@@ -888,12 +903,14 @@ declare module "@photino-net-utils/bridge"
         "the_port_the_browser_file_server_listens_on_leave_it_empty_to_pick_a_free_port_between_6000_and_9000_automatically": true;
         "the_previous_folder_in_this_tab_the_mouse_back_button_and_the_browser_back_key_always_work": true;
         "the_program_is_running": true;
+        "the_recycle_bin_could_not_be_read": true;
         "the_recycle_bin_is_empty": true;
         "the_recycle_bin_is_turned_off_for_this_volume": true;
         "the_registered_path_points_to_path_register_again_to_use_this_build": true;
         "the_request_id_is_missing": true;
         "the_running_build_and_the_newest_one_published": true;
         "the_runtime_loaded_libraries_and_the_rust_helper_share_this_part_rust_runs_inside_the_process_so_it_has_no_separate_figure": true;
+        "the_shortcut_was_added_but_windows_did_not_pin_it": true;
         "the_size_the_folder_and_file_picker_opens_at_width_and_height_are_in_pixels": true;
         "the_source_no_longer_exists": true;
         "the_suffix_added_when_a_copy_or_a_new_item_would_have_the_same_name": true;
@@ -904,6 +921,7 @@ declare module "@photino-net-utils/bridge"
         "this_archive_is_encrypted_and_asks_for_a_password_when_opened": true;
         "this_archive_is_encrypted_enter_its_password": true;
         "this_device": true;
+        "this_file_could_not_be_opened_as_an_archive": true;
         "this_folder_is_already_shared": true;
         "this_folder_is_empty": true;
         "this_folder_only": true;

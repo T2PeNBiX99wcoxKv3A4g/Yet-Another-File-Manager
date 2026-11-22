@@ -247,6 +247,14 @@ export async function listPage(path: string, from: number, sort: string, descend
     return {entries: page.entries, total: page.total};
 }
 
+/** Marks a file for the "open as archive" action, whatever its extension says. */
+export async function forceArchive(path: string): Promise<boolean> {
+    if (!Native.available) return false;
+
+    const data = await Native.request<{ ok: boolean }>("fs.archive.force", {path});
+    return data.ok;
+}
+
 /** Extracts an archive, or a folder inside one, into a folder on disk. */
 export async function extractArchive(path: string, target: string, codePage = 0,
                                      password?: string,

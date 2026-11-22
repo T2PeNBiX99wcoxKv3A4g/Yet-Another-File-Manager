@@ -212,24 +212,58 @@ internal partial class FileSystemService : INativeMessageHandler
                     new OkPayload(await SetIconOverrideAsync(context.Payload<IconOverrideRequest>())));
 
             case "fs.recycle.restore":
-                return context.Reply("fs.recycle.restore.result",
-                    new OkPayload(await RecycleBin.RestoreAsync(context.Payload<RecycleRequest>()?.Id ?? "")));
+            {
+                var taskId = TaskCenter.Instance.Start("restore", Localization.Get("restoring_from_the_recycle_bin"));
+
+                var restored = await RecycleBin.RestoreAsync(context.Payload<RecycleRequest>()?.Id ?? "");
+
+                if (restored)
+                    TaskCenter.Instance.Complete(taskId);
+                else
+                    TaskCenter.Instance.Fail(taskId, Localization.Get("some_items_could_not_be_restored"));
+
+                return context.Reply("fs.recycle.restore.result", new OkPayload(restored));
+            }
 
             case "fs.recycle.empty":
             {
                 var request = context.Payload<RecycleListRequest>();
                 var includeOrphans = request?.IncludeOrphans ?? false;
-                var entries = await RecycleBin.ListAsync(includeOrphans);
-                var originalPaths = entries.Where(entry => entry.Removable).Select(entry => entry.OriginalPath).ToList();
+                var taskId = TaskCenter.Instance.Start("delete", Localization.Get("emptying_the_recycle_bin"));
 
-                if (GuardDelete(request?.Confirm, DeleteGuard.KeyForEmpty(includeOrphans), originalPaths) is { } blocked)
-                    return context.Reply("fs.recycle.empty.result", blocked);
+                try
+                {
+                    var entries = await RecycleBin.ListAsync(includeOrphans);
+                    var removable = entries.Where(entry => entry.Removable).ToList();
+                    var originalPaths = removable.Select(entry => entry.OriginalPath).ToList();
 
-                var failed = await RecycleBin.EmptyAsync(includeOrphans);
+                    TaskCenter.Instance.UpdateTotal(taskId, removable.Count, 0);
 
-                return context.Reply("fs.recycle.empty.result", new DeletePayload(failed == 0,
-                    Error: failed == 0 ? null : Localization.Get("some_items_could_not_be_deleted"),
-                    Failed: failed));
+                    if (GuardDelete(request?.Confirm, DeleteGuard.KeyForEmpty(includeOrphans), originalPaths) is
+                        { } blocked)
+                    {
+                        TaskCenter.Instance.Complete(taskId);
+                        return context.Reply("fs.recycle.empty.result", blocked);
+                    }
+
+                    var failed = await RecycleBin.EmptyAsync(includeOrphans,
+                        (done, _) => TaskCenter.Instance.Progress(taskId, done, 0));
+
+                    if (failed == 0)
+                        TaskCenter.Instance.Complete(taskId);
+                    else
+                        TaskCenter.Instance.Fail(taskId, Localization.Get("some_items_could_not_be_deleted"));
+
+                    return context.Reply("fs.recycle.empty.result", new DeletePayload(failed == 0,
+                        Error: failed == 0 ? null : Localization.Get("some_items_could_not_be_deleted"),
+                        Failed: failed));
+                }
+                catch (Exception exception)
+                {
+                    TaskCenter.Instance.Fail(taskId, exception.Message);
+                    return context.Reply("fs.recycle.empty.result",
+                        new DeletePayload(false, Error: exception.Message, Failed: 0));
+                }
             }
 
             case "fs.recycle.delete":
@@ -242,14 +276,31 @@ internal partial class FileSystemService : INativeMessageHandler
                 if (GuardDelete(request?.Confirm, DeleteGuard.KeyForRecycle([id]), originalPaths) is { } blocked)
                     return context.Reply("fs.recycle.delete.result", blocked);
 
-                return context.Reply("fs.recycle.delete.result",
-                    new DeletePayload(await RecycleBin.DeleteAsync(id)));
+                var taskId = TaskCenter.Instance.Start("delete",
+                    Localization.Get("deleting_from_the_recycle_bin"));
+                var deleted = await RecycleBin.DeleteAsync(id);
+
+                if (deleted)
+                    TaskCenter.Instance.Complete(taskId);
+                else
+                    TaskCenter.Instance.Fail(taskId, Localization.Get("some_items_could_not_be_deleted"));
+
+                return context.Reply("fs.recycle.delete.result", new DeletePayload(deleted));
             }
 
             case "fs.recycle.restoreMany":
             {
                 var ids = context.Payload<RecycleBatchRequest>()?.Ids ?? [];
-                var done = await RecycleBin.RestoreManyAsync(ids);
+                var taskId = TaskCenter.Instance.Start("restore", Localization.Get("restoring_from_the_recycle_bin"),
+                    ids.Count);
+                var done = await RecycleBin.RestoreManyAsync(ids,
+                    (count, _) => TaskCenter.Instance.Progress(taskId, count, 0));
+
+                if (done == ids.Count)
+                    TaskCenter.Instance.Complete(taskId);
+                else
+                    TaskCenter.Instance.Fail(taskId, Localization.Get("some_items_could_not_be_restored"));
+
                 return context.Reply("fs.recycle.restoreMany.result",
                     new RecycleBatchPayload(done == ids.Count, done));
             }
@@ -266,7 +317,16 @@ internal partial class FileSystemService : INativeMessageHandler
                     return context.Reply("fs.recycle.deleteMany.result",
                         new RecycleBatchPayload(false, 0, true, blocked.Token, blocked.Protected, blocked.DelaySeconds));
 
-                var done = await RecycleBin.DeleteManyAsync(ids);
+                var taskId = TaskCenter.Instance.Start("delete",
+                    Localization.Get("deleting_from_the_recycle_bin"), ids.Count);
+                var done = await RecycleBin.DeleteManyAsync(ids,
+                    (count, _) => TaskCenter.Instance.Progress(taskId, count, 0));
+
+                if (done == ids.Count)
+                    TaskCenter.Instance.Complete(taskId);
+                else
+                    TaskCenter.Instance.Fail(taskId, Localization.Get("some_items_could_not_be_deleted"));
+
                 return context.Reply("fs.recycle.deleteMany.result",
                     new RecycleBatchPayload(done == ids.Count, done));
             }
@@ -301,6 +361,19 @@ internal partial class FileSystemService : INativeMessageHandler
             case "app.scheme.set":
                 return context.Reply("app.scheme.result",
                     await SetSchemeAsync(context.Payload<SchemeRequest>()?.Enabled ?? false));
+
+            case "fs.shell.startMenu":
+            {
+                var request = context.Payload<StartMenuRequest>();
+
+                if (!OperatingSystem.IsWindows())
+                    return context.Reply("fs.shell.startMenu.result",
+                        new StartMenuPayload(false, null, false, "Only Windows has a Start menu."));
+
+                return context.Reply("fs.shell.startMenu.result",
+                    await StartMenuShortcuts.CreateAsync(request?.Path ?? "", request?.Scope ?? "user",
+                        request?.Pin ?? false));
+            }
 
             case "app.archive.status":
                 return context.Reply("app.archive.status.result", ArchiveAssociations.Status());
@@ -456,9 +529,12 @@ internal partial class FileSystemService : INativeMessageHandler
                 return context.Reply("fs.archive.extract.result", extracted);
             }
 
+            case "fs.archive.force":
+                return context.Reply("fs.archive.force.result",
+                    new OkPayload(Archives.Force(context.Payload<PathPayload>()?.Path)));
+
             case "fs.archive.extractEntry":
-            {
-                var request = context.Payload<ArchivePathRequest>();
+            {                var request = context.Payload<ArchivePathRequest>();
                 try
                 {
                     var path = await Task.Run(() => Archives.ExtractEntry(request?.Path ?? "", request?.CodePage ?? 0,
@@ -481,9 +557,16 @@ internal partial class FileSystemService : INativeMessageHandler
             {
                 var request = context.Payload<ArchivePathRequest>();
                 var changed = Archives.HasWorkspace(request?.Path ?? "");
+                var taskId = TaskCenter.Instance.Start("archive", Localization.Get("rebuilding_the_archive"));
                 var result = await Task.Run(() => Archives.ApplyChanges(request?.Path ?? "", out var error)
                     ? new(true, changed)
                     : new ArchiveApplyPayload(false, false, error));
+
+                if (result.Ok)
+                    TaskCenter.Instance.Complete(taskId);
+                else
+                    TaskCenter.Instance.Fail(taskId, result.Error ?? Localization.Get("the_archive_could_not_be_rebuilt"));
+
                 return context.Reply("fs.archive.apply.result", result);
             }
 
@@ -1139,11 +1222,15 @@ internal partial class FileSystemService : INativeMessageHandler
     /// </summary>
     private static async Task<NativeResponse?> ListOrphansAsAdmin(NativeContext context)
     {
+        var taskId = TaskCenter.Instance.Start("operation", Localization.Get("scanning_the_recycle_bin"));
         var report = TempReportPath();
         var started = await RunElevatedAsync(Constants.OrphansReportArgument, report);
 
         if (!started)
+        {
+            TaskCenter.Instance.Complete(taskId);
             return context.Reply("fs.recycle.admin.list.result", new AdminOrphansPayload([], true, false));
+        }
 
         var json = (await Try.Run(() => File.ReadAllTextAsync(report))).GetOrNull();
         var entries = json is null
@@ -1154,10 +1241,14 @@ internal partial class FileSystemService : INativeMessageHandler
 
         await RemoveFileAsync(report);
 
-        // Elevation worked but the report is unusable: say so instead of pretending the view is loaded.
-        return entries is null
-            ? context.Reply("fs.recycle.admin.list.result", new AdminOrphansPayload([], false, true))
-            : context.Reply("fs.recycle.admin.list.result", new AdminOrphansPayload(entries, false, false));
+        if (entries is null)
+        {
+            TaskCenter.Instance.Fail(taskId, Localization.Get("the_recycle_bin_could_not_be_read"));
+            return context.Reply("fs.recycle.admin.list.result", new AdminOrphansPayload([], false, true));
+        }
+
+        TaskCenter.Instance.Complete(taskId);
+        return context.Reply("fs.recycle.admin.list.result", new AdminOrphansPayload(entries, false, false));
     }
 
     /// <summary>Runs the same elevated helper with deletion enabled.</summary>
@@ -1204,11 +1295,18 @@ internal partial class FileSystemService : INativeMessageHandler
 
     private static async Task<NativeResponse?> PurgeOrphansAsAdmin(NativeContext context)
     {
+        var taskId = TaskCenter.Instance.Start("delete",
+            Localization.Get("purging_orphaned_recycle_bin_records"));
         var report = TempReportPath();
         var started = await RunElevatedAsync(Constants.OrphansReportArgument, report,
             Constants.OrphansDeleteArgument);
 
         await RemoveFileAsync(report);
+
+        if (started)
+            TaskCenter.Instance.Complete(taskId);
+        else
+            TaskCenter.Instance.Fail(taskId, Localization.Get("cancelled"));
 
         return context.Reply("fs.recycle.admin.purge.result", new OkPayload(started));
     }

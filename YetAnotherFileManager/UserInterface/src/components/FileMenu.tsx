@@ -107,6 +107,9 @@ interface FileMenuProps {
     favoritePaths?: string[];
     /** Extracts one archive to the chosen place; "choose" asks for a folder first. */
     onExtractArchive?: (path: string, mode: ArchiveExtractMode) => void;
+    onOpenAsArchive?: (path: string) => void;
+    /** Windows only: writes a shortcut into the current user's or the all-users Start menu. */
+    onAddToStartMenu?: (path: string, scope: "user" | "machine", pin: boolean) => void;
     allowCompression?: boolean;
     onCompressTo?: (paths: string[], name: string) => void;
     onArchiveCreated?: (path: string, rename: boolean) => void;
@@ -140,6 +143,8 @@ export function FileMenu({
                              onRemoveFavorite,
                              favoritePaths,
                              onExtractArchive,
+                             onOpenAsArchive,
+                             onAddToStartMenu,
                              allowCompression = false,
                              platform,
                              onCompressTo,
@@ -576,6 +581,14 @@ export function FileMenu({
                 });
         }
 
+        if (!archiveView && single && target && !target.isDirectory && onOpenAsArchive) {
+            items.push({
+                label: t("open_as_archive"),
+                icon: <ArchiveIcon size={14}/>,
+                onSelect: () => onOpenAsArchive(target.path),
+            });
+        }
+
         if (!archiveView && single && target && !target.isDirectory && isArchivePath(target.path) && onExtractArchive) {
             items.push({
                 label: t("extract_archive"),
@@ -616,6 +629,32 @@ export function FileMenu({
             });
         }
 
+        if (platform === "windows" && !archiveView && single && target && onAddToStartMenu) {
+            items.push({
+                label: t("add_to_start_menu"),
+                icon: <StarIcon size={14}/>,
+                separatorBefore: true,
+                children: [
+                    {
+                        label: t("add_to_user_start_menu"),
+                        onSelect: () => onAddToStartMenu(target.path, "user", false),
+                    },
+                    {
+                        label: t("pin_to_user_start_menu"),
+                        onSelect: () => onAddToStartMenu(target.path, "user", true),
+                    },
+                    {
+                        label: t("add_to_global_start_menu"), separatorBefore: true,
+                        onSelect: () => onAddToStartMenu(target.path, "machine", false),
+                    },
+                    {
+                        label: t("pin_to_global_start_menu"),
+                        onSelect: () => onAddToStartMenu(target.path, "machine", true),
+                    },
+                ],
+                onSelect: () => undefined,
+            });
+        }
         if (!archiveView && windows && single && target) {
             const children: ContextMenuItem[] = [];
 

@@ -27,6 +27,43 @@ internal static class Archives
 {
     private static readonly string[] Extensions = ArchiveFormats.Extensions;
 
+    /// <summary>Files the user asked to try as archives even though their extension says otherwise.</summary>
+    private static readonly ConcurrentDictionary<string, byte> ForcedArchives =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Remembers a file the user chose "open as archive" for, for this session.</summary>
+    public static bool Force(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+
+        var full = Try.Run(() => Path.GetFullPath(path)).GetOrNull();
+
+        if (full is null || !File.Exists(full))
+            return false;
+
+        ForcedArchives[full] = 0;
+        return true;
+    }
+
+    private static bool IsForced(string path) =>
+        Try.Run(() => ForcedArchives.ContainsKey(Path.GetFullPath(path))).GetOrElse(_ => false);
+
+    private static bool IsForcedLocation(string path) =>
+        Try.Run(() =>
+        {
+            var full = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar);
+            var separator = Path.DirectorySeparatorChar;
+
+            return ForcedArchives.Keys.Any(archive =>
+                string.Equals(full, archive, StringComparison.OrdinalIgnoreCase)
+                || full.StartsWith(archive + separator, StringComparison.OrdinalIgnoreCase));
+        }).GetOrElse(_ => false);
+
+    /// <summary>Whether the path itself names an archive file.</summary>
+    public static bool IsArchive(string path) =>
+        IsForced(path) || Extensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
+
     /// <summary>
     ///     Formats the managed reader does not understand. 7z.dll reads these through the bundled
     ///     SevenZipExtractor, so the rest of the archive code can treat them as ordinary archives.
@@ -105,12 +142,8 @@ internal static class Archives
     internal static string SevenZipLibraryPath => SevenZipLibrary.Value;
 
     private static bool UseSevenZip(string archivePath) =>
-        SevenZipExtensions.Contains(Path.GetExtension(archivePath))
+        (IsForced(archivePath) || SevenZipExtensions.Contains(Path.GetExtension(archivePath)))
         && (OperatingSystem.IsWindows() ? File.Exists(SevenZipLibrary.Value) : SevenZipCli.Available);
-
-    /// <summary>Whether the path itself names an archive file.</summary>
-    public static bool IsArchive(string path) =>
-        Extensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     ///     Whether the archive needs a password. The answer is cached by file size and write time, so
@@ -169,7 +202,7 @@ internal static class Archives
 
     /// <summary>Whether any segment of the path is an archive file.</summary>
     public static bool IsArchiveLocation(string path) =>
-        Extensions.Any(extension => path.Contains($"{extension}{Path.DirectorySeparatorChar}",
+        IsForcedLocation(path) || Extensions.Any(extension => path.Contains($"{extension}{Path.DirectorySeparatorChar}",
             StringComparison.OrdinalIgnoreCase)) || IsArchive(path);
 
     /// <summary>

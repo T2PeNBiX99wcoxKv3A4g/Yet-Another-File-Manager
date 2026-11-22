@@ -6,6 +6,7 @@ import {
     type DirectoryView,
     type Drive,
     extractArchive,
+    forceArchive,
     extractArchiveEntry,
     type FileEntry,
     listDirectory,
@@ -38,6 +39,7 @@ import {
     newFolder,
     pasteInto,
     redoFileOperation,
+    addToStartMenu as addStartMenuShortcut,
     transferPaths,
     undoFileOperation,
 } from "./api/operations";
@@ -112,6 +114,7 @@ import {
     isArchiveLocation,
     isArchivePath,
     isZipArchiveLocation,
+    rememberArchive,
     normalizePath,
     plural,
     samePath
@@ -2534,6 +2537,8 @@ export default function App() {
                 onRemoveFavorite={(paths) => void removeFavoritePaths(paths)}
                 favoritePaths={favoritePaths}
                 onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
+                onOpenAsArchive={(path) => void openAsArchive(path)}
+                onAddToStartMenu={(path, scope, pin) => void addToStartMenu(path, scope, pin)}
                 openOnSingleClick={settings?.openOnSingleClick ?? configDefaults().openOnSingleClick}
                 pendingRename={renameRequest
                 && primary === (activePane === "primary")
@@ -2604,6 +2609,30 @@ export default function App() {
         refreshFolderTabs(target);
         clearIconCache();
         void load(active.id, target, true);
+    };
+
+    /** Adds the selected entry to one of the Start menus; pinning is best effort. */
+    const addToStartMenu = async (path: string, scope: "user" | "machine", pin: boolean) => {
+        const result = await addStartMenuShortcut(path, scope, pin);
+
+        if (!result.ok) {
+            void showMessage(result.error ?? t("could_not_add_the_shortcut"));
+            return;
+        }
+
+        if (pin && !result.pinned)
+            void showMessage(result.error ?? t("the_shortcut_was_added_but_windows_did_not_pin_it"));
+    };
+
+    /** Opens a file as an archive even when its name does not say so. */
+    const openAsArchive = async (path: string) => {
+        if (!await forceArchive(path)) {
+            void showMessage(t("this_file_could_not_be_opened_as_an_archive"));
+            return;
+        }
+
+        rememberArchive(path);
+        void load(active.id, path);
     };
 
     /**
@@ -3157,6 +3186,8 @@ export default function App() {
                                     onRemoveFavorite={(paths) => void removeFavoritePaths(paths)}
                                     favoritePaths={favoritePaths}
                                     onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
+                onOpenAsArchive={(path) => void openAsArchive(path)}
+                onAddToStartMenu={(path, scope, pin) => void addToStartMenu(path, scope, pin)}
                                     settingsVersion={settingsVersion}
                                     theme={theme}
                                     onOpen={navigate}
@@ -3190,6 +3221,8 @@ export default function App() {
                                     onRemoveFavorite={(paths) => void removeFavoritePaths(paths)}
                                     favoritePaths={favoritePaths}
                                     onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
+                onOpenAsArchive={(path) => void openAsArchive(path)}
+                onAddToStartMenu={(path, scope, pin) => void addToStartMenu(path, scope, pin)}
                                     shortcuts={shortcuts}
                                     showCheckboxes={settings?.showCheckboxes ?? configDefaults().showCheckboxes}
                                     selectMatchesToken={selectMatchesToken}
@@ -3288,6 +3321,8 @@ export default function App() {
                         onRemoveFavorite={(paths) => void removeFavoritePaths(paths)}
                         favoritePaths={favoritePaths}
                         onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
+                onOpenAsArchive={(path) => void openAsArchive(path)}
+                onAddToStartMenu={(path, scope, pin) => void addToStartMenu(path, scope, pin)}
                         onArchiveCreated={(created) => {
                             if (created) refreshFolderTabs(parentOf(pathMenu.path) ?? pathMenu.path);
                         }}

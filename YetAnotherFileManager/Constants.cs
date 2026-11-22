@@ -145,6 +145,9 @@ public static class Constants
     /// </summary>
     public const string ConflictDumpArgument = "--conflict-dump";
 
+    /// <summary>Creates one Start Menu shortcut, elevated when the all-users menu needs it.</summary>
+    public const string StartMenuShortcutArgument = "--start-menu-shortcut";
+
     /// <summary>Where a debug build loads the interface from; Vite serves it with hot reload.</summary>
     public const string DevServerUrl = "http://127.0.0.1:3100";
 

@@ -102,6 +102,13 @@ internal static partial class Program
             return;
         }
 
+        // The all-users Start menu is written by an elevated copy of this same executable.
+        if (OperatingSystem.IsWindows() && args.Contains(Constants.StartMenuShortcutArgument))
+        {
+            Environment.ExitCode = StartMenuShortcuts.RunHelper(args);
+            return;
+        }
+
         // PDFium is kept in a short-lived helper; the window only ever receives the rendered PNG.
         if (args.Contains(Constants.PdfPreviewArgument))
         {

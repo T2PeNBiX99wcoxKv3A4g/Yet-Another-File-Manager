@@ -85,6 +85,21 @@ export async function transferPaths(paths: string[], target: string, move: boole
     );
 }
 
+/** A Start Menu shortcut request; only Windows implements it. */
+export interface StartMenuResult {
+    ok: boolean;
+    path: string | null;
+    pinned: boolean;
+    error: string | null;
+}
+
+export async function addToStartMenu(path: string, scope: "user" | "machine",
+                                    pin: boolean): Promise<StartMenuResult> {
+    if (!Native.available) return {ok: false, path: null, pinned: false, error: null};
+
+    return await Native.request<StartMenuResult>("fs.shell.startMenu", {path, scope, pin});
+}
+
 /** One entry the copy or move would land on top of. */
 export interface TransferConflict {
     source: string;
