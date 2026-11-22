@@ -135,6 +135,22 @@ internal static class FolderIndex
 
     public static string PathFor(string directory) => Path.Combine(directory, FileName);
 
+    /// <summary>
+    ///     Folders whose index was written in the last couple of seconds. Writing the database changes
+    ///     the folder's own timestamp; the watcher must not call that a change, or listing, measuring
+    ///     and writing would chase each other forever.
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, long> RecentlyWritten =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private const int WriteQuietMilliseconds = 3000;
+
+    public static void MarkWrite(string directory) => RecentlyWritten[directory] = Environment.TickCount64;
+
+    public static bool WasJustWritten(string path) =>
+        RecentlyWritten.TryGetValue(path, out var at)
+        && Environment.TickCount64 - at < WriteQuietMilliseconds;
+
     /// <summary>Excludes the index and SQLite's side files from a listing.</summary>
     public static bool IsIndexFile(string name) =>
         name.StartsWith(FileName, StringComparison.OrdinalIgnoreCase);
@@ -779,7 +795,8 @@ internal static class FolderIndex
             command.Transaction = transaction;
             command.CommandText = $"INSERT INTO {table} (name, {column}, computed_at) VALUES ($name, $value, $now) " +
                                   $"ON CONFLICT(name) DO UPDATE SET {column} = excluded.{column}, " +
-                                  "computed_at = excluded.computed_at";
+                                  "computed_at = excluded.computed_at " +
+                                  $"WHERE {column} <> excluded.{column}";
 
             var name = command.Parameters.Add("$name", SqliteType.Text);
             var value = command.Parameters.Add("$value", SqliteType.Integer);
@@ -883,6 +900,9 @@ internal static class FolderIndex
     /// </summary>
     private static async Task RecoverAsync(string directory)
     {
+        // Tags are the one thing in the file the user typed, so a reset carries them over.
+        var tags = await ReadTagsDirectAsync(directory);
+
         var result = await Database(directory, true).ExclusiveAsync(async token =>
         {
             var path = PathFor(directory);
@@ -925,6 +945,36 @@ internal static class FolderIndex
         // A read-only volume cannot delete the broken file; keep it out of the way for this session.
         if (!recovered && File.Exists(PathFor(directory)))
             Unusable[directory] = true;
+
+        if (!recovered && tags.Count > 0)
+            foreach (var (name, list) in tags)
+                await SetTagsAsync(directory, name, list);
+    }
+
+    /// <summary>Reads the tags without going through the code that resets a broken index.</summary>
+    private static async Task<Dictionary<string, List<string>>> ReadTagsDirectAsync(string directory)
+    {
+        var result = await Database(directory, false).ReadAsync(async (connection, token) =>
+        {
+            var tags = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT name, tags FROM tags";
+
+            await using var reader = await command.ExecuteReaderAsync(token);
+            while (await reader.ReadAsync(token))
+            {
+                var list = Try.Run(() => JsonSerializer.Deserialize(reader.GetString(1),
+                    AppJsonContext.Default.ListString)).GetOrNull();
+
+                if (list is { Count: > 0 })
+                    tags[reader.GetString(0)] = list;
+            }
+
+            return tags;
+        });
+
+        return result.GetOrElse(_ => []);
     }
 
     private static async Task<bool> IntegrityOkAsync(string directory, CancellationToken token)
@@ -1029,6 +1079,11 @@ internal static class FolderIndex
     {
         if (!Directory.Exists(directory) || Unusable.ContainsKey(directory))
             return false;
+
+        // Writing the index changes the folder's own timestamp, which the watcher would report as a
+        // change of the folder and list it again, which measures and writes once more. Remember the
+        // write so that echo is ignored.
+        MarkWrite(directory);
 
         var result = await Database(directory, true).WriteAsync(async (connection, transaction, token) =>
         {

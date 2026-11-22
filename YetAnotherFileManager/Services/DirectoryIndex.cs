@@ -59,6 +59,12 @@ internal static class DirectoryIndex
     /// <summary>Excludes the index and SQLite's side files from a listing.</summary>
     public static bool IsIndexFile(string name) => FolderIndex.IsIndexFile(name);
 
+    /// <summary>
+    ///     True for a folder whose index was written a moment ago: its timestamp change is our own
+    ///     doing and must not be reported as a change of the folder.
+    /// </summary>
+    public static bool WasJustWritten(string path) => FolderIndex.WasJustWritten(path);
+
     /// <summary>Icons recorded for the entries of a directory, by entry name.</summary>
     public static Task<Dictionary<string, string>> IconsAsync(string directory) =>
         ReadsOwnIndex(directory) ? FolderIndex.IconsAsync(directory) : CentralIndex.Instance.IconsAsync(directory);

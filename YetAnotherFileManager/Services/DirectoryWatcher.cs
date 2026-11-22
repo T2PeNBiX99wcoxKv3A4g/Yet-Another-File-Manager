@@ -83,7 +83,11 @@ internal partial class DirectoryWatcher
     private void OnChanged(string path, FileSystemEventArgs args)
     {
         // The folder's own index lives inside it, and writing to it is not a change worth showing.
-        if (DirectoryIndex.IsIndexFile(Path.GetFileName(args.FullPath)))
+        // The same write also touches the folder's timestamp, so a folder whose index was just
+        // written is not a change either.
+        if (DirectoryIndex.IsIndexFile(Path.GetFileName(args.FullPath))
+            || DirectoryIndex.WasJustWritten(args.FullPath)
+            || DirectoryIndex.WasJustWritten(path))
             return;
 
         lock (_gate)
@@ -123,8 +127,10 @@ internal partial class DirectoryWatcher
         }, TaskScheduler.Default);
     }
 
-    private void Notify(string path) =>
+    private void Notify(string path)
+    {
         Try.Run(() => WindowManager.Instance.RunOnMainWindow(() =>
                 WindowManager.Instance.Notify("fs.changed", new FsChangedPayload(path))))
             .OnFailure(_ => Log.Debug("Could not report the change in {Path}", path));
+    }
 }
