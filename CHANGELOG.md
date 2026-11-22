@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.48.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.48.0..v0.48.1) - 2026-11-22
+
+### 🐛 Bug Fixes
+
+- *(index)* Migrate an index whose stamp lagged behind its columns - ([4544b8f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/4544b8ff80beaac6a749f1e5b47f987d6d480fc0))
+- *(memory)* Measure the shares against the machine's own figures - ([10776d0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/10776d050d500f3fd33ade5da285458759e84ee0))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([042ee1f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/042ee1fc9fde4c838d9ba06577373d192b3cf9ca))
+
+
 ## [0.48.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.47.0..v0.48.0) - 2026-11-22
 
 ### ⛰️  Features
