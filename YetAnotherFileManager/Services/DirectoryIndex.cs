@@ -145,25 +145,51 @@ internal static class DirectoryIndex
         var name = Path.GetFileName(path);
 
         if (!Directory.Exists(directory))
-            return new([], 0, null, false);
+            return NoDetails();
 
         // A missing entry has nothing to annotate; the dialog already shows the error.
         if (!File.Exists(path) && !Directory.Exists(path))
-            return new([], 0, null, false);
+            return NoDetails();
 
         // Tags, rating and comment only live in the folder's own index, so a folder that keeps its
         // data centrally shows them read-only rather than pretending a write would stick.
         if (!HoldsOwnIndex(directory))
-            return new([], 0, null, false);
+            return NoDetails();
 
-        var tags = (await FolderIndex.TagsAsync(directory)).GetValueOrDefault(name) ?? [];
+        var catalog = TagCatalog.Instance;
+
+        // The index keeps tag ids; the dialog speaks names, exactly like the file list.
+        var stored = (await FolderIndex.TagsAsync(directory)).GetValueOrDefault(name) ?? [];
+        var names = catalog.ResolveIds(stored)
+            .Select(catalog.NameOf)
+            .OfType<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var colors = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (tag, color) in await TagColorsAsync(directory))
+            colors[tag] = color;
+        foreach (var (tag, color) in catalog.Colors)
+            colors.TryAdd(tag, color);
+
+        var all = catalog.Names
+            .Select(tag => new EntryTagChoice(tag, colors.GetValueOrDefault(tag)))
+            .ToList();
+
+        // A tag this entry still carries after its catalogue entry was deleted must stay choosable.
+        foreach (var tag in names.Where(tag => all.All(choice => !choice.Name.Equals(tag, StringComparison.OrdinalIgnoreCase))))
+            all.Add(new EntryTagChoice(tag, colors.GetValueOrDefault(tag)));
+
         var rating = int.TryParse(await FolderIndex.MetaAsync(directory, $"rating:{name}"), out var stars)
             ? Math.Clamp(stars, 0, 5)
             : 0;
         var comment = await FolderIndex.MetaAsync(directory, $"comment:{name}");
 
-        return new(tags, rating, comment.Length > 0 ? comment : null, true);
+        return new(names, rating, comment.Length > 0 ? comment : null, true,
+            [.. all.OrderBy(choice => choice.Name, StringComparer.OrdinalIgnoreCase)], colors);
     }
+
+    private static EntryDetailsPayload NoDetails() => new([], 0, null, false, [], []);
 
     /// <summary>Writes what the details tab changed; null fields are left alone.</summary>
     public static async Task<bool> SetDetailsAsync(EntryDetailsRequest? request)
@@ -177,16 +203,34 @@ internal static class DirectoryIndex
         if (!HoldsOwnIndex(directory))
             return false;
 
+        var catalog = TagCatalog.Instance;
         var ok = true;
 
+        // A colour picked for a tag applies everywhere, whether or not this entry carries the tag.
+        foreach (var (tag, color) in request.Colors ?? [])
+            if (tag.Length > 0 && color.Length > 0)
+                catalog.Ensure(tag, color);
+
         if (request.Tags is { } tags)
-            ok &= await FolderIndex.SetTagsAsync(directory, name, tags);
+        {
+            var ids = catalog.ResolveIds(tags, request.Colors);
+            ok &= await FolderIndex.SetTagsAsync(directory, name, ids);
+
+            if (ok)
+                catalog.Record(directory, tags, request.Colors);
+        }
 
         if (request.Rating is { } rating)
             ok &= await FolderIndex.SetMetaAsync(directory, $"rating:{name}", rating > 0 ? rating.ToString() : "");
 
         if (request.Comment is { } comment)
             ok &= await FolderIndex.SetMetaAsync(directory, $"comment:{name}", comment);
+
+        // The list behind the dialog reads the folder from its index, so a tag or comment change
+        // has to be announced like any other change.
+        if (ok)
+            WindowManager.Instance.RunOnMainWindow(() =>
+                WindowManager.Instance.Notify("fs.changed", new FsChangedPayload(directory)));
 
         return ok;
     }

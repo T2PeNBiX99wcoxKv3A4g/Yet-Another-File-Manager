@@ -947,5 +947,15 @@
   "count_files_and_folders": "{files} 个文件，{folders} 个文件夹",
   "bytes_in_parentheses": "{size}（{bytes} 字节）",
   "change": "更改…",
-  "the_path_no_longer_exists": "此路径已不存在。"
+  "the_path_no_longer_exists": "此路径已不存在。",
+  "copy_conflicts": "解决冲突",
+  "these_items_already_exist_in_the_target_folder": "这些项目在目标文件夹中已存在。",
+  "source": "来源",
+  "skip": "跳过",
+  "auto_name": "自动命名",
+  "this_is_the_same_path": "来源与目的地是同一个项目，无法复制到自身。",
+  "source_is_newer": "来源较新",
+  "source_is_older": "来源较旧",
+  "same_time": "时间相同",
+  "replace_the_whole_folder": "覆盖文件夹会先删除目标文件夹的内容。"
 }

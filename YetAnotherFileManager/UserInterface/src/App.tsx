@@ -42,7 +42,7 @@ import {
     transferPaths,
     undoFileOperation,
 } from "./api/operations";
-import {clearTasks, listTasks, type TaskInfo} from "./api/tasks";
+import {clearTasks, finishWaitingTask, listTasks, startWaitingTask, type TaskInfo} from "./api/tasks";
 import {FileList} from "./components/FileList";
 import {ContextMenu} from "./components/ContextMenu";
 import {folderName, LocationGlyph} from "./components/LocationGlyph";
@@ -54,10 +54,12 @@ import {Wallpaper} from "./components/Wallpaper";
 import {ProtectedDeleteDialog} from "./components/ProtectedDeleteDialog";
 import {MessageDialog} from "./components/MessageDialog";
 import {PropertiesDialog} from "./components/PropertiesDialog";
+import {TransferConflictDialog} from "./components/TransferConflictDialog";
 import {usePropertiesRequest} from "./api/properties";
 import {ElevationDialog} from "./components/ElevationDialog";
 import {PasswordDialog} from "./components/PasswordDialog";
 import {type ProtectedPrompt, setProtectedAsker} from "./api/safety";
+import {type ConflictPrompt, setConflictHandler} from "./api/conflicts";
 import {requestArchivePassword, showMessage} from "./api/dialogs";
 import {clearIconCache, refreshIconCache} from "./api/icons";
 import {
@@ -349,6 +351,33 @@ export default function App() {
     const [settingsFocus, setSettingsFocus] = useState<string | null>(null);
     const corners = useWindowCorners();
     const propertiesRequest = usePropertiesRequest();
+    const [conflictPrompt, setConflictPrompt] = useState<ConflictPrompt | null>(null);
+
+    // A copy or move asks this window how to handle an existing name; the dialog's answer goes
+    // straight back to the caller that is waiting for it.
+    useEffect(() => {
+        setConflictHandler((prompt) => setConflictPrompt(prompt));
+        return () => setConflictHandler(null);
+    }, []);
+
+    // While the conflict dialog is up the copy is waiting for a person, so the status center shows
+    // an indeterminate row instead of an operation that looks stuck or finished.
+    useEffect(() => {
+        if (!conflictPrompt) return;
+
+        let id: string | null = null;
+        let alive = true;
+
+        void startWaitingTask(conflictPrompt.move ? "move" : "copy", t("copy_conflicts")).then((value) => {
+            if (alive) id = value;
+            else void finishWaitingTask(value);
+        }, () => undefined);
+
+        return () => {
+            alive = false;
+            void finishWaitingTask(id);
+        };
+    }, [conflictPrompt]);
     const [find, setFind] = useState<FindState>(EmptyFind);
     const [findIndex, setFindIndex] = useState(0);
     const [findFocus, setFindFocus] = useState(0);
@@ -3367,6 +3396,15 @@ export default function App() {
                 <PasswordDialog/>
                 <ElevationDialog/>
                 {propertiesRequest && <PropertiesDialog request={propertiesRequest}/>}
+                {conflictPrompt && (
+                    <TransferConflictDialog
+                        conflicts={conflictPrompt.conflicts}
+                        move={conflictPrompt.move}
+                        onResolve={(decisions) => {
+                            conflictPrompt.resolve(decisions);
+                            setConflictPrompt(null);
+                        }}/>
+                )}
                 {sharePair && (
                     <SharePairDialog
                         code={sharePair.code}

@@ -36,21 +36,23 @@ internal static partial class FileOperations
     ///     clipboard's text or bitmap. Files win, then images, then text. Answers with the entries
     ///     that were created, so the list can select them and the user can undo or find them.
     /// </summary>
-    public static async Task<List<string>> PasteAsync(string directory)
+    public static async Task<List<string>> PasteAsync(string directory,
+        IReadOnlyList<TransferDecision>? decisions = null)
     {
         if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux()) return [];
         if (!Directory.Exists(directory)) return [];
 
         var (paths, move, read) = ClipboardService.ReadFiles();
         if (read && paths.Count > 0)
-            return await PasteFilesAsync(directory, paths, move);
+            return await PasteFilesAsync(directory, paths, move, decisions);
 
         return await PasteContentAsync(directory);
     }
 
-    private static async Task<List<string>> PasteFilesAsync(string directory, List<string> paths, bool move)
+    private static async Task<List<string>> PasteFilesAsync(string directory, List<string> paths, bool move,
+        IReadOnlyList<TransferDecision>? decisions = null)
     {
-        var (step, created) = await CopyIntoAsync(paths, directory, move);
+        var (step, created) = await CopyIntoAsync(paths, directory, move, decisions);
 
         // A move consumes the clipboard; a copy stays so the same files can be pasted again.
         if (move)
@@ -71,7 +73,7 @@ internal static partial class FileOperations
                     : DeleteCoreAsync(current, false),
                 redo: async () =>
                 {
-                    var (redoStep, made) = await CopyIntoAsync(sources, directory, move);
+                    var (redoStep, made) = await CopyIntoAsync(sources, directory, move, decisions);
                     if (redoStep.Ok)
                         current = made;
 
@@ -184,9 +186,10 @@ internal static partial class FileOperations
 
     /// <summary>Runs a paste and reports the paths it actually created.</summary>
     private static async Task<(FileHistory.Step Step, List<string> Created)> CopyIntoAsync(
-        IReadOnlyList<string> sources, string directory, bool move)
+        IReadOnlyList<string> sources, string directory, bool move,
+        IReadOnlyList<TransferDecision>? decisions = null)
     {
-        var (ok, error, created) = await FileTransfer.RunAsync(sources, directory, move);
+        var (ok, error, created) = await FileTransfer.RunAsync(sources, directory, move, decisions);
 
         return ok && error is null
             ? (new(true, [directory]), created)
@@ -199,7 +202,8 @@ internal static partial class FileOperations
         if (request is null || request.Paths.Count == 0 || string.IsNullOrWhiteSpace(request.Target))
             return new(false, Localization.Get("nothing_to_transfer"), []);
 
-        var (ok, error, created) = await FileTransfer.RunAsync(request.Paths, request.Target, request.Move);
+        var (ok, error, created) = await FileTransfer.RunAsync(request.Paths, request.Target, request.Move,
+            request.Decisions);
 
         if (created.Count > 0)
         {
@@ -214,7 +218,8 @@ internal static partial class FileOperations
                     : DeleteCoreAsync(current, false),
                 redo: async () =>
                 {
-                    var (redoOk, redoError, made) = await FileTransfer.RunAsync(sources, request.Target, move);
+                    var (redoOk, redoError, made) = await FileTransfer.RunAsync(sources, request.Target, move,
+                        request.Decisions);
                     if (redoOk)
                         current = made;
 
@@ -341,7 +346,13 @@ internal static partial class FileOperations
         if (string.Equals(path, target, StringComparison.OrdinalIgnoreCase))
             return new(true, path, null);
 
+        var taskId = TaskCenter.Instance.Start("rename", Localization.Get("rename"));
         var step = await RenameCoreAsync(path, target);
+
+        if (step.Ok)
+            TaskCenter.Instance.Complete(taskId);
+        else
+            TaskCenter.Instance.Fail(taskId, step.Error ?? "");
 
         if (step.Ok)
             FileHistory.Instance.Record($"Rename {Path.GetFileName(path)}",
@@ -1126,7 +1137,19 @@ internal static partial class FileOperations
 
     /// <summary>Reads the details without any chance of opening the shell sheet.</summary>
     public static Task<List<PathPropertiesInfo>> PropertyInfosAsync(IReadOnlyList<string> paths) =>
-        Task.Run(() => paths.Take(64).Select(PathProperties.Read).ToList());
+        Task.Run(() => paths.Take(64).Select(path => PathProperties.Read(path, IconSource(path))).ToList());
+
+    /// <summary>The icon override stored in the parent's index, if this entry has one.</summary>
+    private static string? IconSource(string path)
+    {
+        var parent = Path.GetDirectoryName(path);
+
+        if (parent is not { Length: > 0 } || !Directory.Exists(parent))
+            return null;
+
+        return DirectoryIndex.IconsAsync(parent).GetAwaiter().GetResult()
+            .GetValueOrDefault(Path.GetFileName(path));
+    }
 
     /// <summary>Applies the flags the properties page lets the user change.</summary>
     public static Task<PropertiesEditResult> ApplyPropertiesAsync(PropertiesEditRequest? request) =>
@@ -1170,7 +1193,7 @@ internal static partial class FileOperations
                 return new PropertiesEditResult(false, exception.Message, null);
             }
 
-            return new PropertiesEditResult(true, null, PathProperties.Read(path));
+            return new PropertiesEditResult(true, null, PathProperties.Read(path, IconSource(path)));
         });
 
     /// <summary>Applies one unix mode to every entry below a folder, skipping links.</summary>

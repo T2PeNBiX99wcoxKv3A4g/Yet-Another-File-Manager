@@ -26,6 +26,7 @@ export interface PathPropertiesInfo {
     volumeTotal: number;
     owner: string | null;
     group: string | null;
+    iconSource: string | null;
 }
 
 export interface PropertiesRequest {
@@ -96,11 +97,18 @@ export async function applyProperties(request: {
 }
 
 /** The tags, rating and comment the details tab shows for one entry. */
+export interface EntryTagChoice {
+    name: string;
+    color: string | null;
+}
+
 export interface EntryDetails {
     tags: string[];
     rating: number;
     comment: string | null;
     editable: boolean;
+    allTags: EntryTagChoice[];
+    colors: Record<string, string>;
 }
 
 export async function readEntryDetails(path: string): Promise<EntryDetails | null> {
@@ -115,6 +123,7 @@ export async function saveEntryDetails(request: {
     tags?: string[];
     rating?: number;
     comment?: string;
+    colors?: Record<string, string>;
 }): Promise<boolean> {
     if (!Native.available) return false;
 

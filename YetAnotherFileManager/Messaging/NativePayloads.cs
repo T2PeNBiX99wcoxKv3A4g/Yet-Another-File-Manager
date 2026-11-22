@@ -236,17 +236,28 @@ internal sealed record PathPropertiesInfo(
     long VolumeFree = 0,
     long VolumeTotal = 0,
     string? Owner = null,
-    string? Group = null);
+    string? Group = null,
+    string? IconSource = null);
 
-/// <summary>The tags, rating and comment the details tab edits for one entry.</summary>
-internal sealed record EntryDetailsPayload(List<string> Tags, int Rating, string? Comment, bool Editable);
+/// <summary>One tag the details tab can offer, with the colour it is drawn in.</summary>
+internal sealed record EntryTagChoice(string Name, string? Color);
+
+/// <summary>The tags, rating and comment of one entry, plus every tag that can be chosen.</summary>
+internal sealed record EntryDetailsPayload(
+    List<string> Tags,
+    int Rating,
+    string? Comment,
+    bool Editable,
+    List<EntryTagChoice> AllTags,
+    Dictionary<string, string> Colors);
 
 /// <summary>What the details tab changes; only the fields that were sent are written.</summary>
 internal sealed record EntryDetailsRequest(
     string Path,
     List<string>? Tags = null,
     int? Rating = null,
-    string? Comment = null);
+    string? Comment = null,
+    Dictionary<string, string>? Colors = null);
 
 /// <summary>What the properties page changes: the flags or the unix mode the user picked.</summary>
 internal sealed record PropertiesEditRequest(
@@ -455,8 +466,42 @@ internal sealed record TaskInfo(
 /// <summary>Body for <c>app.tasks</c> and the <c>app.tasks.changed</c> event.</summary>
 internal sealed record TasksPayload(IReadOnlyList<TaskInfo> Tasks);
 
-/// <summary>Payload for <c>fs.operation.transfer</c>: what to move or copy, and where.</summary>
-internal sealed record TransferRequest(List<string> Paths, string Target, bool Move, string? Confirm = null);
+/// <summary>A row the window starts for work it is doing itself, such as waiting on a dialog.</summary>
+internal sealed record TaskStartRequest(string Kind, string Label);
+
+internal sealed record TaskIdPayload(string Id);
+
+internal sealed record TaskFinishRequest(string Id, bool Failed = false, string? Error = null);
+
+/// <summary>Body for <c>fs.operation.transfer</c>: what to move or copy, and where.</summary>
+internal sealed record TransferRequest(
+    List<string> Paths,
+    string Target,
+    bool Move,
+    string? Confirm = null,
+    List<TransferDecision>? Decisions = null);
+
+/// <summary>One conflict the copy would run into, with both sides' figures.</summary>
+internal sealed record TransferConflict(
+    string Source,
+    string Name,
+    bool Directory,
+    long SourceSize,
+    long SourceModified,
+    long SourceCreated,
+    long TargetSize,
+    long TargetModified,
+    long TargetCreated,
+    bool SamePath,
+    string SuggestedName);
+
+/// <summary>Body for <c>fs.operation.transfer.conflicts</c>.</summary>
+internal sealed record TransferConflictRequest(List<string> Paths, string Target, bool Move);
+
+internal sealed record TransferConflictsPayload(List<TransferConflict> Conflicts);
+
+/// <summary>What the user chose for one conflicting source.</summary>
+internal sealed record TransferDecision(string Source, string Action, string? Name = null);
 
 /// <summary>Body for <c>fs.operation.transfer</c>: the top-level paths that were created.</summary>
 internal sealed record TransferResultPayload(bool Ok, string? Error, List<string> Created,
@@ -478,7 +523,10 @@ internal sealed record ClipboardPastePayload(bool Ok, List<string> Created,
     int DelaySeconds = 0);
 
 /// <summary>Payload for <c>fs.clipboard.paste</c>: the folder, plus a protected-path confirmation.</summary>
-internal sealed record PasteRequest(string Directory, string? Confirm = null);
+internal sealed record PasteRequest(
+    string Directory,
+    string? Confirm = null,
+    List<TransferDecision>? Decisions = null);
 
 /// <summary>Payload for <c>fs.paths.info</c>: what the given paths are, for the tray's drop handler.</summary>
 internal sealed record PathsInfoPayload(List<ClipboardEntry> Entries);

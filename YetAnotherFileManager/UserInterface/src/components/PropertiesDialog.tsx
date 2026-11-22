@@ -2,11 +2,13 @@ import {type ReactNode, useEffect, useMemo, useRef, useState, useSyncExternalSto
 import {createPortal} from "react-dom";
 import styled from "styled-components";
 import {type Translate, useTranslation} from "@photino-net-utils/bridge";
-import {useIcon} from "../api/icons";
+import {clearIconCache, useIcon, useIconFile} from "../api/icons";
+import {setEntryIcon} from "../api/settings";
 import {
     applyProperties,
     closeProperties,
     type EntryDetails,
+    type EntryTagChoice,
     type PathHashes,
     type PathPropertiesInfo,
     type PropertiesRequest,
@@ -15,12 +17,14 @@ import {
     readProperties,
     saveEntryDetails,
 } from "../api/properties";
-import {listTags, type TagCatalogEntry} from "../api/tags";
+import {DefaultTagColor, inkFor} from "./TagPicker";
 import {renamePath, showSystemProperties} from "../api/operations";
-import {formatBytes, formatDate, formatTimestamp, usageTone} from "../utils/format";
+import {formatBytes, formatDate, formatTimestamp, usageTone, baseName} from "../utils/format";
 import {clockNow, subscribeClock} from "../utils/clock";
 import {typeLabel} from "../utils/fileType";
-import {FileIcon, FolderIcon, CopyIcon, PlusIcon, RefreshIcon, StarIcon} from "./Icons";
+import {BuiltinIcon} from "../icons/fileTypes";
+import {IconPicker} from "./IconPicker";
+import {FileIcon, FolderIcon, CopyIcon, PlusIcon, RefreshIcon, StarIcon, CheckIcon} from "./Icons";
 import {fadeInStyle, popInStyle} from "../ui/motion";
 
 type Tab = "general" | "details" | "hashes" | "permissions";
@@ -64,9 +68,10 @@ export function PropertiesDialog({request}: { request: PropertiesRequest }) {
     const [rating, setRating] = useState(0);
     const [comment, setComment] = useState("");
     const [tags, setTags] = useState<string[]>([]);
-    const [catalog, setCatalog] = useState<TagCatalogEntry[]>([]);
+    const [colors, setColors] = useState<Record<string, string>>({});
     const [recursive, setRecursive] = useState(false);
     const [advanced, setAdvanced] = useState(false);
+    const [pickingIcon, setPickingIcon] = useState(false);
     const detailsStarted = useRef(false);
 
     const editable = single && !info.error;
@@ -82,7 +87,8 @@ export function PropertiesDialog({request}: { request: PropertiesRequest }) {
     const tagsChanged = details !== null && !sameTags(tags, details.tags);
     const ratingChanged = details !== null && rating !== details.rating;
     const commentChanged = details !== null && comment !== (details.comment ?? "");
-    const detailsDirty = tagsChanged || ratingChanged || commentChanged;
+    const colorsChanged = details !== null && !sameColors(colors, details.colors);
+    const detailsDirty = tagsChanged || ratingChanged || commentChanged || colorsChanged;
     const dirty = nameChanged || flagsChanged || modeToApply || detailsDirty;
 
     const resetDrafts = (next: PathPropertiesInfo) => {
@@ -141,6 +147,7 @@ export function PropertiesDialog({request}: { request: PropertiesRequest }) {
                     tags: tagsChanged ? tags : undefined,
                     rating: ratingChanged ? rating : undefined,
                     comment: commentChanged ? comment : undefined,
+                    colors: colorsChanged ? colors : undefined,
                 });
 
                 if (!saved) {
@@ -148,7 +155,17 @@ export function PropertiesDialog({request}: { request: PropertiesRequest }) {
                     return false;
                 }
 
-                setDetails({tags: [...tags], rating, comment: comment.length > 0 ? comment : null, editable: true});
+                setDetails({
+                    tags: [...tags],
+                    rating,
+                    comment: comment.length > 0 ? comment : null,
+                    editable: true,
+                    allTags: (details?.allTags ?? []).map((choice) => ({
+                        ...choice,
+                        color: colors[choice.name] ?? choice.color,
+                    })),
+                    colors: {...colors},
+                });
             }
 
             if (nameChanged && !flagsChanged && !modeChanged) {
@@ -195,14 +212,31 @@ export function PropertiesDialog({request}: { request: PropertiesRequest }) {
             setRating(result.rating);
             setComment(result.comment ?? "");
             setTags(result.tags);
+            setColors(result.colors);
         }, () => undefined);
-
-        void listTags().then(setCatalog, () => undefined);
     }, [tab, single, info.path]);
 
     const refresh = async () => {
         const fresh = await readProperties(info.path);
         if (fresh) resetDrafts(fresh);
+    };
+
+    /** Stores the icon choice in the parent's index; the list reads it back on the next change. */
+    const chooseIcon = async (choice: string | null) => {
+        setPickingIcon(false);
+        if (!editable) return;
+
+        const parent = info.path.replace(/[\\/][^\\/]+$/, "");
+        const name = baseName(info.path);
+        const source = choice === null ? null : choice.startsWith("file:") ? choice : `icon:${choice}`;
+
+        if (!await setEntryIcon(parent, name, source)) {
+            setError(t("could_not_change_the_properties"));
+            return;
+        }
+
+        setInfo((current) => ({...current, iconSource: source}));
+        clearIconCache();
     };
 
     useEffect(() => {
@@ -231,7 +265,22 @@ export function PropertiesDialog({request}: { request: PropertiesRequest }) {
                 <Top>
                     {single ? (
                         <>
-                            <IconBox><EntryIcon info={info}/></IconBox>
+                            <IconBox
+                                disabled={!editable}
+                                onClick={() => setPickingIcon((current) => !current)}
+                                title={editable ? t("change_icon") : undefined}
+                                type="button"
+                            >
+                                <EntryIcon info={info}/>
+                            </IconBox>
+                            {pickingIcon && (
+                                <IconPicker
+                                    allowDefault
+                                    onClose={() => setPickingIcon(false)}
+                                    onPick={(icon) => void chooseIcon(icon)}
+                                    value={info.iconSource?.startsWith("icon:") ? info.iconSource.slice(5) : undefined}
+                                />
+                            )}
                             <HeadText>
                                 <NameInput
                                     aria-label={t("name")}
@@ -302,8 +351,10 @@ export function PropertiesDialog({request}: { request: PropertiesRequest }) {
                                            onReadOnly={setReadOnly} onHidden={setHidden} onArchive={setArchive}/>
                                 : tab === "details"
                                     ? <Details info={info} editable={editable && details !== null}
-                                               tags={tags} catalog={catalog} rating={rating} comment={comment}
-                                               onTags={setTags} onRating={setRating} onComment={setComment}/>
+                                               allTags={details?.allTags ?? []} tags={tags} colors={colors}
+                                               rating={rating} comment={comment}
+                                               onTags={setTags} onColors={setColors}
+                                               onRating={setRating} onComment={setComment}/>
                                     : tab === "hashes"
                                         ? <Hashes hashes={hashes} hashing={hashing}/>
                                         : <Permissions info={info} mode={mode} recursive={recursive}
@@ -417,20 +468,34 @@ function General({info, readOnly, hidden, archive, windows, editable, onRefresh,
     );
 }
 
-function Details({info, editable, tags, catalog, rating, comment, onTags, onRating, onComment}: {
+function Details({info, editable, allTags, tags, colors, rating, comment, onTags, onColors, onRating, onComment}: {
     info: PathPropertiesInfo;
     editable: boolean;
+    allTags: EntryTagChoice[];
     tags: string[];
-    catalog: TagCatalogEntry[];
+    colors: Record<string, string>;
     rating: number;
     comment: string;
     onTags: (value: string[]) => void;
+    onColors: (value: Record<string, string>) => void;
     onRating: (value: number) => void;
     onComment: (value: string) => void;
 }) {
     const t = useTranslation();
     const [draft, setDraft] = useState("");
-    const suggestions = catalog.filter((entry) => !tags.includes(entry.name));
+    const [draftColor, setDraftColor] = useState("#2dd4bf");
+
+    const colorOf = (tag: string) =>
+        colors[tag] ?? allTags.find((choice) => choice.name === tag)?.color ?? DefaultTagColor;
+
+    // Everything the catalogue knows, plus any tag this entry still carries on its own.
+    const known = [...new Set([...allTags.map((choice) => choice.name), ...tags])]
+        .sort((left, right) => left.localeCompare(right));
+
+    const toggle = (tag: string) =>
+        onTags(tags.includes(tag) ? tags.filter((value) => value !== tag) : [...tags, tag]);
+
+    const recolour = (tag: string, color: string) => onColors({...colors, [tag]: color});
 
     const add = () => {
         const name = draft.trim();
@@ -439,6 +504,7 @@ function Details({info, editable, tags, catalog, rating, comment, onTags, onRati
         if (!tags.includes(name))
             onTags([...tags, name]);
 
+        onColors({...colors, [name]: draftColor});
         setDraft("");
     };
 
@@ -457,17 +523,49 @@ function Details({info, editable, tags, catalog, rating, comment, onTags, onRati
 
             <Block>
                 <BlockTitle>{t("tags")}</BlockTitle>
+                {known.length > 0 && (
+                    <TagGrid>
+                        {known.map((tag) => {
+                            const color = colorOf(tag);
+                            const on = tags.includes(tag);
+
+                            return (
+                                <TagChoice key={tag}>
+                                    <TagSwatch
+                                        aria-label={t("color_of_tag", {tag})}
+                                        disabled={!editable}
+                                        onChange={(event) => recolour(tag, event.target.value)}
+                                        title={t("change_this_tag_s_color")}
+                                        type="color"
+                                        value={color}
+                                    />
+                                    <TagButton
+                                        $color={color}
+                                        $ink={inkFor(color)}
+                                        $on={on}
+                                        disabled={!editable}
+                                        onClick={() => toggle(tag)}
+                                        type="button"
+                                    >
+                                        {on && <CheckIcon size={10}/>}
+                                        <span>{tag}</span>
+                                    </TagButton>
+                                </TagChoice>
+                            );
+                        })}
+                    </TagGrid>
+                )}
                 <TagRow>
-                    {tags.map((tag) => (
-                        <Tag key={tag}>
-                            {tag}
-                            <TagRemove disabled={!editable} onClick={() => onTags(tags.filter((item) => item !== tag))}
-                                       title={t("remove")} type="button">×</TagRemove>
-                        </Tag>
-                    ))}
+                    <TagSwatch
+                        aria-label={t("color_of_the_new_tag")}
+                        disabled={!editable}
+                        onChange={(event) => setDraftColor(event.target.value)}
+                        title={t("color_of_the_new_tag")}
+                        type="color"
+                        value={draftColor}
+                    />
                     <TagInput
                         disabled={!editable}
-                        list="properties-tag-catalog"
                         onChange={(event) => setDraft(event.target.value)}
                         onKeyDown={(event) => {
                             if (event.key === "Enter") {
@@ -475,11 +573,9 @@ function Details({info, editable, tags, catalog, rating, comment, onTags, onRati
                                 add();
                             }
                         }}
-                        placeholder={t("tags")}
+                        placeholder={t("new_tag")}
                         value={draft}
-                    />                    <datalist id="properties-tag-catalog">
-                        {suggestions.map((entry) => <option key={entry.name} value={entry.name}/>)}
-                    </datalist>
+                    />
                     <SmallButton disabled={!editable || draft.trim().length === 0} onClick={add} type="button">
                         <PlusIcon size={11}/>{t("add")}
                     </SmallButton>
@@ -683,6 +779,12 @@ function sameTags(left: string[], right: string[]): boolean {
     return left.length === right.length && left.every((tag, index) => tag === right[index]);
 }
 
+function sameColors(left: Record<string, string>, right: Record<string, string>): boolean {
+    const keys = Object.keys(left);
+
+    return keys.length === Object.keys(right).length && keys.every((key) => left[key] === right[key]);
+}
+
 function Field({label, value, wrap = false}: { label: string; value: ReactNode; wrap?: boolean }) {
     return (
         <>
@@ -712,10 +814,19 @@ function Check({checked, disabled = false, label, onChange}: {
 }
 
 function EntryIcon({info}: { info: PathPropertiesInfo }) {
-    const icon = useIcon(info.path, info.directory, true);
+    const source = info.iconSource;
+    const file = source?.startsWith("file:") ? source.slice(5) : null;
+    const custom = useIconFile(file);
+    const shell = useIcon(source ? null : info.path, info.directory, true);
 
-    return icon
-        ? <Icon alt="" src={icon}/>
+    if (source?.startsWith("icon:"))
+        return <BuiltinIcon name={source.slice(5)} size={30}/>;
+
+    if (custom)
+        return <img alt="" height={34} src={custom} width={34}/>;
+
+    return shell
+        ? <img alt="" src={shell}/>
         : info.directory ? <FolderIcon size={30}/> : <FileIcon size={30}/>;
 }
 
@@ -780,19 +891,32 @@ const Top = styled.div`
     padding: 16px 18px 12px;
 `;
 
-const IconBox = styled.div`
+const IconBox = styled.button`
     display: grid;
     flex: 0 0 auto;
     place-items: center;
     width: 38px;
     height: 38px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: none;
     color: var(--accent-primary);
-`;
+    cursor: pointer;
 
-const Icon = styled.img`
-    width: 34px;
-    height: 34px;
-    object-fit: contain;
+    &:hover:not(:disabled) {
+        border-color: var(--border-color);
+        background: var(--bg-input);
+    }
+
+    &:disabled {
+        cursor: default;
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--border-color-focus);
+        outline-offset: 1px;
+    }
 `;
 
 const HeadText = styled.div`
@@ -981,33 +1105,63 @@ const TagRow = styled.div`
     gap: 5px;
 `;
 
-const Tag = styled.span`
+const TagGrid = styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 2px;
+`;
+
+const TagChoice = styled.div`
     display: inline-flex;
     align-items: center;
     gap: 3px;
-    padding: 2px 4px 2px 7px;
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    background: var(--bg-input);
-    color: var(--text-primary);
-    font-size: 10.5px;
 `;
 
-const TagRemove = styled.button`
-    display: grid;
-    place-items: center;
-    width: 14px;
-    height: 14px;
+const TagSwatch = styled.input`
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
     padding: 0;
     border: 0;
+    border-radius: 50%;
     background: none;
-    color: var(--text-muted);
-    font-size: 12px;
-    line-height: 1;
+    cursor: pointer;
+
+    &::-webkit-color-swatch-wrapper {
+        padding: 0;
+    }
+
+    &::-webkit-color-swatch {
+        border: 1px solid var(--border-color);
+        border-radius: 50%;
+    }
+
+    &:disabled {
+        cursor: default;
+    }
+`;
+
+const TagButton = styled.button<{ $color: string; $ink: string; $on: boolean }>`
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border: 1px solid ${({$on, $color}) => $on ? $color : "var(--border-color)"};
+    border-radius: 10px;
+    background: ${({$on, $color}) => $on ? $color : "transparent"};
+    color: ${({$on, $ink}) => $on ? $ink : "var(--text-secondary)"};
+    font: inherit;
+    font-size: 10.5px;
     cursor: pointer;
 
     &:hover:not(:disabled) {
-        color: var(--text-primary);
+        border-color: ${({$color}) => $color};
+    }
+
+    &:disabled {
+        opacity: 0.6;
+        cursor: default;
     }
 `;
 

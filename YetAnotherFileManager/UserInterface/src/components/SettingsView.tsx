@@ -33,7 +33,6 @@ import {
     registerArchiveHandler,
     saveSettings,
     setDefaultManager,
-    setEntryIcon,
     unregisterArchiveHandler,
 } from "../api/settings";
 import type {AppInfo} from "../api/system";
@@ -272,7 +271,6 @@ const SettingSections: { id: string; label: LocalizationKey }[] = [
     {id: "gallery", label: "gallery"},
     {id: "icons", label: "icons"},
     {id: "extension-icons", label: "icons_by_extension"},
-    {id: "folder-icons", label: "folder_icons"},
     {id: "folder-index", label: "folder_index"},
     {id: "indexing", label: "index_tasks"},
     {id: "files", label: "files"},
@@ -300,7 +298,6 @@ const SectionGlyphs: Partial<Record<LocalizationKey, ReactNode>> = {
     gallery: <CameraIcon size={13}/>,
     icons: <IconThemeIcon size={13}/>,
     icons_by_extension: <FileIcon size={13}/>,
-    folder_icons: <FolderIcon size={13}/>,
     folder_index: <PackageIcon size={13}/>,
     index_tasks: <StatusIcon size={13}/>,
     files: <EyeIcon size={13}/>,
@@ -362,11 +359,9 @@ export function SettingsView({
     const [settings, setSettings] = useState<AppSettings | null>(null);
     // The background gallery previews the artwork the window would show right now.
     const theme = useTheme(normalizeThemeMode(settings?.themeMode));
-    const [folderIcon, setFolderIcon] = useState<{ folder: string; icon: string } | null>(null);
     const [newExtension, setNewExtension] = useState("");
     const [newIcon, setNewIcon] = useState<string>("file");
     const [pickingIcon, setPickingIcon] = useState(false);
-    const [busy, setBusy] = useState(false);
     const [memory, setMemory] = useState<MemoryUsage | null>(null);
     const [scheme, setSchemeState] = useState<SchemeStatus>(EmptyScheme);
     const [schemeBusy, setSchemeBusy] = useState(false);
@@ -1491,29 +1486,6 @@ export function SettingsView({
 
         await setOverride(extension, newIcon);
         setNewExtension("");
-    };
-
-    const assignFolderIcon = async () => {
-        setBusy(true);
-
-        try {
-            const folder = await requestFolder();
-            if (!folder) return;
-
-            const icon = await requestFile([".png", ".ico", ".svg", ".jpg", ".jpeg", ".webp"]);
-            if (!icon) return;
-
-            const parent = folder.replace(/[\\/][^\\/]+$/, "");
-            const name = baseName(folder);
-            const source = `file:${icon}`;
-
-            if (await setEntryIcon(parent, name, source)) {
-                clearIconCache();
-                setFolderIcon({folder, icon});
-            }
-        } finally {
-            setBusy(false);
-        }
     };
 
     const setFont = async (id: string, family: string | null) => {
@@ -3424,40 +3396,6 @@ export function SettingsView({
                     </Rows>
                 </Section>
 
-                <Section ref={anchor("folder-icons")}>
-                    <Head
-                        note="a_single_folder_can_carry_an_icon_of_its_own"
-                        title="folder_icons"
-                    />
-                    <Rows>
-                        <Row>
-                            <RowText>
-                                <Label>{t("give_a_folder_its_own_icon")}</Label>
-                                <Note>
-                                    {t("stored_in_the_folder_s_parent_index_so_it_stays_with_the_files", {index: ".yafm-index.db"})}
-                                </Note>
-                            </RowText>
-                            <RowEnd>
-                                {folderIcon && <Thumb src={folderIcon.icon}/>}
-                                <ActionButton disabled={busy} onClick={() => void assignFolderIcon()} type="button">
-                                    <FolderIcon size={13}/>{busy ? t("choosing") : t("choose_folder_and_icon")}
-                                </ActionButton>
-                            </RowEnd>
-                        </Row>
-                        {folderIcon && (
-                            <Row>
-                                <RowText>
-                                    <Label>{baseName(folderIcon.folder)}</Label>
-                                    <Note>{folderIcon.folder}</Note>
-                                </RowText>
-                                <RowEnd>
-                                    <Badge><CheckIcon size={11}/> {t("saved")}</Badge>
-                                </RowEnd>
-                            </Row>
-                        )}
-                    </Rows>
-                </Section>
-
                 <Section ref={anchor("folder-index")}>
                     <Head
                         note="the_hidden_cache_that_makes_a_folder_open_instantly_next_time"
@@ -3953,11 +3891,6 @@ function Preview({source}: { source: string }) {
     );
 }
 
-function Thumb({src}: { src: string }) {
-    const image = useIconFile(src);
-
-    return <PreviewSlot>{image && <img alt="" height={18} src={image} width={18}/>}</PreviewSlot>;
-}
 
 /**
  * A wallpaper the user added to the gallery. The cross in its corner removes it; the media URL
@@ -5777,17 +5710,6 @@ const PreviewSlot = styled.span`
     img {
         display: block;
     }
-`;
-
-const Badge = styled.span`
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
-    border: 1px solid rgba(74, 222, 128, 0.35);
-    border-radius: 999px;
-    font-size: 10px;
-    color: #4ade80;
 `;
 
 const Footnote = styled.p`

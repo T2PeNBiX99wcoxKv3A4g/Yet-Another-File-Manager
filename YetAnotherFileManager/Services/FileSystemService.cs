@@ -399,7 +399,7 @@ internal partial class FileSystemService : INativeMessageHandler
                         new ClipboardPastePayload(false, [], true, blocked.Token, blocked.Hits,
                             blocked.DelaySeconds));
 
-                var created = await FileOperations.PasteAsync(directory);
+                var created = await FileOperations.PasteAsync(directory, request?.Decisions);
                 if (created.Count > 0) await ApplyArchiveChangesAsync([directory]);
                 return context.Reply("fs.clipboard.paste.result",
                     new ClipboardPastePayload(created.Count > 0, created));
@@ -552,6 +552,19 @@ internal partial class FileSystemService : INativeMessageHandler
                 return context.Reply("fs.operation.compress.result",
                     await FileOperations.CompressAsync(context.Payload<CompressRequest>()));
 
+            case "fs.operation.transfer.conflicts":
+            {
+                var request = context.Payload<TransferConflictRequest>();
+                if (request is null)
+                    return context.Reply("fs.operation.transfer.conflicts.result", new TransferConflictsPayload([]));
+
+                var paths = await MapWorkspacePathsAsync(request.Paths);
+                var target = await MapWorkspacePathAsync(request.Target, true);
+
+                return context.Reply("fs.operation.transfer.conflicts.result",
+                    new TransferConflictsPayload(FileTransfer.Conflicts(paths, target, request.Move)));
+            }
+
             case "fs.operation.transfer":
             {
                 var request = context.Payload<TransferRequest>();
@@ -588,6 +601,30 @@ internal partial class FileSystemService : INativeMessageHandler
 
             case "app.tasks":
                 return context.Reply("app.tasks.result", new TasksPayload(TaskCenter.Instance.Snapshot()));
+
+            case "app.tasks.start":
+            {
+                var request = context.Payload<TaskStartRequest>();
+
+                return context.Reply("app.tasks.start.result",
+                    new TaskIdPayload(TaskCenter.Instance.Start(request?.Kind ?? "operation",
+                        request?.Label ?? "")));
+            }
+
+            case "app.tasks.finish":
+            {
+                var request = context.Payload<TaskFinishRequest>();
+
+                if (request is { Id.Length: > 0 })
+                {
+                    if (request.Failed)
+                        TaskCenter.Instance.Fail(request.Id, request.Error ?? "");
+                    else
+                        TaskCenter.Instance.Complete(request.Id);
+                }
+
+                return context.Reply("app.tasks.finish.result", new OkPayload());
+            }
 
             case "fs.index.tasks":
                 return context.Reply("fs.index.tasks.result", FolderMeasureService.Instance.SnapshotTasks());
@@ -827,7 +864,14 @@ internal partial class FileSystemService : INativeMessageHandler
         if (!Directory.Exists(request.Directory))
             return false;
 
-        return await DirectoryIndex.SetIconAsync(request.Directory, request.Name, request.Source);
+        var saved = await DirectoryIndex.SetIconAsync(request.Directory, request.Name, request.Source);
+
+        // The list already holds the old source; announcing the folder makes it read the new one.
+        if (saved)
+            WindowManager.Instance.RunOnMainWindow(() =>
+                WindowManager.Instance.Notify("fs.changed", new FsChangedPayload(request.Directory)));
+
+        return saved;
     }
 
     /// <summary>One slice of the gallery, scanning the folders only when asked to.</summary>

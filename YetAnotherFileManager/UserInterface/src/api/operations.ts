@@ -1,5 +1,6 @@
 import {Native} from "@photino-net-utils/bridge";
 import {openProperties, type PathPropertiesInfo} from "./properties";
+import {askConflictDecisions} from "./conflicts";
 import {askProtected, type GuardedChange} from "./safety";
 
 /** The result of a rename or new-folder operation. */
@@ -58,16 +59,62 @@ export interface TransferResult {
 }
 
 /** Copies or moves paths into a folder without going through the shell. */
-export async function transferPaths(paths: string[], target: string, move: boolean): Promise<TransferResult> {
+export async function transferPaths(paths: string[], target: string, move: boolean,
+                                     decisions?: TransferDecision[]): Promise<TransferResult> {
     if (!Native.available || paths.length === 0) return {ok: false, error: "nothing_to_transfer", created: []};
+
+    if (!decisions) {
+        const conflicts = await transferConflicts(paths, target, move);
+
+        if (conflicts.length > 0) {
+            const chosen = await askConflictDecisions(conflicts, move);
+
+            if (chosen === null)
+                return {ok: false, error: null, created: [], cancelled: true};
+
+            decisions = chosen;
+        }
+    }
 
     return await askProtectedChange(
         {action: move ? "move" : "write"},
         (confirm) => Native.request<TransferResult & GuardedChange>("fs.operation.transfer",
-            {paths, target, move, confirm}),
+            {paths, target, move, decisions: decisions ?? null, confirm}),
         (result) => ({ok: result.ok, error: result.error, created: result.created}),
         () => ({ok: false, error: null, created: [], cancelled: true}),
     );
+}
+
+/** One entry the copy or move would land on top of. */
+export interface TransferConflict {
+    source: string;
+    name: string;
+    directory: boolean;
+    sourceSize: number;
+    sourceModified: number;
+    sourceCreated: number;
+    targetSize: number;
+    targetModified: number;
+    targetCreated: number;
+    samePath: boolean;
+    suggestedName: string;
+}
+
+/** What the user chose for one conflicting source. */
+export interface TransferDecision {
+    source: string;
+    action: "overwrite" | "rename" | "skip";
+    name?: string | null;
+}
+
+/** Asks the host which sources would conflict before anything is written. */
+export async function transferConflicts(paths: string[], target: string, move: boolean): Promise<TransferConflict[]> {
+    if (!Native.available || paths.length === 0) return [];
+
+    const data = await Native.request<{ conflicts: TransferConflict[] }>("fs.operation.transfer.conflicts",
+        {paths, target, move});
+
+    return data.conflicts ?? [];
 }
 
 /**
@@ -120,13 +167,32 @@ export interface PasteResult {
 }
 
 /** Pastes the clipboard into a folder; answers with what it created. */
-export async function pasteInto(directory: string, move = false): Promise<PasteResult> {
+export async function pasteInto(directory: string, move = false,
+                                 decisions?: TransferDecision[]): Promise<PasteResult> {
     if (!Native.available) return {ok: false, created: []};
+
+    if (!decisions) {
+        const clipboard = await getClipboardFiles();
+        const paths = clipboard.entries.filter((entry) => entry.exists).map((entry) => entry.path);
+
+        if (paths.length > 0) {
+            const conflicts = await transferConflicts(paths, directory, clipboard.move);
+
+            if (conflicts.length > 0) {
+                const chosen = await askConflictDecisions(conflicts, clipboard.move);
+
+                if (chosen === null)
+                    return {ok: false, created: [], cancelled: true};
+
+                decisions = chosen;
+            }
+        }
+    }
 
     return await askProtectedChange(
         {action: move ? "move" : "write"},
         (confirm) => Native.request<{ ok: boolean; created?: string[] } & GuardedChange>("fs.clipboard.paste",
-            {directory, confirm}),
+            {directory, decisions: decisions ?? null, confirm}),
         (data) => ({ok: data.ok, created: data.created ?? []}),
         () => ({ok: false, created: [], cancelled: true}),
     );

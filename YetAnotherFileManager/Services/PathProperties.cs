@@ -15,7 +15,7 @@ internal static class PathProperties
     private const int EntryLimit = 100_000;
 
     /// <summary>One entry's details; a failure keeps the name so the dialog can still show a row.</summary>
-    public static PathPropertiesInfo Read(string path)
+    public static PathPropertiesInfo Read(string path, string? iconSource = null)
     {
         try
         {
@@ -53,7 +53,8 @@ internal static class PathProperties
                 free,
                 total,
                 owner,
-                group);
+                group,
+                iconSource);
         }
         catch (Exception ex)
         {

@@ -70,6 +70,7 @@ declare module "@photino-net-utils/bridge"
         "automatic_rename_suffix": true;
         "autoplay_video_previews": true;
         "auto_extract_to_the_current_folder": true;
+        "auto_name": true;
         "a_browser_was_allowed_to_use_a_web_share": true;
         "a_browser_was_refused_a_web_share": true;
         "a_custom_glyph_for_one_file_extension": true;
@@ -171,6 +172,7 @@ declare module "@photino-net-utils/bridge"
         "copy": true;
         "copy_1_item": true;
         "copy_as_path": true;
+        "copy_conflicts": true;
         "copy_count_items": true;
         "copy_n_items": true;
         "copy_original_path": true;
@@ -658,6 +660,7 @@ declare module "@photino-net-utils/bridge"
         "reopen_closed_tab": true;
         "reopen_the_tabs_that_were_open": true;
         "repeats_the_operation_that_was_just_undone": true;
+        "replace_the_whole_folder": true;
         "reset": true;
         "reset_colors": true;
         "reset_column_widths": true;
@@ -681,6 +684,7 @@ declare module "@photino-net-utils/bridge"
         "rules_are_glob_like_covers_the_folder_and_everything_below_it_covers_the_folder_and_the_entries_directly_inside_it_and_a_plain_path_covers_only_the_folder_environment_variables_such_as_userprofile_are_expanded_first": true;
         "run_as_administrator": true;
         "safety": true;
+        "same_time": true;
         "saturation": true;
         "save": true;
         "saved": true;
@@ -776,13 +780,17 @@ declare module "@photino-net-utils/bridge"
         "simplified_chinese_cp936": true;
         "size": true;
         "size_on_disk": true;
+        "skip": true;
         "skyline": true;
         "slate": true;
         "smart_copy": true;
         "smart_mirror": true;
         "software_update": true;
         "some_items_could_not_be_deleted": true;
+        "source": true;
         "source_file": true;
+        "source_is_newer": true;
+        "source_is_older": true;
         "split_view": true;
         "split_volumes": true;
         "spreadsheet": true;
@@ -829,6 +837,7 @@ declare module "@photino-net-utils/bridge"
         "there_is_nothing_to_compress": true;
         "there_is_nothing_to_copy_or_move": true;
         "there_is_nothing_to_delete": true;
+        "these_items_already_exist_in_the_target_folder": true;
         "these_paths_are_protected_by_the_safety_settings": true;
         "the_7_zip_command_line_tool_was_not_found_install_p7zip_or_the_7zip_package": true;
         "the_accent_and_highlight_colours_the_whole_window_uses": true;
@@ -884,6 +893,7 @@ declare module "@photino-net-utils/bridge"
         "this_folder_is_already_shared": true;
         "this_folder_is_empty": true;
         "this_folder_only": true;
+        "this_is_the_same_path": true;
         "this_item": true;
         "this_item_is_cut_and_will_move_when_something_is_pasted": true;
         "this_path_needs_administrator_rights_to_action_restart_the_app_as_administrator_and_try_again": true;

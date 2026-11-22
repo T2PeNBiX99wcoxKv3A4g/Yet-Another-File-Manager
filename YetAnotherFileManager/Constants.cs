@@ -133,6 +133,18 @@ public static class Constants
     /// </summary>
     public const string PropertiesDumpArgument = "--properties-dump";
 
+    /// <summary>
+    ///     Prints which icon a path would show — the override stored in its parent's index and the
+    ///     shell's own answer — then exits. It separates a wrong override from a failed lookup.
+    /// </summary>
+    public const string IconDumpArgument = "--icon-dump";
+
+    /// <summary>
+    ///     Prints what a copy into a folder would collide with, then exits. It runs the same scan the
+    ///     conflict dialog shows, so the timing and suggested names can be checked without a window.
+    /// </summary>
+    public const string ConflictDumpArgument = "--conflict-dump";
+
     /// <summary>Where a debug build loads the interface from; Vite serves it with hot reload.</summary>
     public const string DevServerUrl = "http://127.0.0.1:3100";
 

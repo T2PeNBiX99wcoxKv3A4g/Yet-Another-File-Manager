@@ -4,6 +4,7 @@ using PhotinoNetUtils.Extensions;
 using PhotinoNetUtils.Localization;
 using PhotinoNetUtils.Utils;
 using Serilog;
+using YetAnotherFileManager.Messaging;
 
 namespace YetAnotherFileManager.Services;
 
@@ -35,10 +36,13 @@ internal static class FileTransfer
 
     /// <summary>
     ///     Copies or moves every source into <paramref name="target" />. Each source keeps its name;
-    ///     a name that is already taken becomes "name (2)", exactly like Explorer.
+    ///     a name that is already taken becomes "name (2)", exactly like Explorer, unless the user
+    ///     chose overwrite, rename or skip for it in the conflict dialog.
     /// </summary>
     public static async Task<(bool Ok, string? Error, List<string> Created)> RunAsync(
-        IReadOnlyList<string> sources, string target, bool move, CancellationToken cancellationToken = default)
+        IReadOnlyList<string> sources, string target, bool move,
+        IReadOnlyList<TransferDecision>? decisions = null,
+        CancellationToken cancellationToken = default)
     {
         var list = sources
             .Where(path => path.Length > 0)
@@ -53,16 +57,23 @@ internal static class FileTransfer
         if (!Directory.Exists(target))
             return (false, Localization.Get("the_target_folder_is_no_longer_there"), []);
 
+        TransferDecision? DecisionFor(string source) =>
+            decisions?.FirstOrDefault(decision =>
+                string.Equals(Path.GetFullPath(decision.Source), Path.GetFullPath(source),
+                    StringComparison.OrdinalIgnoreCase));
+
         // Moving an entry onto the folder it already lives in would only create "name (2)".
+        // A rename chosen in the dialog is the one exception: the user asked for the copy.
         if (move)
         {
             var normalizedTarget = Path.GetFullPath(target).TrimEnd(Path.DirectorySeparatorChar);
 
             list = list
-                .Where(source => !string.Equals(
-                    Path.GetFullPath(Path.GetDirectoryName(source) ?? source)
-                        .TrimEnd(Path.DirectorySeparatorChar),
-                    normalizedTarget, StringComparison.OrdinalIgnoreCase))
+                .Where(source => DecisionFor(source)?.Action == "rename"
+                                 || !string.Equals(
+                                     Path.GetFullPath(Path.GetDirectoryName(source) ?? source)
+                                         .TrimEnd(Path.DirectorySeparatorChar),
+                                     normalizedTarget, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             if (list.Count == 0)
@@ -95,7 +106,25 @@ internal static class FileTransfer
                 if (name.Length == 0)
                     return (false, Localization.Get("a_drive_root_cannot_be_copied_this_way"), created);
 
-                var destination = UniqueDestination(target, name, isDirectory, reserved);
+                var decision = DecisionFor(source);
+                if (decision?.Action == "skip")
+                    continue;
+
+                var samePath = string.Equals(Path.GetFullPath(source),
+                    Path.GetFullPath(Path.Combine(target, name)), StringComparison.OrdinalIgnoreCase);
+
+                string destination;
+                var overwrite = false;
+
+                if (decision?.Action == "overwrite" && !samePath)
+                {
+                    destination = Path.Combine(target, name);
+                    overwrite = true;
+                }
+                else if (decision?.Action == "rename" && decision.Name is { Length: > 0 } wanted)
+                    destination = UniqueDestination(target, SafeName(wanted), isDirectory, reserved);
+                else
+                    destination = UniqueDestination(target, name, isDirectory, reserved);
 
                 // A move on the same volume is a rename in the directory entry, so measuring the
                 // whole tree first would be pure overhead. Only a cross-volume fallback copies files.
@@ -107,7 +136,7 @@ internal static class FileTransfer
                         ? await Task.Run(() => Measure(source, cancellationToken), cancellationToken)
                         : (1L, Try.Run(() => new FileInfo(source).Length).GetOrElse(_ => 0L));
 
-                jobs.Add(new(source, destination, isDirectory, files, bytes));
+                jobs.Add(new(source, destination, isDirectory, files, bytes, overwrite));
                 totalFiles += files;
                 totalBytes += bytes;
             }
@@ -134,6 +163,17 @@ internal static class FileTransfer
             foreach (var job in jobs)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+
+                // "Overwrite" replaces the entry in the target; the copy needs the name free.
+                if (job.Overwrite)
+                    Try.Run(() =>
+                        {
+                            if (Directory.Exists(job.Destination))
+                                Directory.Delete(job.Destination, true);
+                            else if (File.Exists(job.Destination))
+                                File.Delete(job.Destination);
+                        })
+                        .OnFailure(ex => Log.Warning(ex, "Could not replace {Target}", job.Destination));
 
                 if (move && TryMoveDirect(job))
                 {
@@ -187,6 +227,82 @@ internal static class FileTransfer
             TaskCenter.Instance.Fail(taskId, ex.Message);
             return (false, ex.Message, created);
         }
+    }
+
+    /// <summary>The conflicts a copy or move would run into, with both sides' figures.</summary>
+    public static List<TransferConflict> Conflicts(IReadOnlyList<string> sources, string target, bool move)
+    {
+        var conflicts = new List<TransferConflict>();
+
+        if (!Directory.Exists(target))
+            return conflicts;
+
+        var reserved = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var source in sources
+                     .Where(path => path.Length > 0)
+                     .Select(path => path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var isDirectory = Directory.Exists(source);
+
+            if (!isDirectory && !File.Exists(source))
+                continue;
+
+            var name = Path.GetFileName(source);
+            if (name.Length == 0)
+                continue;
+
+            var destination = Path.Combine(target, name);
+            var exists = Directory.Exists(destination) || File.Exists(destination);
+            var samePath = string.Equals(Path.GetFullPath(source), Path.GetFullPath(destination),
+                StringComparison.OrdinalIgnoreCase);
+
+            if (!exists && !samePath)
+                continue;
+
+            var (sourceSize, sourceModified, sourceCreated) = Figures(source);
+            var (targetSize, targetModified, targetCreated) = exists ? Figures(destination) : (0L, 0L, 0L);
+
+            // The suggestion skips the name that is already taken, so it is always free.
+            var suggested = Path.GetFileName(UniqueDestination(target, name, isDirectory, reserved));
+
+            conflicts.Add(new(source, name, isDirectory, sourceSize, sourceModified, sourceCreated,
+                targetSize, targetModified, targetCreated, samePath, suggested));
+        }
+
+        return conflicts;
+    }
+
+    private static (long Size, long Modified, long Created) Figures(string path)
+    {
+        try
+        {
+            if (Directory.Exists(path))
+            {
+                var directory = new DirectoryInfo(path);
+                return (0, Ms(directory.LastWriteTimeUtc), Ms(directory.CreationTimeUtc));
+            }
+
+            var file = new FileInfo(path);
+            return (file.Length, Ms(file.LastWriteTimeUtc), Ms(file.CreationTimeUtc));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return (0, 0, 0);
+        }
+    }
+
+    private static long Ms(DateTime value) => new DateTimeOffset(value).ToUnixTimeMilliseconds();
+
+    /// <summary>A name typed into the rename box cannot introduce a folder or an invalid character.</summary>
+    private static string SafeName(string name)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var cleaned = new string([.. name.Select(character => invalid.Contains(character) ? '_' : character)]);
+        cleaned = cleaned.Trim().TrimEnd('.', ' ');
+
+        return cleaned.Length == 0 || cleaned is "." or ".." ? "item" : cleaned;
     }
 
     /// <summary>
@@ -398,5 +514,6 @@ internal static class FileTransfer
         return candidate.StartsWith(root, StringComparison.OrdinalIgnoreCase);
     }
 
-    private sealed record Job(string Source, string Destination, bool IsDirectory, long Files, long Bytes);
+    private sealed record Job(string Source, string Destination, bool IsDirectory, long Files, long Bytes,
+        bool Overwrite = false);
 }

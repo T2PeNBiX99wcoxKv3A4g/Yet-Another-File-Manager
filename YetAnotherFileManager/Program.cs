@@ -158,6 +158,64 @@ internal static partial class Program
             return;
         }
 
+        // Which icon a path shows, without a window: the override in the parent's index and the
+        // shell's own answer, so a fallback glyph can be traced to its cause.
+        if (args.Contains(Constants.IconDumpArgument))
+        {
+            if (OperatingSystem.IsWindows())
+                AttachConsole(AttachParent);
+
+            SettingsService.Instance.LoadAsync().GetAwaiter().GetResult();
+
+            var index = Array.IndexOf(args, Constants.IconDumpArgument);
+            var path = index + 1 < args.Length ? args[index + 1] : "";
+            var directory = Directory.Exists(path);
+            var parent = Path.GetDirectoryName(path) ?? "";
+            var name = Path.GetFileName(path);
+            var source = parent.Length > 0
+                ? DirectoryIndex.IconsAsync(parent).GetAwaiter().GetResult().GetValueOrDefault(name)
+                : null;
+            var shell = OperatingSystem.IsWindows()
+                ? ShellIcon.DataUrl(path, directory, true)
+                : null;
+
+            Console.WriteLine($"path={path} directory={directory}");
+            Console.WriteLine($"override={(source ?? "(none)")} shellIconLength={shell?.Length ?? 0}");
+            Console.WriteLine($"systemIcons={SettingsService.Instance.Current.UseSystemIcons}");
+
+            if (shell is not null && index + 2 < args.Length)
+            {
+                var target = args[index + 2];
+                var comma = shell.IndexOf(',');
+                File.WriteAllBytes(target, Convert.FromBase64String(shell[(comma + 1)..]));
+                Console.WriteLine($"saved={target}");
+            }
+
+            Console.Out.Flush();
+            return;
+        }
+
+        // What a copy into a folder would collide with, without a window: the same scan the
+        // conflict dialog draws, including the suggested name.
+        if (args.Contains(Constants.ConflictDumpArgument))
+        {
+            if (OperatingSystem.IsWindows())
+                AttachConsole(AttachParent);
+
+            var index = Array.IndexOf(args, Constants.ConflictDumpArgument);
+            var target = index + 1 < args.Length ? args[index + 1] : "";
+            var sources = args[(index + 2)..];
+
+            foreach (var conflict in FileTransfer.Conflicts(sources, target, false))
+                Console.WriteLine(
+                    $"name={conflict.Name} same={conflict.SamePath} directory={conflict.Directory} " +
+                    $"sourceModified={conflict.SourceModified} targetModified={conflict.TargetModified} " +
+                    $"suggested={conflict.SuggestedName}");
+
+            Console.Out.Flush();
+            return;
+        }
+
         // Main must stay synchronous: [STAThread] is ignored for an async entry point, and the
         // Photino message loop / WebView2 require an STA thread.
         Logging.Initialize(Constants.Name, "app");

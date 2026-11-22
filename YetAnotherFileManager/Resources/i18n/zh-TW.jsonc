@@ -947,5 +947,15 @@
   "count_files_and_folders": "{files} 個檔案，{folders} 個資料夾",
   "bytes_in_parentheses": "{size}（{bytes} 位元組）",
   "change": "變更…",
-  "the_path_no_longer_exists": "此路徑已不存在。"
+  "the_path_no_longer_exists": "此路徑已不存在。",
+  "copy_conflicts": "解決衝突",
+  "these_items_already_exist_in_the_target_folder": "這些項目在目標資料夾中已存在。",
+  "source": "來源",
+  "skip": "跳過",
+  "auto_name": "自動命名",
+  "this_is_the_same_path": "來源與目的地是同一個項目，無法複製到自身。",
+  "source_is_newer": "來源較新",
+  "source_is_older": "來源較舊",
+  "same_time": "時間相同",
+  "replace_the_whole_folder": "覆蓋資料夾會先刪除目標資料夾的內容。"
 }

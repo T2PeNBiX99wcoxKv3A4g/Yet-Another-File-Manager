@@ -947,5 +947,15 @@
   "count_files_and_folders": "{files} files, {folders} folders",
   "bytes_in_parentheses": "{size} ({bytes} bytes)",
   "change": "Change…",
-  "the_path_no_longer_exists": "This path no longer exists."
+  "the_path_no_longer_exists": "This path no longer exists.",
+  "copy_conflicts": "Resolve conflicts",
+  "these_items_already_exist_in_the_target_folder": "These items already exist in the target folder.",
+  "source": "Source",
+  "skip": "Skip",
+  "auto_name": "Automatic name",
+  "this_is_the_same_path": "The source and the destination are the same item; it cannot be copied onto itself.",
+  "source_is_newer": "Source is newer",
+  "source_is_older": "Source is older",
+  "same_time": "Same time",
+  "replace_the_whole_folder": "Overwriting a folder deletes the target folder's contents first."
 }
