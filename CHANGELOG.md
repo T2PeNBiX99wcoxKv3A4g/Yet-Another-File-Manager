@@ -1,5 +1,48 @@
 # Changelog
 
+## [0.47.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.46.0..v0.47.0) - 2026-11-22
+
+### ⛰️  Features
+
+- *(archives)* Open the 7-Zip formats on Linux through its console tool - ([bfc34cf](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/bfc34cf917eabb56abb94fea27c5bb6e8af8c0a0))
+- *(data)* Serve history and recycle lists as binary blocks - ([2bad5e3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/2bad5e394e7d23ababfa22a0c2d9db58020aaf69))
+- *(menu)* Keep the Windows-only actions off Linux - ([04e02bf](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/04e02bf108615306d17298e34b4c4947b511f81f))
+- *(properties)* Finish property editing and path hashing - ([8bbeabc](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/8bbeabc0a9501e7f23514e9a86c80f0b94e7027c))
+- *(properties)* Edit attributes and unix mode from the dialog - ([1ccada1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/1ccada1d6245a1d3b4d0038d7a19996465cbff54))
+- *(properties)* An Explorer-style properties page of the app's own - ([7d6efac](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7d6efac0bebcefbee02f118bfec2e437343d8bef))
+
+### 🐛 Bug Fixes
+
+- *(index)* Read each cache in one bounded snapshot - ([73aee06](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/73aee0676f11af1777b13a5e50ea83d87cb849df))
+- *(index)* Keep reads write-free and bounded - ([d3c78c0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d3c78c09745b57c493076de6f2e41c5ca9de3b06))
+
+### 🚜 Refactor
+
+- Follow the generic listing transport names - ([3308849](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/330884927fa2f4af6c4bfa93df10991b237bd943))
+
+### ⚡ Performance
+
+- *(index)* Recover corrupt folder indexes automatically - ([0f0c049](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/0f0c049dffe0d6e8b8c069eaede5a82e81b2ee45))
+- *(index)* Run folder indexes in WAL with checkpoint and quarantine - ([27f3d7d](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/27f3d7d1ac2f9d6ff9d8fc5a5337a8103cb450b7))
+- *(index)* Use per-file database gates and store icon bytes - ([b4fb09d](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b4fb09db7ed0abb53c090ea86966e3744d6bc1ac))
+- *(media)* Cache thumbnails, media and PDF previews - ([ffadffd](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/ffadffd259e607adba81069815356bc2c607871a))
+
+### ⚙️ Miscellaneous Tasks
+
+- Update the shared bridge and build - ([bff4d47](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/bff4d47eef420572a8481519feac6bda89eb23f1))
+- No release for a site package update - ([81bb640](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/81bb640e493840d2008ca8182ced996fca537d89))
+- Update SharpCompress to version 0.50.11 - ([17947a5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/17947a53bd21e409ce8665d28f386a81fc052492))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([89d7a70](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/89d7a706c6ead611e5a71c2951fdd4a7cc0d261b))
+
+### Build
+
+- *(linux)* Ship the 7-Zip tool inside the packages - ([6e82484](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/6e82484aa90f7dc4a8f492c5dab227343009b1b0))
+- Vendor the 7-Zip console tool for Linux - ([37c3823](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/37c3823685b3f6c2cd2b3de0cf4f08e205dec9b8))
+
+
 ## [0.46.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.45.2..v0.46.0) - 2026-11-21
 
 ### ⛰️  Features
