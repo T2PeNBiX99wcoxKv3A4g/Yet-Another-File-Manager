@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.51.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.51.1..v0.51.2) - 2026-11-22
+
+### 🐛 Bug Fixes
+
+- *(index)* Never put the folder index inside .git - ([16f76b8](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/16f76b8543080d0e488a09b501d25f8c13969176))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([f018540](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/f018540d268f617f240575b7ee26c89eac8c881e))
+
+
 ## [0.51.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.51.0..v0.51.1) - 2026-11-22
 
 ### 🐛 Bug Fixes
