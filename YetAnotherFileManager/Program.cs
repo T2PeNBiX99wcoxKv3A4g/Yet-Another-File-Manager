@@ -132,6 +132,32 @@ internal static partial class Program
             return;
         }
 
+        // The properties page's figures, without a window: the same reader the dialog calls, so a
+        // wrong mount, owner or count can be checked against the machine.
+        if (args.Contains(Constants.PropertiesDumpArgument))
+        {
+            if (OperatingSystem.IsWindows())
+                AttachConsole(AttachParent);
+
+            SettingsService.Instance.LoadAsync().GetAwaiter().GetResult();
+
+            var index = Array.IndexOf(args, Constants.PropertiesDumpArgument);
+            var path = index + 1 < args.Length ? args[index + 1] : "";
+            var info = PathProperties.Read(path);
+            var details = DirectoryIndex.DetailsAsync(path).GetAwaiter().GetResult();
+
+            Console.WriteLine($"path={info.Path}");
+            Console.WriteLine(
+                $"directory={info.Directory} size={info.Size} sizeOnDisk={info.SizeOnDisk} files={info.FileCount} folders={info.FolderCount}");
+            Console.WriteLine(
+                $"fileSystem={info.FileSystem} mount={info.MountPoint} source={info.MountSource} free={info.VolumeFree} total={info.VolumeTotal}");
+            Console.WriteLine($"owner={info.Owner} group={info.Group} mode={info.UnixMode} error={info.Error}");
+            Console.WriteLine(
+                $"tags={string.Join(",", details.Tags)} rating={details.Rating} comment={details.Comment} editable={details.Editable}");
+            Console.Out.Flush();
+            return;
+        }
+
         // Main must stay synchronous: [STAThread] is ignored for an async entry point, and the
         // Photino message loop / WebView2 require an STA thread.
         Logging.Initialize(Constants.Name, "app");

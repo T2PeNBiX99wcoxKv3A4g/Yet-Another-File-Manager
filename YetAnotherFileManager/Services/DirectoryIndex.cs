@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using PhotinoNetUtils.Utils;
+using YetAnotherFileManager.Messaging;
 using YetAnotherFileManager.Models;
 
 namespace YetAnotherFileManager.Services;
@@ -136,6 +137,59 @@ internal static class DirectoryIndex
         HoldsOwnIndex(directory)
             ? FolderIndex.SetTagsAsync(directory, name, tags)
             : Task.FromResult(false);
+
+    /// <summary>The tags, rating and comment of one entry, as the details tab shows them.</summary>
+    public static async Task<EntryDetailsPayload> DetailsAsync(string path)
+    {
+        var directory = Path.GetDirectoryName(path) ?? path;
+        var name = Path.GetFileName(path);
+
+        if (!Directory.Exists(directory))
+            return new([], 0, null, false);
+
+        // A missing entry has nothing to annotate; the dialog already shows the error.
+        if (!File.Exists(path) && !Directory.Exists(path))
+            return new([], 0, null, false);
+
+        // Tags, rating and comment only live in the folder's own index, so a folder that keeps its
+        // data centrally shows them read-only rather than pretending a write would stick.
+        if (!HoldsOwnIndex(directory))
+            return new([], 0, null, false);
+
+        var tags = (await FolderIndex.TagsAsync(directory)).GetValueOrDefault(name) ?? [];
+        var rating = int.TryParse(await FolderIndex.MetaAsync(directory, $"rating:{name}"), out var stars)
+            ? Math.Clamp(stars, 0, 5)
+            : 0;
+        var comment = await FolderIndex.MetaAsync(directory, $"comment:{name}");
+
+        return new(tags, rating, comment.Length > 0 ? comment : null, true);
+    }
+
+    /// <summary>Writes what the details tab changed; null fields are left alone.</summary>
+    public static async Task<bool> SetDetailsAsync(EntryDetailsRequest? request)
+    {
+        if (request is not { Path.Length: > 0 })
+            return false;
+
+        var directory = Path.GetDirectoryName(request.Path) ?? request.Path;
+        var name = Path.GetFileName(request.Path);
+
+        if (!HoldsOwnIndex(directory))
+            return false;
+
+        var ok = true;
+
+        if (request.Tags is { } tags)
+            ok &= await FolderIndex.SetTagsAsync(directory, name, tags);
+
+        if (request.Rating is { } rating)
+            ok &= await FolderIndex.SetMetaAsync(directory, $"rating:{name}", rating > 0 ? rating.ToString() : "");
+
+        if (request.Comment is { } comment)
+            ok &= await FolderIndex.SetMetaAsync(directory, $"comment:{name}", comment);
+
+        return ok;
+    }
 
     /// <summary>The colors of this folder's tags, by tag name. They never move to the central index.</summary>
     public static Task<Dictionary<string, string>> TagColorsAsync(string directory) =>

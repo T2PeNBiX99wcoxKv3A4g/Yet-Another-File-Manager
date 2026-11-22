@@ -127,6 +127,12 @@ public static class Constants
     /// </summary>
     public const string MemoryDumpArgument = "--memory-dump";
 
+    /// <summary>
+    ///     Prints the properties page's own figures for one path and exits. It runs the same reader
+    ///     the dialog uses, so a wrong volume, owner or count shows up without opening the window.
+    /// </summary>
+    public const string PropertiesDumpArgument = "--properties-dump";
+
     /// <summary>Where a debug build loads the interface from; Vite serves it with hot reload.</summary>
     public const string DevServerUrl = "http://127.0.0.1:3100";
 

@@ -931,5 +931,21 @@
   "calculating": "计算中…",
   "hash_matches": "哈希值一致。",
   "hash_does_not_match": "哈希值不一致。",
-  "paste_a_hash_to_compare": "粘贴哈希值，与这个文件比对。"
+  "paste_a_hash_to_compare": "粘贴哈希值，与这个文件比对。",
+  "size_on_disk": "磁盘上的大小",
+  "filesystem": "文件系统",
+  "mount_point": "挂载点",
+  "mount_source": "挂载来源",
+  "free_space": "可用空间",
+  "apply_to_all_subfolders": "应用到所有子文件夹及其内容",
+  "advanced_permissions": "高级权限",
+  "can_view_and_modify": "可查看并修改内容",
+  "view_only": "仅可查看内容",
+  "no_access": "无权限",
+  "rating": "评分",
+  "comment": "注释",
+  "count_files_and_folders": "{files} 个文件，{folders} 个文件夹",
+  "bytes_in_parentheses": "{size}（{bytes} 字节）",
+  "change": "更改…",
+  "the_path_no_longer_exists": "此路径已不存在。"
 }

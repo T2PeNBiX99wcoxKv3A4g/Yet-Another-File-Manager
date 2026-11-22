@@ -931,5 +931,21 @@
   "calculating": "計算中…",
   "hash_matches": "雜湊值吻合。",
   "hash_does_not_match": "雜湊值不吻合。",
-  "paste_a_hash_to_compare": "貼上雜湊值，與這個檔案比對。"
+  "paste_a_hash_to_compare": "貼上雜湊值，與這個檔案比對。",
+  "size_on_disk": "磁碟上的大小",
+  "filesystem": "檔案系統",
+  "mount_point": "掛載點",
+  "mount_source": "掛載來源",
+  "free_space": "可用空間",
+  "apply_to_all_subfolders": "套用到所有子資料夾與其內容",
+  "advanced_permissions": "進階權限",
+  "can_view_and_modify": "可檢視並修改內容",
+  "view_only": "僅可檢視內容",
+  "no_access": "無權限",
+  "rating": "評分",
+  "comment": "註解",
+  "count_files_and_folders": "{files} 個檔案，{folders} 個資料夾",
+  "bytes_in_parentheses": "{size}（{bytes} 位元組）",
+  "change": "變更…",
+  "the_path_no_longer_exists": "此路徑已不存在。"
 }

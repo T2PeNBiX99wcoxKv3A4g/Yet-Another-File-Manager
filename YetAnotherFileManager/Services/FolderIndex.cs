@@ -477,6 +477,31 @@ internal static class FolderIndex
                 return tags;
             }, token: token), []);
 
+    /// <summary>One value from the folder's free-form metadata; empty when the key is not set.</summary>
+    public static Task<string> MetaAsync(string directory, string key) =>
+        ReadAsync(directory, async (connection, token) =>
+            await ReadOnConnectionAsync(connection, "SELECT value FROM meta WHERE key = $key",
+                async reader => await reader.ReadAsync(token) ? reader.GetString(0) : "",
+                command => command.Parameters.AddWithValue("$key", key), token), "");
+
+    /// <summary>Stores one metadata value; an empty value removes the row.</summary>
+    public static Task<bool> SetMetaAsync(string directory, string key, string value) =>
+        WriteAsync(directory, async (connection, transaction, token) =>
+        {
+            await using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = value.Length == 0
+                ? "DELETE FROM meta WHERE key = $key"
+                : "INSERT INTO meta (key, value) VALUES ($key, $value) " +
+                  "ON CONFLICT(key) DO UPDATE SET value = excluded.value";
+
+            command.Parameters.AddWithValue("$key", key);
+            if (value.Length > 0)
+                command.Parameters.AddWithValue("$value", value);
+
+            await command.ExecuteNonQueryAsync(token);
+        });
+
     /// <summary>Replaces one entry's tags; an empty list removes the row.</summary>
     public static Task<bool> SetTagsAsync(string directory, string name, IReadOnlyList<string> tags) =>
         WriteAsync(directory, async (connection, transaction, token) =>

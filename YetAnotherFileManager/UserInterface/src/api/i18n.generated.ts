@@ -33,6 +33,7 @@ declare module "@photino-net-utils/bridge"
         "administrator_rights_are_required_to_change_this_folder": true;
         "administrator_rights_required": true;
         "admin_view_loaded": true;
+        "advanced_permissions": true;
         "aes_128": true;
         "aes_192": true;
         "aes_256": true;
@@ -52,6 +53,7 @@ declare module "@photino-net-utils/bridge"
         "apply": true;
         "applying_edits_is_currently_supported_for_zip_archives": true;
         "apply_archive_changes": true;
+        "apply_to_all_subfolders": true;
         "arabic_cp1256": true;
         "archive": true;
         "archive_encoding": true;
@@ -103,15 +105,18 @@ declare module "@photino-net-utils/bridge"
         "browser_preview": true;
         "built_in_source": true;
         "buttons_selections_focus_rings_and_active_navigation": true;
+        "bytes_in_parentheses": true;
         "b_zip2": true;
         "calculating": true;
         "cancel": true;
         "cancelled": true;
         "cancel_selected_link": true;
+        "can_view_and_modify": true;
         "case_sensitive_folder": true;
         "case_sensitive_folders_are_a_windows_feature": true;
         "case_sensitive_names": true;
         "central_european_cp1250": true;
+        "change": true;
         "changelog": true;
         "changes_are_saved_as_you_make_them": true;
         "change_banner": true;
@@ -148,6 +153,7 @@ declare module "@photino-net-utils/bridge"
         "color_of_tag": true;
         "color_of_the_new_tag": true;
         "columns": true;
+        "comment": true;
         "committed_of_available_the_runtime_can_use_resident_is_resident_the_webview_runs_in_its_own_process": true;
         "compacts_the_heap_and_returns_unused_pages_to_the_system_always_safe": true;
         "compress": true;
@@ -189,6 +195,7 @@ declare module "@photino-net-utils/bridge"
         "could_not_read_this_file": true;
         "could_not_rename_the_entry": true;
         "count_columns": true;
+        "count_files_and_folders": true;
         "count_indexing_tasks": true;
         "count_items": true;
         "count_items_are_in_use_by_programs_close_them_and_try_again": true;
@@ -289,6 +296,7 @@ declare module "@photino-net-utils/bridge"
         "favorites": true;
         "file": true;
         "files": true;
+        "filesystem": true;
         "files_and_folders_you_open_show_up_here": true;
         "files_of_type": true;
         "files_view": true;
@@ -315,6 +323,7 @@ declare module "@photino-net-utils/bridge"
         "forward": true;
         "free_free_of_total": true;
         "free_memory": true;
+        "free_space": true;
         "frequent": true;
         "full_path": true;
         "gallery": true;
@@ -421,6 +430,8 @@ declare module "@photino-net-utils/bridge"
         "more_actions": true;
         "more_actions_extensions": true;
         "motion": true;
+        "mount_point": true;
+        "mount_source": true;
         "move": true;
         "moves_the_entries": true;
         "moves_the_selection_on_the_next_paste": true;
@@ -467,6 +478,7 @@ declare module "@photino-net-utils/bridge"
         "notice": true;
         "not_checked_yet": true;
         "not_paired": true;
+        "no_access": true;
         "no_banner": true;
         "no_drives_are_available": true;
         "no_entries_match_the_search": true;
@@ -604,6 +616,7 @@ declare module "@photino-net-utils/bridge"
         "quick_access": true;
         "random": true;
         "random_asks_the_operating_system_for_one_free_port_when_the_first_web_share_starts_and_every_web_share_keeps_using_it_custom_always_tries_the_port_below": true;
+        "rating": true;
         "read": true;
         "reading": true;
         "reading_the_current_usage": true;
@@ -762,6 +775,7 @@ declare module "@photino-net-utils/bridge"
         "show_recent_timestamps_as_seconds_and_minutes_ago": true;
         "simplified_chinese_cp936": true;
         "size": true;
+        "size_on_disk": true;
         "skyline": true;
         "slate": true;
         "smart_copy": true;
@@ -847,6 +861,7 @@ declare module "@photino-net-utils/bridge"
         "the_next_folder_in_this_tab_the_mouse_forward_button_and_the_browser_forward_key_always_work": true;
         "the_path_does_not_name_a_file_inside_an_archive": true;
         "the_path_is_not_inside_an_archive": true;
+        "the_path_no_longer_exists": true;
         "the_port_the_browser_file_server_listens_on_leave_it_empty_to_pick_a_free_port_between_6000_and_9000_automatically": true;
         "the_previous_folder_in_this_tab_the_mouse_back_button_and_the_browser_back_key_always_work": true;
         "the_program_is_running": true;
@@ -915,6 +930,7 @@ declare module "@photino-net-utils/bridge"
         "video_2": true;
         "video_previews_play_muted_by_default_turn_this_on_to_hear_their_audio_while_the_details_panel_is_open": true;
         "view": true;
+        "view_only": true;
         "violet": true;
         "wallpaper": true;
         "web": true;

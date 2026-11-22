@@ -931,5 +931,21 @@
   "calculating": "計算中…",
   "hash_matches": "ハッシュが一致しました。",
   "hash_does_not_match": "ハッシュが一致しません。",
-  "paste_a_hash_to_compare": "ハッシュを貼り付けて、このファイルと比較します。"
+  "paste_a_hash_to_compare": "ハッシュを貼り付けて、このファイルと比較します。",
+  "size_on_disk": "ディスク上のサイズ",
+  "filesystem": "ファイルシステム",
+  "mount_point": "マウント先",
+  "mount_source": "マウント元",
+  "free_space": "空き容量",
+  "apply_to_all_subfolders": "すべてのサブフォルダーとその内容に適用する",
+  "advanced_permissions": "詳細なパーミッション",
+  "can_view_and_modify": "内容の変更、表示が可能",
+  "view_only": "内容の表示のみ可能",
+  "no_access": "アクセス不可",
+  "rating": "評価",
+  "comment": "コメント",
+  "count_files_and_folders": "{files} 個のファイル、{folders} 個のフォルダー",
+  "bytes_in_parentheses": "{size}（{bytes} バイト）",
+  "change": "変更…",
+  "the_path_no_longer_exists": "このパスはもう存在しません。"
 }

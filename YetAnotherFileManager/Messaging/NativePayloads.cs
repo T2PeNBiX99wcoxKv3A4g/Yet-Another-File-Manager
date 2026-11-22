@@ -226,7 +226,27 @@ internal sealed record PathPropertiesInfo(
     string? UnixMode,
     int? UnixModeValue,
     string? LinkTarget,
-    string? Error);
+    string? Error,
+    long SizeOnDisk = 0,
+    int FileCount = 0,
+    int FolderCount = 0,
+    string? FileSystem = null,
+    string? MountPoint = null,
+    string? MountSource = null,
+    long VolumeFree = 0,
+    long VolumeTotal = 0,
+    string? Owner = null,
+    string? Group = null);
+
+/// <summary>The tags, rating and comment the details tab edits for one entry.</summary>
+internal sealed record EntryDetailsPayload(List<string> Tags, int Rating, string? Comment, bool Editable);
+
+/// <summary>What the details tab changes; only the fields that were sent are written.</summary>
+internal sealed record EntryDetailsRequest(
+    string Path,
+    List<string>? Tags = null,
+    int? Rating = null,
+    string? Comment = null);
 
 /// <summary>What the properties page changes: the flags or the unix mode the user picked.</summary>
 internal sealed record PropertiesEditRequest(
@@ -234,7 +254,8 @@ internal sealed record PropertiesEditRequest(
     bool? ReadOnly = null,
     bool? Hidden = null,
     bool? Archive = null,
-    int? UnixMode = null);
+    int? UnixMode = null,
+    bool Recursive = false);
 
 /// <summary>Answer for <c>fs.operation.properties.edit</c>, with the entry as it is afterwards.</summary>
 internal sealed record PropertiesEditResult(bool Ok, string? Error, PathPropertiesInfo? Info);

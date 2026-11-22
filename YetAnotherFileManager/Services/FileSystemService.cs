@@ -634,6 +634,18 @@ internal partial class FileSystemService : INativeMessageHandler
                 return context.Reply("fs.operation.properties.edit.result",
                     await FileOperations.ApplyPropertiesAsync(context.Payload<PropertiesEditRequest>()));
 
+            case "fs.operation.properties.details":
+            {
+                var path = context.Payload<PathPayload>()?.Path ?? "";
+
+                return context.Reply("fs.operation.properties.details.result",
+                    await DirectoryIndex.DetailsAsync(path));
+            }
+
+            case "fs.operation.properties.details.set":
+                return context.Reply("fs.operation.properties.details.set.result",
+                    new OkPayload(await DirectoryIndex.SetDetailsAsync(context.Payload<EntryDetailsRequest>())));
+
             case "fs.operation.properties.info":
                 return context.Reply("fs.operation.properties.info.result",
                     await FileOperations.PropertyInfosAsync(context.Payload<PathsPayload>()?.Paths ?? []));

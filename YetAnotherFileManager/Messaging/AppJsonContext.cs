@@ -170,6 +170,8 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(PathHashPayload))]
 [JsonSerializable(typeof(PathHashValue))]
 [JsonSerializable(typeof(List<PathHashValue>))]
+[JsonSerializable(typeof(EntryDetailsPayload))]
+[JsonSerializable(typeof(EntryDetailsRequest))]
 [JsonSerializable(typeof(PickOpenRequest))]
 [JsonSerializable(typeof(PickOpenPayload))]
 [JsonSerializable(typeof(Dictionary<string, long>))]

@@ -16,6 +16,16 @@ export interface PathPropertiesInfo {
     unixModeValue: number | null;
     linkTarget: string | null;
     error: string | null;
+    sizeOnDisk: number;
+    fileCount: number;
+    folderCount: number;
+    fileSystem: string | null;
+    mountPoint: string | null;
+    mountSource: string | null;
+    volumeFree: number;
+    volumeTotal: number;
+    owner: string | null;
+    group: string | null;
 }
 
 export interface PropertiesRequest {
@@ -71,14 +81,43 @@ export async function readHashes(path: string): Promise<PathHashes | null> {
     return await Native.request<PathHashes>("fs.operation.properties.hash", {path});
 }
 
-/** Applies the flags (or unix mode) the user changed on the properties page. */export async function applyProperties(request: {
+/** Applies the flags (or unix mode) the user changed on the properties page. */
+export async function applyProperties(request: {
     path: string;
     readOnly?: boolean;
     hidden?: boolean;
     archive?: boolean;
     unixMode?: number;
+    recursive?: boolean;
 }): Promise<{ ok: boolean; error: string | null; info?: PathPropertiesInfo | null }> {
     if (!Native.available) return {ok: false, error: null};
 
     return await Native.request("fs.operation.properties.edit", request);
+}
+
+/** The tags, rating and comment the details tab shows for one entry. */
+export interface EntryDetails {
+    tags: string[];
+    rating: number;
+    comment: string | null;
+    editable: boolean;
+}
+
+export async function readEntryDetails(path: string): Promise<EntryDetails | null> {
+    if (!Native.available) return null;
+
+    return await Native.request<EntryDetails>("fs.operation.properties.details", {path});
+}
+
+/** Writes the details the user changed; omitted fields stay as they are. */
+export async function saveEntryDetails(request: {
+    path: string;
+    tags?: string[];
+    rating?: number;
+    comment?: string;
+}): Promise<boolean> {
+    if (!Native.available) return false;
+
+    const result = await Native.request<{ ok?: boolean }>("fs.operation.properties.details.set", request);
+    return result?.ok !== false;
 }

@@ -1157,7 +1157,12 @@ internal static partial class FileOperations
                         File.SetAttributes(path, updated);
                 }
                 else if (request.UnixMode is { } mode)
+                {
                     File.SetUnixFileMode(path, (UnixFileMode)mode);
+
+                    if (request.Recursive && Directory.Exists(path))
+                        ApplyModeToTree(path, mode);
+                }
             }
             catch (Exception exception)
             {
@@ -1168,9 +1173,29 @@ internal static partial class FileOperations
             return new PropertiesEditResult(true, null, PathProperties.Read(path));
         });
 
-    [SupportedOSPlatform("windows")]
-    private static void ShowWindowsProperties(string path)
+    /// <summary>Applies one unix mode to every entry below a folder, skipping links.</summary>
+    [UnsupportedOSPlatform("windows")]
+    private static void ApplyModeToTree(string directory, int mode)
     {
+        var options = new EnumerationOptions
+        {
+            IgnoreInaccessible = true,
+            AttributesToSkip = FileAttributes.None,
+            RecurseSubdirectories = true
+        };
+
+        foreach (var entry in new DirectoryInfo(directory).EnumerateFileSystemInfos("*", options))
+        {
+            if ((entry.Attributes & FileAttributes.ReparsePoint) != 0)
+                continue;
+
+            Try.Run(() => File.SetUnixFileMode(entry.FullName, (UnixFileMode)mode))
+                .OnFailure(exception => Log.Debug(exception, "Could not set the mode of {Path}", entry.FullName));
+        }
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static void ShowWindowsProperties(string path)    {
         // SHObjectProperties is the shell's own entry point and does not depend on a registered
         // "properties" verb, which Process.Start needs and which several file types lack.
         var shown = Try.Run(() => StaThread.RunAsync(() =>

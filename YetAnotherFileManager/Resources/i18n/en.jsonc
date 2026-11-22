@@ -931,5 +931,21 @@
   "calculating": "Calculating…",
   "hash_matches": "The hash matches.",
   "hash_does_not_match": "The hash does not match.",
-  "paste_a_hash_to_compare": "Paste a hash to compare it with this file."
+  "paste_a_hash_to_compare": "Paste a hash to compare it with this file.",
+  "size_on_disk": "Size on disk",
+  "filesystem": "Filesystem",
+  "mount_point": "Mount point",
+  "mount_source": "Mount source",
+  "free_space": "Free space",
+  "apply_to_all_subfolders": "Apply to all subfolders and their contents",
+  "advanced_permissions": "Advanced permissions",
+  "can_view_and_modify": "Can view and modify contents",
+  "view_only": "Can view contents only",
+  "no_access": "No access",
+  "rating": "Rating",
+  "comment": "Comment",
+  "count_files_and_folders": "{files} files, {folders} folders",
+  "bytes_in_parentheses": "{size} ({bytes} bytes)",
+  "change": "Change…",
+  "the_path_no_longer_exists": "This path no longer exists."
 }
