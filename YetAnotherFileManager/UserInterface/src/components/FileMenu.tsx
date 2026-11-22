@@ -41,6 +41,7 @@ import {
     FileIcon,
     FolderIcon,
     GearIcon,
+    GlobeIcon,
     HeartIcon,
     HeartMinusIcon,
     PackageIcon,
@@ -636,19 +637,19 @@ export function FileMenu({
                 separatorBefore: true,
                 children: [
                     {
-                        label: t("add_to_user_start_menu"),
+                        label: t("add_to_user_start_menu"), icon: <StarIcon size={14}/>,
                         onSelect: () => onAddToStartMenu(target.path, "user", false),
                     },
                     {
-                        label: t("pin_to_user_start_menu"),
+                        label: t("pin_to_user_start_menu"), icon: <PinIcon size={14}/>,
                         onSelect: () => onAddToStartMenu(target.path, "user", true),
                     },
                     {
-                        label: t("add_to_global_start_menu"), separatorBefore: true,
+                        label: t("add_to_global_start_menu"), icon: <GlobeIcon size={14}/>, separatorBefore: true,
                         onSelect: () => onAddToStartMenu(target.path, "machine", false),
                     },
                     {
-                        label: t("pin_to_global_start_menu"),
+                        label: t("pin_to_global_start_menu"), icon: <PinIcon size={14}/>,
                         onSelect: () => onAddToStartMenu(target.path, "machine", true),
                     },
                 ],
