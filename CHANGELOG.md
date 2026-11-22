@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.48.3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.48.2..v0.48.3) - 2026-11-22
+
+### 🐛 Bug Fixes
+
+- *(ui)* Keep every tab of a folder in step and tick relative times each second - ([c53efbc](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c53efbc4ae0c0188b3dbf28b367d6f4b27c938ae))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([d33b71d](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d33b71d2944dcf829d32fe62f5fd3d643be8db6f))
+
+
 ## [0.48.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.48.1..v0.48.2) - 2026-11-22
 
 ### 🐛 Bug Fixes
