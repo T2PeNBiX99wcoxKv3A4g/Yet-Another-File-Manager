@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.51.4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.51.3..v0.51.4) - 2026-11-22
+
+### 🚜 Refactor
+
+- *(settings)* Read every interface default from the host - ([40a096c](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/40a096cfe795a34039800ff1258f54e66187b525))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([29e5517](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/29e55175dc5aa3954d54c073351597549bd958bb))
+
+
 ## [0.51.3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.51.2..v0.51.3) - 2026-11-22
 
 ### 🐛 Bug Fixes
