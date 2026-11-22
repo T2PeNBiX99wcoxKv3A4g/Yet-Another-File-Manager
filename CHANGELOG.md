@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.53.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.52.0..v0.53.0) - 2026-11-22
+
+### ⛰️  Features
+
+- Conflict defaults, delete-after-extract and installer association cleanup - ([01ce93b](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/01ce93bba95f48de1389fdf9f083b5a2fb98a265))
+
+### 🐛 Bug Fixes
+
+- *(theme)* Keep the accent as the selection colour with a readable ink - ([cdfe2fa](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/cdfe2fae6d7d071d9fab2e1ea2978f4fa6b99938))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([fdf62b9](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/fdf62b925c36755f7efde530d18a03a53da1bd36))
+
+
 ## [0.52.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.51.5..v0.52.0) - 2026-11-22
 
 ### ⛰️  Features
