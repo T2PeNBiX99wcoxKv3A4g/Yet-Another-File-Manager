@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.50.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.50.0..v0.50.1) - 2026-11-22
+
+### 🐛 Bug Fixes
+
+- *(transfer)* Map the conflict choices with the paths they name - ([18d1926](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/18d192624e261dd5c0dc06d23fd5e926f1242059))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([7bd36c8](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7bd36c85c3b6d1654f37265dfcd580334800b8a4))
+
+
 ## [0.50.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.49.0..v0.50.0) - 2026-11-22
 
 ### ⛰️  Features
