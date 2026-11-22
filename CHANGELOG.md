@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.48.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.47.0..v0.48.0) - 2026-11-22
+
+### ⛰️  Features
+
+- *(properties)* Hash with the wider algorithm set the shell tab offers - ([38aa35c](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/38aa35cd8958cf3cb7811bccb2bbe1cac7b56cae))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([657fec5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/657fec515c7a8b4d7b9dbc75f224b33ddf90de70))
+
+
 ## [0.47.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.46.0..v0.47.0) - 2026-11-22
 
 ### ⛰️  Features
