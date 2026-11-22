@@ -399,7 +399,8 @@ internal partial class FileSystemService : INativeMessageHandler
                         new ClipboardPastePayload(false, [], true, blocked.Token, blocked.Hits,
                             blocked.DelaySeconds));
 
-                var created = await FileOperations.PasteAsync(directory, request?.Decisions);
+                var created = await FileOperations.PasteAsync(directory,
+                    await MapDecisionsAsync(request?.Decisions));
                 if (created.Count > 0) await ApplyArchiveChangesAsync([directory]);
                 return context.Reply("fs.clipboard.paste.result",
                     new ClipboardPastePayload(created.Count > 0, created));
@@ -589,7 +590,8 @@ internal partial class FileSystemService : INativeMessageHandler
                 var result = await FileOperations.TransferAsync(request with
                 {
                     Paths = paths,
-                    Target = target
+                    Target = target,
+                    Decisions = await MapDecisionsAsync(request.Decisions)
                 });
                 var created = result.Created.Select(Archives.ToVirtualPath).ToList();
                 if (result.Ok) await ApplyArchiveChangesAsync([target]);
@@ -872,6 +874,20 @@ internal partial class FileSystemService : INativeMessageHandler
                 WindowManager.Instance.Notify("fs.changed", new FsChangedPayload(request.Directory)));
 
         return saved;
+    }
+
+    /// <summary>The conflict choices name workspace paths, so they are mapped like the sources.</summary>
+    private static async Task<List<TransferDecision>?> MapDecisionsAsync(List<TransferDecision>? decisions)
+    {
+        if (decisions is null)
+            return null;
+
+        var mapped = new List<TransferDecision>(decisions.Count);
+
+        foreach (var decision in decisions)
+            mapped.Add(decision with { Source = await MapWorkspacePathAsync(decision.Source) });
+
+        return mapped;
     }
 
     /// <summary>One slice of the gallery, scanning the folders only when asked to.</summary>
