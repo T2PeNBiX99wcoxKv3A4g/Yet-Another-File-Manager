@@ -3,6 +3,7 @@ import {createPortal} from "react-dom";
 import styled from "styled-components";
 import {popInStyle} from "../ui/motion";
 import {CheckIcon, CrossIcon} from "./Icons";
+import {ColorPicker} from "./ColorPicker";
 import {useTranslation} from "@photino-net-utils/bridge";
 
 /** The color a tag gets until the user picks one. */
@@ -104,13 +105,10 @@ export function TagPicker({x, y, tags, allTags, colors, onChange, onClose}: TagP
 
                     return (
                         <TagRow key={tag}>
-                            <ColorInput
-                                aria-label={t("color_of_tag", {tag})}
-                                onChange={(event) => recolor(tag, event.target.value)}
-                                title={t("change_this_tag_s_color")}
-                                type="color"
-                                value={color}
-                            />
+                            <ColorPicker ariaLabel={t("color_of_tag", {tag})}
+                                         title={t("change_this_tag_s_color")}
+                                         value={color}
+                                         onChange={(next) => recolor(tag, next)}/>
                             <TagToggle
                                 $color={color}
                                 $ink={inkFor(color)}
@@ -127,13 +125,10 @@ export function TagPicker({x, y, tags, allTags, colors, onChange, onClose}: TagP
             </List>
 
             <NewRow>
-                <ColorInput
-                    aria-label={t("color_of_the_new_tag")}
-                    onChange={(event) => setDraftColor(event.target.value)}
-                    title={t("color_of_the_new_tag")}
-                    type="color"
-                    value={draftColor}
-                />
+                <ColorPicker ariaLabel={t("color_of_the_new_tag")}
+                             title={t("color_of_the_new_tag")}
+                             value={draftColor}
+                             onChange={setDraftColor}/>
                 <input
                     onChange={(event) => setDraft(event.target.value)}
                     onKeyDown={(event) => {
@@ -205,26 +200,6 @@ const TagRow = styled.div`
     display: flex;
     align-items: center;
     gap: 6px;
-`;
-
-const ColorInput = styled.input`
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-    padding: 0;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background: transparent;
-    cursor: pointer;
-
-    &::-webkit-color-swatch-wrapper {
-        padding: 1px;
-    }
-
-    &::-webkit-color-swatch {
-        border: 0;
-        border-radius: 3px;
-    }
 `;
 
 const TagToggle = styled.button<{ $on: boolean; $color: string; $ink: string }>`

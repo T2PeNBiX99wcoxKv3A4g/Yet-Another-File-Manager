@@ -958,5 +958,11 @@
   "source_is_older": "コピー元が古い",
   "same_time": "同じ時刻",
   "replace_the_whole_folder": "フォルダーを上書きすると、コピー先フォルダーの内容が先に削除されます。",
-  "apply_to_all": "すべてに適用"
+  "apply_to_all": "すべてに適用",
+  "saved_colors": "保存した色",
+  "color_history": "最近使った色",
+  "save_color": "この色を保存",
+  "remove_saved_color": "保存から削除",
+  "hex_color": "16 進数の色",
+  "color": "色"
 }

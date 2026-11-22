@@ -169,8 +169,10 @@ body {
 }
 
 ::selection {
-  background: rgba(var(--accent-rgb), 0.3);
-  color: var(--text-primary);
+  // A fixed blue keeps selected text readable whatever accent the user picked; an accent-tinted
+  // highlight turned white text into a white-on-white selection for light colours.
+  background: rgba(96, 165, 250, 0.38);
+  color: inherit;
 }
 
 // The window is transparent behind the rounded corners the interface paints (Linux without

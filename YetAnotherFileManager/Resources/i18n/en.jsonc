@@ -958,5 +958,11 @@
   "source_is_older": "Source is older",
   "same_time": "Same time",
   "replace_the_whole_folder": "Overwriting a folder deletes the target folder's contents first.",
-  "apply_to_all": "Apply to all"
+  "apply_to_all": "Apply to all",
+  "saved_colors": "Saved colours",
+  "color_history": "Recent colours",
+  "save_color": "Save this colour",
+  "remove_saved_color": "Remove from saved",
+  "hex_color": "Hex colour",
+  "color": "Colour"
 }

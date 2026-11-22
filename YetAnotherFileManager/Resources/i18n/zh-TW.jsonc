@@ -958,5 +958,11 @@
   "source_is_older": "來源較舊",
   "same_time": "時間相同",
   "replace_the_whole_folder": "覆蓋資料夾會先刪除目標資料夾的內容。",
-  "apply_to_all": "套用到全部"
+  "apply_to_all": "套用到全部",
+  "saved_colors": "已儲存顏色",
+  "color_history": "最近使用",
+  "save_color": "儲存這個顏色",
+  "remove_saved_color": "從已儲存移除",
+  "hex_color": "十六進位色碼",
+  "color": "顏色"
 }

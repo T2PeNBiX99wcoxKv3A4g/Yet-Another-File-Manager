@@ -24,6 +24,7 @@ import {clockNow, subscribeClock} from "../utils/clock";
 import {typeLabel} from "../utils/fileType";
 import {BuiltinIcon} from "../icons/fileTypes";
 import {IconPicker} from "./IconPicker";
+import {ColorPicker} from "./ColorPicker";
 import {FileIcon, FolderIcon, CopyIcon, PlusIcon, RefreshIcon, StarIcon, CheckIcon} from "./Icons";
 import {fadeInStyle, popInStyle} from "../ui/motion";
 
@@ -531,14 +532,11 @@ function Details({info, editable, allTags, tags, colors, rating, comment, onTags
 
                             return (
                                 <TagChoice key={tag}>
-                                    <TagSwatch
-                                        aria-label={t("color_of_tag", {tag})}
-                                        disabled={!editable}
-                                        onChange={(event) => recolour(tag, event.target.value)}
-                                        title={t("change_this_tag_s_color")}
-                                        type="color"
-                                        value={color}
-                                    />
+                                    <ColorPicker ariaLabel={t("color_of_tag", {tag})}
+                                                 disabled={!editable}
+                                                 title={t("change_this_tag_s_color")}
+                                                 value={color}
+                                                 onChange={(next) => recolour(tag, next)}/>
                                     <TagButton
                                         $color={color}
                                         $ink={inkFor(color)}
@@ -556,14 +554,11 @@ function Details({info, editable, allTags, tags, colors, rating, comment, onTags
                     </TagGrid>
                 )}
                 <TagRow>
-                    <TagSwatch
-                        aria-label={t("color_of_the_new_tag")}
-                        disabled={!editable}
-                        onChange={(event) => setDraftColor(event.target.value)}
-                        title={t("color_of_the_new_tag")}
-                        type="color"
-                        value={draftColor}
-                    />
+                    <ColorPicker ariaLabel={t("color_of_the_new_tag")}
+                                 disabled={!editable}
+                                 title={t("color_of_the_new_tag")}
+                                 value={draftColor}
+                                 onChange={setDraftColor}/>
                     <TagInput
                         disabled={!editable}
                         onChange={(event) => setDraft(event.target.value)}
@@ -1118,29 +1113,6 @@ const TagChoice = styled.div`
     gap: 3px;
 `;
 
-const TagSwatch = styled.input`
-    flex: 0 0 auto;
-    width: 16px;
-    height: 16px;
-    padding: 0;
-    border: 0;
-    border-radius: 50%;
-    background: none;
-    cursor: pointer;
-
-    &::-webkit-color-swatch-wrapper {
-        padding: 0;
-    }
-
-    &::-webkit-color-swatch {
-        border: 1px solid var(--border-color);
-        border-radius: 50%;
-    }
-
-    &:disabled {
-        cursor: default;
-    }
-`;
 
 const TagButton = styled.button<{ $color: string; $ink: string; $on: boolean }>`
     display: inline-flex;

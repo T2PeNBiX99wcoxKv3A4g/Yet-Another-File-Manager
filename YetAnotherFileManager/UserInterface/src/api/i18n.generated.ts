@@ -151,7 +151,9 @@ declare module "@photino-net-utils/bridge"
         "close_split_view": true;
         "close_tab": true;
         "collapse_sidebar": true;
+        "color": true;
         "colors": true;
+        "color_history": true;
         "color_of_tag": true;
         "color_of_the_new_tag": true;
         "columns": true;
@@ -348,6 +350,7 @@ declare module "@photino-net-utils/bridge"
         "hash_does_not_match": true;
         "hash_matches": true;
         "hebrew_cp1255": true;
+        "hex_color": true;
         "hidden": true;
         "hidden_items": true;
         "hidden_items_follow_this_app_s_switch_protected_operating_system_files_still_follow_windows": true;
@@ -649,6 +652,7 @@ declare module "@photino-net-utils/bridge"
         "remove_from_quick_access": true;
         "remove_panel": true;
         "remove_preset": true;
+        "remove_saved_color": true;
         "remove_the_leftover_record": true;
         "remove_this_rule": true;
         "rename": true;
@@ -689,7 +693,9 @@ declare module "@photino-net-utils/bridge"
         "saturation": true;
         "save": true;
         "saved": true;
+        "saved_colors": true;
         "save_as": true;
+        "save_color": true;
         "save_the_current_colours_as_a_preset": true;
         "scanning": true;
         "scan_folders": true;

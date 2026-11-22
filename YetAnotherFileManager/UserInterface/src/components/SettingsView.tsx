@@ -99,6 +99,8 @@ import {
     VideoIcon,
 } from "./Icons";
 import {IconPicker} from "./IconPicker";
+import {ColorPicker} from "./ColorPicker";
+import {rememberColor} from "../colors";
 import {DefaultTagColor} from "./TagPicker";
 import {DefaultAccentColor, DefaultSecondaryColor, normalizeColor, normalizeThemeMode} from "../theme";
 import {
@@ -125,7 +127,6 @@ import {
     plural,
     usageTone
 } from "../utils/format";
-import {readStoredJson, writeStoredJson} from "../storage";
 import {FontRoles, listFonts} from "../fonts";
 import {FontPicker} from "./FontPicker";
 import {setSharePort} from "../api/share";
@@ -329,22 +330,6 @@ const SectionSettings: Partial<Record<string, (keyof AppSettings)[]>> = {
     "folder-index": ["writeDirectoryIndex", "directoryIndexBlacklist"],
 };
 
-type ColorRole = "accent" | "secondary";
-
-/** Colours the user applied before, most recent first; kept locally like the recycle bin sort. */
-type RecentColors = Record<ColorRole, string[]>;
-
-const RecentColorsKey = "yafm.colors.recent";
-
-function readRecentColors(): RecentColors {
-    const saved = readStoredJson<Partial<Record<ColorRole, string[]>>>(RecentColorsKey);
-
-    return {
-        accent: (saved?.accent ?? []).filter((color) => typeof color === "string").slice(0, 8),
-        secondary: (saved?.secondary ?? []).filter((color) => typeof color === "string").slice(0, 8),
-    };
-}
-
 export function SettingsView({
                                  appInfo,
                                  focusSection,
@@ -387,7 +372,6 @@ export function SettingsView({
     const [newProtectedRule, setNewProtectedRule] = useState("");
     const [newDirectoryRule, setNewDirectoryRule] = useState("");
     const [timeDraft, setTimeDraft] = useState<string | null>(null);
-    const [recentColors, setRecentColors] = useState<RecentColors>(readRecentColors);
     const [pickerSizeDraft, setPickerSizeDraft] = useState<{ width?: string; height?: string }>({});
     const [draftPreset, setDraftPreset] = useState<{ name: string; accent: string; secondary: string } | null>(null);
     const [updateState, setUpdateState] = useState<UpdateCheck | null>(null);
@@ -400,7 +384,6 @@ export function SettingsView({
 
     /** Guards the automatic install so a re-render cannot start the installer twice. */
     const installStarted = useRef(false);
-    const [colorStart, setColorStart] = useState<{ role: ColorRole; color: string } | null>(null);
     const [activeSection, setActiveSection] = useState(SettingSections[0].id);
     const [fonts, setFonts] = useState<string[]>([]);
     const [portDraft, setPortDraft] = useState<string | null>(null);
@@ -898,37 +881,16 @@ export function SettingsView({
             void update({timeFormatPattern: value});
     };
 
-    /** Keeps the last few applied colours, so a palette click and a revert are one click each. */
-    const rememberColor = (role: ColorRole, color: string) => {
-        setRecentColors((current) => {
-            const list = [
-                color,
-                ...current[role].filter((item) => item.toLowerCase() !== color.toLowerCase()),
-            ].slice(0, 8);
-
-            const next = {...current, [role]: list};
-            writeStoredJson(RecentColorsKey, next);
-            return next;
-        });
-    };
-
     const accentNow = normalizeColor(settings?.accentColor, DefaultAccentColor);
     const secondaryNow = normalizeColor(settings?.secondaryColor, DefaultSecondaryColor);
 
-    /** Applies one of the paired palettes, remembering what the window looked like before. */
+    /** Applies one of the paired palettes, remembering both halves in the shared colour history. */
     const applyPreset = (accent: string, secondary: string) => {
         if (!settings) return;
 
-        rememberColor("accent", accentNow);
-        rememberColor("secondary", secondaryNow);
+        rememberColor(accent);
+        rememberColor(secondary);
         void update({accentColor: accent, secondaryColor: secondary});
-    };
-
-    const applyColor = (role: ColorRole, color: string) => {
-        if (!settings) return;
-
-        rememberColor(role, role === "accent" ? accentNow : secondaryNow);
-        void update(role === "accent" ? {accentColor: color} : {secondaryColor: color});
     };
 
     /** Reads the published version file and shows whether this build is behind. */
@@ -1028,18 +990,6 @@ export function SettingsView({
         if (!settings) return;
 
         await update({themePresets: settings.themePresets.filter((_, position) => position !== index)});
-    };
-
-    /** The colour well fires while the picker is open; only the value it ends on is remembered. */
-    const finishColor = (role: ColorRole) => {
-        const start = colorStart;
-        setColorStart(null);
-
-        if (!start || start.role !== role) return;
-
-        const color = role === "accent" ? accentNow : secondaryNow;
-        if (color.toLowerCase() !== start.color.toLowerCase())
-            rememberColor(role, start.color);
     };
 
     const addTag = async () => {
@@ -2314,20 +2264,9 @@ export function SettingsView({
                                 <Note>{t("buttons_selections_focus_rings_and_active_navigation")}</Note>
                             </RowText>
                             <RowEnd>
-                                <RecentSwatches
-                                    colors={recentColors.accent}
-                                    current={accentNow}
-                                    onApply={(color) => applyColor("accent", color)}
-                                />
-                                <ColorWell
-                                    aria-label={t("accent_color")}
-                                    disabled={!settings}
-                                    onBlur={() => finishColor("accent")}
-                                    onChange={(event) => void update({accentColor: event.target.value})}
-                                    onFocus={() => setColorStart({role: "accent", color: accentNow})}
-                                    type="color"
-                                    value={accentNow}
-                                />
+                                <ColorPicker ariaLabel={t("accent_color")} disabled={!settings} variant="well"
+                                             value={accentNow}
+                                             onChange={(color) => void update({accentColor: color})}/>
                                 <ColorCode>{accentNow.toUpperCase()}</ColorCode>
                             </RowEnd>
                         </Row>
@@ -2337,20 +2276,9 @@ export function SettingsView({
                                 <Note>{t("gradients_highlights_and_the_second_end_of_the_accent_ramp")}</Note>
                             </RowText>
                             <RowEnd>
-                                <RecentSwatches
-                                    colors={recentColors.secondary}
-                                    current={secondaryNow}
-                                    onApply={(color) => applyColor("secondary", color)}
-                                />
-                                <ColorWell
-                                    aria-label={t("secondary_color")}
-                                    disabled={!settings}
-                                    onBlur={() => finishColor("secondary")}
-                                    onChange={(event) => void update({secondaryColor: event.target.value})}
-                                    onFocus={() => setColorStart({role: "secondary", color: secondaryNow})}
-                                    type="color"
-                                    value={secondaryNow}
-                                />
+                                <ColorPicker ariaLabel={t("secondary_color")} disabled={!settings} variant="well"
+                                             value={secondaryNow}
+                                             onChange={(color) => void update({secondaryColor: color})}/>
                                 <ColorCode>{secondaryNow.toUpperCase()}</ColorCode>
                             </RowEnd>
                         </Row>
@@ -2363,8 +2291,8 @@ export function SettingsView({
                                 <SmallButton
                                     disabled={!settings}
                                     onClick={() => {
-                                        rememberColor("accent", accentNow);
-                                        rememberColor("secondary", secondaryNow);
+                                        rememberColor(accentNow);
+                                        rememberColor(secondaryNow);
                                         void update({accentColor: null, secondaryColor: null});
                                     }}
                                     type="button"
@@ -2650,12 +2578,8 @@ export function SettingsView({
                         <Row>
                             <RowText>
                                 <LabelRow>
-                                    <TagColorInput
-                                        aria-label={t("color_of_the_new_tag")}
-                                        onChange={(event) => setNewTagColor(event.target.value)}
-                                        type="color"
-                                        value={newTagColor}
-                                    />
+                                    <ColorPicker ariaLabel={t("color_of_the_new_tag")} value={newTagColor}
+                                                 onChange={setNewTagColor}/>
                                     <Input
                                         onChange={(event) => setNewTagName(event.target.value)}
                                         onKeyDown={(event) => {
@@ -2701,13 +2625,11 @@ export function SettingsView({
                                         <>
                                             <RowText>
                                                 <LabelRow>
-                                                    <TagColorInput
-                                                        aria-label={t("color_of_tag", {tag: tag.name})}
-                                                        onChange={(event) => void recolorTag(tag.name, event.target.value)}
-                                                        title={t("change_this_tag_s_color")}
-                                                        type="color"
-                                                        value={tag.color ?? DefaultTagColor}
-                                                    />
+                                                    <ColorPicker ariaLabel={t("color_of_tag", {tag: tag.name})}
+                                                                 disabled={tagBusy}
+                                                                 title={t("change_this_tag_s_color")}
+                                                                 value={tag.color ?? DefaultTagColor}
+                                                                 onChange={(color) => void recolorTag(tag.name, color)}/>
                                                     <RenameTagInput
                                                         autoFocus
                                                         disabled={tagBusy}
@@ -2745,13 +2667,11 @@ export function SettingsView({
                                         <>
                                             <RowText>
                                                 <LabelRow>
-                                                    <TagColorInput
-                                                        aria-label={t("color_of_tag", {tag: tag.name})}
-                                                        onChange={(event) => void recolorTag(tag.name, event.target.value)}
-                                                        title={t("change_this_tag_s_color")}
-                                                        type="color"
-                                                        value={tag.color ?? DefaultTagColor}
-                                                    />
+                                                    <ColorPicker ariaLabel={t("color_of_tag", {tag: tag.name})}
+                                                                 disabled={tagBusy}
+                                                                 title={t("change_this_tag_s_color")}
+                                                                 value={tag.color ?? DefaultTagColor}
+                                                                 onChange={(color) => void recolorTag(tag.name, color)}/>
                                                     <Label>{tag.name}</Label>
                                                 </LabelRow>
                                                 <Note>
@@ -4028,45 +3948,6 @@ function labelOf(t: Translate, code: string): string {
     return LocaleNames[code] ?? code;
 }
 
-/** The colour that was applied before, then the rest of the recent ones. */
-function RecentSwatches({colors, current, onApply}: {
-    colors: string[];
-    current: string;
-    onApply: (color: string) => void;
-}) {
-    const t = useTranslation();
-
-    if (colors.length === 0)
-        return null;
-
-    const [previous, ...rest] = colors;
-
-    return (
-        <Swatches>
-            <PreviousColor
-                $color={previous}
-                onClick={() => onApply(previous)}
-                title={t("previous_colour_colour", {colour: previous})}
-                type="button"
-            >
-                <i/>
-                {t("previous")}
-            </PreviousColor>
-            {rest.map((color) => (
-                <Swatch
-                    $color={color}
-                    key={color}
-                    onClick={() => onApply(color)}
-                    title={t("use_colour", {colour: color})}
-                    type="button"
-                >
-                    {color.toLowerCase() === current.toLowerCase() && <CheckIcon size={9}/>}
-                </Swatch>
-            ))}
-        </Swatches>
-    );
-}
-
 /** The title block above a card; every section explains itself in one line. */
 function Head({title, note, global = false, onReset}: {
     title: LocalizationKey;
@@ -4369,58 +4250,6 @@ const PresetDots = styled.span`
     }
 `;
 
-const Swatches = styled.span`
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-`;
-
-const Swatch = styled.button<{ $color: string }>`
-    display: grid;
-    place-items: center;
-    width: 17px;
-    height: 17px;
-    padding: 0;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 50%;
-    background: ${({$color}) => $color};
-    color: #fff;
-    cursor: pointer;
-    transition: transform 120ms ease, box-shadow 120ms ease;
-
-    &:hover {
-        transform: scale(1.15);
-        box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.3);
-    }
-`;
-
-const PreviousColor = styled.button<{ $color: string }>`
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 3px 8px 3px 4px;
-    border: 1px solid var(--border-color);
-    border-radius: 999px;
-    background: var(--bg-input);
-    color: var(--text-muted);
-    font: inherit;
-    font-size: 9.5px;
-    cursor: pointer;
-    transition: border-color 130ms ease, color 130ms ease;
-
-    i {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        background: ${({$color}) => $color};
-        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.16);
-    }
-
-    &:hover {
-        border-color: var(--border-color-hover);
-        color: var(--text-primary);
-    }
-`;
 
 /** A quiet link at the very bottom of the page, opening the open-source notices. */
 const AttributionLink = styled.button`
@@ -4991,25 +4820,6 @@ const ResetInline = styled.button`
     }
 `;
 
-const TagColorInput = styled.input`
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-    padding: 0;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background: transparent;
-    cursor: pointer;
-
-    &::-webkit-color-swatch-wrapper {
-        padding: 1px;
-    }
-
-    &::-webkit-color-swatch {
-        border: 0;
-        border-radius: 3px;
-    }
-`;
 
 const RenameTagInput = styled.input`
     min-width: 0;
@@ -5051,25 +4861,6 @@ const SmallButton = styled.button`
     svg {
         width: 12px;
         height: 12px;
-    }
-`;
-
-const ColorWell = styled.input`
-    width: 42px;
-    height: 30px;
-    padding: 2px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    background: var(--bg-input);
-    cursor: pointer;
-
-    &::-webkit-color-swatch-wrapper {
-        padding: 0;
-    }
-
-    &::-webkit-color-swatch {
-        border: 0;
-        border-radius: 4px;
     }
 `;
 
