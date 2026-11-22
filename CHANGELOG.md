@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.51.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.51.0..v0.51.1) - 2026-11-22
+
+### 🐛 Bug Fixes
+
+- *(index)* Keep folder timestamps still and retry folder icons - ([0b82d89](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/0b82d8934b34f79b83da5c554a4f4dd1e599f5a8))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([e43045d](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/e43045dcf3a3e7fb6e634d0dee4ebf680fd47e9f))
+
+
 ## [0.51.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.50.1..v0.51.0) - 2026-11-22
 
 ### ⛰️  Features
