@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.51.5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.51.4..v0.51.5) - 2026-11-22
+
+### 🎨 Styling
+
+- *(settings)* Make the section reset a plain icon button - ([3d8235d](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/3d8235dafcfbfe7dc8cbd18914a1270b7e79726e))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([d10e112](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d10e112400eb63b851103fad447285945a01b516))
+
+
 ## [0.51.4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.51.3..v0.51.4) - 2026-11-22
 
 ### 🚜 Refactor
