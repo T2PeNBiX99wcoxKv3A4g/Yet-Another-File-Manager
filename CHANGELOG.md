@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.54.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.53.1..v0.54.0) - 2026-11-22
+
+### ⛰️  Features
+
+- Open any file as archive, Start Menu shortcuts, task progress - ([e55de39](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/e55de39dc7f53bb628881ca719386793286b7e36))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([436e83c](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/436e83c169f9775c6566b40134c1c279f27ae4fc))
+
+
 ## [0.53.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.53.0..v0.53.1) - 2026-11-22
 
 ### 🐛 Bug Fixes
