@@ -128,12 +128,9 @@ internal static class FolderIndex
         );
         """,
 
-        // v6: image data as bytes, instead of a base64 data URL inside a text column.
-        """
-        ALTER TABLE icons ADD COLUMN kind TEXT;
-        ALTER TABLE icons ADD COLUMN mime TEXT;
-        ALTER TABLE icons ADD COLUMN data BLOB;
-        """
+        // v6: image data as bytes, instead of a base64 data URL inside a text column. The columns
+        // are added by EnsureIconDataAsync, which also copes with a database whose stamp lagged.
+        ""
     ];
 
     public static string PathFor(string directory) => Path.Combine(directory, FileName);
@@ -1065,6 +1062,14 @@ internal static class FolderIndex
 
         for (var step = version; step < SchemaVersion; step++)
         {
+            // The icon columns were once written without the version stamp moving, so a step that
+            // only adds columns has to check them instead of assuming they are missing.
+            if (step == IconDataStep)
+            {
+                await EnsureIconDataAsync(connection, transaction, token);
+                continue;
+            }
+
             await using var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = Schema[step];
@@ -1078,6 +1083,40 @@ internal static class FolderIndex
         stamp.Transaction = transaction;
         stamp.CommandText = $"PRAGMA user_version = {SchemaVersion}";
         await stamp.ExecuteNonQueryAsync(token);
+    }
+
+    /// <summary>The schema step that turned icon data URLs into bytes.</summary>
+    private const int IconDataStep = 5;
+
+    /// <summary>
+    ///     Adds the icon byte columns one at a time, skipping the ones an earlier build already
+    ///     wrote while its version stamp stayed behind.
+    /// </summary>
+    private static async Task EnsureIconDataAsync(SqliteConnection connection, SqliteTransaction transaction,
+        CancellationToken token)
+    {
+        var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        await using (var info = connection.CreateCommand())
+        {
+            info.Transaction = transaction;
+            info.CommandText = "PRAGMA table_info(icons)";
+
+            await using var reader = await info.ExecuteReaderAsync(token);
+            while (await reader.ReadAsync(token))
+                columns.Add(reader.GetString(1));
+        }
+
+        foreach (var (name, type) in new[] { ("kind", "TEXT"), ("mime", "TEXT"), ("data", "BLOB") })
+        {
+            if (columns.Contains(name))
+                continue;
+
+            await using var alter = connection.CreateCommand();
+            alter.Transaction = transaction;
+            alter.CommandText = $"ALTER TABLE icons ADD COLUMN {name} {type}";
+            await alter.ExecuteNonQueryAsync(token);
+        }
     }
 
     private static async Task<int> VersionAsync(SqliteConnection connection, SqliteTransaction transaction,
