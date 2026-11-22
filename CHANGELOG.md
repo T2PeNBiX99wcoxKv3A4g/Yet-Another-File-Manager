@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.48.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.48.1..v0.48.2) - 2026-11-22
+
+### 🐛 Bug Fixes
+
+- *(index)* Stop an index write from reading as a folder change - ([a963d95](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/a963d955ee210d9df28768d689f4617b57afcd95))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([642c654](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/642c654fb533fc9aa5b038b3ea608c83a9760521))
+
+
 ## [0.48.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.48.0..v0.48.1) - 2026-11-22
 
 ### 🐛 Bug Fixes
