@@ -49,6 +49,7 @@ declare module "@photino-net-utils/bridge"
         "appdata_which_sits_on_the_system_drive_usually_c": true;
         "application": true;
         "application_logs_and_crash_details_open_the_folder_here_to_inspect_them_without_leaving_the_app": true;
+        "apply": true;
         "applying_edits_is_currently_supported_for_zip_archives": true;
         "apply_archive_changes": true;
         "arabic_cp1256": true;
@@ -169,6 +170,7 @@ declare module "@photino-net-utils/bridge"
         "could_not_add_the_tag": true;
         "could_not_apply_archive_changes": true;
         "could_not_change_the_case_sensitivity": true;
+        "could_not_change_the_properties": true;
         "could_not_change_the_tag_s_color": true;
         "could_not_check_for_updates": true;
         "could_not_create_the_archive": true;
@@ -234,6 +236,7 @@ declare module "@photino-net-utils/bridge"
         "deselect": true;
         "design_files": true;
         "destination": true;
+        "details": true;
         "details_panel": true;
         "details_view": true;
         "devices": true;
@@ -270,6 +273,7 @@ declare module "@photino-net-utils/bridge"
         "every_tag_in_the_catalogue_add_rename_recolour_or_remove_them_here": true;
         "every_tag_the_catalogue_has_seen_ready_to_rename_or_remove": true;
         "every_timestamp_in_the_interface_uses_this_format_follow_the_system_force_24_hour_or_12_hour_time_or_define_your_own_pattern": true;
+        "execute": true;
         "exit": true;
         "expand_sidebar": true;
         "extension": true;
@@ -313,6 +317,7 @@ declare module "@photino-net-utils/bridge"
         "frequent": true;
         "full_path": true;
         "gallery": true;
+        "general": true;
         "give_a_folder_its_own_icon": true;
         "global": true;
         "global_hotkey": true;
@@ -323,6 +328,7 @@ declare module "@photino-net-utils/bridge"
         "green": true;
         "grid": true;
         "grid_size": true;
+        "group": true;
         "hardlink_copy": true;
         "hard_link": true;
         "hebrew_cp1255": true;
@@ -515,6 +521,7 @@ declare module "@photino-net-utils/bridge"
         "orbit": true;
         "original_location": true;
         "orphans": true;
+        "other": true;
         "other_apps": true;
         "other_files": true;
         "other_profile": true;
@@ -592,6 +599,7 @@ declare module "@photino-net-utils/bridge"
         "quick_access": true;
         "random": true;
         "random_asks_the_operating_system_for_one_free_port_when_the_first_web_share_starts_and_every_web_share_keeps_using_it_custom_always_tries_the_port_below": true;
+        "read": true;
         "reading": true;
         "reading_the_current_usage": true;
         "reads_the_current_folder_again": true;
@@ -913,6 +921,7 @@ declare module "@photino-net-utils/bridge"
         "where_the_shell_s_own_icons_and_the_built_in_glyphs_come_from": true;
         "windows_properties": true;
         "working": true;
+        "write": true;
         "writes_into_this_folder": true;
         "write_anyway": true;
         "write_anyway_seconds_s": true;

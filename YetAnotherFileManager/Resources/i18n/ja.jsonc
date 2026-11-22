@@ -917,5 +917,14 @@
   "temporary": "一時ファイル",
   "properties_opens_the_windows_page_with_its_security_and_details_tabs_instead_of_the_page_built_into_the_app": "「プロパティ」はアプリ内蔵のページではなく、セキュリティと詳細タブを含む Windows のページを開きます。",
   "show_in_file_manager": "ファイルマネージャーで表示",
-  "selection": "選択した項目"
+  "selection": "選択した項目",
+  "general": "全般",
+  "details": "詳細",
+  "apply": "適用",
+  "read": "読み取り",
+  "write": "書き込み",
+  "execute": "実行",
+  "group": "グループ",
+  "other": "その他",
+  "could_not_change_the_properties": "プロパティを変更できませんでした。"
 }

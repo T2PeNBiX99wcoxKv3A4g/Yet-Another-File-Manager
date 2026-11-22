@@ -917,5 +917,14 @@
   "temporary": "Temporary",
   "properties_opens_the_windows_page_with_its_security_and_details_tabs_instead_of_the_page_built_into_the_app": "Properties opens the Windows page, with its security and details tabs, instead of the page built into the app.",
   "show_in_file_manager": "Show in file manager",
-  "selection": "Selection"
+  "selection": "Selection",
+  "general": "General",
+  "details": "Details",
+  "apply": "Apply",
+  "read": "Read",
+  "write": "Write",
+  "execute": "Execute",
+  "group": "Group",
+  "other": "Other",
+  "could_not_change_the_properties": "The properties could not be changed."
 }

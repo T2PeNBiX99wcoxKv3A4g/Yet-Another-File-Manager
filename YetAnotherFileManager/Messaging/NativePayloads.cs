@@ -239,6 +239,9 @@ internal sealed record PropertiesEditRequest(
 /// <summary>Answer for <c>fs.operation.properties.edit</c>, with the entry as it is afterwards.</summary>
 internal sealed record PropertiesEditResult(bool Ok, string? Error, PathPropertiesInfo? Info);
 
+/// <summary>The digests the properties page shows for one file.</summary>
+internal sealed record PathHashPayload(string? Md5, string? Sha256, string? Sha512, string? Error = null);
+
 /// <summary>
 ///     Body for <c>fs.operation.properties</c>: either the shell sheet was opened (<c>System</c>) or
 ///     the window shows these entries itself. <c>CanUseSystemSheet</c> is true only where the shell

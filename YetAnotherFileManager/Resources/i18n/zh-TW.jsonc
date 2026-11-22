@@ -917,5 +917,14 @@
   "temporary": "暫存",
   "properties_opens_the_windows_page_with_its_security_and_details_tabs_instead_of_the_page_built_into_the_app": "「屬性」會直接開啟 Windows 的屬性頁（含安全性與詳細資料），而不是軟體內建的頁面。",
   "show_in_file_manager": "在檔案管理員中顯示",
-  "selection": "選取的項目"
+  "selection": "選取的項目",
+  "general": "一般",
+  "details": "詳細資料",
+  "apply": "套用",
+  "read": "讀取",
+  "write": "寫入",
+  "execute": "執行",
+  "group": "群組",
+  "other": "其他",
+  "could_not_change_the_properties": "無法變更屬性。"
 }

@@ -917,5 +917,14 @@
   "temporary": "临时",
   "properties_opens_the_windows_page_with_its_security_and_details_tabs_instead_of_the_page_built_into_the_app": "「属性」会直接打开 Windows 的属性页（含安全与详细信息），而不是软件内置的页面。",
   "show_in_file_manager": "在文件管理器中显示",
-  "selection": "选中的项目"
+  "selection": "选中的项目",
+  "general": "常规",
+  "details": "详细信息",
+  "apply": "应用",
+  "read": "读取",
+  "write": "写入",
+  "execute": "执行",
+  "group": "组",
+  "other": "其他",
+  "could_not_change_the_properties": "无法更改属性。"
 }

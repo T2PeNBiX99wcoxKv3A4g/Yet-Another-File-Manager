@@ -1121,9 +1121,12 @@ internal static partial class FileOperations
             return new(true);
         }
 
-        var items = await Task.Run(() => paths.Take(64).Select(PathProperties.Read).ToList());
-        return new(false, items, OperatingSystem.IsWindows());
+        return new(false, await PropertyInfosAsync(paths), OperatingSystem.IsWindows());
     }
+
+    /// <summary>Reads the details without any chance of opening the shell sheet.</summary>
+    public static Task<List<PathPropertiesInfo>> PropertyInfosAsync(IReadOnlyList<string> paths) =>
+        Task.Run(() => paths.Take(64).Select(PathProperties.Read).ToList());
 
     /// <summary>Applies the flags the properties page lets the user change.</summary>
     public static Task<PropertiesEditResult> ApplyPropertiesAsync(PropertiesEditRequest? request) =>

@@ -1,4 +1,5 @@
 import {useEffect, useState} from "react";
+import {Native} from "@photino-net-utils/bridge";
 
 /** One path the properties dialog was opened for. */
 export interface PathPropertiesInfo {
@@ -12,6 +13,7 @@ export interface PathPropertiesInfo {
     accessed: number;
     attributes: string[];
     unixMode: string | null;
+    unixModeValue: number | null;
     linkTarget: string | null;
     error: string | null;
 }
@@ -47,4 +49,38 @@ export function usePropertiesRequest(): PropertiesRequest | null {
     }, []);
 
     return value;
+}
+
+/** Reads the details again after an edit; never opens the shell sheet. */
+export async function readProperties(path: string): Promise<PathPropertiesInfo | null> {
+    if (!Native.available) return null;
+
+    const items = await Native.request<PathPropertiesInfo[]>("fs.operation.properties.info", {paths: [path]});
+    return items?.[0] ?? null;
+}
+
+/** The digests the properties page shows; computed in one pass by the host. */
+export interface PathHashes {
+    md5: string | null;
+    sha256: string | null;
+    sha512: string | null;
+    error?: string | null;
+}
+
+export async function readHashes(path: string): Promise<PathHashes | null> {
+    if (!Native.available) return null;
+
+    return await Native.request<PathHashes>("fs.operation.properties.hash", {path});
+}
+
+/** Applies the flags (or unix mode) the user changed on the properties page. */export async function applyProperties(request: {
+    path: string;
+    readOnly?: boolean;
+    hidden?: boolean;
+    archive?: boolean;
+    unixMode?: number;
+}): Promise<{ ok: boolean; error: string | null; info?: PathPropertiesInfo | null }> {
+    if (!Native.available) return {ok: false, error: null};
+
+    return await Native.request("fs.operation.properties.edit", request);
 }

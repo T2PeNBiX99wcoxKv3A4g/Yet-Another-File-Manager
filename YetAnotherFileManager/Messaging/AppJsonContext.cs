@@ -167,6 +167,7 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(PropertiesPayload))]
 [JsonSerializable(typeof(PropertiesEditRequest))]
 [JsonSerializable(typeof(PropertiesEditResult))]
+[JsonSerializable(typeof(PathHashPayload))]
 [JsonSerializable(typeof(PickOpenRequest))]
 [JsonSerializable(typeof(PickOpenPayload))]
 [JsonSerializable(typeof(Dictionary<string, long>))]

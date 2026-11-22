@@ -634,6 +634,20 @@ internal partial class FileSystemService : INativeMessageHandler
                 return context.Reply("fs.operation.properties.edit.result",
                     await FileOperations.ApplyPropertiesAsync(context.Payload<PropertiesEditRequest>()));
 
+            case "fs.operation.properties.info":
+                return context.Reply("fs.operation.properties.info.result",
+                    await FileOperations.PropertyInfosAsync(context.Payload<PathsPayload>()?.Paths ?? []));
+
+            case "fs.operation.properties.hash":
+            {
+                var file = context.Payload<PathPayload>()?.Path ?? "";
+
+                return context.Reply("fs.operation.properties.hash.result",
+                    File.Exists(file)
+                        ? await PathHasher.HashAsync(file)
+                        : new PathHashPayload(null, null, null, Localization.Get("the_path_no_longer_exists")));
+            }
+
             case "fs.operation.openWith":
                 await FileOperations.OpenWithAsync(context.Payload<PathPayload>()?.Path ?? "");
                 return context.Reply("fs.operation.openWith.result", new OkPayload());
