@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.54.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.54.0..v0.54.1) - 2026-11-22
+
+### 🐛 Bug Fixes
+
+- *(menu)* Add icons to the Start Menu submenu - ([c785da5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c785da5324942a82ce6c1e8e05ba7fef541aa55d))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([3f522c2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/3f522c2851cdd68c811b1d8175857d38a3df6de9))
+
+
 ## [0.54.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.53.1..v0.54.0) - 2026-11-22
 
 ### ⛰️  Features
