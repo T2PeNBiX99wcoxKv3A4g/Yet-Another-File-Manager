@@ -65,6 +65,12 @@ internal static unsafe partial class ShellIcon
 
         var value = Try.Run(read).GetOrNull();
 
+        // A missing icon is usually a race: the shell may still be warming up when the first rows
+        // ask. Caching that null would hide the icon for the cache's whole lifetime, so only real
+        // answers are kept and the next ask tries again.
+        if (value is null)
+            return null;
+
         lock (Gate)
         {
             // Only a newly added key goes into the order queue; re-adding one would let the queue

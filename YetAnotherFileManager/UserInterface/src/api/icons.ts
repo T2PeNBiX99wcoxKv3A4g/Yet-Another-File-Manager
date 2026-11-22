@@ -117,18 +117,32 @@ export function useIcon(path: string | null, isDirectory: boolean, large = false
 
         let alive = true;
 
-        void Native.request<{ dataUrl: string | null }>("fs.icon", {path, directory: isDirectory, large})
-            .then((data) => {
-                // A missing icon is often a transient race (a folder that was just extracted), so
-                // only real answers are cached. The next mount asks the shell again.
-                if (data.dataUrl) remember(iconCache, id, data.dataUrl);
-                else iconCache.delete(id);
+        // The first ask can race the shell's own start-up, and a folder on a slow volume may need a
+        // moment. A null is retried a couple of times instead of leaving the built-in glyph there
+        // until the row happens to be mounted again.
+        const load = async () => {
+            for (var attempt = 0; attempt < 3; attempt++) {
+                const data = await Native.request<{ dataUrl: string | null }>("fs.icon",
+                    {path, directory: isDirectory, large}).catch(() => null);
 
-                if (alive) setIcon(data.dataUrl);
-            }, () => {
+                if (!alive) return;
+
+                if (data?.dataUrl) {
+                    remember(iconCache, id, data.dataUrl);
+                    setIcon(data.dataUrl);
+                    return;
+                }
+
                 iconCache.delete(id);
-                if (alive) setIcon(null);
-            });
+
+                if (attempt < 2)
+                    await new Promise((resolve) => window.setTimeout(resolve, 1200));
+            }
+
+            if (alive) setIcon(null);
+        };
+
+        void load();
 
         return () => {
             alive = false;

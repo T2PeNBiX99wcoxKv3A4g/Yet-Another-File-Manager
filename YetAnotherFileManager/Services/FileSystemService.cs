@@ -795,7 +795,12 @@ internal partial class FileSystemService : INativeMessageHandler
         if (!OperatingSystem.IsWindows())
             return null;
 
-        return await WindowsIconAsync(request, settings);
+        var icon = await WindowsIconAsync(request, settings);
+
+        if (request.Directory && icon is null)
+            Serilog.Log.Debug("The shell returned no icon for the folder {Path}", request.Path);
+
+        return icon;
     }
 
     [SupportedOSPlatform("linux")]
@@ -803,7 +808,7 @@ internal partial class FileSystemService : INativeMessageHandler
         Task.Run(() => LinuxIcons.DataUrl(request.Path, request.Directory, request.Large));
 
     [SupportedOSPlatform("windows")]
-    private static async Task<string?> WindowsIconAsync(IconRequest request, AppSettings settings)
+    internal static async Task<string?> WindowsIconAsync(IconRequest request, AppSettings settings)
     {
         // Shell icon lookups are native Windows paths: forward slashes make a real-path lookup fail
         // silently, while the attribute-based lookup happens to work.

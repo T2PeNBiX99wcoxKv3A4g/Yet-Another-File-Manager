@@ -183,6 +183,13 @@ internal static partial class Program
             Console.WriteLine($"override={(source ?? "(none)")} shellIconLength={shell?.Length ?? 0}");
             Console.WriteLine($"systemIcons={SettingsService.Instance.Current.UseSystemIcons}");
 
+            // The app's own path, including the desktop.ini check and the STA caller it uses.
+            var app = OperatingSystem.IsWindows()
+                ? FileSystemService.WindowsIconAsync(new IconRequest(path, directory),
+                    SettingsService.Instance.Current).GetAwaiter().GetResult()
+                : null;
+            Console.WriteLine($"appIconLength={(app?.Length ?? 0)}");
+
             if (shell is not null && index + 2 < args.Length)
             {
                 var target = args[index + 2];

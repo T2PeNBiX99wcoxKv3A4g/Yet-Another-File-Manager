@@ -35,7 +35,9 @@ internal static class FolderIndex
     private static readonly SqliteDatabaseOptions WriteOptions = new()
     {
         Pooling = false,
-        Wal = true,
+        // A portable index travels with its folder, and a WAL would keep fresh writes in a side
+        // file that also changes the folder's timestamp every time it is opened.
+        Wal = false,
         BusyTimeout = 2000,
         RetryCount = 10,
         RetryDelay = 50
@@ -48,7 +50,7 @@ internal static class FolderIndex
     private static readonly SqliteDatabaseOptions ReadOptions = new()
     {
         Pooling = false,
-        Wal = true,
+        Wal = false,
         BusyTimeout = 100,
         RetryCount = 2,
         RetryDelay = 25
@@ -57,7 +59,7 @@ internal static class FolderIndex
     private static readonly SqliteDatabaseOptions FocusedReadOptions = new()
     {
         Pooling = false,
-        Wal = true,
+        Wal = false,
         BusyTimeout = 250,
         RetryCount = 3,
         RetryDelay = 25
@@ -714,60 +716,88 @@ internal static class FolderIndex
         if (Unusable.ContainsKey(directory) || !File.Exists(PathFor(directory)))
             return;
 
-        var result = await Database(directory, true).ExclusiveAsync(async token =>
+        var gate = WriteGates.GetOrAdd(directory, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync();
+
+        try
         {
-            // The import may have deleted the file while this waited for the gate.
-            if (!File.Exists(PathFor(directory)))
-                return false;
+            MarkWrite(directory);
+            var stamp = RepairStamp(directory, FolderStamp(directory));
 
-            var opened = await Database(directory, true).OpenWriteAsync(token);
-            if (!opened.TryGet(out var connection))
-                return false;
-
-            await using (connection)
+            var result = await Database(directory, true).ExclusiveAsync(async token =>
             {
-                await using var command = connection.CreateCommand();
-                command.CommandText = "PRAGMA wal_checkpoint(TRUNCATE)";
-                await command.ExecuteNonQueryAsync(token);
-            }
+                // The import may have deleted the file while this waited for the gate.
+                if (!File.Exists(PathFor(directory)))
+                    return false;
 
-            return true;
-        });
+                var opened = await Database(directory, true).OpenWriteAsync(token);
+                if (!opened.TryGet(out var connection))
+                    return false;
 
-        result.OnFailure(ex => Log.Debug(ex, "Could not checkpoint the index of {Directory}", directory));
+                await using (connection)
+                {
+                    await using var command = connection.CreateCommand();
+                    command.CommandText = "PRAGMA wal_checkpoint(TRUNCATE)";
+                    await command.ExecuteNonQueryAsync(token);
+                }
+
+                return true;
+            });
+
+            KeepFolderStamp(directory, stamp);
+            result.OnFailure(ex => Log.Debug(ex, "Could not checkpoint the index of {Directory}", directory));
+        }
+        finally
+        {
+            gate.Release();
+        }
     }
 
     /// <summary>Removes the per-folder database after its data was moved elsewhere.</summary>
     public static async Task DeleteFilesAsync(string directory)
     {
-        var result = await Database(directory, true).ExclusiveAsync(async token =>
+        var gate = WriteGates.GetOrAdd(directory, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync();
+
+        try
         {
-            foreach (var suffix in new[]
-                     {
-                         "", "-wal", "-shm"
-                     })
+            MarkWrite(directory);
+            var stamp = RepairStamp(directory, FolderStamp(directory));
+
+            var result = await Database(directory, true).ExclusiveAsync(async token =>
             {
-                var path = PathFor(directory) + suffix;
-                await Task.Run(() => Try.Run(() =>
+                foreach (var suffix in new[]
+                         {
+                             "", "-wal", "-shm"
+                         })
                 {
-                    if (!File.Exists(path))
-                        return;
+                    var path = PathFor(directory) + suffix;
+                    await Task.Run(() => Try.Run(() =>
+                    {
+                        if (!File.Exists(path))
+                            return;
 
-                    // Hidden and System do not block a delete; ReadOnly does. The app never writes
-                    // a read-only index, but one copied from elsewhere may carry the flag.
-                    var attributes = File.GetAttributes(path);
-                    if (attributes.HasFlag(FileAttributes.ReadOnly))
-                        File.SetAttributes(path, attributes & ~FileAttributes.ReadOnly);
+                        // Hidden and System do not block a delete; ReadOnly does. The app never writes
+                        // a read-only index, but one copied from elsewhere may carry the flag.
+                        var attributes = File.GetAttributes(path);
+                        if (attributes.HasFlag(FileAttributes.ReadOnly))
+                            File.SetAttributes(path, attributes & ~FileAttributes.ReadOnly);
 
-                    File.Delete(path);
-                }).OnFailure(ex => Log.Debug(ex, "Could not remove {Path}", path)));
-            }
+                        File.Delete(path);
+                    }).OnFailure(ex => Log.Debug(ex, "Could not remove {Path}", path)));
+                }
 
-            Unusable.TryRemove(directory, out _);
-            return true;
-        });
+                Unusable.TryRemove(directory, out _);
+                return true;
+            });
 
-        result.OnFailure(ex => Log.Debug(ex, "Could not remove the index of {Directory}", directory));
+            result.OnFailure(ex => Log.Debug(ex, "Could not remove the index of {Directory}", directory));
+            KeepFolderStamp(directory, stamp);
+        }
+        finally
+        {
+            gate.Release();
+        }
     }
 
     /// <summary>
@@ -894,7 +924,11 @@ internal static class FolderIndex
         if (Unusable.ContainsKey(directory))
             return fallback;
 
+        // Opening a WAL database creates (or removes) its side files, which changes the folder's
+        // own timestamp even though nothing was read into or out of the folder's real contents.
+        var stamp = RepairStamp(directory, FolderStamp(directory));
         var result = await Database(directory, false).ReadAsync(read);
+        GuardFolderStamp(directory, stamp);
 
         if (result.Exception is { } exception)
         {
@@ -927,6 +961,8 @@ internal static class FolderIndex
     {
         // Tags are the one thing in the file the user typed, so a reset carries them over.
         var tags = await ReadTagsDirectAsync(directory);
+        MarkWrite(directory);
+        var stamp = RepairStamp(directory, FolderStamp(directory));
 
         var result = await Database(directory, true).ExclusiveAsync(async token =>
         {
@@ -966,6 +1002,7 @@ internal static class FolderIndex
         });
 
         var recovered = result.GetOrElse(_ => false);
+        KeepFolderStamp(directory, stamp);
 
         // A read-only volume cannot delete the broken file; keep it out of the way for this session.
         if (!recovered && File.Exists(PathFor(directory)))
@@ -1055,6 +1092,123 @@ internal static class FolderIndex
     }
 
     /// <summary>
+    ///     The index lives inside the folder, so creating or growing it changes the folder's own
+    ///     timestamp and makes it look freshly modified. The time is read before the write and put
+    ///     back afterwards, so a folder only looks changed when its contents really changed.
+    /// </summary>
+    private static long FolderStamp(string directory) =>
+        Try.Run(() => Directory.GetLastWriteTimeUtc(directory).Ticks).GetOrElse(_ => 0L);
+
+    /// <summary>
+    ///     Older versions left the folder's timestamp at the moment of the last index write. A time
+    ///     from the last few minutes is therefore suspicious, and the newest entry is the closest
+    ///     thing left to the folder's real time. An old timestamp is returned untouched, so a quiet
+    ///     folder never pays for walking its entries.
+    /// </summary>
+    private static long RepairStamp(string directory, long stamp)
+    {
+        if (stamp <= 0 || DateTime.UtcNow.Ticks - stamp > TimeSpan.FromMinutes(10).Ticks)
+            return stamp;
+
+        // One look per folder per session is enough: a real change updates the timestamp after this.
+        if (!Repaired.TryAdd(directory, true))
+            return stamp;
+
+        var newestFile = 0L;
+        var newestAny = 0L;
+
+        Try.Run(() =>
+        {
+            foreach (var entry in new DirectoryInfo(directory).EnumerateFileSystemInfos())
+            {
+                if (IsIndexFile(entry.Name))
+                    continue;
+
+                var ticks = entry.LastWriteTimeUtc.Ticks;
+                newestAny = Math.Max(newestAny, ticks);
+
+                if (entry is FileInfo)
+                    newestFile = Math.Max(newestFile, ticks);
+            }
+        });
+
+        // Files first: a subfolder may carry the same polluted time this repair is undoing.
+        var newest = newestFile > 0 ? newestFile : newestAny;
+
+        return newest > 0 && newest < stamp ? newest : stamp;
+    }
+
+    /// <summary>Folders whose old index-polluted timestamp was already repaired this session.</summary>
+    private static readonly ConcurrentDictionary<string, bool> Repaired =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private static void RestoreFolderStamp(string directory, long ticks)
+    {
+        if (ticks <= 0)
+            return;
+
+        Try.Run(() =>
+        {
+            if (Directory.GetLastWriteTimeUtc(directory).Ticks != ticks)
+                Directory.SetLastWriteTimeUtc(directory, new DateTime(ticks, DateTimeKind.Utc));
+        }).OnFailure(ex => Log.Debug(ex, "Could not restore the timestamp of {Directory}", directory));
+    }
+
+    /// <summary>
+    ///     SQLite creates and removes its WAL side files around a write, and those operations can
+    ///     land just after the callback returns. A few delayed passes put the timestamp back once
+    ///     the dust settles; after that the folder is quiet.
+    /// </summary>
+    private static void KeepFolderStamp(string directory, long ticks)
+    {
+        RestoreFolderStamp(directory, ticks);
+
+        if (ticks <= 0)
+            return;
+
+        _ = Task.Run(async () =>
+        {
+            foreach (var delay in new[] { 700, 2000, 4000 })
+            {
+                await Task.Delay(delay);
+                RestoreFolderStamp(directory, ticks);
+            }
+        });
+    }
+
+    /// <summary>One delayed pass after a read, so a side file that appears late cannot linger.</summary>
+    private static readonly ConcurrentDictionary<string, long> Guarded =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private static void GuardFolderStamp(string directory, long ticks)
+    {
+        RestoreFolderStamp(directory, ticks);
+
+        if (ticks <= 0)
+            return;
+
+        var now = Environment.TickCount64;
+
+        if (Guarded.TryGetValue(directory, out var last) && now - last < 4000)
+            return;
+
+        Guarded[directory] = now;
+
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(1200);
+            RestoreFolderStamp(directory, ticks);
+        });
+    }
+
+    /// <summary>
+    ///     Index writes to one folder are serialized so two of them cannot snapshot the folder's
+    ///     timestamp while the other one is in the middle of changing it.
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> WriteGates =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     ///     Whether the icon table already has the byte columns. A read never migrates: it accepts
     ///     both layouts, so an upgraded app cannot turn opening a folder into a write.
     /// </summary>
@@ -1105,34 +1259,48 @@ internal static class FolderIndex
         if (!Directory.Exists(directory) || Unusable.ContainsKey(directory))
             return false;
 
-        // Writing the index changes the folder's own timestamp, which the watcher would report as a
-        // change of the folder and list it again, which measures and writes once more. Remember the
-        // write so that echo is ignored.
-        MarkWrite(directory);
+        var gate = WriteGates.GetOrAdd(directory, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync();
 
-        var result = await Database(directory, true).WriteAsync(async (connection, transaction, token) =>
+        try
         {
-            await MigrateAsync(connection, transaction, token);
-            await write(connection, transaction, token);
-        });
+            // Writing the index changes the folder's own timestamp, which the watcher would report as
+            // a change of the folder and list it again, which measures and writes once more. Remember
+            // the write so that echo is ignored, and put the timestamp back afterwards so the folder
+            // does not look freshly modified in every listing.
+            MarkWrite(directory);
+            var stamp = RepairStamp(directory, FolderStamp(directory));
 
-        if (result.IsSuccess)
-        {
-            EnsureHidden(directory);
-            return true;
+            var result = await Database(directory, true).WriteAsync(async (connection, transaction, token) =>
+            {
+                await MigrateAsync(connection, transaction, token);
+                await write(connection, transaction, token);
+            });
+
+            KeepFolderStamp(directory, stamp);
+
+            if (result.IsSuccess)
+            {
+                EnsureHidden(directory);
+                return true;
+            }
+
+            if (result.Exception is { } exception)
+            {
+                if (IsCorrupt(exception))
+                    await RecoverAsync(directory);
+                else
+                    Unusable[directory] = true;
+
+                Log.Warning(exception, "Could not write to the index of {Directory}", directory);
+            }
+
+            return false;
         }
-
-        if (result.Exception is { } exception)
+        finally
         {
-            if (IsCorrupt(exception))
-                await RecoverAsync(directory);
-            else
-                Unusable[directory] = true;
-
-            Log.Warning(exception, "Could not write to the index of {Directory}", directory);
+            gate.Release();
         }
-
-        return false;
     }
 
     private static async Task MigrateAsync(SqliteConnection connection, SqliteTransaction transaction,
