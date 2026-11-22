@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.50.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.49.0..v0.50.0) - 2026-11-22
+
+### ⛰️  Features
+
+- Resolve transfer conflicts, colour tags and move icons into properties - ([ee80689](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/ee80689a4ae327503b957af64daba40849b11ab6))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([23c45c9](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/23c45c97d095e59ffb43d387b536399d7cebbbad))
+
+
 ## [0.49.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.48.3..v0.49.0) - 2026-11-22
 
 ### ⛰️  Features
