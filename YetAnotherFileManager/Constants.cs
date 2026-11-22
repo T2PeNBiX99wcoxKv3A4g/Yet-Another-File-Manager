@@ -121,6 +121,12 @@ public static class Constants
     /// </summary>
     public const string ListingDumpArgument = "--listing-dump";
 
+    /// <summary>
+    ///     Prints what the process holds and exits. It reads the same figures the settings page
+    ///     draws, so a wrong percentage can be checked without opening a window.
+    /// </summary>
+    public const string MemoryDumpArgument = "--memory-dump";
+
     /// <summary>Where a debug build loads the interface from; Vite serves it with hot reload.</summary>
     public const string DevServerUrl = "http://127.0.0.1:3100";
 

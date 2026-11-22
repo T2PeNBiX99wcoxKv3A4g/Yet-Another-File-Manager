@@ -119,6 +119,19 @@ internal static partial class Program
             return;
         }
 
+        // The settings page's memory figures, without a window: the host's own numbers, so a
+        // percentage that looks wrong can be checked against what the machine really has.
+        if (args.Contains(Constants.MemoryDumpArgument))
+        {
+            if (OperatingSystem.IsWindows())
+                AttachConsole(AttachParent);
+
+            var memory = AppMemory.Report();
+            Console.WriteLine(
+                $"managed={memory.Managed} private={memory.Private} working={memory.WorkingSet} available={memory.Available}");
+            return;
+        }
+
         // Main must stay synchronous: [STAThread] is ignored for an async entry point, and the
         // Photino message loop / WebView2 require an STA thread.
         Logging.Initialize(Constants.Name, "app");

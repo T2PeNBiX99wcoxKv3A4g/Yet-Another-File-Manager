@@ -28,10 +28,39 @@ internal static partial class AppMemory
         using var process = Process.GetCurrentProcess();
         process.Refresh();
 
-        // TotalAvailableMemoryBytes is the memory the runtime considers usable, which is the
-        // machine's RAM unless the process runs inside a container.
-        return new(GC.GetTotalMemory(false), process.PrivateMemorySize64, process.WorkingSet64,
-            GC.GetGCMemoryInfo().TotalAvailableMemoryBytes);
+        // TotalAvailableMemoryBytes is the memory the runtime considers usable. On Linux the
+        // runtime can be boxed in by a cgroup or a heap hard limit, which turns the share below
+        // into a meaningless 200%; the machine's own MemTotal is what the percentage means.
+        var available = OperatingSystem.IsLinux() ? PhysicalMemory() : GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+
+        // Linux reports private pages, not committed bytes, so the managed heap can be larger than
+        // that figure; the share below would then pass 100% and read as an error.
+        var managed = GC.GetTotalMemory(false);
+        var committed = Math.Max(process.PrivateMemorySize64, managed);
+
+        return new(managed, committed, process.WorkingSet64, available);
+    }
+
+    /// <summary>The machine's RAM from <c>/proc/meminfo</c>, or 0 when it cannot be read.</summary>
+    private static long PhysicalMemory()
+    {
+        try
+        {
+            foreach (var line in File.ReadLines("/proc/meminfo"))
+            {
+                if (!line.StartsWith("MemTotal:", StringComparison.Ordinal))
+                    continue;
+
+                var digits = new string([.. line.Where(char.IsAsciiDigit)]);
+                return long.TryParse(digits, out var kilobytes) ? kilobytes * 1024 : 0;
+            }
+        }
+        catch (IOException)
+        {
+            // The file is missing on some builds of a container image; the GC figure is a fallback.
+        }
+
+        return 0;
     }
 
     /// <summary>
