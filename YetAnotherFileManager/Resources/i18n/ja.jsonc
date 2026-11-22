@@ -957,5 +957,6 @@
   "source_is_newer": "コピー元が新しい",
   "source_is_older": "コピー元が古い",
   "same_time": "同じ時刻",
-  "replace_the_whole_folder": "フォルダーを上書きすると、コピー先フォルダーの内容が先に削除されます。"
+  "replace_the_whole_folder": "フォルダーを上書きすると、コピー先フォルダーの内容が先に削除されます。",
+  "apply_to_all": "すべてに適用"
 }

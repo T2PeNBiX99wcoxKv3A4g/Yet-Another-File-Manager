@@ -484,6 +484,7 @@ internal sealed record TransferRequest(
 /// <summary>One conflict the copy would run into, with both sides' figures.</summary>
 internal sealed record TransferConflict(
     string Source,
+    string Destination,
     string Name,
     bool Directory,
     long SourceSize,

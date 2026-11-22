@@ -957,5 +957,6 @@
   "source_is_newer": "Source is newer",
   "source_is_older": "Source is older",
   "same_time": "Same time",
-  "replace_the_whole_folder": "Overwriting a folder deletes the target folder's contents first."
+  "replace_the_whole_folder": "Overwriting a folder deletes the target folder's contents first.",
+  "apply_to_all": "Apply to all"
 }

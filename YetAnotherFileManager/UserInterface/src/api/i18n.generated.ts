@@ -53,6 +53,7 @@ declare module "@photino-net-utils/bridge"
         "apply": true;
         "applying_edits_is_currently_supported_for_zip_archives": true;
         "apply_archive_changes": true;
+        "apply_to_all": true;
         "apply_to_all_subfolders": true;
         "arabic_cp1256": true;
         "archive": true;

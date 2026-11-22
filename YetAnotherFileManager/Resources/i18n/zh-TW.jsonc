@@ -957,5 +957,6 @@
   "source_is_newer": "來源較新",
   "source_is_older": "來源較舊",
   "same_time": "時間相同",
-  "replace_the_whole_folder": "覆蓋資料夾會先刪除目標資料夾的內容。"
+  "replace_the_whole_folder": "覆蓋資料夾會先刪除目標資料夾的內容。",
+  "apply_to_all": "套用到全部"
 }

@@ -957,5 +957,6 @@
   "source_is_newer": "来源较新",
   "source_is_older": "来源较旧",
   "same_time": "时间相同",
-  "replace_the_whole_folder": "覆盖文件夹会先删除目标文件夹的内容。"
+  "replace_the_whole_folder": "覆盖文件夹会先删除目标文件夹的内容。",
+  "apply_to_all": "应用到全部"
 }

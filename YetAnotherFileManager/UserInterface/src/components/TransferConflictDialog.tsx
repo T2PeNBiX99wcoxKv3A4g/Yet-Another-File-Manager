@@ -3,6 +3,7 @@ import {createPortal} from "react-dom";
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import type {TransferConflict, TransferDecision} from "../api/operations";
+import {useIcon} from "../api/icons";
 import {formatBytes, formatDate} from "../utils/format";
 import {FileIcon, FolderIcon} from "./Icons";
 import {fadeInStyle, popInStyle} from "../ui/motion";
@@ -33,6 +34,20 @@ export function TransferConflictDialog({conflicts, move, onResolve}: {
     const acceptButton = useRef<HTMLButtonElement | null>(null);
     const change = (source: string, patch: Partial<Choice>) =>
         setChoices((current) => ({...current, [source]: {...current[source], ...patch}}));
+
+    /** One click sets every row to the same answer; a path that is its own target keeps "skip". */
+    const setAll = (action: Action) =>
+        setChoices((current) => {
+            const next = {...current};
+
+            for (const conflict of conflicts)
+                next[conflict.source] = {
+                    action: action === "overwrite" && conflict.samePath ? "skip" : action,
+                    name: conflict.suggestedName,
+                };
+
+            return next;
+        });
 
     const ready = conflicts.every((conflict) => {
         const choice = choices[conflict.source];
@@ -87,20 +102,46 @@ export function TransferConflictDialog({conflicts, move, onResolve}: {
                     </Sub>
                 </Head>
 
+                {conflicts.length > 1 && (
+                    <Bulk>
+                        <BulkLabel>{t("apply_to_all")}</BulkLabel>
+                        <ChoiceButton $on={false} onClick={() => setAll("overwrite")} type="button">
+                            {t("overwrite")}
+                        </ChoiceButton>
+                        <ChoiceButton $on={false} onClick={() => setAll("rename")} type="button">
+                            {t("rename")}
+                        </ChoiceButton>
+                        <ChoiceButton $on={false} onClick={() => setAll("skip")} type="button">
+                            {t("skip")}
+                        </ChoiceButton>
+                    </Bulk>
+                )}
+
                 <List>
                     {conflicts.map((conflict) => {
                         const choice = choices[conflict.source];
+                        const sameModified = conflict.targetModified > 0 && conflict.sourceModified === conflict.targetModified;
+                        const sameCreated = conflict.targetCreated > 0 && conflict.sourceCreated === conflict.targetCreated;
                         const older = conflict.targetModified > 0 && conflict.sourceModified < conflict.targetModified;
                         const newer = conflict.targetModified > 0 && conflict.sourceModified > conflict.targetModified;
+                        const createdNewer = conflict.sourceCreated > conflict.targetCreated;
+                        const createdOlder = conflict.targetCreated > 0 && conflict.sourceCreated < conflict.targetCreated;
 
                         return (
                             <Row key={conflict.source}>
                                 <RowHead>
-                                    <Kind>{conflict.directory ? <FolderIcon size={16}/> : <FileIcon size={16}/>}</Kind>
-                                    <Name title={conflict.source}>{conflict.name}</Name>
+                                    <Side title={conflict.source}>
+                                        <ConflictIcon directory={conflict.directory} path={conflict.source}/>
+                                        <Name>{conflict.name}</Name>
+                                    </Side>
+                                    <Arrow>→</Arrow>
+                                    <Side title={conflict.destination}>
+                                        <ConflictIcon directory={conflict.directory} path={conflict.destination}/>
+                                        <Name>{conflict.name}</Name>
+                                    </Side>
                                     {conflict.samePath
                                         ? <Warning>{t("this_is_the_same_path")}</Warning>
-                                        : <Hint $older={older}>{older
+                                        : <Hint $older={older} $newer={newer}>{older
                                             ? t("source_is_older")
                                             : newer ? t("source_is_newer") : t("same_time")}</Hint>}
                                 </RowHead>
@@ -109,17 +150,21 @@ export function TransferConflictDialog({conflicts, move, onResolve}: {
                                     <span/>
                                     <Column>{t("source")}</Column>
                                     <Column>{t("destination")}</Column>
-                                    <Label>{t("modified")}</Label>
-                                    <Value>{formatDate(conflict.sourceModified)}</Value>
-                                    <Value>{conflict.targetModified > 0 ? formatDate(conflict.targetModified) : "—"}</Value>
-                                    <Label>{t("created")}</Label>
-                                    <Value>{formatDate(conflict.sourceCreated)}</Value>
-                                    <Value>{conflict.targetCreated > 0 ? formatDate(conflict.targetCreated) : "—"}</Value>
+                                    <Label>{t("modified")}{sameModified && <> · {t("same_time")}</>}</Label>
+                                    <Value $new={newer}>{formatDate(conflict.sourceModified)}</Value>
+                                    <Value $new={older}>{conflict.targetModified > 0 ? formatDate(conflict.targetModified) : "—"}</Value>
+                                    <Label>{t("created")}{sameCreated && <> · {t("same_time")}</>}</Label>
+                                    <Value $new={createdNewer}>{formatDate(conflict.sourceCreated)}</Value>
+                                    <Value $new={createdOlder}>{conflict.targetCreated > 0 ? formatDate(conflict.targetCreated) : "—"}</Value>
                                     {!conflict.directory && (
                                         <>
                                             <Label>{t("size")}</Label>
-                                            <Value>{formatBytes(conflict.sourceSize)}</Value>
-                                            <Value>{conflict.targetSize > 0 ? formatBytes(conflict.targetSize) : "—"}</Value>
+                                            <Value $new={conflict.sourceSize > conflict.targetSize}>
+                                                {formatBytes(conflict.sourceSize)}
+                                            </Value>
+                                            <Value $new={conflict.targetSize > conflict.sourceSize}>
+                                                {conflict.targetSize > 0 ? formatBytes(conflict.targetSize) : "—"}
+                                            </Value>
                                         </>
                                     )}
                                 </Compare>
@@ -176,6 +221,15 @@ export function TransferConflictDialog({conflicts, move, onResolve}: {
         </Overlay>,
         document.body,
     );
+}
+
+/** The list's icon: the shell's when the setting allows it, the built-in one otherwise. */
+function ConflictIcon({path, directory}: { path?: string | null; directory: boolean }) {
+    const icon = useIcon(path ?? null, directory);
+
+    return icon
+        ? <img alt="" height={22} src={icon} width={22}/>
+        : directory ? <FolderIcon size={22}/> : <FileIcon size={22}/>;
 }
 
 const Overlay = styled.div`
@@ -244,11 +298,31 @@ const RowHead = styled.div`
     min-width: 0;
 `;
 
-const Kind = styled.span`
-    display: grid;
+const Side = styled.span`
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    flex: 1;
+`;
+
+const Arrow = styled.span`
     flex: 0 0 auto;
-    place-items: center;
-    color: var(--accent-primary);
+    color: var(--text-muted);
+    font-size: 12px;
+`;
+
+const Bulk = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 18px 10px;
+`;
+
+const BulkLabel = styled.span`
+    margin-right: 4px;
+    color: var(--text-muted);
+    font-size: 9.5px;
 `;
 
 const Name = styled.span`
@@ -260,11 +334,12 @@ const Name = styled.span`
     white-space: nowrap;
 `;
 
-const Hint = styled.span<{ $older: boolean }>`
+const Hint = styled.span<{ $older: boolean; $newer: boolean }>`
     flex: 0 0 auto;
     margin-left: auto;
-    color: ${({$older}) => $older ? "#fbbf24" : "var(--text-muted)"};
+    color: ${({$older, $newer}) => $older ? "#fbbf24" : $newer ? "#4ade80" : "var(--text-muted)"};
     font-size: 9.5px;
+    font-weight: ${({$newer}) => $newer ? 600 : 400};
 `;
 
 const Warning = styled.span`
@@ -292,13 +367,20 @@ const Label = styled.span`
     font-size: 9.5px;
 `;
 
-const Value = styled.span`
+const Value = styled.span<{ $new?: boolean }>`
     overflow: hidden;
-    color: var(--text-secondary);
+    color: ${({$new}) => $new ? "var(--accent-primary)" : "var(--text-secondary)"};
     font-family: var(--font-mono);
     font-size: 9.5px;
+    font-weight: ${({$new}) => $new ? 600 : 400};
     text-overflow: ellipsis;
     white-space: nowrap;
+
+    &::before {
+        content: ${({$new}) => $new ? '"● "' : '""'};
+        color: var(--accent-primary);
+        font-size: 7px;
+    }
 `;
 
 const Actions = styled.div`

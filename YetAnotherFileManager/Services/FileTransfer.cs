@@ -267,7 +267,7 @@ internal static class FileTransfer
             // The suggestion skips the name that is already taken, so it is always free.
             var suggested = Path.GetFileName(UniqueDestination(target, name, isDirectory, reserved));
 
-            conflicts.Add(new(source, name, isDirectory, sourceSize, sourceModified, sourceCreated,
+            conflicts.Add(new(source, destination, name, isDirectory, sourceSize, sourceModified, sourceCreated,
                 targetSize, targetModified, targetCreated, samePath, suggested));
         }
 

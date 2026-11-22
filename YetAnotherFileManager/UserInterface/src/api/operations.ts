@@ -88,6 +88,7 @@ export async function transferPaths(paths: string[], target: string, move: boole
 /** One entry the copy or move would land on top of. */
 export interface TransferConflict {
     source: string;
+    destination: string;
     name: string;
     directory: boolean;
     sourceSize: number;
