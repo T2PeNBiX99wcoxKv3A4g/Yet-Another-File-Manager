@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.53.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.53.0..v0.53.1) - 2026-11-22
+
+### 🐛 Bug Fixes
+
+- *(archives)* Stop claiming installer packages the reader cannot open - ([8b2549c](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/8b2549c62d3d0b0426dd20da4462552bdd2c9fc6))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([c2eebd8](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/c2eebd8529c7a31d8ff8e3105cff8c1df254d074))
+
+
 ## [0.53.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.52.0..v0.53.0) - 2026-11-22
 
 ### ⛰️  Features
