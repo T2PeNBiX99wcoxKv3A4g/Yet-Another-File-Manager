@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.51.3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.51.2..v0.51.3) - 2026-11-22
+
+### 🐛 Bug Fixes
+
+- *(settings)* Include the .git rule in every folder-index default - ([79630d2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/79630d203406b0911e2727694eb6b5dee231dd40))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([dd66374](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/dd66374086f325e06b82eb1e1a0b8dcb79d5f0fa))
+
+
 ## [0.51.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.51.1..v0.51.2) - 2026-11-22
 
 ### 🐛 Bug Fixes
