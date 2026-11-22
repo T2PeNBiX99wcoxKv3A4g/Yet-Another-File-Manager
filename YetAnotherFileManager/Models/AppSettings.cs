@@ -151,7 +151,7 @@ public sealed record AppSettings(
     bool? SystemPropertiesSheet = null)
 {
     public static AppSettings Default =>
-        new(true, true, true, ["**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null,
+        new(true, true, true, ["**/.git/**", "**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null,
             ["quick", "frequent", "recent", "home", "drives", "share", "favorites"], null, 1, null,
             null, null, null, null, null, ["quick", "frequent", "recent", "drives"], null, null, true, null, 0, null,
             true, false, false, false, false, true, null, null, null, null, false, null, null, null, null, null, null, null, 5,
