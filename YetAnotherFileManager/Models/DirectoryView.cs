@@ -22,4 +22,6 @@ public sealed record ViewDefaults(
     int GridSize = 148,
     List<string>? Columns = null,
     bool ShowImages = true,
-    int ImageStripHeight = 190);
+    int ImageStripHeight = 190,
+    string Sort = "name",
+    bool SortDescending = false);

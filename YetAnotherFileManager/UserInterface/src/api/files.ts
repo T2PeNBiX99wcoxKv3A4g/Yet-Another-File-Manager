@@ -1,6 +1,7 @@
 import {Native} from "@photino-net-utils/bridge";
 import {askProtected, type GuardedChange} from "./safety";
 import {fetchListing} from "./listing";
+import {configDefaults} from "./settings";
 import {data as dataPlane} from "./data";
 import {isArchiveLocation} from "../utils/format";
 
@@ -47,24 +48,30 @@ export interface ViewDefaults {
     showImages: boolean;
     /** How tall that panel is, which the divider above it changes. */
     imageStripHeight: number;
+    sort: string;
+    sortDescending: boolean;
 }
 
-export const DefaultView: DirectoryView = {
-    mode: "list",
-    iconSize: 20,
-    gridSize: 148,
-    sort: "name",
-    sortDescending: false,
-};
+/**
+ * The view every folder starts with, as the host sent it in settings.defaults. There is no copy
+ * of those values in the interface; changing ViewDefaults in the backend changes this answer.
+ */
+export function defaultViewSettings(): ViewDefaults {
+    return configDefaults().defaultView!;
+}
 
-export const DefaultViewDefaults: ViewDefaults = {
-    mode: "list",
-    iconSize: 20,
-    gridSize: 148,
-    columns: ["type", "size", "modified"],
-    showImages: true,
-    imageStripHeight: 190,
-};
+/** The directory part of that default, for a view that has no folder of its own yet. */
+export function defaultDirectoryView(): DirectoryView {
+    const view = defaultViewSettings();
+
+    return {
+        mode: view.mode,
+        iconSize: view.iconSize,
+        gridSize: view.gridSize,
+        sort: view.sort,
+        sortDescending: view.sortDescending,
+    };
+}
 
 /** The effective view: the directory's own settings over the window-wide defaults. */
 export interface ResolvedView extends DirectoryView {

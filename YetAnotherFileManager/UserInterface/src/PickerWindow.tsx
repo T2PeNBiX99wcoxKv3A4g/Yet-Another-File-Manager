@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
 import {Native, ResizeHandles, useTheme, useWindowDrag, useTranslation} from "@photino-net-utils/bridge";
 import {type AppSettings, getSettings} from "./api/settings";
-import {DefaultViewDefaults, type DirectoryView, type ResolvedView} from "./api/files";
+import {defaultViewSettings, type DirectoryView, type ResolvedView} from "./api/files";
 import {type ProtectedPrompt, setProtectedAsker} from "./api/safety";
 import {applyTheme, normalizeThemeMode} from "./theme";
 import {applyRelativeTime, applyTimeFormat} from "./utils/format";
@@ -119,7 +119,7 @@ export function PickerWindow({mode, save = false, multiple, extensions, types, t
     }, [settings?.timeFormat, settings?.timeFormatPattern, settings?.relativeTime,
         settings?.relativeTimeWindowMinutes]);
 
-    const viewDefaults = settings?.defaultView ?? DefaultViewDefaults;
+    const viewDefaults = settings?.defaultView ?? defaultViewSettings();
     const view: ResolvedView = {
         mode: viewOverrides.mode ?? viewDefaults.mode,
         iconSize: viewOverrides.iconSize ?? viewDefaults.iconSize,

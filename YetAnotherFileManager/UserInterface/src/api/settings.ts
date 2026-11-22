@@ -47,7 +47,7 @@ export interface AppSettings {
     /** Overview panels that also appear in the sidebar, by panel id. */
     overviewPinned: string[] | null;
     /** Keep yafm:// registered for this user; the host re-applies it at every launch. */
-    linksEnabled: boolean | null;
+    linksEnabled: boolean;
     /** Register this app as the folder handler; off by default and per-user only. */
     defaultFileManager: boolean;
     /** Offer this app for archive files; off by default and per-user only. */
@@ -137,7 +137,7 @@ export interface AppSettings {
     /** Serve the web shares over HTTPS with a self-signed certificate. */
     shareHttps: boolean;
     /** "none", "shortcut" or "task": how the app joins the user's login session. */
-    startupMode: string | null;
+    startupMode: string;
     /** Start in the tray instead of showing the window at launch. */
     startHidden: boolean;
     /** Files and folders pinned to the overview's Favorites panel. */
@@ -173,169 +173,59 @@ export interface BackgroundLook {
     brightness: number;
 }
 
-const fallback: AppSettings = {
-    systemIcons: false,
-    customFolderIcons: false,
-    writeDirectoryIndex: true,
-    directoryIndexBlacklist: ["**/.git/**", "**/uv/cache/**", "**/scoop/buckets/**"],
-    extensionIcons: {},
-    quickAccess: null,
-    recentLimit: 10,
-    galleryRoots: null,
-    overviewPanels: null,
-    overviewHidden: null,
-    overviewColumns: 1,
-    shortcuts: null,
-    placeIcons: null,
-    placeNames: null,
-    overviewTitles: null,
-    overviewViews: null,
-    overviewIcons: null,
-    overviewPinned: null,
-    linksEnabled: null,
-    defaultFileManager: false,
-    archiveHandler: false,
-    panelPlaces: null,
-    restoreTabs: true,
-    openTabs: null,
-    activeTab: 0,
-    defaultView: null,
-    showHidden: null,
-    showCheckboxes: true,
-    openOnSingleClick: false,
-    confirmDelete: false,
-    previewVideoAudio: false,
-    previewVideoAutoplay: false,
-    trayAutoShow: true,
-    accentColor: null,
-    secondaryColor: null,
-    themeMode: "system",
-    backgroundSource: null,
-    backgroundCustom: [],
-    backgroundBlur: 0,
-    backgroundSaturation: 100,
-    backgroundBrightness: 100,
-    backgroundLooks: {},
-    protectedPaths: [],
-    deleteDelaySeconds: 5,
-    timeFormat: "24",
-    timeFormatPattern: "yyyy/MM/dd HH:mm",
-    relativeTime: true,
-    relativeTimeWindowMinutes: 60,
-    systemPropertiesSheet: false,
-    pickerWindowWidth: 1200,
-    pickerWindowHeight: 800,
-    linkPathMode: "relative",
-    overviewBanner: null,
-    overviewBannerHeight: 220,
-    overviewBanners: [],
-    overviewBannerOffset: 0.3,
-    globalHotkey: null,
-    language: null,
-    themePresets: [],
-    fonts: {},
-    sharePortMode: "random",
-    shareHttps: false,
-    sharePort: null,
-    startupMode: null,
-    startHidden: false,
-    favorites: [],
-    conflictNameStyle: "space_parentheses",
-    shareAccessEnabled: true,
-    shareApprovalMinutes: 60,
-    shareDenialSeconds: 10,
-};
+let defaults: AppSettings | null = null;
+let defaultsRequest: Promise<AppSettings> | null = null;
 
-/** The interface settings, persisted by the host. */
+/**
+ * The values a fresh install starts with. They are fetched once from the host and every caller —
+ * including the reset buttons and the modules that need a value before settings arrive — uses
+ * this one answer. There is deliberately no copy of the defaults in the interface.
+ */
+export function getSettingDefaults(): Promise<AppSettings> {
+    if (defaults) return Promise.resolve(defaults);
+    if (!Native.available) return Promise.reject(new Error("Settings need the host."));
+
+    defaultsRequest ??= Native.request<AppSettings>("settings.defaults").then((value) => {
+        defaults = value;
+        return value;
+    });
+
+    return defaultsRequest;
+}
+
+/** The host defaults, once <see cref="getSettingDefaults" /> has finished. */
+export function configDefaults(): AppSettings {
+    if (!defaults)
+        throw new Error("The settings defaults have not been loaded yet.");
+
+    return defaults;
+}
+
+/** The interface settings, with every value the host left null taken from its own defaults. */
 export async function getSettings(): Promise<AppSettings> {
-    if (!Native.available) return fallback;
+    const known = await getSettingDefaults();
+    const stored = await Native.request<Partial<AppSettings> | null>("settings.get");
 
-    return normalize(await Native.request<Partial<AppSettings> | null>("settings.get"));
+    return fill(stored, known);
 }
 
-/** The values a fresh install starts with, shaped the same way <see cref="getSettings"/> is. */
-export async function getSettingDefaults(): Promise<AppSettings> {
-    if (!Native.available) return fallback;
+/**
+ * Merges the stored values over the host's defaults. No value is invented here: changing
+ * <c>AppSettings.Default</c> changes both the defaults endpoint and every answer below.
+ */
+function fill(raw: Partial<AppSettings> | null, known: AppSettings): AppSettings {
+    const stored = Object.fromEntries(
+        Object.entries(raw ?? {}).filter(([, value]) => value !== null && value !== undefined),
+    ) as Partial<AppSettings>;
 
-    return normalize(await Native.request<Partial<AppSettings> | null>("settings.defaults"));
+    const merged = {...known, ...stored} as AppSettings;
+    merged.defaultView = raw?.defaultView
+        ? {...(known.defaultView ?? {}), ...raw.defaultView} as ViewDefaults
+        : known.defaultView;
+    merged.themeMode = normalizeThemeMode(merged.themeMode);
+
+    return merged;
 }
-
-/** Fills a host answer with the built-in value for every key the host left out. */
-function normalize(raw: Partial<AppSettings> | null): AppSettings {
-    return {
-        systemIcons: raw?.systemIcons ?? true,
-        customFolderIcons: raw?.customFolderIcons ?? true,
-        writeDirectoryIndex: raw?.writeDirectoryIndex ?? true,
-        directoryIndexBlacklist: raw?.directoryIndexBlacklist ?? ["**/.git/**", "**/uv/cache/**", "**/scoop/buckets/**"],
-        extensionIcons: raw?.extensionIcons ?? {},
-        quickAccess: raw?.quickAccess ?? null,
-        recentLimit: raw?.recentLimit ?? 10,
-        galleryRoots: raw?.galleryRoots ?? null,
-        overviewPanels: raw?.overviewPanels ?? null,
-        overviewHidden: raw?.overviewHidden ?? null,
-        overviewColumns: raw?.overviewColumns ?? 1,
-        shortcuts: raw?.shortcuts ?? null,
-        placeIcons: raw?.placeIcons ?? null,
-        placeNames: raw?.placeNames ?? null,
-        overviewTitles: raw?.overviewTitles ?? null,
-        overviewViews: raw?.overviewViews ?? null,
-        overviewIcons: raw?.overviewIcons ?? null,
-        overviewPinned: raw?.overviewPinned ?? null,
-        linksEnabled: raw?.linksEnabled ?? null,
-        defaultFileManager: raw?.defaultFileManager ?? false,
-        archiveHandler: raw?.archiveHandler ?? false,
-        panelPlaces: raw?.panelPlaces ?? null,
-        restoreTabs: raw?.restoreTabs ?? true,
-        openTabs: raw?.openTabs ?? null,
-        activeTab: raw?.activeTab ?? 0,
-        defaultView: raw?.defaultView ?? null,
-        showHidden: raw?.showHidden ?? null,
-        showCheckboxes: raw?.showCheckboxes ?? true,
-        openOnSingleClick: raw?.openOnSingleClick ?? false,
-        confirmDelete: raw?.confirmDelete ?? false,
-        previewVideoAudio: raw?.previewVideoAudio ?? false,
-        previewVideoAutoplay: raw?.previewVideoAutoplay ?? false,
-        trayAutoShow: raw?.trayAutoShow ?? true,
-        accentColor: raw?.accentColor ?? null,
-        secondaryColor: raw?.secondaryColor ?? null,
-        themeMode: normalizeThemeMode(raw?.themeMode),
-        backgroundSource: raw?.backgroundSource ?? null,
-        backgroundCustom: raw?.backgroundCustom ?? [],
-        backgroundBlur: raw?.backgroundBlur ?? 0,
-        backgroundSaturation: raw?.backgroundSaturation ?? 100,
-        backgroundBrightness: raw?.backgroundBrightness ?? 100,
-        backgroundLooks: (raw?.backgroundLooks ?? {}) as Record<string, BackgroundLook>,
-        protectedPaths: raw?.protectedPaths ?? [],
-        deleteDelaySeconds: raw?.deleteDelaySeconds ?? 5,
-        timeFormat: raw?.timeFormat ?? "24",
-        timeFormatPattern: raw?.timeFormatPattern ?? "yyyy/MM/dd HH:mm",
-        relativeTime: raw?.relativeTime ?? true,
-        relativeTimeWindowMinutes: raw?.relativeTimeWindowMinutes ?? 60,
-        systemPropertiesSheet: raw?.systemPropertiesSheet ?? false,
-        pickerWindowWidth: raw?.pickerWindowWidth ?? 1200,
-        pickerWindowHeight: raw?.pickerWindowHeight ?? 800,
-        linkPathMode: raw?.linkPathMode ?? "relative",
-        overviewBanner: raw?.overviewBanner ?? null,
-        overviewBannerHeight: raw?.overviewBannerHeight ?? 220,
-        overviewBanners: raw?.overviewBanners ?? [],
-        overviewBannerOffset: raw?.overviewBannerOffset ?? 0.3,
-        globalHotkey: raw?.globalHotkey ?? null,
-        language: raw?.language ?? null,
-        themePresets: raw?.themePresets ?? [],
-        fonts: raw?.fonts ?? {},
-        sharePortMode: raw?.sharePortMode ?? "random",
-    shareHttps: raw?.shareHttps ?? false,
-        sharePort: raw?.sharePort ?? null,
-        startupMode: raw?.startupMode ?? null,
-        startHidden: raw?.startHidden ?? false,
-        favorites: raw?.favorites ?? [],
-        conflictNameStyle: raw?.conflictNameStyle ?? "space_parentheses",
-        shareAccessEnabled: raw?.shareAccessEnabled ?? true,
-        shareApprovalMinutes: raw?.shareApprovalMinutes ?? 60,
-        shareDenialSeconds: raw?.shareDenialSeconds ?? 10,
-    };
-}
-
 /** The protected rules a fresh install starts with, for the "restore_defaults" button. */
 export async function getDefaultProtectedPaths(): Promise<string[]> {
     if (!Native.available) return [];

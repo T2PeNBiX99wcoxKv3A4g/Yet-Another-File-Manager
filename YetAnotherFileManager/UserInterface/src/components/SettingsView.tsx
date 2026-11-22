@@ -12,7 +12,7 @@ import {
 } from "@photino-net-utils/bridge";
 import styled, {css} from "styled-components";
 import {
-    DefaultViewDefaults,
+    defaultViewSettings,
     type FileVisibility,
     getVisibility,
     type IndexTasks,
@@ -30,6 +30,7 @@ import {
     getDefaultProtectedPaths,
     getSettingDefaults,
     getSettings,
+    configDefaults,
     registerArchiveHandler,
     saveSettings,
     setDefaultManager,
@@ -102,7 +103,7 @@ import {DefaultTagColor} from "./TagPicker";
 import {DefaultAccentColor, DefaultSecondaryColor, normalizeColor, normalizeThemeMode} from "../theme";
 import {
     comboOf,
-    DefaultShortcuts,
+    defaultShortcuts,
     prettyShortcut,
     resolveShortcuts,
     type ShortcutAction,
@@ -118,7 +119,6 @@ import {BuiltInBackgrounds, BuiltInVideos} from "../backgrounds/concepts";
 import {isVideoPath} from "./Wallpaper";
 import {
     baseName,
-    DefaultTimePattern,
     formatBytes,
     formatDateWith,
     isRemoteUrl,
@@ -416,23 +416,23 @@ export function SettingsView({
     const [backgroundUrl, setBackgroundUrl] = useState("");
     const page = useRef<HTMLDivElement | null>(null);
     const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
-    const defaultView = settings?.defaultView ?? DefaultViewDefaults;
+    const defaultView = settings?.defaultView ?? defaultViewSettings();
     const customPresets = settings?.themePresets ?? [];
     const isWindows = appInfo?.platform === "windows";
     const archiveRegistered = isWindows
         ? archiveStatus
             ? archiveStatus.registered && archiveStatus.pathMatches
             : false
-        : settings?.archiveHandler ?? false;
-    const archivePresent = archiveStatus?.registered ?? settings?.archiveHandler ?? false;
+        : settings?.archiveHandler ?? configDefaults().archiveHandler;
+    const archivePresent = archiveStatus?.registered ?? settings?.archiveHandler ?? configDefaults().archiveHandler;
     const defaultManagerRegistered = isWindows
         ? defaultManagerStatus
             ? defaultManagerStatus.registered && defaultManagerStatus.pathMatches
             : false
-        : settings?.defaultFileManager ?? false;
+        : settings?.defaultFileManager ?? configDefaults().defaultFileManager;
     const schemeActive = isWindows
         ? scheme.registered && scheme.pathMatches
-        : settings?.linksEnabled ?? false;
+        : settings?.linksEnabled ?? configDefaults().linksEnabled;
 
     // The shared page search highlights matches and dims or hides sections without any.
     useTextSearch(page, find ?? null, "section", onSearchMatches ?? (() => undefined), [settings]);
@@ -882,15 +882,16 @@ export function SettingsView({
         void update({directoryIndexBlacklist: settings.directoryIndexBlacklist.filter((item) => item !== pattern)});
     };
 
-    const restoreDirectoryRules = () => {
-        void update({directoryIndexBlacklist: ["**/.git/**", "**/uv/cache/**", "**/scoop/buckets/**"]});
+    const restoreDirectoryRules = async () => {
+        const defaults = await getSettingDefaults();
+        void update({directoryIndexBlacklist: defaults.directoryIndexBlacklist});
     };
 
     /** Saves the custom time pattern when the field loses focus or Enter is pressed. */
     const commitTimePattern = () => {
         if (!settings || timeDraft === null) return;
 
-        const value = timeDraft.trim() || DefaultTimePattern;
+        const value = timeDraft.trim() || configDefaults().timeFormatPattern;
         setTimeDraft(null);
 
         if (value !== settings.timeFormatPattern)
@@ -1107,7 +1108,7 @@ export function SettingsView({
 
     /** Columns are a window-wide setting, so the order stays the same everywhere. */
     const toggleColumn = async (id: string) => {
-        const wanted = new Set(defaultView.columns ?? DefaultViewDefaults.columns ?? []);
+        const wanted = new Set(defaultView.columns ?? defaultViewSettings().columns ?? []);
         if (wanted.has(id)) wanted.delete(id);
         else wanted.add(id);
 
@@ -1390,7 +1391,7 @@ export function SettingsView({
 
     const changeSharePortMode = async (mode: string) => {
         const custom = mode === "custom";
-        const port = custom ? settings?.sharePort ?? 8080 : null;
+        const port = custom ? settings?.sharePort ?? configDefaults().sharePort! : null;
 
         await update({sharePortMode: custom ? "custom" : "random", sharePort: port});
         await setSharePort(port, custom ? "custom" : "random");
@@ -1545,7 +1546,7 @@ export function SettingsView({
                                     onKeyDown={(event) => {
                                         if (event.key === "Enter") event.currentTarget.blur();
                                     }}
-                                    value={pickerSizeDraft.width ?? String(settings?.pickerWindowWidth ?? 1200)}
+                                    value={pickerSizeDraft.width ?? String(settings?.pickerWindowWidth ?? configDefaults().pickerWindowWidth)}
                                 />
                                 <Value>×</Value>
                                 <Input
@@ -1558,7 +1559,7 @@ export function SettingsView({
                                     onKeyDown={(event) => {
                                         if (event.key === "Enter") event.currentTarget.blur();
                                     }}
-                                    value={pickerSizeDraft.height ?? String(settings?.pickerWindowHeight ?? 800)}
+                                    value={pickerSizeDraft.height ?? String(settings?.pickerWindowHeight ?? configDefaults().pickerWindowHeight)}
                                 />
                             </RowEnd>
                         </Row>
@@ -1570,7 +1571,7 @@ export function SettingsView({
                                 </RowText>
                                 <RowEnd>
                                     <Toggle
-                                        $on={settings?.systemPropertiesSheet ?? false}
+                                        $on={settings?.systemPropertiesSheet ?? configDefaults().systemPropertiesSheet}
                                         disabled={!settings}
                                         onClick={() => void update({systemPropertiesSheet: !settings?.systemPropertiesSheet})}
                                         type="button"
@@ -1593,7 +1594,7 @@ export function SettingsView({
                                         {value: "random", label: t("random")},
                                         {value: "custom", label: t("custom_port")},
                                     ]}
-                                    value={settings?.sharePortMode ?? "random"}
+                                    value={settings?.sharePortMode ?? configDefaults().sharePortMode}
                                     width={160}
                                 />
                             </RowEnd>
@@ -1631,7 +1632,7 @@ export function SettingsView({
                                         {value: "relative", label: t("relative")},
                                         {value: "absolute", label: t("absolute")},
                                     ]}
-                                    value={settings?.linkPathMode ?? "relative"}
+                                    value={settings?.linkPathMode ?? configDefaults().linkPathMode}
                                     width={160}
                                 />
                             </RowEnd>
@@ -1747,7 +1748,7 @@ export function SettingsView({
                                 </Note>
                             </RowText>
                             <Toggle
-                                $on={settings?.restoreTabs ?? true}
+                                $on={settings?.restoreTabs ?? configDefaults().restoreTabs}
                                 disabled={!settings}
                                 onClick={() => void update({restoreTabs: !settings?.restoreTabs})}
                                 type="button"
@@ -1771,9 +1772,9 @@ export function SettingsView({
                                 <Note>{t("share_access_note")}</Note>
                             </RowText>
                             <Toggle
-                                $on={settings?.shareAccessEnabled ?? true}
+                                $on={settings?.shareAccessEnabled ?? configDefaults().shareAccessEnabled}
                                 disabled={!settings}
-                                onClick={() => void update({shareAccessEnabled: !(settings?.shareAccessEnabled ?? true)})}
+                                onClick={() => void update({shareAccessEnabled: !(settings?.shareAccessEnabled ?? configDefaults().shareAccessEnabled)})}
                                 type="button"
                             >
                                 <Knob/>
@@ -1791,7 +1792,7 @@ export function SettingsView({
                                         shareApprovalMinutes: Math.min(1440, Math.max(1, Number(event.target.value) || 60))
                                     })}
                                     type="number"
-                                    value={settings?.shareApprovalMinutes ?? 60}
+                                    value={settings?.shareApprovalMinutes ?? configDefaults().shareApprovalMinutes}
                                 />
                             </RowEnd>
                         </Row>
@@ -1807,7 +1808,7 @@ export function SettingsView({
                                         shareDenialSeconds: Math.min(3600, Math.max(1, Number(event.target.value) || 10))
                                     })}
                                     type="number"
-                                    value={settings?.shareDenialSeconds ?? 10}
+                                    value={settings?.shareDenialSeconds ?? configDefaults().shareDenialSeconds}
                                 />
                             </RowEnd>
                         </Row>
@@ -1847,13 +1848,13 @@ export function SettingsView({
                                 <Note>{t("share_access_https_note")}</Note>
                             </RowText>
                             <RowEnd>
-                                <State $on={settings?.shareHttps ?? false}>
+                                <State $on={settings?.shareHttps ?? configDefaults().shareHttps}>
                                     {settings?.shareHttps ? t("active") : t("off")}
                                 </State>
                                 <Toggle
-                                    $on={settings?.shareHttps ?? false}
+                                    $on={settings?.shareHttps ?? configDefaults().shareHttps}
                                     disabled={!settings}
-                                    onClick={() => void update({shareHttps: !(settings?.shareHttps ?? false)})}
+                                    onClick={() => void update({shareHttps: !(settings?.shareHttps ?? configDefaults().shareHttps)})}
                                     title={settings?.shareHttps ? t("share_access_https_off") : t("share_access_https_on")}
                                     type="button"
                                 >
@@ -1919,8 +1920,8 @@ export function SettingsView({
                             </RowText>
                         </Row>
                         <ShareDeviceList
-                            approvalMinutes={settings?.shareApprovalMinutes ?? 60}
-                            denialSeconds={settings?.shareDenialSeconds ?? 10}
+                            approvalMinutes={settings?.shareApprovalMinutes ?? configDefaults().shareApprovalMinutes}
+                            denialSeconds={settings?.shareDenialSeconds ?? configDefaults().shareDenialSeconds}
                         />
                     </Rows>
                 </Section>
@@ -1949,7 +1950,7 @@ export function SettingsView({
                                         {value: "shortcut", label: t("shortcut")},
                                         {value: "task", label: t("scheduled_task")},
                                     ]}
-                                    value={startup?.mode ?? settings?.startupMode ?? "none"}
+                                    value={startup?.mode ?? settings?.startupMode ?? configDefaults().startupMode}
                                     width={170}
                                 />
                             </RowEnd>
@@ -1961,7 +1962,7 @@ export function SettingsView({
                             </RowText>
                             <RowEnd>
                                 <Toggle
-                                    $on={settings?.startHidden ?? false}
+                                    $on={settings?.startHidden ?? configDefaults().startHidden}
                                     disabled={!settings}
                                     onClick={() => void update({startHidden: !settings?.startHidden})}
                                     type="button"
@@ -2027,7 +2028,7 @@ export function SettingsView({
                             <SegmentRow>
                                 {TimeModes.map((mode) => (
                                     <SegmentButton
-                                        $active={(settings?.timeFormat ?? "24") === mode.id}
+                                        $active={(settings?.timeFormat ?? configDefaults().timeFormat) === mode.id}
                                         key={mode.id}
                                         onClick={() => void update({timeFormat: mode.id})}
                                         type="button"
@@ -2036,7 +2037,7 @@ export function SettingsView({
                                     </SegmentButton>
                                 ))}
                             </SegmentRow>
-                            {(settings?.timeFormat ?? "24") === "custom" && (
+                            {(settings?.timeFormat ?? configDefaults().timeFormat) === "custom" && (
                                 <>
                                     <TimePatternInput
                                         aria-label={t("pattern")}
@@ -2051,7 +2052,7 @@ export function SettingsView({
                                             }
                                         }}
                                         spellCheck={false}
-                                        value={timeDraft ?? settings?.timeFormatPattern ?? DefaultTimePattern}
+                                        value={timeDraft ?? settings?.timeFormatPattern ?? configDefaults().timeFormatPattern}
                                     />
                                     <Note>{t("tokens_yyyy_year_mm_month_dd_day_hh_24_hour_mm_minute_ss_second_hh_12_hour_and_a_am_pm_other_characters_are_copied")}</Note>
                                 </>
@@ -2073,13 +2074,13 @@ export function SettingsView({
                                 <Note>{t("shows_recent_timestamps_as_seconds_and_minutes_ago_and_keeps_them_counting")}</Note>
                             </RowText>
                             <RowEnd>
-                                <State $on={settings?.relativeTime ?? true}>
-                                    {(settings?.relativeTime ?? true) ? t("active") : t("off")}
+                                <State $on={settings?.relativeTime ?? configDefaults().relativeTime}>
+                                    {(settings?.relativeTime ?? configDefaults().relativeTime) ? t("active") : t("off")}
                                 </State>
                                 <Toggle
-                                    $on={settings?.relativeTime ?? true}
+                                    $on={settings?.relativeTime ?? configDefaults().relativeTime}
                                     disabled={!settings}
-                                    onClick={() => void update({relativeTime: !(settings?.relativeTime ?? true)})}
+                                    onClick={() => void update({relativeTime: !(settings?.relativeTime ?? configDefaults().relativeTime)})}
                                     title={t("show_recent_timestamps_as_seconds_and_minutes_ago")}
                                     type="button"
                                 >
@@ -2094,15 +2095,15 @@ export function SettingsView({
                             </RowText>
                             <RowEnd>
                                 <RangeInput
-                                    disabled={!(settings?.relativeTime ?? true)}
+                                    disabled={!(settings?.relativeTime ?? configDefaults().relativeTime)}
                                     max={1440}
                                     min={1}
                                     onChange={(event) => void update({relativeTimeWindowMinutes: Number(event.target.value)})}
                                     step={1}
                                     type="range"
-                                    value={settings?.relativeTimeWindowMinutes ?? 60}
+                                    value={settings?.relativeTimeWindowMinutes ?? configDefaults().relativeTimeWindowMinutes}
                                 />
-                                <Value>{settings?.relativeTimeWindowMinutes ?? 60} min</Value>
+                                <Value>{settings?.relativeTimeWindowMinutes ?? configDefaults().relativeTimeWindowMinutes} min</Value>
                             </RowEnd>
                         </Row>
                     </Rows>
@@ -2197,7 +2198,7 @@ export function SettingsView({
                             <SegmentRow>
                                 {ThemeModes.map((mode) => (
                                     <SegmentButton
-                                        $active={(settings?.themeMode ?? "system") === mode.id}
+                                        $active={(settings?.themeMode ?? configDefaults().themeMode) === mode.id}
                                         key={mode.id}
                                         onClick={() => void update({themeMode: mode.id})}
                                         type="button"
@@ -2498,9 +2499,9 @@ export function SettingsView({
                                     min={0}
                                     onChange={(event) => changeLook({backgroundBlur: Number(event.target.value)})}
                                     type="range"
-                                    value={settings?.backgroundBlur ?? 0}
+                                    value={settings?.backgroundBlur ?? configDefaults().backgroundBlur}
                                 />
-                                <Value>{settings?.backgroundBlur ?? 0}px</Value>
+                                <Value>{settings?.backgroundBlur ?? configDefaults().backgroundBlur}px</Value>
                             </RowEnd>
                         </Row>
                         <Row>
@@ -2511,9 +2512,9 @@ export function SettingsView({
                                     min={0}
                                     onChange={(event) => changeLook({backgroundSaturation: Number(event.target.value)})}
                                     type="range"
-                                    value={settings?.backgroundSaturation ?? 100}
+                                    value={settings?.backgroundSaturation ?? configDefaults().backgroundSaturation}
                                 />
-                                <Value>{settings?.backgroundSaturation ?? 100}%</Value>
+                                <Value>{settings?.backgroundSaturation ?? configDefaults().backgroundSaturation}%</Value>
                             </RowEnd>
                         </Row>
                         <Row>
@@ -2524,9 +2525,9 @@ export function SettingsView({
                                     min={40}
                                     onChange={(event) => changeLook({backgroundBrightness: Number(event.target.value)})}
                                     type="range"
-                                    value={settings?.backgroundBrightness ?? 100}
+                                    value={settings?.backgroundBrightness ?? configDefaults().backgroundBrightness}
                                 />
-                                <Value>{settings?.backgroundBrightness ?? 100}%</Value>
+                                <Value>{settings?.backgroundBrightness ?? configDefaults().backgroundBrightness}%</Value>
                             </RowEnd>
                         </Row>
                         <Row>
@@ -2632,9 +2633,9 @@ export function SettingsView({
                                     min={2}
                                     onChange={(event) => void update({deleteDelaySeconds: Number(event.target.value)})}
                                     type="range"
-                                    value={settings?.deleteDelaySeconds ?? 5}
+                                    value={settings?.deleteDelaySeconds ?? configDefaults().deleteDelaySeconds}
                                 />
-                                <Value>{settings?.deleteDelaySeconds ?? 5}s</Value>
+                                <Value>{settings?.deleteDelaySeconds ?? configDefaults().deleteDelaySeconds}s</Value>
                             </RowEnd>
                         </Row>
                     </Rows>
@@ -2868,9 +2869,9 @@ export function SettingsView({
                                 </Note>
                             </RowText>
                             <Toggle
-                                $on={settings?.showCheckboxes ?? true}
+                                $on={settings?.showCheckboxes ?? configDefaults().showCheckboxes}
                                 disabled={!settings}
-                                onClick={() => void update({showCheckboxes: !(settings?.showCheckboxes ?? true)})}
+                                onClick={() => void update({showCheckboxes: !(settings?.showCheckboxes ?? configDefaults().showCheckboxes)})}
                                 type="button"
                             >
                                 <Knob/>
@@ -2887,9 +2888,9 @@ export function SettingsView({
                                 </Note>
                             </RowText>
                             <Toggle
-                                $on={settings?.openOnSingleClick ?? false}
+                                $on={settings?.openOnSingleClick ?? configDefaults().openOnSingleClick}
                                 disabled={!settings}
-                                onClick={() => void update({openOnSingleClick: !(settings?.openOnSingleClick ?? false)})}
+                                onClick={() => void update({openOnSingleClick: !(settings?.openOnSingleClick ?? configDefaults().openOnSingleClick)})}
                                 type="button"
                             >
                                 <Knob/>
@@ -2906,9 +2907,9 @@ export function SettingsView({
                                 </Note>
                             </RowText>
                             <Toggle
-                                $on={settings?.trayAutoShow ?? true}
+                                $on={settings?.trayAutoShow ?? configDefaults().trayAutoShow}
                                 disabled={!settings}
-                                onClick={() => void update({trayAutoShow: !(settings?.trayAutoShow ?? true)})}
+                                onClick={() => void update({trayAutoShow: !(settings?.trayAutoShow ?? configDefaults().trayAutoShow)})}
                                 type="button"
                             >
                                 <Knob/>
@@ -2925,9 +2926,9 @@ export function SettingsView({
                                 </Note>
                             </RowText>
                             <Toggle
-                                $on={settings?.confirmDelete ?? false}
+                                $on={settings?.confirmDelete ?? configDefaults().confirmDelete}
                                 disabled={!settings}
-                                onClick={() => void update({confirmDelete: !(settings?.confirmDelete ?? false)})}
+                                onClick={() => void update({confirmDelete: !(settings?.confirmDelete ?? configDefaults().confirmDelete)})}
                                 type="button"
                             >
                                 <Knob/>
@@ -2952,7 +2953,7 @@ export function SettingsView({
                                         {value: "underscore", label: "Test_1.txt"},
                                         {value: "dot", label: "Test.1.txt"},
                                     ]}
-                                    value={settings?.conflictNameStyle ?? "space_parentheses"}
+                                    value={settings?.conflictNameStyle ?? configDefaults().conflictNameStyle}
                                     width={160}
                                 />
                             </RowEnd>
@@ -2968,9 +2969,9 @@ export function SettingsView({
                                 </Note>
                             </RowText>
                             <Toggle
-                                $on={settings?.previewVideoAudio ?? false}
+                                $on={settings?.previewVideoAudio ?? configDefaults().previewVideoAudio}
                                 disabled={!settings}
-                                onClick={() => void update({previewVideoAudio: !(settings?.previewVideoAudio ?? false)})}
+                                onClick={() => void update({previewVideoAudio: !(settings?.previewVideoAudio ?? configDefaults().previewVideoAudio)})}
                                 type="button"
                             >
                                 <Knob/>
@@ -2987,10 +2988,10 @@ export function SettingsView({
                                 </Note>
                             </RowText>
                             <Toggle
-                                $on={settings?.previewVideoAutoplay ?? false}
+                                $on={settings?.previewVideoAutoplay ?? configDefaults().previewVideoAutoplay}
                                 disabled={!settings}
                                 onClick={() => void update({
-                                    previewVideoAutoplay: !(settings?.previewVideoAutoplay ?? false),
+                                    previewVideoAutoplay: !(settings?.previewVideoAutoplay ?? configDefaults().previewVideoAutoplay),
                                 })}
                                 type="button"
                             >
@@ -3129,7 +3130,7 @@ export function SettingsView({
                             </RowText>
                             <RowEnd>
                                 <ActionButton
-                                    onClick={() => void update({shortcuts: storedShortcuts(DefaultShortcuts), globalHotkey: null})}
+                                    onClick={() => void update({shortcuts: storedShortcuts(defaultShortcuts()), globalHotkey: null})}
                                     type="button"
                                 >
                                     <RefreshIcon size={13}/>{t("reset")}
@@ -3238,7 +3239,7 @@ export function SettingsView({
                                     max={50}
                                     min={0}
                                     onChange={(event) => void setRecentLimit(Number(event.target.value))} type="number"
-                                    value={settings?.recentLimit ?? 10}
+                                    value={settings?.recentLimit ?? configDefaults().recentLimit}
                                 />
                             </RowEnd>
                         </Row>
@@ -3301,7 +3302,7 @@ export function SettingsView({
                                 <Note>{t("ask_the_shell_for_the_icon_of_each_file_type_instead_of_the_built_in_glyphs")}</Note>
                             </RowText>
                             <Toggle
-                                $on={settings?.systemIcons ?? false}
+                                $on={settings?.systemIcons ?? configDefaults().systemIcons}
                                 disabled={!settings}
                                 onClick={() => void update({systemIcons: !settings?.systemIcons})}
                                 type="button"
@@ -3317,7 +3318,7 @@ export function SettingsView({
                                 </Note>
                             </RowText>
                             <Toggle
-                                $on={settings?.customFolderIcons ?? false}
+                                $on={settings?.customFolderIcons ?? configDefaults().customFolderIcons}
                                 disabled={!settings}
                                 onClick={() => void update({customFolderIcons: !settings?.customFolderIcons})}
                                 type="button"
@@ -3411,7 +3412,7 @@ export function SettingsView({
                                 </Note>
                             </RowText>
                             <Toggle
-                                $on={settings?.writeDirectoryIndex ?? true}
+                                $on={settings?.writeDirectoryIndex ?? configDefaults().writeDirectoryIndex}
                                 disabled={!settings}
                                 onClick={() => void update({writeDirectoryIndex: !settings?.writeDirectoryIndex})}
                                 type="button"
@@ -3484,7 +3485,7 @@ export function SettingsView({
                             </ProtectAdd>
                         </Block>
                     </Rows>
-                    {!(settings?.writeDirectoryIndex ?? true) && (
+                    {!(settings?.writeDirectoryIndex ?? configDefaults().writeDirectoryIndex) && (
                         <Notice>{folderIndexNotice(t, appInfo?.platform)}</Notice>
                     )}
                 </Section>

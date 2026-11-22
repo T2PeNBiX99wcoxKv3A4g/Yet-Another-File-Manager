@@ -1,8 +1,7 @@
 import {Suspense, lazy, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState} from "react";
 import styled from "styled-components";
 import {
-    DefaultView,
-    DefaultViewDefaults,
+    defaultViewSettings,
     type DirectoryListing,
     type DirectoryView,
     type Drive,
@@ -26,7 +25,7 @@ import {
     toggleHiddenFiles,
     type ViewDefaults,
 } from "./api/files";
-import {type AppSettings, getSettings, saveOpenTabs, saveSettings} from "./api/settings";
+import {type AppSettings, configDefaults, getSettings, saveOpenTabs, saveSettings} from "./api/settings";
 import {type AppInfo, getAppInfo, getUpdateStatus, type UpdateCheck} from "./api/system";
 import {
     type ClipboardFiles,
@@ -134,7 +133,7 @@ import {ToolbarButton, ToolbarSeparator} from "./ui/toolbar";
 import {
     comboMatches,
     comboOf,
-    DefaultShortcuts,
+    defaultShortcuts,
     firstShortcut,
     isTyping,
     prettyShortcuts,
@@ -252,11 +251,11 @@ function clampTrayPosition(position: { x: number; y: number }): { x: number; y: 
 function resolveView(tab: Tab, defaults: ViewDefaults): ResolvedView {
     return {
         mode: tab.view?.mode ?? defaults.mode,
-        iconSize: tab.view?.iconSize || defaults.iconSize || DefaultView.iconSize,
-        gridSize: tab.view?.gridSize || defaults.gridSize || DefaultView.gridSize,
-        sort: tab.view?.sort ?? DefaultView.sort,
-        sortDescending: tab.view?.sortDescending ?? DefaultView.sortDescending,
-        columns: defaults.columns ?? DefaultViewDefaults.columns ?? [],
+        iconSize: tab.view?.iconSize || defaults.iconSize || defaultViewSettings().iconSize,
+        gridSize: tab.view?.gridSize || defaults.gridSize || defaultViewSettings().gridSize,
+        sort: tab.view?.sort ?? defaultViewSettings().sort,
+        sortDescending: tab.view?.sortDescending ?? defaultViewSettings().sortDescending,
+        columns: defaults.columns ?? defaultViewSettings().columns ?? [],
     };
 }
 
@@ -399,7 +398,7 @@ export default function App() {
         () => (settings?.favorites ?? []).map((entry) => normalizePath(entry.path)),
         [settings?.favorites]);
     const [historyVersion, setHistoryVersion] = useState(0);
-    const [shortcuts, setShortcuts] = useState<ShortcutMap>(DefaultShortcuts);
+    const [shortcuts, setShortcuts] = useState<ShortcutMap>(() => defaultShortcuts());
     const [settingsVersion, setSettingsVersion] = useState(0);
     const [locationFocus, setLocationFocus] = useState(0);
     const [visibilityVersion, setVisibilityVersion] = useState(0);
@@ -501,7 +500,7 @@ export default function App() {
     const focusedTab = splitActive && secondary && activePane === "secondary" ? secondary : active;
 
     // The directory's own mode/size/sort sit on top of the window-wide defaults; columns are global.
-    const viewDefaults = settings?.defaultView ?? DefaultViewDefaults;
+    const viewDefaults = settings?.defaultView ?? defaultViewSettings();
     const view: ResolvedView = resolveView(focusedTab, viewDefaults);
 
     useEffect(() => {
@@ -601,8 +600,8 @@ export default function App() {
     }), [quickPlaces, settings?.systemIcons]);
 
     /** The preview panel under the list is a window-wide setting. */
-    const showImages = settings?.defaultView?.showImages ?? true;
-    const imageStripHeight = settings?.defaultView?.imageStripHeight ?? DefaultViewDefaults.imageStripHeight;
+    const showImages = settings?.defaultView?.showImages ?? defaultViewSettings().showImages;
+    const imageStripHeight = settings?.defaultView?.imageStripHeight ?? defaultViewSettings().imageStripHeight;
 
     const viewIcon = kind === "home" ? <OverviewIcon size={13}/>
         : kind === "settings" ? <GearIcon size={13}/>
@@ -1531,7 +1530,7 @@ export default function App() {
     // The tray opens for a drag when the setting allows it, and closes again if the drag ended
     // without leaving anything in it. A manual toggle keeps it open whether or not it is empty.
     useEffect(() => {
-        const auto = settings?.trayAutoShow ?? true;
+        const auto = settings?.trayAutoShow ?? configDefaults().trayAutoShow;
 
         const showForDrag = (transfer: DataTransfer | null) => {
             if (!auto || !isPathDrag(transfer))
@@ -1751,13 +1750,13 @@ export default function App() {
         if (!tab || kindOf(tab) !== "files") return;
 
         const folder = folderOf(tab);
-        const defaults = settingsRef.current?.defaultView ?? DefaultViewDefaults;
+        const defaults = settingsRef.current?.defaultView ?? defaultViewSettings();
         const base: DirectoryView = {
             mode: tab.view?.mode ?? defaults.mode,
-            iconSize: tab.view?.iconSize || defaults.iconSize || DefaultView.iconSize,
-            gridSize: tab.view?.gridSize || defaults.gridSize || DefaultView.gridSize,
-            sort: tab.view?.sort ?? DefaultView.sort,
-            sortDescending: tab.view?.sortDescending ?? DefaultView.sortDescending,
+            iconSize: tab.view?.iconSize || defaults.iconSize || defaultViewSettings().iconSize,
+            gridSize: tab.view?.gridSize || defaults.gridSize || defaultViewSettings().gridSize,
+            sort: tab.view?.sort ?? defaultViewSettings().sort,
+            sortDescending: tab.view?.sortDescending ?? defaultViewSettings().sortDescending,
         };
         const next = {...base, ...change};
 
@@ -1783,7 +1782,7 @@ export default function App() {
 
         const next = {
             ...current,
-            defaultView: {...(current.defaultView ?? DefaultViewDefaults), columns},
+            defaultView: {...(current.defaultView ?? defaultViewSettings()), columns},
         };
 
         setSettings(next);
@@ -1797,7 +1796,7 @@ export default function App() {
 
         const next = {
             ...current,
-            defaultView: {...(current.defaultView ?? DefaultViewDefaults), showImages: value},
+            defaultView: {...(current.defaultView ?? defaultViewSettings()), showImages: value},
         };
 
         setSettings(next);
@@ -1811,7 +1810,7 @@ export default function App() {
 
         const next = {
             ...current,
-            defaultView: {...(current.defaultView ?? DefaultViewDefaults), imageStripHeight: height},
+            defaultView: {...(current.defaultView ?? defaultViewSettings()), imageStripHeight: height},
         };
 
         setSettings(next);
@@ -1848,7 +1847,7 @@ export default function App() {
         const tab = stateRef.current.tabs.find((item) => item.id === id);
         if (!tab) return;
 
-        const current = resolveView(tab, settingsRef.current?.defaultView ?? DefaultViewDefaults);
+        const current = resolveView(tab, settingsRef.current?.defaultView ?? defaultViewSettings());
         changeViewFor(id, {
             sort: column,
             sortDescending: current.sort === column ? !current.sortDescending : false,
@@ -2451,10 +2450,10 @@ export default function App() {
         return (
             <FileList
             platform={appInfo?.platform}
-                confirmDelete={settings?.confirmDelete ?? false}
+                confirmDelete={settings?.confirmDelete ?? configDefaults().confirmDelete}
                 cutPaths={cutPaths}
-                previewVideoAudio={settings?.previewVideoAudio ?? false}
-                previewVideoAutoplay={settings?.previewVideoAutoplay ?? false}
+                previewVideoAudio={settings?.previewVideoAudio ?? configDefaults().previewVideoAudio}
+                previewVideoAutoplay={settings?.previewVideoAutoplay ?? configDefaults().previewVideoAutoplay}
                 showDetails={false}
                 onPreviewInfo={primary ? setPrimaryPreview : setSecondaryPreview}
                 onActivate={() => setActivePane(primary ? "primary" : "secondary")}
@@ -2481,7 +2480,7 @@ export default function App() {
                     }
 
                     if (isArchivePath(file)) {
-                        if (settings?.archiveHandler ?? false) {
+                        if (settings?.archiveHandler ?? configDefaults().archiveHandler) {
                             if (newTab) openFiles(file);
                             else void load(tab.id, file);
                         } else {
@@ -2535,7 +2534,7 @@ export default function App() {
                 onRemoveFavorite={(paths) => void removeFavoritePaths(paths)}
                 favoritePaths={favoritePaths}
                 onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
-                openOnSingleClick={settings?.openOnSingleClick ?? false}
+                openOnSingleClick={settings?.openOnSingleClick ?? configDefaults().openOnSingleClick}
                 pendingRename={renameRequest
                 && primary === (activePane === "primary")
                 && samePath(renameRequest.directory, tab.listing?.path ?? "")
@@ -2544,7 +2543,7 @@ export default function App() {
                 pendingRenameToken={renameRequest?.token ?? 0}
                 refreshToken={visibilityVersion}
                 shortcuts={shortcuts}
-                showCheckboxes={settings?.showCheckboxes ?? true}
+                showCheckboxes={settings?.showCheckboxes ?? configDefaults().showCheckboxes}
                 showImages={showImages}
                 view={tabView}
             />
@@ -3178,17 +3177,17 @@ export default function App() {
                                 platform={appInfo?.platform}
                                 toolbarSlot={pageActions}
                                 onStatusChange={setPageStatus}
-                                    confirmDelete={settings?.confirmDelete ?? false}
+                                    confirmDelete={settings?.confirmDelete ?? configDefaults().confirmDelete}
                                     find={pageFind}
                                     onSearchMatches={setViewFindTotal}
-                                    openOnSingleClick={settings?.openOnSingleClick ?? false}
+                                    openOnSingleClick={settings?.openOnSingleClick ?? configDefaults().openOnSingleClick}
                                     onAddToTray={(paths) => void addTrayPaths(paths)}
                                     onAddFavorite={(paths) => void addFavoritePaths(paths)}
                                     onRemoveFavorite={(paths) => void removeFavoritePaths(paths)}
                                     favoritePaths={favoritePaths}
                                     onExtractArchive={(path, mode) => void extractArchiveTo(path, mode)}
                                     shortcuts={shortcuts}
-                                    showCheckboxes={settings?.showCheckboxes ?? true}
+                                    showCheckboxes={settings?.showCheckboxes ?? configDefaults().showCheckboxes}
                                     selectMatchesToken={selectMatchesToken}
                                     onPreviewChange={reportGalleryPreview}
                                     view={view}
@@ -3215,8 +3214,8 @@ export default function App() {
                                     onWidth={resizeDetails}
                                     open={detailsVisible}
                                     selectionNote={detailsNote}
-                                    videoAudio={settings?.previewVideoAudio ?? false}
-                                    videoAutoplay={settings?.previewVideoAutoplay ?? false}
+                                    videoAudio={settings?.previewVideoAudio ?? configDefaults().previewVideoAudio}
+                                    videoAutoplay={settings?.previewVideoAutoplay ?? configDefaults().previewVideoAutoplay}
                                     width={detailsWidth}
                                 />
                             )}

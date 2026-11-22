@@ -11,6 +11,9 @@ import "@fontsource/jetbrains-mono/latin-400.css";
 import "@fontsource/jetbrains-mono/latin-500.css";
 import App from "./App";
 import {LocalizationProvider, systemPrefersDark} from "@photino-net-utils/bridge";
+import {getSettingDefaults} from "./api/settings";
+import {applyShortcutDefaults} from "./shortcuts";
+import {applyTimeFormat} from "./utils/format";
 import {loadStoredState, flushStoredState} from "./storage";
 
 // The palette is applied again once the settings arrive; this only keeps the first paint from
@@ -40,10 +43,11 @@ const PickerWindow = pickMode === "folder" || pickMode === "file" || pickMode ==
     : null;
 
 if (rootElement) {
-    // The stored panel sizes are read as the components mount, so they are loaded first.
-    loadStoredState();
+    const start = () => {
+        // The stored panel sizes are read as the components mount, so they are loaded first.
+        loadStoredState();
 
-    createRoot(rootElement).render(
+        createRoot(rootElement).render(
         <StrictMode>
             <LocalizationProvider>
                 {PickerWindow === null
@@ -65,5 +69,16 @@ if (rootElement) {
                     )}
             </LocalizationProvider>
         </StrictMode>
-    );
+        );
+    };
+
+    // The host owns every default. Apply the ones the modules need synchronously before the
+    // first paint, so no component has to carry a copy of them.
+    void getSettingDefaults()
+        .then((defaults) => {
+            applyShortcutDefaults(defaults.shortcuts);
+            applyTimeFormat(defaults.timeFormat, defaults.timeFormatPattern);
+        })
+        .catch(() => undefined)
+        .then(start);
 }

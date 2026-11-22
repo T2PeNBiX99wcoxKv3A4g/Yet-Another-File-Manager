@@ -40,19 +40,19 @@ export function appLocale(): string | undefined {
 
 export type TimeFormatMode = "system" | "12" | "24" | "custom";
 
-/** The shipped default: the interface reads 24-hour time out of the box. */
-export const DefaultTimeFormat: TimeFormatMode = "24";
-export const DefaultTimePattern = "yyyy/MM/dd HH:mm";
-
-let currentTimeFormat: TimeFormatMode = DefaultTimeFormat;
-let currentTimePattern = DefaultTimePattern;
+/**
+ * The format and pattern in use. They are not written down here: the window applies the host's
+ * settings.defaults before it renders, and every later change comes from the settings page.
+ */
+let currentTimeFormat: TimeFormatMode | null = null;
+let currentTimePattern = "";
 let relativeTimes = true;
 let relativeWindowMs = 60 * 60_000;
 
 /** Applies the saved time settings to every formatter; called whenever the settings change. */
 export function applyTimeFormat(format: string | null | undefined, pattern: string | null | undefined) {
     currentTimeFormat = normalizeTimeFormat(format);
-    currentTimePattern = pattern?.trim() || DefaultTimePattern;
+    currentTimePattern = pattern?.trim() || "";
 }
 
 /** Applies the "x minutes ago" behaviour and how recent a time must be to use it. */
@@ -99,8 +99,8 @@ function relativeFormatter(locale: string | undefined): Intl.RelativeTimeFormat 
     return created;
 }
 
-export function normalizeTimeFormat(format: string | null | undefined): TimeFormatMode {
-    return format === "system" || format === "12" || format === "custom" ? format : "24";
+export function normalizeTimeFormat(format: string | null | undefined): TimeFormatMode | null {
+    return format === "system" || format === "12" || format === "24" || format === "custom" ? format : null;
 }
 
 /** Date and time in a compact table-friendly form, using the configured format. */
@@ -116,8 +116,14 @@ export function formatDateWith(unixMilliseconds: number, format: string | null |
     const date = new Date(unixMilliseconds);
     const mode = normalizeTimeFormat(format);
 
-    if (mode === "custom")
-        return applyTimePattern(date, pattern?.trim() || DefaultTimePattern);
+    if (mode === null)
+        return date.toLocaleString(appLocale());
+
+    if (mode === "custom") {
+        const chosen = pattern?.trim() || currentTimePattern;
+
+        return chosen.length > 0 ? applyTimePattern(date, chosen) : date.toLocaleString(appLocale());
+    }
 
     return dateFormatter(appLocale(), mode).format(date);
 }
@@ -158,7 +164,9 @@ export function formatClock(unixMilliseconds: number): string {
     const date = new Date(unixMilliseconds);
 
     if (currentTimeFormat === "custom")
-        return applyTimePattern(date, currentTimePattern);
+        return currentTimePattern.length > 0
+            ? applyTimePattern(date, currentTimePattern)
+            : date.toLocaleTimeString(appLocale());
 
     const options: Intl.DateTimeFormatOptions = {
         hour: "2-digit",

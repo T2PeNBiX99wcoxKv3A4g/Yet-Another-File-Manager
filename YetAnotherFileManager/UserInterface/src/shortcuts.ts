@@ -38,40 +38,27 @@ export type ShortcutAction =
  */
 export type ShortcutMap = Record<ShortcutAction, string[]>;
 
-export const DefaultShortcuts: ShortcutMap = {
-    goBack: ["alt+arrowleft"],
-    goForward: ["alt+arrowright"],
-    goUp: ["alt+arrowup"],
-    find: ["ctrl+f"],
-    closeTab: ["ctrl+w"],
-    newTab: ["ctrl+t"],
-    reopenTab: ["ctrl+shift+t"],
-    copy: ["ctrl+c"],
-    cut: ["ctrl+x"],
-    paste: ["ctrl+v"],
-    duplicate: ["ctrl+d"],
-    undo: ["ctrl+z"],
-    redo: ["ctrl+shift+z"],
-    delete: ["delete"],
-    deletePermanently: ["shift+delete"],
-    rename: ["f2"],
-    selectAll: ["ctrl+a"],
-    invertSelection: ["ctrl+shift+a"],
-    open: ["enter"],
-    newFolder: ["ctrl+shift+n"],
-    properties: ["alt+enter"],
-    home: ["alt+home"],
-    location: ["ctrl+l"],
-    iconsView: ["ctrl+1"],
-    detailsView: ["ctrl+2"],
-    nextTab: ["ctrl+tab"],
-    previousTab: ["ctrl+shift+tab"],
-    terminal: ["f4"],
-    hidden: ["ctrl+h", "alt+."],
-    splitView: ["f3"],
-    /** Modifier held while clicking to open something in a new tab; empty turns it off. */
-    openInNewTab: ["ctrl"],
-};
+/**
+ * The host's shortcut defaults, filled by <see cref="applyShortcutDefaults" /> before the window
+ * renders. The interface keeps no copy of its own; the backend's settings.defaults is the source.
+ */
+let baseShortcuts: ShortcutMap = {} as ShortcutMap;
+
+/** Takes the stored form the host sent for a fresh install and makes it the window's base map. */
+export function applyShortcutDefaults(stored: Record<string, string> | null | undefined) {
+    const next: Record<string, string[]> = {};
+
+    for (const [action, value] of Object.entries(stored ?? {}))
+        next[action] = shortcutList(value);
+
+    baseShortcuts = next as ShortcutMap;
+    clickModifier = firstShortcut(baseShortcuts, "openInNewTab");
+}
+
+/** A copy of the host defaults, for a component that needs a map before the settings arrive. */
+export function defaultShortcuts(): ShortcutMap {
+    return {...baseShortcuts};
+}
 
 /** The combinations a stored value holds. A value saved before several were allowed has none. */
 export function shortcutList(value: string | null | undefined): string[] {
@@ -98,7 +85,7 @@ export function storedShortcuts(map: ShortcutMap): Record<string, string> {
  * whose stored value is empty is off, and one that was never stored keeps its default.
  */
 export function resolveShortcuts(stored: Record<string, string> | null | undefined): ShortcutMap {
-    const resolved = {...DefaultShortcuts} as Record<string, string[]>;
+    const resolved = {...baseShortcuts} as Record<string, string[]>;
 
     for (const [action, value] of Object.entries(stored ?? {})) {
         if (action in resolved)
@@ -118,7 +105,7 @@ export function firstShortcut(map: ShortcutMap, action: ShortcutAction): string 
     return map[action]?.[0] ?? "";
 }
 
-let clickModifier = firstShortcut(DefaultShortcuts, "openInNewTab");
+let clickModifier = "";
 
 export function setClickModifier(value: string) {
     clickModifier = value.trim();

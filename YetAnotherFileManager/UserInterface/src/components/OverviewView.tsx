@@ -11,8 +11,8 @@ import styled from "styled-components";
 import {
     clearFrequent,
     clearRecent,
-    DefaultView,
-    DefaultViewDefaults,
+    defaultDirectoryView,
+    defaultViewSettings,
     type DirectoryListing,
     type Drive,
     type FrequentEntry,
@@ -24,7 +24,7 @@ import {
     type RecentEntry,
     renameDrive,
 } from "../api/files";
-import {type AppSettings, getSettings, saveSettings} from "../api/settings";
+import {type AppSettings, configDefaults, getSettings, saveSettings} from "../api/settings";
 import {type PageFind, useTextSearch} from "../ui/textSearch";
 import {requestFile, requestFolder} from "../folder-picker";
 import {useMediaUrl} from "../api/icons";
@@ -52,7 +52,7 @@ import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
 import {quickPlace, useQuickAccess} from "../quick";
 import {copyPaths} from "../api/operations";
-import {DefaultShortcuts, wantsNewTab} from "../shortcuts";
+import {defaultShortcuts, wantsNewTab} from "../shortcuts";
 import {type ArchiveExtractMode, FileMenu, type FileMenuTarget} from "./FileMenu";
 import {baseName, driveLetter, driveName, formatBytes, isRemoteUrl, plural, samePath, usageTone} from "../utils/format";
 import {buildPanels, DefaultPanels, type Panel, PanelGlyph, type PanelKind, type ViewMode} from "../panels";
@@ -1400,10 +1400,10 @@ export function OverviewView({
     const pageRef = useRef<HTMLDivElement | null>(null);
     const bannerRef = useRef<HTMLDivElement | null>(null);
     const bannerImageRef = useRef<HTMLImageElement | null>(null);
-    const bannerHeight = bannerDraft ?? settings?.overviewBannerHeight ?? 220;
+    const bannerHeight = bannerDraft ?? settings?.overviewBannerHeight ?? configDefaults().overviewBannerHeight;
     const [bannerWidth, setBannerWidth] = useState(0);
     const [mediaSize, setMediaSize] = useState<{ width: number; height: number } | null>(null);
-    const bannerOffset = Math.min(1, Math.max(0, settings?.overviewBannerOffset ?? 0.3));
+    const bannerOffset = Math.min(1, Math.max(0, settings?.overviewBannerOffset ?? configDefaults().overviewBannerOffset));
     // The artwork is rendered at the banner's width. When that leaves too little vertical room to
     // drift, it is widened (up to 2.6x) so there is always slack above and below the visible
     // window; the slow zoom covers the rare image that is still too short.
@@ -1637,7 +1637,7 @@ export function OverviewView({
     };
 
     const windows = platform === "windows";
-    const columns = settings?.overviewColumns ?? 1;
+    const columns = settings?.overviewColumns ?? configDefaults().overviewColumns;
 
     const save = async (patch: Partial<AppSettings>) => {
         if (!settings) return;
@@ -2595,11 +2595,11 @@ export function OverviewView({
                         onPick={onPick}
                         onSelectionChange={onSelectionChange}
                         selectCards={selectCards}
-                        openOnSingleClick={settings?.openOnSingleClick ?? false}
+                        openOnSingleClick={settings?.openOnSingleClick ?? configDefaults().openOnSingleClick}
                         path={panel.path ?? homePath}
                         platform={platform}
                         selectionMenuId={`overview:${panel.id}`}
-                        showCheckboxes={settings?.showCheckboxes ?? true}
+                        showCheckboxes={settings?.showCheckboxes ?? configDefaults().showCheckboxes}
                         visibilityVersion={visibilityVersion}
                     />
                 );
@@ -3018,7 +3018,7 @@ export function OverviewView({
                     onExtractArchive={onExtractArchive}
                     onOpen={openMenuTarget}
                     onOpenFile={(path) => onPick ? onPick(path) : void openFile(path)}
-                    shortcuts={DefaultShortcuts}
+                    shortcuts={defaultShortcuts()}
                     target={menu.target}
                 />
             )}
@@ -3252,7 +3252,7 @@ function FolderBody({
                     showCheckboxes={showCheckboxes}
                     showDetails={false}
                     showImages={false}
-                    view={{...DefaultView, columns: DefaultViewDefaults.columns ?? []}}
+                    view={{...defaultDirectoryView(), columns: defaultViewSettings().columns ?? []}}
                 />
             </Preview>
         );

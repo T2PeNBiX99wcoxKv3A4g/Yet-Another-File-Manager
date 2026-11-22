@@ -3,8 +3,8 @@ import {createPortal} from "react-dom";
 import styled from "styled-components";
 import {Native, type ResolvedTheme, useTranslation} from "@photino-net-utils/bridge";
 import {
-    DefaultView,
-    DefaultViewDefaults,
+    defaultDirectoryView,
+    defaultViewSettings,
     type DirectoryListing,
     type Drive,
     listDirectory,
@@ -16,8 +16,8 @@ import {
     type RecentEntry,
     type ResolvedView,
 } from "../api/files";
-import {type AppSettings, getSettings} from "../api/settings";
-import {DefaultShortcuts} from "../shortcuts";
+import {type AppSettings, configDefaults, getSettings} from "../api/settings";
+import {defaultShortcuts} from "../shortcuts";
 import {newFile, newFolder, inspectPaths} from "../api/operations";
 import {showMessage} from "../api/dialogs";
 import {ConfirmDialog} from "./ConfirmDialog";
@@ -228,7 +228,7 @@ export function FolderPicker({
     const [renamePath, setRenamePath] = useState<string | null>(null);
     const [renameToken, setRenameToken] = useState(0);
     const [settings, setSettings] = useState<AppSettings | null>(null);
-    const [stripHeight, setStripHeight] = useState(DefaultViewDefaults.imageStripHeight);
+    const [stripHeight, setStripHeight] = useState(() => defaultViewSettings().imageStripHeight);
 
     useEffect(() => {
         void getSettings().then(setSettings, () => setSettings(null));
@@ -494,7 +494,7 @@ export function FolderPicker({
         [find, findCurrent, findHits],
     );
 
-    const viewDefaults = settings?.defaultView ?? DefaultViewDefaults;
+    const viewDefaults = settings?.defaultView ?? defaultViewSettings();
     const pickerView: ResolvedView = fileView ?? {
         mode: viewDefaults.mode,
         iconSize: viewDefaults.iconSize,
@@ -834,8 +834,8 @@ export function FolderPicker({
                             <GalleryView
                                 onPick={(path) => onSelect([path], chosenTypeNumber)}
                                 onSelectionChange={handleSelection}
-                                showCheckboxes={settings?.showCheckboxes ?? true}
-                                view={{...DefaultView, columns: []}}
+                                showCheckboxes={settings?.showCheckboxes ?? configDefaults().showCheckboxes}
+                                view={{...defaultDirectoryView(), columns: []}}
                             />
                             {selectionBar(setFileName)}
                         </>
@@ -933,7 +933,7 @@ export function FolderPicker({
 
                             <FileList
                                 allowBackgroundMenu
-                                confirmDelete={settings?.confirmDelete ?? false}
+                                confirmDelete={settings?.confirmDelete ?? configDefaults().confirmDelete}
                                 enableShortcuts
                                 error={error}
                                 find={findView}
@@ -950,11 +950,11 @@ export function FolderPicker({
                                 onSelectionChange={handleSelection}
                                 selectionMenuId="picker"
                                 onSort={() => undefined}
-                                openOnSingleClick={settings?.openOnSingleClick ?? false}
+                                openOnSingleClick={settings?.openOnSingleClick ?? configDefaults().openOnSingleClick}
                                 refreshToken={reload}
                                 pendingRename={renamePath}
                                 pendingRenameToken={renameToken}
-                                showCheckboxes={settings?.showCheckboxes ?? true}
+                                showCheckboxes={settings?.showCheckboxes ?? configDefaults().showCheckboxes}
                                 showDetails={false}
                                 showImages={stripVisible}
                                 singleSelect={!multiple}
@@ -975,7 +975,7 @@ export function FolderPicker({
                     onClose={() => setCreateMenu(null)}
                     onCreateFile={isFileMode ? (extension) => void startCreate(extension) : undefined}
                     onCreateFolder={() => void startCreate(null)}
-                    shortcuts={DefaultShortcuts}
+                    shortcuts={defaultShortcuts()}
                 />
             )}
         </Card>

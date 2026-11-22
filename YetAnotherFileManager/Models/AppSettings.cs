@@ -150,13 +150,62 @@ public sealed record AppSettings(
     [property: Setting(Comment = "Properties opens the Windows property sheet instead of the app's own page.")]
     bool? SystemPropertiesSheet = null)
 {
-    public static AppSettings Default =>
-        new(true, true, true, ["**/.git/**", "**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null,
+    /// <summary>
+    ///     The key bindings a fresh install starts with. The interface reads them from
+    ///     <c>settings.defaults</c>, so this map is the only place they are written down.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> ShortcutDefaults { get; } =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["goBack"] = "alt+arrowleft",
+            ["goForward"] = "alt+arrowright",
+            ["goUp"] = "alt+arrowup",
+            ["find"] = "ctrl+f",
+            ["closeTab"] = "ctrl+w",
+            ["newTab"] = "ctrl+t",
+            ["reopenTab"] = "ctrl+shift+t",
+            ["copy"] = "ctrl+c",
+            ["cut"] = "ctrl+x",
+            ["paste"] = "ctrl+v",
+            ["duplicate"] = "ctrl+d",
+            ["undo"] = "ctrl+z",
+            ["redo"] = "ctrl+shift+z",
+            ["delete"] = "delete",
+            ["deletePermanently"] = "shift+delete",
+            ["rename"] = "f2",
+            ["selectAll"] = "ctrl+a",
+            ["invertSelection"] = "ctrl+shift+a",
+            ["open"] = "enter",
+            ["newFolder"] = "ctrl+shift+n",
+            ["properties"] = "alt+enter",
+            ["home"] = "alt+home",
+            ["location"] = "ctrl+l",
+            ["iconsView"] = "ctrl+1",
+            ["detailsView"] = "ctrl+2",
+            ["nextTab"] = "ctrl+tab",
+            ["previousTab"] = "ctrl+shift+tab",
+            ["terminal"] = "f4",
+            ["hidden"] = "ctrl+h|alt+.",
+            ["splitView"] = "f3",
+            ["openInNewTab"] = "ctrl"
+        };
+
+    public static AppSettings Default { get; } =
+        new AppSettings(true, true, true, ["**/.git/**", "**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null,
             ["quick", "frequent", "recent", "home", "drives", "share", "favorites"], null, 1, null,
             null, null, null, null, null, ["quick", "frequent", "recent", "drives"], null, null, true, null, 0, null,
             true, false, false, false, false, true, null, null, null, null, false, null, null, null, null, null, null, null, 5,
             "24", null, null, false, 1200, 800, "relative", null, 220, [], 0.3, null, null, null, null, null, null, null,
-            RelativeTime: true, RelativeTimeWindowMinutes: 60);
+            RelativeTime: true, RelativeTimeWindowMinutes: 60) with
+        {
+            DefaultView = new ViewDefaults(Columns: ["type", "size", "modified"]),
+            Shortcuts = new Dictionary<string, string>(ShortcutDefaults),
+            LinksEnabled = false,
+            SharePort = 8080,
+            ShareHttps = false,
+            StartupMode = "none",
+            ThemeMode = "system"
+        };
 
     // The accessors below are derived, so they are kept out of settings.toml entirely; only the
     // fields above are stored, and the JSON stays readable and stable.

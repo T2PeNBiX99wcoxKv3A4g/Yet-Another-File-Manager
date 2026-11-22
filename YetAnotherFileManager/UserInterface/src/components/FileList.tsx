@@ -13,7 +13,7 @@ import {
     useState,
 } from "react";
 import styled from "styled-components";
-import {comboMatches, comboOf, DefaultShortcuts, isTyping, type ShortcutMap, wantsNewTab} from "../shortcuts";
+import {comboMatches, comboOf, defaultShortcuts, isTyping, type ShortcutMap, wantsNewTab} from "../shortcuts";
 import type {DirectoryListing, FileEntry, Place, ResolvedView} from "../api/files";
 import {useIcon, useIconFile, useThumbnail} from "../api/icons";
 import {
@@ -215,7 +215,7 @@ export function FileList({
                              onOpenExternally,
                              showCheckboxes = true,
                              openOnSingleClick = false,
-                             shortcuts = DefaultShortcuts,
+                             shortcuts = defaultShortcuts(),
                              enableShortcuts = true,
                              refreshToken = 0,
                              onRefresh,

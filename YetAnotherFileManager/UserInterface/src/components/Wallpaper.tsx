@@ -1,7 +1,7 @@
 import type {ResolvedTheme} from "@photino-net-utils/bridge";
 import styled from "styled-components";
 import {useMediaUrl} from "../api/icons";
-import type {AppSettings} from "../api/settings";
+import {type AppSettings, configDefaults} from "../api/settings";
 import {builtInUrl, isBuiltInVideo} from "../backgrounds/concepts";
 import {isRemoteUrl} from "../utils/format";
 
@@ -26,9 +26,9 @@ export function Wallpaper({settings, theme}: { settings: AppSettings | null; the
     if (!source || !url)
         return null;
 
-    const blur = settings?.backgroundBlur ?? 0;
-    const saturation = settings?.backgroundSaturation ?? 100;
-    const brightness = settings?.backgroundBrightness ?? 100;
+    const blur = settings?.backgroundBlur ?? configDefaults().backgroundBlur;
+    const saturation = settings?.backgroundSaturation ?? configDefaults().backgroundSaturation;
+    const brightness = settings?.backgroundBrightness ?? configDefaults().backgroundBrightness;
     const filter = `blur(${blur}px) saturate(${saturation}%) brightness(${brightness}%)`;
 
     return (
