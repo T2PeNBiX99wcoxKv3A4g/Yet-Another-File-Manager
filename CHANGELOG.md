@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.49.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.48.3..v0.49.0) - 2026-11-22
+
+### ⛰️  Features
+
+- *(properties)* Complete the page with volume, permissions and details - ([b3fdd25](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b3fdd255497c749ceda1cd6e5085e085e0a0c003))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([08bace1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/08bace150e3d1345b960ec44e43742254521a775))
+
+
 ## [0.48.3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.48.2..v0.48.3) - 2026-11-22
 
 ### 🐛 Bug Fixes
