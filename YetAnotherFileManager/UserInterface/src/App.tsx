@@ -2086,18 +2086,15 @@ export default function App() {
             const {path, sizes} = event.data;
 
             setTabs((current) => {
-                const index = current.findIndex((tab) => tab.listing?.path === path);
-                if (index < 0)
+                // Every tab showing this folder gets the numbers: two views of the same folder must
+                // not disagree just because only the first one was patched.
+                const matches = current.some((tab) => tab.listing?.path === path);
+                if (!matches)
                     return current;
 
-                const next = current.slice();
-                const tab = current[index];
-                next[index] = {
-                    ...tab,
-                    listing: {...tab.listing!, folderSizes: {...tab.listing!.folderSizes, ...sizes}},
-                };
-
-                return next;
+                return current.map((tab) => tab.listing?.path === path
+                    ? {...tab, listing: {...tab.listing, folderSizes: {...tab.listing.folderSizes, ...sizes}}}
+                    : tab);
             });
         });
     }, []);
@@ -2113,18 +2110,12 @@ export default function App() {
             const {path, counts} = event.data;
 
             setTabs((current) => {
-                const index = current.findIndex((tab) => tab.listing?.path === path);
-                if (index < 0)
+                if (!current.some((tab) => tab.listing?.path === path))
                     return current;
 
-                const next = current.slice();
-                const tab = current[index];
-                next[index] = {
-                    ...tab,
-                    listing: {...tab.listing!, counts: {...tab.listing!.counts, ...counts}},
-                };
-
-                return next;
+                return current.map((tab) => tab.listing?.path === path
+                    ? {...tab, listing: {...tab.listing, counts: {...tab.listing.counts, ...counts}}}
+                    : tab);
             });
         });
     }, []);

@@ -4150,8 +4150,9 @@ function Head({title, note, global = false, onReset}: {
             </h2>
             <p>{t(note)}</p>
             {onReset && (
-                <SectionReset onClick={onReset} title={t("restore_defaults")} type="button">
-                    <RefreshIcon size={11}/>{t("restore_defaults")}
+                <SectionReset aria-label={t("restore_defaults")} onClick={onReset}
+                              title={t("restore_defaults")} type="button">
+                    <RefreshIcon size={12}/>
                 </SectionReset>
             )}
         </SectionHead>
@@ -4191,7 +4192,7 @@ const SectionHead = styled.header`
     flex-direction: column;
     gap: 2px;
     position: relative;
-    padding-right: 120px;
+    padding-right: 36px;
 
     h2 {
         display: flex;
@@ -4218,21 +4219,20 @@ const SectionHead = styled.header`
     }
 `;
 
-/** Restores the settings on screen; it sits in the section header, out of the way of the rows. */
+/** Restores the settings on screen; the icon says what it does, the tooltip names the section. */
 const SectionReset = styled.button`
     position: absolute;
     top: 0;
     right: 0;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 4px 9px;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
     background: var(--bg-input);
     color: var(--text-muted);
-    font: inherit;
-    font-size: 10.5px;
     cursor: pointer;
 
     &:hover {

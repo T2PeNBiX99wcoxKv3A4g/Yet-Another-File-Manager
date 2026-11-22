@@ -19,7 +19,7 @@ export function subscribeClock(listener: () => void): () => void {
     listeners.add(listener);
 
     if (timer === null)
-        timer = window.setInterval(tick, 5000);
+        timer = window.setInterval(tick, 1000);
 
     return () => {
         listeners.delete(listener);
