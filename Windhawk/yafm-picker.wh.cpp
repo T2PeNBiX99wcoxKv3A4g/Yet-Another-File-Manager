@@ -90,6 +90,12 @@ folder pickers stay native while it is on. Turn it off to use this one.
   $description: >-
     Replace IFileOpenDialog and IFileSaveDialog, the dialogs Discord, Telegram
     and most Electron and Qt 6 applications open.
+- ReadDialogHook: false
+  $name: Read the program's dialog hook for the default type
+  $description: >-
+    Some programs set the file type inside their dialog hook. When this is on,
+    the mod creates the native dialog hidden, lets the hook run, closes it, and
+    gives the type it chose to the app picker. Off by default.
 - ReplaceExplorerOpens: true
   $name: Open folders with the app
   $description: >-
@@ -146,6 +152,7 @@ static bool g_replaceOpen = true;
 static bool g_replaceSave = true;
 static bool g_replaceFolder = true;
 static bool g_replaceModern = true;
+static bool g_readDialogHook = false;
 
 static bool g_replaceExplorer = true;
 static bool g_replaceExplorerLaunches = true;
@@ -169,6 +176,7 @@ static void ReadSettings() {
     g_replaceSave = Wh_GetIntSetting(L"ReplaceSaveFilePickers") != 0;
     g_replaceFolder = Wh_GetIntSetting(L"ReplaceFolderPickers") != 0;
     g_replaceModern = Wh_GetIntSetting(L"ReplaceModernFilePickers") != 0;
+    g_readDialogHook = Wh_GetIntSetting(L"ReadDialogHook") != 0;
     g_replaceExplorer = Wh_GetIntSetting(L"ReplaceExplorerOpens") != 0;
     g_replaceExplorerLaunches = Wh_GetIntSetting(L"ReplaceExplorerLaunches") != 0;
 }
@@ -783,6 +791,68 @@ static BOOL CallOpenSaveOriginal(LPOPENFILENAMEW ofn, bool save) {
     return GetOpenFileNameW_Original ? GetOpenFileNameW_Original(ofn) : FALSE;
 }
 
+/// The fields a program's dialog hook filled in when it ran once, hidden.
+struct HookFields {
+    std::wstring Extension;
+    std::wstring Name;
+    UINT FilterIndex = 0;
+};
+
+static thread_local LPOFNHOOKPROC g_callerHook = nullptr;
+
+/// Runs inside the hidden probe dialog: the program's hook first, then hide and cancel.
+static UINT_PTR CALLBACK ProbeDialogHook(HWND dialog, UINT message, WPARAM wParam, LPARAM lParam) {
+    if (g_callerHook)
+        g_callerHook(dialog, message, wParam, lParam);
+
+    if (message == WM_INITDIALOG) {
+        ShowWindow(dialog, SW_HIDE);
+        PostMessageW(dialog, WM_COMMAND, IDCANCEL, 0);
+    }
+
+    return 0;
+}
+
+/// <summary>
+///     Some programs only set the file type inside their OPENFILENAME hook, which does not run
+///     when the mod answers the call itself. With the setting on, the native dialog is created
+///     hidden for a moment so the hook can fill the fields, then cancelled, and the picker opens
+///     on the type the program really chose. Off by default: a hook is arbitrary caller code.
+/// </summary>
+static HookFields ReadHookFields(LPOPENFILENAMEW ofn, bool save) {
+    HookFields fields;
+    if (!g_readDialogHook || !ofn->lpfnHook || (ofn->Flags & OFN_ENABLEHOOK) == 0)
+        return fields;
+
+    OPENFILENAMEW probe = *ofn;
+    std::vector<wchar_t> file(ofn->nMaxFile ? ofn->nMaxFile : 1, L'\0');
+    if (ofn->lpstrFile)
+        wcsncpy_s(file.data(), file.size(), ofn->lpstrFile, _TRUNCATE);
+    probe.lpstrFile = file.data();
+
+    g_callerHook = ofn->lpfnHook;
+    probe.lpfnHook = &ProbeDialogHook;
+
+    if (save)
+        GetSaveFileNameW_Original(&probe);
+    else
+        GetOpenFileNameW_Original(&probe);
+
+    g_callerHook = nullptr;
+
+    fields.FilterIndex = probe.nFilterIndex;
+    if (probe.lpstrDefExt && *probe.lpstrDefExt)
+        fields.Extension = probe.lpstrDefExt;
+
+    if (probe.lpstrFile) {
+        const wchar_t* name = PathFindFileNameW(probe.lpstrFile);
+        if (name && *name)
+            fields.Name = name;
+    }
+
+    return fields;
+}
+
 static BOOL ShowOpenSave(LPOPENFILENAMEW ofn, bool save) {
     const bool enabled = save ? g_replaceSave : g_replaceOpen;
     if (!enabled || !ofn || !ofn->lpstrFile || ofn->nMaxFile == 0) {
@@ -792,15 +862,18 @@ static BOOL ShowOpenSave(LPOPENFILENAMEW ofn, bool save) {
         return CallOpenSaveOriginal(ofn, save);
     }
 
+    const HookFields hooked = ReadHookFields(ofn, save);
+
     PickerRequest request;
     request.Save = save;
     request.Multiple = !save && (ofn->Flags & OFN_ALLOWMULTISELECT) != 0;
     request.Initial = InitialDirectory(ofn);
     request.Filter = FilterPatterns(ofn->lpstrFilter);
-    request.Name = InitialName(ofn->lpstrFile);
-    request.Extension = ofn->lpstrDefExt ? ofn->lpstrDefExt : L"";
+    request.Name = hooked.Name.empty() ? InitialName(ofn->lpstrFile) : hooked.Name;
+    request.Extension = !hooked.Extension.empty() ? hooked.Extension : (ofn->lpstrDefExt ? ofn->lpstrDefExt : L"");
     request.Types = TypesJson(FilterTypes(ofn->lpstrFilter));
-    request.TypeIndex = static_cast<int>(ofn->nFilterIndex);
+    request.TypeIndex = hooked.FilterIndex > 0 ? static_cast<int>(hooked.FilterIndex)
+                                               : static_cast<int>(ofn->nFilterIndex);
 
     std::vector<std::wstring> paths;
     int typeIndex = 0;
