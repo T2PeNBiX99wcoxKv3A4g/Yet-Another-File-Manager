@@ -92,7 +92,7 @@ import {PathBar} from "./components/PathBar";
 import {SelectMenu} from "./components/SelectMenu";
 import {requestFolder} from "./folder-picker";
 import {Sidebar} from "./components/Sidebar";
-import {TitleBar} from "./components/TitleBar";
+import {TitleBar, type TitleBarPanel} from "./components/TitleBar";
 import {TooltipLayer} from "./components/TooltipLayer";
 import {type TabKind, viewTitles} from "./tabs";
 import {buildPanels} from "./panels";
@@ -448,6 +448,10 @@ export default function App() {
     } | null>(null);
     const [tasks, setTasks] = useState<TaskInfo[]>([]);
     const [activityOpen, setActivityOpen] = useState(false);
+    /** The title bar dropdown the keyboard last asked for; one is open at a time. */
+    const [titlePanel, setTitlePanel] = useState<TitleBarPanel | null>(null);
+    /** The sidebar, so a shortcut can hand it the keyboard and the arrow keys take over. */
+    const sidebarRef = useRef<HTMLElement | null>(null);
     /** Where the gallery and the recycle bin put their own actions, and their line for the footer. */
     const [pageActions, setPageActions] = useState<HTMLSpanElement | null>(null);
     const [pageStatus, setPageStatus] = useState("");
@@ -1140,6 +1144,16 @@ export default function App() {
 
         openLocation(stateRef.current.activeId, viewLocation(next));
     }, [openFiles, openLocation]);
+
+    /** Hands the keyboard to the sidebar; the arrow keys walk its entries from there. */
+    const focusSidebar = useCallback(() => {
+        const aside = sidebarRef.current;
+        if (!aside) return;
+
+        const active = aside.querySelector<HTMLElement>('[data-sidebar-active="true"]');
+        const first = aside.querySelector<HTMLElement>("button:not([disabled])");
+        (active ?? first)?.focus();
+    }, []);
 
     const closeTab = useCallback((id: string) => {
         const {tabs: current, activeId: currentActive} = stateRef.current;
@@ -2264,6 +2278,71 @@ export default function App() {
                 void runHistory(false);
             }
 
+            if (comboMatches(shortcuts, "statusCenter", combo)) {
+                event.preventDefault();
+                setTitlePanel(null);
+                setActivityOpen((open) => !open);
+            }
+
+            if (comboMatches(shortcuts, "historyPanel", combo)) {
+                event.preventDefault();
+                setActivityOpen(false);
+                setTitlePanel((open) => open === "history" ? null : "history");
+            }
+
+            if (comboMatches(shortcuts, "sharePanel", combo)) {
+                event.preventDefault();
+                setActivityOpen(false);
+                setTitlePanel((open) => open === "share" ? null : "share");
+            }
+
+            if (comboMatches(shortcuts, "closedTabsPanel", combo)) {
+                event.preventDefault();
+                setActivityOpen(false);
+                setTitlePanel((open) => open === "closedTabs" ? null : "closedTabs");
+            }
+
+            if (comboMatches(shortcuts, "viewMenu", combo)) {
+                event.preventDefault();
+                if (kind === "files") {
+                    setActivityOpen(false);
+                    setTitlePanel((open) => open === "view" ? null : "view");
+                }
+            }
+
+            if (comboMatches(shortcuts, "overview", combo)) {
+                event.preventDefault();
+                setTitlePanel(null);
+                setActivityOpen(false);
+                openView("home");
+            }
+
+            if (comboMatches(shortcuts, "recycleBin", combo)) {
+                event.preventDefault();
+                setTitlePanel(null);
+                setActivityOpen(false);
+                openView("recycle");
+            }
+
+            if (comboMatches(shortcuts, "gallery", combo)) {
+                event.preventDefault();
+                setTitlePanel(null);
+                setActivityOpen(false);
+                openView("gallery");
+            }
+
+            if (comboMatches(shortcuts, "settings", combo)) {
+                event.preventDefault();
+                setTitlePanel(null);
+                setActivityOpen(false);
+                openView("settings");
+            }
+
+            if (comboMatches(shortcuts, "sidebar", combo)) {
+                event.preventDefault();
+                focusSidebar();
+            }
+
             if (comboMatches(shortcuts, "splitView", combo)) {
                 event.preventDefault();
                 toggleSplit();
@@ -2280,7 +2359,8 @@ export default function App() {
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
     }, [shortcuts, kind, find.open, closeTab, reopenTab, openFiles, goBack, goForward, goUp, openFind, openViewFind,
-        resetFind, startFind, changeView, cycleTab, navigate, places, refreshAll, runHistory, toggleSplit]);
+        resetFind, startFind, changeView, cycleTab, navigate, places, refreshAll, runHistory, toggleSplit, openView,
+        focusSidebar]);
 
     // Back and forward on the mouse: WebView2 would otherwise walk its own history and reload the app.
     useEffect(() => {
@@ -2864,6 +2944,8 @@ export default function App() {
                     onClearTasks={clearFinishedTasks}
                     activityOpen={activityOpen}
                     onActivityOpenChange={setActivityOpen}
+                    panel={titlePanel}
+                    onPanelChange={setTitlePanel}
                     trayCount={trayItems.length + clipboardItems.length}
                     trayVisible={trayVisible}
                     onToggleTray={toggleTray}
@@ -2907,6 +2989,7 @@ export default function App() {
                 <Body>
                     <Sidebar
                         activeKind={kind}
+                        asideRef={sidebarRef}
                         currentPath={kind === "files" ? location : ""}
                         drives={drives}
                         historyVersion={historyVersion}

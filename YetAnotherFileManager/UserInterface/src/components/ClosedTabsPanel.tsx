@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useRef} from "react";
 import styled from "styled-components";
 import {useTranslation} from "@photino-net-utils/bridge";
 import {elevatedPanel} from "../ui/panel";
@@ -12,17 +12,21 @@ interface ClosedTabsPanelProps {
     tabs: string[];
     /** Brings back one entry, by its place in {@link tabs}. */
     onRestore: (index: number) => void;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    /** The key combinations the button advertises, already made readable. */
+    shortcut?: string;
 }
 
 /**
  * The tabs closed in this window, drawn in the title bar beside the operation history. It uses the
  * same button and panel shape as that history, so the two read as one family.
  */
-export function ClosedTabsPanel({tabs, onRestore}: ClosedTabsPanelProps) {
+export function ClosedTabsPanel({tabs, onRestore, open, onOpenChange, shortcut = ""}: ClosedTabsPanelProps) {
     const t = useTranslation();
     const locationName = useLocationName();
-    const [open, setOpen] = useState(false);
     const root = useRef<HTMLDivElement | null>(null);
+    const setOpen = onOpenChange;
 
     useEffect(() => {
         if (!open) return;
@@ -44,7 +48,8 @@ export function ClosedTabsPanel({tabs, onRestore}: ClosedTabsPanelProps) {
         <Root ref={root}>
             <Button
                 $active={open}
-                onClick={() => setOpen((value) => !value)}
+                data-shortcut={shortcut || undefined}
+                onClick={() => setOpen(!open)}
                 title={t("recently_closed_tabs")}
                 type="button"
             >

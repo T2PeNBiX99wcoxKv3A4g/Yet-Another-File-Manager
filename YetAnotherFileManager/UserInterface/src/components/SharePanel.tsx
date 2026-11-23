@@ -11,12 +11,18 @@ import {CountBadge} from "./CountBadge";
 import {useTranslation} from "@photino-net-utils/bridge";
 
 /** The title bar's share panel: the folders this device offers and how each one is reachable. */
-export function SharePanel({currentFolder}: { currentFolder: string }) {
+export function SharePanel({currentFolder, open, onOpenChange, shortcut = ""}: {
+    currentFolder: string;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    /** The key combinations the button advertises, already made readable. */
+    shortcut?: string;
+}) {
     const t = useTranslation();
-    const [open, setOpen] = useState(false);
     const [list, setList] = useState<ShareList | null>(null);
     const [busy, setBusy] = useState(false);
     const root = useRef<HTMLDivElement | null>(null);
+    const setOpen = onOpenChange;
 
     useEffect(() => {
         if (!open) return;
@@ -62,7 +68,8 @@ export function SharePanel({currentFolder}: { currentFolder: string }) {
         <Root ref={root}>
             <Button
                 $active={open}
-                onClick={() => setOpen((value) => !value)}
+                data-shortcut={shortcut || undefined}
+                onClick={() => setOpen(!open)}
                 title={t("share_folders")}
                 type="button"
             >

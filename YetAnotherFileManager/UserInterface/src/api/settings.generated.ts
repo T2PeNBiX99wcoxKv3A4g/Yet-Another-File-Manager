@@ -146,4 +146,12 @@ export interface AppSettingsGenerated {
     conflictDefaultAction: string | null;
     /** Reuse the last conflict answer the next time. */
     conflictRememberChoice: boolean | null;
+    /** Give the heap back in the background once it stays above the threshold. */
+    memoryAutoTrim: boolean | null;
+    /** Managed heap size, in megabytes, before a background collection. */
+    memoryTrimThresholdMb: number | null;
+    /** Seconds between background memory checks. */
+    memoryTrimIntervalSeconds: number | null;
+    /** Collect the heap once the window is hidden to the tray. */
+    memoryTrimOnTray: boolean | null;
 }

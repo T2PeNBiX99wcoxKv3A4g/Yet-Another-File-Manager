@@ -152,7 +152,15 @@ public sealed record AppSettings(
     [property: Setting(Comment = "Default answer when a name already exists: none, overwrite, rename or skip.")]
     string? ConflictDefaultAction = null,
     [property: Setting(Comment = "Reuse the last conflict answer the next time.")]
-    bool? ConflictRememberChoice = null)
+    bool? ConflictRememberChoice = null,
+    [property: Setting(Comment = "Give the heap back in the background once it stays above the threshold.")]
+    bool? MemoryAutoTrim = null,
+    [property: Setting(Comment = "Managed heap size, in megabytes, before a background collection.")]
+    int? MemoryTrimThresholdMb = null,
+    [property: Setting(Comment = "Seconds between background memory checks.")]
+    int? MemoryTrimIntervalSeconds = null,
+    [property: Setting(Comment = "Collect the heap once the window is hidden to the tray.")]
+    bool? MemoryTrimOnTray = null)
 {
     /// <summary>
     ///     The key bindings a fresh install starts with. The interface reads them from
@@ -191,7 +199,17 @@ public sealed record AppSettings(
             ["terminal"] = "f4",
             ["hidden"] = "ctrl+h|alt+.",
             ["splitView"] = "f3",
-            ["openInNewTab"] = "ctrl"
+            ["openInNewTab"] = "ctrl",
+            ["statusCenter"] = "ctrl+j",
+            ["historyPanel"] = "ctrl+shift+h",
+            ["sharePanel"] = "ctrl+shift+s",
+            ["closedTabsPanel"] = "",
+            ["viewMenu"] = "alt+v",
+            ["overview"] = "ctrl+shift+o",
+            ["recycleBin"] = "ctrl+shift+r",
+            ["gallery"] = "ctrl+shift+g",
+            ["settings"] = "ctrl+,",
+            ["sidebar"] = "f6"
         };
 
     public static AppSettings Default { get; } =
@@ -210,7 +228,11 @@ public sealed record AppSettings(
             StartupMode = "none",
             ThemeMode = "system",
             ConflictDefaultAction = "none",
-            ConflictRememberChoice = false
+            ConflictRememberChoice = false,
+            MemoryAutoTrim = true,
+            MemoryTrimThresholdMb = 256,
+            MemoryTrimIntervalSeconds = 15,
+            MemoryTrimOnTray = false
         };
 
     // The accessors below are derived, so they are kept out of settings.toml entirely; only the
@@ -224,6 +246,18 @@ public sealed record AppSettings(
 
     [JsonIgnore]
     public bool ShouldWriteDirectoryIndex => WriteDirectoryIndex ?? true;
+
+    [JsonIgnore]
+    public bool AutoTrimMemory => MemoryAutoTrim ?? true;
+
+    [JsonIgnore]
+    public int TrimThresholdMb => Math.Clamp(MemoryTrimThresholdMb ?? 256, 16, 8192);
+
+    [JsonIgnore]
+    public int TrimIntervalSeconds => Math.Clamp(MemoryTrimIntervalSeconds ?? 15, 5, 3600);
+
+    [JsonIgnore]
+    public bool TrimOnTray => MemoryTrimOnTray ?? false;
 
     [JsonIgnore]
     public Dictionary<string, string> Overrides => ExtensionIcons ?? [];

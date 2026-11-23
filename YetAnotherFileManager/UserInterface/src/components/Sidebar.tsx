@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {type KeyboardEvent, type RefObject, useEffect, useState} from "react";
 import {type LocalizationKey, Native, useTranslation} from "@photino-net-utils/bridge";
 import styled from "styled-components";
 import {
@@ -36,6 +36,8 @@ interface SidebarProps {
     historyVersion?: number;
     /** Built-in pages that have no meaning outside the app, such as the picker omitting Settings. */
     hiddenViews?: TabKind[];
+    /** The rail, so a shortcut can hand it the keyboard and the arrow keys walk its entries. */
+    asideRef?: RefObject<HTMLElement | null>;
     onNavigate: (path: string, newTab?: boolean) => void;
     onOpenView: (kind: Exclude<TabKind, "files">, newTab?: boolean) => void;
 }
@@ -55,6 +57,7 @@ export function Sidebar({
                             version = 0,
                             historyVersion = 0,
                             hiddenViews = [],
+                            asideRef,
                             onNavigate,
                             onOpenView,
                         }: SidebarProps) {
@@ -106,11 +109,38 @@ export function Sidebar({
 
     const showFiles = activeKind === "files";
 
+    /** Arrow keys walk the rail; Enter or Space opens the focused entry. */
+    const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+        if (event.key === "Enter" || event.key === " ") {
+            // The focused button opens itself; the folder's own Enter action must not run too.
+            event.stopPropagation();
+            return;
+        }
+
+        if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+
+        const entries = [...event.currentTarget.querySelectorAll<HTMLElement>("button:not([disabled])")];
+        if (entries.length === 0) return;
+
+        const current = entries.indexOf(document.activeElement as HTMLElement);
+        if (current < 0) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        const next = event.key === "Home" ? 0
+            : event.key === "End" ? entries.length - 1
+                : event.key === "ArrowDown" ? Math.min(current + 1, entries.length - 1)
+                    : Math.max(current - 1, 0);
+        entries[next]?.focus();
+    };
+
     return (
-        <Aside>
+        <Aside ref={asideRef} onKeyDown={onKeyDown}>
             <List>
                 {!hiddenViews.includes("home") && (
-                    <Item $active={activeKind === "home"} onClick={(event) => onOpenView("home", wantsNewTab(event))}
+                    <Item $active={activeKind === "home"}
+                          data-sidebar-active={activeKind === "home" ? "true" : undefined}
+                          onClick={(event) => onOpenView("home", wantsNewTab(event))}
                           title={t("overview")} type="button">
                         <OverviewIcon/>
                         <Label>{t("overview")}</Label>
@@ -118,6 +148,7 @@ export function Sidebar({
                 )}
                 {!hiddenViews.includes("recycle") && (
                     <Item $active={activeKind === "recycle"}
+                          data-sidebar-active={activeKind === "recycle" ? "true" : undefined}
                           onClick={(event) => onOpenView("recycle", wantsNewTab(event))} title={t("recycle_bin")}
                           type="button">
                         <TrashIcon/>
@@ -126,6 +157,7 @@ export function Sidebar({
                 )}
                 {!hiddenViews.includes("gallery") && (
                     <Item $active={activeKind === "gallery"}
+                          data-sidebar-active={activeKind === "gallery" ? "true" : undefined}
                           onClick={(event) => onOpenView("gallery", wantsNewTab(event))} title={t("gallery")}
                           type="button">
                         <ImageIcon/>
@@ -146,6 +178,7 @@ export function Sidebar({
                                 <Item
                                     key={place.path}
                                     $active={showFiles && samePath(currentPath, place.path)}
+                                    data-sidebar-active={showFiles && samePath(currentPath, place.path) ? "true" : undefined}
                                     onClick={(event) => onNavigate(place.path, wantsNewTab(event))}
                                     title={place.path}
                                     type="button"
@@ -220,6 +253,7 @@ export function Sidebar({
             {!hiddenViews.includes("settings") && (
                 <Bottom>
                     <Item $active={activeKind === "settings"}
+                          data-sidebar-active={activeKind === "settings" ? "true" : undefined}
                           onClick={(event) => onOpenView("settings", wantsNewTab(event))} title={t("settings")}
                           type="button">
                         <GearIcon/>
@@ -360,7 +394,8 @@ const Aside = styled.aside`
         display: none;
     }
 
-    &:hover {
+    &:hover,
+    &:focus-within {
         width: 224px;
         padding: 10px 10px;
         background: rgba(var(--bg-rgb), 0.90);
@@ -369,12 +404,13 @@ const Aside = styled.aside`
         scrollbar-width: none;
     }
 
-    &:not(:hover) ${() => Hint},
-    &:not(:hover) ${() => Bar} {
+    &:not(:hover):not(:focus-within) ${() => Hint},
+    &:not(:hover):not(:focus-within) ${() => Bar} {
         display: none;
     }
 
-    &:hover span {
+    &:hover span,
+    &:focus-within span {
         opacity: 1;
     }
 `;
@@ -401,7 +437,8 @@ const Sub = styled.div`
     overflow: hidden;
     transition: grid-template-rows 150ms ease;
 
-    ${Aside}:hover ${Menu}:hover > & {
+    ${Aside}:hover ${Menu}:hover > &,
+    ${Aside}:focus-within ${Menu}:focus-within > & {
         grid-template-rows: 1fr;
     }
 `;

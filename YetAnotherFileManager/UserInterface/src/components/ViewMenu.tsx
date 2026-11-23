@@ -14,12 +14,19 @@ interface ViewMenuProps {
     showImages: boolean;
     onShowImages: (value: boolean) => void;
     disabled?: boolean;
+    /** The window may drive the panel, so a shortcut can open it; the picker leaves it local. */
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+    /** The key combinations the button advertises, already made readable. */
+    shortcut?: string;
 }
 
 /** The capture-style view button that sits with the window controls, and the panel it opens. */
-export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, disabled}: ViewMenuProps) {
+export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, disabled, open: controlledOpen, onOpenChange, shortcut = ""}: ViewMenuProps) {
     const t = useTranslation();
-    const [open, setOpen] = useState(false);
+    const [localOpen, setLocalOpen] = useState(false);
+    const open = controlledOpen ?? localOpen;
+    const setOpen = onOpenChange ?? setLocalOpen;
     const root = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
@@ -65,8 +72,9 @@ export function ViewMenu({view, onChange, onColumns, showImages, onShowImages, d
         <Root ref={root}>
             <Trigger
                 $active={open}
+                data-shortcut={shortcut || undefined}
                 disabled={disabled}
-                onClick={() => setOpen((current) => !current)}
+                onClick={() => setOpen(!open)}
                 title={t("view")}
                 type="button"
             >

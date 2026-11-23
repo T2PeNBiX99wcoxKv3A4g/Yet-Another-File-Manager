@@ -571,6 +571,34 @@
         "null"
       ],
       "description": "Reuse the last conflict answer the next time."
+    },
+    "memoryAutoTrim": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Give the heap back in the background once it stays above the threshold."
+    },
+    "memoryTrimThresholdMb": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Managed heap size, in megabytes, before a background collection."
+    },
+    "memoryTrimIntervalSeconds": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Seconds between background memory checks."
+    },
+    "memoryTrimOnTray": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Collect the heap once the window is hidden to the tray."
     }
   },
   "additionalProperties": false

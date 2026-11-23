@@ -30,7 +30,17 @@ export type ShortcutAction =
     | "terminal"
     | "hidden"
     | "splitView"
-    | "openInNewTab";
+    | "openInNewTab"
+    | "statusCenter"
+    | "historyPanel"
+    | "sharePanel"
+    | "closedTabsPanel"
+    | "viewMenu"
+    | "overview"
+    | "recycleBin"
+    | "gallery"
+    | "settings"
+    | "sidebar";
 
 /**
  * The key combinations each action listens for. An action may hold several, and an empty list

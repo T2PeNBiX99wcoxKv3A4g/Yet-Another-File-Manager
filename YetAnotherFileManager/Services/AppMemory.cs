@@ -15,7 +15,7 @@ namespace YetAnotherFileManager.Services;
 /// </summary>
 internal static partial class AppMemory
 {
-    /// <summary>The heap level worth collecting; below it the churn is not worth the pause.</summary>
+    /// <summary>The heap level worth collecting when no setting says otherwise.</summary>
     private const long Bloated = 256 * 1024 * 1024;
 
     /// <summary>How many checks in a row must see a bloated heap before it is given back.</summary>
@@ -66,15 +66,34 @@ internal static partial class AppMemory
     /// <summary>
     ///     Watches the heap from the background. Thumbnails, folder walks and listings all leave
     ///     garbage behind, and the runtime is happy to hoard it while the machine has free memory.
+    ///     The interval and the threshold are read on every pass, so the settings page applies them
+    ///     without a restart.
     /// </summary>
     public static void Start()
     {
         _ = Task.Run(async () =>
         {
-            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            var waited = 0;
 
             while (await timer.WaitForNextTickAsync())
-                Try.Run(TrimIfBloated).OnFailure(ex => Log.Debug(ex, "The background collection failed"));
+            {
+                var settings = SettingsService.Instance.Current;
+
+                if (!settings.AutoTrimMemory)
+                {
+                    _bloated = 0;
+                    waited = 0;
+                    continue;
+                }
+
+                if (++waited < settings.TrimIntervalSeconds)
+                    continue;
+
+                waited = 0;
+                Try.Run(() => TrimIfBloated(settings.TrimThresholdMb * 1024L * 1024L))
+                    .OnFailure(ex => Log.Debug(ex, "The background collection failed"));
+            }
         });
     }
 
@@ -82,9 +101,9 @@ internal static partial class AppMemory
     ///     Gives the heap back once it has grown past its budget. Runs on a background thread, so
     ///     the short pause is never the interface's.
     /// </summary>
-    public static void TrimIfBloated()
+    public static void TrimIfBloated(long threshold = Bloated)
     {
-        if (GC.GetTotalMemory(false) < Bloated)
+        if (GC.GetTotalMemory(false) < threshold)
         {
             _bloated = 0;
             return;

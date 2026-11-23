@@ -72,6 +72,7 @@ declare module "@photino-net-utils/bridge"
         "auto": true;
         "automatic": true;
         "automatic_rename_suffix": true;
+        "automatic_trim": true;
         "autoplay_video_previews": true;
         "auto_extract_and_delete_archive": true;
         "auto_extract_to_the_current_folder": true;
@@ -129,6 +130,7 @@ declare module "@photino-net-utils/bridge"
         "change_icon": true;
         "change_this_tag_s_color": true;
         "checking": true;
+        "check_every_seconds": true;
         "check_for_updates": true;
         "check_now": true;
         "check_that_the_other_device_shows_the_same_code_before_accepting": true;
@@ -155,6 +157,7 @@ declare module "@photino-net-utils/bridge"
         "close_split_view": true;
         "close_tab": true;
         "collapse_sidebar": true;
+        "collects_the_heap_once_the_window_is_hidden_to_the_tray": true;
         "color": true;
         "colors": true;
         "color_history": true;
@@ -319,6 +322,7 @@ declare module "@photino-net-utils/bridge"
         "file_name": true;
         "file_names": true;
         "filter_fonts": true;
+        "focus_sidebar": true;
         "folder": true;
         "folders": true;
         "folders_on_a_shared_device_cannot_be_copied_yet": true;
@@ -343,6 +347,7 @@ declare module "@photino-net-utils/bridge"
         "full_path": true;
         "gallery": true;
         "general": true;
+        "gives_the_heap_back_in_the_background_when_it_stays_above_the_threshold": true;
         "give_a_folder_its_own_icon": true;
         "global": true;
         "global_hotkey": true;
@@ -354,11 +359,13 @@ declare module "@photino-net-utils/bridge"
         "grid": true;
         "grid_size": true;
         "group": true;
+        "hands_the_keyboard_to_the_sidebar_the_arrow_keys_then_walk_its_entries": true;
         "hardlink_copy": true;
         "hard_link": true;
         "hashes": true;
         "hash_does_not_match": true;
         "hash_matches": true;
+        "heap_threshold_mb": true;
         "hebrew_cp1255": true;
         "hex_color": true;
         "hidden": true;
@@ -437,6 +444,7 @@ declare module "@photino-net-utils/bridge"
         "match_case": true;
         "maximize": true;
         "maximum": true;
+        "megabytes_the_managed_heap_must_hold_before_a_background_collection_runs": true;
         "memory": true;
         "metadata_only": true;
         "method": true;
@@ -527,10 +535,19 @@ declare module "@photino-net-utils/bridge"
         "open": true;
         "opens_a_terminal_in_the_current_folder": true;
         "opens_the_floating_search_box_typing_a_letter_in_a_folder_opens_it_too": true;
+        "opens_the_folders_this_device_shares": true;
         "opens_the_folder_that_contains_the_current_one": true;
+        "opens_the_gallery_page": true;
+        "opens_the_list_of_recently_closed_tabs": true;
         "opens_the_overview_in_a_new_tab": true;
+        "opens_the_overview_page": true;
+        "opens_the_panel_of_running_and_finished_operations": true;
+        "opens_the_recycle_bin_page": true;
         "opens_the_selected_folder_or_file": true;
+        "opens_the_settings_page": true;
         "opens_the_shell_properties_sheet": true;
+        "opens_the_undo_history_of_this_session": true;
+        "opens_the_view_menu_of_the_current_folder": true;
         "open_archives_with_this_app": true;
         "open_as_archive": true;
         "open_folder": true;
@@ -726,6 +743,7 @@ declare module "@photino-net-utils/bridge"
         "search": true;
         "search_this_folder": true;
         "secondary_color": true;
+        "seconds_between_background_memory_checks": true;
         "sections": true;
         "seek": true;
         "select": true;
@@ -942,6 +960,7 @@ declare module "@photino-net-utils/bridge"
         "traditional_chinese_cp950": true;
         "tray": true;
         "trim_now": true;
+        "trim_when_hidden_to_the_tray": true;
         "turkish_cp1254": true;
         "turns_the_breadcrumbs_into_an_editable_path": true;
         "type": true;

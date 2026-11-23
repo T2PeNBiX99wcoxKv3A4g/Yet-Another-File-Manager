@@ -300,6 +300,10 @@ internal partial class WindowManager
     {
         Log.Information("Hiding the main window");
         RunOnMainWindow(() => Hide(_mainWindow!));
+
+        // A hidden window has nothing to draw, so it is a good moment to hand the heap back.
+        if (SettingsService.Instance.Current.TrimOnTray)
+            _ = Task.Run(AppMemory.Trim);
     }
 
     /// <summary>

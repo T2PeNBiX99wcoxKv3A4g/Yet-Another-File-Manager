@@ -192,6 +192,24 @@ const ShortcutRows: { id: ShortcutAction; label: LocalizationKey; note: Localiza
     {id: "terminal", label: "open_terminal", note: "opens_a_terminal_in_the_current_folder"},
     {id: "hidden", label: "show_hidden_files", note: "toggles_ordinary_hidden_files_for_this_session"},
     {id: "splitView", label: "split_view", note: "shows_the_next_file_tab_beside_the_current_one"},
+    {id: "overview", label: "overview", note: "opens_the_overview_page"},
+    {id: "recycleBin", label: "recycle_bin", note: "opens_the_recycle_bin_page"},
+    {id: "gallery", label: "gallery", note: "opens_the_gallery_page"},
+    {id: "settings", label: "settings", note: "opens_the_settings_page"},
+    {
+        id: "sidebar",
+        label: "focus_sidebar",
+        note: "hands_the_keyboard_to_the_sidebar_the_arrow_keys_then_walk_its_entries",
+    },
+    {
+        id: "statusCenter",
+        label: "status_center",
+        note: "opens_the_panel_of_running_and_finished_operations",
+    },
+    {id: "historyPanel", label: "history", note: "opens_the_undo_history_of_this_session"},
+    {id: "sharePanel", label: "share", note: "opens_the_folders_this_device_shares"},
+    {id: "closedTabsPanel", label: "recently_closed_tabs", note: "opens_the_list_of_recently_closed_tabs"},
+    {id: "viewMenu", label: "view", note: "opens_the_view_menu_of_the_current_folder"},
     {id: "openInNewTab", label: "open_in_a_new_tab", note: "hold_this_while_clicking_a_folder"},
 ];
 
@@ -325,6 +343,7 @@ const SectionSettings: Partial<Record<string, (keyof AppSettings)[]>> = {
         "conflictDefaultAction", "conflictRememberChoice"],
     shortcuts: ["shortcuts", "globalHotkey"],
     overview: ["recentLimit"],
+    memory: ["memoryAutoTrim", "memoryTrimThresholdMb", "memoryTrimIntervalSeconds", "memoryTrimOnTray"],
     gallery: ["galleryRoots"],
     icons: ["systemIcons", "customFolderIcons"],
     "extension-icons": ["extensionIcons"],
@@ -3185,6 +3204,80 @@ export function SettingsView({
                                 <ActionButton onClick={() => void trimMemory().then(setMemory)} type="button">
                                     <PackageIcon size={13}/>{t("trim_now")}
                                 </ActionButton>
+                            </RowEnd>
+                        </Row>
+
+                        <Row>
+                            <RowText>
+                                <Label>{t("automatic_trim")}</Label>
+                                <Note>{t("gives_the_heap_back_in_the_background_when_it_stays_above_the_threshold")}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <Toggle
+                                    $on={settings?.memoryAutoTrim ?? configDefaults().memoryAutoTrim}
+                                    disabled={!settings}
+                                    onClick={() => void update({
+                                        memoryAutoTrim: !(settings?.memoryAutoTrim ?? configDefaults().memoryAutoTrim)
+                                    })}
+                                    type="button"
+                                >
+                                    <Knob/>
+                                </Toggle>
+                            </RowEnd>
+                        </Row>
+
+                        <Row>
+                            <RowText>
+                                <Label>{t("heap_threshold_mb")}</Label>
+                                <Note>{t("megabytes_the_managed_heap_must_hold_before_a_background_collection_runs")}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <NumberInput
+                                    max={8192}
+                                    min={16}
+                                    onChange={(event) => void update({
+                                        memoryTrimThresholdMb: Math.min(8192, Math.max(16, Number(event.target.value) || 256))
+                                    })}
+                                    type="number"
+                                    value={settings?.memoryTrimThresholdMb ?? configDefaults().memoryTrimThresholdMb}
+                                />
+                            </RowEnd>
+                        </Row>
+
+                        <Row>
+                            <RowText>
+                                <Label>{t("check_every_seconds")}</Label>
+                                <Note>{t("seconds_between_background_memory_checks")}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <NumberInput
+                                    max={3600}
+                                    min={5}
+                                    onChange={(event) => void update({
+                                        memoryTrimIntervalSeconds: Math.min(3600, Math.max(5, Number(event.target.value) || 15))
+                                    })}
+                                    type="number"
+                                    value={settings?.memoryTrimIntervalSeconds ?? configDefaults().memoryTrimIntervalSeconds}
+                                />
+                            </RowEnd>
+                        </Row>
+
+                        <Row>
+                            <RowText>
+                                <Label>{t("trim_when_hidden_to_the_tray")}</Label>
+                                <Note>{t("collects_the_heap_once_the_window_is_hidden_to_the_tray")}</Note>
+                            </RowText>
+                            <RowEnd>
+                                <Toggle
+                                    $on={settings?.memoryTrimOnTray ?? configDefaults().memoryTrimOnTray}
+                                    disabled={!settings}
+                                    onClick={() => void update({
+                                        memoryTrimOnTray: !(settings?.memoryTrimOnTray ?? configDefaults().memoryTrimOnTray)
+                                    })}
+                                    type="button"
+                                >
+                                    <Knob/>
+                                </Toggle>
                             </RowEnd>
                         </Row>
                     </Rows>

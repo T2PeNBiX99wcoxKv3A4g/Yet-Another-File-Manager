@@ -154,6 +154,14 @@ export interface AppSettings {
     shareApprovalMinutes: number;
     /** Seconds a refused browser stays blocked. */
     shareDenialSeconds: number;
+    /** Give the heap back in the background once it stays above the threshold. */
+    memoryAutoTrim: boolean;
+    /** Managed heap size, in megabytes, before a background collection. */
+    memoryTrimThresholdMb: number;
+    /** Seconds between background memory checks. */
+    memoryTrimIntervalSeconds: number;
+    /** Collect the heap once the window is hidden to the tray. */
+    memoryTrimOnTray: boolean;
 }
 
 /** A file or folder pinned to the overview's Favorites panel. */

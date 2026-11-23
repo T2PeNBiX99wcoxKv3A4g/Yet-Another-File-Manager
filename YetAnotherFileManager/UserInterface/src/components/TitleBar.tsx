@@ -50,6 +50,9 @@ interface TitleBarProps {
     onClearTasks: () => void;
     activityOpen: boolean;
     onActivityOpenChange: (open: boolean) => void;
+    /** The title bar panel the window wants open, so a shortcut can reach it. */
+    panel: TitleBarPanel | null;
+    onPanelChange: (panel: TitleBarPanel | null) => void;
     trayCount: number;
     trayVisible: boolean;
     onToggleTray: () => void;
@@ -67,6 +70,9 @@ interface TitleBarProps {
     /** Brings back one entry of {@link closedTabs}, by its place in that list. */
     onRestoreClosed: (index: number) => void;
 }
+
+/** The dropdown panels of the title bar; one at a time is open. */
+export type TitleBarPanel = "history" | "share" | "closedTabs" | "view";
 
 export function TitleBar({
                              tabs,
@@ -87,6 +93,8 @@ export function TitleBar({
                              onClearTasks,
                              activityOpen,
                              onActivityOpenChange,
+                             panel,
+                             onPanelChange,
                              trayCount,
                              trayVisible,
                              onToggleTray,
@@ -293,14 +301,30 @@ export function TitleBar({
                     <PackageIcon size={14}/>
                     {trayCount > 0 && <CountBadge>{trayCount > 9 ? "9+" : trayCount}</CountBadge>}
                 </TrayButton>
-                <ClosedTabsPanel onRestore={onRestoreClosed} tabs={closedTabs}/>
-                <HistoryPanel/>
-                <SharePanel currentFolder={currentFolder}/>
+                <ClosedTabsPanel
+                    onRestore={onRestoreClosed}
+                    tabs={closedTabs}
+                    open={panel === "closedTabs"}
+                    onOpenChange={(open) => onPanelChange(open ? "closedTabs" : null)}
+                    shortcut={prettyShortcuts(shortcuts.closedTabsPanel)}
+                />
+                <HistoryPanel
+                    open={panel === "history"}
+                    onOpenChange={(open) => onPanelChange(open ? "history" : null)}
+                    shortcut={prettyShortcuts(shortcuts.historyPanel)}
+                />
+                <SharePanel
+                    currentFolder={currentFolder}
+                    open={panel === "share"}
+                    onOpenChange={(open) => onPanelChange(open ? "share" : null)}
+                    shortcut={prettyShortcuts(shortcuts.sharePanel)}
+                />
                 <StatusCenter
                     tasks={tasks}
                     onClear={onClearTasks}
                     open={activityOpen}
                     onOpenChange={onActivityOpenChange}
+                    shortcut={prettyShortcuts(shortcuts.statusCenter)}
                 />
                 <ViewMenu
                     disabled={tabs.find((tab) => tab.id === activeId)?.kind !== "files"}
@@ -309,6 +333,9 @@ export function TitleBar({
                     onShowImages={onShowImages}
                     showImages={showImages}
                     view={view}
+                    open={panel === "view"}
+                    onOpenChange={(open) => onPanelChange(open ? "view" : null)}
+                    shortcut={prettyShortcuts(shortcuts.viewMenu)}
                 />
                 <ControlButton onClick={controls.minimize} title={t("minimize")} type="button">
                     <MinimizeSvg/>

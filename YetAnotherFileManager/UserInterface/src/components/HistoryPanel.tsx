@@ -8,12 +8,17 @@ import {ArchiveIcon, ArrowRightIcon, ClockIcon, CopyIcon, CrossIcon, PencilIcon,
 import {type Translate, useTranslation} from "@photino-net-utils/bridge";
 
 /** The panel's session history, newest first, with an undo button per row. */
-export function HistoryPanel() {
+export function HistoryPanel({open, onOpenChange, shortcut = ""}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    /** The key combinations the button advertises, already made readable. */
+    shortcut?: string;
+}) {
     const t = useTranslation();
-    const [open, setOpen] = useState(false);
     const [entries, setEntries] = useState<HistoryEntry[]>([]);
     const [busy, setBusy] = useState(false);
     const root = useRef<HTMLDivElement | null>(null);
+    const setOpen = onOpenChange;
 
     const load = () => void listHistory().then(setEntries, () => setEntries([]));
 
@@ -49,7 +54,8 @@ export function HistoryPanel() {
         <Root ref={root}>
             <Button
                 $active={open}
-                onClick={() => setOpen((value) => !value)}
+                data-shortcut={shortcut || undefined}
+                onClick={() => setOpen(!open)}
                 title={t("history")}
                 type="button"
             >

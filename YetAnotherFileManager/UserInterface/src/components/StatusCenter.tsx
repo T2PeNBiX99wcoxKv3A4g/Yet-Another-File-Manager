@@ -14,10 +14,12 @@ interface StatusCenterProps {
     /** The window opens the panel itself when a delete starts. */
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    /** The key combinations the button advertises, already made readable. */
+    shortcut?: string;
 }
 
 /** The title bar's activity button and the floating list of running and finished operations. */
-export function StatusCenter({tasks, onClear, open, onOpenChange}: StatusCenterProps) {
+export function StatusCenter({tasks, onClear, open, onOpenChange, shortcut = ""}: StatusCenterProps) {
     const t = useTranslation();
     const root = useRef<HTMLDivElement | null>(null);
     const running = tasks.filter((task) => task.state === "running").length;
@@ -43,6 +45,7 @@ export function StatusCenter({tasks, onClear, open, onOpenChange}: StatusCenterP
         <Root ref={root}>
             <ActivityButton
                 $active={open}
+                data-shortcut={shortcut || undefined}
                 onClick={() => onOpenChange(!open)}
                 title={running > 0 ? plural(t, running, "k_1_operation_running", "count_operations_running") : t("status_center")}
                 type="button"
