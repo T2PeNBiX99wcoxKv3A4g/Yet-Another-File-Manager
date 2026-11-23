@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.55.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.54.1..v0.55.0) - 2026-11-23
+
+### ⛰️  Features
+
+- *(settings)* Leave the shell icons and folder artwork off by default - ([3a2dfa2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/3a2dfa23ede5bf64a2b638d1b70d20978b31186f))
+
+### 📚 Documentation
+
+- Refresh the preview screenshots - ([85f40e2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/85f40e2f15016be65585f93f352153088638b0d2))
+- Refresh the preview screenshots - ([4f27a2c](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/4f27a2c8e39239138df9c1f6907249a6d59957c9))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([33fb0d4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/33fb0d475e605f36ebc7140785a0ada323b28340))
+
+
 ## [0.54.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.54.0..v0.54.1) - 2026-11-22
 
 ### 🐛 Bug Fixes
