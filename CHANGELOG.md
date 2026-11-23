@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.56.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.55.0..v0.56.0) - 2026-11-23
+
+### ⛰️  Features
+
+- Shortcuts for panels, pages and the sidebar, and configurable memory trim - ([7f911e8](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7f911e8aec473177b4b18e0a6e94ad0c4456f846))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([84b954c](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/84b954c1614d9d2864048ca4b1f078eb6c219139))
+
+
 ## [0.55.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.54.1..v0.55.0) - 2026-11-23
 
 ### ⛰️  Features
