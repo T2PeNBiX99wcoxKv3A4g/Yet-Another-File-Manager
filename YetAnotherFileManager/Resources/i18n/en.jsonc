@@ -1012,5 +1012,6 @@
   "focus_sidebar": "Focus the sidebar",
   "file_tray": "File tray",
   "shows_or_hides_the_file_tray": "Shows or hides the file tray.",
-  "shows_or_hides_the_details_panel": "Shows or hides the details panel beside the list."
+  "shows_or_hides_the_details_panel": "Shows or hides the details panel beside the list.",
+  "select_count_files": "Select {count} files"
 }

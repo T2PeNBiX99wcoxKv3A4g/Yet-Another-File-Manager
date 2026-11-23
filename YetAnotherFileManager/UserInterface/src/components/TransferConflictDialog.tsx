@@ -27,7 +27,7 @@ function actionOf(value: string | null | undefined): Action | null {
  * One dialog for every copy and move that lands on a name already in the target: paste, the tray
  * and a drop all come through here, so the same conflict always gets the same question.
  */
-export function TransferConflictDialog({conflicts, move, defaultAction, remember, onResolve}: {
+export function TransferConflictDialog({conflicts, move, defaultAction, remember, onResolve, title, subtitle}: {
     conflicts: TransferConflict[];
     move: boolean;
     /** "none", "overwrite", "rename" or "skip"; "none" leaves every row without an answer. */
@@ -35,6 +35,9 @@ export function TransferConflictDialog({conflicts, move, defaultAction, remember
     /** Start with the answer used last time, when one was kept. */
     remember: boolean;
     onResolve: (decisions: TransferDecision[] | null) => void;
+    /** The picker's save dialog reuses this for its overwrite question. */
+    title?: string;
+    subtitle?: string;
 }) {
     const t = useTranslation();
     const initial = (remember ? actionOf(readStoredJson<string>(LastChoiceKey)) : null) ?? actionOf(defaultAction);
@@ -119,11 +122,15 @@ export function TransferConflictDialog({conflicts, move, defaultAction, remember
         }}>
             <Card aria-label={t("copy_conflicts")} aria-modal="true" role="dialog">
                 <Head>
-                    <Title>{t("copy_conflicts")}</Title>
+                    <Title>{title ?? t("copy_conflicts")}</Title>
                     <Sub>
-                        {move ? t("move_1_item") : t("copy_1_item")}
-                        {" · "}
-                        {t("these_items_already_exist_in_the_target_folder")}
+                        {subtitle ?? (
+                            <>
+                                {move ? t("move_1_item") : t("copy_1_item")}
+                                {" · "}
+                                {t("these_items_already_exist_in_the_target_folder")}
+                            </>
+                        )}
                     </Sub>
                 </Head>
 
@@ -147,10 +154,14 @@ export function TransferConflictDialog({conflicts, move, defaultAction, remember
                         const choice = choices[conflict.source];
                         const sameModified = conflict.targetModified > 0 && conflict.sourceModified === conflict.targetModified;
                         const sameCreated = conflict.targetCreated > 0 && conflict.sourceCreated === conflict.targetCreated;
-                        const older = conflict.targetModified > 0 && conflict.sourceModified < conflict.targetModified;
-                        const newer = conflict.targetModified > 0 && conflict.sourceModified > conflict.targetModified;
-                        const createdNewer = conflict.sourceCreated > conflict.targetCreated;
-                        const createdOlder = conflict.targetCreated > 0 && conflict.sourceCreated < conflict.targetCreated;
+                        // A save dialog has no source file yet, so its zero timestamps are not "older".
+                        const older = conflict.sourceModified > 0 && conflict.targetModified > 0
+                            && conflict.sourceModified < conflict.targetModified;
+                        const newer = conflict.sourceModified > 0 && conflict.targetModified > 0
+                            && conflict.sourceModified > conflict.targetModified;
+                        const createdNewer = conflict.sourceCreated > 0 && conflict.sourceCreated > conflict.targetCreated;
+                        const createdOlder = conflict.sourceCreated > 0 && conflict.targetCreated > 0
+                            && conflict.sourceCreated < conflict.targetCreated;
 
                         return (
                             <Row key={conflict.source}>
@@ -166,9 +177,11 @@ export function TransferConflictDialog({conflicts, move, defaultAction, remember
                                     </Side>
                                     {conflict.samePath
                                         ? <Warning>{t("this_is_the_same_path")}</Warning>
-                                        : <Hint $older={older} $newer={newer}>{older
-                                            ? t("source_is_older")
-                                            : newer ? t("source_is_newer") : t("same_time")}</Hint>}
+                                        : conflict.sourceModified === 0
+                                            ? <Hint $older={false} $newer={false}/>
+                                            : <Hint $older={older} $newer={newer}>{older
+                                                ? t("source_is_older")
+                                                : newer ? t("source_is_newer") : t("same_time")}</Hint>}
                                 </RowHead>
 
                                 <Compare>

@@ -1012,5 +1012,6 @@
   "focus_sidebar": "サイドバーにフォーカス",
   "file_tray": "ファイルトレイ",
   "shows_or_hides_the_file_tray": "ファイルトレイの表示を切り替えます。",
-  "shows_or_hides_the_details_panel": "一覧の横の詳細パネルの表示を切り替えます。"
+  "shows_or_hides_the_details_panel": "一覧の横の詳細パネルの表示を切り替えます。",
+  "select_count_files": "{count} 件のファイルを選択"
 }

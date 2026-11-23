@@ -1012,5 +1012,6 @@
   "focus_sidebar": "將焦點移到側邊欄",
   "file_tray": "檔案托盤",
   "shows_or_hides_the_file_tray": "顯示或隱藏檔案托盤。",
-  "shows_or_hides_the_details_panel": "顯示或隱藏清單旁的詳細資料面板。"
+  "shows_or_hides_the_details_panel": "顯示或隱藏清單旁的詳細資料面板。",
+  "select_count_files": "選擇 {count} 個檔案"
 }

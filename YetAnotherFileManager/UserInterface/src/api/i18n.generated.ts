@@ -755,6 +755,7 @@ declare module "@photino-net-utils/bridge"
         "selects_every_entry_in_the_current_folder": true;
         "select_all": true;
         "select_all_matches": true;
+        "select_count_files": true;
         "select_link_source": true;
         "select_none": true;
         "select_this_file": true;

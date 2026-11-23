@@ -18,9 +18,9 @@ import {
 } from "../api/files";
 import {type AppSettings, configDefaults, getSettings} from "../api/settings";
 import {defaultShortcuts} from "../shortcuts";
-import {newFile, newFolder, inspectPaths} from "../api/operations";
+import {newFile, newFolder, inspectPaths, type TransferConflict} from "../api/operations";
 import {showMessage} from "../api/dialogs";
-import {ConfirmDialog} from "./ConfirmDialog";
+import {TransferConflictDialog} from "./TransferConflictDialog";
 import {ContextMenu} from "./ContextMenu";
 import {LocationGlyph, useLocationName} from "./LocationGlyph";
 import {EmptyFind, type FindState, matchesName} from "../find";
@@ -217,7 +217,12 @@ export function FolderPicker({
             ? initialName.slice(0, dot) + extension
             : initialName;
     });
-    const [overwrite, setOverwrite] = useState<string | null>(null);
+    const [overwrite, setOverwrite] = useState<{
+        path: string;
+        size: number;
+        modified: number;
+        created: number;
+    } | null>(null);
     const [view, setView] = useState<"files" | "overview" | "gallery">("files");
     const [reload, setReload] = useState(0);
     const [find, setFind] = useState<FindState>(EmptyFind);
@@ -547,8 +552,22 @@ export function FolderPicker({
             const target = isAbsolutePath(name) ? name + suffix : joinPath(currentFolder, name + suffix);
 
             void inspectPaths([target])
-                .then((entries) => entries[0]?.exists ? setOverwrite(target) : onSelect([target], chosenTypeNumber),
-                    () => onSelect([target], chosenTypeNumber));
+                .then((entries) => {
+                    if (!entries[0]?.exists) {
+                        onSelect([target], chosenTypeNumber);
+                        return;
+                    }
+
+                    const known = listing?.entries.find((entry) =>
+                        normalizePath(entry.fullPath) === normalizePath(target));
+
+                    setOverwrite({
+                        path: target,
+                        size: known?.size ?? 0,
+                        modified: known?.modified ?? 0,
+                        created: known?.created ?? 0,
+                    });
+                }, () => onSelect([target], chosenTypeNumber));
             return;
         }
 
@@ -659,6 +678,10 @@ export function FolderPicker({
         setFindFocus((token) => token + 1);
     };
 
+    // Two or more picked files have no single name, so the bar says how many were picked instead
+    // of leaving an empty box that looks like nothing is selected.
+    const multiplePicked = !save && multiple && selected.size > 1;
+
     const stepFind = (delta: number) => {
         setFindIndex((index) => {
             if (findHits.length === 0) return 0;
@@ -679,9 +702,14 @@ export function FolderPicker({
                             choose();
                         }
                     }}
+                    placeholder={multiplePicked ? t("count_items_selected", {count: selected.size}) : undefined}
                     spellCheck={false}
                     value={fileName}
                 />
+
+                {multiplePicked && (
+                    <SelectionHint>{t("count_items_selected", {count: selected.size})}</SelectionHint>
+                )}
 
                 {isFileMode && (
                     <>
@@ -724,22 +752,72 @@ export function FolderPicker({
                     type="button"
                 >
                     <CheckIcon size={12}/>
-                    {save ? t("save_as") : folderIsTheAnswer ? t("select_this_folder") : t("select_this_file")}
+                    {save
+                        ? t("save_as")
+                        : multiplePicked
+                            ? t("select_count_files", {count: selected.size})
+                            : folderIsTheAnswer ? t("select_this_folder") : t("select_this_file")}
                 </Button>
             </Actions>
 
-            <ConfirmDialog
-                confirmLabel={t("overwrite")}
-                message={t("a_file_with_that_name_already_exists_overwrite_it")}
-                onCancel={() => setOverwrite(null)}
-                onConfirm={() => {
-                    const path = overwrite;
-                    setOverwrite(null);
-                    if (path) onSelect([path], chosenTypeNumber);
-                }}
-                open={overwrite !== null}
-                title={t("overwrite")}
-            />
+            {overwrite !== null && (
+                <TransferConflictDialog
+                    conflicts={[{
+                        source: overwrite.path,
+                        destination: overwrite.path,
+                        name: baseName(overwrite.path),
+                        directory: false,
+                        sourceSize: 0,
+                        sourceModified: 0,
+                        sourceCreated: 0,
+                        targetSize: overwrite.size,
+                        targetModified: overwrite.modified,
+                        targetCreated: overwrite.created,
+                        samePath: false,
+                        suggestedName: suggestedSaveName(overwrite.path),
+                    } satisfies TransferConflict]}
+                    defaultAction={settings?.conflictDefaultAction ?? configDefaults().conflictDefaultAction}
+                    move={false}
+                    onResolve={(decisions) => {
+                        const target = overwrite.path;
+                        setOverwrite(null);
+
+                        const decision = decisions?.[0];
+                        if (!decision || decision.action === "skip") return;
+
+                        if (decision.action === "rename") {
+                            const name = decision.name?.trim() ?? "";
+                            if (name.length === 0) return;
+
+                            const next = joinPath(currentFolder, name);
+                            void inspectPaths([next]).then(
+                                (entries) => {
+                                    if (!entries[0]?.exists) {
+                                        onSelect([next], chosenTypeNumber);
+                                        return;
+                                    }
+
+                                    const known = listing?.entries.find((entry) =>
+                                        normalizePath(entry.fullPath) === normalizePath(next));
+
+                                    setOverwrite({
+                                        path: next,
+                                        size: known?.size ?? 0,
+                                        modified: known?.modified ?? 0,
+                                        created: known?.created ?? 0,
+                                    });
+                                },
+                                () => onSelect([next], chosenTypeNumber));
+                            return;
+                        }
+
+                        onSelect([target], chosenTypeNumber);
+                    }}
+                    remember={settings?.conflictRememberChoice ?? configDefaults().conflictRememberChoice}
+                    subtitle={t("an_entry_with_that_name_already_exists")}
+                    title={t("overwrite")}
+                />
+            )}
             {historyMenu && (
                 <ContextMenu
                     items={historyMenu.direction === "back"
@@ -1004,6 +1082,14 @@ function isAbsolutePath(value: string): boolean {
     return /^[a-zA-Z]:[\\/]/.test(value) || value.startsWith("\\\\") || value.startsWith("/");
 }
 
+/** The "name (1).ext" the conflict dialog offers; the real existence check happens on save. */
+function suggestedSaveName(path: string): string {
+    const name = baseName(path);
+    const dot = name.lastIndexOf(".");
+
+    return dot > 0 ? `${name.slice(0, dot)} (1)${name.slice(dot)}` : `${name} (1)`;
+}
+
 const Overlay = styled.div`
     position: fixed;
     inset: 0;
@@ -1152,6 +1238,13 @@ const FieldLabel = styled.span`
     flex-shrink: 0;
     color: var(--text-secondary);
     font-size: 12px;
+`;
+
+/** The "2 files selected" line that replaces the empty name box in a multi-pick. */
+const SelectionHint = styled.span`
+    grid-column: 1 / -1;
+    color: var(--text-muted);
+    font-size: 11px;
 `;
 
 const NameInput = styled.input`
