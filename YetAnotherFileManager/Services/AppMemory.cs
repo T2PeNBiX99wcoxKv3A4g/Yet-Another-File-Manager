@@ -33,34 +33,52 @@ internal static partial class AppMemory
         // into a meaningless 200%; the machine's own MemTotal is what the percentage means.
         var available = OperatingSystem.IsLinux() ? PhysicalMemory() : GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
 
-        // Linux reports private pages, not committed bytes, so the managed heap can be larger than
-        // that figure; the share below would then pass 100% and read as an error.
+        // The heap can be larger than the private pages on Linux, and the share would then pass
+        // 100% and read as an error.
         var managed = GC.GetTotalMemory(false);
-        var committed = Math.Max(process.PrivateMemorySize64, managed);
+        var committed = Math.Max(PrivateBytes(process), managed);
 
         return new(managed, committed, process.WorkingSet64, available);
     }
 
-    /// <summary>The machine's RAM from <c>/proc/meminfo</c>, or 0 when it cannot be read.</summary>
-    private static long PhysicalMemory()
+    /// <summary>
+    ///     The private pages the process actually holds. Windows commits them. Linux answers
+    ///     <c>PrivateMemorySize64</c> with VmData, the address space the runtime reserves and never
+    ///     touches, which reads as 250% of the machine; <c>smaps_rollup</c> has the backed pages,
+    ///     and the resident size is the fallback when that file cannot be read.
+    /// </summary>
+    private static long PrivateBytes(Process process)
+    {
+        if (!OperatingSystem.IsLinux()) return process.PrivateMemorySize64;
+
+        var bytes = ProcKilobytes("/proc/self/smaps_rollup", "Private_") * 1024;
+        return bytes > 0 ? bytes : process.WorkingSet64;
+    }
+
+    /// <summary>The machine's RAM, in bytes, from <c>/proc/meminfo</c>; 0 when it cannot be read.</summary>
+    private static long PhysicalMemory() => ProcKilobytes("/proc/meminfo", "MemTotal:") * 1024;
+
+    /// <summary>
+    ///     Sums the kilobytes of every line in a proc file that starts with <paramref name="prefix"/>;
+    ///     0 when the file is missing, which a container image can do.
+    /// </summary>
+    private static long ProcKilobytes(string path, string prefix)
     {
         try
         {
-            foreach (var line in File.ReadLines("/proc/meminfo"))
-            {
-                if (!line.StartsWith("MemTotal:", StringComparison.Ordinal))
-                    continue;
+            var total = 0L;
 
-                var digits = new string([.. line.Where(char.IsAsciiDigit)]);
-                return long.TryParse(digits, out var kilobytes) ? kilobytes * 1024 : 0;
-            }
+            foreach (var line in File.ReadLines(path))
+                if (line.StartsWith(prefix, StringComparison.Ordinal)
+                    && long.TryParse(new string([.. line.Where(char.IsAsciiDigit)]), out var kilobytes))
+                    total += kilobytes;
+
+            return total;
         }
         catch (IOException)
         {
-            // The file is missing on some builds of a container image; the GC figure is a fallback.
+            return 0;
         }
-
-        return 0;
     }
 
     /// <summary>
