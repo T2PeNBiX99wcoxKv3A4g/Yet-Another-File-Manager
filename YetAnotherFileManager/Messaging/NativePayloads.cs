@@ -118,7 +118,7 @@ internal sealed record FsCountsPayload(string Path, Dictionary<string, long> Cou
 internal sealed record PathPayload(string? Path);
 
 /// <summary>Payload for <c>pick.submit</c>: the paths the command line picker selected.</summary>
-internal sealed record PickResultRequest(IReadOnlyList<string> Paths, int? Type = null);
+internal sealed record PickResultRequest(IReadOnlyList<string> Paths, int? Type = null, string? Extension = null);
 
 /// <summary>Payload for <c>pick.open</c>: which standalone picker to run, where, and its filter.</summary>
 internal sealed record PickOpenRequest(string Mode, List<string>? Extensions, string? Initial);

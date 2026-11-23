@@ -27,6 +27,8 @@ interface PickerWindowProps {
     initial: string;
     initialName?: string;
     defaultExtension?: string;
+    /** The format the last save used, when the caller names none. */
+    lastExtension?: string;
 }
 
 /** Reads the type list from the URL; anything unreadable simply offers no types. */
@@ -74,7 +76,7 @@ function readTypes(value: string | undefined): PickerFileType[] {
  * modal, drawn as the whole window so a script can use it like the shell dialogs.
  */
 export function PickerWindow({mode, save = false, multiple, extensions, types, typeIndex = 0, initial,
-                             initialName = "", defaultExtension = ""}: PickerWindowProps) {
+                             initialName = "", defaultExtension = "", lastExtension = ""}: PickerWindowProps) {
     const t = useTranslation();
     const drag = useWindowDrag();
     const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -164,11 +166,13 @@ export function PickerWindow({mode, save = false, multiple, extensions, types, t
                     initial={initial}
                     initialName={initialName}
                     defaultExtension={defaultExtension}
+                    lastExtension={lastExtension}
                     inline
                     mode={mode}
                     multiple={multiple}
                     onCancel={() => Native.send({type: "pick.cancel"})}
-                    onSelect={(paths, type) => Native.send({type: "pick.submit", payload: {paths, type}})}
+                    onSelect={(paths, type, extension) =>
+                        Native.send({type: "pick.submit", payload: {paths, type, extension}})}
                     save={save}
                     showImages={showImages ?? viewDefaults.showImages}
                     fileView={view}

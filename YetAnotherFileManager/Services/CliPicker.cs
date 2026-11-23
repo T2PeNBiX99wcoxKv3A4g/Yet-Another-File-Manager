@@ -21,11 +21,14 @@ internal sealed record PickerOptions(
     string? Output,
     string Types = "",
     int TypeIndex = 0,
-    string? TypeOutput = null);
+    string? TypeOutput = null,
+    string LastType = "");
 
 /// <summary>Command line pick mode: parse the flags, build the window URL, and report the result.</summary>
 internal static class CliPicker
 {
+    /// <summary>The format the last save used, so a program that names none opens on it.</summary>
+    private static readonly string LastTypePath = Path.Combine(Constants.SettingsDirectory, "picker-last-type.txt");
     /// <summary>Reads the pick flags, or null when this launch is not a picker.</summary>
     public static PickerOptions? Parse(IReadOnlyList<string> args)
     {
@@ -56,7 +59,8 @@ internal static class CliPicker
             Value(args, Constants.PickOutputArgument),
             Value(args, Constants.PickTypesArgument) ?? "",
             int.TryParse(Value(args, Constants.PickTypeIndexArgument), out var typeIndex) ? typeIndex : 0,
-            Value(args, Constants.PickTypeOutputArgument));
+            Value(args, Constants.PickTypeOutputArgument),
+            ReadLastType());
     }
 
     /// <summary>Appends the pick parameters to the interface URL.</summary>
@@ -79,6 +83,9 @@ internal static class CliPicker
         if (options.TypeIndex > 0)
             url.Append("&type=").Append(options.TypeIndex);
 
+        if (options.LastType.Length > 0)
+            url.Append("&last=").Append(Uri.EscapeDataString(options.LastType));
+
         if (options.InitialName.Length > 0)
             url.Append("&name=").Append(Uri.EscapeDataString(options.InitialName));
 
@@ -92,13 +99,19 @@ internal static class CliPicker
     }
 
     /// <summary>Writes the chosen paths to standard output and, when asked, to a file.</summary>
-    public static async Task CompleteAsync(PickerOptions options, IReadOnlyList<string> paths, int? type = null)
+    public static async Task CompleteAsync(PickerOptions options, IReadOnlyList<string> paths, int? type = null,
+                                           string? extension = null)
     {
         if (paths.Count == 0)
         {
             Cancel(options);
             return;
         }
+
+        // The shell's dialog remembers the last type per program; the picker keeps one for itself.
+        if (extension is { Length: > 0 })
+            (await Try.Run(async () => await File.WriteAllTextAsync(LastTypePath, extension, new UTF8Encoding(false))))
+                .OnFailure(ex => Log.Warning(ex, "Could not remember the picked type"));
 
         if (options.TypeOutput is { Length: > 0 } typeOutput)
             (await Try.Run(async () => await File.WriteAllTextAsync(typeOutput, $"{type ?? 0}\n", new UTF8Encoding(false))))
@@ -148,6 +161,10 @@ internal static class CliPicker
 
         return null;
     }
+
+    /// <summary>The format the last save wrote, or an empty string on a fresh profile.</summary>
+    private static string ReadLastType() =>
+        Try.Run(() => File.ReadAllText(LastTypePath)).GetOrElse(_ => "").Trim();
 
     /// <summary>
     ///     Writes to the inherited standard output. A caller that redirected it gets the paths on

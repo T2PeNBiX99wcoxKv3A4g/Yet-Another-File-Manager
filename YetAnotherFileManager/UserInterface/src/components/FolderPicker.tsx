@@ -68,12 +68,14 @@ interface FolderPickerProps {
     save?: boolean;
     initialName?: string;
     defaultExtension?: string;
+    /** The format the last save used, when the caller names none. */
+    lastExtension?: string;
     /** Which palette the background previews follow. */
     theme: ResolvedTheme;
     places?: Place[];
     onCancel: () => void;
     /** The type the user ended on, counting from 1, for callers that ask which filter was used. */
-    onSelect: (paths: string[], type?: number) => void;
+    onSelect: (paths: string[], type?: number, extension?: string) => void;
 }
 
 /** One entry of a save/open dialog's "files of type" list. */
@@ -100,6 +102,7 @@ export function FolderPicker({
                                  save = false,
                                  initialName = "",
                                  defaultExtension = "",
+                                 lastExtension = "",
                                  theme,
                                  onCancel,
                                  onSelect,
@@ -143,6 +146,15 @@ export function FolderPicker({
         if (byName >= 0)
             return byName;
 
+        // The shell's dialog remembers the last type used; a program that names none (Clip Studio
+        // does this for several formats) then still opens on the format the last save wrote.
+        const remembered = lastExtension.length > 0
+            ? [lastExtension.startsWith(".") ? lastExtension.toLowerCase() : `.${lastExtension}`.toLowerCase()]
+            : [];
+        const byLast = typeOf(remembered);
+        if (byLast >= 0)
+            return byLast;
+
         return typeIndex >= 1 && typeIndex <= offered.length ? typeIndex - 1 : 0;
     });
     const chosenType = typeof typeChoice === "number" ? offered[typeChoice] ?? null : null;
@@ -151,6 +163,10 @@ export function FolderPicker({
         ? chosenType?.extensions ?? []
         : typeChoice === "supported" ? supported : [];
     const chosenTypeNumber = typeof typeChoice === "number" ? typeChoice + 1 : 0;
+
+    /** Hands the picked paths back with the type and its extension, so the caller can remember it. */
+    const submit = (paths: string[], type = chosenTypeNumber) =>
+        onSelect(paths, type, typeExtensions[0] ?? "");
 
     /** Whether one of the offered types already claims this extension. */
     const isKnownExtension = (extension: string): boolean =>
@@ -554,7 +570,7 @@ export function FolderPicker({
             void inspectPaths([target])
                 .then((entries) => {
                     if (!entries[0]?.exists) {
-                        onSelect([target], chosenTypeNumber);
+                        submit([target]);
                         return;
                     }
 
@@ -567,19 +583,19 @@ export function FolderPicker({
                         modified: known?.modified ?? 0,
                         created: known?.created ?? 0,
                     });
-                }, () => onSelect([target], chosenTypeNumber));
+                }, () => submit([target]));
             return;
         }
 
         const picked = multiple ? [...selected] : [...selected].slice(0, 1);
 
         if (picked.length > 0) {
-            onSelect(picked, chosenTypeNumber);
+            submit(picked);
             return;
         }
 
         if (typedPath !== null && typed !== baseName(currentFolder)) {
-            onSelect([typedPath], chosenTypeNumber);
+            submit([typedPath]);
             return;
         }
 
@@ -615,7 +631,7 @@ export function FolderPicker({
             return;
         }
 
-        onSelect(paths, chosenTypeNumber);
+        submit(paths);
     };
 
     /// The menu's "open": a folder is entered, a file goes to the system, and the picker stays.
@@ -641,7 +657,7 @@ export function FolderPicker({
             return;
         }
 
-        if (isFileMode) onSelect([target], chosenTypeNumber);
+        if (isFileMode) submit([target]);
     };
 
     const typeName = (value: string) => setFileName(value);
@@ -793,7 +809,7 @@ export function FolderPicker({
                             void inspectPaths([next]).then(
                                 (entries) => {
                                     if (!entries[0]?.exists) {
-                                        onSelect([next], chosenTypeNumber);
+                                        submit([next]);
                                         return;
                                     }
 
@@ -807,11 +823,11 @@ export function FolderPicker({
                                         created: known?.created ?? 0,
                                     });
                                 },
-                                () => onSelect([next], chosenTypeNumber));
+                                () => submit([next]));
                             return;
                         }
 
-                        onSelect([target], chosenTypeNumber);
+                        submit([target]);
                     }}
                     remember={settings?.conflictRememberChoice ?? configDefaults().conflictRememberChoice}
                     subtitle={t("an_entry_with_that_name_already_exists")}
@@ -894,7 +910,7 @@ export function FolderPicker({
                                 historyVersion={0}
                                 homePath={places.find((place) => place.kind === "home")?.path ?? ""}
                                 onOpen={(target) => navigate(target)}
-                                onPick={isFileMode ? (target) => onSelect([target], chosenTypeNumber) : undefined}
+                                onPick={isFileMode ? (target) => submit([target]) : undefined}
                                 selectCards
                                 onPlacesChanged={() => undefined}
                                 onRecentCleared={() => undefined}
@@ -910,7 +926,7 @@ export function FolderPicker({
                     ) : view === "gallery" ? (
                         <>
                             <GalleryView
-                                onPick={(path) => onSelect([path], chosenTypeNumber)}
+                                onPick={(path) => submit([path])}
                                 onSelectionChange={handleSelection}
                                 showCheckboxes={settings?.showCheckboxes ?? configDefaults().showCheckboxes}
                                 view={{...defaultDirectoryView(), columns: []}}

@@ -61,6 +61,7 @@ if (rootElement) {
                                 typeIndex={Number(parameters.get("type") ?? 0) || 0}
                                 initial={parameters.get("initial") ?? ""}
                                 initialName={parameters.get("name") ?? ""}
+                                lastExtension={parameters.get("last") ?? ""}
                                 mode={pickMode === "folder" ? "folder" : "file"}
                                 multiple={parameters.get("multiple") === "1"}
                                 save={pickMode === "save"}

@@ -131,7 +131,7 @@ internal partial class WindowManager
         if (Picker is { } picker)
         {
             var result = context.Payload<PickResultRequest>();
-            await CliPicker.CompleteAsync(picker, result?.Paths ?? [], result?.Type);
+            await CliPicker.CompleteAsync(picker, result?.Paths ?? [], result?.Type, result?.Extension);
             Exit();
         }
 
