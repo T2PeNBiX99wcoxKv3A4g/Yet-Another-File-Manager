@@ -2,7 +2,7 @@
 // @id              yafm-picker
 // @name            Yet Another File Manager pickers
 // @description     Replaces the Windows Open, Save As and folder dialogs with the app's picker
-// @version         1.5.1
+// @version         1.6.0
 // @author          T2PeNBiX99wcoxKv3A4g
 // @github          https://github.com/T2PeNBiX99wcoxKv3A4g
 // @include         *
