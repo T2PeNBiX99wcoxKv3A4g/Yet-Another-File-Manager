@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.57.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.56.0..v0.57.0) - 2026-11-23
+
+### ⛰️  Features
+
+- *(shortcuts)* Add the file tray and details panel actions - ([8f666f2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/8f666f2c343c6c521d69f4745a0f614255652c8b))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([7b0694c](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/7b0694c2b8055a3f9c0542eb4bc83dd495c18a23))
+
+
 ## [0.56.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.55.0..v0.56.0) - 2026-11-23
 
 ### ⛰️  Features
