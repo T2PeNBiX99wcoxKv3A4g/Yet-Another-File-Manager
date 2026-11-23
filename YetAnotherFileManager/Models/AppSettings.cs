@@ -195,7 +195,7 @@ public sealed record AppSettings(
         };
 
     public static AppSettings Default { get; } =
-        new AppSettings(true, true, true, ["**/.git/**", "**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null,
+        new AppSettings(false, false, true, ["**/.git/**", "**/uv/cache/**", "**/scoop/buckets/**"], [], null, 10, null,
             ["quick", "frequent", "recent", "home", "drives", "share", "favorites"], null, 1, null,
             null, null, null, null, null, ["quick", "frequent", "recent", "drives"], null, null, true, null, 0, null,
             true, false, false, false, false, true, null, null, null, null, false, null, null, null, null, null, null, null, 5,
@@ -217,10 +217,10 @@ public sealed record AppSettings(
     // fields above are stored, and the JSON stays readable and stable.
 
     [JsonIgnore]
-    public bool UseSystemIcons => SystemIcons ?? true;
+    public bool UseSystemIcons => SystemIcons ?? false;
 
     [JsonIgnore]
-    public bool UseCustomFolderIcons => CustomFolderIcons ?? true;
+    public bool UseCustomFolderIcons => CustomFolderIcons ?? false;
 
     [JsonIgnore]
     public bool ShouldWriteDirectoryIndex => WriteDirectoryIndex ?? true;
