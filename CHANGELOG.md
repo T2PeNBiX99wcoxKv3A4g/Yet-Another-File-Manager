@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.58.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.57.0..v0.58.0) - 2026-11-23
+
+### ⛰️  Features
+
+- *(mod)* Optionally read a program's dialog hook for its default type - ([81537a4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/81537a471a6c0d53dd4f79a0bd9f170000a36673))
+- *(picker)* Start on the format the last save used - ([421aa6a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/421aa6a8668fa8c74030827ecd37cb72f5df9a06))
+
+### 🐛 Bug Fixes
+
+- *(dialog)* Wrap long paths in the confirmation message - ([671daed](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/671daedd965bc3c02f9003d80ddb1b70ce1c0d2a))
+- *(memory)* Report the private pages Linux actually backs - ([d1c6384](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d1c6384275fa70e6413174234792fa27757fcee3))
+- *(picker)* Summarise a multi-selection and share the app's conflict dialog - ([76e98e3](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/76e98e388f737e347ec878beb3be7080a9c55089))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([fc29c07](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/fc29c07a8df245289339254460d6f7df5a3e87ac))
+
+
 ## [0.57.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.56.0..v0.57.0) - 2026-11-23
 
 ### ⛰️  Features
