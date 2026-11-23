@@ -1009,5 +1009,8 @@
   "opens_the_recycle_bin_page": "開啟資源回收筒頁面。",
   "seconds_between_background_memory_checks": "背景檢查之間隔秒數。",
   "opens_the_settings_page": "開啟設定頁面。",
-  "focus_sidebar": "將焦點移到側邊欄"
+  "focus_sidebar": "將焦點移到側邊欄",
+  "file_tray": "檔案托盤",
+  "shows_or_hides_the_file_tray": "顯示或隱藏檔案托盤。",
+  "shows_or_hides_the_details_panel": "顯示或隱藏清單旁的詳細資料面板。"
 }

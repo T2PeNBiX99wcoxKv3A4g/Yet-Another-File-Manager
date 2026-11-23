@@ -2310,6 +2310,17 @@ export default function App() {
                 }
             }
 
+            if (comboMatches(shortcuts, "fileTray", combo)) {
+                event.preventDefault();
+                toggleTray();
+            }
+
+            if (comboMatches(shortcuts, "detailsPanel", combo)) {
+                event.preventDefault();
+                if (kind === "files" || kind === "recycle" || kind === "gallery")
+                    setDetailsVisible((visible) => !visible);
+            }
+
             if (comboMatches(shortcuts, "overview", combo)) {
                 event.preventDefault();
                 setTitlePanel(null);
@@ -2360,7 +2371,7 @@ export default function App() {
         return () => window.removeEventListener("keydown", onKey);
     }, [shortcuts, kind, find.open, closeTab, reopenTab, openFiles, goBack, goForward, goUp, openFind, openViewFind,
         resetFind, startFind, changeView, cycleTab, navigate, places, refreshAll, runHistory, toggleSplit, openView,
-        focusSidebar]);
+        focusSidebar, toggleTray]);
 
     // Back and forward on the mouse: WebView2 would otherwise walk its own history and reload the app.
     useEffect(() => {

@@ -321,6 +321,7 @@ declare module "@photino-net-utils/bridge"
         "files_view_global": true;
         "file_name": true;
         "file_names": true;
+        "file_tray": true;
         "filter_fonts": true;
         "focus_sidebar": true;
         "folder": true;
@@ -809,6 +810,8 @@ declare module "@photino-net-utils/bridge"
         "shown": true;
         "shown_in_every_folder_changing_them_changes_all_folders_at_once": true;
         "shown_of_total_pictures": true;
+        "shows_or_hides_the_details_panel": true;
+        "shows_or_hides_the_file_tray": true;
         "shows_recent_timestamps_as_seconds_and_minutes_ago_and_keeps_them_counting": true;
         "shows_the_next_file_tab_beside_the_current_one": true;
         "shows_the_pictures_videos_and_documents_the_shell_can_preview_as_grid_tiles_below_the_list_the_tiles_follow_the_grid_size_and_the_panel_only_appears_in_list_mode": true;

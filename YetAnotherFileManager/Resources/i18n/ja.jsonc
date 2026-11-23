@@ -1009,5 +1009,8 @@
   "opens_the_recycle_bin_page": "ごみ箱ページを開きます。",
   "seconds_between_background_memory_checks": "バックグラウンド確認の間隔（秒）。",
   "opens_the_settings_page": "設定ページを開きます。",
-  "focus_sidebar": "サイドバーにフォーカス"
+  "focus_sidebar": "サイドバーにフォーカス",
+  "file_tray": "ファイルトレイ",
+  "shows_or_hides_the_file_tray": "ファイルトレイの表示を切り替えます。",
+  "shows_or_hides_the_details_panel": "一覧の横の詳細パネルの表示を切り替えます。"
 }

@@ -36,6 +36,8 @@ export type ShortcutAction =
     | "sharePanel"
     | "closedTabsPanel"
     | "viewMenu"
+    | "fileTray"
+    | "detailsPanel"
     | "overview"
     | "recycleBin"
     | "gallery"

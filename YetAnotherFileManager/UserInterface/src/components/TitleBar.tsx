@@ -285,6 +285,7 @@ export function TitleBar({
                 </UtilityButton>
                 <UtilityButton
                     $active={details}
+                    data-shortcut={prettyShortcuts(shortcuts.detailsPanel)}
                     disabled={!canDetails}
                     onClick={onToggleDetails}
                     title={details ? t("hide_details_panel") : t("show_details_panel")}
@@ -294,6 +295,7 @@ export function TitleBar({
                 </UtilityButton>
                 <TrayButton
                     $active={trayVisible}
+                    data-shortcut={prettyShortcuts(shortcuts.fileTray)}
                     onClick={onToggleTray}
                     title={trayVisible ? t("hide_file_tray") : t("show_file_tray")}
                     type="button"

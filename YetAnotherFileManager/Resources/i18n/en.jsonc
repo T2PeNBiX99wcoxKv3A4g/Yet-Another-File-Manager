@@ -1009,5 +1009,8 @@
   "opens_the_recycle_bin_page": "Opens the Recycle Bin page.",
   "seconds_between_background_memory_checks": "Seconds between background checks.",
   "opens_the_settings_page": "Opens the Settings page.",
-  "focus_sidebar": "Focus the sidebar"
+  "focus_sidebar": "Focus the sidebar",
+  "file_tray": "File tray",
+  "shows_or_hides_the_file_tray": "Shows or hides the file tray.",
+  "shows_or_hides_the_details_panel": "Shows or hides the details panel beside the list."
 }

@@ -1009,5 +1009,8 @@
   "opens_the_recycle_bin_page": "打开回收站页面。",
   "seconds_between_background_memory_checks": "后台检查之间的秒数。",
   "opens_the_settings_page": "打开设置页面。",
-  "focus_sidebar": "聚焦侧边栏"
+  "focus_sidebar": "聚焦侧边栏",
+  "file_tray": "文件托盘",
+  "shows_or_hides_the_file_tray": "显示或隐藏文件托盘。",
+  "shows_or_hides_the_details_panel": "显示或隐藏列表旁的详细信息面板。"
 }

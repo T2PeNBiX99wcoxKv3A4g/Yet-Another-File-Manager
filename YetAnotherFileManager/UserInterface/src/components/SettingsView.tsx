@@ -210,6 +210,8 @@ const ShortcutRows: { id: ShortcutAction; label: LocalizationKey; note: Localiza
     {id: "sharePanel", label: "share", note: "opens_the_folders_this_device_shares"},
     {id: "closedTabsPanel", label: "recently_closed_tabs", note: "opens_the_list_of_recently_closed_tabs"},
     {id: "viewMenu", label: "view", note: "opens_the_view_menu_of_the_current_folder"},
+    {id: "fileTray", label: "file_tray", note: "shows_or_hides_the_file_tray"},
+    {id: "detailsPanel", label: "details_panel", note: "shows_or_hides_the_details_panel"},
     {id: "openInNewTab", label: "open_in_a_new_tab", note: "hold_this_while_clicking_a_folder"},
 ];
 

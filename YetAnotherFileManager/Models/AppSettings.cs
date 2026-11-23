@@ -205,6 +205,8 @@ public sealed record AppSettings(
             ["sharePanel"] = "ctrl+shift+s",
             ["closedTabsPanel"] = "",
             ["viewMenu"] = "alt+v",
+            ["fileTray"] = "",
+            ["detailsPanel"] = "alt+p",
             ["overview"] = "ctrl+shift+o",
             ["recycleBin"] = "ctrl+shift+r",
             ["gallery"] = "ctrl+shift+g",
