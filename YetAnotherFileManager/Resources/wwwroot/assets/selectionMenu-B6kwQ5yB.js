@@ -223,6 +223,9 @@ import{C as e,D as t,M as n,O as r,S as i,T as a,k as o,w as s,x as c}from"./dis
     color: var(--text-secondary);
     font-size: 12px;
     line-height: 1.55;
+    /* Long paths have no spaces, so they have to be broken inside the card. */
+    overflow-wrap: anywhere;
+    word-break: break-word;
 `,wn=r.div`
     display: flex;
     justify-content: flex-end;

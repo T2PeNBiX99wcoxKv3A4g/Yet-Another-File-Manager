@@ -106,6 +106,9 @@ const Message = styled.p`
     color: var(--text-secondary);
     font-size: 12px;
     line-height: 1.55;
+    /* Long paths have no spaces, so they have to be broken inside the card. */
+    overflow-wrap: anywhere;
+    word-break: break-word;
 `;
 
 const Actions = styled.div`
