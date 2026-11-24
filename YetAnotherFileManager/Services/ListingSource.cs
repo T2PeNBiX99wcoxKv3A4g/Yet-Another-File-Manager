@@ -59,8 +59,8 @@ internal sealed class ListingSource : IListingSource
     ///     Metadata for the window. A navigation or a refresh asks for the disk's current answer, so
     ///     it walks the folder and replaces whatever the pages were reading from.
     /// </summary>
-    public async Task<FsListPayload> RefreshAsync(string path, CancellationToken cancellationToken) =>
-        await WalkAsync(path).WaitAsync(cancellationToken);
+    public async Task<FsListPayload> RefreshAsync(string path, bool measure, CancellationToken cancellationToken) =>
+        await WalkAsync(path, measure).WaitAsync(cancellationToken);
 
     /// <summary>A page is cut from the walk the metadata call just made, not from a new one.</summary>
     public async Task<FsListPayload> PayloadAsync(string path, CancellationToken cancellationToken)
@@ -68,7 +68,7 @@ internal sealed class ListingSource : IListingSource
         if (TryRead(path) is { } cached)
             return cached;
 
-        return await WalkAsync(path).WaitAsync(cancellationToken);
+        return await WalkAsync(path, false).WaitAsync(cancellationToken);
     }
 
     public async Task<ListingSnapshot> ReadAsync(string path, CancellationToken cancellationToken)
@@ -104,9 +104,11 @@ internal sealed class ListingSource : IListingSource
         return cached.Payload;
     }
 
-    private Task<FsListPayload> WalkAsync(string path)
+    private Task<FsListPayload> WalkAsync(string path, bool measure)
     {
-        var task = _inflight.GetOrAdd(path, key => LoadAsync(key));
+        // The metadata call is the first one for a folder, so it decides whether this walk also
+        // asks for the child folders' sizes. A page that arrives later shares that same walk.
+        var task = _inflight.GetOrAdd(path, key => LoadAsync(key, measure));
 
         // A finished walk must leave the table, or every later request would read the same old
         // answer. The continuation is attached after the table holds the task, so it cannot run
@@ -119,10 +121,10 @@ internal sealed class ListingSource : IListingSource
     }
 
     /// <summary>Walks one folder and keeps the result for the pages that follow.</summary>
-    private async Task<FsListPayload> LoadAsync(string path)
+    private async Task<FsListPayload> LoadAsync(string path, bool measure)
     {
         var version = VersionOf(path);
-        var payload = await FileSystemService.List(path, false);
+        var payload = await FileSystemService.List(path, measure);
 
         // The page requests the path the metadata reply carried (a request may be "~" or a relative
         // path), so the walk is filed under the resolved folder as well as under the request.

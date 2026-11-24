@@ -46,13 +46,19 @@ internal partial class FolderMeasureService
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, long>> _pendingSizes =
         new(StringComparer.OrdinalIgnoreCase);
 
-    private readonly ConcurrentQueue<(string Parent, string Child, bool Counts)> _queue = new();
-    private readonly ConcurrentDictionary<string, bool> _queued = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentQueue<(string Parent, string Child, bool Counts, int Generation)> _queue = new();
+    private readonly ConcurrentDictionary<string, int> _queued = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _signal = new(0);
+
+    /// <summary>
+    ///     One version per folder: a newer listing of the same folder cancels the measurement it
+    ///     superseded, but a listing of another folder leaves the first one running. A global
+    ///     version dropped every measurement whenever any surface listed anything.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, int> _versions = new(StringComparer.OrdinalIgnoreCase);
+
     private bool _flushScheduled;
     private Timer? _flushTimer;
-
-    private volatile int _generation;
 
     private FolderMeasureService()
     {
@@ -66,18 +72,16 @@ internal partial class FolderMeasureService
 
     public void Request(string directory, IReadOnlyCollection<string> children, bool counts)
     {
-        DropQueued();
-        Interlocked.Increment(ref _generation);
-
+        var generation = _versions.AddOrUpdate(directory, 1, (_, current) => current + 1);
         var limit = children.Count <= FullListing ? children.Count : Burst;
 
         foreach (var child in children.Take(limit))
         {
             var key = Path.Combine(directory, child);
-            if (!_queued.TryAdd(key, true))
-                continue;
 
-            _queue.Enqueue((directory, child, counts));
+            // A newer request replaces the queued one; the old item is skipped when it is dequeued.
+            _queued[key] = generation;
+            _queue.Enqueue((directory, child, counts, generation));
             _signal.Release();
         }
     }
@@ -92,9 +96,24 @@ internal partial class FolderMeasureService
                 continue;
 
             var path = Path.Combine(item.Parent, item.Child);
-            var generation = _generation;
-            var measured = await MeasureAsync(path, generation, Levels);
-            _queued.TryRemove(path, out _);
+
+            // Another listing of this folder replaced the work; another folder's listing did not.
+            if (VersionOf(item.Parent) != item.Generation)
+            {
+                if (_queued.TryGetValue(path, out var stale) && stale == item.Generation)
+                    _queued.TryRemove(path, out _);
+
+                continue;
+            }
+
+            var measured = await MeasureAsync(path, item.Parent, item.Generation, Levels);
+
+            if (_queued.TryGetValue(path, out var queued) && queued == item.Generation)
+                _queued.TryRemove(path, out _);
+
+            // The folder was listed again while this walk ran; its numbers are old news.
+            if (VersionOf(item.Parent) != item.Generation)
+                continue;
 
             if (measured is not { } value)
                 continue;
@@ -110,11 +129,11 @@ internal partial class FolderMeasureService
     ///     Size and direct item count of one folder. The walk is cancelled when a newer listing
     ///     superseded it; an unreadable child simply contributes zero.
     /// </summary>
-    private async Task<(long Size, long Count)?> MeasureAsync(string path, int generation, int depth)
+    private async Task<(long Size, long Count)?> MeasureAsync(string path, string owner, int generation, int depth)
     {
         var result = await Try.Run(async () =>
         {
-            if (_generation != generation)
+            if (VersionOf(owner) != generation)
                 return null;
 
             var directory = new DirectoryInfo(path);
@@ -141,10 +160,10 @@ internal partial class FolderMeasureService
 
                     if (size == 0)
                     {
-                        var nested = await MeasureAsync(child.FullName, generation, depth - 1);
+                        var nested = await MeasureAsync(child.FullName, owner, generation, depth - 1);
                         if (nested is null)
                         {
-                            if (_generation != generation)
+                            if (VersionOf(owner) != generation)
                                 return null;
 
                             size = 0;
@@ -178,6 +197,8 @@ internal partial class FolderMeasureService
 
         return result.GetOrNull();
     }
+
+    private int VersionOf(string directory) => _versions.TryGetValue(directory, out var version) ? version : 0;
 
     private void Queue(ConcurrentDictionary<string, ConcurrentDictionary<string, long>> pending,
         string parent, string child, long value)
@@ -252,17 +273,5 @@ internal partial class FolderMeasureService
         foreach (var (parent, values) in batch)
             WindowManager.Instance.RunOnMainWindow(() =>
                 WindowManager.Instance.Notify(type, payload(parent, values)));
-    }
-
-    private void DropQueued()
-    {
-        while (_queue.TryDequeue(out var item))
-            _queued.TryRemove(Path.Combine(item.Parent, item.Child), out _);
-
-        // The dropped items had a signal each; take them back so the workers do not spin on an
-        // empty queue after a navigation.
-        while (_signal.Wait(0))
-        {
-        }
     }
 }

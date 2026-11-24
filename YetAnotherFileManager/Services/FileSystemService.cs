@@ -1388,7 +1388,7 @@ internal partial class FileSystemService : INativeMessageHandler
         // decides whether the saved listing is still current. It always walks the disk; the pages
         // that follow are cut from this walk instead of starting one of their own.
         var path = request?.Path ?? "";
-        var listing = ListingSource.Instance.RefreshAsync(path, CancellationToken.None);
+        var listing = ListingSource.Instance.RefreshAsync(path, request?.Sizes ?? true, CancellationToken.None);
 
         // The repository status is read while the folder is walked; it is usually cached and must
         // never make the folder itself wait longer than the walk already does.

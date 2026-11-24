@@ -338,6 +338,20 @@ function statusLine(t: Translate, listing: DirectoryListing): string {
         {size: formatBytes(total)});
 }
 
+/**
+ * Keeps the newest measurement for a folder. A measurement can finish before the listing that
+ * shows it is in state; remembering the last folders is enough to join the two when they meet.
+ */
+function rememberMeasurement(map: Map<string, Record<string, number>>, path: string,
+                              values: Record<string, number>) {
+    map.set(path, {...(map.get(path) ?? {}), ...values});
+
+    if (map.size > 64) {
+        const oldest = map.keys().next().value;
+        if (oldest !== undefined) map.delete(oldest);
+    }
+}
+
 export default function App() {
     const t = useTranslation();
     const [tabs, setTabs] = useState<Tab[]>(() => [createTab()]);
@@ -714,6 +728,25 @@ export default function App() {
         return () => loads.current.get(id) === token;
     }, []);
 
+    // The last measured sizes and counts, by folder, so a listing patched after the measurement
+    // event still gets its numbers instead of showing dashes until the folder is entered again.
+    const measuredSizes = useRef(new Map<string, Record<string, number>>());
+    const measuredCounts = useRef(new Map<string, Record<string, number>>());
+
+    const withMeasurements = useCallback((listing: DirectoryListing): DirectoryListing => {
+        const sizes = measuredSizes.current.get(listing.path);
+        const counts = measuredCounts.current.get(listing.path);
+
+        if (!sizes && !counts)
+            return listing;
+
+        return {
+            ...listing,
+            folderSizes: {...listing.folderSizes, ...sizes},
+            counts: {...listing.counts, ...counts},
+        };
+    }, []);
+
     /**
      * Tells the index which folder the window is showing. It is sent before the folder is listed,
      * so its index is read first and its own listing is written only once the user moves on.
@@ -742,14 +775,14 @@ export default function App() {
                 ? {
                     // The saved rows are the whole folder, so they are their own total, and paging
                     // stops until the live listing brings its own count.
-                    listing: {...listing, total: listing.entries.length, signature: 0},
+                    listing: withMeasurements({...listing, total: listing.entries.length, signature: 0}),
                     view: listing.view ?? null
                 }
                 : {});
         } catch {
             // The cache is best effort; the live listing is still on its way.
         }
-    }, [includeLinks, patch]);
+    }, [includeLinks, patch, withMeasurements]);
 
     /** Opens a folder in a tab, recording it in that tab's history. */
     const load = useCallback(async (id: string, path?: string, keepFresh = false) => {
@@ -807,7 +840,7 @@ export default function App() {
             if (!current()) return;
 
             patch(id, (tab) => ({
-                listing,
+                listing: withMeasurements(listing),
                 view: listing.view ?? null,
                 loading: false,
                 fresh: false,
@@ -866,7 +899,7 @@ export default function App() {
                     }),
             }));
         }
-    }, [beginLoad, includeLinks, patch, reportFocus, resetFind, showCached]);
+    }, [beginLoad, includeLinks, patch, reportFocus, resetFind, showCached, withMeasurements]);
 
     /** The pages being fetched right now, so a scroll that fires every frame asks once. */
     const loadingMore = useRef(new Set<string>());
@@ -1036,7 +1069,7 @@ export default function App() {
                     archivePasswordFor(target), id);
             if (!current()) return;
 
-            patch(id, () => ({listing, view: listing.view ?? null, loading: false}));
+            patch(id, () => ({listing: withMeasurements(listing), view: listing.view ?? null, loading: false}));
         } catch (cause) {
             if (!current()) return;
 
@@ -1071,7 +1104,7 @@ export default function App() {
                 error: message(cause),
             }));
         }
-    }, [beginLoad, includeLinks, patch, reportFocus, resetFind, showCached]);
+    }, [beginLoad, includeLinks, patch, reportFocus, resetFind, showCached, withMeasurements]);
 
     const openFiles = useCallback((path?: string, activate = true) => {
         const tab = createTab(path ?? viewLocation("home"));
@@ -2136,6 +2169,10 @@ export default function App() {
 
             const {path, sizes} = event.data;
 
+            // The measurement can arrive before this folder's listing is in state; keeping it also
+            // lets that listing pick the numbers up when it is patched.
+            rememberMeasurement(measuredSizes.current, path, sizes);
+
             setTabs((current) => {
                 // Every tab showing this folder gets the numbers: two views of the same folder must
                 // not disagree just because only the first one was patched.
@@ -2159,6 +2196,8 @@ export default function App() {
             if (event.type !== "fs.counts" || typeof event.data?.path !== "string" || !event.data.counts) return;
 
             const {path, counts} = event.data;
+
+            rememberMeasurement(measuredCounts.current, path, counts);
 
             setTabs((current) => {
                 if (!current.some((tab) => tab.listing?.path === path))
@@ -2509,6 +2548,14 @@ export default function App() {
             // Only the entries are refreshed; sizes are measured when the folder is entered.
             void listDirectory(changed, false, includeLinks)
                 .then((listing) => {
+                    // A refresh reads the index before a pending measurement write lands; keep the
+                    // numbers the window already has so they do not blink away.
+                    const refreshed = (previous?: DirectoryListing): DirectoryListing => withMeasurements({
+                        ...listing,
+                        folderSizes: {...(previous?.folderSizes ?? {}), ...listing.folderSizes},
+                        counts: {...(previous?.counts ?? {}), ...listing.counts},
+                    });
+
                     for (const tab of targets) {
                         const latest = stateRef.current.tabs.find((item) => item.id === tab.id);
 
@@ -2525,16 +2572,16 @@ export default function App() {
                                 const after = stateRef.current.tabs.find((item) => item.id === tab.id);
                                 if (after && !after.loading && kindOf(after) === "files"
                                     && samePath(folderOf(after), listing.path))
-                                    patch(tab.id, () => ({listing}));
+                                    patch(tab.id, () => ({listing: refreshed(after.listing ?? undefined)}));
                             }, 300);
                             continue;
                         }
 
-                        patch(tab.id, () => ({listing}));
+                        patch(tab.id, () => ({listing: refreshed(latest.listing ?? undefined)}));
                     }
                 }, () => undefined);
         });
-    }, [includeLinks, load, patch]);
+    }, [includeLinks, load, patch, withMeasurements]);
 
     const canBack = active.index > 0;
     const canForward = active.index < active.history.length - 1;
