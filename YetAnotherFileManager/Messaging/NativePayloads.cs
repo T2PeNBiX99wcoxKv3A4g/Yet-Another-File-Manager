@@ -380,9 +380,6 @@ internal sealed record CompressRequest(
     string? Password = null,
     long? SplitSize = null);
 
-/// <summary>Body for <c>app.protection.defaults</c>: the rules a fresh install starts with.</summary>
-internal sealed record ProtectedDefaultsPayload(List<string> Paths);
-
 /// <summary>Payload for <c>fs.operation.rename</c>: the entry and its new name.</summary>
 internal sealed record RenamePathRequest(string Path, string Name, string? Confirm = null);
 

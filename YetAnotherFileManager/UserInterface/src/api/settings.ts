@@ -1,4 +1,4 @@
-import {type ThemeMode, Native} from "@photino-net-utils/bridge";
+import {type ThemeMode, Native, loadSettingsDefaults} from "@photino-net-utils/bridge";
 import {normalizeThemeMode} from "../theme";
 import type {ViewDefaults} from "./files";
 import type {AppSettingsGenerated} from "./settings.generated";
@@ -186,23 +186,18 @@ export interface BackgroundLook {
 }
 
 let defaults: AppSettings | null = null;
-let defaultsRequest: Promise<AppSettings> | null = null;
 
 /**
- * The values a fresh install starts with. They are fetched once from the host and every caller —
- * including the reset buttons and the modules that need a value before settings arrive — uses
- * this one answer. There is deliberately no copy of the defaults in the interface.
+ * The values a fresh install starts with. The shared bridge owns asking and remembering the
+ * answer; this module only mirrors it once it arrives because {@link configDefaults} has to be
+ * synchronous. There is deliberately no copy of the defaults in the interface.
  */
-export function getSettingDefaults(): Promise<AppSettings> {
-    if (defaults) return Promise.resolve(defaults);
-    if (!Native.available) return Promise.reject(new Error("Settings need the host."));
+export async function getSettingDefaults(): Promise<AppSettings> {
+    if (!Native.available) throw new Error("Settings need the host.");
 
-    defaultsRequest ??= Native.request<AppSettings>("settings.defaults").then((value) => {
-        defaults = value;
-        return value;
-    });
+    defaults ??= await loadSettingsDefaults<AppSettings>();
 
-    return defaultsRequest;
+    return defaults;
 }
 
 /** The host defaults, once <see cref="getSettingDefaults" /> has finished. */
@@ -242,8 +237,7 @@ function fill(raw: Partial<AppSettings> | null, known: AppSettings): AppSettings
 export async function getDefaultProtectedPaths(): Promise<string[]> {
     if (!Native.available) return [];
 
-    const data = await Native.request<{ paths: string[] }>("app.protection.defaults");
-    return data.paths ?? [];
+    return (await getSettingDefaults()).protectedPaths;
 }
 
 export interface ArchiveStatus {

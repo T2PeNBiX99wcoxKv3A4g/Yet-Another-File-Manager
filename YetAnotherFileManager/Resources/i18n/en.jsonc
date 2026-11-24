@@ -1031,5 +1031,9 @@
   "git_changes_inside": "Contains changes",
   "git_detached": "detached",
   "k_1_change": "{count} change",
-  "count_changes": "{count} changes"
+  "count_changes": "{count} changes",
+  "error.invalidsettings": "The settings could not be read - open the settings again.",
+  "error.updatecheckfailed": "Could not check for updates.",
+  "error.unsupported": "This action is not supported by the running version.",
+  "error.invalidjson": "The app sent a message the host could not read."
 }

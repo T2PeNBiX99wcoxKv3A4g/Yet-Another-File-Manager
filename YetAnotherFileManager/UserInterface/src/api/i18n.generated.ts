@@ -294,6 +294,10 @@ declare module "@photino-net-utils/bridge"
         "encrypted": true;
         "encrypted_archive": true;
         "encryption": true;
+        "error.invalidjson": true;
+        "error.invalidsettings": true;
+        "error.unsupported": true;
+        "error.updatecheckfailed": true;
         "every_action_can_hold_several_combinations_click_one_to_record_it_again_add_one_with_the_plus_and_drop_one_with_the_cross": true;
         "every_tag_in_the_catalogue_add_rename_recolour_or_remove_them_here": true;
         "every_tag_the_catalogue_has_seen_ready_to_rename_or_remove": true;

@@ -1031,5 +1031,9 @@
   "git_changes_inside": "変更を含む",
   "git_detached": "デタッチ HEAD",
   "k_1_change": "{count} 件の変更",
-  "count_changes": "{count} 件の変更"
+  "count_changes": "{count} 件の変更",
+  "error.invalidsettings": "設定を読み込めませんでした。設定を開き直してください。",
+  "error.updatecheckfailed": "更新を確認できませんでした。",
+  "error.unsupported": "実行中のバージョンではこの操作をサポートしていません。",
+  "error.invalidjson": "アプリからホストが読み取れないメッセージが送信されました。"
 }

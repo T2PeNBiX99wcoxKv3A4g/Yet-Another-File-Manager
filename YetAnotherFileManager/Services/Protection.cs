@@ -65,7 +65,4 @@ internal static class Protection
 
     /// <summary>The confirmation wait, never below the two-second floor.</summary>
     public static int DelaySeconds(AppSettings settings) => Math.Clamp(settings.DeleteDelaySeconds ?? 5, 2, 3600);
-
-    /// <summary>The platform defaults, for the "Restore defaults" button.</summary>
-    public static List<string> Defaults() => PathGlob.Defaults();
 }

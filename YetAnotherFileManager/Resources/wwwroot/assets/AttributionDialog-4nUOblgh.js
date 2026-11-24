@@ -1,4 +1,4 @@
-import{M as e,O as t,S as n,k as r,x as i}from"./dist-B10j17-y.js";import{y as a}from"./Icons-BWGp8a-h.js";var o=e(r(),1),s=`/assets/attributions-Do3S5OBo.json`,c=n(),l=t.div`
+import{A as e,C as t,N as n,S as r,k as i}from"./dist-CKllR0JH.js";import{y as a}from"./Icons-5-2yk8Zn.js";var o=n(e(),1),s=`/assets/attributions-Do3S5OBo.json`,c=t(),l=i.div`
     position: fixed;
     inset: 0;
     z-index: 80;
@@ -19,7 +19,7 @@ import{M as e,O as t,S as n,k as r,x as i}from"./dist-B10j17-y.js";import{y as a
             opacity: 1;
         }
     }
-`,u=t.div`
+`,u=i.div`
     display: flex;
     flex-direction: column;
     width: min(920px, 100%);
@@ -41,7 +41,7 @@ import{M as e,O as t,S as n,k as r,x as i}from"./dist-B10j17-y.js";import{y as a
             transform: none;
         }
     }
-`,d=t.header`
+`,d=i.header`
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -49,18 +49,18 @@ import{M as e,O as t,S as n,k as r,x as i}from"./dist-B10j17-y.js";import{y as a
     flex-shrink: 0;
     padding: 16px 18px 14px;
     border-bottom: 1px solid var(--border-color);
-`,f=t.h2`
+`,f=i.h2`
     margin: 0;
     font-size: 13px;
     font-weight: 600;
     color: var(--text-primary);
-`,p=t.p`
+`,p=i.p`
     margin: 4px 0 0;
     max-width: 620px;
     font-size: 10.5px;
     line-height: 1.5;
     color: var(--text-muted);
-`,m=t.button`
+`,m=i.button`
     display: grid;
     place-items: center;
     width: 26px;
@@ -77,11 +77,11 @@ import{M as e,O as t,S as n,k as r,x as i}from"./dist-B10j17-y.js";import{y as a
         background: rgba(248, 113, 113, 0.12);
         color: #fca5a5;
     }
-`,h=t.div`
+`,h=i.div`
     display: flex;
     flex: 1;
     min-height: 0;
-`,g=t.nav`
+`,g=i.nav`
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -90,7 +90,7 @@ import{M as e,O as t,S as n,k as r,x as i}from"./dist-B10j17-y.js";import{y as a
     padding: 8px;
     border-right: 1px solid var(--border-color);
     overflow-y: auto;
-`,_=t.button`
+`,_=i.button`
     display: flex;
     flex-direction: column;
     gap: 1px;
@@ -108,31 +108,31 @@ import{M as e,O as t,S as n,k as r,x as i}from"./dist-B10j17-y.js";import{y as a
         background: ${({$active:e})=>e?`rgba(var(--accent-rgb), 0.18)`:`var(--bg-card-hover)`};
         color: var(--text-primary);
     }
-`,v=t.span`
+`,v=i.span`
     font-size: 11px;
     font-weight: 600;
     word-break: break-word;
-`,y=t.span`
+`,y=i.span`
     font-family: var(--font-mono);
     font-size: 9px;
     color: var(--text-muted);
-`,b=t.article`
+`,b=i.article`
     flex: 1;
     min-width: 0;
     padding: 16px 18px 20px;
     overflow-y: auto;
-`,x=t.div`
+`,x=i.div`
     display: flex;
     align-items: baseline;
     flex-wrap: wrap;
     gap: 2px 10px;
     margin-bottom: 10px;
-`,S=t.h3`
+`,S=i.h3`
     margin: 0;
     font-size: 12px;
     font-weight: 600;
     color: var(--text-primary);
-`,C=t.pre`
+`,C=i.pre`
     margin: 0;
     font-family: var(--font-mono);
     font-size: 10.5px;
@@ -140,4 +140,4 @@ import{M as e,O as t,S as n,k as r,x as i}from"./dist-B10j17-y.js";import{y as a
     color: var(--text-secondary);
     white-space: pre-wrap;
     word-break: break-word;
-`,w=e=>[e.version,e.license].filter(Boolean).join(` · `);function T({onClose:e}){let t=i(),[n,r]=(0,o.useState)(null),[T,E]=(0,o.useState)(0);(0,o.useEffect)(()=>{let e=!0;return fetch(s).then(e=>e.ok?e.json():[]).then(t=>{e&&r(t)},()=>{e&&r([])}),()=>{e=!1}},[]);let D=n??[],O=D[T]??D[0];return(0,o.useEffect)(()=>{let t=t=>{t.key===`Escape`&&e()};return window.addEventListener(`keydown`,t),()=>window.removeEventListener(`keydown`,t)},[e]),(0,c.jsx)(l,{onClick:e,children:(0,c.jsxs)(u,{onClick:e=>e.stopPropagation(),role:`dialog`,children:[(0,c.jsxs)(d,{children:[(0,c.jsxs)(`div`,{children:[(0,c.jsx)(f,{children:t(`open_source_attribution`)}),(0,c.jsx)(p,{children:t(`this_app_ships_count_open_source_projects_pick_one_to_read_its_whole_licence`,{count:D.length})})]}),(0,c.jsx)(m,{onClick:e,title:t(`close`),type:`button`,children:(0,c.jsx)(a,{size:12})})]}),(0,c.jsxs)(h,{children:[(0,c.jsx)(g,{children:D.map((e,t)=>(0,c.jsxs)(_,{$active:t===T,onClick:()=>E(t),type:`button`,children:[(0,c.jsx)(v,{children:e.name}),(0,c.jsx)(y,{children:w(e)})]},e.name+`@`+e.version))}),O&&(0,c.jsxs)(b,{children:[(0,c.jsxs)(x,{children:[(0,c.jsx)(S,{children:O.name}),(0,c.jsx)(y,{children:w(O)})]}),(0,c.jsx)(C,{children:O.text})]})]})]})})}export{T as AttributionDialog};
+`,w=e=>[e.version,e.license].filter(Boolean).join(` · `);function T({onClose:e}){let t=r(),[n,i]=(0,o.useState)(null),[T,E]=(0,o.useState)(0);(0,o.useEffect)(()=>{let e=!0;return fetch(s).then(e=>e.ok?e.json():[]).then(t=>{e&&i(t)},()=>{e&&i([])}),()=>{e=!1}},[]);let D=n??[],O=D[T]??D[0];return(0,o.useEffect)(()=>{let t=t=>{t.key===`Escape`&&e()};return window.addEventListener(`keydown`,t),()=>window.removeEventListener(`keydown`,t)},[e]),(0,c.jsx)(l,{onClick:e,children:(0,c.jsxs)(u,{onClick:e=>e.stopPropagation(),role:`dialog`,children:[(0,c.jsxs)(d,{children:[(0,c.jsxs)(`div`,{children:[(0,c.jsx)(f,{children:t(`open_source_attribution`)}),(0,c.jsx)(p,{children:t(`this_app_ships_count_open_source_projects_pick_one_to_read_its_whole_licence`,{count:D.length})})]}),(0,c.jsx)(m,{onClick:e,title:t(`close`),type:`button`,children:(0,c.jsx)(a,{size:12})})]}),(0,c.jsxs)(h,{children:[(0,c.jsx)(g,{children:D.map((e,t)=>(0,c.jsxs)(_,{$active:t===T,onClick:()=>E(t),type:`button`,children:[(0,c.jsx)(v,{children:e.name}),(0,c.jsx)(y,{children:w(e)})]},e.name+`@`+e.version))}),O&&(0,c.jsxs)(b,{children:[(0,c.jsxs)(x,{children:[(0,c.jsx)(S,{children:O.name}),(0,c.jsx)(y,{children:w(O)})]}),(0,c.jsx)(C,{children:O.text})]})]})]})})}export{T as AttributionDialog};

@@ -1031,5 +1031,9 @@
   "git_changes_inside": "內含變更",
   "git_detached": "分離的 HEAD",
   "k_1_change": "{count} 個變更",
-  "count_changes": "{count} 個變更"
+  "count_changes": "{count} 個變更",
+  "error.invalidsettings": "無法讀取設定，請重新開啟設定頁面。",
+  "error.updatecheckfailed": "無法檢查更新。",
+  "error.unsupported": "目前執行的版本不支援此動作。",
+  "error.invalidjson": "應用程式送出了主機無法讀取的信息。"
 }

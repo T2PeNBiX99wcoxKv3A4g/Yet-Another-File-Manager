@@ -341,10 +341,6 @@ internal partial class FileSystemService : INativeMessageHandler
             case "fs.recycle.admin.purge":
                 return await PurgeOrphansAsAdmin(context);
 
-            case "app.protection.defaults":
-                return context.Reply("app.protection.defaults.result",
-                    new ProtectedDefaultsPayload(Protection.Defaults()));
-
             case "app.tabs.set":
                 return context.Reply("app.tabs.set.result",
                     new OkPayload(await SaveOpenTabsAsync(context.Payload<OpenTabsRequest>())));
