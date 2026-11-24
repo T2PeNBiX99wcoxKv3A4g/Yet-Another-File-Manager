@@ -1013,5 +1013,7 @@
   "file_tray": "文件托盘",
   "shows_or_hides_the_file_tray": "显示或隐藏文件托盘。",
   "shows_or_hides_the_details_panel": "显示或隐藏列表旁的详细信息面板。",
-  "select_count_files": "选择 {count} 个文件"
+  "select_count_files": "选择 {count} 个文件",
+  "nothing_is_shared_yet": "尚未共享任何内容",
+  "no_favorites_yet": "还没有收藏"
 }

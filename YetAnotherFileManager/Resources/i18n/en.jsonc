@@ -1013,5 +1013,7 @@
   "file_tray": "File tray",
   "shows_or_hides_the_file_tray": "Shows or hides the file tray.",
   "shows_or_hides_the_details_panel": "Shows or hides the details panel beside the list.",
-  "select_count_files": "Select {count} files"
+  "select_count_files": "Select {count} files",
+  "nothing_is_shared_yet": "Nothing is shared yet",
+  "no_favorites_yet": "No favorites yet"
 }

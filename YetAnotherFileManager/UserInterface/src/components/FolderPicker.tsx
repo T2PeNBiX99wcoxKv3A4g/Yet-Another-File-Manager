@@ -882,6 +882,7 @@ export function FolderPicker({
                     activeKind={view === "overview" ? "home" : view === "gallery" ? "gallery" : "files"}
                     currentPath={currentFolder}
                     drives={drives}
+                    hiddenPanels={["share"]}
                     hiddenViews={isFileMode ? ["recycle", "settings"] : ["recycle", "gallery", "settings"]}
                     homePath={places.find((place) => place.kind === "home")?.path ?? ""}
                     onNavigate={(target) => navigate(target)}

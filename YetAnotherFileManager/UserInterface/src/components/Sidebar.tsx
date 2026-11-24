@@ -12,10 +12,11 @@ import {
     type Place,
     type RecentEntry
 } from "../api/files";
-import {type AppSettings, getSettings} from "../api/settings";
+import {type AppSettings, type FavoriteEntry, getSettings} from "../api/settings";
+import {getSharePeers, shareLocation, type SharePeerInfo} from "../api/share";
 import type {TabKind} from "../tabs";
-import {buildPanels, type Panel, PanelGlyph} from "../panels";
-import {DriveIcon, GearIcon, ImageIcon, OverviewIcon, TrashIcon} from "./Icons";
+import {buildPanels, type Panel, PanelGlyph, type PanelKind} from "../panels";
+import {DriveIcon, GearIcon, ImageIcon, OverviewIcon, ServerIcon, TrashIcon} from "./Icons";
 import {PathIcon} from "./PathIcon";
 import {PlaceIcon} from "./PlaceIcon";
 import {quickPlace, useQuickAccess} from "../quick";
@@ -36,6 +37,8 @@ interface SidebarProps {
     historyVersion?: number;
     /** Built-in pages that have no meaning outside the app, such as the picker omitting Settings. */
     hiddenViews?: TabKind[];
+    /** Pinned panels a window cannot show, such as the picker and remote shares. */
+    hiddenPanels?: PanelKind[];
     /** The rail, so a shortcut can hand it the keyboard and the arrow keys walk its entries. */
     asideRef?: RefObject<HTMLElement | null>;
     onNavigate: (path: string, newTab?: boolean) => void;
@@ -57,6 +60,7 @@ export function Sidebar({
                             version = 0,
                             historyVersion = 0,
                             hiddenViews = [],
+                            hiddenPanels = [],
                             asideRef,
                             onNavigate,
                             onOpenView,
@@ -166,7 +170,7 @@ export function Sidebar({
                 )}
             </List>
 
-            {pinned.map((panel) => (
+            {pinned.filter((panel) => !hiddenPanels.includes(panel.kind)).map((panel) => (
                 <Menu key={panel.id}>
                     <Item as="div" $active={false}>
                         <Glyph><PanelGlyph panel={panel} size={16}/></Glyph>
@@ -239,6 +243,15 @@ export function Sidebar({
                                 );
                             })}
 
+                            {panel.kind === "favorites" && (
+                                <FavoriteItems
+                                    favorites={settings?.favorites ?? []}
+                                    onNavigate={onNavigate}
+                                />
+                            )}
+
+                            {panel.kind === "share" && <SharedItems onNavigate={onNavigate}/>}
+
                             {(panel.kind === "home" || panel.kind === "folder") && (
                                 <FolderItems
                                     onNavigate={onNavigate}
@@ -300,6 +313,102 @@ function FrequentItems({historyVersion = 0, onNavigate}: {
             </Item>
         );
     });
+}
+
+/**
+ * The folders other paired devices offer. The rail mirrors the overview's Shared panel; the
+ * overview keeps the pairing controls, and a share opens here like any folder.
+ */
+function SharedItems({onNavigate}: { onNavigate: (path: string, newTab?: boolean) => void }) {
+    const t = useTranslation();
+    const [peers, setPeers] = useState<SharePeerInfo[] | null>(null);
+
+    useEffect(() => {
+        void getSharePeers().then(setPeers, () => setPeers([]));
+    }, []);
+
+    // The overview's panel refreshes from the same event, so the rail follows a pairing at once.
+    useEffect(() => Native.on((evt) => {
+        const event = evt as { type?: string; data?: { peers?: SharePeerInfo[] } };
+        if (event.type === "share.peers" && event.data?.peers)
+            setPeers(event.data.peers);
+    }), []);
+
+    const items = (peers ?? []).flatMap((peer) => peer.paired
+        ? peer.shares.map((share) => ({peer, share}))
+        : []);
+
+    if (items.length === 0) {
+        return (
+            <Item as="div" $active={false}>
+                <Label>{t("nothing_is_shared_yet")}</Label>
+            </Item>
+        );
+    }
+
+    return (
+        <>
+            {items.map(({peer, share}) => (
+                <Item
+                    $active={false}
+                    key={`${peer.id}:${share.id}`}
+                    onClick={(event) => onNavigate(shareLocation(peer.id, share.id), wantsNewTab(event))}
+                    title={`${peer.name} · ${share.name}`}
+                    type="button"
+                >
+                    <ServerIcon size={16}/>
+                    <Label>{share.name}<Hint>{peer.name}</Hint></Label>
+                </Item>
+            ))}
+        </>
+    );
+}
+
+/** Any file or folder the user pinned to Favorites, using the same icons as the overview. */
+function FavoriteItems({favorites, onNavigate}: {
+    favorites: FavoriteEntry[];
+    onNavigate: (path: string, newTab?: boolean) => void;
+}) {
+    const t = useTranslation();
+    const quick = useQuickAccess();
+
+    if (favorites.length === 0) {
+        return (
+            <Item as="div" $active={false}>
+                <Label>{t("no_favorites_yet")}</Label>
+            </Item>
+        );
+    }
+
+    return (
+        <>
+            {favorites.map((entry) => {
+                const place = quickPlace(quick, entry.path);
+
+                return (
+                    <Item
+                        $active={false}
+                        key={entry.path}
+                        onClick={(event) => entry.isDirectory
+                            ? onNavigate(entry.path, wantsNewTab(event))
+                            : void openFile(entry.path)}
+                        title={entry.path}
+                        type="button"
+                    >
+                        {place && quick.useIcons
+                            ? <PlaceIcon place={place}/>
+                            : <PathIcon
+                                isDirectory={entry.isDirectory}
+                                name={entry.name}
+                                path={entry.path}
+                                size={18}
+                            />}
+                        <Label>{place?.name || entry.name}</Label>
+                    </Item>
+                );
+            })}
+        </>
+    );
 }
 
 /**

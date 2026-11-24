@@ -495,6 +495,7 @@ declare module "@photino-net-utils/bridge"
         "nothing_has_been_moved": true;
         "nothing_has_been_renamed": true;
         "nothing_has_been_written": true;
+        "nothing_is_shared_yet": true;
         "nothing_on_the_clipboard_could_be_pasted_here": true;
         "nothing_selected": true;
         "nothing_to_redo": true;
@@ -508,6 +509,7 @@ declare module "@photino-net-utils/bridge"
         "no_banner": true;
         "no_drives_are_available": true;
         "no_entries_match_the_search": true;
+        "no_favorites_yet": true;
         "no_favorites_yet_right_click_any_file_or_folder_and_add_it_here": true;
         "no_folders_are_shared_with_the_app_on_this_device": true;
         "no_folders_are_shared_yet": true;

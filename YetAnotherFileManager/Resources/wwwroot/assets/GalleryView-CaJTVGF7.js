@@ -1,0 +1,33 @@
+import{M as e,O as t,S as n,j as r,k as i,x as ee}from"./dist-B10j17-y.js";import{h as te,k as a,o,p as ne,w as re}from"./theme-DIZkp4eN.js";import{T as ie,n as s,r as ae}from"./main-BjBJZtHG.js";import{O as oe,St as c,Z as l,k as u,n as se}from"./selectionMenu-B6kwQ5yB.js";import{q as ce,st as le}from"./Icons-C2oT0N0q.js";var d=r({GalleryView:()=>g}),f=e(i(),1),ue=a(),p=n(),m=150,h=2500,de=3,fe=600;function g({openOnSingleClick:e=!1,showCheckboxes:t=!0,confirmDelete:n=!1,shortcuts:r,view:i,find:a,selectMatchesToken:o,onSearchMatches:d,onPick:g,onSelectionChange:v,onAddToTray:y,onAddFavorite:b,onRemoveFavorite:be,favoritePaths:xe,onExtractArchive:Se,onOpenAsArchive:Ce,onAddToStartMenu:we,onPreviewChange:x,platform:Te,toolbarSlot:S,onStatusChange:C}){let w=ee(),T=se(`gallery`),[E,D]=(0,f.useState)([]),[O,k]=(0,f.useState)(0),[A,j]=(0,f.useState)(!0),[M,N]=(0,f.useState)(null),[P,F]=(0,f.useState)(!1),[I,Ee]=(0,f.useState)([]),L=(0,f.useRef)([]),R=(0,f.useRef)(0),z=(0,f.useRef)(!1),B=(0,f.useRef)(!0),V=(0,f.useRef)(0),H=(0,f.useRef)(null),U=(0,f.useRef)(0),W=(0,f.useCallback)(async e=>{let t=++V.current;j(!0),B.current=!0,N(null);try{let n=await c(0,m,e);if(t!==V.current)return;L.current=n.entries,R.current=n.total,D(n.entries),k(n.total)}catch(e){t===V.current&&N(e instanceof Error?e.message:String(e))}finally{t===V.current&&(B.current=!1,j(!1))}},[]);(0,f.useEffect)(()=>{W(!1)},[W]);let G=(0,f.useCallback)(async()=>{if(B.current||z.current||L.current.length>=R.current)return;let e=V.current;z.current=!0;try{let t=L.current,n=R.current;for(let r=0;r<de&&t.length<n;r++){let r=await c(t.length,m,!1);if(e!==V.current)return;if(r.entries.length===0){n=t.length;break}if(t=[...t,...r.entries],n=r.total,r.entries.length<m)break}if(e!==V.current)return;L.current=t,R.current=n,(0,f.startTransition)(()=>{D(t),k(n)})}catch{}finally{z.current=!1}},[]),De=(0,f.useCallback)(e=>{U.current||=window.requestAnimationFrame(()=>{U.current=0,e.scrollHeight-e.scrollTop-e.clientHeight<h&&G()})},[G]);(0,f.useEffect)(()=>{let e=H.current;if(!e)return;let t=new IntersectionObserver(e=>{e.some(e=>e.isIntersecting)&&G()},{root:e.parentElement,rootMargin:`${h}px 0px`});return t.observe(e),()=>t.disconnect()},[G]),(0,f.useEffect)(()=>{if(E.length>=O)return;let e=window.setTimeout(()=>{let e=H.current?.parentElement;e&&e.scrollHeight-e.scrollTop-e.clientHeight<h&&G()},200);return()=>window.clearTimeout(e)},[E.length,O,G]);let Oe=(0,f.useMemo)(()=>({path:``,parent:null,total:E.length,signature:0,entries:E.map(pe),folderSizes:{},view:null,tags:{},tagColors:{},allTags:[],counts:{}}),[E]),ke=(0,f.useMemo)(()=>({...i,mode:`grid`,sort:`modified`,sortDescending:!0,columns:[]}),[i]),K=(0,f.useCallback)(e=>{g?g(e):l(e)},[g]),Ae=(0,f.useCallback)(e=>{let t=me(e.modified);return{id:t,label:t}},[]),q=()=>{F(!0),W(!0).finally(()=>F(!1))},je=E.length<O,J=(0,f.useMemo)(()=>!a?.open||a.query.trim().length===0?[]:E.filter(e=>u(e.name,a)||u(e.path,a)),[E,a?.open,a?.query,a?.matchCase,a?.regex]),Me=(0,f.useMemo)(()=>a?.open?{query:a.query,matchCase:a.matchCase,regex:a.regex,mode:a.mode,currentPath:J[Math.min(a.index,Math.max(0,J.length-1))]?.path??null}:oe,[a?.open,a?.query,a?.matchCase,a?.regex,a?.mode,a?.index,J]);(0,f.useEffect)(()=>{d?.(J.length)},[J.length,d]);let Ne=(0,f.useCallback)(e=>{Ee(e),v?.(e)},[v]),Y=I.length>0?E.find(e=>e.path===I[0])??null:null,Pe=Y?.name.includes(`.`)?Y.name.slice(Y.name.lastIndexOf(`.`)+1).toUpperCase():`—`,Fe=Y&&/\.(mp4|webm|mkv|mov|m4v|avi|wmv|ogv)$/i.test(Y.name)?w(`video_2`):w(`picture`),Ie=Y?Y.path.slice(0,Math.max(Y.path.lastIndexOf(`\\`),Y.path.lastIndexOf(`/`))):``,X=Y?{name:Y.name,path:Y.path,isDirectory:!1,size:Y.size,modified:Y.modified,fields:[{label:w(`type`),value:Fe},{label:w(`extension`),value:Pe},{label:w(`location`),value:Ie},{label:w(`full_path`),value:Y.path},{label:w(`size`),value:ne(Y.size)},{label:w(`modified`),value:te(Y.modified)},{label:w(`created`),value:`—`}]}:null,Z=I.length>1?re(w,I.length,`k_1_item_selected`,`count_items_selected`):void 0,Q=(0,f.useRef)(``);(0,f.useEffect)(()=>{let e=`${X?.path??``}|${X?.modified??0}|${Z??``}`;Q.current!==e&&(Q.current=e,x?.(X,Z))},[X,Z,x]);let $=A?w(`scanning`):w(`shown_of_total_pictures`,{shown:E.length,total:O});return(0,f.useEffect)(()=>{C?.($)},[$,C]),(0,p.jsxs)(he,{children:[S&&(0,ue.createPortal)((0,p.jsxs)(p.Fragment,{children:[(0,p.jsx)(ae,{}),(0,p.jsx)(s,{onClick:q,title:w(`scan_the_folders_again`),type:`button`,children:(0,p.jsx)(ve,{$spinning:P,children:(0,p.jsx)(le,{size:16})})}),T.available&&(0,p.jsx)(s,{onClick:e=>T.open(e.clientX,e.clientY),title:w(`selection_menu`),type:`button`,children:(0,p.jsx)(ce,{size:16})})]}),S),M&&(0,p.jsx)(_,{children:M}),!M&&!A&&O===0&&(0,p.jsx)(_,{children:w(`no_pictures_found`)}),!M&&(A||O>0)&&(0,p.jsx)(ge,{children:(0,p.jsx)(_e,{children:(0,p.jsx)(ie,{platform:Te,confirmDelete:n,find:Me,selectMatchesToken:o,listing:A&&E.length===0?null:Oe,loading:A,error:null,view:ke,showImages:!1,showDetails:!1,showCheckboxes:t,openOnSingleClick:e,shortcuts:r,onSelectionChange:Ne,selectionMenuId:`gallery`,onSort:()=>void 0,onOpen:K,onOpenFile:K,onRefresh:q,onAddToTray:y,onAddFavorite:b,onRemoveFavorite:be,favoritePaths:xe,onExtractArchive:Se,onOpenAsArchive:Ce,onAddToStartMenu:we,groupOf:Ae,onGridScroll:De,gridFooter:(0,p.jsx)(ye,{$space:je?fe:1,ref:H}),allowBackgroundMenu:!1})})})]})}function pe(e){return{name:e.name,fullPath:e.path,isDirectory:!1,size:e.size,modified:e.modified,created:e.modified,isHidden:!1,isSystem:!1,iconSource:null,linkTarget:null,linkValid:null,linkCount:0}}function me(e){let t=new Date(e),n=new Date,r=e=>new Date(e.getFullYear(),e.getMonth(),e.getDate()).getTime(),i=Math.round((r(n)-r(t))/864e5);return i===0?`Today`:i===1?`Yesterday`:i<7?t.toLocaleDateString(o(),{weekday:`long`}):t.toLocaleDateString(o(),{year:`numeric`,month:`long`,day:`numeric`})}var he=t.div`
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+`,ge=t.div`
+    display: flex;
+    flex: 1;
+    min-height: 0;
+`,_e=t.div`
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+`,ve=t.span`
+    display: grid;
+    place-items: center;
+    animation: ${({$spinning:e})=>e?`yafm-gallery-spin 900ms linear infinite`:`none`};
+
+    @keyframes yafm-gallery-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+`,ye=t.div`
+    height: ${({$space:e})=>e}px;
+`,_=t.p`
+    padding: 42px 24px;
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+`;export{d as n,g as t};
