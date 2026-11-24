@@ -56,9 +56,6 @@ import {type LocalizationKey, type Translate, useTranslation} from "@photino-net
 /** The strip is a glance, not a gallery; thousands of thumbnails would stall the window. */
 const PreviewLimit = 60;
 
-/** Rows appended per scroll page; a huge cache folder would otherwise create thousands at once. */
-const RowPage = 300;
-
 /** The columns the list can show besides the name. `linkTarget` is drawn inside the name cell. */
 export const ViewColumns: { id: string; label: LocalizationKey; width: number }[] = [
     {id: "type", label: "type", width: 150},
@@ -267,7 +264,6 @@ export function FileList({
     /** The scroll position waiting for the next frame, and the node it was read from. */
     const scrollFrame = useRef(0);
     const scrollNode = useRef<HTMLDivElement | null>(null);
-    const [rowLimit, setRowLimit] = useState(RowPage);
     const [listWindow, setListWindow] = useState({top: 0, height: 640});
     const stripDrag = useRef<{ y: number; height: number } | null>(null);
     const anchor = useRef<string | null>(null);
@@ -722,53 +718,251 @@ export function FileList({
         currentRow.current?.scrollIntoView({block: "nearest"});
     }, [find.currentPath, view.mode, rows, rowHeight]);
 
-    // The grid mounts a bounded window of rows: past the cap the rows above the viewport are
-    // released, so a long scroll through a big folder does not accumulate tiles.
-    // A screen shows a few dozen tiles; keeping 1 200 of them mounted made every appended page
-    // re-render a wall the eye cannot see. One page is already several screens' worth.
-    const GridWindow = 300;
-    const [gridDropped, setGridDropped] = useState(0);
-    const compensating = useRef(false);
+    // The grid mounts only the rows around the viewport, but its scrollbar covers every row the
+    // folder has loaded: a section's height follows from the tile size, the column count and its
+    // header, so the rows that are not mounted become one spacer above and one below. Dragging the
+    // bar then lands on the row it points at instead of inside a small window, and scrolling never
+    // runs out of room at either end.
+    const GridRows = 320;
+    const [gridStart, setGridStart] = useState({section: 0, line: 0});
+    const [gridMetrics, setGridMetrics] = useState({columns: 0, header: 44, gap: 10, margin: 22});
+    const gridContent = useRef<HTMLDivElement | null>(null);
 
-    /** The row that was at the top of the viewport before the window moved, and where it was. */
-    const pendingAnchor = useRef<{ path: string; top: number } | null>(null);
+    const gridMode = view.mode === "grid";
 
-    /** The last grid scroll position, so a downward scroll never gets mistaken for going back up. */
-    const lastGridScroll = useRef(0);
+    // Grouping only feeds the grid; a list view would pay for the rule matching and never use it.
+    const gridSections = useMemo(() => {
+        if (!gridMode)
+            return [];
 
-    const visibleRows = useMemo(
-        () => rows.slice(gridDropped, gridDropped + rowLimit),
-        [rows, gridDropped, rowLimit]);
+        if (!groupOf)
+            return groupRows(rows, GridRules);
 
-    // Releasing and restoring rows above the viewport both change the height above the eye. The row
-    // that was at the top is put back where it was, so the wall of pictures never shifts, jumps a
-    // page, or leaves a blank band in the middle of a long folder.
-    useLayoutEffect(() => {
-        const pending = pendingAnchor.current;
-        const element = gridPane.current;
+        // A day, a kind, a tag: a new label starts a section, and the same label arriving again
+        // later starts another one, so the tiles keep the order the folder was sorted in.
+        const built: RowGroup[] = [];
 
-        compensating.current = false;
-        if (!pending || !element) return;
+        for (const row of rows) {
+            const label = groupOf(row.entry);
+            const current = built[built.length - 1];
 
-        pendingAnchor.current = null;
-
-        for (const tile of element.querySelectorAll<HTMLElement>("[data-path]"))
-            if (tile.dataset.path === pending.path) {
-                const delta = tile.getBoundingClientRect().top - pending.top;
-
-                if (delta !== 0)
-                    element.scrollTop = Math.max(0, element.scrollTop + delta);
-
-                lastGridScroll.current = element.scrollTop;
-                return;
+            if (!current || current.label !== label.label) {
+                built.push({id: `${label.id}#${built.length}`, label: label.label, rows: [row]});
+                continue;
             }
-    }, [gridDropped, rowLimit]);
+
+            current.rows.push(row);
+        }
+
+        return built;
+    }, [rows, gridMode, groupOf]);
+
+    // The column count and the header height decide where every row sits. Both are read from the
+    // rendered sections, so a theme or a font change cannot make the spacers drift.
+    useLayoutEffect(() => {
+        const pane = gridPane.current;
+        if (!pane) return;
+
+        const header = pane.querySelector<HTMLElement>("h3");
+        const tiles = header?.nextElementSibling as HTMLElement | null;
+
+        if (!header || !tiles)
+            return;
+
+        const style = getComputedStyle(tiles);
+        const columns = style.gridTemplateColumns.split(" ").filter(Boolean).length;
+        const gap = Number.parseFloat(style.rowGap) || 0;
+        const headerHeight = header.getBoundingClientRect().height
+            + (Number.parseFloat(getComputedStyle(header).marginBottom) || 0);
+        const all = pane.querySelectorAll("section");
+        const margin = all.length > 1
+            ? Number.parseFloat(getComputedStyle(all[1]).marginTop) || 0
+            : gridMetrics.margin;
+
+        setGridMetrics((current) => current.columns === columns && current.gap === gap
+            && Math.abs(current.header - headerHeight) < 0.5 && Math.abs(current.margin - margin) < 0.5
+                ? current
+                : {columns, header: headerHeight, gap, margin});
+    });
+
+    // A wider or narrower window changes the column count even while nothing else re-renders, so the
+    // measurements above are taken again whenever the grid's own box changes.
+    const [, setGridResize] = useState(0);
+
+    useEffect(() => {
+        const node = gridPane.current;
+        if (!node || view.mode !== "grid")
+            return;
+
+        const observer = new ResizeObserver(() => setGridResize((count) => count + 1));
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [view.mode]);
+
+    /** Every section's offset and height, so a row can be found without mounting the whole grid. */
+    const gridLayout = useMemo(() => {
+        const tile = view.gridSize;
+        const columns = Math.max(1, gridMetrics.columns);
+        const {header, gap, margin} = gridMetrics;
+        let top = 0;
+
+        const items = gridSections.map((section, index) => {
+            const lines = Math.ceil(section.rows.length / columns);
+            const body = lines === 0 ? 0 : lines * tile + (lines - 1) * gap;
+            const item = {section, start: top, height: header + body};
+
+            top = item.start + item.height + (index === gridSections.length - 1 ? 0 : margin);
+            return item;
+        });
+
+        return {items, tile, columns, header, gap, margin, total: top};
+    }, [gridSections, gridMetrics, view.gridSize]);
+
+    /** The sections that are mounted, with the rows they leave out standing in as spacers. */
+    const gridWindow = useMemo(() => {
+        const {items, columns, tile, gap, header, margin, total} = gridLayout;
+
+        if (items.length === 0)
+            return {parts: [] as RowGroup[], top: 0, height: 0, total: 0};
+
+        const index = Math.min(Math.max(gridStart.section, 0), items.length - 1);
+        const item = items[index];
+        const lines = Math.max(1, Math.ceil(item.section.rows.length / columns));
+        const startLine = Math.min(Math.max(gridStart.line, 0), lines - 1);
+        const top = item.start + (startLine > 0 ? header + startLine * (tile + gap) : 0);
+
+        const parts: RowGroup[] = [];
+        let remaining = GridRows;
+        let height = 0;
+
+        for (let at = index; at < items.length && remaining > 0; at++) {
+            const current = items[at];
+            const from = at === index ? startLine * columns : 0;
+            const take = Math.min(current.section.rows.length - from, remaining);
+
+            if (take <= 0)
+                continue;
+
+            const headerShown = !(at === index && startLine > 0);
+            const partLines = Math.ceil(take / columns);
+
+            parts.push({
+                id: current.section.id,
+                label: current.section.label,
+                rows: current.section.rows.slice(from, from + take),
+                total: current.section.rows.length,
+                headerShown
+            });
+
+            height += (headerShown ? header : 0) + partLines * tile + (partLines - 1) * gap;
+            if (parts.length > 1)
+                height += margin;
+
+            remaining -= take;
+        }
+
+        return {parts, top, height, total};
+    }, [gridLayout, gridStart]);
+
+    /** The row that is mounted first after the next scroll jump, applied once it is on screen. */
+    const pendingGridScroll = useRef<{ top: number } | null>(null);
+
+    // The column count changes with the window's width, and every section's height and offset change
+    // with it. The window is put back under the scroll position, or the viewport would be left in the
+    // spacer where the rows used to be and the grid would look empty.
+    useLayoutEffect(() => {
+        const element = gridPane.current;
+        const content = gridContent.current;
+
+        if (!element || !content)
+            return;
+
+        const base = content.getBoundingClientRect().top - element.getBoundingClientRect().top
+            + element.scrollTop;
+        const at = Math.max(0, element.scrollTop - base);
+        const next = gridPositionAt(gridLayout, Math.max(0, at - element.clientHeight / 2));
+
+        setGridStart((current) => current.section === next.section && current.line === next.line
+            ? current
+            : next);
+    }, [gridLayout.columns, gridLayout.tile, gridLayout.header, gridLayout.gap, gridLayout.margin]);
+
+    useLayoutEffect(() => {
+        const pending = pendingGridScroll.current;
+        const element = gridPane.current;
+        const content = gridContent.current;
+
+        pendingGridScroll.current = null;
+        if (pending === null || !element || !content)
+            return;
+
+        const base = content.getBoundingClientRect().top - element.getBoundingClientRect().top
+            + element.scrollTop;
+
+        element.scrollTop = Math.max(0, base + pending.top - element.clientHeight / 3);
+    }, [gridStart]);
+
+    // The grid's own scroll frame: the window follows the bar, and the next page is asked for just
+    // before the end of what is loaded comes into view.
+    const gridScrollFrame = useRef(0);
+    const gridOnScroll = useCallback((element: HTMLDivElement) => {
+        if (gridScrollFrame.current !== 0)
+            return;
+
+        gridScrollFrame.current = requestAnimationFrame(() => {
+            gridScrollFrame.current = 0;
+
+            const content = gridContent.current;
+            if (!content)
+                return;
+
+            const base = content.getBoundingClientRect().top - element.getBoundingClientRect().top
+                + element.scrollTop;
+            const at = Math.max(0, element.scrollTop - base);
+            const view = element.clientHeight;
+            const {top, height} = gridWindow;
+
+            if (at < top - 2 || at + view * 1.5 > top + height) {
+                const next = gridPositionAt(gridLayout, Math.max(0, at - view));
+
+                setGridStart((current) => current.section === next.section && current.line === next.line
+                    ? current
+                    : next);
+            }
+
+            if (element.scrollTop + view >= element.scrollHeight - 600)
+                onLoadMore?.();
+        });
+    }, [gridLayout, gridWindow, onLoadMore]);
 
     // A frame that is still scheduled when the list goes away would call into a stale setter.
     useEffect(() => () => {
         if (scrollFrame.current !== 0)
             cancelAnimationFrame(scrollFrame.current);
+        if (gridScrollFrame.current !== 0)
+            cancelAnimationFrame(gridScrollFrame.current);
     }, []);
+
+    /** Brings one row into view, mounting the section that holds it first. */
+    const scrollGridToPath = useCallback((path: string): boolean => {
+        for (let at = 0; at < gridLayout.items.length; at++) {
+            const section = gridLayout.items[at].section;
+            const local = section.rows.findIndex((row) => samePath(row.entry.fullPath, path));
+
+            if (local < 0)
+                continue;
+
+            const line = Math.floor(local / gridLayout.columns);
+            const top = gridLayout.items[at].start
+                + (line > 0 ? gridLayout.header + line * (gridLayout.tile + gridLayout.gap) : 0);
+
+            pendingGridScroll.current = {top};
+            setGridStart({section: at, line});
+            return true;
+        }
+
+        return false;
+    }, [gridLayout]);
 
     // A paste selects the entries it created, so a mistake is one click from undo and the eye
     // finds the result right away.
@@ -785,132 +979,38 @@ export function FileList({
         const first = present[0];
         const index = rows.findIndex((row) => samePath(row.entry.fullPath, first));
 
-        if (index >= 0)
-            setRowLimit((limit) => Math.max(limit, index + RowPage));
-
         setSelected(new Set(present));
         anchor.current = first;
 
         if (view.mode === "list" && body.current && index >= 0)
             body.current.scrollTop = Math.max(0, index * rowHeight - body.current.clientHeight / 2);
         else
-            requestAnimationFrame(() => currentRow.current?.scrollIntoView({block: "nearest"}));
-    }, [rows, rowHeight, view.mode]);
+            scrollGridToPath(first);
+    }, [rows, rowHeight, view.mode, scrollGridToPath]);
 
-    // A new folder starts at the first page; scrolling appends more.
+    // A new folder starts at the first section; the scrollbar then covers everything it loads.
     useEffect(() => {
-        pendingAnchor.current = null;
-        compensating.current = false;
-        setRowLimit(RowPage);
-        setGridDropped(0);
-        lastGridScroll.current = 0;
+        pendingGridScroll.current = null;
+        setGridStart({section: 0, line: 0});
+        if (gridPane.current) gridPane.current.scrollTop = 0;
     }, [listing?.path]);
 
-    // A reload can return fewer rows than the window was holding (the gallery is one example, with
-    // its path never changing). Pulling the window back keeps the first page on screen instead of
-    // leaving the slider past the end of a list that just shrank.
+    // A reload can return fewer rows than the grid was showing (the gallery is one example, with its
+    // path never changing): the window goes back to the top with the shorter list.
     useEffect(() => {
-        if (rows.length >= rowLimit) return;
+        if (gridStart.section < gridSections.length) return;
 
-        pendingAnchor.current = null;
-        compensating.current = false;
-        setRowLimit(Math.max(RowPage, rows.length));
-        setGridDropped(0);
-    }, [rows.length, rowLimit]);
+        pendingGridScroll.current = null;
+        setGridStart({section: 0, line: 0});
+        if (gridPane.current) gridPane.current.scrollTop = 0;
+    }, [gridSections.length, gridStart.section]);
 
-    // A search hit can land past the rendered page; make sure its row exists.
+    // A search hit can be anywhere in the folder; the grid scrolls to it and mounts its section.
     useEffect(() => {
-        if (!find.currentPath) return;
+        if (!find.currentPath || view.mode !== "grid") return;
 
-        const index = rows.findIndex((row) => row.entry.fullPath === find.currentPath);
-        if (index >= 0)
-            setRowLimit((limit) => Math.max(limit, index + RowPage));
-    }, [find.currentPath, rows]);
-
-    const growRows = useCallback((element: HTMLElement) => {
-        if (compensating.current)
-            return;
-
-        if (element.scrollTop + element.clientHeight < element.scrollHeight - 600)
-            return;
-
-        const anchor = firstVisibleTile(element);
-        const loaded = rows.length - gridDropped;
-
-        if (rowLimit >= GridWindow && anchor && anchor.index > 0 && anchor.index < loaded) {
-            // Only what is above the eye leaves, and the eye stays where it is. Releasing a whole
-            // page regardless of the viewport dropped the rows on screen as well, so a long gallery
-            // skipped a page at every step: the middle flashed past empty while every tile mounted
-            // and asked for its thumbnail again.
-            compensating.current = true;
-            pendingAnchor.current = {path: anchor.path, top: anchor.top};
-            setGridDropped((dropped) => dropped + anchor.index);
-        } else if (rows.length > gridDropped + rowLimit) {
-            // More rows are loaded than the window holds, and the viewport is at its top: the
-            // window grows instead, since nothing above the eye needs to move.
-            setRowLimit((limit) => Math.min(rows.length - gridDropped, limit + RowPage));
-        }
-
-        // The mounted tiles reached the end, so the next page is needed too.
-        onLoadMore?.();
-    }, [rowLimit, rows.length, gridDropped, onLoadMore]);
-
-    // Pages can arrive while the grid is already at its end; without a scroll event the window
-    // would never move, so the rows below the last mounted page were unreachable. The same check
-    // runs again whenever the loaded rows, the window or the folder change.
-    useEffect(() => {
-        const element = gridPane.current;
-        if (!element || view.mode !== "grid" || compensating.current) return;
-        if (element.scrollTop + element.clientHeight < element.scrollHeight - 2) return;
-
-        growRows(element);
-    }, [rows.length, gridDropped, rowLimit, growRows, view.mode]);
-
-    // Scrolling back up returns the released rows a page at a time, so the window follows the eye.
-    const shrinkRows = useCallback((element: HTMLElement) => {
-        if (compensating.current || gridDropped === 0 || element.scrollTop > element.clientHeight)
-            return;
-
-        const anchor = firstVisibleTile(element);
-        if (!anchor) return;
-
-        // Keep the rows in view mounted while the page above slides back in, and stop the window
-        // from growing without end: a page above the eye plus a screen below it is enough.
-        const start = Math.max(0, gridDropped - RowPage);
-
-        compensating.current = true;
-        pendingAnchor.current = {path: anchor.path, top: anchor.top};
-        setGridDropped(start);
-        setRowLimit(Math.min(rows.length - start, Math.max(GridWindow, RowPage + anchor.index + 150)));
-    }, [gridDropped, rows.length]);
-
-    // Grouping only feeds the grid; a list view would pay for the rule matching and never use it.
-    const gridMode = view.mode === "grid";
-    const groups = useMemo(() => {
-        if (!gridMode)
-            return [];
-
-        if (!groupOf)
-            return groupRows(visibleRows, GridRules);
-
-        const order: string[] = [];
-        const sections = new Map<string, RowGroup>();
-
-        for (const row of visibleRows) {
-            const label = groupOf(row.entry);
-            let section = sections.get(label.id);
-
-            if (!section) {
-                section = {id: label.id, label: label.label, rows: []};
-                sections.set(label.id, section);
-                order.push(label.id);
-            }
-
-            section.rows.push(row);
-        }
-
-        return order.map((id) => sections.get(id)!);
-    }, [visibleRows, gridMode, groupOf]);
+        scrollGridToPath(find.currentPath);
+    }, [find.currentPath, scrollGridToPath, view.mode]);
 
     // The panel repeats what the rows already show; only types the shell can preview belong in it.
     const previews = useMemo(
@@ -940,8 +1040,8 @@ export function FileList({
      * order of the folder is not the order of the tiles; the list draws the rows as they are sorted.
      */
     const visualPaths = useMemo(
-        () => gridMode ? groups.flatMap((group) => group.rows.map((row) => row.entry.fullPath)) : allPaths,
-        [allPaths, gridMode, groups]
+        () => gridMode ? gridSections.flatMap((group) => group.rows.map((row) => row.entry.fullPath)) : allPaths,
+        [allPaths, gridMode, gridSections]
     );
     const allSelected = rows.length > 0 && selected.size >= rows.length;
     const someSelected = selected.size > 0 && !allSelected;
@@ -1778,17 +1878,8 @@ export function FileList({
                         onScroll={(event) => {
                             const element = event.currentTarget;
 
-                            // The window is released on the way down and brought back on the way up.
-                            // A downward scroll that happens to start at the top of a released
-                            // window must not look like the user going back to earlier rows.
-                            const movingUp = element.scrollTop < lastGridScroll.current;
-                            lastGridScroll.current = element.scrollTop;
-
                             onGridScroll?.(element);
-                            growRows(element);
-
-                            if (movingUp)
-                                shrinkRows(element);
+                            gridOnScroll(element);
                         }}
                     >
                         {showCheckboxes && rows.length > 0 && (
@@ -1815,28 +1906,35 @@ export function FileList({
 
                         {loading && !listing
                             ? <Tiles $size={view.gridSize}><PlaceholderTiles size={view.gridSize}/></Tiles>
-                            : <GridContent
-                                counts={listing?.counts}
-                                currentPath={searching ? find.currentPath : null}
-                                groups={groups}
-                                gridSize={view.gridSize}
-                                innerRef={currentRow}
-                                onContextMenu={openMenu}
-                                onOpen={onOpen}
-                                onOpenFile={onOpenFile}
-                                onRenameCancel={cancelRename}
-                                onRenameChange={changeRename}
-                                onRenameCommit={commitRename}
-                                onSelect={selectFromList}
-                                onToggle={toggleRow}
-                                onTogglePaths={singleSelect ? undefined : togglePaths}
-                                openOnSingleClick={openOnSingleClick}
-                                renaming={renaming}
-                                searching={searching}
-                                selected={selected}
-                                showCheckboxes={showCheckboxes}
-                                showTarget={showTarget}
-                            />}
+                            : (
+                                <div ref={gridContent}>
+                                    <GridSpacer aria-hidden="true" style={{height: gridWindow.top}}/>
+                                    <GridContent
+                                        counts={listing?.counts}
+                                        currentPath={searching ? find.currentPath : null}
+                                        groups={gridWindow.parts}
+                                        gridSize={view.gridSize}
+                                        innerRef={currentRow}
+                                        onContextMenu={openMenu}
+                                        onOpen={onOpen}
+                                        onOpenFile={onOpenFile}
+                                        onRenameCancel={cancelRename}
+                                        onRenameChange={changeRename}
+                                        onRenameCommit={commitRename}
+                                        onSelect={selectFromList}
+                                        onToggle={toggleRow}
+                                        onTogglePaths={singleSelect ? undefined : togglePaths}
+                                        openOnSingleClick={openOnSingleClick}
+                                        renaming={renaming}
+                                        searching={searching}
+                                        selected={selected}
+                                        showCheckboxes={showCheckboxes}
+                                        showTarget={showTarget}
+                                    />
+                                    <GridSpacer aria-hidden="true"
+                                                style={{height: Math.max(0, gridWindow.total - gridWindow.top - gridWindow.height)}}/>
+                                </div>
+                            )}
 
                         {!loading && listing && rows.length === 0 && (
                             <EmptyCell>
@@ -2300,6 +2398,10 @@ interface RowGroup {
     id: string;
     label: string;
     rows: RowModel[];
+    /** How many rows the whole section holds when the grid mounts only part of it. */
+    total?: number;
+    /** False for the section a window starts inside, whose header has scrolled off. */
+    headerShown?: boolean;
 }
 
 interface GroupRule {
@@ -2411,32 +2513,41 @@ function observerFor(margin: string): IntersectionObserver {
 }
 
 /**
- * The first tile at least partly below the top edge of the grid, with its position and its index in
- * the mounted window. Tile bottoms only ever go down, so a binary search finds it without measuring
- * the whole wall on every scroll.
+ * The section and line the grid should mount for a scroll offset, from the section offsets that were
+ * built for it. Sections hold their rows in lines of `columns`, so the line is the offset divided by
+ * one tile row.
  */
-function firstVisibleTile(element: HTMLElement): { path: string; top: number; index: number } | null {
-    const tiles = element.querySelectorAll<HTMLElement>("[data-path]");
-    const edge = element.getBoundingClientRect().top + 1;
+function gridPositionAt(layout: {
+    items: { start: number; height: number; section: RowGroup }[];
+    columns: number;
+    header: number;
+    tile: number;
+    gap: number;
+}, at: number): { section: number; line: number } {
+    const {items} = layout;
     let low = 0;
-    let high = tiles.length - 1;
-    let found = -1;
+    let high = items.length - 1;
+    let index = 0;
 
     while (low <= high) {
         const middle = (low + high) >>> 1;
 
-        if (tiles[middle].getBoundingClientRect().bottom > edge) {
-            found = middle;
-            high = middle - 1;
-        } else {
+        if (items[middle].start <= at) {
+            index = middle;
             low = middle + 1;
+        } else {
+            high = middle - 1;
         }
     }
 
-    if (found < 0) return null;
+    const item = items[index];
+    const local = Math.max(0, at - item.start - layout.header);
+    const lines = Math.max(1, Math.ceil(item.section.rows.length / layout.columns));
 
-    const tile = tiles[found];
-    return {path: tile.dataset.path ?? "", top: tile.getBoundingClientRect().top, index: found};
+    return {
+        section: index,
+        line: Math.min(lines - 1, Math.floor(local / (layout.tile + layout.gap)))
+    };
 }
 
 function whenVisible(node: Element, onVisible: () => void, margin: string): () => void {
@@ -2612,9 +2723,10 @@ const GridTile = memo(function GridTile({
             return;
         }
 
-        // Pictures are preloaded two screens ahead: scrolling quickly through a wall then lands on
-        // tiles that already have their thumbnail instead of a blank square.
-        return whenVisible(node, () => setOnScreen(true), "1200px");
+        // Pictures are preloaded most of a screen ahead. A bigger margin made a fast scroll ask the
+        // decoder for hundreds of pictures that were already gone, and the ones left on screen then
+        // waited behind that queue.
+        return whenVisible(node, () => setOnScreen(true), "400px");
     }, [previewable, onScreen]);
 
     const preview = useThumbnail(previewable && onScreen ? row.entry.fullPath : null, 192, row.entry.modified);
@@ -2785,29 +2897,33 @@ function GridContent({
                 const groupChosen = groupPaths.filter((path) => selected.has(path)).length;
                 const groupAll = groupPaths.length > 0 && groupChosen === groupPaths.length;
                 const groupSome = groupChosen > 0 && !groupAll;
+                // A section the window only partly mounted cannot select its missing rows.
+                const partial = group.total !== undefined && group.rows.length < group.total;
 
                 return (
                 <GridSection key={group.id}>
-                    <GridHeader>
-                        {showCheckboxes && onTogglePaths && groupPaths.length > 0 && (
-                            <SelectAll
-                                $checked={groupAll}
-                                $partial={groupSome}
-                                aria-label={groupAll ? t("select_none") : t("select_all")}
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    onTogglePaths(groupPaths, !groupAll);
-                                }}
-                                title={groupAll ? t("select_none") : t("select_all")}
-                                type="button"
-                            >
-                                {groupAll ? <CheckIcon size={10}/> : groupSome ? <Dash/> : null}
-                            </SelectAll>
-                        )}
-                        {t(group.label as LocalizationKey)}
-                        <GridCount>{group.rows.length}</GridCount>
-                        <GridRule/>
-                    </GridHeader>
+                    {group.headerShown !== false && (
+                        <GridHeader>
+                            {showCheckboxes && onTogglePaths && !partial && groupPaths.length > 0 && (
+                                <SelectAll
+                                    $checked={groupAll}
+                                    $partial={groupSome}
+                                    aria-label={groupAll ? t("select_none") : t("select_all")}
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        onTogglePaths(groupPaths, !groupAll);
+                                    }}
+                                    title={groupAll ? t("select_none") : t("select_all")}
+                                    type="button"
+                                >
+                                    {groupAll ? <CheckIcon size={10}/> : groupSome ? <Dash/> : null}
+                                </SelectAll>
+                            )}
+                            {t(group.label as LocalizationKey)}
+                            <GridCount>{group.total ?? group.rows.length}</GridCount>
+                            <GridRule/>
+                        </GridHeader>
+                    )}
                     <Tiles $size={gridSize}>
                         {group.rows.map((row) => (
                             <GridTile
@@ -3329,7 +3445,14 @@ const GridBody = styled.div`
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    /* The window is placed by the grid itself; the browser must not move it a second time. */
+    overflow-anchor: none;
     padding: 12px 14px 24px;
+`;
+
+/** Stands in for a run of rows the grid is not mounting, so the scrollbar still covers them. */
+const GridSpacer = styled.div`
+    flex: none;
 `;
 
 const GridSection = styled.section`

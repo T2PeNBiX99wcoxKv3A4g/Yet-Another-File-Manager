@@ -96,6 +96,13 @@ function cacheKey(path: string, isDirectory: boolean, large: boolean): string {
     return perFileIcons.has(extension) ? `f:${size}:${path}` : `f:${size}:${extension}`;
 }
 
+/**
+ * The icons being fetched by their cache key. A wall of pictures mounts hundreds of tiles that all
+ * ask for the same extension's icon at once; sharing one request keeps that from becoming hundreds
+ * of round trips through the native bridge.
+ */
+const iconLoads = new Map<string, Promise<string | null>>();
+
 /** The icon the shell would show, as a data URL, or null while it loads or when unavailable. */
 export function useIcon(path: string | null, isDirectory: boolean, large = false): string | null {
     const revision = useIconVersion();
@@ -120,29 +127,34 @@ export function useIcon(path: string | null, isDirectory: boolean, large = false
         // The first ask can race the shell's own start-up, and a folder on a slow volume may need a
         // moment. A null is retried a couple of times instead of leaving the built-in glyph there
         // until the row happens to be mounted again.
-        const load = async () => {
-            for (var attempt = 0; attempt < 3; attempt++) {
-                const data = await Native.request<{ dataUrl: string | null }>("fs.icon",
-                    {path, directory: isDirectory, large}).catch(() => null);
+        let load = iconLoads.get(id);
 
-                if (!alive) return;
+        if (!load) {
+            load = (async () => {
+                for (let attempt = 0; attempt < 3; attempt++) {
+                    const data = await Native.request<{ dataUrl: string | null }>("fs.icon",
+                        {path, directory: isDirectory, large}).catch(() => null);
 
-                if (data?.dataUrl) {
-                    remember(iconCache, id, data.dataUrl);
-                    setIcon(data.dataUrl);
-                    return;
+                    if (data?.dataUrl) {
+                        remember(iconCache, id, data.dataUrl);
+                        return data.dataUrl;
+                    }
+
+                    iconCache.delete(id);
+
+                    if (attempt < 2)
+                        await new Promise((resolve) => window.setTimeout(resolve, 1200));
                 }
 
-                iconCache.delete(id);
+                return null;
+            })().finally(() => iconLoads.delete(id));
 
-                if (attempt < 2)
-                    await new Promise((resolve) => window.setTimeout(resolve, 1200));
-            }
+            iconLoads.set(id, load);
+        }
 
-            if (alive) setIcon(null);
-        };
-
-        void load();
+        void load.then((dataUrl) => {
+            if (alive) setIcon(dataUrl);
+        });
 
         return () => {
             alive = false;

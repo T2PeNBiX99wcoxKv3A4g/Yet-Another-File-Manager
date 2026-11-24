@@ -33,6 +33,10 @@ const PagesPerBurst = 3;
 /** Empty space kept below the last tile while more pages exist; scrolling never hits a hard end. */
 const MoreSpace = 600;
 
+/** Pictures loaded in the background so the scrollbar can reach the whole wall; a bigger library
+ *  keeps its pages on demand instead. */
+const EagerLimit = 20_000;
+
 interface GalleryViewProps {
     /** Open a picture with one click instead of two, following the file browser's setting. */
     openOnSingleClick?: boolean;
@@ -234,22 +238,15 @@ export function GalleryView({
         return () => observer.disconnect();
     }, [loadMore]);
 
-    // If a burst still left the sentinel near the viewport, check again shortly; this keeps the
-    // wall filling without waiting for the user to wiggle the wheel.
+    // Keep pulling the rest of the gallery in the background: the grid's scrollbar covers every
+    // loaded picture, so a drag lands where it points only once the whole list is known. Pages are
+    // appended in a transition, so the wall stays scrollable while they arrive. A library too big to
+    // hold at once keeps its pages on demand.
     useEffect(() => {
-        if (entries.length >= total)
+        if (entries.length >= total || entries.length >= EagerLimit)
             return;
 
-        const timer = window.setTimeout(() => {
-            const element = sentinel.current?.parentElement;
-            if (!element)
-                return;
-
-            const remaining = element.scrollHeight - element.scrollTop - element.clientHeight;
-            if (remaining < PrefetchDistance)
-                void loadMore();
-        }, 200);
-
+        const timer = window.setTimeout(() => void loadMore(), entries.length === 0 ? 0 : 180);
         return () => window.clearTimeout(timer);
     }, [entries.length, total, loadMore]);
 
