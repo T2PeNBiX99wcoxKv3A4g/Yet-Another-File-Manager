@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.59.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.58.0..v0.59.0) - 2026-11-24
+
+### ⛰️  Features
+
+- *(sidebar)* Show the shared and favorite panels - ([17e4d8a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/17e4d8a39375b4b7cb4972fd34296563df988306))
+
+### ⚙️ Miscellaneous Tasks
+
+- *(mod)* Bump the picker mod to 1.6.0 - ([5dbbd05](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/5dbbd05de8ac6b4ca8502ebff40dac5fa726032c))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([0204c14](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/0204c1442fa1e6e5f129baebad83bb52a024efc5))
+
+
 ## [0.58.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.57.0..v0.58.0) - 2026-11-23
 
 ### ⛰️  Features
