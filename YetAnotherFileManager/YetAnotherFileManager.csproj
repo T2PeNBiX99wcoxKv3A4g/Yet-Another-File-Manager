@@ -20,7 +20,7 @@
              interface; the trimmed single-file build turns built-in COM off by default. -->
         <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
         <RootNamespace>YetAnotherFileManager</RootNamespace>
-        <Version>0.60.1</Version>
+        <Version>0.60.2</Version>
         <!-- A reference's XML file is IntelliSense text the running app never reads. The Windows
              SDK projection's is 13 MB, larger than anything else we ship, so it stays out. -->
         <AllowedReferenceRelatedFileExtensions>.pdb</AllowedReferenceRelatedFileExtensions>

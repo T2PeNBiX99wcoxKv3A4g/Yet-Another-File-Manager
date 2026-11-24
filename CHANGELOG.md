@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.60.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.60.1..v0.60.2) - 2026-11-24
+
+### 🐛 Bug Fixes
+
+- *(gallery)* Give the grid a scrollbar over every loaded row and keep the viewport mounted - ([394f464](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/394f46449b6e572f420770d7345e106392bb9018))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([9ee4c22](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/9ee4c2260fde531505df52e3a32223db9ee5ac07))
+
+
 ## [0.60.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.60.0..v0.60.1) - 2026-11-24
 
 ### 🐛 Bug Fixes
