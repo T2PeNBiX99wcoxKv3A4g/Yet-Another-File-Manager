@@ -22,10 +22,10 @@ import type {PageFind} from "../ui/textSearch";
 import {useTranslation} from "@photino-net-utils/bridge";
 
 /** How many pictures one request carries; the rest are prefetched before the bottom is reached. */
-const PageSize = 150;
+const PageSize = 300;
 
 /** Start asking for more when the scrollbar is still this far from the end. */
-const PrefetchDistance = 2500;
+const PrefetchDistance = 4000;
 
 /** How many pages one trigger may pull; a huge burst would render too much at once. */
 const PagesPerBurst = 3;

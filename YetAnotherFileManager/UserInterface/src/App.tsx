@@ -1111,7 +1111,9 @@ export default function App() {
                 const entries = listing.entries.map((entry) =>
                     samePath(entry.fullPath, from) ? {...entry, name, fullPath: to} : entry);
 
-                return {listing: {...listing, entries}};
+                // The new signature tells the list its row cache is stale, which the appended pages
+                // of the live listing keep otherwise.
+                return {listing: {...listing, entries, signature: listing.signature + 1}};
             });
         }
     }, [patch]);

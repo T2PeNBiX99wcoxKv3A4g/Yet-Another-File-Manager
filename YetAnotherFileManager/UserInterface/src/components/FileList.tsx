@@ -552,30 +552,94 @@ export function FileList({
     // thousands of entries, and the bar still shows every character at once.
     const deferredQuery = useDeferredValue(findQuery);
 
+    // Rebuilding every row on each page turned a long scroll into a stall: appending 400 entries to
+    // a 100 000 entry folder mapped and sorted all 100 000 again. The cache keeps the rows that were
+    // already built and only maps the page that arrived, as long as the listing is still the same
+    // one. A rename bumps the signature, so a locally changed row is never kept by mistake.
+    const rowCache = useRef<{ shape: unknown[]; entries: FileEntry[]; rows: RowModel[] } | null>(null);
+
     const rows = useMemo(() => {
         if (!listing) return [];
 
-        const matched = listing.entries
-            .map((entry): RowModel => {
-                // Quick access places are folders; looking them up for every file would normalize
-                // two paths per file on each sort or search.
-                const place = entry.isDirectory ? quickPlace(quick, entry.fullPath) : undefined;
-                const label = place?.name || entry.name;
+        const shape: unknown[] = [
+            listing.path,
+            listing.signature,
+            listing.ordered ?? false,
+            listing.tags,
+            view.sort === "size" || view.sort === "items" ? listing.folderSizes : null,
+            view.sort === "size" || view.sort === "items" ? listing.counts : null,
+            searching, deferredQuery, findMode, quick, view.sort, view.sortDescending, t, cutPaths,
+        ];
 
-                return {
-                    entry,
-                    place,
-                    label,
-                    ranges: searching ? rangesOf(label, deferredQuery) : null,
-                    tags: listing.tags[entry.name] ?? [],
-                    cut: cutPaths.has(entry.fullPath),
-                };
-            })
-            .filter((row) => !searching || findMode === "dim" || row.ranges !== null);
+        const toRow = (entry: FileEntry): RowModel => {
+            // Quick access places are folders; looking them up for every file would normalize
+            // two paths per file on each sort or search.
+            const place = entry.isDirectory ? quickPlace(quick, entry.fullPath) : undefined;
+            const label = place?.name || entry.name;
 
-        return sortRows(matched, view, listing, t);
+            return {
+                entry,
+                place,
+                label,
+                ranges: searching ? rangesOf(label, deferredQuery) : null,
+                tags: listing.tags[entry.name] ?? [],
+                cut: cutPaths.has(entry.fullPath),
+            };
+        };
+
+        const cached = rowCache.current;
+        const sameShape = cached !== null && shape.length === cached.shape.length
+            && shape.every((value, index) => value === cached.shape[index]);
+        const appended = cached !== null && sameShape
+            && cached.entries.length <= listing.entries.length
+            && (cached.entries.length === 0
+                || (cached.entries[0] === listing.entries[0]
+                    && cached.entries[cached.entries.length - 1] === listing.entries[cached.entries.length - 1]));
+
+        // The paged route sorts the whole folder before it cuts pages, but it orders names by code
+        // point: the window's natural, locale-aware order (2 before 10, the way Explorer shows it)
+        // is different, so names are always put in place here. Times are plain numbers and match
+        // the route exactly. Columns whose value only the window knows - a measured folder size, a
+        // child count, a tag, the Type label or the link status - are sorted here as well.
+        const routeSorts = listing.ordered && (view.sort === "modified" || view.sort === "created");
+        const compare = rowComparator(view, listing, t);
+
+        let built: RowModel[];
+
+        if (appended && cached !== null) {
+            const added: RowModel[] = [];
+
+            for (let index = cached.entries.length; index < listing.entries.length; index++) {
+                const row = toRow(listing.entries[index]);
+
+                if (!searching || findMode === "dim" || row.ranges !== null)
+                    added.push(row);
+            }
+
+            if (routeSorts) {
+                built = added.length === 0 ? cached.rows : [...cached.rows, ...added];
+            } else if (added.length > 4_000) {
+                // A search or a select-all can bring the whole folder at once; sorting one batch is
+                // cheaper than inserting tens of thousands of rows one by one.
+                built = sortRows([...cached.rows, ...added], view, listing, t);
+            } else {
+                // The rows already on screen are sorted; only the page that arrived has to find its
+                // place. Sorting the whole folder again on every page is what made a 100 000 entry
+                // scroll stutter.
+                built = insertSorted(cached.rows, added, compare);
+            }
+        } else {
+            const matched = listing.entries
+                .map(toRow)
+                .filter((row) => !searching || findMode === "dim" || row.ranges !== null);
+
+            built = routeSorts ? matched : sortRows(matched, view, listing, t);
+        }
+
+        rowCache.current = {shape, entries: listing.entries, rows: built};
+        return built;
     }, [
-        listing?.entries, listing?.tags,
+        listing?.entries, listing?.tags, listing?.path, listing?.signature, listing?.ordered,
         view.sort === "size" || view.sort === "items" ? listing?.folderSizes : null,
         view.sort === "size" || view.sort === "items" ? listing?.counts : null,
         searching, deferredQuery, findMode, quick, view.sort, view.sortDescending, t, cutPaths,
@@ -659,9 +723,15 @@ export function FileList({
 
     // The grid mounts a bounded window of rows: past the cap the oldest page is released, so a long
     // scroll through a big folder does not accumulate tiles.
-    const GridWindow = 1200;
+    // A screen shows a few dozen tiles; keeping 1 200 of them mounted made every appended page
+    // re-render a wall the eye cannot see. One page is already several screens' worth.
+    const GridWindow = 300;
     const [gridDropped, setGridDropped] = useState(0);
+    const [gridTick, setGridTick] = useState(0);
     const compensating = useRef(false);
+
+    /** The last grid scroll position, so a downward scroll never gets mistaken for going back up. */
+    const lastGridScroll = useRef(0);
 
     const visibleRows = useMemo(
         () => rows.slice(gridDropped, gridDropped + rowLimit),
@@ -704,7 +774,18 @@ export function FileList({
     useEffect(() => {
         setRowLimit(RowPage);
         setGridDropped(0);
+        lastGridScroll.current = 0;
     }, [listing?.path]);
+
+    // A reload can return fewer rows than the window was holding (the gallery is one example, with
+    // its path never changing). Pulling the window back keeps the first page on screen instead of
+    // leaving the slider past the end of a list that just shrank.
+    useEffect(() => {
+        if (rows.length >= rowLimit) return;
+
+        setRowLimit(Math.max(RowPage, rows.length));
+        setGridDropped(0);
+    }, [rows.length, rowLimit]);
 
     // A search hit can land past the rendered page; make sure its row exists.
     useEffect(() => {
@@ -721,38 +802,57 @@ export function FileList({
 
         if (rowLimit >= GridWindow) {
             // Release the oldest page and keep what is on screen where it is: the rows above it are
-            // gone, so the scroll position moves by exactly the height that left.
+            // gone, so the scroll position moves by exactly the height that left. The window stops
+            // at the last page: scrolling over the end of a fully loaded folder must not drop the
+            // rows still on screen, which used to leave the grid blank.
             const before = element.scrollHeight;
             const at = element.scrollTop;
+            const furthest = Math.max(0, rows.length - rowLimit);
 
-            compensating.current = true;
-            setGridDropped((dropped) => Math.min(dropped + RowPage, rows.length));
+            if (gridDropped < furthest) {
+                compensating.current = true;
+                setGridDropped((dropped) => Math.min(dropped + RowPage, furthest));
 
-            requestAnimationFrame(() => {
-                element.scrollTop = Math.max(0, at - (before - element.scrollHeight));
-                compensating.current = false;
-            });
+                requestAnimationFrame(() => {
+                    element.scrollTop = Math.max(0, at - (before - element.scrollHeight));
+                    compensating.current = false;
+                    setGridTick((tick) => tick + 1);
+                });
+            }
         } else {
             setRowLimit((limit) => Math.min(rows.length, limit + RowPage));
         }
 
         // The mounted tiles reached the end, so the next page is needed too.
         onLoadMore?.();
-    }, [rowLimit, rows.length, onLoadMore]);
+    }, [rowLimit, rows.length, gridDropped, onLoadMore]);
+
+    // Pages can arrive while the grid is already at its end; without a scroll event the window
+    // would never move, so the rows below the last mounted page were unreachable. Once the window
+    // is free again, the same check runs from the tick the animation frame above bumps.
+    useEffect(() => {
+        const element = gridPane.current;
+        if (!element || view.mode !== "grid" || compensating.current) return;
+        if (element.scrollTop + element.clientHeight < element.scrollHeight - 2) return;
+        if (gridDropped >= Math.max(0, rows.length - rowLimit)) return;
+
+        growRows(element);
+    }, [gridTick, rows.length, gridDropped, rowLimit, growRows, view.mode]);
 
     // Scrolling back up returns the released pages a page at a time, so the window follows the eye.
     const shrinkRows = useCallback((element: HTMLElement) => {
         if (compensating.current || gridDropped === 0 || element.scrollTop > element.clientHeight)
             return;
 
-        const before = element.scrollHeight;
-        const at = element.scrollTop;
-
         compensating.current = true;
         setGridDropped((dropped) => Math.max(0, dropped - RowPage));
 
         requestAnimationFrame(() => {
-            element.scrollTop = at + (element.scrollHeight - before);
+            // The window went back a page. One viewport below its top shows the page that was just
+            // restored and still leaves a screen of scroll room above, so the wheel keeps going up
+            // instead of stopping dead at the start of the window.
+            element.scrollTop = Math.min(element.clientHeight,
+                Math.max(0, element.scrollHeight - element.clientHeight));
             compensating.current = false;
         });
     }, [gridDropped]);
@@ -1649,9 +1749,19 @@ export function FileList({
                         onDragStart={startListDrag}
                         onDrop={dropOnList}
                         onScroll={(event) => {
-                            onGridScroll?.(event.currentTarget);
-                            growRows(event.currentTarget);
-                            shrinkRows(event.currentTarget);
+                            const element = event.currentTarget;
+
+                            // The window is released on the way down and brought back on the way up.
+                            // A downward scroll that happens to start at the top of a released
+                            // window must not look like the user going back to earlier rows.
+                            const movingUp = element.scrollTop < lastGridScroll.current;
+                            lastGridScroll.current = element.scrollTop;
+
+                            onGridScroll?.(element);
+                            growRows(element);
+
+                            if (movingUp)
+                                shrinkRows(element);
                         }}
                     >
                         {showCheckboxes && rows.length > 0 && (
@@ -2072,35 +2182,52 @@ function stepTo(tiles: HTMLElement[], from: DOMRect, direction: NavDirection): H
 /** One collator for every listing: `localeCompare` with options allocates per comparison. */
 const NameCollator = new Intl.Collator(undefined, {numeric: true, sensitivity: "base"});
 
-/** Folders stay first, the way Explorer keeps them, and the chosen column orders the rest. */
-function sortRows(rows: RowModel[], view: ResolvedView, listing: DirectoryListing, t: Translate): RowModel[] {
-    const value = (entry: FileEntry): string | number => {
-        switch (view.sort) {
-            case "type":
-                return typeLabel(entry.name, entry.isDirectory, entry.linkTarget, t);
-            case "size":
-                return entry.isDirectory ? listing.folderSizes[entry.name] ?? 0 : entry.size;
-            case "modified":
-                return entry.modified;
-            case "created":
-                return entry.created;
-            case "items":
-                return entry.isDirectory ? listing.counts[entry.name] ?? -1 : -1;
-            case "linkCount":
-                return entry.linkCount > 1 ? entry.linkCount : 0;
-            case "linkStatus":
-                if (entry.linkTarget != null) return entry.linkValid ? 0 : 1;
-                return entry.linkCount > 1 ? 2 : 3;
-            case "tags":
-                return (listing.tags[entry.name] ?? []).join(", ");
-            default:
-                return entry.name;
-        }
-    };
+/** The value the view sorts one entry by. */
+function sortValue(entry: FileEntry, view: ResolvedView, listing: DirectoryListing,
+                   t: Translate): string | number {
+    switch (view.sort) {
+        case "type":
+            return typeLabel(entry.name, entry.isDirectory, entry.linkTarget, t);
+        case "size":
+            return entry.isDirectory ? listing.folderSizes[entry.name] ?? 0 : entry.size;
+        case "modified":
+            return entry.modified;
+        case "created":
+            return entry.created;
+        case "items":
+            return entry.isDirectory ? listing.counts[entry.name] ?? -1 : -1;
+        case "linkCount":
+            return entry.linkCount > 1 ? entry.linkCount : 0;
+        case "linkStatus":
+            if (entry.linkTarget != null) return entry.linkValid ? 0 : 1;
+            return entry.linkCount > 1 ? 2 : 3;
+        case "tags":
+            return (listing.tags[entry.name] ?? []).join(", ");
+        default:
+            return entry.name;
+    }
+}
 
+/** Folders stay first, the way Explorer keeps them, and the chosen column orders the rest. */
+function rowComparator(view: ResolvedView, listing: DirectoryListing, t: Translate) {
+    return (left: RowModel, right: RowModel): number => {
+        if (left.entry.isDirectory !== right.entry.isDirectory)
+            return left.entry.isDirectory ? -1 : 1;
+
+        const a = sortValue(left.entry, view, listing, t);
+        const b = sortValue(right.entry, view, listing, t);
+        const order = typeof a === "number" && typeof b === "number"
+            ? a - b
+            : NameCollator.compare(String(a), String(b));
+
+        return view.sortDescending ? -order : order;
+    };
+}
+
+function sortRows(rows: RowModel[], view: ResolvedView, listing: DirectoryListing, t: Translate): RowModel[] {
     // Sort keys are computed once per row instead of on every comparison; a column like Type or
     // Tags would otherwise be rebuilt tens of thousands of times for one listing.
-    const keys = new Map(rows.map((row) => [row, value(row.entry)]));
+    const keys = new Map(rows.map((row) => [row, sortValue(row.entry, view, listing, t)]));
 
     return [...rows].sort((left, right) => {
         if (left.entry.isDirectory !== right.entry.isDirectory)
@@ -2114,6 +2241,32 @@ function sortRows(rows: RowModel[], view: ResolvedView, listing: DirectoryListin
 
         return view.sortDescending ? -order : order;
     });
+}
+
+/** Puts a newly arrived page into the rows already sorted, without sorting them all again. */
+function insertSorted(sorted: RowModel[], added: RowModel[], compare: (left: RowModel, right: RowModel) => number) {
+    if (added.length === 0)
+        return sorted;
+
+    const tail = [...added].sort(compare);
+    const merged = [...sorted];
+
+    for (const row of tail) {
+        // After the rows that compare equal, so two equal names keep the order they arrived in.
+        let low = 0;
+        let high = merged.length;
+
+        while (low < high) {
+            const middle = (low + high) >>> 1;
+
+            if (compare(merged[middle], row) <= 0) low = middle + 1;
+            else high = middle;
+        }
+
+        merged.splice(low, 0, row);
+    }
+
+    return merged;
 }
 
 interface RowGroup {

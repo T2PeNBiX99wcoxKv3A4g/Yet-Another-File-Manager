@@ -129,6 +129,10 @@ internal partial class DirectoryWatcher
 
     private void Notify(string path)
     {
+        // The paging route may still be serving the walk made before the change, so the folder is
+        // dropped here as well as reported to the window.
+        ListingSource.Invalidate(path);
+
         Try.Run(() => WindowManager.Instance.RunOnMainWindow(() =>
                 WindowManager.Instance.Notify("fs.changed", new FsChangedPayload(path))))
             .OnFailure(_ => Log.Debug("Could not report the change in {Path}", path));

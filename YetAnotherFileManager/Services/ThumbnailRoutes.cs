@@ -19,11 +19,20 @@ namespace YetAnotherFileManager.Services;
 /// </summary>
 internal static class ThumbnailRoutes
 {
-    private const int CacheLimit = 500;
-    private const long CacheBytes = 96L * 1024 * 1024;
+    /// <summary>
+    ///     A wall of pictures is scrolled through once and then looked at again, so the cache holds
+    ///     far more than one screen. 4 000 tiles of a 192 px picture is a few hundred megabytes,
+    ///     which the memory settings already treat as cheap next to decoding them a second time.
+    /// </summary>
+    private const int CacheLimit = 4_000;
+    private const long CacheBytes = 512L * 1024 * 1024;
 
-    /// <summary>Full-resolution decodes are memory hungry, so only two of them run at a time.</summary>
-    private static readonly SemaphoreSlim ImageGate = new(2, 2);
+    /// <summary>
+    ///     Full-resolution decodes are memory hungry, so they run a few at a time. Two left most of a
+    ///     16-core machine idle while a gallery of PNGs decoded one picture per 45 ms; eight keeps
+    ///     the cores busy without pinning gigabytes at once.
+    /// </summary>
+    private static readonly SemaphoreSlim ImageGate = new(Math.Clamp(Environment.ProcessorCount / 2, 4, 8));
 
     private static readonly SemaphoreSlim PdfGate = new(2, 2);
     private static readonly ConcurrentDictionary<string, byte[]> Cache = new(StringComparer.OrdinalIgnoreCase);
@@ -32,7 +41,7 @@ internal static class ThumbnailRoutes
     /// <summary>A temporary copy of an entry read out of an archive, keyed by its virtual path.</summary>
     private static readonly ConcurrentDictionary<string, string> Extracted = new(StringComparer.OrdinalIgnoreCase);
 
-    private static readonly SemaphoreSlim Gate = new(Math.Clamp(Environment.ProcessorCount, 4, 8));
+    private static readonly SemaphoreSlim Gate = new(Math.Clamp(Environment.ProcessorCount, 8, 16));
 
     private static long _cachedBytes;
 

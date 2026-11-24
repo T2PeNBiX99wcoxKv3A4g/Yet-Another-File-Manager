@@ -20,50 +20,81 @@ internal static partial class FileOperations
     public static async Task<DeletePayload> DeleteAsync(IReadOnlyList<string> paths, bool permanent = false,
         bool runningConfirmed = false)
     {
-        var items = Selection(paths);
-        if (items.Count == 0)
+        if (paths.Count == 0)
             return new(false, false, Localization.Get("there_is_nothing_to_delete"));
 
-        // A policy or a volume setting can turn the bin off; that means "delete for good", which
-        // Explorer asks about first, so the window gets the same chance.
-        if (!permanent && items.Any(path => !RecycleBin.CanRecycle(path)))
-            return new(false, true, Localization.Get("the_recycle_bin_is_turned_off_for_this_volume"));
+        // The row is put up before existence checks, not after them: checking every selected path,
+        // scanning for programs that hold the selection and measuring a tree are the slow parts,
+        // and the window used to sit silent through them. A delete that stops to ask a question
+        // takes the row down again.
+        var id = TaskCenter.Instance.Start("delete", DeleteLabel(permanent, paths.Count));
 
-        // Windows lets a running image be renamed, so the file itself does reach the recycle bin,
-        // while the folder around it cannot move and an unlink can only fail. A folder is refused at
-        // once; the file is offered as a question because deleting it breaks its shortcuts and
-        // updates. Both answers name the programs that hold the selection.
-        var images = await Task.Run(RunningImages);
-        var locked = LockedBy(images, items);
-        var lockedFiles = locked.Where(entry => File.Exists(entry.Item)).ToList();
-        var lockedFolders = locked.Except(lockedFiles).ToList();
-
-        if (permanent && locked.Count > 0)
+        var items = Selection(paths);
+        if (items.Count == 0)
         {
-            var holders = Holders(locked);
-            return new(false, false, InUseMessage(locked.Count, holders), Running: holders);
+            TaskCenter.Instance.Dismiss(id);
+            return new(false, false, Localization.Get("there_is_nothing_to_delete"));
         }
 
-        if (lockedFolders.Count > 0)
+        try
         {
-            var holders = Holders(lockedFolders);
-            return new(false, false, InUseMessage(lockedFolders.Count, holders), Running: holders);
+            // A policy or a volume setting can turn the bin off; that means "delete for good", which
+            // Explorer asks about first, so the window gets the same chance.
+            if (!permanent && items.Any(path => !RecycleBin.CanRecycle(path)))
+            {
+                TaskCenter.Instance.Dismiss(id);
+                return new(false, true, Localization.Get("the_recycle_bin_is_turned_off_for_this_volume"));
+            }
+
+            // Windows lets a running image be renamed, so the file itself does reach the recycle bin,
+            // while the folder around it cannot move and an unlink can only fail. A folder is refused
+            // at once; the file is offered as a question because deleting it breaks its shortcuts
+            // and updates. Both answers name the programs that hold the selection.
+            var images = await Task.Run(RunningImages);
+            var locked = LockedBy(images, items);
+            var lockedFiles = locked.Where(entry => File.Exists(entry.Item)).ToList();
+            var lockedFolders = locked.Except(lockedFiles).ToList();
+
+            if (permanent && locked.Count > 0)
+            {
+                var holders = Holders(locked);
+                var error = InUseMessage(locked.Count, holders);
+                TaskCenter.Instance.Fail(id, error);
+                return new(false, false, error, Running: holders);
+            }
+
+            if (lockedFolders.Count > 0)
+            {
+                var holders = Holders(lockedFolders);
+                var error = InUseMessage(lockedFolders.Count, holders);
+                TaskCenter.Instance.Fail(id, error);
+                return new(false, false, error, Running: holders);
+            }
+
+            if (lockedFiles.Count > 0 && !runningConfirmed)
+            {
+                TaskCenter.Instance.Dismiss(id);
+                return new(false, false, null, NeedsRunningConfirm: true, Running: Holders(lockedFiles));
+            }
+
+            var deletedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var (step, deleted) = await DeleteWithProgressAsync(items, permanent, id);
+
+            if (!permanent && deleted > 0)
+                // Undo puts back whatever really reached the bin, so the whole selection is tried.
+                FileHistory.Instance.Record($"Delete {deleted} item(s)",
+                    paths: items,
+                    undo: () => RestoreFromRecycleAsync(items, deletedAt),
+                    redo: async () => (await DeleteWithProgressAsync(items, false)).Step);
+
+            return new(step.Ok, false, step.Error);
         }
-
-        if (lockedFiles.Count > 0 && !runningConfirmed)
-            return new(false, false, null, NeedsRunningConfirm: true, Running: Holders(lockedFiles));
-
-        var deletedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var (step, deleted) = await DeleteWithProgressAsync(items, permanent);
-
-        if (!permanent && deleted > 0)
-            // Undo puts back whatever really reached the bin, so the whole selection is tried.
-            FileHistory.Instance.Record($"Delete {deleted} item(s)",
-                paths: items,
-                undo: () => RestoreFromRecycleAsync(items, deletedAt),
-                redo: async () => (await DeleteWithProgressAsync(items, false)).Step);
-
-        return new(step.Ok, false, step.Error);
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Could not delete the selection");
+            TaskCenter.Instance.Fail(id, ex.Message);
+            return new(false, false, ex.Message);
+        }
     }
 
     private static async Task<FileHistory.Step> DeleteCoreAsync(IReadOnlyList<string> paths, bool permanent) =>
@@ -74,7 +105,7 @@ internal static partial class FileOperations
     ///     the recycle bin; a permanent delete leaves it at zero because there is nothing to restore.
     /// </summary>
     private static async Task<(FileHistory.Step Step, int Deleted)> DeleteWithProgressAsync(
-        List<string> items, bool permanent)
+        List<string> items, bool permanent, string? id = null)
     {
         if (items.Count == 0)
             return (new(false, [], Localization.Get("there_is_nothing_to_delete")), 0);
@@ -85,7 +116,10 @@ internal static partial class FileOperations
             return (new(false, ParentsOf(items),
                 "Moving to the recycle bin needs Windows or Linux."), 0);
 
-        var id = TaskCenter.Instance.Start("delete", DeleteLabel(permanent, items.Count), items.Count);
+        // Undo and redo call this directly, so they still get a row of their own; the window passes
+        // the row it already put up when the key was pressed. No count yet: measuring a tree or a
+        // long recycle-bin write shows the moving bar instead of a bar stuck at zero.
+        id ??= TaskCenter.Instance.Start("delete", DeleteLabel(permanent, items.Count));
 
         try
         {
@@ -108,6 +142,8 @@ internal static partial class FileOperations
         var deleted = 0;
         var done = 0;
         var refused = new List<string>();
+
+        TaskCenter.Instance.UpdateTotal(id, items.Count, 0);
 
         foreach (var path in items)
         {

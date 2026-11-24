@@ -1371,7 +1371,11 @@ internal partial class FileSystemService : INativeMessageHandler
     private static async Task<NativeResponse?> ListMetaAsync(NativeContext context)
     {
         var request = context.Payload<FsListRequest>();
-        var payload = await ListingSource.Instance.PayloadAsync(request?.Path ?? "", CancellationToken.None);
+
+        // The window asks for metadata before it paints a folder, and that call is the one that
+        // decides whether the saved listing is still current. It always walks the disk; the pages
+        // that follow are cut from this walk instead of starting one of their own.
+        var payload = await ListingSource.Instance.RefreshAsync(request?.Path ?? "", CancellationToken.None);
 
         return context.Reply("fs.list.meta.result", new FsListMetaPayload(
             payload.Path,

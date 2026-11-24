@@ -81,6 +81,12 @@ export interface ResolvedView extends DirectoryView {
 export interface DirectoryListing extends DirectoryMeta {
     /** The entries of the pages loaded so far, in the folder's order. */
     entries: FileEntry[];
+    /**
+     * True when the entries already arrive in the view's order (the paged route sorts the whole
+     * folder before it cuts pages). The grid can then append a page without sorting everything
+     * again, which is what kept a 100 000 entry folder frozen while it was scrolling.
+     */
+    ordered?: boolean;
 }
 
 /** Everything about a folder except its entries, which arrive as paged binary blocks. */
@@ -237,7 +243,7 @@ export async function listDirectory(path?: string, sizes = true, includeLinks = 
         descending: meta.view?.sortDescending ?? false
     });
 
-    return {...meta, entries: page.entries};
+    return {...meta, entries: page.entries, ordered: true};
 }
 
 /** One more page of a folder, appended to what a listing already has. */

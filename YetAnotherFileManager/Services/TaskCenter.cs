@@ -91,6 +91,18 @@ internal partial class TaskCenter
 
     public void Fail(string id, string error) => Finish(id, "failed", error);
 
+    /// <summary>
+    ///     Drops a row for work that never really started, such as a delete that stops to ask the
+    ///     window a question. It is not a failure and should not stay in the list.
+    /// </summary>
+    public void Dismiss(string id)
+    {
+        lock (_gate)
+            _tasks.RemoveAll(task => task.Id == id);
+
+        ScheduleNotify();
+    }
+
     public IReadOnlyList<TaskInfo> Snapshot()
     {
         lock (_gate)
