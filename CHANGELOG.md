@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.62.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.62.0..v0.62.1) - 2026-11-24
+
+### 🐛 Bug Fixes
+
+- *(folders)* Keep measured sizes across listings and navigation - ([338974f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/338974f136c806473b4357c1fe0e0e13308d3d24))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([5a99c78](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/5a99c786e132234e6794ca54e90e22958f82c1f1))
+
+
 ## [0.62.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.61.0..v0.62.0) - 2026-11-24
 
 ### ⛰️  Features
