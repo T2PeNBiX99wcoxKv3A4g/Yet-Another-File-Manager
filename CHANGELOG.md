@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.60.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.60.0..v0.60.1) - 2026-11-24
+
+### 🐛 Bug Fixes
+
+- *(gallery)* Keep the grid window anchored so scrolling never skips or blanks the middle - ([2b188d1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/2b188d12ebdcb04127638e3f6ca917d1d60ebaf7))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([009a6e4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/009a6e4e1f69ddc93cc8455eef4ca832a36f43d3))
+
+
 ## [0.60.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.59.0..v0.60.0) - 2026-11-24
 
 ### ⛰️  Features
