@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.62.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.61.0..v0.62.0) - 2026-11-24
+
+### ⛰️  Features
+
+- *(git)* Add a history panel and clearer status marks - ([102b648](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/102b648004629a3d4fb8dd270e8e1a143e6129eb))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([5fa69fd](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/5fa69fd3f0e366fd4250d301cd9595325dc18d97))
+
+
 ## [0.61.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.60.2..v0.61.0) - 2026-11-24
 
 ### ⛰️  Features
