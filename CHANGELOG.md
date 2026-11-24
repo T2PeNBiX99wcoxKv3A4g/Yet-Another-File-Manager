@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.60.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.59.0..v0.60.0) - 2026-11-24
+
+### ⛰️  Features
+
+- *(perf)* Keep folder walks, smooth huge lists and the gallery, and report deletes at once - ([9491c94](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/9491c944ba90c1ff3e2e69285d534fea08c5b313))
+
+### 🐛 Bug Fixes
+
+- *(ci)* Add the changelog action the release workflow calls - ([6ac5176](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/6ac5176d4cdbaa31e9478203b2d6f7dd5edf56a1))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([26b0b98](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/26b0b9877de9b4b1e0110ab510bce9aefe577420))
+
+
 ## [0.59.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.58.0..v0.59.0) - 2026-11-24
 
 ### ⛰️  Features
