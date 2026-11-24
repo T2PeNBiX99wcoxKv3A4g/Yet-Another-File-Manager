@@ -8,6 +8,7 @@ import {
     useCallback,
     useDeferredValue,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useRef,
     useState,
@@ -721,14 +722,16 @@ export function FileList({
         currentRow.current?.scrollIntoView({block: "nearest"});
     }, [find.currentPath, view.mode, rows, rowHeight]);
 
-    // The grid mounts a bounded window of rows: past the cap the oldest page is released, so a long
-    // scroll through a big folder does not accumulate tiles.
+    // The grid mounts a bounded window of rows: past the cap the rows above the viewport are
+    // released, so a long scroll through a big folder does not accumulate tiles.
     // A screen shows a few dozen tiles; keeping 1 200 of them mounted made every appended page
     // re-render a wall the eye cannot see. One page is already several screens' worth.
     const GridWindow = 300;
     const [gridDropped, setGridDropped] = useState(0);
-    const [gridTick, setGridTick] = useState(0);
     const compensating = useRef(false);
+
+    /** The row that was at the top of the viewport before the window moved, and where it was. */
+    const pendingAnchor = useRef<{ path: string; top: number } | null>(null);
 
     /** The last grid scroll position, so a downward scroll never gets mistaken for going back up. */
     const lastGridScroll = useRef(0);
@@ -736,6 +739,30 @@ export function FileList({
     const visibleRows = useMemo(
         () => rows.slice(gridDropped, gridDropped + rowLimit),
         [rows, gridDropped, rowLimit]);
+
+    // Releasing and restoring rows above the viewport both change the height above the eye. The row
+    // that was at the top is put back where it was, so the wall of pictures never shifts, jumps a
+    // page, or leaves a blank band in the middle of a long folder.
+    useLayoutEffect(() => {
+        const pending = pendingAnchor.current;
+        const element = gridPane.current;
+
+        compensating.current = false;
+        if (!pending || !element) return;
+
+        pendingAnchor.current = null;
+
+        for (const tile of element.querySelectorAll<HTMLElement>("[data-path]"))
+            if (tile.dataset.path === pending.path) {
+                const delta = tile.getBoundingClientRect().top - pending.top;
+
+                if (delta !== 0)
+                    element.scrollTop = Math.max(0, element.scrollTop + delta);
+
+                lastGridScroll.current = element.scrollTop;
+                return;
+            }
+    }, [gridDropped, rowLimit]);
 
     // A frame that is still scheduled when the list goes away would call into a stale setter.
     useEffect(() => () => {
@@ -772,6 +799,8 @@ export function FileList({
 
     // A new folder starts at the first page; scrolling appends more.
     useEffect(() => {
+        pendingAnchor.current = null;
+        compensating.current = false;
         setRowLimit(RowPage);
         setGridDropped(0);
         lastGridScroll.current = 0;
@@ -783,6 +812,8 @@ export function FileList({
     useEffect(() => {
         if (rows.length >= rowLimit) return;
 
+        pendingAnchor.current = null;
+        compensating.current = false;
         setRowLimit(Math.max(RowPage, rows.length));
         setGridDropped(0);
     }, [rows.length, rowLimit]);
@@ -797,30 +828,27 @@ export function FileList({
     }, [find.currentPath, rows]);
 
     const growRows = useCallback((element: HTMLElement) => {
+        if (compensating.current)
+            return;
+
         if (element.scrollTop + element.clientHeight < element.scrollHeight - 600)
             return;
 
-        if (rowLimit >= GridWindow) {
-            // Release the oldest page and keep what is on screen where it is: the rows above it are
-            // gone, so the scroll position moves by exactly the height that left. The window stops
-            // at the last page: scrolling over the end of a fully loaded folder must not drop the
-            // rows still on screen, which used to leave the grid blank.
-            const before = element.scrollHeight;
-            const at = element.scrollTop;
-            const furthest = Math.max(0, rows.length - rowLimit);
+        const anchor = firstVisibleTile(element);
+        const loaded = rows.length - gridDropped;
 
-            if (gridDropped < furthest) {
-                compensating.current = true;
-                setGridDropped((dropped) => Math.min(dropped + RowPage, furthest));
-
-                requestAnimationFrame(() => {
-                    element.scrollTop = Math.max(0, at - (before - element.scrollHeight));
-                    compensating.current = false;
-                    setGridTick((tick) => tick + 1);
-                });
-            }
-        } else {
-            setRowLimit((limit) => Math.min(rows.length, limit + RowPage));
+        if (rowLimit >= GridWindow && anchor && anchor.index > 0 && anchor.index < loaded) {
+            // Only what is above the eye leaves, and the eye stays where it is. Releasing a whole
+            // page regardless of the viewport dropped the rows on screen as well, so a long gallery
+            // skipped a page at every step: the middle flashed past empty while every tile mounted
+            // and asked for its thumbnail again.
+            compensating.current = true;
+            pendingAnchor.current = {path: anchor.path, top: anchor.top};
+            setGridDropped((dropped) => dropped + anchor.index);
+        } else if (rows.length > gridDropped + rowLimit) {
+            // More rows are loaded than the window holds, and the viewport is at its top: the
+            // window grows instead, since nothing above the eye needs to move.
+            setRowLimit((limit) => Math.min(rows.length - gridDropped, limit + RowPage));
         }
 
         // The mounted tiles reached the end, so the next page is needed too.
@@ -828,34 +856,33 @@ export function FileList({
     }, [rowLimit, rows.length, gridDropped, onLoadMore]);
 
     // Pages can arrive while the grid is already at its end; without a scroll event the window
-    // would never move, so the rows below the last mounted page were unreachable. Once the window
-    // is free again, the same check runs from the tick the animation frame above bumps.
+    // would never move, so the rows below the last mounted page were unreachable. The same check
+    // runs again whenever the loaded rows, the window or the folder change.
     useEffect(() => {
         const element = gridPane.current;
         if (!element || view.mode !== "grid" || compensating.current) return;
         if (element.scrollTop + element.clientHeight < element.scrollHeight - 2) return;
-        if (gridDropped >= Math.max(0, rows.length - rowLimit)) return;
 
         growRows(element);
-    }, [gridTick, rows.length, gridDropped, rowLimit, growRows, view.mode]);
+    }, [rows.length, gridDropped, rowLimit, growRows, view.mode]);
 
-    // Scrolling back up returns the released pages a page at a time, so the window follows the eye.
+    // Scrolling back up returns the released rows a page at a time, so the window follows the eye.
     const shrinkRows = useCallback((element: HTMLElement) => {
         if (compensating.current || gridDropped === 0 || element.scrollTop > element.clientHeight)
             return;
 
-        compensating.current = true;
-        setGridDropped((dropped) => Math.max(0, dropped - RowPage));
+        const anchor = firstVisibleTile(element);
+        if (!anchor) return;
 
-        requestAnimationFrame(() => {
-            // The window went back a page. One viewport below its top shows the page that was just
-            // restored and still leaves a screen of scroll room above, so the wheel keeps going up
-            // instead of stopping dead at the start of the window.
-            element.scrollTop = Math.min(element.clientHeight,
-                Math.max(0, element.scrollHeight - element.clientHeight));
-            compensating.current = false;
-        });
-    }, [gridDropped]);
+        // Keep the rows in view mounted while the page above slides back in, and stop the window
+        // from growing without end: a page above the eye plus a screen below it is enough.
+        const start = Math.max(0, gridDropped - RowPage);
+
+        compensating.current = true;
+        pendingAnchor.current = {path: anchor.path, top: anchor.top};
+        setGridDropped(start);
+        setRowLimit(Math.min(rows.length - start, Math.max(GridWindow, RowPage + anchor.index + 150)));
+    }, [gridDropped, rows.length]);
 
     // Grouping only feeds the grid; a list view would pay for the rule matching and never use it.
     const gridMode = view.mode === "grid";
@@ -2355,30 +2382,72 @@ function Highlighted({name, ranges}: { name: string; ranges: [number, number][] 
 }
 
 /**
- * One observer for every icon and tile. Each node used to create its own, so a scroll page mounted
- * dozens of observers and dropped them again.
+ * One observer per margin for every icon and tile. Each node used to create its own, so a scroll page
+ * mounted dozens of observers and dropped them again. A margin gets its own observer because icons
+ * and pictures are preloaded by different distances.
  */
 const visibilityCallbacks = new WeakMap<Element, () => void>();
-let visibilityObserver: IntersectionObserver | null = null;
+const visibilityObservers = new Map<string, IntersectionObserver>();
+
+function observerFor(margin: string): IntersectionObserver {
+    let observer = visibilityObservers.get(margin);
+
+    if (!observer) {
+        observer = new IntersectionObserver((entries) => {
+            for (const entry of entries) {
+                if (!entry.isIntersecting) continue;
+
+                const callback = visibilityCallbacks.get(entry.target);
+                visibilityCallbacks.delete(entry.target);
+                observer?.unobserve(entry.target);
+                callback?.();
+            }
+        }, {rootMargin: margin});
+
+        visibilityObservers.set(margin, observer);
+    }
+
+    return observer;
+}
+
+/**
+ * The first tile at least partly below the top edge of the grid, with its position and its index in
+ * the mounted window. Tile bottoms only ever go down, so a binary search finds it without measuring
+ * the whole wall on every scroll.
+ */
+function firstVisibleTile(element: HTMLElement): { path: string; top: number; index: number } | null {
+    const tiles = element.querySelectorAll<HTMLElement>("[data-path]");
+    const edge = element.getBoundingClientRect().top + 1;
+    let low = 0;
+    let high = tiles.length - 1;
+    let found = -1;
+
+    while (low <= high) {
+        const middle = (low + high) >>> 1;
+
+        if (tiles[middle].getBoundingClientRect().bottom > edge) {
+            found = middle;
+            high = middle - 1;
+        } else {
+            low = middle + 1;
+        }
+    }
+
+    if (found < 0) return null;
+
+    const tile = tiles[found];
+    return {path: tile.dataset.path ?? "", top: tile.getBoundingClientRect().top, index: found};
+}
 
 function whenVisible(node: Element, onVisible: () => void, margin: string): () => void {
-    visibilityObserver ??= new IntersectionObserver((entries) => {
-        for (const entry of entries) {
-            if (!entry.isIntersecting) continue;
-
-            const callback = visibilityCallbacks.get(entry.target);
-            visibilityCallbacks.delete(entry.target);
-            visibilityObserver?.unobserve(entry.target);
-            callback?.();
-        }
-    }, {rootMargin: margin});
+    const observer = observerFor(margin);
 
     visibilityCallbacks.set(node, onVisible);
-    visibilityObserver.observe(node);
+    observer.observe(node);
 
     return () => {
         visibilityCallbacks.delete(node);
-        visibilityObserver?.unobserve(node);
+        observer.unobserve(node);
     };
 }
 
@@ -2543,7 +2612,9 @@ const GridTile = memo(function GridTile({
             return;
         }
 
-        return whenVisible(node, () => setOnScreen(true), "300px");
+        // Pictures are preloaded two screens ahead: scrolling quickly through a wall then lands on
+        // tiles that already have their thumbnail instead of a blank square.
+        return whenVisible(node, () => setOnScreen(true), "1200px");
     }, [previewable, onScreen]);
 
     const preview = useThumbnail(previewable && onScreen ? row.entry.fullPath : null, 192, row.entry.modified);
