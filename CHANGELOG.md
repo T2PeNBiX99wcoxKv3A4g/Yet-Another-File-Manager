@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.61.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.60.2..v0.61.0) - 2026-11-24
+
+### ⛰️  Features
+
+- *(git)* Show repository status and stage files from the list - ([029ede6](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/029ede66a2a0ecbaba5b5a775b636e7d3ec4a30f))
+
+### 🚜 Refactor
+
+- *(settings)* Take the defaults and the library's message keys from the shared bridge - ([aa7bde0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/aa7bde0402607d457e02d1317a06dc8e2292c876))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([d370ee0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/d370ee0a6dac9c0bd97beb0e5090e63a1e089c4c))
+
+
 ## [0.60.2](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.60.1..v0.60.2) - 2026-11-24
 
 ### 🐛 Bug Fixes
