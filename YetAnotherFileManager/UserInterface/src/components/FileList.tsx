@@ -2480,18 +2480,32 @@ function cellValue(column: string, entry: FileEntry, folderSizes: Record<string,
     }
 }
 
-/** Porcelain v2's two letters trimmed to the one a row shows: the working tree wins over the index. */
-function gitLetter(code: string): string {
-    if (code === "??") return "?";
-    if (code === "!!") return "!";
-    if (code === "UU" || code === "AA" || code === "DD" || code[0] === "U" || code[1] === "U") return "U";
-
-    return code[1] !== "." ? code[1] : code[0];
+/** True for any conflict, whose two letters mean one state rather than two changes. */
+function gitConflict(code: string): boolean {
+    return code === "UU" || code === "AA" || code === "DD" || code[0] === "U" || code[1] === "U";
 }
 
-/** The color group a git status belongs to. */
-function gitTone(code: string): string {
-    switch (gitLetter(code)) {
+/**
+ * The sides a mark draws, one box each in `git status --short` order: the index first, then the
+ * working tree. Keeping them apart is what makes a file that is both added and modified read as
+ * two states instead of one odd word.
+ */
+function gitSides(code: string): { letter: string; index: boolean }[] {
+    if (code === "??") return [{letter: "?", index: false}];
+    if (code === "!!") return [{letter: "!", index: false}];
+    if (gitConflict(code)) return [{letter: "U", index: false}];
+
+    const sides: { letter: string; index: boolean }[] = [];
+
+    if (code[0] !== ".") sides.push({letter: code[0], index: true});
+    if (code[1] !== ".") sides.push({letter: code[1], index: false});
+
+    return sides.length > 0 ? sides : [{letter: "M", index: false}];
+}
+
+/** The color group of one letter; the two sides of a code may not share it. */
+function gitToneOf(letter: string, code: string): string {
+    switch (letter) {
         case "?":
             return "untracked";
         case "!":
@@ -2510,24 +2524,46 @@ function gitTone(code: string): string {
     }
 }
 
-/** What a status badge explains itself with: the change, and whether it is already in the index. */
-function gitTitle(t: Translate, code: string): string {
-    const letter = gitLetter(code);
-    const label = letter === "?"
-        ? t("git_untracked")
-        : letter === "!"
-            ? (code === "!!" ? t("git_ignored") : t("git_conflict"))
-            : letter === "U"
-                ? t("git_conflict")
-                : letter === "D"
-                    ? t("git_deleted")
-                    : letter === "A" || letter === "C"
-                        ? t("git_added")
-                        : letter === "R"
-                            ? t("git_renamed")
-                            : t("git_modified");
+/** The one-word name of a single status letter. */
+function gitLetterLabel(t: Translate, letter: string): string {
+    switch (letter) {
+        case "?":
+            return t("git_untracked");
+        case "!":
+            return t("git_ignored");
+        case "U":
+            return t("git_conflict");
+        case "D":
+            return t("git_deleted");
+        case "A":
+        case "C":
+            return t("git_added");
+        case "R":
+            return t("git_renamed");
+        default:
+            return t("git_modified");
+    }
+}
 
-    return code[1] === "." && code[0] !== "." ? `${label} · ${t("git_staged")}` : label;
+/** What a file's badge explains itself with: each side that changed, and which side it is. */
+function gitTitle(t: Translate, code: string): string {
+    if (code === "??") return t("git_untracked");
+    if (code === "!!") return t("git_ignored");
+    if (gitConflict(code)) return t("git_conflict");
+
+    const parts: string[] = [];
+
+    if (code[0] !== ".")
+        parts.push(`${t("git_index")}: ${gitLetterLabel(t, code[0])}`);
+    if (code[1] !== ".")
+        parts.push(`${t("git_worktree")}: ${gitLetterLabel(t, code[1])}`);
+
+    return parts.join("\n") || t("git_modified");
+}
+
+/** A folder carries the most serious status of anything below it, with the same letters. */
+function gitFolderTitle(t: Translate, code: string): string {
+    return `${t("git_changes_inside")}\n${gitTitle(t, code)}`;
 }
 
 /** The name with every match of the query marked, so a dimmed list still points at the hit. */
@@ -2863,9 +2899,11 @@ const GridTile = memo(function GridTile({
                         </TileIcon>
                     )}
                 {row.git && (
-                    <GitMark $tone={gitTone(row.git)} title={row.entry.isDirectory ? t("git_changes_inside") : gitTitle(t, row.git)}>
-                        {row.entry.isDirectory ? "●" : gitLetter(row.git)}
-                    </GitMark>
+                    <GitStatusMark
+                        code={row.git}
+                        mark
+                        title={row.entry.isDirectory ? gitFolderTitle(t, row.git) : gitTitle(t, row.git)}
+                    />
                 )}
             </TileMedia>
             <TileCaption>
@@ -3178,9 +3216,10 @@ const ListRow = memo(function ListRow({
                     </EncryptedBadge>
                 )}
                 {row.git && (
-                    <GitBadge $tone={gitTone(row.git)} title={row.entry.isDirectory ? t("git_changes_inside") : gitTitle(t, row.git)}>
-                        {row.entry.isDirectory ? "●" : gitLetter(row.git)}
-                    </GitBadge>
+                    <GitStatusMark
+                        code={row.git}
+                        title={row.entry.isDirectory ? gitFolderTitle(t, row.git) : gitTitle(t, row.git)}
+                    />
                 )}
                 {row.cut && (
                     <CutBadge title={t("this_item_is_cut_and_will_move_when_something_is_pasted")}>
@@ -3673,43 +3712,82 @@ function gitColor(tone: string): string {
     }
 }
 
-/** The one-letter git status a list row carries beside its name. */
+/** Mixes a status colour with the theme's text colour, so it reads on both palettes. */
+function gitInk(tone: string): string {
+    return `color-mix(in srgb, ${gitColor(tone)} 62%, var(--text-primary))`;
+}
+
+/** A translucent wash of a status colour, for the marks beside a name. */
+function gitTint(tone: string, percent: number): string {
+    return `color-mix(in srgb, ${gitColor(tone)} ${percent}%, transparent)`;
+}
+
+/** One status mark for a row or a tile; each changed side gets its own colour and box. */
+function GitStatusMark({code, title, mark = false}: {code: string; title: string; mark?: boolean}) {
+    const Badge = mark ? GitMark : GitBadge;
+
+    return (
+        <Marks $mark={mark} title={title}>
+            {gitSides(code).map((side) => (
+                <Badge $tone={gitToneOf(side.letter, code)} key={side.index ? "index" : "worktree"}>
+                    {side.letter}
+                </Badge>
+            ))}
+        </Marks>
+    );
+}
+
+/** The boxes of one status, kept apart so a combined state never reads as one word. */
+const Marks = styled.span<{ $mark?: boolean }>`
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+
+    ${({$mark}) => $mark && `
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        pointer-events: none;
+    `}
+`;
+
+/** One side of a git status: a single letter in its own box. */
 const GitBadge = styled.span<{ $tone: string }>`
     display: inline-flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    min-width: 15px;
+    width: 15px;
     height: 15px;
-    padding: 0 3px;
+    padding: 0 0 1px;
+    border: 1px solid ${({$tone}) => gitTint($tone, 40)};
     border-radius: 4px;
-    background: ${({$tone}) => gitColor($tone)};
-    color: #14181f;
+    background: ${({$tone}) => gitTint($tone, 12)};
+    color: ${({$tone}) => gitInk($tone)};
     font-family: var(--font-mono);
     font-size: 9px;
     font-weight: 700;
     line-height: 1;
-    opacity: 0.9;
 `;
 
-/** The same status on a tile's picture, where there is no room for a pill. */
+/** The same side on a tile's picture, where the caption has no room for a pill. */
 const GitMark = styled.span<{ $tone: string }>`
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    display: grid;
-    place-items: center;
-    width: 16px;
-    height: 16px;
-    border: 1px solid rgba(var(--bg-rgb), 0.6);
-    border-radius: 5px;
-    background: ${({$tone}) => gitColor($tone)};
-    color: #14181f;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    padding: 0 0 1px;
+    border: 1px solid ${({$tone}) => gitTint($tone, 45)};
+    border-radius: 4px;
+    background: ${({$tone}) => gitTint($tone, 22)};
+    backdrop-filter: blur(6px);
+    color: ${({$tone}) => gitInk($tone)};
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: 9.5px;
     font-weight: 700;
     line-height: 1;
-    pointer-events: none;
 `;
 
 /** Marks a row the user cut, in the same pill the archive and link hints use. */

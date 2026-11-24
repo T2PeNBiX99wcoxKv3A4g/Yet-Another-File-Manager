@@ -96,6 +96,8 @@ export interface GitListing {
     /** The checked-out branch, or the short commit when HEAD is detached. */
     branch: string;
     detached: boolean;
+    /** The branch this one tracks, or null when there is no upstream. */
+    upstream?: string | null;
     ahead: number;
     behind: number;
     /** How many paths the whole repository has changed. */

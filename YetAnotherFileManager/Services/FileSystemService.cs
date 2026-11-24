@@ -427,6 +427,14 @@ internal partial class FileSystemService : INativeMessageHandler
                 return context.Reply("git.unstage.result",
                     await GitStatus.Instance.ChangeAsync(context.Payload<GitPathsRequest>()?.Paths, true));
 
+            case "git.log":
+            {
+                var request = context.Payload<GitLogRequest>();
+
+                return context.Reply("git.log.result",
+                    await GitStatus.Instance.LogAsync(request?.Path, request?.Skip ?? 0, request?.Limit ?? 50));
+            }
+
             case "fs.list.cached":
                 return context.Reply("fs.list.cached.result",
                     await CachedListAsync(context.Payload<FsListRequest>()?.Path,

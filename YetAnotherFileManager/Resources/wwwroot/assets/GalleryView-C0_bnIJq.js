@@ -1,0 +1,33 @@
+import{A as e,C as t,M as n,N as r,S as i,k as a}from"./dist-CKllR0JH.js";import{h as o,k as s,o as c,p as l,w as ee}from"./theme-DU3X_EOM.js";import{T as te,n as u,r as ne}from"./main-BumA-_x9.js";import{O as re,St as d,Z as ie,k as f,n as ae}from"./selectionMenu-CRlNslJh.js";import{J as oe,ct as se}from"./Icons-5-2yk8Zn.js";var p=n({GalleryView:()=>v}),m=r(e(),1),ce=s(),h=t(),g=300,_=4e3,le=3,ue=600,de=2e4;function v({openOnSingleClick:e=!1,showCheckboxes:t=!0,confirmDelete:n=!1,shortcuts:r,view:a,find:s,selectMatchesToken:c,onSearchMatches:p,onPick:v,onSelectionChange:b,onAddToTray:ye,onAddFavorite:be,onRemoveFavorite:xe,favoritePaths:Se,onExtractArchive:Ce,onOpenAsArchive:we,onAddToStartMenu:Te,onPreviewChange:x,platform:Ee,toolbarSlot:S,onStatusChange:C}){let w=i(),T=ae(`gallery`),[E,D]=(0,m.useState)([]),[O,k]=(0,m.useState)(0),[A,j]=(0,m.useState)(!0),[M,N]=(0,m.useState)(null),[De,P]=(0,m.useState)(!1),[F,Oe]=(0,m.useState)([]),I=(0,m.useRef)([]),L=(0,m.useRef)(0),R=(0,m.useRef)(!1),z=(0,m.useRef)(!0),B=(0,m.useRef)(0),V=(0,m.useRef)(null),H=(0,m.useRef)(0),U=(0,m.useCallback)(async e=>{let t=++B.current;j(!0),z.current=!0,N(null);try{let n=await d(0,g,e);if(t!==B.current)return;I.current=n.entries,L.current=n.total,D(n.entries),k(n.total)}catch(e){t===B.current&&N(e instanceof Error?e.message:String(e))}finally{t===B.current&&(z.current=!1,j(!1))}},[]);(0,m.useEffect)(()=>{U(!1)},[U]);let W=(0,m.useCallback)(async()=>{if(z.current||R.current||I.current.length>=L.current)return;let e=B.current;R.current=!0;try{let t=I.current,n=L.current;for(let r=0;r<le&&t.length<n;r++){let r=await d(t.length,g,!1);if(e!==B.current)return;if(r.entries.length===0){n=t.length;break}if(t=[...t,...r.entries],n=r.total,r.entries.length<g)break}if(e!==B.current)return;I.current=t,L.current=n,(0,m.startTransition)(()=>{D(t),k(n)})}catch{}finally{R.current=!1}},[]),ke=(0,m.useCallback)(e=>{H.current||=window.requestAnimationFrame(()=>{H.current=0,e.scrollHeight-e.scrollTop-e.clientHeight<_&&W()})},[W]);(0,m.useEffect)(()=>{let e=V.current;if(!e)return;let t=new IntersectionObserver(e=>{e.some(e=>e.isIntersecting)&&W()},{root:e.parentElement,rootMargin:`${_}px 0px`});return t.observe(e),()=>t.disconnect()},[W]),(0,m.useEffect)(()=>{if(E.length>=O||E.length>=de)return;let e=window.setTimeout(()=>void W(),E.length===0?0:180);return()=>window.clearTimeout(e)},[E.length,O,W]);let Ae=(0,m.useMemo)(()=>({path:``,parent:null,total:E.length,signature:0,entries:E.map(fe),folderSizes:{},view:null,tags:{},tagColors:{},allTags:[],counts:{}}),[E]),je=(0,m.useMemo)(()=>({...a,mode:`grid`,sort:`modified`,sortDescending:!0,columns:[]}),[a]),G=(0,m.useCallback)(e=>{v?v(e):ie(e)},[v]),Me=(0,m.useCallback)(e=>{let t=pe(e.modified);return{id:t,label:t}},[]),K=()=>{P(!0),U(!0).finally(()=>P(!1))},Ne=E.length<O,q=(0,m.useMemo)(()=>!s?.open||s.query.trim().length===0?[]:E.filter(e=>f(e.name,s)||f(e.path,s)),[E,s?.open,s?.query,s?.matchCase,s?.regex]),J=(0,m.useMemo)(()=>s?.open?{query:s.query,matchCase:s.matchCase,regex:s.regex,mode:s.mode,currentPath:q[Math.min(s.index,Math.max(0,q.length-1))]?.path??null}:re,[s?.open,s?.query,s?.matchCase,s?.regex,s?.mode,s?.index,q]);(0,m.useEffect)(()=>{p?.(q.length)},[q.length,p]);let Pe=(0,m.useCallback)(e=>{Oe(e),b?.(e)},[b]),Y=F.length>0?E.find(e=>e.path===F[0])??null:null,Fe=Y?.name.includes(`.`)?Y.name.slice(Y.name.lastIndexOf(`.`)+1).toUpperCase():`—`,Ie=Y&&/\.(mp4|webm|mkv|mov|m4v|avi|wmv|ogv)$/i.test(Y.name)?w(`video_2`):w(`picture`),Le=Y?Y.path.slice(0,Math.max(Y.path.lastIndexOf(`\\`),Y.path.lastIndexOf(`/`))):``,X=Y?{name:Y.name,path:Y.path,isDirectory:!1,size:Y.size,modified:Y.modified,fields:[{label:w(`type`),value:Ie},{label:w(`extension`),value:Fe},{label:w(`location`),value:Le},{label:w(`full_path`),value:Y.path},{label:w(`size`),value:l(Y.size)},{label:w(`modified`),value:o(Y.modified)},{label:w(`created`),value:`—`}]}:null,Z=F.length>1?ee(w,F.length,`k_1_item_selected`,`count_items_selected`):void 0,Q=(0,m.useRef)(``);(0,m.useEffect)(()=>{let e=`${X?.path??``}|${X?.modified??0}|${Z??``}`;Q.current!==e&&(Q.current=e,x?.(X,Z))},[X,Z,x]);let $=A?w(`scanning`):w(`shown_of_total_pictures`,{shown:E.length,total:O});return(0,m.useEffect)(()=>{C?.($)},[$,C]),(0,h.jsxs)(me,{children:[S&&(0,ce.createPortal)((0,h.jsxs)(h.Fragment,{children:[(0,h.jsx)(ne,{}),(0,h.jsx)(u,{onClick:K,title:w(`scan_the_folders_again`),type:`button`,children:(0,h.jsx)(_e,{$spinning:De,children:(0,h.jsx)(se,{size:16})})}),T.available&&(0,h.jsx)(u,{onClick:e=>T.open(e.clientX,e.clientY),title:w(`selection_menu`),type:`button`,children:(0,h.jsx)(oe,{size:16})})]}),S),M&&(0,h.jsx)(y,{children:M}),!M&&!A&&O===0&&(0,h.jsx)(y,{children:w(`no_pictures_found`)}),!M&&(A||O>0)&&(0,h.jsx)(he,{children:(0,h.jsx)(ge,{children:(0,h.jsx)(te,{platform:Ee,confirmDelete:n,find:J,selectMatchesToken:c,listing:A&&E.length===0?null:Ae,loading:A,error:null,view:je,showImages:!1,showDetails:!1,showCheckboxes:t,openOnSingleClick:e,shortcuts:r,onSelectionChange:Pe,selectionMenuId:`gallery`,onSort:()=>void 0,onOpen:G,onOpenFile:G,onRefresh:K,onAddToTray:ye,onAddFavorite:be,onRemoveFavorite:xe,favoritePaths:Se,onExtractArchive:Ce,onOpenAsArchive:we,onAddToStartMenu:Te,groupOf:Me,onGridScroll:ke,gridFooter:(0,h.jsx)(ve,{$space:Ne?ue:1,ref:V}),allowBackgroundMenu:!1})})})]})}function fe(e){return{name:e.name,fullPath:e.path,isDirectory:!1,size:e.size,modified:e.modified,created:e.modified,isHidden:!1,isSystem:!1,iconSource:null,linkTarget:null,linkValid:null,linkCount:0}}function pe(e){let t=new Date(e),n=new Date,r=e=>new Date(e.getFullYear(),e.getMonth(),e.getDate()).getTime(),i=Math.round((r(n)-r(t))/864e5);return i===0?`Today`:i===1?`Yesterday`:i<7?t.toLocaleDateString(c(),{weekday:`long`}):t.toLocaleDateString(c(),{year:`numeric`,month:`long`,day:`numeric`})}var me=a.div`
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+`,he=a.div`
+    display: flex;
+    flex: 1;
+    min-height: 0;
+`,ge=a.div`
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+`,_e=a.span`
+    display: grid;
+    place-items: center;
+    animation: ${({$spinning:e})=>e?`yafm-gallery-spin 900ms linear infinite`:`none`};
+
+    @keyframes yafm-gallery-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+`,ve=a.div`
+    height: ${({$space:e})=>e}px;
+`,y=a.p`
+    padding: 42px 24px;
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+`;export{p as n,v as t};

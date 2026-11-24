@@ -32,6 +32,9 @@ internal sealed partial class GitStatus
     /// <summary>Staging a big folder is real work, but the window waits for the answer.</summary>
     private const int ChangeTimeoutMilliseconds = 30_000;
 
+    /// <summary>Reading history walks the object store, which can be slow on a cold disk.</summary>
+    private const int LogTimeoutMilliseconds = 10_000;
+
     /// <summary>What <c>git status</c> is asked for; the executable and the paths are added outside.</summary>
     private static readonly string[] StatusArguments =
     [
@@ -148,6 +151,93 @@ internal sealed partial class GitStatus
         var repository = await StatusAsync(root);
 
         return repository?.Listing(directory);
+    }
+
+    /// <summary>
+    ///     One page of the repository's history, newest first, with the facts the panel shows above
+    ///     it. Paging keeps the panel usable in a repository with a very long history.
+    /// </summary>
+    public async Task<GitLogPayload?> LogAsync(string? directory, int skip = 0, int limit = 50)
+    {
+        if (string.IsNullOrEmpty(directory) || _missing || Archives.TrySplit(directory, out _, out _))
+            return null;
+
+        var root = await Task.Run(() => RootOf(directory));
+        if (root is null)
+            return null;
+
+        skip = Math.Max(0, skip);
+        limit = Math.Clamp(limit, 1, 200);
+
+        // The status may be cached already, since the listing that opened the panel asked for it.
+        var repository = await StatusAsync(root);
+        var page = await ReadLogAsync(root, skip, limit);
+        if (page is not { } commits)
+            return null;
+
+        return new GitLogPayload(
+            root,
+            repository?.Branch ?? "",
+            repository?.Detached ?? false,
+            repository?.Upstream,
+            repository?.Ahead ?? 0,
+            repository?.Behind ?? 0,
+            repository?.Statuses.Count ?? 0,
+            commits.Commits,
+            commits.HasMore);
+    }
+
+    private async Task<(List<GitCommitPayload> Commits, bool HasMore)?> ReadLogAsync(string root, int skip,
+        int limit)
+    {
+        string[] arguments =
+        [
+            "-c", "log.showSignature=false",
+            "log",
+            $"--max-count={limit + 1}",
+            $"--skip={skip}",
+            "--date=iso-strict",
+            "--pretty=format:%H%x1f%h%x1f%s%x1f%an%x1f%aI%x1f%D"
+        ];
+
+        var result = await RunCommandAsync(root, arguments, LogTimeoutMilliseconds);
+
+        if (result is null)
+            return null;
+
+        if (result.Code != 0)
+        {
+            // An unborn branch has nothing to walk yet; every other failure is a real error.
+            return result.Error.Contains("does not have any commits", StringComparison.OrdinalIgnoreCase)
+                ? (new List<GitCommitPayload>(), false)
+                : null;
+        }
+
+        var commits = new List<GitCommitPayload>();
+
+        foreach (var line in result.Output.Split('\n'))
+        {
+            var record = line.TrimEnd('\r');
+
+            if (record.Length == 0)
+                continue;
+
+            // Fields are separated by the unit separator, which a commit message cannot contain.
+            var fields = record.Split('\x1f');
+
+            if (fields.Length < 6)
+                continue;
+
+            commits.Add(new GitCommitPayload(fields[0], fields[1], fields[2], fields[3], fields[4],
+                fields[5].Length == 0 ? null : fields[5]));
+        }
+
+        var hasMore = commits.Count > limit;
+
+        if (hasMore)
+            commits.RemoveAt(commits.Count - 1);
+
+        return (commits, hasMore);
     }
 
     /// <summary>
@@ -306,6 +396,7 @@ internal sealed partial class GitStatus
 
         var branch = "";
         var detached = false;
+        var upstream = (string?)null;
         var ahead = 0;
         var behind = 0;
         var statuses = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -347,6 +438,10 @@ internal sealed partial class GitStatus
                         else if (part[0] == '-' && int.TryParse(part[1..], out var parsedBehind))
                             behind = parsedBehind;
                     }
+                }
+                else if (record.StartsWith("# branch.upstream ", StringComparison.Ordinal))
+                {
+                    upstream = record[18..];
                 }
 
                 continue;
@@ -410,7 +505,7 @@ internal sealed partial class GitStatus
             }
         }
 
-        return new Repository(root, branch, detached, ahead, behind, statuses);
+        return new Repository(root, branch, detached, upstream, ahead, behind, statuses);
     }
 
     /// <summary>
@@ -453,6 +548,7 @@ internal sealed partial class GitStatus
         string Root,
         string Branch,
         bool Detached,
+        string? Upstream,
         int Ahead,
         int Behind,
         Dictionary<string, string> Statuses)
@@ -493,7 +589,7 @@ internal sealed partial class GitStatus
                     entries[child] = Worse(entries.GetValueOrDefault(child), code);
             }
 
-            return new GitListingPayload(Root, Branch, Detached, Ahead, Behind, Statuses.Count, entries);
+            return new GitListingPayload(Root, Branch, Detached, Ahead, Behind, Statuses.Count, entries, Upstream);
         }
 
         /// <summary>The status a folder shows when its own children have several.</summary>

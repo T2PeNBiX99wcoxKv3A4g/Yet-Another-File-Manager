@@ -56,13 +56,39 @@ internal sealed record GitListingPayload(
     int Ahead,
     int Behind,
     int Changed,
-    Dictionary<string, string> Entries);
+    Dictionary<string, string> Entries,
+    // The branch this one tracks, or null when it has no upstream.
+    string? Upstream = null);
 
 /// <summary>Payload for <c>git.stage</c> and <c>git.unstage</c>: the paths to move in or out of the index.</summary>
 internal sealed record GitPathsRequest(IReadOnlyList<string> Paths);
 
 /// <summary>Body for an index change: whether git accepted it, with its own message on failure.</summary>
 internal sealed record GitChangePayload(bool Ok, string? Error = null);
+
+/// <summary>Payload for <c>git.log</c>: whose history to read, and how much of it.</summary>
+internal sealed record GitLogRequest(string? Path, int? Skip = null, int? Limit = null);
+
+/// <summary>One commit in <c>git.log</c>.</summary>
+internal sealed record GitCommitPayload(
+    string Hash,
+    string Short,
+    string Subject,
+    string Author,
+    string Date,
+    string? Refs = null);
+
+/// <summary>Body for <c>git.log</c>: the repository facts and one page of its history.</summary>
+internal sealed record GitLogPayload(
+    string Root,
+    string Branch,
+    bool Detached,
+    string? Upstream,
+    int Ahead,
+    int Behind,
+    int Changed,
+    List<GitCommitPayload> Commits,
+    bool HasMore);
 
 /// <summary>
 ///     Body for <c>fs.list</c>: the directory that was listed, its parent (null at the root), its
