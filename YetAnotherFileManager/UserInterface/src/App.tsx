@@ -79,6 +79,7 @@ import {
     ArrowRightIcon,
     ArrowUpIcon,
     GearIcon,
+    GitBranchIcon,
     GlobeIcon,
     ImageIcon,
     LockIcon,
@@ -1310,6 +1311,23 @@ export default function App() {
     const statusText = useMemo(
         () => kind === "files" && active.listing ? statusLine(t, active.listing) : pageStatus,
         [kind, active.listing, t, pageStatus]);
+
+    // The repository the visible folder belongs to; null outside one, and in every non-files view.
+    const activeGit = kind === "files" ? active.listing?.git ?? null : null;
+    const gitChip = activeGit ? (
+        <GitChip
+            onClick={() => openFiles(activeGit.root)}
+            title={`${activeGit.detached ? t("git_detached") : activeGit.branch}\n`
+                + `${plural(t, activeGit.changed, "k_1_change", "count_changes")}\n${activeGit.root}`}
+            type="button"
+        >
+            <GitBranchIcon size={11}/>
+            <GitName>{activeGit.detached ? t("git_detached") : activeGit.branch || t("git")}</GitName>
+            {activeGit.ahead > 0 && <GitArrow>↑{activeGit.ahead}</GitArrow>}
+            {activeGit.behind > 0 && <GitArrow>↓{activeGit.behind}</GitArrow>}
+            <GitCount $clean={activeGit.changed === 0}>{activeGit.changed}</GitCount>
+        </GitChip>
+    ) : null;
 
     const splitRef = useRef<HTMLDivElement | null>(null);
 
@@ -3358,6 +3376,7 @@ export default function App() {
                             <span>{statusText}</span>
                             {appInfo ? (
                                 <StatusRight>
+                                    {gitChip}
                                     <span>v{appInfo.version} · {appInfo.platform}</span>
                                     {appInfo.debug && <DebugTag>debug</DebugTag>}
                                     {update?.available && (
@@ -3374,7 +3393,12 @@ export default function App() {
                                         </UpdatePill>
                                     )}
                                 </StatusRight>
-                            ) : <span>{t("browser_preview")}</span>}
+                            ) : (
+                                <StatusRight>
+                                    {gitChip}
+                                    <span>{t("browser_preview")}</span>
+                                </StatusRight>
+                            )}
                         </StatusBar>
                     </Main>
                 </Body>
@@ -3758,6 +3782,59 @@ const StatusRight = styled.span`
     display: inline-flex;
     align-items: center;
     gap: 10px;
+`;
+
+/** The repository chip: the branch, what waits to be pushed or pulled, and how many paths changed. */
+const GitChip = styled.button`
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 260px;
+    padding: 1px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background: rgba(var(--bg-rgb), 0.4);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 10px;
+    cursor: pointer;
+
+    svg {
+        flex-shrink: 0;
+        color: var(--text-muted);
+    }
+
+    &:hover {
+        border-color: var(--border-color-focus);
+        color: var(--text-primary);
+    }
+`;
+
+const GitName = styled.span`
+    overflow: hidden;
+    max-width: 170px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
+const GitArrow = styled.span`
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--text-muted);
+`;
+
+const GitCount = styled.span<{ $clean: boolean }>`
+    flex-shrink: 0;
+    min-width: 15px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: ${({$clean}) => $clean ? "rgba(var(--bg-rgb), 0.6)" : "rgba(var(--accent-rgb), 0.22)"};
+    color: ${({$clean}) => $clean ? "var(--text-muted)" : "var(--accent-primary)"};
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    text-align: center;
 `;
 
 /** A newer build exists; the pill is the way into the update section. */

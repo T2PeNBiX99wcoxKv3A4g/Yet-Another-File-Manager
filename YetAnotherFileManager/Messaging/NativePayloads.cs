@@ -40,7 +40,29 @@ internal sealed record FsListMetaPayload(
     List<string> AllTags,
     Dictionary<string, long> Counts,
     Dictionary<string, long> FolderSizes,
-    bool? ArchiveEncrypted = null);
+    bool? ArchiveEncrypted = null,
+    // The repository this folder is in and the status of its direct children, when there is one.
+    GitListingPayload? Git = null);
+
+/// <summary>
+///     Body for the git part of a listing: the repository the folder belongs to, its branch and the
+///     status of each of the folder's direct children. A status code is porcelain v2's two letters
+///     (<c>??</c> untracked, <c>UU</c> conflicted), so the interface can tell worktree from index.
+/// </summary>
+internal sealed record GitListingPayload(
+    string Root,
+    string Branch,
+    bool Detached,
+    int Ahead,
+    int Behind,
+    int Changed,
+    Dictionary<string, string> Entries);
+
+/// <summary>Payload for <c>git.stage</c> and <c>git.unstage</c>: the paths to move in or out of the index.</summary>
+internal sealed record GitPathsRequest(IReadOnlyList<string> Paths);
+
+/// <summary>Body for an index change: whether git accepted it, with its own message on failure.</summary>
+internal sealed record GitChangePayload(bool Ok, string? Error = null);
 
 /// <summary>
 ///     Body for <c>fs.list</c>: the directory that was listed, its parent (null at the root), its

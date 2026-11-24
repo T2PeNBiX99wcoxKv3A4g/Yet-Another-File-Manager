@@ -75,6 +75,7 @@ import KeyboardSvg from "./icons/keyboard.svg?react";
 import IconThemeSvg from "./icons/icon-theme.svg?react";
 import TrashXSvg from "./icons/trash-x.svg?react";
 import EraserSvg from "./icons/eraser.svg?react";
+import GitBranchSvg from "./icons/git-branch.svg?react";
 
 interface IconProps extends SVGProps<SVGSVGElement> {
     size?: number;
@@ -102,6 +103,7 @@ export const GearIcon = sized(GearSvg, 18);
 export const PinIcon = sized(PinSvg, 14);
 export const ListIcon = sized(ListSvg, 14);
 export const GridIcon = sized(GridSvg, 14);
+export const GitBranchIcon = sized(GitBranchSvg, 14);
 export const ClockIcon = sized(ClockSvg, 18);
 export const ClosedTabsIcon = sized(ClosedTabsSvg, 16);
 export const StatusIcon = sized(StatusSvg, 18);

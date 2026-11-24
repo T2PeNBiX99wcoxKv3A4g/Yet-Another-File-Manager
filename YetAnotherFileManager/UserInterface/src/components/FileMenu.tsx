@@ -21,6 +21,7 @@ import {
 } from "../api/operations";
 import {requestFolder} from "../folder-picker";
 import {showMessage} from "../api/dialogs";
+import {changeGitIndex} from "../api/git";
 import {prettyShortcuts, type ShortcutMap} from "../shortcuts";
 import {CreateFileTypes} from "../create-types";
 import {baseName, isArchiveLocation, isArchivePath, normalizePath} from "../utils/format";
@@ -41,6 +42,7 @@ import {
     FileIcon,
     FolderIcon,
     GearIcon,
+    GitBranchIcon,
     GlobeIcon,
     HeartIcon,
     HeartMinusIcon,
@@ -114,6 +116,10 @@ interface FileMenuProps {
     allowCompression?: boolean;
     onCompressTo?: (paths: string[], name: string) => void;
     onArchiveCreated?: (path: string, rename: boolean) => void;
+    /** The repository status of each entry in the folder, by name, so the git entries know what to offer. */
+    gitEntries?: Record<string, string>;
+    /** Told after a path was staged or unstaged, so the listing reloads with the new statuses. */
+    onGitChanged?: () => void;
 }
 
 /**
@@ -150,6 +156,8 @@ export function FileMenu({
                              platform,
                              onCompressTo,
                              onArchiveCreated,
+                             gitEntries,
+                             onGitChanged,
                          }: FileMenuProps) {
     const t = useTranslation();
     const linkSource = useLinkSource();
@@ -278,6 +286,21 @@ export function FileMenu({
         } catch {
             // The web view refused the clipboard; nothing sensible to show.
         }
+    };
+
+    // The menu sits on one folder, so a path's status is its file name in the folder's git map.
+    const gitByLower = new Map(Object.entries(gitEntries ?? {}).map(([name, code]) => [name.toLowerCase(), code]));
+    const gitCodeOf = (path: string) => gitByLower.get(baseName(path).toLowerCase()) ?? null;
+
+    const changeIndex = async (paths: string[], unstage: boolean) => {
+        const result = await changeGitIndex(paths, unstage);
+
+        if (!result.ok) {
+            void showMessage(result.error ?? t("git_index_change_failed"));
+            return;
+        }
+
+        onGitChanged?.();
     };
 
     const toggleCaseSensitivity = async () => {
@@ -588,6 +611,48 @@ export function FileMenu({
                 icon: <ArchiveIcon size={14}/>,
                 onSelect: () => onOpenAsArchive(target.path),
             });
+        }
+
+        // Paths with a status can be moved between the working tree and the index. The menu asks
+        // git for each one, so a mix of staged and unstaged files offers both actions.
+        if (!archiveView && onGitChanged && menu.paths.length > 0) {
+            const staged: string[] = [];
+            const unstaged: string[] = [];
+
+            for (const path of menu.paths) {
+                const code = gitCodeOf(path);
+
+                if (code === null || code === "!!")
+                    continue;
+
+                if (code === "??" || code[1] !== ".")
+                    unstaged.push(path);
+
+                if (code !== "??" && code[0] !== ".")
+                    staged.push(path);
+            }
+
+            const gitItems: ContextMenuItem[] = [];
+
+            if (unstaged.length > 0)
+                gitItems.push({
+                    label: t("git_stage"), icon: <GitBranchIcon size={14}/>,
+                    onSelect: () => void changeIndex(unstaged, false),
+                });
+
+            if (staged.length > 0)
+                gitItems.push({
+                    label: t("git_unstage"), icon: <GitBranchIcon size={14}/>,
+                    onSelect: () => void changeIndex(staged, true),
+                });
+
+            if (gitItems.length > 0)
+                items.push({
+                    label: t("git"), icon: <GitBranchIcon size={14}/>,
+                    separatorBefore: true,
+                    children: gitItems,
+                    onSelect: () => undefined,
+                });
         }
 
         if (!archiveView && single && target && !target.isDirectory && isArchivePath(target.path) && onExtractArchive) {

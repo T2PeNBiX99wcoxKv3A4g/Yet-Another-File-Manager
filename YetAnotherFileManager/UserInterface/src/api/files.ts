@@ -89,6 +89,21 @@ export interface DirectoryListing extends DirectoryMeta {
     ordered?: boolean;
 }
 
+/** The repository a folder is in, with the status of each of its direct children. */
+export interface GitListing {
+    /** The working tree's root, as git reports it. */
+    root: string;
+    /** The checked-out branch, or the short commit when HEAD is detached. */
+    branch: string;
+    detached: boolean;
+    ahead: number;
+    behind: number;
+    /** How many paths the whole repository has changed. */
+    changed: number;
+    /** Porcelain v2's two letters per child name: `??` untracked, `UU` conflicted, `M.` staged. */
+    entries: Record<string, string>;
+}
+
 /** Everything about a folder except its entries, which arrive as paged binary blocks. */
 export interface DirectoryMeta {
     path: string;
@@ -111,6 +126,8 @@ export interface DirectoryMeta {
     folderSizes: Record<string, number>;
     /** True when this is a folder inside an archive that needs a password. */
     archiveEncrypted?: boolean | null;
+    /** The repository around this folder; absent outside one and while git is unavailable. */
+    git?: GitListing | null;
 }
 
 /** How many entries one page of a listing carries. */

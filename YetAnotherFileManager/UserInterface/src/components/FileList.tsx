@@ -177,6 +177,8 @@ interface RowModel {
     label: string;
     ranges: [number, number][] | null;
     tags: string[];
+    /** Porcelain v2's two status letters for this entry, when it is inside a repository. */
+    git: string | null;
     /** True when the entry was cut and will move the next time something is pasted. */
     cut?: boolean;
 }
@@ -558,11 +560,19 @@ export function FileList({
     const rows = useMemo(() => {
         if (!listing) return [];
 
+        // Git reports paths in the repository's casing; a folder entry may differ in case on a
+        // case-insensitive volume, so the lookup ignores it. Only changed entries are present, so
+        // this map is as small as the repository's working tree.
+        const gitByName = listing.git
+            ? new Map(Object.entries(listing.git.entries).map(([name, code]) => [name.toLowerCase(), code]))
+            : null;
+
         const shape: unknown[] = [
             listing.path,
             listing.signature,
             listing.ordered ?? false,
             listing.tags,
+            listing.git,
             view.sort === "size" || view.sort === "items" ? listing.folderSizes : null,
             view.sort === "size" || view.sort === "items" ? listing.counts : null,
             searching, deferredQuery, findMode, quick, view.sort, view.sortDescending, t, cutPaths,
@@ -580,6 +590,7 @@ export function FileList({
                 label,
                 ranges: searching ? rangesOf(label, deferredQuery) : null,
                 tags: listing.tags[entry.name] ?? [],
+                git: gitByName?.get(entry.name.toLowerCase()) ?? null,
                 cut: cutPaths.has(entry.fullPath),
             };
         };
@@ -636,7 +647,7 @@ export function FileList({
         rowCache.current = {shape, entries: listing.entries, rows: built};
         return built;
     }, [
-        listing?.entries, listing?.tags, listing?.path, listing?.signature, listing?.ordered,
+        listing?.entries, listing?.tags, listing?.path, listing?.signature, listing?.ordered, listing?.git,
         view.sort === "size" || view.sort === "items" ? listing?.folderSizes : null,
         view.sort === "size" || view.sort === "items" ? listing?.counts : null,
         searching, deferredQuery, findMode, quick, view.sort, view.sortDescending, t, cutPaths,
@@ -1964,6 +1975,8 @@ export function FileList({
                             onOpenAsArchive={onOpenAsArchive}
                             onAddToStartMenu={onAddToStartMenu}
                             onArchiveCreated={archiveCreated}
+                            gitEntries={listing?.git?.entries}
+                            onGitChanged={refresh}
                             onClose={closeMenu}
                             onCompressTo={(paths, name) => setCompressDialog({paths, name})}
                             onCopy={copy}
@@ -2231,6 +2244,8 @@ export function FileList({
                             onOpenAsArchive={onOpenAsArchive}
                             onAddToStartMenu={onAddToStartMenu}
                         onArchiveCreated={archiveCreated}
+                        gitEntries={listing?.git?.entries}
+                        onGitChanged={refresh}
                         onClose={closeMenu}
                         onCompressTo={(paths, name) => setCompressDialog({paths, name})}
                         onCopy={copy}
@@ -2463,6 +2478,56 @@ function cellValue(column: string, entry: FileEntry, folderSizes: Record<string,
         default:
             return "";
     }
+}
+
+/** Porcelain v2's two letters trimmed to the one a row shows: the working tree wins over the index. */
+function gitLetter(code: string): string {
+    if (code === "??") return "?";
+    if (code === "!!") return "!";
+    if (code === "UU" || code === "AA" || code === "DD" || code[0] === "U" || code[1] === "U") return "U";
+
+    return code[1] !== "." ? code[1] : code[0];
+}
+
+/** The color group a git status belongs to. */
+function gitTone(code: string): string {
+    switch (gitLetter(code)) {
+        case "?":
+            return "untracked";
+        case "!":
+            return code === "!!" ? "ignored" : "conflict";
+        case "U":
+            return "conflict";
+        case "D":
+            return "deleted";
+        case "A":
+        case "C":
+            return "added";
+        case "R":
+            return "renamed";
+        default:
+            return "modified";
+    }
+}
+
+/** What a status badge explains itself with: the change, and whether it is already in the index. */
+function gitTitle(t: Translate, code: string): string {
+    const letter = gitLetter(code);
+    const label = letter === "?"
+        ? t("git_untracked")
+        : letter === "!"
+            ? (code === "!!" ? t("git_ignored") : t("git_conflict"))
+            : letter === "U"
+                ? t("git_conflict")
+                : letter === "D"
+                    ? t("git_deleted")
+                    : letter === "A" || letter === "C"
+                        ? t("git_added")
+                        : letter === "R"
+                            ? t("git_renamed")
+                            : t("git_modified");
+
+    return code[1] === "." && code[0] !== "." ? `${label} · ${t("git_staged")}` : label;
 }
 
 /** The name with every match of the query marked, so a dimmed list still points at the hit. */
@@ -2797,6 +2862,11 @@ const GridTile = memo(function GridTile({
                                 : <EntryIcon entry={row.entry} size={iconSize}/>}
                         </TileIcon>
                     )}
+                {row.git && (
+                    <GitMark $tone={gitTone(row.git)} title={row.entry.isDirectory ? t("git_changes_inside") : gitTitle(t, row.git)}>
+                        {row.entry.isDirectory ? "●" : gitLetter(row.git)}
+                    </GitMark>
+                )}
             </TileMedia>
             <TileCaption>
                 {renaming
@@ -3106,6 +3176,11 @@ const ListRow = memo(function ListRow({
                         <LockIcon size={9}/>
                         {t("encrypted")}
                     </EncryptedBadge>
+                )}
+                {row.git && (
+                    <GitBadge $tone={gitTone(row.git)} title={row.entry.isDirectory ? t("git_changes_inside") : gitTitle(t, row.git)}>
+                        {row.entry.isDirectory ? "●" : gitLetter(row.git)}
+                    </GitBadge>
                 )}
                 {row.cut && (
                     <CutBadge title={t("this_item_is_cut_and_will_move_when_something_is_pasted")}>
@@ -3577,6 +3652,64 @@ const EncryptedBadge = styled.span`
     letter-spacing: 0.04em;
     text-transform: uppercase;
     white-space: nowrap;
+`;
+
+/** The color a git status is drawn in; one place so the list and the grid agree. */
+function gitColor(tone: string): string {
+    switch (tone) {
+        case "untracked":
+        case "added":
+            return "#58c982";
+        case "deleted":
+            return "#f07171";
+        case "renamed":
+            return "#68a8f5";
+        case "conflict":
+            return "#f06bb0";
+        case "ignored":
+            return "#8b93a3";
+        default:
+            return "#e7b341";
+    }
+}
+
+/** The one-letter git status a list row carries beside its name. */
+const GitBadge = styled.span<{ $tone: string }>`
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 3px;
+    border-radius: 4px;
+    background: ${({$tone}) => gitColor($tone)};
+    color: #14181f;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1;
+    opacity: 0.9;
+`;
+
+/** The same status on a tile's picture, where there is no room for a pill. */
+const GitMark = styled.span<{ $tone: string }>`
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    border: 1px solid rgba(var(--bg-rgb), 0.6);
+    border-radius: 5px;
+    background: ${({$tone}) => gitColor($tone)};
+    color: #14181f;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1;
+    pointer-events: none;
 `;
 
 /** Marks a row the user cut, in the same pill the archive and link hints use. */

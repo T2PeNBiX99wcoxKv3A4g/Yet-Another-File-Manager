@@ -207,6 +207,7 @@ declare module "@photino-net-utils/bridge"
         "could_not_open_the_share_sheet": true;
         "could_not_read_this_file": true;
         "could_not_rename_the_entry": true;
+        "count_changes": true;
         "count_columns": true;
         "count_files_and_folders": true;
         "count_indexing_tasks": true;
@@ -348,6 +349,20 @@ declare module "@photino-net-utils/bridge"
         "full_path": true;
         "gallery": true;
         "general": true;
+        "git": true;
+        "git_added": true;
+        "git_changes_inside": true;
+        "git_conflict": true;
+        "git_deleted": true;
+        "git_detached": true;
+        "git_ignored": true;
+        "git_index_change_failed": true;
+        "git_modified": true;
+        "git_renamed": true;
+        "git_stage": true;
+        "git_staged": true;
+        "git_unstage": true;
+        "git_untracked": true;
         "gives_the_heap_back_in_the_background_when_it_stays_above_the_threshold": true;
         "give_a_folder_its_own_icon": true;
         "global": true;
@@ -411,6 +426,7 @@ declare module "@photino-net-utils/bridge"
         "keep_a_index_in_every_folder": true;
         "korean_cp949": true;
         "k_12_hour": true;
+        "k_1_change": true;
         "k_1_column": true;
         "k_1_item": true;
         "k_1_item_could_not_be_deleted": true;

@@ -1015,5 +1015,21 @@
   "shows_or_hides_the_details_panel": "Shows or hides the details panel beside the list.",
   "select_count_files": "Select {count} files",
   "nothing_is_shared_yet": "Nothing is shared yet",
-  "no_favorites_yet": "No favorites yet"
+  "no_favorites_yet": "No favorites yet",
+  "git": "Git",
+  "git_staged": "staged",
+  "git_stage": "Stage",
+  "git_unstage": "Unstage",
+  "git_index_change_failed": "Git could not change the index.",
+  "git_modified": "Modified",
+  "git_added": "Added",
+  "git_deleted": "Deleted",
+  "git_renamed": "Renamed",
+  "git_untracked": "Untracked",
+  "git_ignored": "Ignored",
+  "git_conflict": "Conflicted",
+  "git_changes_inside": "Contains changes",
+  "git_detached": "detached",
+  "k_1_change": "{count} change",
+  "count_changes": "{count} changes"
 }

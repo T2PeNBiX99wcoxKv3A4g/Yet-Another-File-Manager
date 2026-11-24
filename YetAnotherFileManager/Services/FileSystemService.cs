@@ -423,6 +423,14 @@ internal partial class FileSystemService : INativeMessageHandler
             case "fs.list.meta":
                 return await ListMetaAsync(context);
 
+            case "git.stage":
+                return context.Reply("git.stage.result",
+                    await GitStatus.Instance.ChangeAsync(context.Payload<GitPathsRequest>()?.Paths, false));
+
+            case "git.unstage":
+                return context.Reply("git.unstage.result",
+                    await GitStatus.Instance.ChangeAsync(context.Payload<GitPathsRequest>()?.Paths, true));
+
             case "fs.list.cached":
                 return context.Reply("fs.list.cached.result",
                     await CachedListAsync(context.Payload<FsListRequest>()?.Path,
@@ -1375,7 +1383,14 @@ internal partial class FileSystemService : INativeMessageHandler
         // The window asks for metadata before it paints a folder, and that call is the one that
         // decides whether the saved listing is still current. It always walks the disk; the pages
         // that follow are cut from this walk instead of starting one of their own.
-        var payload = await ListingSource.Instance.RefreshAsync(request?.Path ?? "", CancellationToken.None);
+        var path = request?.Path ?? "";
+        var listing = ListingSource.Instance.RefreshAsync(path, CancellationToken.None);
+
+        // The repository status is read while the folder is walked; it is usually cached and must
+        // never make the folder itself wait longer than the walk already does.
+        var git = GitStatus.Instance.ListingAsync(path);
+
+        var payload = await listing;
 
         return context.Reply("fs.list.meta.result", new FsListMetaPayload(
             payload.Path,
@@ -1388,7 +1403,8 @@ internal partial class FileSystemService : INativeMessageHandler
             payload.AllTags,
             payload.Counts,
             payload.FolderSizes,
-            payload.ArchiveEncrypted));
+            payload.ArchiveEncrypted,
+            await git));
     }
 
     /// <summary>

@@ -1015,5 +1015,21 @@
   "shows_or_hides_the_details_panel": "一覧の横の詳細パネルの表示を切り替えます。",
   "select_count_files": "{count} 件のファイルを選択",
   "nothing_is_shared_yet": "まだ共有されていません",
-  "no_favorites_yet": "お気に入りはまだありません"
+  "no_favorites_yet": "お気に入りはまだありません",
+  "git": "Git",
+  "git_staged": "ステージ済み",
+  "git_stage": "ステージ",
+  "git_unstage": "ステージ解除",
+  "git_index_change_failed": "Git がインデックスを変更できませんでした。",
+  "git_modified": "変更",
+  "git_added": "追加",
+  "git_deleted": "削除",
+  "git_renamed": "名前変更",
+  "git_untracked": "未追跡",
+  "git_ignored": "無視",
+  "git_conflict": "競合",
+  "git_changes_inside": "変更を含む",
+  "git_detached": "デタッチ HEAD",
+  "k_1_change": "{count} 件の変更",
+  "count_changes": "{count} 件の変更"
 }

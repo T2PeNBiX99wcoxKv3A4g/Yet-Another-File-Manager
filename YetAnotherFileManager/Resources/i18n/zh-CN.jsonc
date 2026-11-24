@@ -1015,5 +1015,21 @@
   "shows_or_hides_the_details_panel": "显示或隐藏列表旁的详细信息面板。",
   "select_count_files": "选择 {count} 个文件",
   "nothing_is_shared_yet": "尚未共享任何内容",
-  "no_favorites_yet": "还没有收藏"
+  "no_favorites_yet": "还没有收藏",
+  "git": "Git",
+  "git_staged": "已暂存",
+  "git_stage": "暂存",
+  "git_unstage": "取消暂存",
+  "git_index_change_failed": "Git 无法更改索引。",
+  "git_modified": "已修改",
+  "git_added": "已添加",
+  "git_deleted": "已删除",
+  "git_renamed": "已重命名",
+  "git_untracked": "未跟踪",
+  "git_ignored": "已忽略",
+  "git_conflict": "有冲突",
+  "git_changes_inside": "包含变更",
+  "git_detached": "分离的 HEAD",
+  "k_1_change": "{count} 个变更",
+  "count_changes": "{count} 个变更"
 }
