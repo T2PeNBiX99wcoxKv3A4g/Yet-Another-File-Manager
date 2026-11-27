@@ -811,6 +811,7 @@
   "logs": "日誌",
   "application_logs_and_crash_details_open_the_folder_here_to_inspect_them_without_leaving_the_app": "應用程式日誌與當機資訊。可直接在這裡開啟資料夾查看，不必離開軟體。",
   "open_log_folder": "開啟日誌資料夾",
+  "open_crash_dumps": "開啟當機傾印",
   "pasted_text": "貼上的文字",
   "pasted_image": "貼上的圖片",
   "paste_text": "貼上文字",

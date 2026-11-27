@@ -811,6 +811,7 @@
   "logs": "ログ",
   "application_logs_and_crash_details_open_the_folder_here_to_inspect_them_without_leaving_the_app": "アプリのログとクラッシュ情報です。アプリを離れずにここからフォルダーを開いて確認できます。",
   "open_log_folder": "ログフォルダーを開く",
+  "open_crash_dumps": "クラッシュダンプを開く",
   "pasted_text": "貼り付けたテキスト",
   "pasted_image": "貼り付けた画像",
   "paste_text": "テキストを貼り付け",

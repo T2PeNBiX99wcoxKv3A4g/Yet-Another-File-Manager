@@ -64,6 +64,16 @@ internal partial class AppInfoService
         return directory;
     }
 
+    /// <summary>Opens the folder Windows writes this executable's crash dumps to.</summary>
+    [NativeMessage("app.openCrashDumps")]
+    private static NativeResponse OpenCrashDumps(NativeContext context)
+    {
+        Try.Run(CrashDumps.Open)
+            .OnFailure(exception => Serilog.Log.Warning(exception, "Could not open the crash dump folder"));
+
+        return context.Reply("app.openCrashDumps.result", new OkPayload());
+    }
+
     /// <summary>Hands a URL to the shell, so the release page opens in the user's browser.</summary>
     [NativeMessage("system.openUrl")]
     private static NativeResponse OpenUrl(NativeContext context)

@@ -11,6 +11,7 @@ import "@fontsource/jetbrains-mono/latin-400.css";
 import "@fontsource/jetbrains-mono/latin-500.css";
 import App from "./App";
 import {LocalizationProvider, systemPrefersDark} from "@photino-net-utils/bridge";
+import {getPickerRequest} from "./api/picker";
 import {getSettingDefaults} from "./api/settings";
 import {applyShortcutDefaults} from "./shortcuts";
 import {applyTimeFormat} from "./utils/format";
@@ -34,7 +35,6 @@ window.addEventListener("pagehide", flushStoredState);
 const rootElement = document.getElementById("root");
 const parameters = new URLSearchParams(window.location.search);
 const pickMode = parameters.get("picker");
-const pickFilter = parameters.get("filter") ?? "";
 
 // A picker is a separate window with its own pages; a normal launch must not carry it, nor the
 // overview and gallery it pulls in.
@@ -42,8 +42,14 @@ const PickerWindow = pickMode === "folder" || pickMode === "file" || pickMode ==
     ? lazy(() => import("./PickerWindow").then((module) => ({default: module.PickerWindow})))
     : null;
 
+// The dialog's own parameters (its type list above all) are too big for a URL, so they come over
+// the bridge while the rest of the startup work runs.
+const pickRequest = PickerWindow === null
+    ? Promise.resolve(null)
+    : getPickerRequest().catch(() => null);
+
 if (rootElement) {
-    const start = () => {
+    const start = (request: Awaited<typeof pickRequest>) => {
         // The stored panel sizes are read as the components mount, so they are loaded first.
         loadStoredState();
 
@@ -55,15 +61,15 @@ if (rootElement) {
                     : (
                         <Suspense fallback={null}>
                             <PickerWindow
-                                defaultExtension={parameters.get("ext") ?? ""}
-                                extensions={pickFilter ? pickFilter.split(";").filter(Boolean) : []}
-                                types={parameters.get("types") ?? ""}
-                                typeIndex={Number(parameters.get("type") ?? 0) || 0}
-                                initial={parameters.get("initial") ?? ""}
-                                initialName={parameters.get("name") ?? ""}
-                                lastExtension={parameters.get("last") ?? ""}
+                                defaultExtension={request?.defaultExtension ?? ""}
+                                extensions={request?.extensions ?? []}
+                                types={request?.types ?? ""}
+                                typeIndex={request?.typeIndex ?? 0}
+                                initial={request?.initial ?? ""}
+                                initialName={request?.initialName ?? ""}
+                                lastExtension={request?.lastExtension ?? ""}
                                 mode={pickMode === "folder" ? "folder" : "file"}
-                                multiple={parameters.get("multiple") === "1"}
+                                multiple={request?.multiple ?? false}
                                 save={pickMode === "save"}
                             />
                         </Suspense>
@@ -75,11 +81,13 @@ if (rootElement) {
 
     // The host owns every default. Apply the ones the modules need synchronously before the
     // first paint, so no component has to carry a copy of them.
-    void getSettingDefaults()
-        .then((defaults) => {
-            applyShortcutDefaults(defaults.shortcuts);
-            applyTimeFormat(defaults.timeFormat, defaults.timeFormatPattern);
-        })
-        .catch(() => undefined)
-        .then(start);
+    void Promise.all([getSettingDefaults().catch(() => null), pickRequest])
+        .then(([defaults, request]) => {
+            if (defaults !== null) {
+                applyShortcutDefaults(defaults.shortcuts);
+                applyTimeFormat(defaults.timeFormat, defaults.timeFormatPattern);
+            }
+
+            start(request);
+        });
 }

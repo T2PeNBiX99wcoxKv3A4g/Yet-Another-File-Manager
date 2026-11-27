@@ -164,6 +164,7 @@ namespace YetAnotherFileManager.Messaging;
 [JsonSerializable(typeof(ThumbnailServerPayload))]
 [JsonSerializable(typeof(PathPayload))]
 [JsonSerializable(typeof(PickResultRequest))]
+[JsonSerializable(typeof(PickerWindowRequest))]
 [JsonSerializable(typeof(YetAnotherFileManager.Services.ElevationAskPayload))]
 [JsonSerializable(typeof(YetAnotherFileManager.Services.ElevationAnswerPayload))]
 [JsonSerializable(typeof(RunningProgram))]

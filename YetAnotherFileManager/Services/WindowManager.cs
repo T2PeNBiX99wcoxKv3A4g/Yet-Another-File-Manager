@@ -165,6 +165,26 @@ internal partial class WindowManager
         context.Reply("pick.open.result", await OpenPickerAsync(context.Payload<PickOpenRequest>()));
 
     /// <summary>
+    ///     The dialog this window is showing. The page asks once it is loaded instead of reading a
+    ///     URL: a browser's upload dialog names seventy types, which is more than the web view takes.
+    /// </summary>
+    [NativeMessage("picker.request")]
+    private NativeResponse PickerRequest(NativeContext context) =>
+        context.Reply("picker.request.result", Picker is { } picker
+            ? new PickerWindowRequest(
+                picker.SaveMode ? "save" : picker.FileMode ? "file" : "folder",
+                picker.Multiple,
+                picker.Extensions,
+                picker.Types,
+                picker.TypeIndex,
+                picker.Initial,
+                picker.InitialName,
+                picker.DefaultExtension,
+                picker.LastType)
+            : null);
+
+
+    /// <summary>
     ///     Sends an event to the interface. The library holds it until the page reports ready and
     ///     logs a failure: a view may be gone, and that is not this service's problem.
     /// </summary>

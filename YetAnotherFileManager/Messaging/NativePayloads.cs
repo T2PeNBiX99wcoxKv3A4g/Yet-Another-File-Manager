@@ -168,6 +168,23 @@ internal sealed record PathPayload(string? Path);
 /// <summary>Payload for <c>pick.submit</c>: the paths the command line picker selected.</summary>
 internal sealed record PickResultRequest(IReadOnlyList<string> Paths, int? Type = null, string? Extension = null);
 
+/// <summary>
+///     Body for <c>picker.request</c>: the dialog this picker window is. It travels over the bridge
+///     rather than the URL because a browser names every one of its upload types, which is far more
+///     than a window URL can carry.
+/// </summary>
+internal sealed record PickerWindowRequest(
+    string Mode,
+    bool Multiple,
+    IReadOnlyList<string> Extensions,
+    string Types,
+    int TypeIndex,
+    string Initial,
+    string InitialName,
+    string DefaultExtension,
+    string LastExtension);
+
+
 /// <summary>Payload for <c>pick.open</c>: which standalone picker to run, where, and its filter.</summary>
 internal sealed record PickOpenRequest(string Mode, List<string>? Extensions, string? Initial);
 

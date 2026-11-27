@@ -48,6 +48,13 @@ export async function trimMemory(): Promise<MemoryUsage> {
     return await Native.request<MemoryUsage>("app.memory.trim");
 }
 
+/** Opens the folder Windows writes the app's crash dumps to, beside the logs. */
+export async function openCrashDumpsFolder(): Promise<void> {
+    if (!Native.available) return;
+
+    await Native.request("app.openCrashDumps");
+}
+
 /** Whether the shell opens yafm:// links with this copy, and where the entry points. */
 export interface SchemeStatus {
     registered: boolean;

@@ -63,40 +63,12 @@ internal static class CliPicker
             ReadLastType());
     }
 
-    /// <summary>Appends the pick parameters to the interface URL.</summary>
-    public static string AppendTo(string appUrl, PickerOptions options)
-    {
-        var url = new StringBuilder(appUrl)
-            .Append(appUrl.Contains('?') ? '&' : '?')
-            .Append("picker=")
-            .Append(options.SaveMode ? "save" : options.FileMode ? "file" : "folder");
-
-        if (options.Multiple)
-            url.Append("&multiple=1");
-
-        if (options.Extensions.Count > 0)
-            url.Append("&filter=").Append(Uri.EscapeDataString(string.Join(';', options.Extensions)));
-
-        if (options.Types.Length > 0)
-            url.Append("&types=").Append(Uri.EscapeDataString(options.Types));
-
-        if (options.TypeIndex > 0)
-            url.Append("&type=").Append(options.TypeIndex);
-
-        if (options.LastType.Length > 0)
-            url.Append("&last=").Append(Uri.EscapeDataString(options.LastType));
-
-        if (options.InitialName.Length > 0)
-            url.Append("&name=").Append(Uri.EscapeDataString(options.InitialName));
-
-        if (options.DefaultExtension.Length > 0)
-            url.Append("&ext=").Append(Uri.EscapeDataString(options.DefaultExtension));
-
-        if (options.Initial.Length > 0)
-            url.Append("&initial=").Append(Uri.EscapeDataString(options.Initial));
-
-        return url.ToString();
-    }
+    /// <summary>
+    ///     Marks the interface URL as a picker window. Everything else the dialog needs — the type
+    ///     list above all — is too big for a URL, so the page asks for it once it is loaded.
+    /// </summary>
+    public static string AppendTo(string appUrl, PickerOptions options) =>
+        $"{appUrl}{(appUrl.Contains('?') ? '&' : '?')}picker={(options.SaveMode ? "save" : options.FileMode ? "file" : "folder")}";
 
     /// <summary>Writes the chosen paths to standard output and, when asked, to a file.</summary>
     public static async Task CompleteAsync(PickerOptions options, IReadOnlyList<string> paths, int? type = null,

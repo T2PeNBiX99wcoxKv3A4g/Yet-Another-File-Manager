@@ -49,6 +49,7 @@ import {
     type MemoryUsage,
     onUpdateChangelog,
     onUpdateProgress,
+    openCrashDumpsFolder,
     openLogsFolder,
     openReleasePage,
     openUrl,
@@ -2144,6 +2145,12 @@ export function SettingsView({
                                     type="button"
                                 >
                                     <FolderIcon size={13}/>{t("open_log_folder")}
+                                </ActionButton>
+                                <ActionButton
+                                    onClick={() => void openCrashDumpsFolder()}
+                                    type="button"
+                                >
+                                    <FolderIcon size={13}/>{t("open_crash_dumps")}
                                 </ActionButton>
                             </RowEnd>
                         </Row>

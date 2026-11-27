@@ -811,6 +811,7 @@
   "logs": "Logs",
   "application_logs_and_crash_details_open_the_folder_here_to_inspect_them_without_leaving_the_app": "Application logs and crash details. Open the folder here to inspect them without leaving the app.",
   "open_log_folder": "Open log folder",
+  "open_crash_dumps": "Open crash dumps",
   "pasted_text": "Pasted text",
   "pasted_image": "Pasted image",
   "paste_text": "Paste text",

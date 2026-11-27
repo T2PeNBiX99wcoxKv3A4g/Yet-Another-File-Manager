@@ -234,6 +234,10 @@ internal static partial class Program
         // Photino message loop / WebView2 require an STA thread.
         Logging.Initialize(Constants.Name, "app");
 
+        // A crash cannot write its own dump, so this tells Windows where to put one, for the
+        // picker's short-lived process as much as for this window.
+        CrashDumps.Configure();
+
         // A pick run's standard output belongs to the caller, so its logs go to the file only.
         var picker = CliPicker.Parse(args);
         if (picker is not null)

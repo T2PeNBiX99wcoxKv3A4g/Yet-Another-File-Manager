@@ -582,6 +582,7 @@ declare module "@photino-net-utils/bridge"
         "opens_the_view_menu_of_the_current_folder": true;
         "open_archives_with_this_app": true;
         "open_as_archive": true;
+        "open_crash_dumps": true;
         "open_folder": true;
         "open_in_a_new_tab": true;
         "open_in_new_tab": true;

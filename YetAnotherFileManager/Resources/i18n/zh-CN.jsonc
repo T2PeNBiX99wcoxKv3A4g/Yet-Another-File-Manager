@@ -811,6 +811,7 @@
   "logs": "日志",
   "application_logs_and_crash_details_open_the_folder_here_to_inspect_them_without_leaving_the_app": "应用日志和崩溃信息。可以直接在这里打开文件夹查看，无需离开软件。",
   "open_log_folder": "打开日志文件夹",
+  "open_crash_dumps": "打开崩溃转储",
   "pasted_text": "粘贴的文字",
   "pasted_image": "粘贴的图片",
   "paste_text": "粘贴文字",
