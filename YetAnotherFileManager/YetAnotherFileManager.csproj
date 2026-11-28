@@ -33,6 +33,9 @@
         <SelfContained>true</SelfContained>
         <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
         <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+        <!-- Ahead-of-time compiled code: the JIT was the largest part of the time between the
+             process starting and the window appearing. -->
+        <PublishReadyToRun>true</PublishReadyToRun>
         <PublishTrimmed>true</PublishTrimmed>
         <TrimMode>partial</TrimMode>
         <!-- Suppress trim warnings from third-party libraries -->
