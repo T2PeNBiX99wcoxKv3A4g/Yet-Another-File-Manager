@@ -1,5 +1,48 @@
 # Changelog
 
+## [0.63.0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.62.1..v0.63.0) - 2026-11-28
+
+### ⛰️  Features
+
+- *(crash)* Write Linux dumps by restarting with the runtime's dump variables - ([3d09d5d](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/3d09d5d5cfc32dd37b8c685db937fb71124f5eb1))
+- *(native)* Start the Rust implementation of the Photino ABI - ([9bfe407](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/9bfe407163d83592f0bde33941d5b6ddb872982c))
+- Reach the data routes over a Unix socket - ([737a7ee](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/737a7eec3e5d8a303363914be0f68324ee9edfb4))
+- Load the interface from the app's own scheme - ([0c829fd](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/0c829fdfde6dd233efcca4be2923e2ef3810c079))
+
+### 🐛 Bug Fixes
+
+- *(crash)* Let the system write Linux dumps instead of the runtime - ([b115824](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b115824c12c70df440270417a009def36f5770d2))
+- *(picker)* Carry the dialog over the bridge and keep crash dumps beside the logs - ([cea3842](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/cea38427df90dc1539b18c849163823c1fbb9cbb))
+
+### ⚡ Performance
+
+- Publish ahead-of-time compiled so the window appears sooner - ([b1469f4](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/b1469f474c3331d7a91386ea19f4f4cec461b8b0))
+
+### ⚙️ Miscellaneous Tasks
+
+- *(photino)* Take the Wayland, popup and script features that passed their runs - ([df8e685](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/df8e685c541358f12235359f7e78ed652d3f5bcd))
+- *(photino)* Rebuild after backing out the two webview changes that broke Linux - ([ccad990](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/ccad9900b50e9454fccd266e7ea6fd169d231e0e))
+- *(photino)* Take the merged upstream features and rebuild the native libraries - ([817eda9](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/817eda9cf015663bdaf67e2a2295b217f1b5aebe))
+- *(photino)* Refresh the binaries after the icon and logging fixes - ([90c0aaf](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/90c0aaf9551e355a63811e1405be68a1fc0355ce))
+- *(photino)* Take the upstream fixes and our own leak and race fixes - ([715124f](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/715124f32bfea6d57bb88265dd5d4d19b687dd6c))
+- *(site)* Drop the mdast-util-gfm-autolink-literal override - ([5c48fcb](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/5c48fcb9c8ed43c78759c6c4cf4e75b53ea0acda))
+- Build and deploy the site through the shared Pages workflow - ([2034503](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/2034503a3b703729bdc9b70c390e16b2ab317250))
+
+### Action
+
+- Update version and update `CHANGELOG.md` - ([72cdf40](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/72cdf40a07e9acc7eec11937a85189d976610a8a))
+
+### Build
+
+- *(libs)* Rebuild the Linux library with scheme support - ([f5357b7](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/f5357b76507ff01674e0069ca239bdc89c480202))
+- *(libs)* Rebuild with scheme serving and the closing fix - ([58b499e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/58b499efb7db97c1835252de145d491fa8a46be7))
+- *(libs)* Rebuild Photino.NET for net11 - ([5fbac1a](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/5fbac1ace7d86db71a7cdc5b5a396a81d7700743))
+- *(libs)* Rebuild the native library with the window handle - ([ca4d8c0](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/ca4d8c03cd99ae4c1991a3f86d462f0bc0317b6d))
+- *(libs)* Use the Rust native library - ([fb037a5](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/fb037a59705d5600dc3f627e2758b5ce339082f5))
+- *(photino)* Ship the Linux native library built from the fork - ([08f214e](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/08f214e4866b2ee2a68e03074a46e796f32adcd0))
+- *(photino)* Take the engine from our fork instead of the package - ([92581e6](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/commit/92581e61781193c136fbc8ff0b46c8044ba8af04))
+
+
 ## [0.62.1](https://github.com/T2PeNBiX99wcoxKv3A4g/Yet-Another-File-Manager/compare/v0.62.0..v0.62.1) - 2026-11-24
 
 ### 🐛 Bug Fixes
