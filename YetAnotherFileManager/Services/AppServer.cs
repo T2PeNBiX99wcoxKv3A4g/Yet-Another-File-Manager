@@ -25,14 +25,18 @@ internal static class AppServer
 #if DEBUG
             // The page comes from Vite in this build, so a fetch from it is a cross-origin request.
             // Images and media need no CORS; only the routes read through fetch do.
-            ["http://127.0.0.1:3100", "http://localhost:3100"]
+            ["http://127.0.0.1:3100", "http://localhost:3100"],
+            // Vite reaches the routes over http, so a debug build keeps a loopback port.
+            useUnixSocket: false
 #else
-            []
+            [],
+            // A release build listens on a Unix domain socket: no port exists at all.
+            useUnixSocket: true
 #endif
         );
 
         DataUrl = server.DataUrl;
-        Log.Information("Data plane at {Url}", DataUrl);
+        Log.Information("Data plane at {Transport}", server.SocketPath ?? server.DataUrl);
 
         return server;
     }
