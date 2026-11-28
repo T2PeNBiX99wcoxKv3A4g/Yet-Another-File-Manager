@@ -69,7 +69,6 @@
         <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="11.0.0" />
         <PackageReference Include="Tomlyn" Version="2.11.1" />
         <PackageReference Include="Docnet.Core" Version="2.6.0" />
-        <PackageReference Include="Photino.NET" Version="4.0.16" />
         <PackageReference Include="Serilog" Version="4.4.0" />
         <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
@@ -121,6 +120,12 @@
     </Target>
 
     <ItemGroup>
+        <!-- The Photino fork, shipped as a binary beside the shared library: it carries the fixes this
+             app needs, and the package it would replace has none of them. -->
+        <Reference Include="Photino.NET">
+            <HintPath>Libs\Photino.NET.dll</HintPath>
+            <Private>true</Private>
+        </Reference>
         <Reference Include="PhotinoNETUtils">
             <HintPath>Libs\PhotinoNETUtils.dll</HintPath>
             <Private>true</Private>
@@ -195,6 +200,22 @@
          condition follows the target runtime, so publishing linux-x64 from Windows stays clean. -->
     <Target Name="CopySevenZipOnPublish" AfterTargets="Publish" Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win'))">
         <Copy SourceFiles="Native\7z\x64\7z.dll" DestinationFolder="$(PublishDir)x64" />
+    </Target>
+
+    <!-- Photino loads its native library from the application folder, and a single-file bundle would
+         keep it out of reach, so the file is copied beside the executable instead. The Linux library
+         is built on Linux and kept here beside the project. -->
+    <ItemGroup>
+        <PhotinoNativeLibrary Include="Libs\Photino.Native.dll" Condition="Exists('Libs\Photino.Native.dll')"/>
+        <PhotinoNativeLibrary Include="Libs\Photino.Native.so" Condition="Exists('Libs\Photino.Native.so')"/>
+    </ItemGroup>
+
+    <Target Name="CopyPhotinoNativeOnBuild" AfterTargets="Build" Condition="'@(PhotinoNativeLibrary)' != ''">
+        <Copy SourceFiles="@(PhotinoNativeLibrary)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true"/>
+    </Target>
+
+    <Target Name="CopyPhotinoNativeOnPublish" AfterTargets="Publish" Condition="'@(PhotinoNativeLibrary)' != ''">
+        <Copy SourceFiles="@(PhotinoNativeLibrary)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true"/>
     </Target>
 
     <!-- Linux has no 7z.dll to load, so it runs the console tool that 7-Zip publishes for it. -->
