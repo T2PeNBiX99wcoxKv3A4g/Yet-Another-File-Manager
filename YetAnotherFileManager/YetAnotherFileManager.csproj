@@ -206,8 +206,10 @@
          keep it out of reach, so the file is copied beside the executable instead. The Linux library
          is built on Linux and kept here beside the project. -->
     <ItemGroup>
-        <PhotinoNativeLibrary Include="Libs\Photino.Native.dll" Condition="Exists('Libs\Photino.Native.dll')"/>
-        <PhotinoNativeLibrary Include="Libs\Photino.Native.so" Condition="Exists('Libs\Photino.Native.so')"/>
+        <PhotinoNativeLibrary Include="Libs\Photino.Native.dll"
+                               Condition="'$(RuntimeIdentifier)' == 'win-x64' Or ('$(RuntimeIdentifier)' == '' And $([MSBuild]::IsOSPlatform('Windows')))"/>
+        <PhotinoNativeLibrary Include="Libs\Photino.Native.so"
+                               Condition="'$(RuntimeIdentifier)' == 'linux-x64' Or ('$(RuntimeIdentifier)' == '' And $([MSBuild]::IsOSPlatform('Linux')))"/>
     </ItemGroup>
 
     <Target Name="CopyPhotinoNativeOnBuild" AfterTargets="Build" Condition="'@(PhotinoNativeLibrary)' != ''">

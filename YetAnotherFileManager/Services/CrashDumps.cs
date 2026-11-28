@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using JetBrains.Annotations;
@@ -18,7 +17,6 @@ internal static partial class CrashDumps
 {
     private const int ContinueSearch = 0;
     private const uint FullMemory = 0x2;
-    private const string ArmedVariable = "YAFM_DUMP_ARMED";
 
     /// <summary>How many dumps are kept; each one holds the whole process.</summary>
     private const int Keep = 5;
@@ -48,7 +46,15 @@ internal static partial class CrashDumps
         }
 
         if (OperatingSystem.IsLinux())
-            ArmLinux();
+        {
+            // A single-file Linux app can only write a full dump, and a full dump of this process is
+            // tens of gigabytes: the web view maps nearly everything it touches. The system's own
+            // dumper keeps a compressed core instead, so the dump is exported from it on request.
+            Log.Information("Crash dumps come from the system dumper here: coredumpctl dump {Exe} -o {Folder}/crash.dmp",
+                Constants.Name, Folder);
+
+            Prune();
+        }
     }
 
     /// <summary>
@@ -113,56 +119,6 @@ internal static partial class CrashDumps
             .Skip(Keep)
             .ToList()
             .ForEach(file => Try.Run(file.Delete));
-
-    /// <summary>
-    ///     The runtime writes a Linux crash dump only when it starts with the dump variables set, and
-    ///     a process cannot set its own. The first start therefore replaces itself with one that has
-    ///     them; the marker keeps a failed replacement from looping.
-    /// </summary>
-    private static void ArmLinux()
-    {
-        if (Environment.GetEnvironmentVariable("DOTNET_DbgEnableMiniDump") == "1"
-            || Environment.GetEnvironmentVariable(ArmedVariable) == "1")
-        {
-            Log.Information("Crash dumps go to {Folder}", Folder);
-            Prune();
-            return;
-        }
-
-        var process = Environment.ProcessPath;
-        if (process is null || Path.GetFileNameWithoutExtension(process) == "dotnet")
-        {
-            Log.Warning("A crash will leave no dump: the app runs under the dotnet host");
-            return;
-        }
-
-        Log.Information("Restarting with crash dumps enabled in {Folder}", Folder);
-
-        var dump = Path.Combine(Folder, $"crash.{Constants.Name}.%p.dmp");
-        var environment = Environment.GetEnvironmentVariables()
-            .Cast<DictionaryEntry>()
-            .Select(entry => $"{entry.Key}={entry.Value}")
-            .Where(line => !line.StartsWith("DOTNET_Dbg", StringComparison.Ordinal)
-                           && !line.StartsWith($"{ArmedVariable}=", StringComparison.Ordinal))
-            .Append("DOTNET_DbgEnableMiniDump=1")
-            // A single-file app cannot write the smaller kinds; the runtime refuses anything else.
-            .Append("DOTNET_DbgMiniDumpType=4")
-            .Append($"DOTNET_DbgMiniDumpName={dump}")
-            .Append($"{ArmedVariable}=1")
-            .ToArray();
-
-        var arguments = Environment.GetCommandLineArgs().Skip(1).Prepend(process).ToArray();
-
-        Execve(process, Utf8(arguments), Utf8(environment));
-        Log.Warning("Could not restart with crash dumps enabled (error {Error})", Marshal.GetLastPInvokeError());
-    }
-
-    /// <summary>One argv/envp array of native strings; nothing is freed because the exec does not return.</summary>
-    private static IntPtr[] Utf8(string[] values) =>
-        [.. values.Select(value => Marshal.StringToCoTaskMemUTF8(value)), IntPtr.Zero];
-
-    [LibraryImport("libc", SetLastError = true)]
-    private static partial int Execve([MarshalAs(UnmanagedType.LPUTF8Str)] string path, IntPtr[] argv, IntPtr[] envp);
 
     [LibraryImport("dbghelp.dll", SetLastError = true)]
     private static partial int MiniDumpWriteDump(IntPtr process, uint processId, IntPtr file, uint type,
