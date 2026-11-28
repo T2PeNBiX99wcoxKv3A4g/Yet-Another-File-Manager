@@ -329,10 +329,9 @@ internal static partial class Program
             using var server = AppServer.Start();
 
 #if !DEBUG
-            // Kestrel binds to an OS-assigned port, so several Photino apps can run side by side
-            // without racing for the default 8000. The content root is a folder we own, which keeps
-            // the web root out of the executable's directory.
-            var appUrl = $"{server.BaseUrl}/index.html?v={AppInfoService.BuildToken}&state={storedState}";
+            // The page is loaded from the app's own scheme: .NET answers every asset, every call and
+            // every data route behind it, so there is no address, port or token in the URL.
+            var appUrl = $"{WindowManager.AppScheme}://app/index.html?v={AppInfoService.BuildToken}&state={storedState}";
 #else
             // A Debug build always talks to the Vite dev server, which is where hot reload lives.
             var appUrl = $"{Constants.DevServerUrl}/index.html?state={storedState}";
@@ -355,6 +354,13 @@ internal static partial class Program
 
             var manager = WindowManager.Instance;
             manager.AppUrl = appUrl;
+
+#if !DEBUG
+            // One origin for the page, its assets, its calls and its data. The data routes keep their
+            // own pipeline and are reached through the same scheme.
+            manager.Scheme = SchemeServer.Create(Constants.DataDirectory, typeof(AppServer).Assembly)
+                .ForwardData(server);
+#endif
             manager.IconPath = AppIcon.EnsureExtracted(typeof(Program).Assembly, Constants.Name);
 
             // Without a tray the window is the only way back in, so it always shows there.
@@ -424,7 +430,7 @@ internal static partial class Program
         using var server = AppServer.Start();
 
 #if !DEBUG
-        var appUrl = $"{server.BaseUrl}/index.html?v={AppInfoService.BuildToken}";
+        var appUrl = $"{WindowManager.AppScheme}://app/index.html?v={AppInfoService.BuildToken}";
 #else
         var appUrl = Constants.DevServerUrl;
 #endif
@@ -433,6 +439,11 @@ internal static partial class Program
 
         var manager = WindowManager.Instance;
         manager.AppUrl = CliPicker.AppendTo(appUrl, picker);
+
+#if !DEBUG
+        manager.Scheme = SchemeServer.Create(Constants.DataDirectory, typeof(AppServer).Assembly)
+            .ForwardData(server);
+#endif
         manager.IconPath = AppIcon.EnsureExtracted(typeof(Program).Assembly, Constants.Name);
         manager.Picker = picker;
 

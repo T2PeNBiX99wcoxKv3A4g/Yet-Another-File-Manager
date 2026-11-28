@@ -1,4 +1,4 @@
-import{A as e,C as t,N as n,S as r,k as i}from"./dist-CKllR0JH.js";import{y as a}from"./Icons-5-2yk8Zn.js";var o=n(e(),1),s=`/assets/attributions-Do3S5OBo.json`,c=t(),l=i.div`
+import{A as e,C as t,N as n,S as r,k as i}from"./dist-CUELW5RT.js";import{y as a}from"./Icons-DXP6ShAr.js";var o=n(e(),1),s=`/assets/attributions-Do3S5OBo.json`,c=t(),l=i.div`
     position: fixed;
     inset: 0;
     z-index: 80;

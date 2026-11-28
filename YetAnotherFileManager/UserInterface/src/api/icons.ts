@@ -236,6 +236,11 @@ let thumbnailBase: string | null = null;
 let thumbnailBaseTask: Promise<string> | null = null;
 
 export function dataBase(): Promise<string> {
+    // On the app's own scheme the data routes are reachable from the same origin, so no address has
+    // to be asked for — and an http address would be blocked as mixed content there anyway.
+    if (typeof location !== "undefined" && location.protocol === "yafm:")
+        return Promise.resolve(`${location.origin}/data`);
+
     if (thumbnailBase !== null) return Promise.resolve(thumbnailBase);
     if (!Native.available) return Promise.resolve("");
 

@@ -67,6 +67,15 @@ internal partial class WindowManager
     /// <summary>Address the window loads the interface from, set before the window is created.</summary>
     public string AppUrl { get; set; } = "";
 
+    /// <summary>The scheme the page is served from, for example <c>yafm</c>.</summary>
+    public const string AppScheme = "yafm";
+
+    /// <summary>
+    ///     Serves the interface and the page's calls over <see cref="AppScheme" />. Set before the
+    ///     window is created; a debug build leaves it null and loads the interface from Vite.
+    /// </summary>
+    public SchemeServer? Scheme { get; set; }
+
     /// <summary>Whether the window is shown at startup instead of hiding to the tray.</summary>
     public bool ShowMainWindowOnStartup { get; set; } = true;
 
@@ -227,6 +236,16 @@ internal partial class WindowManager
             .SetContextMenuEnabled(false)
             .RegisterWebMessageReceivedHandler((sender, message) =>
                 _ = NativeBridge.HandleMessageAsync(sender as PhotinoWindow, message))
+            // Everything the page asks for arrives through the app's own scheme.
+            .RegisterResourceHandler(AppScheme, (sender, method, url, headers, body, out status, out responseHeaders) =>
+            {
+                if (Scheme is { } scheme)
+                    return scheme.Handle(sender, method, url, headers, body, out status, out responseHeaders);
+
+                status = 404;
+                responseHeaders = "Content-Type: text/plain";
+                return null;
+            })
             .RegisterWindowClosingHandler((_, _) =>
             {
                 // A picker window is the whole process: closing it means the caller got no result.
@@ -244,6 +263,8 @@ internal partial class WindowManager
                 HideMainWindow();
                 return true;
             });
+
+        Scheme?.Attach(window);
 
         if (IconPath is { Length: > 0 } icon)
             window.SetIconFile(icon);
